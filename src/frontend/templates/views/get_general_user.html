@@ -1,0 +1,12 @@
+{{ define "views/get_general_user.html"}}
+<!--index.html-->
+
+<!--Embed the header.html template at this location-->
+{{ template "layouts/header.html" .}}
+
+{{ template "general_user/get_general_user.html" .}}
+
+<!--Embed the footer.html template at this location-->
+{{ template "layouts/footer.html" .}}
+
+{{ end }}

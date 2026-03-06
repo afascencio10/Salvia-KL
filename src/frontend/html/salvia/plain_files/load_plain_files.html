@@ -1,0 +1,203 @@
+<div class="container">
+  <div class="welcome-section">
+    <h2><b>Cargue de archivos planos</b></h2>
+  </div>
+
+  <div class="mt-3 mb-4">
+    <h3>Atención realizada a usuarios</h3>
+    <p>Con esta opción puede cargar la atención realizada en otras entidades a los usuarios. Se requiere un archivo .CSV
+      separado por comas (,), cuyo encabezado y estructura sea de la siguiente manera en el orden especificado:</p>
+    <ol>
+      <li>Tipo de documento
+        <ul>
+          <li><strong>cc:&nbsp;</strong>Cédula de Ciudadanía</li>
+          <li><strong>ce:&nbsp;</strong>Cédula de Extranjería</li>
+          <li><strong>ti:&nbsp;</strong>Tarjeta de identidad</li>
+          <li><strong>te:&nbsp;</strong>Tarjeta de Extranjería</li>
+          <li><strong>ps:&nbsp;</strong>Pasaporte</li>
+          <li><strong>ni:&nbsp;</strong>NIT</li>
+          <li><strong>dn:&nbsp;</strong>DNI - documento identidad extranjero</li>
+          <li><strong>no:&nbsp;</strong>NIT de otro país</li>
+          <li><strong>rc:&nbsp;</strong>Registro civil</li>
+          <li><strong>sc:&nbsp;</strong>Salvoconducto refugiados SVC</li>
+          <li><strong>pe:&nbsp;</strong>Permiso especial de permanencia - PEP</li>
+          <li><strong>pp:&nbsp;</strong>Permiso de protección temporal</li>
+        </ul>
+      </li>
+      <li>Número de documento</li>
+      <li>Código de entidad</li>
+      <li>Código del caso</li>
+      <li>Momento de la actuación
+        <ul>
+          <li>03</li>
+          <li>04</li>
+          <li>05</li>
+        </ul>
+      </li>
+    </ol>
+    <p><strong>Ejemplo:</strong></p>
+    <p><i><b>cc,8078956453,9005478965,2024-05-01_13:55:20,03</b></i></p>
+  </div>
+
+  <div class="col-md-3 mb-3">
+    <input type="file" ref="serviceFile" @change="handleFileUpload">
+  </div>
+  <div class="row justify-content-center botones">
+
+    {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"upload_user_service",
+    "buttonLabel":"file_load_victim_service_btn", "buttonPlaceHolder":"file_load_victim_service_btn",
+    "onClickHandler":"submit('upload_user_service')"}` .lang .locale}}
+  </div>
+
+  <hr>
+  <div class="mt-3 mb-4">
+    <h3>Sedes de entidades</h3>
+    <p>Con esta opción puede cargar/actualizar las sedes de las entidades a nivel nacional. Las sedes que están en el
+      sistema pero no aparezcan en el archivo se asumirán como que ya no están activas y se suspenderán. Las que
+      coincidan con las del sistema se actualizarán, y las demás se adicionan como nuevas</p>
+    <p>Se requiere un archivo .CSV separado por barra vertical (|), cuyo encabezado y estructura sea de la siguiente manera en el orden especificado:</p>
+    <ol>
+      <li>Código de la sede</li>
+      <li>Nombre de la sede</li>
+      <li>Descripción</li>
+      <li>Dirección de la sede</li>
+      <li>Latitud GPS</li>
+      <li>Longitud GPS</li>
+      <li>Código ciudad</li>
+    </ol>
+    
+    <p><strong>Ejemplo:</strong></p>
+    <p><i><b>b00aee3a-ddad-11ee-a7fc-3ca06777a8d0|UNIDAD LOCAL PUERTO NARIÑO|Ext: 882000 Lunes a Viernes De 8:00 a.m. a 5:00 p.m.|Loma Linda Puerto Nariño|0|0|91001000|9d3ef094-955f-11ee-9008-3ca06777a8d0</b></i></p>
+  </div>
+  <div class="col-sm-12 mb-3">
+      {{ template "labeled_select_entity.html" Select `{"multiple":false, "emptyLabel":"set_victimc_case_empty_select", "emptyValue":"", "mandatory":true, 
+      "containerClass":"form-group", "class":"form-control", "errorClass":"form-control is-invalid", 
+      "selectId":"load_entity_branch_select_entity", "errorSpanId":"load_entity_branch_select_entity_error", 
+      "selectLabel":"load_entity_branch_select_entity", "selectPlaceHolder":"load_entity_branch_select_entity_h", 
+      "entityPath":"workingSpace", "entityName":"entity", "entityAttr":"selectedEntity", "enumsAttr":"entities", "entityEnumLabel":"name", 
+      "entityEnumId":"icode"}` .lang  .locale}}
+
+  </div>
+  <div class="col-md-3 mb-3">
+    <input type="file" ref="branchFile" @change="handleFileUpload">
+  </div>
+  <template v-if="errors.loadPlainFiles">
+    <div v-for="(error, ekey) in errors.loadPlainFiles" class="form-control is-invalid">
+      ${error}
+    </div>
+  </template>
+  <div class="row justify-content-center botones">
+        
+    {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"upload_user_service",
+    "buttonLabel":"file_load_entity_branches_btn", "buttonPlaceHolder":"file_load_entity_branches_btn",
+    "onClickHandler":"submit('upload_entity_branches')"}` .lang .locale}}
+    
+  </div>
+  <hr>
+  {{ template "button.html" Button `{"class":"btn btn-warning", "buttonId":"back", "buttonLabel":"file_load_back_btn",
+  "buttonPlaceHolder":"file_load_back_btn", "onClickHandler":"submit('back')"}` .lang .locale}}
+</div>
+
+{{ template "standard_scripts.html" .}}
+{{ template "overlay.html" .}}
+
+<script>    
+  var home = Vue.createApp({
+    delimiters : ['${', '}'],
+    data() {
+      return {
+        windowTitle:{{.windowTitle}},
+              currentUser:{{.currentUser}},
+        menu:{{.menu}},
+        errors:{},
+        workingSpace:{
+          entity:{selectedEntity:[]},
+          file:{}
+        },
+        enums:{
+          nav_rules: {{.nav_rules}},
+          entities: {{.entities}}
+        }
+      }
+    },
+    watch: {
+        selectedFile(newFile) {
+          // If you need to perform any action when the file changes, you can do it here
+          alert('New file selected:', newFile);
+        }
+    },
+    created: function () {
+      /*getData("/seguridad/usuarios", (function(status, response) {
+      if (status === 200) {
+      //parse JSON datax`x
+
+      this.res = response;
+
+      } else if (status === 404) {
+      console.log("No records found")
+      }
+      }).bind(this));
+      */
+    },
+    mounted:  function () {
+            document.title = {{.windowTitle}};
+      document.getElementById('app').style.display = 'block';
+      home.config.globalProperties.enums = this.enums;
+    },
+    methods: {
+      handleFileUpload() {
+          this.selectedServiceFile = this.$refs.serviceFile.files[0];
+          this.selectedBranchFile = this.$refs.branchFile.files[0];
+        },
+      logout(){
+        logout("/seguridad/logout");
+      },
+      submit(action) {
+        this.errors = {};
+        if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
+          location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+        }else if (action == "upload_user_service"){
+          const formData = new FormData();
+          //alert(this.workingSpace.file.file);
+          //formData.append('file', this.workingSpace.file.file);
+          formData.append('file', this.selectedServiceFile);
+          
+          sendMultipartForm("{{.salviaFormPath}}/victim_service", formData, (function(status, response) {
+            setTimeout(function(){document.getElementById('successOverlay').style.display = 'none';}, 3000)
+            if (status === 200) {
+
+              //this.res.victimCase.newUser = response;
+              //document.getElementById('finishedOverlay').style.display = 'flex';
+             
+            }else if (status === 400) {
+              this.errors = response;
+
+              //alert(JSON.stringify(this.errors));
+            }else {
+              console.log("No records found");
+            }
+          }).bind(this));
+        }else if (action == "upload_entity_branches"){
+          const formData = new FormData();
+          formData.append('file', this.selectedBranchFile);
+          
+          sendMultipartForm("{{.salviaFormPath}}/entity_branch/"+this.workingSpace.entity.selectedEntity, formData, (function(status, response) {
+            setTimeout(function(){document.getElementById('successOverlay').style.display = 'none';}, 3000)
+            if (status === 200) {
+
+              //this.res.victimCase.newUser = response;
+              //document.getElementById('finishedOverlay').style.display = 'flex';
+              
+            }else if (status === 400) {
+              this.errors = response;
+              //alert(JSON.stringify(this.errors));
+            }else {
+              console.log("No records found");
+            }
+          }).bind(this));
+        }        
+      }
+    }
+  });
+  home.mount("#app");
+</script>

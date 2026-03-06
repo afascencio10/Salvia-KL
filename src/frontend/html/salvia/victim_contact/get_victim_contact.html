@@ -1,0 +1,445 @@
+<div class="container">
+    <div class="welcome-section">
+        <h2><b>Primer contacto </b></h2>
+
+
+    </div>
+
+
+    <hr>
+    <!--
+            <ul class="nav nav-tabs" id="myTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link active" id="tab1-tab" data-toggle="tab" href="#tab1" role="tab" aria-controls="tab1" aria-selected="true">Información de mi caso</a>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link" id="tab2-tab" data-toggle="tab" href="#tab2" role="tab" aria-controls="tab2" aria-selected="false">Estado de mi caso</a>
+                </li>
+                
+                
+                
+                <li class="nav-item ml-auto vistas" role="presentation"> 
+                    <button class="btn btn-primary"><i class="fa fa-bell" data-toggle="tooltip" data-placement="top" title="Ver notificaciones"></i>(34)</button>
+                </li>
+           -->
+    </ul>
+    <div class="tab-content" id="myTabContent">
+        <div class="tab-pane fade show active" id="tab1" role="tabpanel" aria-labelledby="tab1-tab">
+            <div id="info-tab">
+                <div class="table1">
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_creation_date"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.creationDate}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_report_type"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.form.reportType.name}</div>
+                        </div>
+                    </div>
+                    
+                </div>
+                
+                <div class="table1" v-if="res.victimContact.form.reportType.code=='r'">
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_has_care_role"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.form.hasCareRole.name}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_victim_aware_of_report"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.form.victimAwareOfReport.name}</div>
+                        </div>
+                    </div>
+                    <div class="item1" v-if="res.victimContact.form.hasCareRole.code=='y'">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_reporter_names"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.form.reporterNames}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_reporter_phone"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.form.reporterPhone}</div>
+                        </div>                       
+                    </div>
+                </div>
+                
+                <div class="table1">
+                    <div class="item1">
+                        <div class="row1" v-if="res.victimContact.form.reportType.code=='v'">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_will_receive_call"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.form.willReceiveCall.name}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_victim_names"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.names}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_victim_last_names"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.lastNames}</div>
+                        </div>
+                    </div>
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_victim_phone_colombia"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.form.victimColPhone}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_best_contact_time"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.form.bestContactTime}</div>
+                        </div>               
+                    </div>
+                     <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_facts_description"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.form.factsDescription}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="tab2" role="tabpanel" aria-labelledby="tab2-tab">
+
+            <div class="ruta-info-container">
+                <div class="icono-principal-ruta">
+                    <img src="/static/images/001-policeman.png" class="imgruta">
+                    <h3>Policía</h3>
+                </div>
+                <div class="linea-progreso-ruta">
+                    <div class="estado-ruta">
+                        <div class="estado-circulo-inicial">
+                            <i class="fas fa-circle"></i>
+                        </div>
+                        <div class="titulo-estado-inicial">Por atender</div>
+
+                    </div>
+                    <div class="estado-ruta">
+                        <div class="estado-circulo-inicial">
+                            <i class="fas fa-circle"></i>
+                        </div>
+                        <div class="titulo-estado-inicial">En proceso</div>
+                    </div>
+                    <div class="estado-ruta">
+                        <div class="estado-circulo-inicial">
+                            <i class="fas fa-circle"></i>
+                        </div>
+                        <div class="titulo-estado-inicial">Atendido</div>
+                    </div>
+
+                </div>
+
+                <div class="botones-container">
+                    <a href="infocaso.html"><button class="btn btn-primary"><i class="fas fa-eye"></i></button></a>
+                    <button class="btn btn-primary icono-mas">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="tabla-desplegable" class="tabla-desplegable">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo de actualización</th>
+                            <th>Responsable</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>09.09.23</td>
+                            <td>Caso es atentido y está en proceso por parte de la entidad</td>
+                            <td>Nombre de Funcionario</td>
+                        </tr>
+                        <tr>
+                            <td>09.09.23</td>
+                            <td>Caso es atentido y está en proceso por parte de la entidad</td>
+                            <td>Nombre de Funcionario</td>
+                        </tr>
+                        <tr>
+                            <td>09.09.23</td>
+                            <td>Caso es atentido y está en proceso por parte de la entidad</td>
+                            <td>Nombre de Funcionario</td>
+                        </tr>
+                        <tr>
+                            <td>09.09.23</td>
+                            <td>Caso es atentido y está en proceso por parte de la entidad</td>
+                            <td>Nombre de Funcionario</td>
+                        </tr>
+                        <!-- Añade más filas si es necesario -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="ruta-info-container">
+                <div class="icono-principal-ruta">
+                    <img src="/static/images/002-foster-family.png" class="imgruta">
+                    <h3>Familia</h3>
+                </div>
+                <div class="linea-progreso-ruta-vencido">
+                    <div class="estado-ruta">
+                        <div class="estado-circulo">
+                            <i class="fas fa-exclamation-triangle" style="color:#ffc7c8;"></i>
+                        </div>
+                        <div class="titulo-estado" style="color:#ffc7c8;">VENCIDO</div>
+                    </div>
+
+
+                </div>
+                <div class="botones-container">
+                    <button class="btn btn-primary"><i class="fa fa-eye"></i></button>
+
+                </div>
+            </div>
+            <div class="ruta-info-container">
+                <div class="icono-principal-ruta">
+                    <img src="/static/images/003-balance.png" class="imgruta">
+                    <h3>Justicia</h3>
+                </div>
+                <div class="linea-progreso-ruta-iniciada">
+                    <div class="estado-ruta">
+                        <div class="estado-circulo">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="titulo-estado">Por atender</div>
+                    </div>
+                    <div class="estado-ruta">
+                        <div class="estado-circulo">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+
+                        <div class="titulo-estado">En proceso</div>
+                    </div>
+                    <div class="estado-ruta">
+                        <div class="estado-circulo-inicial">
+                            <i class="fas fa-circle"></i>
+                        </div>
+                        <div class="titulo-estado-inicial">Atendido</div>
+                    </div>
+                </div>
+                <div class="botones-container">
+                    <button class="btn btn-primary"><i class="fa fa-eye"></i></button>
+
+                </div>
+            </div>
+
+            <div class="ruta-info-container">
+                <div class="icono-principal-ruta">
+                    <img src="/static/images/003-balance.png" class="imgruta">
+                    <h3>Justicia</h3>
+                </div>
+                <div class="linea-progreso-ruta-iniciada">
+                    <div class="estado-ruta">
+                        <div class="estado-circulo">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="titulo-estado">Por atender</div>
+                    </div>
+                    <div class="estado-ruta">
+                        <div class="estado-circulo">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="titulo-estado">En proceso</div>
+                    </div>
+                    <div class="estado-ruta">
+                        <div class="estado-circulo-inicial">
+                            <i class="fas fa-circle"></i>
+                        </div>
+                        <div class="titulo-estado-inicial">Atendido</div>
+                    </div>
+                </div>
+                <div class="botones-container">
+                    <button class="btn btn-primary">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-primary icono-mas">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+
+            </div>
+            <div id="tabla-desplegable" class="tabla-desplegable">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo de actualización</th>
+                            <th>Responsable</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>09.09.23</td>
+                            <td>Caso es atentido y está en proceso por parte de la entidad</td>
+                            <td>Nombre de Funcionario</td>
+                        </tr>
+                        <tr>
+                            <td>09.09.23</td>
+                            <td>Caso es atentido y está en proceso por parte de la entidad</td>
+                            <td>Nombre de Funcionario</td>
+                        </tr>
+                        <tr>
+                            <td>09.09.23</td>
+                            <td>Caso es atentido y está en proceso por parte de la entidad</td>
+                            <td>Nombre de Funcionario</td>
+                        </tr>
+                        <tr>
+                            <td>09.09.23</td>
+                            <td>Caso es atentido y está en proceso por parte de la entidad</td>
+                            <td>Nombre de Funcionario</td>
+                        </tr>
+                        <!-- Añade más filas si es necesario -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="ruta-info-container">
+                <div class="icono-principal-ruta">
+                    <img src="/static/images/healthcare_x2C__medical_x2C__protection_1_.png" class="imgruta">
+                    <h3>Salud</h3>
+                </div>
+                <div class="linea-progreso-ruta-finalizada">
+                    <div class="estado-ruta">
+                        <div class="estado-circulo">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="titulo-estado">Por atender</div>
+                    </div>
+                    <div class="estado-ruta">
+                        <div class="estado-circulo">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+
+                        <div class="titulo-estado">En proceso</div>
+                    </div>
+                    <div class="estado-ruta">
+                        <div class="estado-circulo">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="titulo-estado">Atendido</div>
+                    </div>
+                </div>
+                <div class="botones-container">
+                    <button class="btn btn-primary"><i class="fa fa-eye"></i></button>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="row justify-content-center botones">
+        {{ template "button.html" Button `{"class":"btn btn-secondary", "buttonId":"back",
+        "buttonLabel":"get_victim_contact_back", "buttonPlaceHolder":"get_victim_contact_back_h",
+        "onClickHandler":"submit('back')"}` .lang .locale}}
+        <template v-if="res.victimContact.status != 'i'">
+            {{ template "button.html" Button `{"class":"btn btn-warning", "buttonId":"save", "buttonLabel":"victim_contact_invalidate_save", "buttonPlaceHolder":"victim_contact_invalidate_save", "onClickHandler":"submit('openInvalidate')"}` .lang .locale}}
+        </template>
+            {{ template "button.html" Button `{"class":"btn btn-info", "buttonId":"new", "buttonLabel":"victim_contact_new_case", "buttonPlaceHolder":"victim_contact_new_case", "onClickHandler":"submit('newCase')"}` .lang .locale}}
+    </div>
+
+</div>
+<div class="overlay" id="invalidateOverlay" style="display: none;">
+    <div class="popup-container popup-container2" id="popup">
+      <div>
+        <h2>{{ template "text_translated.html" Text `{"text":"get_victim_contact_invalidate_title"}` .lang .locale}}</h2>
+          
+          <p>{{ template "text_translated.html" Text `{"text":"get_victim_contact_invalidate_msg"}` .lang .locale}}</p>
+          <div class="row">
+            <div class="col-md-12 mb-3">
+              {{ template "labeled_textarea.html" TextArea `{"class":"form-control",
+              "errorClass":"form-control is-invalid", "textAreaId":"victim_contact_invalidate_description",
+              "rows":"5", "errorSpanId":"victim_contact_invalidate_description_error",
+              "textAreaLabel":"victim_contact_invalidate_description", "textAreaPlaceHolder":"victim_contact_invalidate_description_h",
+              "entityPath":"res", "entityName":"victimContact", "entityAttr":"statusDescription"}` .lang .locale }}
+            </div>
+          </div>
+          
+        <div class="row justify-content-xl-center botones">
+            {{ template "button.html" Button `{"class":"btn btn-secondary", "buttonId":"back", "buttonLabel":"victim_contact_invalidate_back", "buttonPlaceHolder":"victim_contact_invalidate_back", "onClickHandler":"submit('closeInvalidate')"}` .lang .locale}}
+            {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"save", "buttonLabel":"victim_contact_invalidate_save", "buttonPlaceHolder":"victim_contact_invalidate_save", "onClickHandler":"submit('invalidate')"}` .lang .locale}}
+        </div>
+      </div>
+        
+    </div>
+</div>
+
+        {{ template "standard_scripts.html" .}}
+        {{ template "overlay.html" .}}
+          
+        <script>
+        
+          var home = Vue.createApp({
+            delimiters : ['${', '}'],
+            data() {
+              return {
+                windowTitle:{{.windowTitle}},
+                currentUser:{{.currentUser}},
+                errors:{},
+                res:{
+                    victimContact:JSON.parse({{.victimContacts}})
+                },
+                enums:{
+                    victimContactStatus:{{.victimContactStatus}},
+                    nav_rules: {{.nav_rules}},
+
+                    yes_no:{{.yes_no}},
+                    victim_case_form2_report_type:{{.victimCaseForm2ReportType}}
+                }
+              }
+            },
+            created: function () {
+            },
+            mounted:  function () {
+                document.title = {{.windowTitle}};
+                document.getElementById('app').style.display = 'block';
+                home.config.globalProperties.enums = this.enums;
+
+                if(this.res.victimContact.form.icode == ""){
+                    //Si no hay datos en el formulario antiguo, se utiliza el nuevo
+                    this.res.victimContact.form = this.res.victimContact.form2
+                }
+              
+            },
+            methods: {
+                logout(){
+                    logout("/seguridad/logout");
+                },
+                submit(action,event) {
+                    if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
+                        location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+                    }else if(action == "openInvalidate"){
+                        document.getElementById('invalidateOverlay').style.display = 'flex';
+                    }else if(action == "closeInvalidate"){
+                        document.getElementById('invalidateOverlay').style.display = 'none';
+                    }else if(action == "invalidate"){
+                        updateEntity("{{.salviaFormPath}}/"+this.res.victimContact.icode+"/invalidar", this.res, (function(status, response) {
+                        
+                        if (status === 200) {
+                            
+                            if(home.config.globalProperties.enums.nav_rules["default"]){
+                                location.assign(home.config.globalProperties.enums.nav_rules["default"]);
+                            }else if(home.config.globalProperties.enums.nav_rules[action]){
+                                location.assign(home.config.globalProperties.enums.nav_rules[action]);
+                            }
+                            
+                        } else if (status === 400) {
+                            document.getElementById('successOverlay').style.display = 'none';
+                            this.errors = response;
+                        }else {
+                            document.getElementById('successOverlay').style.display = 'none';
+                            alert("Se produjo un error interno, por favor vuelva a intentarlo");
+                        }
+                        }).bind(this));
+                    }else if(action == "newCase"){
+                        location.assign("{{.salviaVictimCaseFormPath}}/"+this.res.victimContact.icode+"/nuevo");
+                    }else if(home.config.globalProperties.enums.nav_rules[action]){
+                        location.assign(home.config.globalProperties.enums.nav_rules[action]);
+                    }       
+                }
+            }
+          });
+          
+          home.mount("#app");
+        
+          
+        </script>
+        
+        

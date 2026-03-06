@@ -1,0 +1,962 @@
+
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-12">
+      <div id="alert" v-if="!errors.default" class="alert alert-warning alert-dismissible">{{ template "text_translated.html" Text `{"text":"set_victim_case_operator_warning"}` .lang .locale}}</div>
+      <div id="alert" v-if="errors.default&&errors.default.global_msg" class="alert alert-danger alert-dismissible">${errors.default.global_msg}</div>
+      <div class="step-container active" id="step-container1">
+        
+        <div class="welcome-section">
+          <h2><b>{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_header"}` .lang .locale}} </b></h2>
+        </div>
+  
+        <div class="tituloform">
+          <i class="fas fa-female fa-2x"></i>
+          <h2>{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_general_info"}` .lang .locale}}</h2>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form","mandatory":true,"errorClass":"error_input",
+            "inputId":"feminicide_risk_victim_names","inputType":"text","errorSpanId":"feminicide_risk_victim_names_error","inputLabel":"feminicide_risk_victim_names","inputPlaceHolder":"feminicide_risk_victim_names_h",
+            "entityPath":"data","entityName":"feminicideRisk","entityAttr":"names"}` .lang .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form","mandatory":true,"errorClass":"error_input",
+            "inputId":"feminicide_risk_victim_last_names","inputType":"text","errorSpanId":"feminicide_risk_victim_last_names_error","inputLabel":"feminicide_risk_victim_last_names","inputPlaceHolder":"feminicide_risk_victim_last_names_h",
+            "entityPath":"data","entityName":"feminicideRisk","entityAttr":"lastNames"}` .lang .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6 mb-6">
+            {{ template "labeled_select_enums.html" Select `{"emptyLabel":"victim_case_form2_empty_select", "emptyValue":"", "containerClass":"form-group", "mandatory":true,
+                "class":"form-control input_form", "errorClass":"error_input",
+                "selectId":"feminicide_risk_victim_doc_type", "errorSpanId":"feminicide_risk_victim_doc_type_error",
+                "selectLabel":"feminicide_risk_victim_doc_type", "selectPlaceHolder":"feminicide_risk_victim_doc_type_h",
+                "entityPath":"data", "entityName":"feminicideRisk", "entityAttr":"victimDocType",
+                "enumsAttr":"docType2"}` .lang .locale}}
+          </div>
+          <div class="col-sm-6 mb-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form","mandatory":true,"errorClass":"error_input",
+            "inputId":"feminicide_risk_victim_doc_number","inputType":"text","errorSpanId":"feminicide_risk_victim_doc_number_error","inputLabel":"feminicide_risk_victim_doc_number","inputPlaceHolder":"feminicide_risk_victim_doc_number_h",
+            "entityPath":"data","entityName":"feminicideRisk","entityAttr":"victimDocNumber"}` .lang .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-12">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form","mandatory":true,"errorClass":"error_input",
+            "inputId":"feminicide_risk_form1_identity_name","inputType":"text","errorSpanId":"feminicide_risk_form1_identity_name_error","inputLabel":"feminicide_risk_form1_identity_name","inputPlaceHolder":"feminicide_risk_form1_identity_name_h",
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimIdentityName"}` .lang .locale}}
+          </div>
+        </div>
+
+
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_birth_date","inputType":"date", 
+            "errorSpanId":"feminicide_risk_form1_birth_date_error", "inputLabel":"feminicide_risk_form1_birth_date","inputPlaceHolder":"feminicide_risk_form1_birth_date_h", 
+            "entityPath":"data.feminicideRisk","entityName":"form", "entityAttr":"birthDate"}` .lang .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", "emptyValue":"",
+            "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_affiliation_regime", 
+            "errorSpanId":"feminicide_risk_form1_affiliation_regime_error", "selectLabel":"feminicide_risk_form1_affiliation_regime", "selectPlaceHolder":"feminicide_risk_form1_affiliation_regime_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimSGSSSAffiliation", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-12">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_eps_name","inputType":"text", 
+            "errorSpanId":"feminicide_risk_form1_eps_name_error", "inputLabel":"feminicide_risk_form1_eps_name","inputPlaceHolder":"feminicide_risk_form1_eps_name_h", 
+            "entityPath":"data.feminicideRisk","entityName":"form", "entityAttr":"epsName"}` .lang .locale}}
+          </div>
+          
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_address","inputType":"text", 
+            "errorSpanId":"feminicide_risk_form1_address_error", "inputLabel":"feminicide_risk_form1_address","inputPlaceHolder":"feminicide_risk_form1_address_h", 
+            "entityPath":"data.feminicideRisk","entityName":"form", "entityAttr":"victimAddress"}` .lang .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", 
+            "selectId":"feminicide_risk_form1_residence_zone", "errorSpanId":"feminicide_risk_form1_residence_zone_error", "selectLabel":"feminicide_risk_form1_residence_zone", "selectPlaceHolder":"feminicide_risk_form1_residence_zone_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimZone", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-4">
+			      <label>{{ template "text_translated.html" Text `{"text":"get_victim_case_department"}` .lang .locale}}</label>
+            <select  class="form-control input_form"  id="departments" @change="changeDepartment($event)"
+              v-model="data.departmentSelected">
+              <option v-for="(dep, idx) in enums.departments" :value="dep.icode" :key="idx">${dep.name}</option>
+            </select>
+          </div>
+			    <div class="col-sm-4">
+			      <label v-if="data.cities.length > 0">{{ template "text_translated.html" Text `{"text":"get_victim_case_city"}` .lang .locale}}</label>
+              <select v-if="data.cities.length > 0" class="form-control input_form"  id="cities" @change="changeCity($event)"
+                v-model="data.citySelected">
+                <option v-for="(city, idx) in data.cities" :value="city.code" :key="idx">${city.name}</option>
+              </select>           
+          </div>
+          <div class="col-sm-4">
+			      <label v-if="data.towns.length > 0" >{{ template "text_translated.html" Text `{"text":"get_victim_case_town"}` .lang .locale}}</label>
+              <select v-if="data.towns.length > 0" class="form-control input_form"  id="towns" @change="changeTown($event)"
+                v-model="data.feminicideRisk.form.victimLivingTownCode">
+                <option v-for="(town, idx) in data.towns" :value="town.code" :key="idx">${town.name}</option>
+              </select>           
+          </div>
+			  </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_contact_phone","inputType":"tel", 
+            "errorSpanId":"feminicide_risk_form1_contact_phone_error", "inputLabel":"feminicide_risk_form1_contact_phone","inputPlaceHolder":"feminicide_risk_form1_contact_phone_h", 
+            "entityPath":"data.feminicideRisk","entityName":"form", "entityAttr":"contactPhone"}` .lang .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_emergency_contact_name","inputType":"text", 
+            "errorSpanId":"feminicide_risk_form1_emergency_contact_name_error", "inputLabel":"feminicide_risk_form1_emergency_contact_name","inputPlaceHolder":"feminicide_risk_form1_emergency_contact_name_h", 
+            "entityPath":"data.feminicideRisk","entityName":"form", "entityAttr":"contactEmergencyContactNames"}` .lang .locale}}
+          </div>
+        </div>
+            
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_emergency_contact_number","inputType":"tel", 
+            "errorSpanId":"feminicide_risk_form1_emergency_contact_number_error", "inputLabel":"feminicide_risk_form1_emergency_contact_number","inputPlaceHolder":"feminicide_risk_form1_emergency_contact_number_h", 
+            "entityPath":"data.feminicideRisk","entityName":"form", "entityAttr":"contactEmergencyContactNumber"}` .lang .locale}}
+          </div>
+          <div class="col-sm-6">
+            
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_marital_status", 
+            "errorSpanId":"feminicide_risk_form1_marital_status_error", "selectLabel":"feminicide_risk_form1_marital_status", "selectPlaceHolder":"feminicide_risk_form1_marital_status_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimMaritalStatus", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_sex", 
+            "errorSpanId":"feminicide_risk_form1_sex_error", "selectLabel":"feminicide_risk_form1_sex", "selectPlaceHolder":"feminicide_risk_form1_sex_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimSex", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_gender_identity", 
+            "errorSpanId":"feminicide_risk_form1_gender_identity_error", "selectLabel":"feminicide_risk_form1_gender_identity", "selectPlaceHolder":"feminicide_risk_form1_gender_identity_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimGenderIdentity", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_sexual_orientation", 
+            "errorSpanId":"feminicide_risk_form1_sexual_orientation_error", "selectLabel":"feminicide_risk_form1_sexual_orientation", "selectPlaceHolder":"feminicide_risk_form1_sexual_orientation_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimSexualOrientation", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_ethnic_affiliation", 
+            "errorSpanId":"feminicide_risk_form1_ethnic_affiliation_error", "selectLabel":"feminicide_risk_form1_ethnic_affiliation", "selectPlaceHolder":"feminicide_risk_form1_ethnic_affiliation_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimEthnicAffiliation", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_indigenous_people", 
+            "errorSpanId":"feminicide_risk_form1_indigenous_people_error", "selectLabel":"feminicide_risk_form1_indigenous_people", "selectPlaceHolder":"feminicide_risk_form1_indigenous_people_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimIndigenousPeople", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+        </div>
+        
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_migrant_population", 
+            "errorSpanId":"feminicide_risk_form1_migrant_population_error", "selectLabel":"feminicide_risk_form1_migrant_population", "selectPlaceHolder":"feminicide_risk_form1_migrant_population_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimIsMigrant", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_migration_status", 
+            "errorSpanId":"feminicide_risk_form1_migration_status_error", "selectLabel":"feminicide_risk_form1_migration_status", "selectPlaceHolder":"feminicide_risk_form1_migration_status_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimMigrationStatus", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_education_level", 
+            "errorSpanId":"feminicide_risk_form1_education_level_error", "selectLabel":"feminicide_risk_form1_education_level", "selectPlaceHolder":"feminicide_risk_form1_education_level_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimMaxEducationLevel", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_special_population", 
+            "errorSpanId":"feminicide_risk_form1_special_population_error", "selectLabel":"feminicide_risk_form1_special_population", "selectPlaceHolder":"feminicide_risk_form1_special_population_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimIsSpecialPopulation", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_current_employment", 
+            "errorSpanId":"feminicide_risk_form1_current_employment_error", "selectLabel":"feminicide_risk_form1_current_employment", "selectPlaceHolder":"feminicide_risk_form1_current_employment_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimCurrentlyHasJob", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimJobExplanation"}` .lang .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_job_loss_due_to_risk", 
+            "errorSpanId":"feminicide_risk_form1_job_loss_due_to_risk_error", "selectLabel":"feminicide_risk_form1_job_loss_due_to_risk", "selectPlaceHolder":"feminicide_risk_form1_job_loss_due_to_risk_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimAbandonedJobDueToRisk", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_occupation", 
+            "errorSpanId":"feminicide_risk_form1_occupation_error", "selectLabel":"feminicide_risk_form1_occupation", "selectPlaceHolder":"feminicide_risk_form1_occupation_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimMainOccupation", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_disability", 
+            "errorSpanId":"feminicide_risk_form1_disability_error", "selectLabel":"feminicide_risk_form1_disability", "selectPlaceHolder":"feminicide_risk_form1_disability_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimHasDisability", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_disability_type", 
+            "errorSpanId":"feminicide_risk_form1_disability_type_error", "selectLabel":"feminicide_risk_form1_disability_type", "selectPlaceHolder":"feminicide_risk_form1_disability_type_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimDisabilityType", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-12">
+          {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_risk_violence_description","inputType":"text", 
+          "errorSpanId":"feminicide_risk_form1_risk_violence_description_error", "inputLabel":"feminicide_risk_form1_risk_violence_description","inputPlaceHolder":"feminicide_risk_form1_risk_violence_description_h", 
+          "entityPath":"data.feminicideRisk","entityName":"form", "entityAttr":"victimRiskDescription"}` .lang .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-12">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form","mandatory":true, "errorClass":"error_input", "inputId":"feminicide_risk_form1_additional_information", "inputType":"text", 
+          "errorSpanId":"feminicide_risk_form1_additional_information_error", "inputLabel":"feminicide_risk_form1_additional_information", "inputPlaceHolder":"feminicide_risk_form1_additional_information_h", 
+          "entityPath":"data.feminicideRisk", "entityName":"form","entityAttr":"victimAdditionalInfo"}` .lang .locale}}
+          </div>
+        </div>
+          
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_received_help_subsidy_personal_family", 
+            "errorSpanId":"feminicide_risk_form1_received_help_subsidy_personal_family_error", "selectLabel":"feminicide_risk_form1_received_help_subsidy_personal_family", "selectPlaceHolder":"feminicide_risk_form1_received_help_subsidy_personal_family_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"anyAssistanceReceived", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form","mandatory":true,"errorClass":"error_input","inputId":"feminicide_risk_form1_received_help_subsidy_personal_family_explanation","inputType":"text",
+            "errorSpanId":"feminicide_risk_form1_received_help_subsidy_personal_family_explanation_error","inputLabel":"feminicide_risk_form1_received_help_subsidy_personal_family_explanation","inputPlaceHolder":"feminicide_risk_form1_received_help_subsidy_personal_family_explanation_h",
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"assistanceReceived"}` .lang .locale}}
+          </div>
+        </div>
+        
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_any_help_city_hall", 
+            "errorSpanId":"feminicide_risk_form1_any_help_city_hall_error", "selectLabel":"feminicide_risk_form1_any_help_city_hall", "selectPlaceHolder":"feminicide_risk_form1_received_help_subsidy_personal_family_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"anyAssistanceReceivedCityHall", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form","mandatory":true,"errorClass":"error_input","inputId":"feminicide_risk_form1_explain","inputType":"text",
+            "errorSpanId":"feminicide_risk_form1_explain_error","inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"assistanceReceivedCityHall"}` .lang .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_any_help_womens_office", 
+            "errorSpanId":"feminicide_risk_form1_any_help_womens_office_error", "selectLabel":"feminicide_risk_form1_any_help_womens_office", "selectPlaceHolder":"feminicide_risk_form1_received_help_subsidy_personal_family_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"anyAssistanceReceivedWomensOffice", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form","mandatory":true,"errorClass":"error_input","inputId":"feminicide_risk_form1_explain","inputType":"text",
+            "errorSpanId":"feminicide_risk_form1_explain_error","inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"assistanceReceivedWomensOffice"}` .lang .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_any_help_other_entity", 
+            "errorSpanId":"feminicide_risk_form1_any_help_other_entity_error", "selectLabel":"feminicide_risk_form1_any_help_other_entity", "selectPlaceHolder":"feminicide_risk_form1_any_help_other_entity_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"anyAssistanceReceivedOtherEntity", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form","mandatory":true,"errorClass":"error_input","inputId":"feminicide_risk_form1_explain","inputType":"text",
+            "errorSpanId":"feminicide_risk_form1_explain_error","inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"assistanceReceivedOtherEntity"}` .lang .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_any_help_other", 
+            "errorSpanId":"feminicide_risk_form1_any_help_other_error", "selectLabel":"feminicide_risk_form1_any_help_other", "selectPlaceHolder":"feminicide_risk_form1_any_help_other_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"anyAssistanceReceivedOther", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form","mandatory":true,"errorClass":"error_input","inputId":"feminicide_risk_form1_explain","inputType":"text",
+            "errorSpanId":"feminicide_risk_form1_explain_error","inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"assistanceReceivedOther"}` .lang .locale}}
+          </div>
+        </div>
+
+                
+
+        <div class="tituloform">
+          <i class="fas fa-female fa-2x"></i>
+          <h2>{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_family_info"}` .lang .locale}}</h2>
+        </div>
+
+        
+        <label>{{ template "text_translated.html" Text `{"text":"feminicide_form1_family_members_label"}` .lang .locale}}</label>
+
+        <div class="row">
+          <div class="col-sm-4">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_family_mother","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_family_mother_error", "inputLabel":"feminicide_risk_form1_family_mother","inputPlaceHolder":"feminicide_risk_form1_family_mother_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"familyFather"}` .lang .locale}}
+          </div>
+          <div class="col-sm-4">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_family_father","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_family_father_error", "inputLabel":"feminicide_risk_form1_family_father","inputPlaceHolder":"feminicide_risk_form1_family_father_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"familyMother"}` .lang .locale}}
+          </div>
+          <div class="col-sm-4">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_family_stepfather","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_family_stepfather_error", "inputLabel":"feminicide_risk_form1_family_stepfather","inputPlaceHolder":"feminicide_risk_form1_family_stepfather_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"familyStepfather"}` .lang .locale}}
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-sm-4">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_family_stepmother","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_family_stepmother_error", "inputLabel":"feminicide_risk_form1_family_stepmother","inputPlaceHolder":"feminicide_risk_form1_family_stepmother_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"familyStepmother"}` .lang .locale}}
+          </div>
+          <div class="col-sm-4">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_family_partner","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_family_partner_error", "inputLabel":"feminicide_risk_form1_family_partner","inputPlaceHolder":"feminicide_risk_form1_family_partner_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"familyPartner"}` .lang .locale}}
+          </div>
+          <div class="col-sm-4">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_family_sibling1","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_family_sibling1_error", "inputLabel":"feminicide_risk_form1_family_sibling1","inputPlaceHolder":"feminicide_risk_form1_family_sibling1_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"familySibling1"}` .lang .locale}}
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-sm-4">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_family_sibling2","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_family_sibling2_error", "inputLabel":"feminicide_risk_form1_family_sibling2","inputPlaceHolder":"feminicide_risk_form1_family_sibling2_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"familySibling2"}` .lang .locale}}
+          </div>
+          <div class="col-sm-4">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_family_sibling3","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_family_sibling3_error", "inputLabel":"feminicide_risk_form1_family_sibling3","inputPlaceHolder":"feminicide_risk_form1_family_sibling3_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"familySibling3"}` .lang .locale}}
+          </div>
+          <div class="col-sm-4">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_family_sibling4","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_family_sibling4_error", "inputLabel":"feminicide_risk_form1_family_sibling4","inputPlaceHolder":"feminicide_risk_form1_family_sibling4_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"familySibling4"}` .lang .locale}}
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-sm-4">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_family_sibling5","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_family_sibling5_error", "inputLabel":"feminicide_risk_form1_family_sibling5","inputPlaceHolder":"feminicide_risk_form1_family_sibling5_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"familySibling5"}` .lang .locale}}
+          </div>
+          <div class="col-sm-4">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_family_son_daughter1","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_family_son_daughter1_error", "inputLabel":"feminicide_risk_form1_family_son_daughter1","inputPlaceHolder":"feminicide_risk_form1_family_son_daughter1_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"familySonDaughter1"}` .lang .locale}}
+          </div>
+          <div class="col-sm-4">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_family_son_daughter2","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_family_son_daughter2_error", "inputLabel":"feminicide_risk_form1_family_son_daughter2","inputPlaceHolder":"feminicide_risk_form1_family_son_daughter2_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"familySonDaughter2"}` .lang .locale}}
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-sm-4">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_family_son_daughter3","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_family_son_daughter3_error", "inputLabel":"feminicide_risk_form1_family_son_daughter3","inputPlaceHolder":"feminicide_risk_form1_family_son_daughter3_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"familySonDaughter3"}` .lang .locale}}
+          </div>
+          <div class="col-sm-4">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_family_son_daughter4","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_family_son_daughter4_error", "inputLabel":"feminicide_risk_form1_family_son_daughter4","inputPlaceHolder":"feminicide_risk_form1_family_son_daughter4_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"familySonDaughter4"}` .lang .locale}}
+          </div>
+          <div class="col-sm-4">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_family_son_daughter5","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_family_son_daughter5_error", "inputLabel":"feminicide_risk_form1_family_son_daughter5","inputPlaceHolder":"feminicide_risk_form1_family_son_daughter5_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"familySonDaughter5"}` .lang .locale}}
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-sm-4">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_family_grandmother","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_family_grandmother_error", "inputLabel":"feminicide_risk_form1_family_grandmother","inputPlaceHolder":"feminicide_risk_form1_family_grandmother_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"familyGrandmother"}` .lang .locale}}
+          </div>
+          <div class="col-sm-4">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_family_grandfather","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_family_grandfather_error", "inputLabel":"feminicide_risk_form1_family_grandfather","inputPlaceHolder":"feminicide_risk_form1_family_grandfather_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"familyGrandfather"}` .lang .locale}}
+          </div>
+          <div class="col-sm-4">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_family_other_member","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_family_other_member_error", "inputLabel":"feminicide_risk_form1_family_other_member","inputPlaceHolder":"feminicide_risk_form1_family_other_member_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"familyOtherMember"}` .lang .locale}}
+          </div>
+        </div>
+
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"multiple", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_financially_dependent_people", 
+            "errorSpanId":"feminicide_risk_form1_financially_dependent_people_error", "selectLabel":"feminicide_risk_form1_financially_dependent_people", "selectPlaceHolder":"feminicide_risk_form1_financially_dependent_people_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"financiallyDependentPeople", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_economic_provider", 
+            "errorSpanId":"feminicide_risk_form1_economic_provider_error", "selectLabel":"feminicide_risk_form1_economic_provider", "selectPlaceHolder":"feminicide_risk_form1_economic_provider_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimIsEconomicProvider", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimEconomicProviderExplanation"}` .lang .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_trusted_person", 
+            "errorSpanId":"feminicide_risk_form1_trusted_person_error", "selectLabel":"feminicide_risk_form1_trusted_person", "selectPlaceHolder":"feminicide_risk_form1_trusted_person_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimHasFamiliarSupport", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_trusted_person_help_type", 
+            "errorSpanId":"feminicide_risk_form1_trusted_person_help_type_error", "selectLabel":"feminicide_risk_form1_trusted_person_help_type", "selectPlaceHolder":"feminicide_risk_form1_trusted_person_help_type_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimFamiliarSupportType", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+        </div>
+
+         <div class="tituloform">
+          <i class="fas fa-female fa-2x"></i>
+          <h2>{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_transportation_info"}` .lang .locale}}</h2>
+        </div>
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_conmutation_access", 
+            "errorSpanId":"feminicide_risk_form1_conmutation_access_error", "selectLabel":"feminicide_risk_form1_conmutation_access", "selectPlaceHolder":"feminicide_risk_form1_conmutation_access_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimPublicTransportAccess", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_conmutation_mode", 
+            "errorSpanId":"feminicide_risk_form1_conmutation_mode_error", "selectLabel":"feminicide_risk_form1_conmutation_mode", "selectPlaceHolder":"feminicide_risk_form1_conmutation_mode_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimCommonTransportMode", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimTransportModeExplanation"}` .lang .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_conmutation_cost","inputType":"number", 
+            "errorSpanId":"feminicide_risk_form1_conmutation_cost_error", "inputLabel":"feminicide_risk_form1_conmutation_cost","inputPlaceHolder":"feminicide_risk_form1_conmutation_cost_h", 
+            "entityPath":"data.feminicideRisk","entityName":"form", "entityAttr":"victimEstimatedTravelCost"}` .lang .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"multiple", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_places_visit_regularly", 
+            "errorSpanId":"feminicide_risk_form1_places_visit_regularly_error", "selectLabel":"feminicide_risk_form1_places_visit_regularly", "selectPlaceHolder":"feminicide_risk_form1_places_visit_regularly_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"placesVisitRegularly", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_transport_difficulty", 
+            "errorSpanId":"feminicide_risk_form1_transport_difficulty_error", "selectLabel":"feminicide_risk_form1_transport_difficulty", "selectPlaceHolder":"feminicide_risk_form1_transport_difficulty_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimDifficultiesWithTransport", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimDifficultiesExplanation"}` .lang .locale}}
+          </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_income_to_transport", 
+            "errorSpanId":"feminicide_risk_form1_income_to_transport_error", "selectLabel":"feminicide_risk_form1_income_to_transport", "selectPlaceHolder":"feminicide_risk_form1_income_to_transport_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimEconomicResourcesForTransport", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimEconomicResourcesExplanation"}` .lang .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_debt_due_to_transport", 
+            "errorSpanId":"feminicide_risk_form1_debt_due_to_transport_error", "selectLabel":"feminicide_risk_form1_debt_due_to_transport", "selectPlaceHolder":"feminicide_risk_form1_debt_due_to_transport_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimHasDebtOrHelpDueToTransport", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimDebtImpactDetails"}` .lang .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_transport_subsidy_received", 
+            "errorSpanId":"feminicide_risk_form1_transport_subsidy_received_error", "selectLabel":"feminicide_risk_form1_transport_subsidy_received", "selectPlaceHolder":"feminicide_risk_form1_transport_subsidy_received_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimReceivedTransportSubsidy", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimTransportSubsidyExplanation"}` .lang .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_avoided_transport_security_reason", 
+            "errorSpanId":"feminicide_risk_form1_avoided_transport_security_reason_error", "selectLabel":"feminicide_risk_form1_avoided_transport_security_reason", "selectPlaceHolder":"feminicide_risk_form1_avoided_transport_security_reason_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimSafetyAvoidedTransport", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimSafetyAvoidedExplanation"}` .lang .locale}}
+          </div>
+        </div>
+       
+        <div class="tituloform">
+          <i class="fas fa-female fa-2x"></i>
+          <h2>{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_nutrition_header"}` .lang .locale}}</h2>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", 
+            "selectId":"feminicide_risk_form1_meals_frequency", "errorSpanId":"feminicide_risk_form1_meals_frequency_error", "selectLabel":"feminicide_risk_form1_meals_frequency", "selectPlaceHolder":"feminicide_risk_form1_meals_frequency_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimFoodAccessFrequency", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimFoodAccessExplanation"}` .lang .locale}}
+          </div>
+        </div>
+        
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_food_restriction", 
+            "errorSpanId":"feminicide_risk_form1_food_restriction_error", "selectLabel":"feminicide_risk_form1_food_restriction", "selectPlaceHolder":"feminicide_risk_form1_food_restriction_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimAgressorFoodRestriction", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimAgressorFoodRestrictionExplanation"}` .lang .locale}}
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_family_income", 
+            "errorSpanId":"feminicide_risk_form1_family_income_error", "selectLabel":"feminicide_risk_form1_family_income", "selectPlaceHolder":"feminicide_risk_form1_family_income_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimFamilyFixedIncome", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimFamilyFixedIncomeExplanation"}` .lang .locale}}
+          </div>
+        </div>
+        
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_only_provider", 
+            "errorSpanId":"feminicide_risk_form1_only_provider_error", "selectLabel":"feminicide_risk_form1_only_provider", "selectPlaceHolder":"feminicide_risk_form1_only_provider_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimIsOnlyProviderForFood", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimIsOnlyProviderExplanation"}` .lang .locale}}
+          </div>
+        </div>
+
+        <div class="tituloform">
+          <i class="fas fa-female fa-2x"></i>
+          <h2>{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_physco_header"}` .lang .locale}}</h2>
+        </div>
+
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_legal_advice_received", 
+            "errorSpanId":"feminicide_risk_form1_legal_advice_received_error", "selectLabel":"feminicide_risk_form1_legal_advice_received", "selectPlaceHolder":"feminicide_risk_form1_legal_advice_received_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimJuridicalAssistanceReceived", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimJuridicalAssistanceExplain"}` .lang .locale}}
+          </div>
+        </div>
+        
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_legal_advice_requested", 
+            "errorSpanId":"feminicide_risk_form1_legal_advice_requested_error", "selectLabel":"feminicide_risk_form1_legal_advice_requested", "selectPlaceHolder":"feminicide_risk_form1_legal_advice_requested_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimWantsJuridicalAssistance", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_victim_representation", 
+            "errorSpanId":"feminicide_risk_form1_victim_representation_error", "selectLabel":"feminicide_risk_form1_victim_representation", "selectPlaceHolder":"feminicide_risk_form1_victim_representation_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimRepresentationsOfVictims", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-12">
+             {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimRepresentationsExplanation"}` .lang .locale}}
+          </div>
+         
+        </div>
+          
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_psychosocial_support", 
+            "errorSpanId":"feminicide_risk_form1_psychosocial_support_error", "selectLabel":"feminicide_risk_form1_psychosocial_support", "selectPlaceHolder":"feminicide_risk_form1_psychosocial_support_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimPsychosocialSupportReceived", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimPsychosocialSupportReceivedExplain"}` .lang .locale}}
+          </div>
+        </div>
+        
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_emergency_crisis", 
+            "errorSpanId":"feminicide_risk_form1_emergency_crisis_error", "selectLabel":"feminicide_risk_form1_emergency_crisis", "selectPlaceHolder":"feminicide_risk_form1_emergency_crisis_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimUrgentEmotionalCrisis", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimUrgentCrisisExplanation"}` .lang .locale}}
+          </div>
+        </div>
+        
+        <div class="tituloform">
+          <i class="fas fa-female fa-2x"></i>
+          <h2>{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_housing_header"}` .lang .locale}}</h2>
+        </div>
+        
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_abuser_lives_with", 
+            "errorSpanId":"feminicide_risk_form1_abuser_lives_with_error", "selectLabel":"feminicide_risk_form1_abuser_lives_with", "selectPlaceHolder":"feminicide_risk_form1_abuser_lives_with_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"aggressorSameResidence", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"aggressorSameResidenceExplanation"}` .lang .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_abuser_knows_address", 
+            "errorSpanId":"feminicide_risk_form1_abuser_knows_address_error", "selectLabel":"feminicide_risk_form1_abuser_knows_address", "selectPlaceHolder":"feminicide_risk_form1_abuser_knows_address_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"aggressorKnowsVictimLocation", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"aggressorKnowsVictimLocationExplanation"}` .lang .locale}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_rent_assistance", 
+            "errorSpanId":"feminicide_risk_form1_rent_assistance_error", "selectLabel":"feminicide_risk_form1_rent_assistance", "selectPlaceHolder":"feminicide_risk_form1_rent_assistance_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimHousingHelpReceived", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimHousingHelpExplain"}` .lang .locale}}
+          </div>
+        </div>
+
+        <div class="tituloform">
+          <i class="fas fa-female fa-2x"></i>
+          <h2>{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_clothing_header"}` .lang .locale}}</h2>
+        </div>
+
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_abandoned_clothing", 
+            "errorSpanId":"feminicide_risk_form1_abandoned_clothing_error", "selectLabel":"feminicide_risk_form1_abandoned_clothing", "selectPlaceHolder":"feminicide_risk_form1_abandoned_clothing_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimAbandonClothing", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimAbandonClothingExplain"}` .lang .locale}}
+          </div>
+        </div>
+        
+        
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"feminicide_risk_form1_clothing_assistance", 
+            "errorSpanId":"feminicide_risk_form1_clothing_assistance_error", "selectLabel":"feminicide_risk_form1_clothing_assistance", "selectPlaceHolder":"feminicide_risk_form1_clothing_assistance_h", 
+            "entityPath":"data.feminicideRisk", "entityName":"form", "entityAttr":"victimClothingHelpReceived", "enumsAttr":"victimCaseForm2Enums", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_explain","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_explain_error", "inputLabel":"feminicide_risk_form1_explain","inputPlaceHolder":"feminicide_risk_form1_explain_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimClothingHelpExplain"}` .lang .locale}}
+          </div>
+        </div>
+
+        <div class="tituloform">
+          <i class="fas fa-female fa-2x"></i>
+          <h2>{{ template "text_translated.html" Text `{"text":"feminicide_risk_other_support_header"}` .lang .locale}}</h2>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_other_needs","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_other_needs_error", "inputLabel":"feminicide_risk_form1_other_needs","inputPlaceHolder":"feminicide_risk_form1_other_needs_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"victimOtherNeeds"}` .lang .locale}}
+          </div>
+          <div class="col-sm-6">
+            {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,"errorClass":"error_input", "inputId":"feminicide_risk_form1_summary","inputType":"text",  
+            "errorSpanId":"feminicide_risk_form1_summary_error", "inputLabel":"feminicide_risk_form1_summary","inputPlaceHolder":"feminicide_risk_form1_summary_h",  
+            "entityPath":"data.feminicideRisk","entityName":"form","entityAttr":"summary"}` .lang .locale}}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- Bootstrap JS y jQuery (al final del documento para optimizar la carga) -->
+
+    {{ template "standard_scripts.html" .}}
+    {{ template "overlay.html" .}}
+    {{ template "html_helper_scripts.html" .}}
+    <script>
+      //var init = function(){
+        
+        var home = Vue.createApp({
+          delimiters : ['${', '}'],
+          components: {
+            CustomSelect,
+            DateTimeInput
+          },
+          
+          data() {
+            return {
+              tmp:false,
+              windowTitle:{{.windowTitle}},
+              currentUser:{{.currentUser}},
+              errors:{},
+              data: {
+                default:new Object(),
+                departmentSelected: "",
+                citySelected: "",
+                townSelected: "",
+                department2Selected: "",
+                citySelected2: "",
+                townSelected2: "",
+                
+                cities: [],
+                towns: [],
+                cities2: [],
+                towns2: [],
+                cities3: [],
+                towns3: [],
+                feminicideRisk:{{.feminicideRisk}},
+              },
+              enums:{
+                
+                
+                language: {{.language}},
+                nav_rules: {{.nav_rules}},
+                
+                //New form ----------
+                yes_no: {{.yes_no}},
+                docType2:{{.docType2}},
+                
+                
+                //-----------------
+                
+                departments: JSON.parse({{.departments}}),
+                cities: [],
+                towns: []
+              },
+              message:''
+            }
+          },
+          created: function () {
+          
+          },
+          mounted:  function () {
+            document.title = {{.windowTitle}};
+            document.getElementById('app').style.display = 'block';
+            home.config.globalProperties.enums = this.enums;
+            
+          },
+          methods: {
+            logout(){
+                logout("/seguridad/logout");
+            },
+            getEntityNameByICode (iCode){
+              console.log(JSON.stringify(this.data.victimCase.entityBranchesByMomentIdx,null,2));
+              for (let idx = 0; idx < this.enums.entities.length; idx++) {
+                if(this.enums.entities[idx].icode == iCode){
+                    return this.enums.entities[idx].name;
+                }
+              }
+             
+              return "";
+            },
+            
+            changeDepartment (event) {
+              this.data.cities =  {};
+                this.data.towns = {};
+                this.data.feminicideRisk.form.victimLivingTownCode = "";
+                
+              getEntity("{{.securityCityFormPath}}/"+this.data.departmentSelected+"/departamento", (function(status, response) {
+                
+                if (status === 200) {
+                  this.data.cities =  response;
+                } 
+                else if (status === 400) {
+                  this.errors = response;
+                  
+                  alert(JSON.stringify(this.errors));
+                }else if (status === 404) {
+                  console.log("No records found")
+                }
+              }).bind(this), true);
+            },
+            
+            changeCity (event) {
+              this.data.towns =  {};
+              getEntity("{{.securityTownFormPath}}/"+this.data.citySelected+"/codigo_ciudad", (function(status, response) {
+                
+                if (status === 200) {
+                  this.data.towns =  response;
+                } 
+                else if (status === 400) {
+                  this.errors = response;
+                  
+                  alert(JSON.stringify(this.errors));
+                }else if (status === 404) {
+                  console.log("No records found")
+                }
+              }).bind(this), true);
+            },
+            
+            changeTown (event) {
+              
+            },
+            buildInput(inputId, errorSpanId, inputLabel, inputPlaceHolder, entityName, entityAttr) {
+              return buildInput(inputId, errorSpanId, inputLabel, inputPlaceHolder, entityName, entityAttr)
+            },
+            buildSelect(selectId, errorSpanId, selectLabel, selectPlaceHolder, entityName, entityAttr, enumsAttr) {
+              return buildSelect(selectId, errorSpanId, selectLabel, selectPlaceHolder, entityName, entityAttr, enumsAttr);
+            },
+            
+            submit(action,event) {
+              if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
+                location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+              }
+              
+            },
+            getCities(action,event) {
+              
+            },
+            logout(){
+                logout("/seguridad/logout");
+            }
+          }
+        });
+        
+        //home.directive('click-outside', clickOutsideDirective);
+
+        home.mount("#app");
+
+
+     // };
+    </script>

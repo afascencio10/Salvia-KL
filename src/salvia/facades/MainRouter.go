@@ -1,0 +1,228 @@
+package salvia_facades
+
+import (
+	"bitsflow/common/db"
+	"bitsflow/common/utils"
+	salvia_config "bitsflow/salvia/config"
+	salvia_ctrl "bitsflow/salvia/controllers"
+	salvia_daos "bitsflow/salvia/dao"
+
+	"github.com/gin-gonic/gin"
+)
+
+//var dbClientConfig db.DBClientConfig = db.DBClientConfig{Hostname: "localhost", Port: "5432", DatabaseName: "salvia", UserName: "postgres", Password: "asd876.!@asdSDS5436"}
+
+// var dbClientConfig db.DBClientConfig = db.DBClientConfig{Hostname: "localhost", Port: "5432", DatabaseName: "salvia", UserName: "salvia_admin", Password: "asd876.!@asdSDS5a36Z"}
+var dbClientConfig db.DBClientConfig
+
+// var dbClientConfig db.DBClientConfig = db.DBClientConfig{Hostname: "localhost", Port: "5432", DatabaseName: "salvia", UserName: "postgres", Password: "123456"}
+var dbServerConfig db.DBServerConfig = db.DBServerConfig{PoolSize: 80}
+
+const module string = "salvia"
+
+//var Templates *template.Template//
+
+func StartRouter(router *gin.Engine) {
+	dbClientConfig = utils.LoadDBCLientConfig()
+
+	var translatedModule string = salvia_config.Locale["sp"][module]
+	var translatedEntity string
+	var translatedNew string = salvia_config.Locale["sp"]["new"]
+	var translatedUpdate string = salvia_config.Locale["sp"]["update"]
+	var translatedInvalidate string = salvia_config.Locale["sp"]["invalidate"]
+	var translatedReport string = salvia_config.Locale["sp"]["report"]
+	var translatedDocument string = salvia_config.Locale["sp"]["documentType"]
+
+	secRouter := router.Group("/" + translatedModule)
+	{
+
+		/*
+			VictimContact
+		*/
+		translatedEntity = salvia_config.Locale["sp"][salvia_daos.VictimContactEntityName]
+
+		secRouter.POST("/public", VictimContactPOST_Public)
+		secRouter.GET("/public/"+translatedNew, VictimContactPOST_GET_Public)
+
+		secRouter.POST("/"+translatedEntity, VictimContactPOST)
+		secRouter.PUT("/"+translatedEntity+"/:id/"+translatedInvalidate, VictimContactPUT) // Invalidar
+		secRouter.GET("/"+translatedEntity, VictimContactGET)
+		secRouter.GET("/"+translatedEntity+"/p/:p", VictimContactGET)
+		secRouter.GET("/"+translatedEntity+"/f/:f/p/:p", VictimContactGET)
+		secRouter.GET("/"+translatedEntity+"/"+translatedNew, VictimContactPOST_GET)
+		secRouter.GET("/"+translatedEntity+"/:id", VictimContactGET)
+		/*
+			----------------------------------------------------------
+		*/
+
+		/*
+			VictimCase
+		*/
+		translatedEntity = salvia_config.Locale["sp"][salvia_daos.VictimCaseEntityName]
+
+		secRouter.POST("/"+translatedEntity, VictimCasePOST)
+		secRouter.POST("/"+translatedEntity+"/:id", VictimCasePOST)
+
+		secRouter.GET("/"+translatedEntity+"/:id"+"/"+translatedNew, VictimCasePOST_GET)
+		secRouter.GET("/"+translatedEntity+"/"+translatedNew, VictimCasePOST_GET)
+		secRouter.GET("/"+translatedEntity+"/:id"+"/"+translatedUpdate, VictimCasePUT_GET)
+		secRouter.GET("/"+translatedEntity, VictimCaseGET)
+		secRouter.GET("/"+translatedEntity+"/p/:p", VictimCaseGET)
+		secRouter.GET("/"+translatedEntity+"/f/:f/p/:p", VictimCaseGET)
+
+		secRouter.GET("/"+translatedEntity+"/:id", VictimCaseGET)
+		secRouter.GET("/"+translatedEntity+"/:id/", VictimCaseGET)
+
+		secRouter.GET("/"+translatedEntity+"/:id/"+translatedDocument+"/:docType", VictimCaseGET)
+		secRouter.GET("/"+translatedEntity+"/:id/"+translatedDocument+"/:docType"+"/p/:p", VictimCaseGET)
+
+		secRouter.PUT("/"+translatedEntity, VictimCasePUT)
+
+		secRouter.PUT("/"+translatedEntity+"/:id/:by", VictimCasePUT)
+		secRouter.PUT("/"+translatedEntity+"/:id/:by/:form", VictimCasePUT)
+
+		secRouter.GET("/"+translatedEntity+"/"+translatedReport, VictimCaseReportGET)
+		secRouter.POST("/"+translatedEntity+"/"+translatedReport, VictimCaseReportPOST)
+
+		/*
+			EntityBranch
+		*/
+		translatedEntity = salvia_config.Locale["sp"][salvia_daos.EntityBranchName]
+
+		secRouter.GET("/"+translatedEntity, EntityBranchGET)
+
+		secRouter.GET("/"+translatedEntity+"/e/:entityICode/tc/:townCode/", EntityBranchGET)
+		secRouter.GET("/"+translatedEntity+"/e/:entityICode/tc/:townCode", EntityBranchGET)
+
+		secRouter.GET("/"+translatedEntity+"/:townCode/by/:by/", EntityBranchGET)
+		secRouter.GET("/"+translatedEntity+"/:townCode/by/:by", EntityBranchGET)
+
+		secRouter.POST("/"+translatedEntity, EntityBranchPOST)
+		secRouter.PUT("/"+translatedEntity, EntityBranchPUT)
+
+		/*
+			Entity
+		*/
+		translatedEntity = salvia_config.Locale["sp"][salvia_daos.EntityEntityName]
+
+		secRouter.GET("/"+translatedEntity, EntityGET)
+		secRouter.GET("/"+translatedEntity+"/:sectorCode", EntityGET)
+
+		/*
+			Moment
+		*/
+		translatedEntity = salvia_config.Locale["sp"][salvia_daos.MomentEntityName]
+
+		secRouter.PUT("/"+translatedEntity+"/:id/:momentCode/:entityBranchIcode", MomentPUT)
+
+		/*
+			Alert
+		*/
+		translatedEntity = salvia_config.Locale["sp"][salvia_daos.AlertEntityName]
+
+		secRouter.GET("/"+translatedEntity, AlertGET)
+		secRouter.GET("/"+translatedEntity+"/:id/:by/", AlertGET)
+		secRouter.GET("/"+translatedEntity+"/:id/:by", AlertGET)
+
+		/*
+			CaseLog
+		*/
+		translatedEntity = salvia_config.Locale["sp"][salvia_daos.CaseLogEntityName]
+
+		secRouter.POST("/"+translatedEntity+"/:id", CaseLogPOST)
+
+		/*
+			LoadPlainFile
+		*/
+		translatedEntity = salvia_config.Locale["sp"][salvia_daos.LoadPlainFilesEntityName]
+
+		secRouter.POST("/"+translatedEntity+"/:srv", LoadPlainFilePOST)
+		secRouter.POST("/"+translatedEntity+"/:srv/:id", LoadPlainFilePOST)
+		secRouter.GET("/"+translatedEntity+"/"+translatedNew, LoadPlainFilePOST_GET)
+
+		/*
+			AssignOperators
+		*/
+		translatedEntity = salvia_config.Locale["sp"][salvia_daos.AssignOperatorsEntityName]
+
+		secRouter.POST("/"+translatedEntity+"/:by/:p1/:p2", AssignOperatorsPOST)
+		secRouter.GET("/"+translatedEntity, AssignOperatorsPOST_GET)
+
+		/*
+			FollowUp
+		*/
+		translatedEntity = salvia_config.Locale["sp"][salvia_daos.FollowUpEntityName]
+
+		secRouter.POST("/"+translatedEntity+"/:id", FollowUpPOST)
+		secRouter.PUT("/"+translatedEntity+"/:id/", FollowUpPUT)
+		secRouter.PUT("/"+translatedEntity+"/:id", FollowUpPUT)
+
+		/*
+			FollowUpEntry
+		*/
+		translatedEntity = salvia_config.Locale["sp"][salvia_daos.FollowUpEntryEntityName]
+
+		secRouter.PUT("/"+translatedEntity+"/:id/", FollowUpEntryPUT)
+		secRouter.PUT("/"+translatedEntity+"/:id", FollowUpEntryPUT)
+
+		/*
+			Barrier
+		*/
+		translatedEntity = salvia_config.Locale["sp"][salvia_daos.BarrierEntityName]
+
+		secRouter.GET("/"+translatedEntity+"/:id/", BarrierGET)
+		secRouter.GET("/"+translatedEntity+"/:id", BarrierGET)
+		secRouter.GET("/"+translatedEntity+"/:id/:by/", BarrierGET)
+		secRouter.GET("/"+translatedEntity+"/:id/:by", BarrierGET)
+
+		/*
+			FollowUpEntryActing
+		*/
+		translatedEntity = salvia_config.Locale["sp"][salvia_daos.FollowUpEntryActingEntityName]
+
+		secRouter.POST("/"+translatedEntity+"/e/:e/b/:b", FollowUpEntryActingPOST)
+
+		/*
+			Feminicide
+		*/
+		translatedEntity = salvia_config.Locale["sp"][salvia_daos.FeminicideEntityName]
+
+		secRouter.GET("/"+translatedEntity, FeminicideGET)
+		secRouter.GET("/"+translatedEntity+"/"+translatedNew, FeminicidePOST_GET)
+		secRouter.POST("/"+translatedEntity+"/"+translatedNew, FeminicidePOST)
+
+		/*
+			FeminicideRisk
+		*/
+		translatedEntity = salvia_config.Locale["sp"][salvia_daos.FeminicideRiskEntityName]
+
+		secRouter.GET("/"+translatedEntity, FeminicideRiskGET)
+		secRouter.GET("/"+translatedEntity+"/:id/"+translatedNew, FeminicideRiskPOST_GET)
+		secRouter.POST("/"+translatedEntity+"/"+translatedNew, FeminicideRiskPOST)
+
+		/*
+			----------------------------------------------------------
+		*/
+
+	}
+
+	secRouter = router.Group("/public")
+	{
+
+		/*
+			VictimContact
+		*/
+		translatedEntity = salvia_config.Locale["sp"][salvia_daos.VictimContactEntityName]
+
+		secRouter.POST("/"+translatedEntity+"/"+translatedNew, VictimContactPOST_Public)
+		secRouter.GET("/"+translatedEntity+"/"+translatedNew, VictimContactPOST_GET_Public)
+
+		/*
+			----------------------------------------------------------
+		*/
+
+	}
+
+	salvia_ctrl.GetVictimCaseForm2EnumsByAll(&db.ConnData{}, dbClientConfig, dbServerConfig)
+
+}

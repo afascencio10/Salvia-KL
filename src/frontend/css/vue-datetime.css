@@ -1,0 +1,48 @@
+.datetime-input-wrapper {
+    --dt-font: 'DM Mono', 'Fira Code', monospace;
+    --dt-radius: 8px;
+    --dt-border: #CBD5E1;
+    --dt-border-focus: #6a00db;
+    --dt-border-error: #EF4444;
+    --dt-bg: #FFFFFF;
+    --dt-bg-segment-focus: #EFF6FF;
+    --dt-text: #47325e;
+    --dt-text-placeholder: #94A3B8;
+    --dt-text-separator: #64748B;
+    --dt-hint: #64748B;
+    --dt-error: #DC2626;
+    --dt-label: #47325e;
+    --dt-clear: #6a00db;
+    --dt-shadow-focus: 0 0 0 3px rgba(44, 0, 116, 0.2);
+    --dt-shadow-error: 0 0 0 3px rgba(51, 0, 85, 0.15);
+
+    display: inline-flex;
+    flex-direction: column;
+    gap: 6px;
+    font-family: var(--dt-font);
+
+    /* Reset fieldset */
+    border: none;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+  }
+  .sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0; }
+  .datetime-label { font-family:'DM Sans',sans-serif;font-size:.875rem;font-weight:500;color:var(--dt-label);display:flex;align-items:center;gap:3px;padding:0;float:left;width:100%; }
+  .required-mark { color:var(--dt-error);font-size:1rem;line-height:1; }
+  .datetime-field { display:inline-flex;align-items:center;border:1.5px solid var(--dt-border);border-radius:var(--dt-radius);background:var(--dt-bg);padding:0 10px;height:40px;gap:1px;transition:border-color .15s,box-shadow .15s; }
+  .is-focused .datetime-field { border-color:var(--dt-border-focus);box-shadow:var(--dt-shadow-focus); }
+  .has-error .datetime-field { border-color:var(--dt-border-error);box-shadow:var(--dt-shadow-error); }
+  .datetime-segment { font-family:var(--dt-font);font-size:.9rem;font-variant-numeric:tabular-nums;color:var(--dt-text);background:transparent;border:none;outline:none;text-align:center;padding:2px 3px;border-radius:4px;transition:background-color .1s;-moz-appearance:textfield; }
+  .datetime-segment::-webkit-outer-spin-button,.datetime-segment::-webkit-inner-spin-button { -webkit-appearance:none;margin:0; }
+  .segment-DD,.segment-MM,.segment-YY,.segment-hh,.segment-mm,.segment-ss { width:3ch; }
+  .segment-YYYY { width:5ch; }
+  .datetime-segment::placeholder { color:var(--dt-text-placeholder); }
+  .datetime-segment:focus { background-color:var(--dt-bg-segment-focus);color:#2563EB; }
+  .datetime-separator { font-family:var(--dt-font);font-size:.9rem;color:var(--dt-text-separator);user-select:none;padding:0 1px; }
+  .datetime-clear { display:flex;align-items:center;justify-content:center;background:none;border:none;padding:3px;margin-left:6px;color:var(--dt-clear);cursor:pointer;border-radius:4px;transition:color .15s,background-color .15s;flex-shrink:0; }
+  .datetime-clear:hover { color:#EF4444;background-color:#FEF2F2; }
+  .datetime-clear:focus-visible { outline:2px solid var(--dt-border-focus);outline-offset:1px; }
+  .datetime-hint { font-family:'DM Sans',sans-serif;font-size:.75rem;color:var(--dt-hint); }
+  .datetime-error { font-family:'DM Sans',sans-serif;font-size:.75rem;color:var(--dt-error);display:flex;align-items:center;gap:4px; }
+  .datetime-error::before { content:'⚠';font-size:.7rem; }

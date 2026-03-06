@@ -1,0 +1,1746 @@
+
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-12">
+      <div id="alert" v-if="errors.default&&errors.default.global_msg" class="alert alert-danger alert-dismissible">${errors.default.global_msg}</div>
+      <div class="step-container active" id="step-container1">
+        
+        <template v-if="!data.victimCase.form2.authorizationAnswer || !data.victimCase.form2.authorizationAnswer.code || data.victimCase.form2.authorizationAnswer.code!='y'">
+          <div class="tituloform">
+            <i class="fas fa-list-alt fa-2x"></i>
+            <h2>Autorización de datos personales</h2>
+          </div>
+          <p>Antes de continuar, le informamos que el Ministerio de Igualdad y Equidad va a registrar algunos de sus datos personales para prestarle la atención y para los procesos del Registro de Igualdad y Equidad, conforme a la ley colombiana de protección de datos (Ley 1581 de 2012 y Resolución 772 de 2024).</p>
+          <p>Sus datos serán usados únicamente para fines institucionales relacionados con su atención y los servicios del Ministerio.</p>
+          <p>Usted tiene derecho a:</p>
+          <ul>
+            <li>Conocer los datos que tenemos sobre usted</li>
+            <li>Actualizarlos o corregirlos</li>
+            <li>Solicitar copia de esta autorización</li>
+            <li>Saber cómo se han usado sus datos</li>
+            <li>Presentar quejas ante la Superintendencia de Industria y Comercio si considera que sus datos se usan indebidamente</li>
+            <li>Solicitar la eliminación de sus datos cuando sea procedente</li>
+            <li>Acceder gratuitamente a su información</li>
+          </ul>
+          <p>También puede consultar en cualquier momento la Política de Tratamiento de Datos Personales del Ministerio.</p>
+          <p>Adicionalmente, si nos entrega un correo electrónico, autoriza que le enviemos notificaciones oficiales por ese medio.</p>
+          <p>Con esta información, le preguntamos:</p>
+          
+          <div class="row">
+            <div class="col-md-5 mb-5">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
+              "selectId":"victim_case_form2_authorization_answer", "errorSpanId":"victim_case_form2_authorization_answer_error", 
+              "selectLabel":"victim_case_form2_authorization_answer", "selectPlaceHolder":"victim_case_form2_authorization_answer_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"authorizationAnswer", "enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+          </div>
+        </template>
+        <template v-else-if="data.victimCase.form2.authorizationAnswer &&  data.victimCase.form2.authorizationAnswer.code=='y'">
+          
+          <div id="alert" class="alert alert-warning alert-dismissible">
+            <p><b>Debida Diligencia</b></p>
+            <hr>
+            <p>El Sistema Nacional de Registro, Atención, Seguimiento y Monitoreo de las Violencias Basadas en Género- SALVIA del Ministerio de Igualdad y Equidad le informa que, como parte de su deber legal de protección de derechos y atención integral, después de esta atención la entidad podrá realizar las acciones necesarias para dar trámite y seguimiento a la información suministrada.</p>
+            <p>Cuando durante la atención se identifiquen situaciones que puedan requerir protección, intervención institucional o conocimiento de otras autoridades, el Sistema SALVIA del Ministerio podrá activar las rutas de atención correspondientes y remitir la información a las entidades competentes, con el propósito de garantizar la protección, la atención integral y el acceso a la justicia cuando sea necesario.</p>
+            <p>Estas actuaciones hacen parte de las obligaciones del Estado de prevenir, atender e investigar posibles vulneraciones de derechos y se realizan conforme a la normativa vigente, con respeto por la confidencialidad de la información, la protección de datos personales y el enfoque de derechos.</p>
+          </div>
+          <div class="tituloform">
+            <i class="fas fa-female fa-2x"></i>
+            <h2>{{ template "text_translated.html" Text `{"text":"victim_case_form2_victim_header"}` .lang .locale}}</h2>
+          </div>
+          
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,
+            "errorClass":"error_input", "inputId":"victim_case_victim_names",
+            "inputType":"text", "errorSpanId":"victim_case_victim_names_error", "inputLabel":"victim_case_victim_names",
+            "inputPlaceHolder":"victim_case_victim_names_h", "entityPath":"data",
+            "entityName":"victimCase", "entityAttr":"names"}` .lang .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,             
+            "errorClass":"error_input", "inputId":"victim_case_victim_last_names",             
+            "inputType":"text", "errorSpanId":"victim_case_victim_last_names_error", "inputLabel":"victim_case_victim_last_names",
+            "inputPlaceHolder":"victim_case_victim_last_names_h", "entityPath":"data",
+            "entityName":"victimCase", "entityAttr":"lastNames"}` .lang .locale}}
+            </div>
+                    
+          </div>
+
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":false,
+              "errorClass":"error_input", "inputId":"victim_case_form2_victim_identity_names",
+              "inputType":"text", "errorSpanId":"victim_case_form2_victim_identity_names_error", "inputLabel":"victim_case_form2_victim_identity_names",
+              "inputPlaceHolder":"victim_case_form2_victim_identity_names_h", "entityPath":"data.victimCase",
+              "entityName":"form2", "entityAttr":"identityName"}` .lang .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,
+              "errorClass":"error_input", "inputId":"victim_case_form2_victim_phone",
+              "inputType":"number", "errorSpanId":"victim_case_form2_victim_phone_error", "inputLabel":"victim_case_form2_victim_phone",
+              "inputPlaceHolder":"victim_case_form2_victim_phone_h", "entityPath":"data.victimCase",
+              "entityName":"form2", "entityAttr":"phone"}` .lang .locale}}
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_enums.html" Select `{"emptyLabel":"victim_case_form2_empty_select", "emptyValue":"", "containerClass":"form-group", "mandatory":true,
+                  "class":"form-control input_form", "errorClass":"error_input",
+                  "selectId":"victim_case_form2_victim_doc_type", "errorSpanId":"victim_case_form2_victim_doc_type_error",
+                  "selectLabel":"victim_case_form2_victim_doc_type", "selectPlaceHolder":"victim_case_form2_victim_doc_type_h",
+                  "entityPath":"data", "entityName":"victimCase", "entityAttr":"docType",
+                  "enumsAttr":"docType2"}` .lang .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,
+              "errorClass":"error_input", "inputId":"victim_case_form2_victim_doc_number",
+              "inputType":"text", "errorSpanId":"victim_case_form2_victim_doc_number_error", "inputLabel":"victim_case_form2_victim_doc_number",
+              "inputPlaceHolder":"victim_case_form2_victim_doc_number_h", "entityPath":"data",
+              "entityName":"victimCase", "entityAttr":"docNumber"}` .lang .locale}}
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+              "selectId":"victim_case_form2_residence_zone", "errorSpanId":"victim_case_form2_residence_zone_error", "selectLabel":"victim_case_form2_residence_zone", "selectPlaceHolder":"victim_case_form2_residence_zone_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"residenceZone", "enumsAttr":"victim_case_form2_facts_zone", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              <label>{{ template "text_translated.html" Text `{"text":"get_victim_case_department"}` .lang .locale}}</label>
+              <select  :class="{'form-control input_form':data.department3Selected!='' || !errors.form2||!errors.form2.residenceTownCode,
+                                  'error_input input_form':errors.form2 && errors.form2.residenceTownCode && data.department3Selected==''}"  id="departments3" @change="changeDepartment3($event)"
+                v-model="data.department3Selected">
+                <option v-for="(dep, idx) in enums.departments" :value="dep.icode" :key="idx">${dep.name}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-6">
+              <label v-if="data.cities3.length > 0">{{ template "text_translated.html" Text `{"text":"get_victim_case_city"}` .lang .locale}}</label>
+                <select v-if="data.cities3.length > 0" :class="{'form-control input_form':data.city3Selected!='' || !errors.form2 ||!errors.form2.residenceTownCode,
+                  'error_input input_form':errors.form2 && errors.form2.residenceTownCode && data.city3Selected==''}"  id="cities3" @change="changeCity3($event)"
+                  v-model="data.city3Selected">
+                  <option v-for="(city, idx) in data.cities3" :value="city.code" :key="idx">${city.name}</option>
+                </select>           
+            </div>
+            <div class="col-sm-6">
+              <label v-if="data.towns3.length > 0" >{{ template "text_translated.html" Text `{"text":"get_victim_case_town"}` .lang .locale}}</label>
+                <select v-if="data.towns3.length > 0" :class="{'form-control input_form':!errors.form2||!errors.form2.residenceTownCode,
+                  'error_input input_form':errors.form2 && errors.form2.residenceTownCode}"  id="towns3" @change="changeTown3($event)"
+                  v-model="data.victimCase.form2.residenceTownCode">
+                  <option v-for="(town, idx) in data.towns3" :value="town.code" :key="idx">${town.name}</option>
+                </select>           
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-12">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true, "errorClass":"error_input", 
+              "inputId":"victim_case_form2_residence_address", "inputType":"text", "errorSpanId":"victim_case_form2_residence_address_error", "inputLabel":"victim_case_form2_residence_address",
+              "inputPlaceHolder":"victim_case_form2_residence_address_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"residenceAddress"}` .lang .locale}}
+            </div>
+            
+          </div>
+
+          <div class="row">
+            <div class="col-sm-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", "emptyValue":"",
+              "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"person_with_disability",
+              "errorSpanId":"person_with_disability_error", "selectLabel":"person_with_disability", "selectPlaceHolder":"person_with_disability_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"personWithDisability", "enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+            </div>
+            <div class="col-sm-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"multiple", "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", "emptyValue":"",
+              "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+              "selectId":"victim_case_form2_adjustments_gbv", "errorSpanId":"victim_case_form2_adjustments_gbv_error", 
+              "selectLabel":"victim_case_form2_adjustments_gbv", "selectPlaceHolder":"victim_case_form2_adjustments_gbv_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"adjustmentsGBV", "enumsAttr":"victim_case_form2_adjustments_gbv", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true} ` .lang .locale}}
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-sm-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", "emptyValue":"",
+              "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"victim_case_form2_requires_language_interpreter",
+              "errorSpanId":"victim_case_form2_requires_language_interpreter_error", "selectLabel":"victim_case_form2_requires_language_interpreter", "selectPlaceHolder":"victim_case_form2_requires_language_interpreter_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"requireLanguageInterpreter", "enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+            </div>
+            <div class="col-sm-6" v-if="data.victimCase.form2.requireLanguageInterpreter.code == 'y'">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":false,
+              "errorClass":"error_input", "inputId":"victim_case_form2_language_assistance",
+              "inputType":"text", "errorSpanId":"victim_case_form2_language_assistance_error", "inputLabel":"victim_case_form2_language_assistance",
+              "inputPlaceHolder":"victim_case_form2_language_assistance_h", "entityPath":"data.victimCase",
+              "entityName":"form2", "entityAttr":"languageAssistance"}` .lang .locale}}
+            </div>
+          </div>
+
+          <div class="tituloform">
+            <i class="fas fa-life-ring fa-2x"></i>
+            <h2>{{ template "text_translated.html" Text `{"text":"victim_case_form2_support_header"}` .lang .locale}}</h2>
+          </div>
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":false,
+              "errorClass":"error_input", "inputId":"victim_case_form2_support_contact_names",
+              "inputType":"text", "errorSpanId":"victim_case_form2_support_contact_names_error", "inputLabel":"victim_case_form2_support_contact_names",
+              "inputPlaceHolder":"victim_case_form2_support_contact_names_h", "entityPath":"data.victimCase",
+              "entityName":"form2", "entityAttr":"supportContactNames"}` .lang .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":false,
+              "errorClass":"error_input", "inputId":"victim_case_form2_support_contact_phone",
+              "inputType":"number", "errorSpanId":"victim_case_form2_support_contact_phone_error", "inputLabel":"victim_case_form2_support_contact_phone",
+              "inputPlaceHolder":"victim_case_form2_support_contact_phone_h", "entityPath":"data.victimCase",
+              "entityName":"form2", "entityAttr":"supportContactPhone"}` .lang .locale}}
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":false,
+              "errorClass":"error_input", "inputId":"victim_case_form2_support_contact_email",
+              "inputType":"email", "errorSpanId":"victim_case_form2_support_contact_email_error", "inputLabel":"victim_case_form2_support_contact_email",
+              "inputPlaceHolder":"victim_case_form2_support_contact_email_h", "entityPath":"data.victimCase",
+              "entityName":"form2", "entityAttr":"supportContactEmail"}` .lang .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":false, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+              "selectId":"victim_case_form2_support_contact_kinship", "errorSpanId":"victim_case_form2_support_contact_kinship_error", "selectLabel":"victim_case_form2_support_contact_kinship", "selectPlaceHolder":"victim_case_form2_support_contact_kinship_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"supportContactKinship", "enumsAttr":"victim_case_form2_support_contact_kinship", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+          </div>
+
+            <div class="tituloform">
+              <i class="fas fa-fire fa-2x"></i>
+              <h2>{{ template "text_translated.html" Text `{"text":"victim_case_form2_facts_header"}` .lang .locale}}</h2>
+            </div>
+          <div class="row">
+              <div class="col-md-12 mb-3">
+                {{ template "labeled_textarea.html" TextArea `{"class":"form-control input_form","mandatory":true,
+                "errorClass":"error_input", "textAreaId":"victim_case_form2_facts_description",
+                "rows":"5", "errorSpanId":"victim_case_form2_facts_description_error",
+                "textAreaLabel":"victim_case_form2_facts_description", "textAreaPlaceHolder":"victim_case_form2_facts_description_h",
+                "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"factsDescription"}` .lang .locale }}
+              </div>
+            </div>
+
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "date_time.html" DateTime `{"class":"", "mandatory":true,
+                "errorClass":"error_input", "dateTimeId":"victim_case_form2_occurrence_date",
+                "dateTimeFormat":"DD/MM/YYYY", "errorSpanId":"victim_case_form2_occurrence_date_error", "dateTimeLabel":"victim_case_form2_occurrence_date",
+                "dateTimePlaceHolder":"victim_case_form2_occurrence_date_h", "entityPath":"data.victimCase",
+                "entityName":"form2","entityAttr":"factsDate"}` .lang .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "date_time.html" DateTime `{"class":"", "mandatory":true,
+                "errorClass":"error_input", "dateTimeId":"victim_case_form2_facts_start_time",
+                "dateTimeFormat":"hh:mm", "errorSpanId":"victim_case_form2_facts_start_time_error", "dateTimeLabel":"victim_case_form2_facts_start_time",
+                "dateTimePlaceHolder":"victim_case_form2_facts_start_time_h", "entityPath":"data.victimCase",
+                "entityName":"form2","entityAttr":"factsStartTime"}` .lang .locale}}
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single",  "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+              "selectId":"victim_case_form2_facts_zone", "errorSpanId":"victim_case_form2_facts_zone_error", "selectLabel":"victim_case_form2_facts_zone", "selectPlaceHolder":"victim_case_form2_facts_zone_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"factsZone", "enumsAttr":"victim_case_form2_facts_zone", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+            <div class="col-sm-6">
+              <label>{{ template "text_translated.html" Text `{"text":"victim_case_form2_department_occurrence"}` .lang .locale}}</label>
+              <select  :class="{'form-control input_form':data.department2Selected!='' || !errors.form2||!errors.form2.factsTownCode,
+                                  'error_input input_form':errors.form2 && errors.form2.factsTownCode && data.department2Selected==''}"  id="departments2" @change="changeDepartment2($event)"
+                v-model="data.department2Selected">
+                <option v-for="(dep, idx) in enums.departments" :value="dep.icode" :key="idx">${dep.name}</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-sm-6">
+              <label v-if="data.cities2.length > 0">{{ template "text_translated.html" Text `{"text":"victim_case_form2_city_occurrence"}` .lang .locale}}</label>
+                <select v-if="data.cities2.length > 0" :class="{'form-control input_form':data.city2Selected!='' || !errors.form2 ||!errors.form2.factsTownCode,
+                  'error_input input_form':errors.form2 && errors.form2.factsTownCode && data.city2Selected==''}"  id="citie2" @change="changeCity2($event)"
+                  v-model="data.city2Selected">
+                  <option v-for="(city, idx) in data.cities2" :value="city.code" :key="idx">${city.name}</option>
+                </select>           
+            </div>
+            <div class="col-sm-6">
+              <label v-if="data.towns2.length > 0" >{{ template "text_translated.html" Text `{"text":"victim_case_form2_town_occurrence"}` .lang .locale}}</label>
+                <select v-if="data.towns2.length > 0" :class="{'form-control input_form' :!errors.form2||!errors.form2.factsTownCode,
+                  'error_input input_form':errors.form2 && errors.form2.factsTownCode}"  id="towns2" @change="changeTown2($event)"
+                  v-model="data.victimCase.form2.factsTownCode">
+                  <option v-for="(town, idx) in data.towns2" :value="town.code" :key="idx">${town.name}</option>
+                </select>           
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":false,
+              "errorClass":"error_input", "inputId":"victim_case_form2_address_occurrence",
+              "inputType":"text", "errorSpanId":"victim_case_form2_address_occurrence_error", "inputLabel":"victim_case_form2_address_occurrence",
+              "inputPlaceHolder":"victim_case_form2_address_occurrence_h", "entityPath":"data.victimCase",
+              "entityName":"form2", "entityAttr":"factsAddress"}` .lang .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single",  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+              "selectId":"victim_case_form2_scenario_violence", "errorSpanId":"victim_case_form2_scenario_violence_error", "selectLabel":"victim_case_form2_scenario_violence", "selectPlaceHolder":"victim_case_form2_scenario_violence_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"scenarioViolence", "enumsAttr":"victim_case_form2_scenario_violence", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div> 
+          </div>
+
+          <div class="row">
+            <div class="col-sm-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"multiple", "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", "emptyValue":"",
+                "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "onChanged":"violenceTypeChanged",
+                "selectId":"victim_case_form2_type_violence_experienced", "errorSpanId":"victim_case_form2_type_violence_experienced_error", 
+                "selectLabel":"victim_case_form2_type_violence_experienced", "selectPlaceHolder":"victim_case_form2_type_violence_experienced_h", 
+                "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"typeViolenceExperienced", "enumsAttr":"victim_case_form2_type_violence_experienced", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+            </div>
+            <div class="col-sm-6" v-if="data.victimCase.form2.typeViolenceExperienced && data.victimCase.form2.typeViolenceExperienced.length > 0">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"multiple", "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", 
+                "emptyValue":"",
+                "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+                "selectId":"victim_case_form2_subtype_violence_experienced", "errorSpanId":"victim_case_form2_subtype_violence_experienced_error",
+                "selectLabel":"victim_case_form2_subtype_violence_experienced", "selectPlaceHolder":"victim_case_form2_subtype_violence_experienced_h",
+                "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"subtypeViolenceExperienced", "enumsAttr":"violenceSubtypes", 
+                "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true} ` .lang .locale}}
+
+            </div>  
+          </div>
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"multiple", "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", "emptyValue":"", "onChanged":"checkWorkplaceSectorOccurrence(data.victimCase.form2.scopeOfViolence)",
+                "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", 
+                "selectId":"victim_case_form2_scope_of_violence", "errorSpanId":"victim_case_form2_scope_of_violence_error",
+                "selectLabel":"victim_case_form2_scope_of_violence", "selectPlaceHolder":"victim_case_form2_scope_of_violence_h",
+                "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"scopeOfViolence", "enumsAttr":"victim_case_form2_scope_of_violence", 
+                "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true} ` .lang .locale}}
+            </div>
+            <div class="col-sm-6 mb-6" v-if="data.workplaceSectorOccurrence">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", "emptyValue":"",
+                  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"victim_case_form2_workplace_sector_occurrence",
+                  "errorSpanId":"victim_case_form2_workplace_sector_occurrence_error", "selectLabel":"victim_case_form2_workplace_sector_occurrence",
+                  "selectPlaceHolder":"victim_case_form2_workplace_sector_occurrence_h", 
+                  "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"workplaceSectorOccurrence", "enumsAttr":"victim_case_form2_workplace_sector_occurrence", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", "emptyValue":"",
+                  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"victim_case_form2_violence_motivated_by_gender",
+                  "errorSpanId":"victim_case_form2_violence_motivated_by_gender_error", "selectLabel":"victim_case_form2_violence_motivated_by_gender",
+                  "selectPlaceHolder":"victim_case_form2_violence_motivated_by_gender_h", 
+                  "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"violenceMotivatedByGender", "enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", "emptyValue":"",
+                  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"victim_case_form2_reported_aggression_previously",
+                  "errorSpanId":"victim_case_form2_reported_aggression_previously_error", "selectLabel":"victim_case_form2_reported_aggression_previously",
+                  "selectPlaceHolder":"victim_case_form2_reported_aggression_previously_h", 
+                  "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"reportedPreviously", "enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+            </div>
+          </div>
+
+          <div class="row" v-if="data.victimCase.form2.reportedPreviously.code == 'y'">
+            <div class="col-sm-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"multiple", "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", "emptyValue":"",
+                "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", 
+                "selectId":"victim_case_form2_who_report_to", "errorSpanId":"victim_case_form2_who_report_to_error", "selectLabel":"victim_case_form2_who_report_to", 
+                "selectPlaceHolder":"victim_case_form2_who_report_to_h", 
+                "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"whoReportTo", "enumsAttr":"victim_case_form2_who_report_to", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true} ` .lang .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", "emptyValue":"",
+                "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"victim_case_form2_attention_was_appropriate",
+                "errorSpanId":"victim_case_form2_attention_was_appropriate_error", "selectLabel":"victim_case_form2_attention_was_appropriate",
+                "selectPlaceHolder":"victim_case_form2_attention_was_appropriate_h", 
+                "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"attentionWasAppropriate", "enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+          </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-12">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single",  "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+              "selectId":"victim_case_form2_recurrence_of_aggression", "errorSpanId":"victim_case_form2_recurrence_of_aggression_error", "selectLabel":"victim_case_form2_recurrence_of_aggression", "selectPlaceHolder":"victim_case_form2_recurrence_of_aggression_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"recurrenceAggression", "enumsAttr":"victim_case_form2_recurrence_aggression", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+
+            </div>
+          </div>
+
+          <div class="tituloform">
+            <i class="fas fa-male fa-2x"></i>
+            <h2>{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_header"}` .lang .locale}}</h2>
+          </div>
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single",   "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+              "selectId":"victim_case_form2_number_of_aggressors", "errorSpanId":"victim_case_form2_number_of_aggressors_error", "selectLabel":"victim_case_form2_number_of_aggressors", "selectPlaceHolder":"victim_case_form2_number_of_aggressors_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"numAgressors", "enumsAttr":"victim_case_form2_num_agressors", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "onChanged":"proximityWithAggressorChanged",
+              "selectId":"victim_case_form2_proximity_with_principal_aggressor", "errorSpanId":"victim_case_form2_proximity_with_principal_aggressor_error", "selectLabel":"victim_case_form2_proximity_with_principal_aggressor", "selectPlaceHolder":"victim_case_form2_proximity_with_principal_aggressor_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"proximityPrincipalAggressor", "enumsAttr":"victim_case_form2_proximity_principal_aggressor", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+          </div>
+
+          
+          <div class="row">
+            <div class="col-sm-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single",  "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "onChanged":"relationWithAggressorChanged",
+              "selectId":"victim_case_form2_relationship_with_presumed_aggressor", "errorSpanId":"victim_case_form2_relationship_with_presumed_aggressor_error", "selectLabel":"victim_case_form2_relationship_with_presumed_aggressor", "selectPlaceHolder":"victim_case_form2_relationship_with_presumed_aggressor_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"relationshipWithPresumedAggressor", "enumsAttr":"victim_case_form2_relationship_with_presumed_aggressor_01", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div> 
+            <div class="col-sm-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single",  "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", 
+              "selectId":"victim_case_form2_aggressor_occupation", "errorSpanId":"victim_case_form2_aggressor_occupation_error", "selectLabel":"victim_case_form2_aggressor_occupation", "selectPlaceHolder":"victim_case_form2_aggressor_occupation_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"aggressorOccupation", "enumsAttr":"aggressor_occupation", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-12" v-if="data.partnerKnown">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", "emptyValue":"",
+                "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"victim_case_form2_economically_dependent",
+                "errorSpanId":"victim_case_form2_economically_dependent_error", "selectLabel":"victim_case_form2_economically_dependent",
+                "selectPlaceHolder":"victim_case_form2_economically_dependent_h", 
+                "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"economicallyDependent", "enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+              "selectId":"victim_case_form2_aggressor_gender_identity", "errorSpanId":"victim_case_form2_aggressor_gender_identity_error", "selectLabel":"victim_case_form2_aggressor_gender_identity", "selectPlaceHolder":"victim_case_form2_aggressor_gender_identity_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"aggressorGenderIdentity", "enumsAttr":"victim_case_form2_aggressor_gender_identity", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,
+                "errorClass":"error_input", "inputId":"victim_case_form2_aggressor_name",
+                "inputType":"text", "errorSpanId":"victim_case_form2_aggressor_name_error", "inputLabel":"victim_case_form2_aggressor_name",
+                "inputPlaceHolder":"victim_case_form2_aggressor_name_h", "entityPath":"data.victimCase",
+                "entityName":"form2", "entityAttr":"aggressorNames"}` .lang .locale}}
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":false,  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+              "selectId":"victim_case_form2_aggressor_doc_type", "errorSpanId":"victim_case_form2_aggressor_doc_type_error", "selectLabel":"victim_case_form2_aggressor_doc_type", "selectPlaceHolder":"victim_case_form2_aggressor_doc_type_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"aggressorDocType", "enumsAttr":"victim_case_form2_victim_doc_type",  "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":false,
+                "errorClass":"error_input", "inputId":"victim_case_form2_aggressor_doc_number",
+                "inputType":"text", "errorSpanId":"victim_case_form2_aggressor_doc_number_error", "inputLabel":"victim_case_form2_aggressor_doc_number",
+                "inputPlaceHolder":"victim_case_form2_aggressor_doc_number_h", 
+                "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"aggressorDocNumber"}` .lang .locale}}
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":false,
+                "errorClass":"error_input", "inputId":"victim_case_form2_aggressor_address",
+                "inputType":"text", "errorSpanId":"victim_case_form2_aggressor_address_error", "inputLabel":"victim_case_form2_aggressor_address",
+                "inputPlaceHolder":"victim_case_form2_aggressor_address_h", 
+                "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"aggressorAddress"}` .lang .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":false,
+                "errorClass":"error_input", "inputId":"victim_case_form2_aggressor_phone",
+                "inputType":"number", "errorSpanId":"victim_case_form2_aggressor_phone_error", "inputLabel":"victim_case_form2_aggressor_phone",
+                "inputPlaceHolder":"victim_case_form2_aggressor_phone_h", 
+                "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"aggressorPhone"}` .lang .locale}}
+            </div>
+          </div>
+
+          <div class="tituloform">
+            <i class="fas fa-check-circle fa-2x"></i>
+            <h2>{{ template "text_translated.html" Text `{"text":"victim_case_form2_tamizaje_header"}` .lang .locale}}</h2>
+          </div>
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeAggressor",
+                "errorClass":"error_input","selectId":"victim_case_form2_physical_violence_increased", "errorSpanId":"victim_case_form2_physical_violence_increased_error",
+                "selectLabel":"victim_case_form2_physical_violence_increased", "selectPlaceHolder":"victim_case_form2_physical_violence_increased_h",
+                "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"aggressorViolencePhysicalIncrease", "enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeAggressor",
+                "errorClass":"error_input","selectId":"victim_case_form2_weapon_used","errorSpanId":"victim_case_form2_weapon_used_error",
+                "selectLabel":"victim_case_form2_weapon_used","selectPlaceHolder":"victim_case_form2_weapon_used_h",
+                "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorWeaponUsed","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeAggressor",
+                "errorClass":"error_input","selectId":"victim_case_form2_has_threatened_to_kill","errorSpanId":"victim_case_form2_has_threatened_to_kill_error",
+                "selectLabel":"victim_case_form2_has_threatened_to_kill","selectPlaceHolder":"victim_case_form2_has_threatened_to_killh",
+                "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorThreatKill","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeAggressor",
+                "errorClass":"error_input","selectId":"victim_case_form2_pursues_spies_destroys_property","errorSpanId":"victim_case_form2_pursues_spies_destroys_property_error",
+                "selectLabel":"victim_case_form2_pursues_spies_destroys_property","selectPlaceHolder":"victim_case_form2_pursues_spies_destroys_property_h",
+                "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorPursuesSpiesDestroys","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeAggressor",
+                "errorClass":"error_input","selectId":"victim_case_form2_could_be_capable_of_killing","errorSpanId":"victim_case_form2_could_be_capable_of_killing_error",
+                "selectLabel":"victim_case_form2_could_be_capable_of_killing","selectPlaceHolder":"victim_case_form2_could_be_capable_of_killing_h",
+                "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorCapableOfKilling","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeAggressor",
+                "errorClass":"error_input","selectId":"victim_case_form2_aggressor_has_access_to_weapons","errorSpanId":"victim_case_form2_aggressor_has_access_to_weapons_error",
+                "selectLabel":"victim_case_form2_aggressor_has_access_to_weapons","selectPlaceHolder":"victim_case_form2_aggressor_has_access_to_weapons_h",
+                "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorHasAccessToWeapons","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+            </div>
+          </div>
+
+          <template v-if="data.tamizajeAggressorCheck && data.wasPartner">
+
+            <div class="row">
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_partner_unemployed","errorSpanId":"victim_case_form2_partner_unemployed_error",
+                  "selectLabel":"victim_case_form2_partner_unemployed","selectPlaceHolder":"victim_case_form2_partner_unemployed_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"partnerUnemployed","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+
+              </div>
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_partner_has_other_denunciations","errorSpanId":"victim_case_form2_partner_has_other_denunciations_error",
+                  "selectLabel":"victim_case_form2_partner_has_other_denunciations","selectPlaceHolder":"victim_case_form2_partner_has_other_denunciations_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"partnerOtherDenunciations","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_aggressor_has_penal_background","errorSpanId":"victim_case_form2_aggressor_has_penal_background_error",
+                  "selectLabel":"victim_case_form2_aggressor_has_penal_background","selectPlaceHolder":"victim_case_form2_aggressor_has_penal_background_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorHasPenalBackground","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+
+              </div>
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_stopped_seeking_help","errorSpanId":"victim_case_form2_stopped_seeking_help_error",
+                  "selectLabel":"victim_case_form2_stopped_seeking_help","selectPlaceHolder":"victim_case_form2_stopped_seeking_help_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"stoppedSeekingHelp","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+    
+              </div>
+              
+            </div>
+
+            <div class="row">
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_aggressor_forced_to_have_sexual_relations","errorSpanId":"victim_case_form2_aggressor_forced_to_have_sexual_relations_error",
+                  "selectLabel":"victim_case_form2_aggressor_forced_to_have_sexual_relations","selectPlaceHolder":"victim_case_form2_aggressor_forced_to_have_sexual_relations_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorForcedSex","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_attempted_strangulation","errorSpanId":"victim_case_form2_attempted_strangulation_error",
+                  "selectLabel":"victim_case_form2_attempted_strangulation","selectPlaceHolder":"victim_case_form2_attempted_strangulation_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorAttemptedStrangulation","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_consumes_drugs","errorSpanId":"victim_case_form2_consumes_drugs_error",
+                  "selectLabel":"victim_case_form2_consumes_drugs","selectPlaceHolder":"victim_case_form2_consumes_drugs_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorConsumesDrugs","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_aggressor_is_alcoholic","errorSpanId":"victim_case_form2_aggressor_is_alcoholic_error",
+                  "selectLabel":"victim_case_form2_aggressor_is_alcoholic","selectPlaceHolder":"victim_case_form2_aggressor_is_alcoholic_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorIsAlcoholic","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_partner_controls","errorSpanId":"victim_case_form2_partner_controls_error",
+                  "selectLabel":"victim_case_form2_partner_controls","selectPlaceHolder":"victim_case_form2_partner_controls_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"partnerControls","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_aggressor_had_hit_in_vulnerability","errorSpanId":"victim_case_form2_aggressor_had_hit_in_vulnerability_error",
+                  "selectLabel":"victim_case_form2_aggressor_had_hit_in_vulnerability","selectPlaceHolder":"victim_case_form2_aggressor_had_hit_in_vulnerability_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorHadHitInVulnerability","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+              
+            </div>
+
+            <div class="row">
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_victim_health_to_blackmail","errorSpanId":"victim_case_form2_victim_health_to_blackmail_error",
+                  "selectLabel":"victim_case_form2_victim_health_to_blackmail","selectPlaceHolder":"victim_case_form2_victim_health_to_blackmail_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"victimHealthToBlackmail","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_partner_threatened_suicide","errorSpanId":"victim_case_form2_partner_threatened_suicide_error",
+                  "selectLabel":"victim_case_form2_partner_threatened_suicide","selectPlaceHolder":"victim_case_form2_partner_threatened_suicide_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"partnerThreatenedSuicide","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_partner_threatened_damage_members","errorSpanId":"victim_case_form2_partner_threatened_damage_members_error",
+                  "selectLabel":"victim_case_form2_partner_threatened_damage_members","selectPlaceHolder":"victim_case_form2_partner_threatened_damage_members_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"partnerThreatenedDamageMembers","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_thought_of_self_harm","errorSpanId":"victim_case_form2_thought_of_self_harm_error",
+                  "selectLabel":"victim_case_form2_thought_of_self_harm","selectPlaceHolder":"victim_case_form2_thought_of_self_harm_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"thoughtsOfSelfHarm","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_aggressor_limits_contact_support_networks","errorSpanId":"victim_case_form2_aggressor_limits_contact_support_networks_error",
+                  "selectLabel":"victim_case_form2_aggressor_limits_contact_support_networks","selectPlaceHolder":"victim_case_form2_aggressor_limits_contact_support_networks_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorLimitsContactSupportNetworks","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_threatened_reveal_sexual_orientation","errorSpanId":"victim_case_form2_threatened_reveal_sexual_orientation_error",
+                  "selectLabel":"victim_case_form2_threatened_reveal_sexual_orientation","selectPlaceHolder":"victim_case_form2_threatened_reveal_sexual_orientation_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"threatenedRevealSexualOrientation","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_still_lives_with_aggressor","errorSpanId":"victim_case_form2_still_lives_with_aggressor_error",
+                  "selectLabel":"victim_case_form2_still_lives_with_aggressor","selectPlaceHolder":"victim_case_form2_still_lives_with_aggressor_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"stillLivesWithAggressor","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_aggressor_violently_jealous","errorSpanId":"victim_case_form2_aggressor_violently_jealous_error",
+                  "selectLabel":"victim_case_form2_aggressor_violently_jealous","selectPlaceHolder":"victim_case_form2_aggressor_violently_jealous_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorViolentlyJealous","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+            </div>
+          </template>
+          
+          <template v-if="data.tamizajeAggressorCheck && !data.wasPartner">
+            <div class="row">
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_aggressor_taken_advantage_physical_vulnerability","errorSpanId":"victim_case_form2_aggressor_taken_advantage_physical_vulnerability_error",
+                  "selectLabel":"victim_case_form2_aggressor_taken_advantage_physical_vulnerability","selectPlaceHolder":"victim_case_form2_aggressor_taken_advantage_physical_vulnerability_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorTakenAdvantagePhysicalVulnerability","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                "errorClass":"error_input","selectId":"victim_case_form2_aggressor_unemployed","errorSpanId":"victim_case_form2_aggressor_unemployed_error",
+                "selectLabel":"victim_case_form2_aggressor_unemployed","selectPlaceHolder":"victim_case_form2_aggressor_unemployed_h",
+                "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorUnemployed","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_aggressor_has_penal_background2","errorSpanId":"victim_case_form2_aggressor_has_penal_background2_error",
+                  "selectLabel":"victim_case_form2_aggressor_has_penal_background2","selectPlaceHolder":"victim_case_form2_aggressor_has_penal_background2_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorHasPenalBackground2","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_aggressor_sexually_harassment","errorSpanId":"victim_case_form2_aggressor_sexually_harassment_error",
+                  "selectLabel":"victim_case_form2_aggressor_sexually_harassment","selectPlaceHolder": "victim_case_form2_aggressor_sexually_harassment_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorSexuallyHarassment","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_aggressor_sexually_harassment2","errorSpanId":"victim_case_form2_aggressor_sexually_harassment2_error",
+                  "selectLabel":"victim_case_form2_aggressor_sexually_harassment2","selectPlaceHolder":"victim_case_form2_aggressor_sexually_harassment2_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorSexuallyHarassment2","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_violence_motivated_by_gender2","errorSpanId":"victim_case_form2_violence_motivated_by_gender2_error",
+                  "selectLabel":"victim_case_form2_violence_motivated_by_gender2","selectPlaceHolder":"victim_case_form2_violence_motivated_by_gender2_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"violenceMotivatedByGender2","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_aggressor_use_drugs","errorSpanId":"victim_case_form2_aggressor_use_drugs_error",
+                  "selectLabel":"victim_case_form2_aggressor_use_drugs","selectPlaceHolder":"victim_case_form2_aggressor_use_drugs_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorUseDrugs","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_aggressor_is_alcoholic2","errorSpanId":"victim_case_form2_aggressor_is_alcoholic2_error",
+                  "selectLabel":"victim_case_form2_aggressor_is_alcoholic2","selectPlaceHolder":"victim_case_form2_aggressor_is_alcoholic2_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorIsAlcoholic2","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_aggressor_controls","errorSpanId":"victim_case_form2_aggressor_controls_error",
+                  "selectLabel":"victim_case_form2_aggressor_controls","selectPlaceHolder":"victim_case_form2_aggressor_controls_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorControls","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_aggressor_threatened_damage_members","errorSpanId":"victim_case_form2_aggressor_threatened_damage_members_error",
+                  "selectLabel":"victim_case_form2_aggressor_threatened_damage_members","selectPlaceHolder":"victim_case_form2_aggressor_threatened_damage_members_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorThreatenedDamageMembers","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_thought_of_self_harm2","errorSpanId":"victim_case_form2_thought_of_self_harm2_error",
+                  "selectLabel":"victim_case_form2_thought_of_self_harm2","selectPlaceHolder":"victim_case_form2_thought_of_self_harm2_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"thoughtsOfSelfHarm2","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_aggressor_common_spaces","errorSpanId":"victim_case_form2_aggressor_common_spaces_error",
+                  "selectLabel":"victim_case_form2_aggressor_common_spaces","selectPlaceHolder":"victim_case_form2_aggressor_common_spaces_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorCommonSpaces","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_aggressor_hierarchy","errorSpanId":"victim_case_form2_aggressor_hierarchy_error",
+                  "selectLabel":"victim_case_form2_aggressor_hierarchy","selectPlaceHolder":"victim_case_form2_aggressor_hierarchy_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorHierarchy","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+              <div class="col-sm-6 mb-6">
+                {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "onChanged":"updateTamizajeScore",
+                  "errorClass":"error_input","selectId":"victim_case_form2_aggressor_used_position_authority","errorSpanId":"victim_case_form2_aggressor_used_position_authority_error",
+                  "selectLabel":"victim_case_form2_aggressor_used_position_authority","selectPlaceHolder":"victim_case_form2_aggressor_used_position_authority_h",
+                  "entityPath":"data.victimCase","entityName":"form2","entityAttr":"aggressorUsedPositionAuthority","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+              </div>
+            </div>
+          </template>
+          
+          <div :class="enums.riskLevelCSS[data.victimCase.form2.riskLevel]" v-if="data.victimCase.form2.riskLevel>0">
+            <p><b>{{ template "text_translated.html" Text `{"text":"victim_case_form2_risk_score"}` .lang .locale}}:</b> ${this.data.victimCase.form2.riskScore}</p>
+            <p><b>{{ template "text_translated.html" Text `{"text":"victim_case_form2_risk_level"}` .lang .locale}}:</b> ${this.enums.riskLevel[this.data.victimCase.form2.riskLevel]}</p>
+          </div>
+
+          <div class="tituloform">
+            <i class="fas fa-address-book fa-2x"></i>
+            <h2>{{ template "text_translated.html" Text `{"text":"victim_case_form2_personal_data_header"}` .lang .locale}}</h2>
+          </div>
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "date_time.html" DateTime `{"class":"", "mandatory":true,
+                "errorClass":"error_input", "dateTimeId":"victim_case_form2_birth_date",
+                "dateTimeFormat":"DD/MM/YYYY", "errorSpanId":"victim_case_form2_birth_date_error", "dateTimeLabel":"victim_case_form2_birth_date",
+                "dateTimePlaceHolder":"victim_case_form2_birth_date_h", "entityPath":"data.victimCase",
+                "entityName":"form2","entityAttr":"birthDate"}` .lang .locale}}
+            </div>
+            <div class="col-sm-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single","mandatory":true,"emptyLabel":"victim_case_form2_empty_select","emptyValue":"",
+                "containerClass":"form-group","class":"form-control input_form","errorClass":"error_input","selectId":"victim_case_form2_physical_mental_sensory_difficulties",
+                "errorSpanId":"victim_case_form2_physical_mental_sensory_difficulties_error","selectLabel":"victim_case_form2_physical_mental_sensory_difficulties",
+                "selectPlaceHolder":"victim_case_form2_physical_mental_sensory_difficulties_h",
+                "entityPath":"data.victimCase","entityName":"form2","entityAttr":"physicalMentalSensoryDifficulties","enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+            </div> 
+          </div>
+          
+          <div class="row" v-if="data.victimCase.form2.physicalMentalSensoryDifficulties.code == 'y'">
+            <hr>
+            <div class="star_info">
+              <p>Los niveles de dificultad se mide de la siguiente manera:</p>
+              
+              <div class="starGroupInfo"><span class="star filled"> ★ </span><span class="star filled"> ★ </span><span class="star filled"> ★ </span><span class="star filled"> ★ </span><span>Sin dificultad</span></div>
+              <div class="starGroupInfo"><span class="star filled"> ★ </span><span class="star filled"> ★ </span><span class="star filled"> ★ </span><span class="star empty"> ★ </span><span>Sí, con alguna dificultad</span></div>
+              <div class="starGroupInfo"><span class="star filled"> ★ </span><span class="star filled"> ★ </span><span class="star empty"> ★ </span><span class="star empty"> ★ </span><span>Sí, con mucha dificultad</span></div>
+              <div class="starGroupInfo"><span class="star filled"> ★ </span><span class="star empty"> ★ </span><span class="star empty"> ★ </span><span class="star empty"> ★ </span><span>No puede hacerlo</span></div>
+              
+              <p>Una persona se considera con discapacidad funcional si responde “sí, con mucha dificultad” o “no puede hacerlo” (los dos niveles de mayor severidad) en al menos una de estas siete preguntas.</p>
+            </div>
+            <label>{{ template "text_translated.html" Text `{"text":"victim_case_form2_activities_unable_to_perform"}` .lang .locale}}</label>
+            <div class="col-sm-6">
+              {{ template "labeled_star_rating.html" StarRating `{"mandatory":false, "ratingClass":"rating", "errorClass":"error_input",
+                "ratingMaxValue":4, "starClass":"star", "emptyStarClass":"empty", "filledStarClass":"filled", "labelClass":"starLabel", "starGroupClass":"starGroup",
+                "ratingId":"victim_case_form2_activities_unable_to_perform_hear", "errorSpanId":"victim_case_form2_activities_unable_to_perform_hear_error",
+                "ratingLabel":"victim_case_form2_activities_unable_to_perform_oi",
+                "entityPath":"data.victimCase","entityName":"form2","entityAttr":"activitiesUnableToHear"}` .lang .locale}}
+
+                {{ template "labeled_star_rating.html" StarRating `{"mandatory":false, "ratingClass":"rating", "errorClass":"error_input",
+                "ratingMaxValue":4, "starClass":"star", "emptyStarClass":"empty", "filledStarClass":"filled", "labelClass":"starLabel", "starGroupClass":"starGroup",
+                "ratingId":"victim_case_form2_activities_unable_to_perform_talk", "errorSpanId":"victim_case_form2_activities_unable_to_perform_talk_error",
+                "ratingLabel":"victim_case_form2_activities_unable_to_perform_ha",
+                "entityPath":"data.victimCase","entityName":"form2","entityAttr":"activitiesUnableToTalk"}` .lang .locale}}
+
+                {{ template "labeled_star_rating.html" StarRating `{"mandatory":false, "ratingClass":"rating", "errorClass":"error_input",
+                "ratingMaxValue":4, "starClass":"star", "emptyStarClass":"empty", "filledStarClass":"filled", "labelClass":"starLabel", "starGroupClass":"starGroup",
+                "ratingId":"victim_case_form2_activities_unable_to_perform_see", "errorSpanId":"victim_case_form2_activities_unable_to_perform_see_error",
+                "ratingLabel":"victim_case_form2_activities_unable_to_perform_ve",
+                "entityPath":"data.victimCase","entityName":"form2","entityAttr":"activitiesUnableToSee"}` .lang .locale}}
+
+                {{ template "labeled_star_rating.html" StarRating `{"mandatory":false, "ratingClass":"rating", "errorClass":"error_input",
+                "ratingMaxValue":4, "starClass":"star", "emptyStarClass":"empty", "filledStarClass":"filled", "labelClass":"starLabel", "starGroupClass":"starGroup",
+                "ratingId":"victim_case_form2_activities_unable_to_perform_move", "errorSpanId":"victim_case_form2_activities_unable_to_perform_move_error",
+                "ratingLabel":"victim_case_form2_activities_unable_to_perform_mo",
+                "entityPath":"data.victimCase","entityName":"form2","entityAttr":"activitiesUnableToMove"}` .lang .locale}}
+
+                {{ template "labeled_star_rating.html" StarRating `{"mandatory":false, "ratingClass":"rating", "errorClass":"error_input",
+                "ratingMaxValue":4, "starClass":"star", "emptyStarClass":"empty", "filledStarClass":"filled", "labelClass":"starLabel", "starGroupClass":"starGroup",
+                "ratingId":"victim_case_form2_activities_unable_to_perform_take", "errorSpanId":"victim_case_form2_activities_unable_to_perform_take_error",
+                "ratingLabel":"victim_case_form2_activities_unable_to_perform_ag",
+                "entityPath":"data.victimCase","entityName":"form2","entityAttr":"activitiesUnableToTake"}` .lang .locale}}
+            </div>
+            <div class="col-sm-6" >
+
+                {{ template "labeled_star_rating.html" StarRating `{"mandatory":false, "ratingClass":"rating", "errorClass":"error_input",
+                "ratingMaxValue":4, "starClass":"star", "emptyStarClass":"empty", "filledStarClass":"filled", "labelClass":"starLabel", "starGroupClass":"starGroup",
+                "ratingId":"victim_case_form2_activities_unable_to_perform_understand", "errorSpanId":"victim_case_form2_activities_unable_to_perform_understand_error",
+                "ratingLabel":"victim_case_form2_activities_unable_to_perform_en",
+                "entityPath":"data.victimCase","entityName":"form2","entityAttr":"activitiesUnableToUnderstand"}` .lang .locale}}
+
+
+                {{ template "labeled_star_rating.html" StarRating `{"mandatory":false, "ratingClass":"rating", "errorClass":"error_input",
+                "ratingMaxValue":4, "starClass":"star", "emptyStarClass":"empty", "filledStarClass":"filled", "labelClass":"starLabel", "starGroupClass":"starGroup",
+                "ratingId":"victim_case_form2_activities_unable_to_perform_eat", "errorSpanId":"victim_case_form2_activities_unable_to_perform_eat_error",
+                "ratingLabel":"victim_case_form2_activities_unable_to_perform_co",
+                "entityPath":"data.victimCase","entityName":"form2","entityAttr":"activitiesUnableToEat"}` .lang .locale}}
+
+                {{ template "labeled_star_rating.html" StarRating `{"mandatory":false, "ratingClass":"rating", "errorClass":"error_input",
+                "ratingMaxValue":4, "starClass":"star", "emptyStarClass":"empty", "filledStarClass":"filled", "labelClass":"starLabel", "starGroupClass":"starGroup",
+                "ratingId":"victim_case_form2_activities_unable_to_perform_interact", "errorSpanId":"victim_case_form2_activities_unable_to_perform_interact_error",
+                "ratingLabel":"victim_case_form2_activities_unable_to_perform_re",
+                "entityPath":"data.victimCase","entityName":"form2","entityAttr":"activitiesUnableToInteract"}` .lang .locale}}
+
+                {{ template "labeled_star_rating.html" StarRating `{"mandatory":false, "ratingClass":"rating", "errorClass":"error_input",
+                "ratingMaxValue":4, "starClass":"star", "emptyStarClass":"empty", "filledStarClass":"filled", "labelClass":"starLabel", "starGroupClass":"starGroup",
+                "ratingId":"victim_case_form2_activities_unable_to_perform_do_everyday", "errorSpanId":"victim_case_form2_activities_unable_to_perform_do_everyday_error",
+                "ratingLabel":"victim_case_form2_activities_unable_to_perform_ac",
+                "entityPath":"data.victimCase","entityName":"form2","entityAttr":"activitiesUnableToDoEveryday"}` .lang .locale}}
+
+            </div>
+          </div>
+          <div class="row" v-if="data.victimCase.form2.physicalMentalSensoryDifficulties.code == 'y'">
+            <div class="col-sm-12">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"multiple", "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", "emptyValue":"",
+              "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+              "selectId":"victim_case_form2_law_1996", "errorSpanId":"victim_case_form2_law_1996_error",
+              "selectLabel":"victim_case_form2_law_1996", "selectPlaceHolder":"victim_case_form2_law_1996_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"law1996", "enumsAttr":"victim_case_form2_law_1996", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true} ` .lang .locale}}
+            </div>    
+          </div>
+          
+          <div class="row">
+            <div class="col-sm-12">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
+              "selectId":"victim_case_form2_nationality", "errorSpanId":"victim_case_form2_nationality_error", 
+              "selectLabel":"victim_case_form2_nationality", "selectPlaceHolder":"victim_case_form2_nationality_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"nationality", "enumsAttr":"victim_case_form2_nationality", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+          </div>
+
+          <div class="row" v-if="data.victimCase.form2.nationality.code == 'ex'">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
+              "selectId":"victim_case_form2_specify_nationality", "errorSpanId":"victim_case_form2_specify_nationality_error", 
+              "selectLabel":"victim_case_form2_specify_nationality", "selectPlaceHolder":"victim_case_form2_specify_nationality_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"specifiedNationality", "enumsAttr":"victim_case_form2_specified_nationality", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
+              "selectId":"victim_case_form2_migration_condition", "errorSpanId":"victim_case_form2_migration_condition_error", 
+              "selectLabel":"victim_case_form2_migration_condition", "selectPlaceHolder":"victim_case_form2_migration_condition_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"migrationCondition", "enumsAttr":"victim_case_form2_migration_condition", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
+              "selectId":"victim_case_form2_gender_identity", "errorSpanId":"victim_case_form2_gender_identity_error", 
+              "selectLabel":"victim_case_form2_gender_identity", "selectPlaceHolder":"victim_case_form2_gender_identity_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"genderIdentity", "enumsAttr":"victim_case_form2_gender_identity", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
+              "selectId":"victim_case_form2_sexual_orientation", "errorSpanId":"victim_case_form2_sexual_orientation_error", 
+              "selectLabel":"victim_case_form2_sexual_orientation", "selectPlaceHolder":"victim_case_form2_sexual_orientation_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"sexualOrientation", "enumsAttr":"victim_case_form2_sexual_orientation", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+              "selectId":"victim_case_form2_assigned_sex_at_birth", "errorSpanId":"victim_case_form2_assigned_sex_at_birth_error", "selectLabel":"victim_case_form2_assigned_sex_at_birth", "selectPlaceHolder":"victim_case_form2_assigned_sex_at_birth_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"assignedSexAtBirth", "enumsAttr":"victim_case_form2_assigned_sex_at_birth", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"multiple", "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", "emptyValue":"",
+              "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+              "selectId":"victim_case_form2_specially_protected_population", "errorSpanId":"victim_case_form2_specially_protected_population_error",
+              "selectLabel":"victim_case_form2_specially_protected_population", "selectPlaceHolder":"victim_case_form2_specially_protected_population_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"speciallyProtectedPopulation", "enumsAttr":"victim_case_form2_specially_protected_population", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true} ` .lang .locale}}
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
+              "selectId":"victim_case_form2_ethnic_affiliation", "errorSpanId":"victim_case_form2_ethnic_affiliation_error", 
+              "selectLabel":"victim_case_form2_ethnic_affiliation", "selectPlaceHolder":"victim_case_form2_ethnic_affiliation_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"ethnicAffiliation", "enumsAttr":"victim_case_form2_ethnic_affiliation", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+            <div class="col-sm-6 mb-6" v-if="data.victimCase.form2.ethnicAffiliation.code == 'in'">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
+              "selectId":"victim_case_form2_indigenous_people", "errorSpanId":"victim_case_form2_indigenous_people_error", 
+              "selectLabel":"victim_case_form2_indigenous_people", "selectPlaceHolder":"victim_case_form2_indigenous_people_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"indigenousPeople", "enumsAttr":"victim_case_form2_indigenous_people", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", "emptyValue":"",
+              "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input", "selectId":"victim_case_form2_campesino_recognition_type",
+              "errorSpanId":"victim_case_form2_campesino_recognition_error", "selectLabel":"victim_case_form2_campesino_recognition", "selectPlaceHolder":"victim_case_form2_campesino_recognition_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"campesinoRecognition", "enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
+              "selectId":"victim_case_form2_marital_status", "errorSpanId":"victim_case_form2_marital_status_error", 
+              "selectLabel":"victim_case_form2_marital_status", "selectPlaceHolder":"victim_case_form2_marital_status_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"maritalStatus", "enumsAttr":"victim_case_form2_marital_status", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
+              "selectId":"victim_case_form2_education_level", "errorSpanId":"victim_case_form2_education_level_error", 
+              "selectLabel":"victim_case_form2_education_level", "selectPlaceHolder":"victim_case_form2_education_level_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"lastEducationLevel", "enumsAttr":"victim_case_form2_last_education_level", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
+              "selectId":"victim_case_form2_occupation", "errorSpanId":"victim_case_form2_occupation_error", 
+              "selectLabel":"victim_case_form2_occupation", "selectPlaceHolder":"victim_case_form2_occupation_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"occupation", "enumsAttr":"victim_case_form2_occupation", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
+              "selectId":"victim_case_form2_current_income_generation_methods", "errorSpanId":"victim_case_form2_current_income_generation_methods_error", 
+              "selectLabel":"victim_case_form2_current_income_generation_methods", "selectPlaceHolder":"victim_case_form2_current_income_generation_methods_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"incomeGenerationMethod", "enumsAttr":"victim_case_form2_income_generation_method", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+            <div class="col-sm-6 mb-6" v-if="data.victimCase.form2.incomeGenerationMethod.code == 'pr'">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"multiple", "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", "emptyValue":"",
+              "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+              "selectId":"victim_case_form2_asp_mode", "errorSpanId":"victim_case_form2_asp_mode_error",
+              "selectLabel":"victim_case_form2_asp_mode", "selectPlaceHolder":"victim_case_form2_asp_mode_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"aspMode", "enumsAttr":"victim_case_form2_asp_mode", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true} ` .lang .locale}}
+            </div>
+            <div class="col-sm-6 mb-6" v-if="data.victimCase.form2.incomeGenerationMethod.code == 'em'">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
+              "selectId":"victim_case_form2_employment_relationship", "errorSpanId":"victim_case_form2_employment_relationship_error", 
+              "selectLabel":"victim_case_form2_employment_relationship", "selectPlaceHolder":"victim_case_form2_employment_relationship_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"employmentRelationship", "enumsAttr":"victim_case_form2_employment_relationship", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+          </div>
+
+          <div class="row" v-if="data.victimCase.form2.incomeGenerationMethod.code == 'pr'">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,
+              "errorClass":"error_input", "inputId":"victim_case_form2_aprox_start_asp",
+              "inputType":"string", "errorSpanId":"victim_case_form2_aprox_start_asp_error", "inputLabel":"victim_case_form2_aprox_start_asp",
+              "inputPlaceHolder":"victim_case_form2_aprox_start_asp_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"approxStartAsp"}` .lang .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"multiple", "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", "emptyValue":"",
+              "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+              "selectId":"victim_case_form2_reason_asp", "errorSpanId":"victim_case_form2_reason_asp_error",
+              "selectLabel":"victim_case_form2_reason_asp", "selectPlaceHolder":"victim_case_form2_reason_asp_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"reasonASP", "enumsAttr":"victim_case_form2_reason_asp", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true} ` .lang .locale}}
+
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
+              "selectId":"victim_case_form2_housing_tenancy_form", "errorSpanId":"victim_case_form2_housing_tenancy_form_error", 
+              "selectLabel":"victim_case_form2_housing_tenancy_form", "selectPlaceHolder":"victim_case_form2_housing_tenancy_form_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"housingTenancyForm", "enumsAttr":"victim_case_form2_housing_tenancy_form", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
+              "selectId":"victim_case_form2_housing_stratum", "errorSpanId":"victim_case_form2_housing_stratum_error", 
+              "selectLabel":"victim_case_form2_housing_stratum", "selectPlaceHolder":"victim_case_form2_housing_stratum_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"housingStratum", "enumsAttr":"victim_case_form2_housing_stratum", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"multiple", "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", "emptyValue":"",
+              "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+              "selectId":"victim_case_form2_has_dependents", "errorSpanId":"victim_case_form2_has_dependents_error",
+              "selectLabel":"victim_case_form2_has_dependents", "selectPlaceHolder":"victim_case_form2_has_dependents_h",
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"hasDependents", "enumsAttr":"victim_case_form2_has_dependents", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true} ` .lang .locale}}
+            </div>
+            <div class="col-sm-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
+              "selectId":"victim_case_form2_currently_pregnant", "errorSpanId":"victim_case_form2_currently_pregnant_error", 
+              "selectLabel":"victim_case_form2_currently_pregnant", "selectPlaceHolder":"victim_case_form2_currently_pregnant_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"currentlyPregnant", "enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+          </div>
+          
+          <div class="tituloform">
+            <i class="fas fa-play-circle fa-2x"></i>
+            <h2>{{ template "text_translated.html" Text `{"text":"victim_case_form2_service_header"}` .lang .locale}}</h2>
+          </div>
+          <div class="row">
+            <div class="col-sm-12">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"multiple", "mandatory":true, "emptyLabel":"victim_case_form2_empty_select", 
+                "emptyValue":"", "mandatory":true,
+                "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+                "selectId":"victim_case_form2_action_plan", "errorSpanId":"victim_case_form2_action_plan_error",
+                "selectLabel":"victim_case_form2_action_plan", "selectPlaceHolder":"victim_case_form2_action_plan_h",
+                "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"actionPlan", "enumsAttr":"victim_case_form2_action_plan", 
+                "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true} ` .lang .locale}}
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-sm-12">
+              {{ template "labeled_textarea.html" TextArea `{"class":"form-control input_form", "mandatory":true,
+                "errorClass":"error_input", "textAreaId":"victim_case_form2_management_explanation",
+                "rows":"5", "errorSpanId":"victim_case_form2_management_explanation_error",
+                "textAreaLabel":"victim_case_form2_management_explanation", "textAreaPlaceHolder":"victim_case_form2_management_explanation_h",
+                "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"salivaManagementExplanation"}` .lang .locale }}
+            </div>
+          </div>
+          
+          <div class="tituloform">
+            <i class="fas fa-map-marker-alt fa-2x"></i><h2>{{ template "text_translated.html" Text `{"text":"get_victim_case_attention_place"}` .lang .locale}}</h2>
+          </div>
+          <div class="row">
+            <div class="col-sm-6 mb-3">
+              <label>{{ template "text_translated.html" Text `{"text":"get_victim_case_department"}` .lang .locale}}</label>
+              <select  class="form-control input_form"  id="departments" @change="changeDepartment($event)"
+                v-model="data.departmentSelected">
+                <option v-for="(dep, idx) in enums.departments" :value="dep.icode" :key="idx">${dep.name}</option>
+              </select>
+            </div>
+            <div class="col-sm-3 mb-3">
+              <label v-if="data.cities.length > 0">{{ template "text_translated.html" Text `{"text":"get_victim_case_city"}` .lang .locale}}</label>
+                <select v-if="data.cities.length > 0" class="form-control input_form"  id="cities" @change="changeCity($event)"
+                  v-model="data.citySelected">
+                  <option v-for="(city, idx) in data.cities" :value="city.code" :key="idx">${city.name}</option>
+                </select>           
+            </div>
+            <div class="col-sm-3 mb-3">
+              <label v-if="data.towns.length > 0" >{{ template "text_translated.html" Text `{"text":"get_victim_case_town"}` .lang .locale}}</label>
+                <select v-if="data.towns.length > 0" class="form-control input_form"  id="towns" @change="changeTown($event)"
+                  v-model="data.victimCase.townCode">
+                  <option v-for="(town, idx) in data.towns" :value="town.code" :key="idx">${town.name}</option>
+                </select>           
+            </div>
+          </div>
+          <template v-if="data.entitiesByMomentAndSector" >
+            <div class="tituloform">
+              <i class="fas fa-fa-map-marker-alt fa-2x"></i>
+              <h2>{{ template "text_translated.html" Text `{"text":"get_victim_case_route_assig"}` .lang .locale}}</h2>
+            </div>
+            
+            <div class="container mt-5 mb-5">
+              <div class="row">
+                <div v-for="(moment, mkey) in enums.moments" class="col-sm-4">
+                  <div class="custom-tabs">
+                    <div class="custom-nav-item">
+                      <a class="custom-nav-link" :href="'#moment_'+moment.code">
+                        <i :class="moment.img"></i>${moment.label}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-for="(moment, mkey) in enums.moments" class="row custom-tab-content mb-3 mt-3" style="display: block;">
+              
+                  <div class="titulomomento" :id="'moment_'+moment.code">
+                    <i :class="moment.img"></i>
+                    <h2>${moment.label}</h2>
+                  </div>
+                    <template v-if="data.entitiesByMomentAndSector && data.entitiesByMomentAndSector[moment.code]" 
+                        v-for="(sector, skey) in enums.sectors">
+                        
+                        <div v-if="data.entitiesByMomentAndSector[moment.code][sector.code]" class="tituloform1">
+                          <i :class="sector.img"></i><h4>${sector.label}</h4>
+                        </div>
+                        
+                        <template v-if="mkey==0">  <!-- Eliminar para activar todos los momentos-->
+                          <template v-for="(branches, ekey) in data.entitiesByMomentAndSector[moment.code][sector.code]">
+                            <h6 class="nombreentidad">${this.getEntityNameByICode(ekey)}</h6>
+                            <select v-if="data.victimCase.entityBranchesByMomentIdx && data.victimCase.entityBranchesByMomentIdx[moment.code] && data.victimCase.entityBranchesByMomentIdx[moment.code][sector.code] && data.victimCase.entityBranchesByMomentIdx[moment.code][sector.code][ekey] !=null" 
+                                    v-model="data.victimCase.entityBranchesByMomentIdx[moment.code][sector.code][ekey]" class="form-control input_form"  :id="'moment'+mkey+'sector'+skey">
+                                    <option value="" selected></option>
+                                    <option v-for="(branch, idx) in branches" :value="branch.icode"><template v-if="branch.branchSource=='u'">*</template>${branch.name} (${branch.address})</option>
+                            </select>
+                          </template>
+                        </template><!-- -->
+                    </template>
+              </div>
+            </div>
+          </template>
+          <div class="row justify-content-center botones">
+            {{ template "button.html" Button `{"class":"btn btn-warning", "buttonId":"back", "buttonLabel":"victim_case_back", "buttonPlaceHolder":"victim_case_back_h", "onClickHandler":"submit('back')"}` .lang .locale}}
+            {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"save", "buttonLabel":"victim_case_save", "buttonPlaceHolder":"victim_case_save_h", "onClickHandler":"submit('save')"}` .lang .locale}}
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="finishedOverlay" style="display: none;">
+  <div class="popup-container popup-container2" id="popup">
+    <div>
+      <h2>{{ template "text_translated.html" Text `{"text":"get_victim_case_success_title"}` .lang .locale}}</h2>
+        
+        <p>{{ template "text_translated.html" Text `{"text":"get_victim_case_success_msg"}` .lang .locale}}</p>
+        <p><span class="fa fa-user"></span> <strong>{{ template "text_translated.html" Text `{"text":"get_victim_case_user"}` .lang .locale}}:&nbsp;</strong>${data.victimCase.newUser.login}</p>
+        <p><span class="fa fa-lock"> </span><strong>{{ template "text_translated.html" Text `{"text":"get_victim_case_pass"}` .lang .locale}}:&nbsp;</strong>${data.victimCase.newUser.pass}</p>
+        
+      <div class="row justify-content-xl-center botones">
+        <button class="btn btn-success">{{ template "text_translated.html" Text `{"text":"get_victim_case_sms"}` .lang .locale}}</button>
+        <button v-on:click="finished()" class="btn btn-success">{{ template "text_translated.html" Text `{"text":"get_victim_case_ends"}` .lang .locale}}</button>
+      </div>
+    </div>
+      
+  </div>
+</div>
+
+<!-- Bootstrap JS y jQuery (al final del documento para optimizar la carga) -->
+
+    {{ template "standard_scripts.html" .}}
+{{ template "overlay.html" .}}
+    {{ template "html_helper_scripts.html" .}}
+    <script>
+      //var init = function(){
+        
+        var home = Vue.createApp({
+          delimiters : ['${', '}'],
+          components: {
+            CustomSelect,
+            DateTimeInput
+          },
+          
+          data() {
+            return {
+              tmp:false,
+              windowTitle:{{.windowTitle}},
+              currentUser:{{.currentUser}},
+              errors:{},
+              data: {
+                default:new Object(),
+                departmentSelected: "",
+                citySelected: "",
+                townSelected: "",
+                department2Selected: "",
+                city2Selected: "",
+                town2Selected: "",
+                department3Selected: "",
+                city3Selected: "",
+                town3Selected: "",
+                cities: [],
+                towns: [],
+                cities2: [],
+                towns2: [],
+                cities3: [],
+                towns3: [],
+                victimCase:JSON.parse({{.victimCase}}),
+                entitiesByMomentAndSector: JSON.parse({{.entitiesByMomentAndSector}}),
+                wasPartner: false,
+                partnerKnown: false,
+                tamizajeAggressorCheck: false,
+                ratingValue:0,
+                workplaceSectorOccurrence: false,
+                
+              },
+              enums:{
+                
+                
+                language: {{.language}},
+                nav_rules: {{.nav_rules}},
+                maritalStatus: {{.maritalStatus}},
+                riskLevel:{"1":"Bajo", "2":"Moderado", "3":"Alto", "4":"Extremo"},
+                riskLevelCSS:{"1":"riesgo_bajo", "2":"riesgo_moderado", "3":"riesgo_alto", "4":"riesgo_extremo"},
+                //New form ----------
+                yes_no: {{.yes_no}},
+                docType2:{{.docType2}},
+                victim_case_form2_victim_doc_type:{{.docType}},
+                victim_case_form2_facts_zone:{{.factsZone}},
+                victim_case_form2_scenario_violence:{{.scenarioViolence}},
+                victim_case_form2_recurrence_aggression:{{.recurrenceAggression}},
+                victim_case_form2_num_agressors:{{.numAgressors}},
+                victim_case_form2_proximity_principal_aggressor:{{.proximityPrincipalAggressor}},
+                victim_case_form2_relationship_with_presumed_aggressor_01:{{.relationshipWithPresumedAggressor01}},
+                aggressor_occupation:{{.aggressorOccupation}},
+                victim_case_form2_aggressor_gender_identity:{{.aggressorGenderIdentity}},
+                victim_case_form2_nationality:{{.nationality}},
+                victim_case_form2_specified_nationality:{{.specifiedNationality}},
+                victim_case_form2_migration_condition:{{.migrationCondition}},
+                victim_case_form2_gender_identity:{{.genderIdentity}},
+                victim_case_form2_sexual_orientation:{{.sexualOrientation}},
+                victim_case_form2_assigned_sex_at_birth:{{.assignedSexAtBirth}},
+                victim_case_form2_ethnic_affiliation:{{.ethnicAffiliation}},
+                victim_case_form2_indigenous_people:{{.indigenousPeople}},
+                victim_case_form2_marital_status:{{.maritalStatus}},
+                victim_case_form2_last_education_level:{{.lastEducationLevel}},
+                victim_case_form2_occupation:{{.occupation}},
+                victim_case_form2_income_generation_method:{{.incomeGenerationMethod}},
+                victim_case_form2_employment_relationship:{{.employmentRelationship}},
+                victim_case_form2_housing_tenancy_form:{{.housingTenancyForm}},
+                victim_case_form2_housing_stratum:{{.housingStratum}},
+                victim_case_form2_support_contact_kinship:{{.supportContactKinship}},
+                victim_case_form2_workplace_sector_occurrence:{{.workplaceSectorOccurrence}},
+                //Multiple fields
+                victim_case_form2_type_violence_experienced:{{.typeViolenceExperienced}},
+                victim_case_form2_subtype_violence_experienced_fi:{{.subtypeViolenceExperienced_fi}},
+                victim_case_form2_subtype_violence_experienced_ps:{{.subtypeViolenceExperienced_ps}},
+                victim_case_form2_subtype_violence_experienced_se:{{.subtypeViolenceExperienced_se}},
+                victim_case_form2_subtype_violence_experienced_po:{{.subtypeViolenceExperienced_po}},
+                victim_case_form2_subtype_violence_experienced_pl:{{.subtypeViolenceExperienced_pl}},
+                victim_case_form2_subtype_violence_experienced_re:{{.subtypeViolenceExperienced_re}},
+                victim_case_form2_subtype_violence_experienced_vi:{{.subtypeViolenceExperienced_vi}},
+                victim_case_form2_scope_of_violence:{{.scopeOfViolence}},
+                victim_case_form2_who_report_to:{{.whoReportTo}},
+                victim_case_form2_activities_unable_to_perform:{{.activitiesUnableToPerform}},
+                victim_case_form2_adjustments_gbv:{{.adjustmentsGBV}},
+                victim_case_form2_law_1996:{{.law1996}},
+                victim_case_form2_specially_protected_population:{{.speciallyProtectedPopulation}},
+                victim_case_form2_asp_mode:{{.aspMode}},
+                victim_case_form2_reason_asp:{{.reasonASP}},
+                victim_case_form2_has_dependents:{{.hasDependents}},
+                victim_case_form2_action_plan:{{.actionPlan}},
+                
+                
+                
+                violenceSubtypes:[],
+                
+                //-----------------
+                
+                moments: {{.moments}},
+                sectors: {{.sectors}},
+                entities: {{.entities}},
+                relationshipWithAggressor: {{.relationshipWithAggressor}},
+                departments: JSON.parse({{.departments}}),
+                cities: JSON.parse({{.cities}}),
+                towns: JSON.parse({{.towns}})
+              },
+              message:''
+            }
+          },
+          created: function () {
+          
+          },
+          mounted:  function () {
+            document.title = {{.windowTitle}};
+            document.getElementById('app').style.display = 'block';
+            home.config.globalProperties.enums = this.enums;
+            home.config.globalProperties.latitude = 0.0;
+            home.config.globalProperties.longitude = 0.0;
+            navigator.geolocation.getCurrentPosition(function(location) {
+              home.config.globalProperties.latitude = location.coords.latitude;
+              home.config.globalProperties.longitude = location.coords.longitude;
+            });
+            if (this.enums.cities != ""){
+                this.data.cities = this.enums.cities
+            }
+            if (this.enums.towns != ""){
+                this.data.towns = this.enums.towns
+            }
+
+            if (this.data.victimCase.department && this.data.victimCase.department.icode != ""){
+                this.data.departmentSelected = this.data.victimCase.department.icode;
+            }
+            if (this.data.victimCase.city && this.data.victimCase.city.code != ""){
+                this.data.citySelected = this.data.victimCase.city.code;
+            }
+            if (this.data.victimCase.town && this.data.victimCase.town.code != ""){
+                this.data.townSelected = this.data.victimCase.town.code;
+            }
+
+            if (this.data.victimCase.factsDepartment && this.data.victimCase.factsDepartment.icode != ""){
+                this.data.department2Selected = this.data.victimCase.factsDepartment.icode;
+            }
+            if (this.data.victimCase.factsCity && this.data.victimCase.factsCity.code != ""){
+                this.data.city2Selected = this.data.victimCase.factsCity.code;
+            }
+            if (this.data.victimCase.factsTown && this.data.victimCase.factsTown.code != ""){
+                this.data.town2Selected = this.data.victimCase.factsTown.code;
+            }
+          },
+          methods: {
+            logout(){
+                logout("/seguridad/logout");
+            },
+            getEntityNameByICode (iCode){
+              console.log(JSON.stringify(this.data.victimCase.entityBranchesByMomentIdx,null,2));
+              for (let idx = 0; idx < this.enums.entities.length; idx++) {
+                if(this.enums.entities[idx].icode == iCode){
+                    return this.enums.entities[idx].name;
+                }
+              }
+             
+              return "";
+            },
+            changeDepartment3 (event) {
+              this.data.cities3 =  {};
+              this.data.towns3 = {};
+              this.data.city3Selected = "";
+              this.data.victimCase.form2.residenceTownCode = "";
+              
+              getEntity("{{.securityCityFormPath}}/"+this.data.department3Selected+"/departamento", (function(status, response) {
+                
+                if (status === 200) {
+                  
+                  this.data.cities3 =  response;
+                  
+                } 
+                else if (status === 400) {
+                  this.errors = response;
+                }else if (status === 404) {
+                  console.log("No records found")
+                }
+              }).bind(this), true);
+            },
+            changeDepartment2 (event) {
+              this.data.cities2 =  {};
+              this.data.towns2 = {};
+              this.data.city2Selected = "";
+              this.data.victimCase.form2.factsTownCode = "";
+              
+              getEntity("{{.securityCityFormPath}}/"+this.data.department2Selected+"/departamento", (function(status, response) {
+                
+                if (status === 200) {
+                  
+                  this.data.cities2 =  response;
+                  
+                } 
+                else if (status === 400) {
+                  this.errors = response;
+                }else if (status === 404) {
+                  console.log("No records found")
+                }
+              }).bind(this), true);
+            },
+            changeDepartment (event) {
+              this.data.cities =  {};
+                this.data.towns = {};
+                this.data.city3Selected = "";
+                this.data.entitiesByMomentAndSector = null;
+                this.data.victimCase.townCode = "";
+                
+              getEntity("{{.securityCityFormPath}}/"+this.data.departmentSelected+"/departamento", (function(status, response) {
+                
+                if (status === 200) {
+                  this.data.cities =  response;
+                } 
+                else if (status === 400) {
+                  this.errors = response;
+                  
+                  
+                }else if (status === 404) {
+                  console.log("No records found")
+                }
+              }).bind(this), true);
+            },
+            changeCity3 (event) {
+              this.data.towns3 = {};
+              getEntity("{{.securityTownFormPath}}/"+this.data.city3Selected+"/codigo_ciudad", (function(status, response) {
+                
+                if (status === 200) {
+                  this.data.towns3 =  response;
+                } 
+                else if (status === 400) {
+                  this.errors = response;
+                  
+                }else if (status === 404) {
+                  console.log("No records found")
+                }
+              }).bind(this), true);
+            },
+            changeCity2 (event) {
+              this.data.towns2 = {};
+              getEntity("{{.securityTownFormPath}}/"+this.data.city2Selected+"/codigo_ciudad", (function(status, response) {
+                
+                if (status === 200) {
+                  this.data.towns2 =  response;
+                } 
+                else if (status === 400) {
+                  this.errors = response;
+                  
+                }else if (status === 404) {
+                  console.log("No records found")
+                }
+              }).bind(this), true);
+            },
+            changeCity (event) {
+              this.data.towns =  {};
+              this.data.entitiesByMomentAndSector = null;
+              getEntity("{{.securityTownFormPath}}/"+this.data.citySelected+"/codigo_ciudad", (function(status, response) {
+                
+                if (status === 200) {
+                  this.data.towns =  response;
+                } 
+                else if (status === 400) {
+                  this.errors = response;
+                  
+                  
+                }else if (status === 404) {
+                  console.log("No records found")
+                }
+              }).bind(this), true);
+            },
+            changeTown3 (event) {
+              
+            },
+            changeTown2 (event) {
+              
+            },
+            changeTown (event) {
+            
+              getEntity("{{.salviaEntityBranchFormPath}}/"+this.data.victimCase.townCode+"/by/por_momentos", (function(status, response) {
+                if (status === 200) {
+              
+                  this.data.entitiesByMomentAndSector =  response;
+                  
+                } 
+                else if (status === 400) {
+                  this.errors = response;
+                  
+                  
+                }else if (status === 404) {
+                  console.log("No records found")
+                }
+              }).bind(this), true);
+                            
+              
+            },
+            buildInput(inputId, errorSpanId, inputLabel, inputPlaceHolder, entityName, entityAttr) {
+              return buildInput(inputId, errorSpanId, inputLabel, inputPlaceHolder, entityName, entityAttr)
+            },
+            buildSelect(selectId, errorSpanId, selectLabel, selectPlaceHolder, entityName, entityAttr, enumsAttr) {
+              return buildSelect(selectId, errorSpanId, selectLabel, selectPlaceHolder, entityName, entityAttr, enumsAttr);
+            },
+            getMoment(momentCode, branchICode){
+                for (const m of this.data.victimCase.moments) {
+                    console.log(momentCode + " - " +branchICode + ">" + m.code + " - " + m.entityBranch.icode)
+                    if(m.code == momentCode && m.entityBranch.icode == branchICode){
+                        return m
+                    }
+                }
+                return {}
+            },
+            getEntityNameByICode (iCode){
+                for (let idx = 0; idx < this.enums.entities.length; idx++) {
+                    if(this.enums.entities[idx].icode == iCode){
+                        return this.enums.entities[idx].name;
+                    }
+                }
+                
+                return "";
+            },
+            submit(action,event) {
+              if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
+                location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+              }else{
+                this.data.victimCase.livingLatitude = home.config.globalProperties.latitude;
+                this.data.victimCase.livingLongitude = home.config.globalProperties.longitude;
+                //this.data.victimCase.docNumber = this.data.victimCase.docNumber.replace(/\s+/g, '');
+                
+                newEntity("{{.salviaFormPath}}", {victimCase:this.data.victimCase}, (function(status, response) {
+                  document.getElementById('successOverlay').style.display = 'none';
+                  if (status === 200) {
+                    this.data.victimCase.newUser = response;
+                    document.getElementById('finishedOverlay').style.display = 'flex';
+                  } 
+                  else if (status === 400) {
+                    this.errors = response;
+                  }else {
+                    alert("Se produjo un error interno, por favor vuelva a intentarlo");
+                  }
+                }).bind(this));
+              }
+              
+            },
+            finished(){
+              if(home.config.globalProperties.enums.nav_rules["default"]){
+                  location.assign(home.config.globalProperties.enums.nav_rules["default"]);
+                }else if(home.config.globalProperties.enums.nav_rules[action]){
+                  location.assign(home.config.globalProperties.enums.nav_rules[action]);
+                }
+            },
+            getCities(action,event) {
+              
+            },
+            violenceTypeChanged(){
+              var enumsType = this.data.victimCase.form2.typeViolenceExperienced;
+              this.data.victimCase.form2.subtypeViolenceExperienced = [];
+              this.enums.violenceSubtypes = [];
+                for (let idx = 0; idx < enumsType.length; idx++) {
+                  this.enums.violenceSubtypes = this.enums.violenceSubtypes.concat(this.enums["victim_case_form2_subtype_violence_experienced_"+enumsType[idx].code]);
+                }
+            },
+            checkWorkplaceSectorOccurrence (enums){
+                            
+              for (let idx = 0; idx < enums.length; idx++) {
+                  if(enums[idx].code == "al"){
+                      this.data.workplaceSectorOccurrence = true;
+                      return;
+                  }
+              }
+              this.data.workplaceSectorOccurrence = false;
+            },
+            relationWithAggressorChanged(){
+              this.data.wasPartner = this.data.victimCase.form2.relationshipWithPresumedAggressor && (this.data.victimCase.form2.relationshipWithPresumedAggressor.code == "pi" || this.data.victimCase.form2.relationshipWithPresumedAggressor.code == "ex");
+              this.updateTamizajeScore();
+            },
+            proximityWithAggressorChanged(){
+              this.data.partnerKnown = this.data.victimCase.form2.proximityPrincipalAggressor && (this.data.victimCase.form2.proximityPrincipalAggressor.code == "pc" || this.data.victimCase.form2.proximityPrincipalAggressor.code == "pn");
+            },
+            updateTamizajeAggressor(){
+              this.data.tamizajeAggressorCheck = 
+                            this.data.victimCase.form2.aggressorViolencePhysicalIncrease.code == "y" ||
+                            this.data.victimCase.form2.aggressorWeaponUsed.code == "y" ||
+                            this.data.victimCase.form2.aggressorThreatKill.code == "y" ||
+                            this.data.victimCase.form2.aggressorPursuesSpiesDestroys.code == "y" ||
+                            this.data.victimCase.form2.aggressorCapableOfKilling.code == "y" ||
+                            this.data.victimCase.form2.aggressorHasAccessToWeapons.code == "y";
+              
+              this.updateTamizajeScore();
+
+            },
+            updateTamizajeScore(){
+              
+              var riskScore = 0
+              var riskLevel = 1
+              console.log(1111);
+              if(this.data.victimCase.form2.aggressorViolencePhysicalIncrease.code == "y"){
+                riskScore ++
+              }
+              if(this.data.victimCase.form2.aggressorWeaponUsed.code == "y"){
+                riskScore ++
+              }
+              if(this.data.victimCase.form2.aggressorThreatKill.code == "y"){
+                riskScore ++
+              }
+              if(this.data.victimCase.form2.aggressorPursuesSpiesDestroys.code == "y"){
+                riskScore ++
+              }
+              if(this.data.victimCase.form2.aggressorCapableOfKilling.code == "y"){
+                riskScore ++
+              }
+              if(this.data.victimCase.form2.aggressorHasAccessToWeapons.code == "y"){
+                riskScore ++
+              }
+              
+              if(this.data.wasPartner){console.log(22222222);
+                if (this.data.victimCase.form2.partnerUnemployed.code == "y") {
+                  riskScore++
+                }
+                if (this.data.victimCase.form2.partnerOtherDenunciations.code == "y") {
+                  riskScore++
+                }
+                if (this.data.victimCase.form2.aggressorHasPenalBackground.code == "y") {
+                  riskScore++
+                }
+                
+                if (this.data.victimCase.form2.stoppedSeekingHelp.code == "y") {
+                  riskScore++
+                }
+                console.log(2.2)
+                if (this.data.victimCase.form2.aggressorForcedSex.code == "y") {
+                  riskScore++
+                }
+                if (this.data.victimCase.form2.aggressorAttemptedStrangulation.code == "y") {
+                  riskScore++
+                }
+                if (this.data.victimCase.form2.aggressorConsumesDrugs.code == "y") {
+                  riskScore++
+                }
+                if (this.data.victimCase.form2.aggressorIsAlcoholic.code == "y") {
+                  riskScore++
+                }
+                if (this.data.victimCase.form2.partnerControls.code == "y") {
+                  riskScore++
+                }
+                if (this.data.victimCase.form2.aggressorHadHitInVulnerability.code == "y") {
+                  riskScore++
+                }
+                console.log(2.3)
+                if (this.data.victimCase.form2.victimHealthToBlackmail.code == "y") {
+                  riskScore++
+                }
+
+                if (this.data.victimCase.form2.partnerThreatenedSuicide.code == "y") {
+                  riskScore++
+                }
+                if (this.data.victimCase.form2.partnerThreatenedDamageMembers.code == "y") {
+                  riskScore++
+                }
+                if (this.data.victimCase.form2.thoughtsOfSelfHarm.code == "y") {
+                  riskScore++
+                }
+                if (this.data.victimCase.form2.aggressorLimitsContactSupportNetworks.code == "y") {
+                  riskScore++
+                }
+                
+                if (this.data.victimCase.form2.threatenedRevealSexualOrientation.code == "y") {
+                  riskScore++
+                }
+                console.log(2.4)
+                if (this.data.victimCase.form2.stillLivesWithAggressor.code == "y") {
+                  riskScore++
+                }
+                if (this.data.victimCase.form2.aggressorViolentlyJealous.code == "y") {
+                  riskScore++
+                }
+
+                //Calculamos el nivel
+                if (riskScore <= 4) {
+                  riskLevel = 1
+                } else if (riskScore <= 8) {
+                  riskLevel = 2
+                } else if (riskScore <= 15) {
+                  riskLevel = 3
+                } else if (riskScore <= 24) {
+                  riskLevel = 4
+                }
+              }else{console.log(3333333);
+                //Cuando no es pareja
+		
+                if (this.data.victimCase.form2.aggressorTakenAdvantagePhysicalVulnerability.code == "y") {
+                  riskScore++
+                }
+
+                if (this.data.victimCase.form2.aggressorUnemployed.code == "y") {
+                  riskScore++
+                }
+
+                if (this.data.victimCase.form2.aggressorHasPenalBackground2.code == "y") {
+                  riskScore++
+                }
+                
+                if (this.data.victimCase.form2.aggressorSexuallyHarassment.code == "y") {
+                  riskScore++
+                }
+                
+                if (this.data.victimCase.form2.aggressorSexuallyHarassment2.code == "y") {
+                  riskScore++
+                }
+                
+                if (this.data.victimCase.form2.violenceMotivatedByGender2.code == "y") {
+                  riskScore++
+                }
+                
+                if (this.data.victimCase.form2.aggressorUseDrugs.code == "y") {
+                  riskScore++
+                }
+                
+                if (this.data.victimCase.form2.aggressorIsAlcoholic2.code == "y") {
+                  riskScore++
+                }
+                
+                if (this.data.victimCase.form2.aggressorControls.code == "y") {
+                  riskScore++
+                }
+
+                if (this.data.victimCase.form2.aggressorThreatenedDamageMembers.code == "y") {
+                  riskScore++
+                }
+
+                if (this.data.victimCase.form2.thoughtsOfSelfHarm2.code == "y") {
+                  riskScore++
+                }
+
+                if (this.data.victimCase.form2.aggressorCommonSpaces.code == "y") {
+                  riskScore++
+                }
+
+                if (this.data.victimCase.form2.aggressorHierarchy.code == "y") {
+                  riskScore++
+                }
+                console.log(3.3)
+                if (this.data.victimCase.form2.aggressorUsedPositionAuthority.code == "y") {
+                  riskScore++
+                }
+
+                //Calculamos el nivel
+                if (riskScore <= 2) {
+                  riskLevel = 1
+                } else if (riskScore <= 5) {
+                  riskLevel = 2
+                } else if (riskScore <= 8) {
+                  riskLevel = 3
+                } else if (riskScore <= 20) {
+                  riskLevel = 4
+                }
+              }
+              this.data.victimCase.form2.riskScore = riskScore;
+              this.data.victimCase.form2.riskLevel = riskLevel;
+
+            },
+            logout(){
+                logout("/seguridad/logout");
+            }
+          }
+        });
+        
+        //home.directive('click-outside', clickOutsideDirective);
+
+        home.mount("#app");
+
+
+     // };
+    </script>

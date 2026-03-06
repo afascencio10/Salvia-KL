@@ -1,0 +1,7 @@
+{
+    "hostname":"localhost",
+    "port":"5432",
+    "database":"salvia",
+    "user":"salvia_admin",
+    "password":"123456abcABC.X"
+}

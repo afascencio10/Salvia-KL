@@ -1,0 +1,497 @@
+<div class="container">
+    <div id="alert" v-if="errors.default&&errors.default.global_msg" class="alert alert-danger alert-dismissible">${errors.default.global_msg}</div>
+    <div class="welcome-section">
+        <h2><b>Mapa de casos Salvia</b></h2>
+    </div>
+
+    <div class="mt-3 mb-4">
+        <h3>Encontrar casos</h3>
+
+    </div>
+    <div class="col-12 mapadiv">
+        <div class="col-3">
+
+            <div class="row">
+                <div class="col-sm-12">
+                    {{ template "date_time.html" DateTime `{"class":"", "mandatory":true,
+                    "errorClass":"error_input", "dateTimeId":"report_start_date",
+                    "dateTimeFormat":"DD/MM/YYYY", "errorSpanId":"report_start_date_error", "dateTimeLabel":"report_start_date",
+                    "dateTimePlaceHolder":"report_start_date_h", "entityPath":"workingPlace",
+                    "entityName":"report","entityAttr":"startDate"}` .lang .locale}}
+                </div>
+    
+                <div class="col-sm-12">
+                    {{ template "date_time.html" DateTime `{"class":"", "mandatory":true,
+                    "errorClass":"error_input", "dateTimeId":"report_end_date",
+                    "dateTimeFormat":"DD/MM/YYYY", "errorSpanId":"report_end_date_error", "dateTimeLabel":"report_end_date",
+                    "dateTimePlaceHolder":"report_end_date_h", "entityPath":"workingPlace",
+                    "entityName":"report","entityAttr":"endDate"}` .lang .locale}}
+                </div>
+            </div>
+            
+
+            <div class="form-group">
+                <label>Departamento</label>
+                <select class="form-control" id="departments" @change="changeDepartment($event)"
+                    v-model="workingPlace.report.department">
+                    <option v-for="(dep, idx) in enums.departments" :value="dep.icode" :key="idx">${dep.name}</option>
+                </select>
+            </div>
+            <div  v-if="cities.length > 0" class="form-group">
+                <label>Ciudad</label>
+                <select class="form-control" id="cities"
+                    @change="changeCity($event)" v-model="workingPlace.report.city">
+                    <option v-for="(city, idx) in cities" :value="city.code" :key="idx">${city.name}
+                    </option>
+                </select>
+            </div>
+            <div v-if="towns.length > 0" class="form-group">
+                <label>Municipio/Centro poblado</label>
+                <select class="form-control" id="towns"
+                    v-model="workingPlace.report.town">
+                    <option v-for="(town, idx) in towns" :value="town.code" :key="idx">${town.name}
+                    </option>
+                </select>
+            </div>
+
+            {{ template "labeled_select_enums.html" Select `{"multiple":false, "containerClass":"form-group",
+            "class":"form-control", "errorClass":"form-control is-invalid",
+            "selectId":"victim_violence_experienced", "errorSpanId":"victim_violence_experienced_error",
+            "selectLabel":"victim_violence_experienced", "selectPlaceHolder":"victim_violence_experienced_h",
+            "entityPath":"workingPlace", "entityName":"report", "entityAttr":"type",
+            "enumsAttr":"violenceExperienced"}` .lang .locale}}
+
+            {{ template "labeled_select_enums.html" Select `{"multiple":false, "containerClass":"form-group",
+            "class":"form-control", "errorClass":"form-control is-invalid",
+            "selectId":"case_status", "errorSpanId":"case_status_error",
+            "selectLabel":"case_status", "selectPlaceHolder":"case_status",
+            "entityPath":"workingPlace", "entityName":"report", "entityAttr":"status",
+            "enumsAttr":"caseStatus"}` .lang .locale}}
+
+           
+            <div class="row justify-content-xl-center botones mt-3">
+                {{ template "button.html" Button `{"class":"btn btn-warning", "buttonId":"back", "buttonLabel":"report_victim_case_back", "buttonPlaceHolder":"report_victim_case_back_h", "onClickHandler":"submit('back')"}` .lang .locale}}
+                {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"save", "buttonLabel":"report_search", "buttonPlaceHolder":"report_search", "onClickHandler":"submit('search')"}` .lang .locale}}
+            </div>
+
+            <div class="row justify-content-xl-center botones mt-3">
+                <button v-if="res.victimCasesForm1&&res.victimCasesForm1.length > 0" id="download" v-on:click="submit('download')" class="btn btn-primary">{{ template "text_translated.html" Text `{"text":"report_download"}` .lang .locale}}</button>
+                <button v-if="res.victimCasesForm2&&res.victimCasesForm2.length > 0" id="download2" v-on:click="submit('download2')" class="btn btn-primary">{{ template "text_translated.html" Text `{"text":"report_download_v2"}` .lang .locale}}</button>
+            </div>
+        </div>
+        <div id = "salviaMap" style = "width: 900px; height: 580px"></div>
+       
+    </div>
+</div>
+
+
+
+{{ template "standard_scripts.html" .}}
+{{ template "overlay.html" .}}
+
+<script>
+
+
+
+
+
+
+var home = Vue.createApp({
+  delimiters : ['${', '}'],
+  components: {
+    CustomSelect,
+    DateTimeInput
+  },
+  data() {
+    return {
+        workingPlace:{report:{}},
+        departments:{{.departments}},
+        cities:"",
+        towns:"",
+        windowTitle:{{.windowTitle}},
+        currentUser:{{.currentUser}},
+        menu:{{.menu}},
+        menuToolsContactTable: {{.menuToolsContactTable}},
+        menuToolsCaseTable: {{.menuToolsCaseTable}},
+        enums:{
+            nav_rules: {{.nav_rules}},
+            violenceExperienced: {{.violenceExperienced}},
+            departments: JSON.parse({{.departments}}),
+            caseStatus: {{.caseStatus}},
+            docType: {{.docType}}
+        },
+        res:{
+            victimCasesForm1: [],
+            victimCasesForm2: []
+        },
+        errors:{}
+    }
+  },
+  created: function () {
+    
+    /*getData("/seguridad/usuarios", (function(status, response) {
+      if (status === 200) {
+        //parse JSON datax`x
+        
+        this.res = response;
+        
+      } else if (status === 404) {
+        console.log("No records found")
+      }
+    }).bind(this));
+    */
+  },
+  mounted:  function () {
+            document.title = {{.windowTitle}};
+    document.getElementById('app').style.display = 'block';
+    home.config.globalProperties.enums = this.enums;
+    home.config.globalProperties.map = L.map('salviaMap');
+    home.config.globalProperties.markers = L.markerClusterGroup({
+        iconCreateFunction: function(cluster) {
+            return L.divIcon({ html: '<div class="groupMarker"><b>' + cluster.getChildCount() + '</b></div>' });
+        }
+    });
+
+    // Add copyright attribution
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png?{foo}', {
+        foo: 'bar',
+        attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}
+    ).addTo(home.config.globalProperties.map);
+
+    home.config.globalProperties.map.setView(L.latLng(4.650173, -74.107359), 6);
+
+  },
+  methods: {
+    changeDepartment (event) {
+        getEntity("{{.securityCityformPath}}/"+this.workingPlace.report.department+"/departamento", (function(status, response) {
+        
+        if (status === 200) {
+        
+            this.cities =  response;
+            
+        } 
+        else if (status === 400) {
+            this.errors = response;
+            
+            
+        }else if (status === 404) {
+            console.log("No records found")
+        }
+        }).bind(this), true);
+    },
+    changeCity (event) {
+        
+        getEntity("{{.securityTownformPath}}/"+this.workingPlace.report.city+"/codigo_ciudad", (function(status, response) {
+        
+        if (status === 200) {
+            this.towns =  response;
+        } 
+        else if (status === 400) {
+            this.errors = response;
+            
+            
+        }else if (status === 404) {
+            console.log("No records found")
+        }
+        }).bind(this), true);
+    },
+    getAlerts(){
+        location.assign("{{.salviaAlertformPath}}");
+    },
+    logout(){
+        logout("/seguridad/logout");
+    },
+    goAbout() {
+        //about.mount('#app');
+    },
+    submit(action) {
+        if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
+            location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+        }else if (action == "search"){
+            
+            newEntity("{{.salviaReportformPath}}", this.workingPlace, (function(status, response) {
+                document.getElementById('successOverlay').style.display = 'none';
+                if (status === 200) {
+                    this.errors = {};
+                    var locations = [];
+                    for (let idx = 0; idx < response.length; idx++) {
+                        const element = response[idx];
+                        locations.push(response[idx]);
+                        if (element.form.icode!=""){
+                            this.res.victimCasesForm1.push(response[idx]);
+                        }else  if (element.form2.icode!=""){
+                            this.res.victimCasesForm2.push(response[idx]);
+                        }
+                        
+                    }
+                    home.config.globalProperties.markers.clearLayers();
+                    
+                    
+                    if(locations.length > 0){
+                        home.config.globalProperties.map.setView(L.latLng(locations[0].townLatitude, locations[0].townLongitude), 6);
+                    }
+                    
+                    for (var i = 0; i < locations.length; i++) {
+                        var mmr = L.marker([locations[i].townLatitude, locations[i].townLongitude]);
+                        var popup = L.popup()
+                        mmr.bindPopup(i);
+                        //mmr.addTo(mymap);
+                        popup.setLatLng([locations[i].townLatitude, locations[i].townLongitude]);
+                        // Set popup window conten
+                        
+                        popup.setContent('<p>Fecha: '+locations[i].creationDate+'</p>'+
+                                        '<p>Nombres: '+locations[i].names+ ' ' + locations[i].lastNames +'</p>'+
+                                        '<p>Documento: '+home.config.globalProperties.enums.docType[locations[i].docType]+ ' '+ locations[i].docNumber +'</p>'
+                                            );
+                        //popup.openOn(mymap)
+                        // Set marker onclick event
+                        mmr.on('click', openPopupWindow);
+                        mmr.bindPopup(popup);
+                        mmr.foo = "hola"+i;
+                        home.config.globalProperties.markers.addLayer(mmr);
+                    }
+                    home.config.globalProperties.map.addLayer(home.config.globalProperties.markers);
+                    
+                    // Marker click event handler
+                    function openPopupWindow(e) {
+                        //alert(this.foo);
+                        //e.setContent('Latitude: '+e.latlng.lat+' <br /> Longitude: '+e.latlng.lng).openPopup();
+                    }
+                    
+                }
+                else if (status === 400) {
+                    this.errors = response;
+                }else {
+                    alert("Se produjo un error interno, por favor vuelva a intentarlo");
+                }
+            }).bind(this));
+        }else if (action == "download" || action == "download2" ){
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            setTimeout(() => {
+                // Convertir cada objeto en una cadena CSV
+                var csv = null;
+                if (action == "download"){
+                    var vcs = this.res.victimCasesForm1;
+                    
+                    vcs = vcs.map(function(vc) {
+                        return '"' + vc['creationDate'] + '",'+
+                                '"' + vc['updateDate'] + '",'+
+                                '"' + vc['status'] + '",'+
+                                '"' + vc['names'] + '",'+
+                                '"' + vc['lastNames'] + '",'+
+                                '"' + vc['form']['nick'] + '",'+
+                                '"' + vc['docType'] + '",'+
+                                '"' + vc['docNumber'] + '",'+
+                                '"' + vc['form']['birthDate'] + '",'+
+                                '"' + vc['department']['name'] + '",'+
+                                '"' + vc['city']['name'] + '",'+
+                                '"' + vc['townCode'] + '",'+
+                                '"' + vc['form']['address'] + '",'+
+                                '"' + vc['form']['livingLatitude'] + '",'+
+                                '"' + vc['form']['livingLongitude'] + '",'+
+                                '"' + vc['form']['phone'] + '",'+
+                                '"' + vc['form']['email'] + '",'+
+                                '"' + vc['form']['genderIdentity'] + '",'+
+                                '"' + vc['form']['sexualOrientation'] + '",'+
+                                '"' + vc['form']['sexualOrientationOther'] + '",'+
+                                '"' + vc['form']['gender'] + '",'+
+                                '"' + vc['form']['genderIdentityOther'] + '",'+
+                                '"' + vc['form']['age'] + '",'+
+                                '"' + vc['form']['nationality'] + '",'+
+                                '"' + vc['form']['nationalityOther'] + '",'+
+                                '"' + vc['form']['foreignImmigrationStatus'] + '",'+
+                                '"' + vc['form']['origin'] + '",'+
+                                '"' + vc['form']['occupation'] + '",'+
+                                '"' + vc['form']['occupationOther'] + '",'+
+                                '"' + vc['form']['ethnicGroup'] + '",'+
+                                '"' + vc['form']['ethnicGroupOther'] + '",'+
+                                '"' + vc['form']['contactNames'] + '",'+
+                                '"' + vc['form']['contactPhone'] + '",'+
+                                '"' + vc['form']['contactKinship'] + '",'+
+                                '"' + vc['form']['numChildren'] + '",'+
+                                '"' + vc['form']['maritalStatus'] + '",'+
+                                '"' + vc['form']['maritalStatusOther'] + '",'+
+                                '"' + vc['form']['childrenAge'] + '",'+
+                                '"' + vc['form']['disability'] + '",'+
+                                '"' + vc['form']['specialSupport'] + '",'+
+                                '"' + vc['form']['factsOccurrence'] + '",'+
+                                '"' + vc['form']['factsStartTime'] + '",'+
+                                '"' + vc['form']['factsEndTime'] + '",'+
+                                '"' + vc['form']['factsWeekday'] + '",'+
+                                '"' + vc['form']['factsDate'] + '",'+
+                                '"' + vc['form']['violenceExperienced'] + '",'+
+                                '"' + vc['form']['violenceExperiencedOther'] + '",'+
+                                '"' + vc['form']['violenceScope'] + '",'+
+                                '"' + vc['form']['femicideRisk'] + '",'+
+                                '"' + vc['form']['dependents'] + '",'+
+                                '"' + vc['form']['deathThreats'] + '",'+
+                                '"' + vc['form']['aggressorHasWeapons'] + '",'+
+                                '"' + vc['form']['experiencedViolenceBefore'] + '",'+
+                                '"' + vc['form']['imminentRisk'] + '",'+
+                                '"' + vc['form']['previouslyReportedSituation'] + '",'+
+                                '"' + vc['form']['ifPreviouslyReported'] + '",'+
+                                '"' + vc['form']['ifAfro'] + '",'+
+                                '"' + vc['form']['ifIndigenous'] + '",'+
+                                '"' + vc['form']['ifIndigenousTongue'] + '",'+
+                                '"' + vc['form']['ifPeasant'] + '",'+
+                                '"' + vc['form']['ifArmedConflict'] + '",'+
+                                '"' + vc['form']['violenceScene'] + '",'+
+                                '"' + vc['form']['townLatitude'] + '",'+
+                                '"' + vc['form']['townLongitude'] + '",'+
+                                '"' + vc['form']['aggressor'] + '",'+
+                                '"' + vc['form']['relationshipWithAggressor'] + '",'+
+                                '"' + vc['form']['aggressorName'] + '",'+
+                                '"' + vc['form']['aggressorDocType'] + '",'+
+                                '"' + vc['form']['aggressorDocNumber'] + '",'+
+                                '"' + vc['form']['aggressorAddress'] + '",'+
+                                '"' + vc['form']['aggressorPhone'] + '",'+
+                                '"' + vc['owners'] + '",'+
+                                '"' + vc['form']['factsDescription'].replace(/\n/g,'. ').replace(/"/g,'\' ') + '"'
+                    }).join('\n');
+                    // Agregar un encabezado a la primera línea del archivo CSV (opcional)
+                    csv = "Fecha creación,Fecha modificación,Estado,Nombres,Apellidos,Nombre identitario,Tipo de documento,Número de documento,Fecha de nacimiento,Departamento,Ciudad,Lugar de atención,Dirección,Latitud registro,Longitud registro,Teléfono,Correo,Identidad de género,Orientación sexual,Otra orientación sexual,Género,Identidad de género,Edad,Nacionalidad,Otra nacionalidad,Condición migratoria,Origen,Ocupación,Otra ocupación,Grupo étnico,Otro grupo étnico,Nombres de contacto,Teléfono de contacto,Parentezco,Número de hijos,Estado civil,Otro estado civil,Edades de los hijos,Discapacidad,Apoyo especial,Ocurrencia de los hechos,Hora inicio de ocurencia,Hora fin de ocurencia,Día de la semana,Fecha de la ocurrencia,Violencia experimentada,Otra violencia experimentada,Ámbito de violencia,Riesgo feminicida,Dependientes,Amenaza muerte,Elagresor tenía armas,Experimentó violencia antes,Riesgo feminicida,Reportó previamente,Si reportó previamente,Si es afro,Si es indígena,Lengua indígena,Si es campesino,Si víctima conflicto armado,Escenario de violencia,Latitud atención,Longitud atención,Agresor,Relación con el agresor,Nombre del agresor,Tipo de documento del agresor,Número de documento del agresor,Dirección del agresor,Teléfono del agresor,Funcionarios,Descripción de los hechos\n" + vcs;
+                }else if (action == "download2"){
+                    var vcs = this.res.victimCasesForm2;
+                    
+                    vcs = vcs.map(function(vc) {
+                        
+                        return '"' + vc['creationDate'] + '",'+
+                                '"' + vc['updateDate'] + '",'+
+                                '"' + vc['status'] + '",'+
+                                '"' + vc['names'] + '",'+
+                                '"' + vc['lastNames'] + '",'+
+                                '"' + vc['docType'] + '",'+
+                                '"' + vc['docNumber'] + '",'+
+                                '"' + vc['form2']['personWithDisability'].name + '",'+
+                                '"' + (vc['form2']?.['adjustmentsGBV']?? [] ).map(obj => obj.name).join(";") + '",'+
+                                '"' + vc['form2']['identityName'] + '",'+
+                                '"' + vc['form2']['phone'] + '",'+
+                                '"' + vc['form2']['factsDate'] + '",'+
+                                '"' + vc['form2']['factsStartTime'] + '",'+
+                                '"' + vc['form2']['factsTownCode'] + '",'+
+                                '"' + vc['form2']['factsZone'].name + '",'+
+                                '"' + vc['form2']['factsAddress'] + '",'+
+                                '"' + vc['form2']['scenarioViolence'].name + '",'+
+                                '"' + (vc['form2']?.['typeViolenceExperienced']?? [] ).map(obj => obj.name).join(";") + '",'+
+                                '"' + (vc['form2']?.['subtypeViolenceExperienced']?? [] ).map(obj => obj.name).join(";") + '",'+
+                                '"' + (vc['form2']?.['scopeOfViolence']?? [] ).map(obj => obj.name).join(";") + '",'+
+                                '"' + vc['form2']['reportedPreviously'].name + '",'+
+                                '"' + (vc['form2']?.['whoReportTo']?? [] ).map(obj => obj.name).join(";") + '",'+
+                                '"' + vc['form2']['recurrenceAggression'].name + '",'+
+                                '"' + vc['form2']['numAgressors'].name + '",'+
+                                '"' + vc['form2']['proximityPrincipalAggressor'].name + '",'+
+                                '"' + vc['form2']['relationshipWithPresumedAggressor'].name + '",'+
+                                '"' + vc['form2']['economicallyDependent'].name + '",'+
+                                '"' + vc['form2']['aggressorGenderIdentity'].name + '",'+
+                                '"' + vc['form2']['aggressorNames'] + '",'+
+                                '"' + vc['form2']['aggressorDocType'].name + '",'+
+                                '"' + vc['form2']['aggressorDocNumber'] + '",'+
+                                '"' + vc['form2']['aggressorAddress'] + '",'+
+                                '"' + vc['form2']['aggressorPhone'] + '",'+
+                                '"' + vc['form2']['aggressorViolencePhysicalIncrease'].name + '",'+
+                                '"' + vc['form2']['aggressorWeaponUsed'].name + '",'+
+                                '"' + vc['form2']['aggressorThreatKill'].name + '",'+
+                                '"' + vc['form2']['aggressorPursuesSpiesDestroys'].name + '",'+
+                                '"' + vc['form2']['aggressorCapableOfKilling'].name + '",'+
+                                '"' + vc['form2']['aggressorHasAccessToWeapons'].name + '",'+
+                                '"' + vc['form2']['partnerUnemployed'].name + '",'+
+                                '"' + vc['form2']['partnerOtherDenunciations'].name + '",'+
+                                '"' + vc['form2']['aggressorHasPenalBackground'].name + '",'+
+                                '"' + vc['form2']['aggressorForcedSex'].name + '",'+
+                                '"' + vc['form2']['aggressorAttemptedStrangulation'].name + '",'+
+                                '"' + vc['form2']['aggressorConsumesDrugs'].name + '",'+
+                                '"' + vc['form2']['aggressorIsAlcoholic'].name + '",'+
+                                '"' + vc['form2']['partnerControls'].name + '",'+
+                                '"' + vc['form2']['aggressorHadHitInVulnerability'].name + '",'+
+                                '"' + vc['form2']['partnerThreatenedSuicide'].name + '",'+
+                                '"' + vc['form2']['partnerThreatenedDamageMembers'].name + '",'+
+                                '"' + vc['form2']['thoughtsOfSelfHarm'].name + '",'+
+                                '"' + vc['form2']['aggressorLimitsContactSupportNetworks'].name + '",'+
+                                '"' + vc['form2']['stillLivesWithAggressor'].name + '",'+
+                                '"' + vc['form2']['aggressorViolentlyJealous'].name + '",'+
+                                '"' + vc['form2']['aggressorUnemployed'].name + '",'+
+                                '"' + vc['form2']['aggressorHasPenalBackground2'].name + '",'+
+                                '"' + vc['form2']['aggressorSexuallyHarassment'].name + '",'+
+                                '"' + vc['form2']['aggressorUseDrugs'].name + '",'+
+                                '"' + vc['form2']['aggressorIsAlcoholic2'].name + '",'+
+                                '"' + vc['form2']['aggressorControls'].name + '",'+
+                                '"' + vc['form2']['aggressorThreatenedDamageMembers'].name + '",'+
+                                '"' + vc['form2']['thoughtsOfSelfHarm2'].name + '",'+
+                                '"' + vc['form2']['aggressorCommonSpaces'].name + '",'+
+                                '"' + vc['form2']['aggressorHierarchy'].name + '",'+
+                                '"' + vc['form2']['birthDate'] + '",'+
+                                '"' + vc['form2']['physicalMentalSensoryDifficulties'].name + '",'+
+                                '"' + (vc['form2']?.['law1996']?? [] ).map(obj => obj.name).join(";") + '",'+
+                                '"' + vc['form2']['nationality'].name + '",'+
+                                '"' + vc['form2']['specifiedNationality'].name + '",'+
+                                '"' + vc['form2']['migrationCondition'].name + '",'+
+                                '"' + vc['form2']['genderIdentity'].name + '",'+
+                                '"' + vc['form2']['sexualOrientation'].name + '",'+
+                                '"' + vc['form2']['assignedSexAtBirth'].name + '",'+
+                                '"' + (vc['form2']?.['speciallyProtectedPopulation']?? [] ).map(obj => obj.name).join(";") + '",'+
+                                '"' + vc['form2']['ethnicAffiliation'].name + '",'+
+                                '"' + vc['form2']['indigenousPeople'].name + '",'+
+                                '"' + vc['form2']['campesinoRecognition'].name + '",'+
+                                '"' + vc['form2']['maritalStatus'].name + '",'+
+                                '"' + vc['form2']['lastEducationLevel'].name + '",'+
+                                '"' + vc['form2']['occupation'].name + '",'+
+                                '"' + vc['form2']['incomeGenerationMethod'].name + '",'+
+                                '"' + vc['form2']['employmentRelationship'].name + '",'+
+                                '"' + (vc['form2']?.['aspMode']?? [] ).map(obj => obj.name).join(";") + '",'+
+                                '"' + vc['form2']['approxStartAsp'] + '",'+
+                                '"' + (vc['form2']?.['reasonASP']?? [] ).map(obj => obj.name).join(";") + '",'+
+                                '"' + vc['form2']['housingTenancyForm'].name + '",'+
+                                '"' + vc['form2']['housingStratum'].name + '",'+
+                                '"' + (vc['form2']?.['hasDependents']?? [] ).map(obj => obj.name).join(";") + '",'+
+                                '"' + vc['form2']['currentlyPregnant'].name + '",'+
+                                '"' + vc['form2']['residenceTownCode'] + '",'+
+                                '"' + vc['form2']['residenceAddress'] + '",'+
+                                '"' + vc['form2']['residenceZone'].name + '",'+
+                                '"' + vc['form2']['supportContactNames'] + '",'+
+                                '"' + vc['form2']['supportContactPhone'] + '",'+
+                                '"' + vc['form2']['supportContactEmail'] + '",'+
+                                '"' + vc['form2']['supportContactKinship'].name + '",'+
+                                '"' + vc['form2']['requireLanguageInterpreter'].name + '",'+
+                                '"' + vc['form2']['workplaceSectorOccurrence'].name + '",'+
+                                '"' + vc['form2']['violenceMotivatedByGender'].name + '",'+
+                                '"' + vc['form2']['attentionWasAppropriate'].name + '",'+
+                                '"' + vc['form2']['aggressorOccupation'].name + '",'+
+                                '"' + vc['form2']['activitiesUnableToHear'] + '",'+
+                                '"' + vc['form2']['activitiesUnableToTalk'] + '",'+
+                                '"' + vc['form2']['activitiesUnableToSee'] + '",'+
+                                '"' + vc['form2']['activitiesUnableToMove'] + '",'+
+                                '"' + vc['form2']['activitiesUnableToTake'] + '",'+
+                                '"' + vc['form2']['activitiesUnableToUnderstand'] + '",'+
+                                '"' + vc['form2']['activitiesUnableToEat'] + '",'+
+                                '"' + vc['form2']['activitiesUnableToInteract'] + '",'+
+                                '"' + vc['form2']['activitiesUnableToDoEveryday'] + '",'+
+                                '"' + vc['form2']['factsDescription'].replace(/\n/g,'. ').replace(/"/g,'\' ') + '"'
+                    }).join('\n');
+
+                    // Agregar un encabezado a la primera línea del archivo CSV (opcional)
+                    csv = "Fecha creación,Fecha modificación,Estado,Nombres,Apellidos,Tipo de documento,Número de documento, Se reconoce como persona con discapacidad, Requiere ajuste atención VBG y/o VpP, Nombre identitario, Número de teléfono de contacto en Colombia, Fecha de los hechos, Hora de los hechos, Municipio de los hechos, Zona de los hechos, Dirección de los hechos, Escenario de violencia, Tipo de violencia, Subtipo de violencia, Ámbitos de violencia, Reportó previamente, A quién reportó, Recurrencia, Número agresores, Cercanía con el agresor, Relación con el agresor, Depende económicamente del agresor, Identidad de género agresor, Nombres del agresor, Tipo documento agresor, Número documento agresor, Dirección agresor, Teléfono agresor, Incremento violencia, Agresor amenaza armas, Agresor intentó asesinar, Agresor la persigue o espia, Agresor capaz de matar, Agresor acceso armas, Pareja desempleada, Pareja otras denuncias, Pareja antecedentes penales, Pareja forzó relaciones sexuales, Pareja intentó estrangular, Pareja drogas, Pareja alcohol, Pareja controla actividades, Pareja golpeado estado vulnerabilidad, Pareja amenaza suicidio, Pareja amenaza familiares, Ha pensado en suicidarse, Agresora limita contacto, Vive con agresor, Agresor violencia celos, Agresor desempleado, Agresor antecedentes penales, Agresor acosa sexualmente, Agresor consume drogas, Agresor alcohólico, Agresor controla actividades, Agresor amenaza familiares, Ha pensado en suicidio, Comparte espacios con agresor, Tiene relación jerarquía con agresor, Fecha nacimiento, Dada su condición física tiene dificultades, Según Ley 1996 de 2019, Nacionalidad, País, Condición migratoria, Identidad de género, Orientación sexual, Sexo asignado al nacer, Población especial protección, Grupo étnico, Se reconoce indígena, Se reconoce campesino, Estado civil, Nivel educativo, Ocupación, Generaciónn ingresos, Vinculación laboral, Modalidad ASP, Inicio ASP, Motivo ASP, Tenencia vivienda, Estrato social, Personas a cargo, Está embarazada, Municipio residencia, Dirección residencia, Zona residencia, Nombres de contacto emergencia, Teléfono de contacto emergencia, Correo de contacto emergencia, Parentezco con contacto emergencia, Requiere intérprete de idiomas, Sector laboral de violencia, Violencia de género, Atención de entidad apropiada, Ocupación agresor, No puede oir, No puede hablar, No puede ver, No puede moverse, No puede coger cosas, No puede entender, No puede comer, No puede interactuar, No puede hacer actyividades cotidianas, Descripción de los hechos  \n" + vcs;
+                }
+                    
+                
+
+                // Crear el archivo CSV
+                var blob = new Blob([new Uint8Array([0xEF,0xBB,0xBF]),csv], {type: 'text/csv;charset=utf-8;'});
+                var link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'casos.csv';
+                document.body.appendChild(link);
+                link.click();
+                document.getElementById('loadingOverlay').style.display = 'none';  
+            }, 500);
+            
+        }
+        
+    }
+  }
+});
+
+home.mount("#app");
+
+
+</script>
+

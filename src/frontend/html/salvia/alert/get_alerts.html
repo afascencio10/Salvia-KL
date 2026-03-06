@@ -1,0 +1,258 @@
+
+<div class="container">
+    <div class="welcome-section">
+        <h2><b>Alertas Salvia</b></h2>
+        
+    </div>
+    
+  
+    <hr>
+
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <a class="nav-link active" id="tab1-tab" data-toggle="tab" href="#tab1" role="tab" aria-controls="tab1"
+                aria-selected="true">Todas</a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="tab2-tab" data-toggle="tab" href="#tab2" role="tab" aria-controls="tab2"
+                aria-selected="false"><i class="fa fa-circle circulorecontacto"></i>Críticas</a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="tab3-tab" data-toggle="tab" href="#tab3" role="tab" aria-controls="tab3"
+                aria-selected="false"><i class="fa fa-circle circuloenrutados"></i>Informativas</a>
+        </li>
+        
+        <li class="nav-item ml-auto vistas" role="presentation"> 
+            <button v-on:click="getAlerts()" class="btn btn-primary"><i class="fa fa-bell" data-toggle="tooltip" data-placement="top"
+                    title="Ver alertas"></i></button>
+        </li>
+       
+    </ul>
+    <div class="tab-content" id="myTabContent">
+        <div class="tab-pane fade show active" id="tab1" role="tabpanel" aria-labelledby="tab1-tab">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Fecha Creación</th>
+                            <th scope="col">Tipo</th>
+                            <th scope="col">Nombre</th>
+                            <th scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template v-for="alert in alerts">
+                            <tr class="">
+                                <td>${alert.creationDate}</td>
+                                <td>
+                                    <span v-if="alert.type == 'd'" class="tag vencido">Crítica</span>
+                                    <span v-if="alert.type == 'w'" class="tag poraprobar">Informativa</span>
+                                </td>
+                                <td>${enums.alertType[alert.code]}</td>
+                                <td>
+                                    <div class="d-flex justify-content-around acciones">
+                                        <template v-for="item in menuToolsAlertsTable">
+                                            <a :class="item.customClass"
+                                                :href="`{{.salviaFormPath}}/${alert.victimCaseICode}`">
+                                                Ver Caso</a>
+                                        </template>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+            <!--
+            <nav aria-label="Page navigation example">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item disabled">
+                        <span class="page-link">Anterior</span>
+                    </li>
+                    <li class="page-item"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">Siguiente</a>
+                    </li>
+                </ul>
+            </nav>
+        -->
+        </div>
+        <div class="tab-pane fade" id="tab2" role="tabpanel" aria-labelledby="tab2-tab">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Fecha Creación</th>
+                            <th scope="col">Tipo</th>
+                            <th scope="col">Nombre</th>
+                            <th scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template v-for="alert in alerts">
+                            <template v-if="alert.type == 'd'"></template>
+                                <tr class="">
+                                    <td>${alert.creationDate}</td>
+                                    <td>
+                                        <span class="tag vencido">Crítica</span>
+                                    </td>
+                                    <td>${enums[alert.code]}</td>
+                                    <td></td>
+                                    <td>
+                                        <div class="d-flex justify-content-around acciones">
+                                            <template v-for="item in menuToolsAlertsTable">
+                                                <a :class="item.customClass"
+                                                    :href="`${item.path}/${alert.victimCaseICode}/${item.action}`">
+                                                    ${item.label}</a>
+                                            </template>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+            <!--
+            <nav aria-label="Page navigation example">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item disabled">
+                        <span class="page-link">Anterior</span>
+                    </li>
+                    <li class="page-item"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">Siguiente</a>
+                    </li>
+                </ul>
+            </nav>
+        -->
+        </div>
+        <div class="tab-pane fade" id="tab3" role="tabpanel" aria-labelledby="tab3-tab">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Fecha Creación</th>
+                            <th scope="col">Tipo</th>
+                            <th scope="col">Nombre</th>
+                            <th scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template v-for="alert in alerts">
+                            <template v-if="alert.type == 'w'"></template>
+                                <tr class="">
+                                    <td>${alert.creationDate}</td>
+                                    <td>
+                                        <span class="tag poraprobar">Informativa</span>
+                                    </td>
+                                    <td>${alert.code}</td>
+                                    <td></td>
+                                    <td>
+                                        <div class="d-flex justify-content-around acciones">
+                                            <template v-for="item in menuToolsAlertsTable">
+                                                <a :class="item.customClass"
+                                                    :href="`${item.path}/${alert.victimCaseICode}/${item.action}`">
+                                                    ${item.label}</a>
+                                            </template>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+            <!--
+            <nav aria-label="Page navigation example">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item disabled">
+                        <span class="page-link">Anterior</span>
+                    </li>
+                    <li class="page-item"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">Siguiente</a>
+                    </li>
+                </ul>
+            </nav>
+        -->
+        </div>
+        
+        
+    </div>
+    <div class="row justify-content-center botones">
+        {{ template "button.html" Button `{"class":"btn btn-warning", "buttonId":"back",
+        "buttonLabel":"get_victim_case_back", "buttonPlaceHolder":"get_victim_case_back_h",
+        "onClickHandler":"submit('back')"}` .lang .locale}}
+    </div>
+</div>
+
+     {{ template "standard_scripts.html" .}}
+    {{ template "overlay.html" .}}
+      
+      <script>
+        
+        var home = Vue.createApp({
+          delimiters : ['${', '}'],
+          data() {
+            return {
+                windowTitle:{{.windowTitle}},
+                currentUser:{{.currentUser}},
+                alerts: JSON.parse({{.alerts}}),
+                menu:{{.menu}},
+                menuToolsAlertsTable: {{.menuToolsAlertsTable}},
+                enums:{
+                    nav_rules: {{.nav_rules}},
+                    "alertType":{{.alertType}}
+                }
+            }
+          },
+          created: function () {
+            
+            /*getData("/seguridad/usuarios", (function(status, response) {
+              if (status === 200) {
+                //parse JSON datax`x
+                
+                this.res = response;
+                
+              } else if (status === 404) {
+                console.log("No records found")
+              }
+            }).bind(this));
+            */
+          },
+          mounted:  function () {
+            document.title = {{.windowTitle}};
+            document.getElementById('app').style.display = 'block';
+            home.config.globalProperties.enums = this.enums;
+          },
+          methods: {
+            getAlerts(){
+                location.assign("{{.salviaAlertFormPath}}");
+            },
+            logout(){
+                logout("/seguridad/logout");
+            },
+            goAbout() {
+                //about.mount('#app');
+            },
+            submit(action) {
+                console.log(home.config.globalProperties.enums.nav_rules);
+                if(action == "back" && home.config.globalProperties.enums.nav_rules["home"]){
+                    location.assign(home.config.globalProperties.enums.nav_rules["home"]);  
+                }
+            }
+          }
+        });
+        
+        home.mount("#app");
+  
+        
+      </script>
+  

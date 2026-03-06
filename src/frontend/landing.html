@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SALVIA - Camina Contigo</title>
+  <style>
+    /* Definición de variables de color para fácil mantenimiento */
+    :root {
+        --salvia-purple: #5a2d7f; /* Color principal morado oscuro */
+        --salvia-light: #b58fcb; /* Color morado claro para detalles */
+        --background-color: #f7f7f7;
+        --text-color: #4a4a4a;
+        --border-color: #e5e7eb; /* Gris claro (equivalente a gray-200) */
+    }
+  @font-face {
+        font-family: 'Nunito Sans';
+        src: url('/static/fonts/NunitoSans-Regular.ttf') format('truetype'),
+             url('/static/fonts/NunitoSans-Bold.ttf') format('truetype'),
+             url('/static/fonts/ NunitoSans-Italic.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+    }
+    html{
+      scroll-behavior: smooth;
+    }
+    body {
+      margin: 0;
+      font-family: 'Nunito Sans', sans-serif;
+      color: #2b0040;
+      background-color: #fff;
+    }
+    header {
+      background-color: #3366cc;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 5px;
+      padding-bottom: 5px;
+    }
+    header img {
+      height: 30px;
+      margin-left: 20px;
+    }
+    header a {
+      color: white;
+      text-decoration: none;
+      font-size:0.9rem;
+      margin-right: 120px;
+    }
+    
+    .top-banner {
+      background-color: #D23B78;
+      color: white;
+      padding-top: 20px;
+      padding-bottom: 20px;
+      padding-right: 120px;
+      padding-left: 120px;
+      text-align: right;
+      height: 100px;
+    }
+    .top-banner-logo {
+      float: left;
+      max-height: 100px;
+    }
+
+    .top-banner-left {
+        text-align: left;
+    }
+    .top-banner-right {
+        text-align: right;
+    }
+    .top-banner h1 {
+      font-size: 2.5rem;
+      margin: 0;
+    }
+    .top-banner p {
+      font-size: 1.3rem;
+      font-style: italic;
+      margin-top: 0.5rem;
+    }
+
+    nav {
+      background-color: #380D44;
+      text-align: left;
+      padding-left: 120px;
+      padding-top: 15px;
+      padding-bottom: 15px;
+    }
+    nav a {
+      color: white;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.95rem;
+      margin-right: 30px;
+    }
+    nav a:hover {
+      text-decoration: underline;
+    }
+    main {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding-left: 120px;
+      padding-right: 120px;
+    }
+    .content {
+      width: 45%;
+      padding-right: 5%;
+      padding-top: 15px;
+      padding-bottom: 15px;
+    }
+    .content h2 {
+      color: #4b006e;
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .content p {
+      font-size: 1.1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .report-btn {
+      display: inline-block;
+      background-color: #d21b6a;
+      color: white;
+      font-weight: 700;
+      padding: 0.8rem 1.5rem;
+      border-radius: 5px;
+      text-decoration: none;
+    }
+
+    .report-btn:hover {
+      background-color: #a91555;
+    }
+
+    .image-section {
+      width: 50%;
+      overflow: hidden;
+    }
+
+    .image-section img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+    }
+
+    .salvia_logo img {
+      max-width: 100%;
+    }
+
+    footer {
+      background: #380D44;
+      color: #C7A6CF;
+      width: 100%;
+      float: left;
+    }
+
+    .copyright{
+      background-color: #3366cc;
+      color: white;
+      display: block;
+      float: left;
+      width: 100%;
+      text-align: center;
+    }
+
+    .copyright img {
+      height: 30px;
+      margin: 15px;
+    }
+
+    .copyright p {
+      margin: auto;
+    }
+
+    .footer-section-left {
+      font-size: small;
+      width: calc(50% - 30px);
+      float: left;
+      padding: 15px;
+    }
+
+    .footer-section-right {
+      font-size: small;
+      width: calc(50% - 40px);
+      float: left;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .footer-content {
+      color: #C7A6CF;
+      width: calc(100% - 240px);
+      float: left;
+      margin-left: 120px;
+      margin-right: 120px;
+      padding-top: 50px;
+      padding-bottom: 30px;
+    }
+
+    .footer-banner-logo {
+      width: 50%;
+    }
+
+    .yellow_space{
+      width: 100%;
+      height: 20px;
+      background-color: #fccc3c;
+    }
+
+    .footer-section-left p {
+        line-height: 1.8;
+        opacity: 0.9;
+    }
+
+    .social_net_tile{
+      width: 100%;
+    }
+
+    .social_net_tile img{
+      width: 30%;
+      margin: 1%;
+    }
+
+    .social_net_tile_center{
+        width: 100%;
+    }
+
+    .social_net_tile_center img{
+        width: 30%;
+        margin: 1%;
+    }
+
+    a:link {
+      color: rgb(255 228 255);
+    }
+
+    a:visited {
+      color: rgb(255, 172, 255);
+    }
+
+    /*Slider ******************************/
+
+    /* Contenedor principal del carrusel */
+    .carousel-container {
+        max-width: 1000px;
+        width: 90%;
+        overflow: hidden;
+        position: relative;
+        margin: auto;
+    }
+
+    .carousel-container h1 {
+      text-align: center;
+    }
+
+    /* Wrapper que se desplaza horizontalmente */
+    .carousel-wrapper {
+        display: flex;
+        transition: transform 0.5s ease-in-out;
+    }
+
+    /* Cada diapositiva (ocupa el 100% del contenedor) */
+    .carousel-slide {
+        min-width: 100%;
+        box-sizing: border-box;
+        display: flex;
+        justify-content: center;
+        align-items: stretch;
+        gap: 20px;
+    }
+
+    /* Tarjeta individual (la mitad de la diapositiva) */
+    .slide-card {
+        flex: 1; /* Ocupa el 50% */
+        background-color: white;
+        border-radius: 1.5rem;
+        overflow: hidden;
+        box-shadow: 0 10px 15px -3px rgba(0 0 0 / 0.1), 0 4px 6px -2px rgba(0 0 0 / 0.05); /* Sombra suave */
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Contenedor de la imagen superior */
+    .slide-image-content {
+        position: relative;
+        height: 250px;
+        display: flex;
+        align-items: flex-end;
+        padding: 20px;
+        background-size: cover;
+        background-position: center;
+        color: white;
+    }
+
+    /* Máscara púrpura semitransparente sobre la imagen */
+    .image-overlay {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        background-color: var(--salvia-purple);
+        border-top-left-radius: 1.5rem;
+        border-top-right-radius: 1.5rem;
+    }
+
+    /* Contenido de texto inferior */
+    .slide-text-content {
+        padding: 30px;
+        flex-grow: 1;
+        color: var(--text-color);
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+    }
+
+    /* Títulos principales */
+    .heading-3xl {
+        font-size: 1.875rem; /* Equivalente a text-3xl */
+        font-weight: 700;
+        line-height: 1.25; /* Equivalente a leading-tight */
+        color: var(--salvia-purple);
+        margin-bottom: 1.5rem; /* Equivalente a mb-6 */
+    }
+
+    /* Títulos dentro del contenedor de imagen */
+    .slide-image-content h2 {
+        position: relative;
+        z-index: 10;
+        font-size: 1.875rem;
+        font-weight: 700;
+        line-height: 1.25;
+        color: white;
+    }
+
+    /* Texto grande y principal */
+    .text-xl-purple {
+        font-size: 1.25rem; /* Equivalente a text-xl */
+        font-weight: 400;
+        color: var(--salvia-purple);
+    }
+
+    /* Línea morada debajo del texto principal */
+    .content-divider {
+        height: 4px;
+        width: 60px;
+        background-color: var(--salvia-light);
+        margin-top: 15px;
+        margin-bottom: 5px;
+        border-radius: 2px;
+    }
+
+    /* Estilos de las listas de texto (tarjeta ¿A quién está dirigido? y ¿Cómo reportar?) */
+    .content-list-item {
+        border-bottom: 1px solid var(--border-color);
+        padding: 12px 0; /* Equivalente a py-3 */
+        font-size: 1rem; /* Equivalente a text-base */
+    }
+
+    .content-list-item:last-child {
+        border-bottom: none;
+    }
+
+    /* Estilos para enlaces */
+    .content-list-item a {
+        color: var(--salvia-light);
+        text-decoration: underline;
+        transition: color 0.2s;
+    }
+
+    .content-list-item a:hover {
+        color: var(--salvia-purple);
+    }
+
+    /* Botones de Navegación */
+    .nav-button {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 48px;
+        height: 48px;
+        background-color: rgba(255, 255, 255, 0.9);
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        z-index: 10;
+        transition: background-color 0.2s, transform 0.2s;
+        color: var(--salvia-purple);
+        box-shadow: 0 4px 6px -1px rgba(0 0 0 / 0.1), 0 2px 4px -2px rgba(0 0 0 / 0.06);
+        border: none; /* Asegura que no haya bordes por defecto de button */
+        padding: 0;
+    }
+
+    .nav-button:hover {
+        background-color: var(--salvia-light);
+        color: white;
+    }
+
+    .nav-button-left {
+        left: 0px;
+    }
+
+    .nav-button-right {
+        right: 0px;
+    }
+
+    /* Indicadores de posición (puntos) */
+    .carousel-indicators {
+        display: flex;
+        justify-content: center;
+        margin-top: 10px;
+        gap: 10px;
+        padding: 10px;
+    }
+
+    .indicator-dot {
+        width: 10px;
+        height: 15px;
+        border-radius: 50%;
+        background-color: #d1d5db;
+        cursor: pointer;
+        transition: background-color 0.3s, transform 0.2s;
+    }
+
+    .indicator-dot.active {
+        background-color: var(--salvia-purple);
+        transform: scale(1.2);
+    }
+    
+
+    @media (max-width:815px){
+
+      header a {
+        margin-right: 20px;
+      }
+
+      .top-banner-right {
+          display: none;
+      }
+
+      .top-banner-left {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .top-banner-logo {
+        height: 100px;
+      }
+      main {
+        display: flex;
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+
+      nav{
+        padding-left: 20px;
+      }
+      
+      .content {
+        width: 100%;
+        padding: 0px;
+        padding-top: 15px;
+        padding-bottom: 15px;
+      }
+
+      .image-section {
+        width: 100%;
+        overflow: hidden;
+      }
+
+      .footer-section-left {
+        font-size: small;
+        width: 100%;
+        float: left;
+        padding: 0px;
+      }
+
+      .footer-section-right {
+        font-size: small;
+        width: 100%;
+        float: left;
+        padding: 0px;
+        margin-top: 50px;
+      }
+
+      .footer-content {
+        text-align: center;
+        background: #380D44;
+        display: block;
+        float: left;
+        padding-left: 0px;
+        padding-right: 0px;
+        width: calc(100% - 40px);
+        margin-left: 20px;
+        margin-right: 20px;
+      }
+
+      .footer-section {
+        font-size: small;
+        float: left;
+        width: 100%;
+        padding: 0px;
+        max-width: 100%;
+      }
+
+      .footer-banner-logo {
+        float: left;
+        max-width: 50%;
+        padding-left: 25%;
+        padding-right: 25%;
+      }
+    
+      .copyright {
+        text-align: center;
+        background-color: #3366cc;
+        color: white;
+        padding: 0px;
+        display: block;
+      }
+
+      .copyright img {
+        height: 30px;
+        width: 100%;
+        width: 100%;
+        object-fit: contain;
+        padding: 0px;
+        margin: 0px;
+      }
+
+      .copyright p {
+        margin: 0px;
+      }
+
+      /*Slider***********************/
+      .carousel-slide {
+        flex-direction: column;
+        gap: 10px;
+        padding: 10px 0;
+      }
+
+      .carousel-container {
+        width: 100%;
+        padding: 0;
+      }
+
+      .nav-button-left {
+        left: 10px;
+      }
+
+      .nav-button-right {
+        right: 10px;
+      }
+    }
+
+  </style>
+</head>
+<body>
+  <header>
+    <img src="/static/img/header_govco.png" alt="GOV.CO">
+    <a href="/seguridad/login">Mi Salvia</a>
+  </header>
+
+  <section id="home" class="top-banner">
+    <div class="top-banner-left">
+      <img class="top-banner-logo" src="/static/img/minigualdad_blanco.png">
+    </div>
+    <div class="top-banner-right">
+      <h1>SALVIA</h1>
+      <p>camina contigo</p>
+    </div>
+
+  </section>
+
+  <nav>
+    <a href="#home">INICIO</a>
+    <a href="#meet_salvia">CONOCE SALVIA</a>
+    <!--
+    <a href="#">PEDAGOGÍA</a>
+    <a href="#">AVANCES</a>
+    <a href="#">CIFRAS</a>
+    <a href="#">ENTIDADES ALIADAS</a>-->
+  </nav>
+  
+  <main>
+    <div class="content">
+      <div class="salvia_logo">
+        <img src="/static/img/salvia_logo_landing.png" alt="Logo Salvia">
+      </div>
+      <p>Si eres víctima de violencia de género y estás en peligro comunícate con la Línea <strong>155</strong>.</p>
+      <a href="/salvia/public/nuevo" class="report-btn">REPORTA AQUÍ</a>
+    </div>
+    <div class="image-section">
+      <img src="/static/img/imagen_banner.jpg" alt="Personas abrazándose">
+    </div>
+  </main>
+  <div class="yellow_space"></div>
+  <div id="meet_salvia" class="carousel-container" >
+    <h1>Conoce Salvia</h1>
+    <!-- Wrapper para el movimiento del carrusel -->
+        <div id="carouselWrapper" class="carousel-wrapper">
+
+            <!-- SLIDE 1: ¿Qué es Salvia? / ¿A quién está dirigido? -->
+            <div class="carousel-slide" data-slide="1">
+                <!-- Tarjeta 1.1: ¿Qué es Salvia? -->
+                <div class="slide-card">
+                    <div class="slide-image-content">
+                        <div class="image-overlay" style="background-image: url('img/conoce_salvia/imagen_2@3x.jpg'); background-size: cover;"></div>
+                        <h2 class="relative z-10">¿Qué es Salvia?</h2>
+                    </div>
+                    <div class="slide-text-content">
+                        <p class="text-xl-purple">
+                            Este sistema es una estrategia del Gobierno Nacional para la prevención del feminicidio y la eliminación de las Violencias Basadas en Género.
+                        </p>
+                        <div class="content-divider"></div>
+                    </div>
+                </div>
+
+                <!-- Tarjeta 1.2: ¿A quién está dirigido? -->
+                <div class="slide-card">
+                    <div class="slide-text-content" style="padding-top: 40px;"> <!-- Ajuste de padding-top -->
+                        <h2 class="heading-3xl" style="margin-bottom: 24px;">¿A quién está dirigido?</h2>
+
+                        <div class="content-list-item">
+                            <p>
+                                A mujeres y personas LGBTIQ+, que vivan en Colombia en calidad de nacionales, residentes, migrantes regulares o en tránsito, que sean víctimas de violencias basadas en género.
+                            </p>
+                        </div>
+                        <div class="content-list-item">
+                            <p>
+                                A hombres y personas responsables de violencias basadas en género.
+                            </p>
+                        </div>
+                        <div class="content-list-item">
+                            <p>
+                                A familiares de víctimas de feminicidio.
+                            </p>
+                        </div>
+                        <div class="content-list-item" style="border-bottom: none;">
+                            <p>
+                                A servidores y servidoras públicas pertenecientes a las entidades responsables de atención a violencias basadas en género.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2: ¿Qué hace Salvia? / ¿Cómo funciona? -->
+            <div class="carousel-slide" data-slide="2">
+                <!-- Tarjeta 2.1: ¿Qué hace Salvia? -->
+                <div class="slide-card">
+                    <div class="slide-image-content">
+                        <div class="image-overlay" style="background-image: url('img/conoce_salvia/imagen_1@3x.jpg'); background-size: cover;"></div>
+                        <h2 class="relative z-10">¿Qué hace Salvia?</h2>
+                    </div>
+                    <div class="slide-text-content">
+                        <p class="text-xl-purple">
+                            Ofrece orientación a las víctimas, activa las rutas de atención articulando a la institucionalidad responsable y realiza seguimiento para establecer alertas y estrategias de reacción frente a barreras de acceso.
+                        </p>
+                        <div class="content-divider"></div>
+                    </div>
+                </div>
+
+                <!-- Tarjeta 2.2: ¿Cómo funciona? -->
+                <div class="slide-card">
+                    <div class="slide-text-content" style="padding-top: 40px;">
+                        <h2 class="heading-3xl" style="margin-bottom: 24px;">¿Cómo funciona?</h2>
+                        <p class="text-xl-purple">
+                            Salvia cuenta con un Centro de Monitoreo en el que un equipo interdisciplinario de profesionales registra los casos, ofrece orientación a las víctimas, activa las rutas de atención articulando a la institucionalidad responsable y realiza seguimiento para establecer alertas y estrategias de reacción frente a barreras de acceso.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3: ¿Dónde opera? / ¿Cómo reportar un caso? -->
+            <div class="carousel-slide" data-slide="3">
+                <!-- Tarjeta 3.1: ¿Dónde opera? -->
+                <div class="slide-card">
+                    <div class="slide-image-content">
+                        <div class="image-overlay" style="background-image: url('img/conoce_salvia/imagen_3@3x.jpg'); background-size: cover;"></div>
+                        <h2 class="relative z-10">¿Dónde opera?</h2>
+                    </div>
+                    <div class="slide-text-content">
+                        <p class="text-xl-purple">
+                            SALVIA está presente en los 32 departamentos del país por medio de Enlaces Territoriales, quienes acompañan la articulación interinstitucional y el seguimiento a los casos en sus territorios.
+                        </p>
+                        <div class="content-divider"></div>
+                    </div>
+                </div>
+
+                <!-- Tarjeta 3.2: ¿Cómo reportar un caso? -->
+                <div class="slide-card">
+                    <div class="slide-text-content" style="padding-top: 40px;">
+                        <h2 class="heading-3xl" style="margin-bottom: 24px;">¿Cómo reportar un caso?</h2>
+
+                        <div class="content-list-item">
+                            <p class="text-xl-purple" style="font-size: 1.25rem;">
+                                Línea 155 Salvia
+                            </p>
+                        </div>
+                        <div class="content-list-item">
+                            <p class="text-xl-purple" style="font-size: 1.25rem;">
+                                Página web:
+                                <br>
+                                <a href="https://salvia.minigualdadyequidad.gov.co" target="_blank">salvia.minigualdadyequidad.gov.co</a>
+                            </p>
+                        </div>
+                        <div class="content-list-item">
+                            <p class="text-xl-purple" style="font-size: 1.25rem;">
+                                PQRS:
+                                <br>
+                                <a href="mailto:contacto@minigualdad.gov.co" target="_blank">contacto@minigualdad.gov.co</a>
+                            </p>
+                        </div>
+                        <div class="content-list-item" style="border-bottom: none;">
+                            <p class="text-xl-purple" style="font-size: 1.25rem;">
+                               ¡REPORTA <a href="/salvia/public/nuevo" >AQUÍ</a>!
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Botones de Navegación -->
+        <button id="prevButton" class="nav-button nav-button-left" aria-label="Anterior">
+            <!-- Icono de flecha izquierda (SVG) -->
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" style="width: 24px; height: 24px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+        </button>
+        <button id="nextButton" class="nav-button nav-button-right" aria-label="Siguiente">
+            <!-- Icono de flecha derecha (SVG) -->
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" style="width: 24px; height: 24px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+        </button>
+
+        <!-- Indicadores (puntos) -->
+        <div id="carouselIndicators" class="carousel-indicators">
+            <!-- Los puntos se generarán con JavaScript -->
+        </div>
+  </div>
+  <footer>
+      <div class="footer-content">
+          <div class="footer-section-left">
+            <h3>Ministerio de Igualdad y Equidad</h3>
+            <p>Calle 28 #13a - 15 . Edificio Centro de Comercio Internacional, Bogotá D.C. - Colombia</p>
+            <p>Código Postal: 110311</p>
+            <p>Atención Presencial: Lunes a viernes en horario de 8:00 a. m. a 4:00 p. m. Jornada contínua</p>
+            <p>Teléfono Conmutador: <a href="tel:6016664543"> 601 6664543</a></p>
+            <p>Línea Gratuita: <a href="tel:018000121181"> 01 8000 121181</a></p>
+            <p>Correo Electrónico: <a href="mailto:contacto@minigualdad.gov.co"></a>contacto@minigualdad.gov.co</p>
+            <p>Notificaciones Judiciales:<a href="mailto:notificacionesjudiciales@minigualdad.gov.co"> notificacionesjudiciales@minigualdad.gov.co</a></p>
+            <p>Denuncia contra funcionarios de la entidad: <a href="mailto:OCID@minigualdad.gov.co">OCID@minigualdad.gov.co</a></p>
+            <p>Denuncias presuntos actos de corrupción: <a href="mailto:soytransparente@minigualdad.gov.co">soytransparente@minigualdad.gov.co</a></p>
+            <p>Correo Institucional: <a href="http://mail.office365.com/"></a>Mail Office 365</p>
+            <p><a href="https://www.minigualdadyequidad.gov.co/politicas-de-privacidad">Políticas de Privacidad y Condiciones de Uso</a></p>
+            <p>©2023 - Todos los derechos reservados Gobierno de Colombia</p>
+          </div>
+          <div class="footer-section-right">
+            <img class="footer-banner-logo" src="/static/img/minigualdad_blanco.png">
+            <div class="social_net_tile">
+              <a href="https://twitter.com/MinIgualdad_Col" target="_blank"><img src="/static/img/x@2x.png"></a>
+              <a href="https://www.facebook.com/MinIgualdadCol" target="_blank"><img src="/static/img/facebook@2x.png"></a>
+              <a href="https://www.instagram.com/minigualdadcol" target="_blank"><img src="/static/img/instagram@2x.png"></a>
+            </div>
+            <div class="social_net_tile_center">
+              <a href="https://www.threads.net/@minigualdadcol" target="_blank"><img src="/static/img/threads@2x.png"></a>
+            </div>
+            <div class="social_net_tile">
+              <a href="https://www.flickr.com/photos/199936807@N07" target="_blank"><img src="/static/img/flirck@2x.png"></a>
+              <a href="https://www.tiktok.com/@minigualdad_col" target="_blank"><img src="/static/img/tiktok@2x.png"></a>
+              <a href="https://www.youtube.com/@MinIgualdadCol" target="_blank"><img src="/static/img/youtube@2x.png"></a>
+            </div>
+          </div>
+      </div>
+      <div class="copyright">
+        <img src="/static/img/header_govco.png" alt="GOV.CO">
+      </div>
+  </footer>
+  <script>
+        // Lógica de JavaScript completamente nativa
+
+        const carouselContainer = document.getElementById('meet_salvia');
+        const wrapper = document.getElementById('carouselWrapper');
+        const slides = Array.from(wrapper.querySelectorAll('.carousel-slide'));
+        const totalSlides = slides.length;
+        const prevButton = document.getElementById('prevButton');
+        const nextButton = document.getElementById('nextButton');
+        const indicatorsContainer = document.getElementById('carouselIndicators');
+        let currentIndex = 0;
+
+        // Variables para el manejo de toques y mouse (swipe/drag)
+        let startX = 0;
+        let endX = 0;
+        let isDragging = false; // Bandera para arrastre con mouse
+        let isSwiping = false; // Bandera para indicar que hubo movimiento significativo, no un click.
+        const swipeThreshold = 75; // Distancia mínima en píxeles para considerar un swipe
+        const clickTolerance = 10; // Movimiento máximo en píxeles para ser considerado un click/tap.
+
+        /**
+         * Calcula el desplazamiento actual del carrusel basado en el currentIndex.
+         * @returns {number} El valor de desplazamiento en porcentaje.
+         */
+        function getSlideOffset() {
+            return -currentIndex * 100;
+        }
+
+        /**
+         * Aplica la transformación CSS al wrapper.
+         * @param {number} offset El desplazamiento en porcentaje.
+         */
+        function setWrapperTransform(offset) {
+            wrapper.style.transform = `translateX(${offset}%)`;
+        }
+        
+        /**
+         * Mueve el carrusel al índice especificado y actualiza los indicadores.
+         * @param {number} index El índice de la diapositiva a mostrar.
+         */
+        function goToSlide(index) {
+            // Lógica para carrusel infinito (volver al inicio o al final)
+            if (index < 0) {
+                currentIndex = totalSlides - 1; 
+            } else if (index >= totalSlides) {
+                currentIndex = 0; 
+            } else {
+                currentIndex = index;
+            }
+
+            // Asegura que la transición esté activa para el salto final
+            wrapper.classList.remove('no-transition');
+            
+            // Aplica la transformación CSS para mover el wrapper
+            setWrapperTransform(getSlideOffset());
+
+            updateIndicators();
+        }
+
+        /**
+         * Actualiza el estado visual de los indicadores de posición (puntos).
+         */
+        function updateIndicators() {
+            indicatorsContainer.innerHTML = ''; 
+
+            slides.forEach((_, index) => {
+                const dot = document.createElement('button');
+                dot.classList.add('indicator-dot');
+                dot.setAttribute('aria-label', `Ir a diapositiva ${index + 1}`);
+
+                if (index === currentIndex) {
+                    dot.classList.add('active');
+                }
+                
+                // El evento 'click' ahora debería funcionar en móvil si no hubo swipe significativo
+                dot.addEventListener('click', () => goToSlide(index));
+                indicatorsContainer.appendChild(dot);
+            });
+        }
+        
+        // --- LÓGICA DE SWIPE/DRAG UNIFICADA ---
+        
+        /**
+         * Manejador de inicio unificado (Touch Start / Mouse Down).
+         * @param {number} clientX La coordenada X inicial.
+         */
+        function handleStart(clientX) {
+            startX = clientX;
+            endX = clientX; 
+            isSwiping = false; // Reset de la bandera de movimiento
+            // Desactiva la transición CSS para el movimiento de arrastre
+            wrapper.classList.add('no-transition');
+        }
+
+        /**
+         * Manejador de movimiento unificado (Touch Move / Mouse Move).
+         * @param {number} clientX La coordenada X actual.
+         */
+        function handleMove(clientX) {
+            endX = clientX;
+            const diffX = endX - startX; 
+            
+            // Si el movimiento supera la tolerancia, lo marcamos como swipe
+            if (Math.abs(diffX) > clickTolerance) {
+                 isSwiping = true;
+            }
+
+            // Si hay arrastre (mouse) o swipe (táctil), movemos visualmente
+            if (isDragging || isSwiping) {
+                const currentOffsetPx = currentIndex * carouselContainer.clientWidth;
+                const newOffsetPx = currentOffsetPx - diffX;
+                const newOffsetPercent = -(newOffsetPx / carouselContainer.clientWidth) * 100;
+                setWrapperTransform(newOffsetPercent);
+            }
+        }
+
+        /**
+         * Manejador de finalización unificado (Touch End / Mouse Up).
+         * @param {Event} e El evento de finalización.
+         */
+        function handleEnd(e) {
+            
+            // Vuelve a activar la transición CSS
+            wrapper.classList.remove('no-transition');
+            
+            const diffX = endX - startX;
+
+            if (isSwiping && Math.abs(diffX) > swipeThreshold) {
+                // Caso 1: Fue un swipe significativo -> Cambiamos de slide
+                if (diffX > 0) {
+                    goToSlide(currentIndex - 1);
+                } else {
+                    goToSlide(currentIndex + 1);
+                }
+                
+                // Si fue un SWIPE/DRAG exitoso, bloqueamos el evento click subsiguiente
+                // Esto es crucial para que los botones NO se disparen accidentalmente después de un swipe.
+                // Solo para eventos táctiles.
+                if (e && e.type.startsWith('touch') && isSwiping) {
+                     carouselContainer.addEventListener('click', blockClick, { once: true });
+                }
+
+            } else if (isSwiping) {
+                // Caso 2: Hubo movimiento, pero no suficiente para cambiar de slide -> Snap back
+                goToSlide(currentIndex);
+            }
+            
+            // Reset de flags y variables
+            isDragging = false; 
+            isSwiping = false; 
+            startX = 0;
+            endX = 0;
+        }
+
+        // Función auxiliar para bloquear el click "fantasma" después de un swipe/drag
+        function blockClick(e) {
+            // Evita que un click fantasma después de un arrastre active un botón o enlace.
+            // Si el target es un botón o punto, detenemos el evento.
+            if (e.target.closest('.nav-button, .indicator-dot, a')) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }
+
+
+        // --- ASIGNACIÓN DE EVENTOS TÁCTILES ---
+        carouselContainer.addEventListener('touchstart', (e) => {
+            handleStart(e.touches[0].clientX);
+        });
+        
+        // Usamos passive: false para poder llamar a preventDefault en touchmove
+        carouselContainer.addEventListener('touchmove', (e) => {
+            // Se debe llamar a handleMove primero para que isSwiping se actualice
+            handleMove(e.touches[0].clientX); 
+            
+            // Si detectamos que hay un arrastre (isSwiping), bloqueamos el scroll vertical 
+            // y el click sintético de forma preventiva.
+            if (isSwiping) {
+                e.preventDefault(); 
+            }
+        }, { passive: false }); 
+        
+        carouselContainer.addEventListener('touchend', handleEnd);
+
+
+        // --- ASIGNACIÓN DE EVENTOS DE MOUSE (DRAG) ---
+        carouselContainer.addEventListener('mousedown', (e) => {
+            if (e.button === 0) { 
+                isDragging = true;
+                handleStart(e.clientX);
+                // NOTA: No llamamos a preventDefault en mousedown. Lo haremos en mousemove.
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            handleMove(e.clientX);
+            
+            // Si el mouse se está moviendo y estamos arrastrando, evitamos la selección de texto.
+            if (isSwiping) {
+                 e.preventDefault();
+            }
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (!isDragging) return;
+            handleEnd(e);
+        });
+        
+        // --- Event Listeners para Botones (Nativos) ---
+        prevButton.addEventListener('click', () => {
+            // Esta función se ejecuta solo si no fue un swipe (por la lógica de tolerancia)
+            goToSlide(currentIndex - 1);
+        });
+
+        nextButton.addEventListener('click', () => {
+            // Esta función se ejecuta solo si no fue un swipe
+            goToSlide(currentIndex + 1);
+        });
+        
+        // Inicializa el carrusel en la primera diapositiva y dibuja los indicadores.
+        window.onload = function() {
+            goToSlide(0); 
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+<div id="{{.RatingId}}" class="{{.RatingClass}}">
+    <label class="{{.LabelClass}}">{{.RatingLabel}}</label>
+    <div class="{{.StarGroupClass}}">
+        <span v-for="i in {{.RatingMaxValue}}" :key="i" class="{{.StarClass}}" :class="i <={{.EntityPath}}.{{.EntityName}}.{{.EntityAttr}} ? '{{.FilledStarClass}}' : '{{.EmptyStarClass}}'" 
+            @click="{{.EntityPath}}.{{.EntityName}}.{{.EntityAttr}} = ({{.EntityPath}}.{{.EntityName}}.{{.EntityAttr}} == i) ? 0 : i"> ★ </span>    
+    </div>
+    
+</div>

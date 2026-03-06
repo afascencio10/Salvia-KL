@@ -1,0 +1,129 @@
+<div class="container">
+  <div class="welcome-section">
+    <h2><b>Asignación de casos</b></h2>
+  </div>
+
+  <h3>Transferir casos de un operador a otro</h3>
+  <div class="mt-3 mb-4">
+    
+    <h2>Operador de origen</h2>
+    <p>Por favor seleccione el operador de origen que contiene los casos a transferir</p>
+    <div class="form-group">
+      <label>{{ template "text_translated.html" Text `{"text":"old_operator"}` .lang .locale}}</label>
+      <select  class="form-control"  id="old_users"
+        v-model="workingSpace.users.oldUserICode">
+        <option v-for="(user, idx) in enums.users" :value="user.icode" :key="idx">${user.profile.names} ${user.profile.lastNames}</option>
+      </select>
+    </div>
+    
+   
+
+  </div>
+  <hr>
+  <div class="mt-3 mb-4">
+    <h2>Operador de destino</h2>
+    <p>Por favor seleccione el operador de destino al que se le quieren transferir los casos</p>
+    <div class="form-group">
+      <label>{{ template "text_translated.html" Text `{"text":"new_operator"}` .lang .locale}}</label>
+      <select  class="form-control"  id="old_users"
+        v-model="workingSpace.users.newUserICode">
+        <option v-for="(user, idx) in enums.users" :value="user.icode" :key="idx">${user.profile.names} ${user.profile.lastNames}</option>
+      </select>
+    </div>
+
+  </div>
+  
+  <div class="row justify-content-center botones">
+
+    {{ template "button.html" Button `{"class":"btn btn-warning", "buttonId":"back", "buttonLabel":"assign_operator_back_btn",
+  "buttonPlaceHolder":"assign_operator_back_btn", "onClickHandler":"submit('back')"}` .lang .locale}}
+
+    {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"upload_user_service",
+    "buttonLabel":"assign_operator_btn", "buttonPlaceHolder":"assign_operator_btn",
+    "onClickHandler":"submit('assign_operator_service')"}` .lang .locale}}
+  </div>
+
+</div>
+
+{{ template "standard_scripts.html" .}}
+{{ template "overlay.html" .}}
+
+<script>    
+  var home = Vue.createApp({
+    delimiters : ['${', '}'],
+    data() {
+      return {
+        windowTitle:{{.windowTitle}},
+              currentUser:{{.currentUser}},
+        menu:{{.menu}},
+        errors:{},
+        workingSpace:{
+          users: {
+            oldUserICode:"",
+            newUserICode:""
+          }
+        },
+        enums:{
+          nav_rules: {{.nav_rules}},
+          users: JSON.parse({{.users}})
+        }
+      }
+    },
+    watch: {
+        selectedFile(newFile) {
+          // If you need to perform any action when the file changes, you can do it here
+          alert('New file selected:', newFile);
+        }
+    },
+    created: function () {
+      /*getData("/seguridad/usuarios", (function(status, response) {
+      if (status === 200) {
+      //parse JSON datax`x
+
+      this.res = response;
+
+      } else if (status === 404) {
+      console.log("No records found")
+      }
+      }).bind(this));
+      */
+    },
+    mounted:  function () {
+            document.title = {{.windowTitle}};
+      document.getElementById('app').style.display = 'block';
+      home.config.globalProperties.enums = this.enums;
+    },
+    methods: {
+      handleFileUpload() {
+          this.selectedServiceFile = this.$refs.serviceFile.files[0];
+          this.selectedBranchFile = this.$refs.branchFile.files[0];
+        },
+      logout(){
+        logout("/seguridad/logout");
+      },
+      submit(action) {
+        
+        if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
+          location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+        }else if (action == "assign_operator_service"){
+          newEntity("{{.salviaFormPath}}/all/"+this.workingSpace.users.oldUserICode+"/"+this.workingSpace.users.newUserICode, "", (function(status, response) {
+            if (status === 200) {
+              setTimeout(() => {
+                if(home.config.globalProperties.enums.nav_rules["default"]){
+                  location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+                }
+              }, 2000);
+            }else if (status === 400) {
+              document.getElementById('successOverlay').style.display = 'none';
+              this.errors = response;
+            }else {
+              document.getElementById('successOverlay').style.display = 'none';
+              alert("Se produjo un error interno, por favor vuelva a intentarlo");
+            }
+          }).bind(this));
+        }      
+      }
+    }
+  });
+  home.mount("#app");
+</script>

@@ -1,0 +1,133 @@
+
+
+<div class="container">
+  <div class="welcome-section">
+      <h2><b>Consultar Usuario / Usuaria </b></h2>
+  </div>
+  <div class="table1">
+    <div class="item1">
+      <div class="row1">
+        <div class="thead">Nombres</div>
+        <div class="tbody">${data.user.profile.names}</div>
+      </div>
+      <div class="row1">
+        <div class="thead">Apellidos</div>
+        <div class="tbody">${data.user.profile.lastNames}</div>
+      </div>
+      <div class="row1">
+        <div class="thead">Tipo Documento</div>
+        <div class="tbody">${enums.docType[data.user.profile.docType]}</div>
+      </div>
+      <div class="row1">
+        <div class="thead">Documento</div>
+        <div class="tbody">${data.user.profile.docNumber}</div>
+      </div>
+    </div>
+    <div class="item1">
+      <div class="row1">
+        <div class="thead">Rol</div>
+        <div class="tbody">
+          <template  v-for="(r,idx) in data.user.roles">
+            <template v-if="idx==0">
+              ${r.name}
+            </template>
+            <template v-else>
+              , ${r.name}
+            </template>
+          </template>
+        </div>
+      </div>
+      <div class="row1">
+        <div class="thead">Correo Electrónico</div>
+        <div class="tbody">
+          <template  v-for="(m,idx) in data.user.profile.emails">
+            <template v-if="idx==0">
+              ${m.data}
+            </template>
+            <template v-else>
+              , ${n.data}
+            </template>
+          </template>
+        </div>
+      </div>
+      <div class="row1">
+        <div class="thead">Usuario</div>
+        <div class="tbody">${data.user.login}</div>
+      </div>
+      <div class="row1">
+        <div class="thead">Estado</div>
+        <div class="tbody">${enums.status[data.user.status]}</div>
+      </div>
+    </div>
+    <div class="row justify-content-xl-center botones">
+      {{ template "button.html" Button `{"class":"btn btn-warning", "buttonId":"back", "buttonLabel":"general_user_back", "buttonPlaceHolder":"general_user_back", "onClickHandler":"submit('back')"}` .lang .locale}}
+    </div>
+  </div>
+</div>
+
+      {{ template "standard_scripts.html" .}}
+{{ template "overlay.html" .}}
+      
+      <script>
+      
+        var home = Vue.createApp({
+          delimiters : ['${', '}'],
+          data() {
+            return {
+              windowTitle:{{.windowTitle}},
+              currentUser:{{.currentUser}},
+              res:{},
+              errors:new Object(),
+              data: {
+                default:new Object(),
+                user:JSON.parse({{.users}})
+              },
+              enums:{
+                gender:{{.gender}},
+                docType:{{.docType}},
+                language:{{.language}},
+                nav_rules:{{.nav_rules}},
+                status:{{.status}},
+              },
+              message:''
+            }
+          },
+          created: function () {
+            
+            /*getData("/seguridad/usuarios", (function(status, response) {
+              if (status === 200) {
+                //parse JSON datax`x
+                
+                this.res = response;
+                
+              } else if (status === 404) {
+                console.log("No records found")
+              }
+            }).bind(this));
+            */
+          },
+          mounted:  function () {
+            document.title = {{.windowTitle}};
+            document.getElementById('app').style.display = 'block';
+            home.config.globalProperties.enums = this.enums;
+          },
+          methods: {
+            logout(){
+                logout("/seguridad/logout");
+            },
+            submit(action,event) {
+              if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
+                location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+              }else if(home.config.globalProperties.enums.nav_rules[action]){
+                location.assign(home.config.globalProperties.enums.nav_rules[action]);
+              }
+            }
+          }
+          
+        });
+        
+        home.mount("#app");
+  
+        
+      </script>
+  

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+    <div class="container-fluid">
+        <div class="row" style="min-height:830px;">
+            <div class="col-md-6 px-0">
+                <div class="login-bg"></div>
+            </div>
+            <div class="col-md-6 d-flex align-items-center p-lg-5">
+                <div id="loginContainer" class="login-form" id="loginForm" action="#" v-on:keyup.enter="submit('login')">
+                  <div id="alert" v-if="errors.default&&errors.default.global_msg" class="alert alert-danger alert-dismissible">${errors.default.global_msg}</div>
+                    <img src="/static/images/salvialogo1.png" alt="Logo" style="max-width: 150px; margin-bottom: 20px;">
+                    <h2 class="text-center mb-4">Ingresar a mi Salvia</h2>
+                    <div class="form-group">
+                        <i class="fas fa-user"></i>
+                        {{ template "labeled_input.html" Input `{ "class":"form-control", "errorClass":"form-control is-invalid", "inputId":"login", "inputType":"text", "errorSpanId":"login_error", "inputLabel":"user_name", "labelClass": "loginlabel", "inputPlaceHolder":"user_name_h", "entityPath":"data", "entityName":"user", "entityAttr":"login"}` .lang .locale}}
+                    </div>
+                    <div class="form-group">
+                        <i class="fas fa-lock"></i>
+                        {{ template "labeled_input.html" Input `{"class":"form-control", "errorClass":"form-control is-invalid", "inputId":"pass", "inputType":"password", "errorSpanId":"pass_error", "inputLabel":"user_password", "labelClass": "loginlabel", "inputPlaceHolder":"user_password_h", "entityPath":"data", "entityName":"user", "entityAttr":"pass"}` .lang .locale}}
+                    </div>
+                    <div class="form-group">
+                      <div class="col-sm-12">
+                        <!-- Imagen del CAPTCHA -->
+                        <img id="captchaIMG" :src="captchaImgURL" alt="CAPTCHA">
+                        <audio id="captchaAudio" :src="captchaAudioURL" alt="CAPTCHA" controls></audio>
+                      </div>
+                      <div class="col-sm-12">
+                        {{ template "labeled_input.html" Input `{ "class":"form-control", "errorClass":"form-control is-invalid", "inputId":"captcha", "inputType":"text", "errorSpanId":"captcha_error", "inputLabel":"captcha_solution", "labelClass": "loginlabel", "inputPlaceHolder":"captcha_solution_h", "entityPath":"data", "entityName":"user", "entityAttr":"captchaSolution"}` .lang .locale}}
+                      </div>                      
+                    </div>
+                    
+                    {{ template "button.html" Button `{"class":"login-btn btn-primary", "buttonId":"login", "buttonLabel":"login", "buttonPlaceHolder":"login", "onClickHandler":"submit('login')" }` .lang .locale}}
+                    <div class="row">
+                      <div class="col-md-12 mb-3" @click="submit('openForgot')">
+                        <a href="#">{{ template "text_translated.html" Text `{"text":"login_forgot_pass_text"}` .lang .locale}}</a>
+                      </div>
+                    </div>
+                  </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay" id="videoOverlay" style="display: none;">
+      <div class="popup-container" id="popup">
+          <div class="popup-content">
+              
+          </div>
+      </div>
+  </div>
+
+<div class="overlay" id="forgotOverlay" style="display: none;">
+  <div class="popup-container popup-container2" id="popup">
+    <div>
+      <h2>{{ template "text_translated.html" Text `{"text":"login_forgot_pass_title"}` .lang .locale}}</h2>
+      <p>{{ template "text_translated.html" Text `{"text":"login_forgot_pass_msg"}` .lang .locale}}</p>
+        <div class="row">
+          <div class="col-md-12 mb-3">
+            {{ template "labeled_input.html" Input `{ "class":"form-control", "errorClass":"form-control is-invalid", "inputId":"forgot", 
+            "inputType":"text", "errorSpanId":"forgot_error", "inputLabel":"user_name", "labelClass": "loginlabel", 
+            "inputPlaceHolder":"user_name_h", "entityPath":"data", "entityName":"user", "entityAttr":"login"}` .lang .locale}}
+          </div>
+        </div>
+      <div class="row justify-content-xl-center botones">
+          {{ template "button.html" Button `{"class":"btn btn-warning", "buttonId":"back", "buttonLabel":"login_forgot_pass_back", 
+          "buttonPlaceHolder":"login_forgot_pass_back", "onClickHandler":"submit('closeForgot')"}` .lang .locale}}
+
+          {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"save", "buttonLabel":"login_forgot_pass_save", 
+          "buttonPlaceHolder":"login_forgot_pass_save", "onClickHandler":"submit('forgot')"}` .lang .locale}}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="resetOverlay" style="display: none;">
+  <div class="popup-container popup-container2" id="popup">
+    <div>
+      <h2>{{ template "text_translated.html" Text `{"text":"login_reset_pass_title"}` .lang .locale}}</h2>
+      <p>{{ template "text_translated.html" Text `{"text":"login_reset_pass_msg"}` .lang .locale}}</p>
+        <div class="row">
+          <div class="col-md-12 mb-3">
+            {{ template "labeled_input.html" Input `{"class":"form-control", "errorClass":"form-control is-invalid", "inputId":"passR", 
+            "inputType":"password", "errorSpanId":"passR_error", "inputLabel":"general_user_password", "labelClass": "loginlabel", "inputPlaceHolder":"general_user_password_h", 
+            "entityPath":"data", "entityName":"user", "entityAttr":"pass"}` .lang .locale}}
+            {{ template "labeled_input.html" Input `{"class":"form-control", "errorClass":"form-control is-invalid", "inputId":"pass_repeatR", 
+            "inputType":"password", "errorSpanId":"pass_repeatR_error", "inputLabel":"general_user_password_repeat", "labelClass": "loginlabel", "inputPlaceHolder":"general_user_password_repeat_h", 
+            "entityPath":"data", "entityName":"user", "entityAttr":"pass2"}` .lang .locale}}
+
+          </div>
+        </div>
+      <div class="row justify-content-xl-center botones">
+          {{ template "button.html" Button `{"class":"btn btn-warning", "buttonId":"back", "buttonLabel":"login_reset_pass_back", 
+          "buttonPlaceHolder":"login_reset_pass_back", "onClickHandler":"submit('closeReset')"}` .lang .locale}}
+
+          {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"save", "buttonLabel":"login_reset_pass_save", 
+          "buttonPlaceHolder":"login_reset_pass_save", "onClickHandler":"submit('reset')"}` .lang .locale}}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="mailOverlay" style="display: none;">
+  <div class="popup-container popup-container2" id="popup">
+    <div>
+      <p>{{ template "text_translated.html" Text `{"text":"login_forgot_success_msg"}` .lang .locale}}</p>
+       <div class="row justify-content-xl-center botones">
+          {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"back", "buttonLabel":"login_reset_success_msg_btn_back", 
+          "buttonPlaceHolder":"login_reset_success_msg_btn_back", "onClickHandler":"submit('closeForgot')"}` .lang .locale}}
+      </div>
+    </div>
+  </div>
+</div>
+{{ template "overlay.html" .}}
+{{ template "login_scripts.html" .}}
+    <script>
+      //var init = function(){
+        
+        var home = Vue.createApp({
+          delimiters : ['${', '}'],
+          data() {
+            return {
+              currentUser:{{.currentUser}},
+              res:{},
+              errors:{},
+              data: {
+                default:new Object(),
+                user:{resetToken:{{.resetPswd}}, captchaID:{{.CaptchaID}}, captchaSolution:""},
+                audio:null
+              },
+              enums:{
+                nav_rules:{{.nav_rules}}
+              },
+              message:'',
+            }
+          },
+          computed:{
+            captchaImgURL() { 
+              return `/seguridad/login/captcha/${this.data.user.captchaID}/img`; 
+            },
+            captchaAudioURL(){
+              return `/seguridad/login/captcha/${this.data.user.captchaID}/audio`;
+            }
+          },
+          created: function () {
+            
+          },
+          mounted:  function () {
+            document.title = {{.windowTitle}};
+            document.getElementById('app').style.display = 'block';
+            home.config.globalProperties.enums = this.enums;
+            
+            if (this.data.user.resetToken.length > 4){
+              document.getElementById('resetOverlay').style.display = 'flex';
+            }
+          },
+          methods: {
+            logout(){
+                logout("/seguridad/logout");
+            },
+            buildInput(inputId, errorSpanId, inputLabel, inputPlaceHolder, entityName, entityAttr) {
+              return buildInput(inputId, errorSpanId, inputLabel, inputPlaceHolder, entityName, entityAttr)
+            },
+            buildSelect(selectId, errorSpanId, selectLabel, selectPlaceHolder, entityName, entityAttr, enumsAttr) {
+              return buildSelect(selectId, errorSpanId, selectLabel, selectPlaceHolder, entityName, entityAttr, enumsAttr);
+            },
+            submit(action,event) {
+
+              if(action == "closeForgot"){
+                document.getElementById('forgotOverlay').style.display = 'none';
+                document.getElementById('mailOverlay').style.display = 'none';
+              }else if(action == "openForgot"){
+                document.getElementById('forgotOverlay').style.display = 'flex';
+              }else if(action == "closeReset"){
+                document.getElementById('resetOverlay').style.display = 'none';
+              }else if (action == "forgot") {
+                newEntity("/seguridad/login/forgot", this.data, (function(status, response) {
+                
+                  if (status === 200) {
+                    document.getElementById('successOverlay').style.display = 'none';
+                    document.getElementById('forgotOverlay').style.display = 'none';
+                    document.getElementById('mailOverlay').style.display = 'flex';
+                    
+                  } else if (status === 400) {
+                    this.errors = response;
+                    
+                    //alert(JSON.stringify(this.errors));
+                  }
+                }).bind(this));
+              }else if (action == "reset") {
+                newEntity("/seguridad/login/reset", this.data, (function(status, response) {
+                
+                  if (status === 200) {
+                    
+                    document.getElementById('resetOverlay').style.display = 'none';
+                    setTimeout(() => {
+                      document.getElementById('successOverlay').style.display = 'none';
+                    }, 3000);
+                    
+                  } else if (status === 400) {
+                    this.errors = response;
+                    
+                    //alert(JSON.stringify(this.errors));
+                  }
+                }).bind(this));
+              }
+              else if (action == "login") {
+                newEntity("/seguridad/login", this.data, (function(status, response) {
+                  if (status === 200) {
+                    document.getElementById('videoOverlay').style.display = 'flex';
+                    this.enums.nav_rules = response
+                    //var video = '<video id="vid" type="video/mp4" src="/static/videos/login_'+response.role+'.mp4" width="464px" height="848px" label="360p" autoplay loop>';
+                    //document.getElementById('videoOverlay').innerHTML = video;
+                    
+                    setTimeout(() => {
+                      //document.getElementById('successOverlay').style.display = 'none';
+                      if(home.config.globalProperties.enums.nav_rules["default"]){
+                        location.assign(home.config.globalProperties.enums.nav_rules["default"]);
+                      }else if(home.config.globalProperties.enums.nav_rules[action]){
+                        location.assign(home.config.globalProperties.enums.nav_rules[action]);
+                      }
+                    }, 1);
+
+                  } 
+                  else if (status === 400) {
+                    document.getElementById('successOverlay').style.display = 'none';
+                    this.errors = response;
+                    if (this.errors.default){
+                      document.getElementById("fail_msg").innerHTML = this.errors.default.global_msg
+                    }
+                    if (this.errors.default.captchaID){
+                        this.data.user.captchaSolution = "";
+                        this.data.user.captchaID = this.errors.default.captchaID
+                        document.getElementById("captchaIMG").src = `/seguridad/login/captcha/${this.data.user.captchaID}/img`;
+                        this.data.audio = new Audio(`/seguridad/login/captcha/${this.data.user.captchaID}/audio`);
+                    }
+                    
+                    //alert(JSON.stringify(this.errors));
+                  }else {
+                    document.getElementById('successOverlay').style.display = 'none';
+                    alert("Se produjo un error interno, verifique que el usuario tenga un rol asignado.");
+                  }
+                }).bind(this));
+              }
+            }
+          }
+        });
+        
+        home.mount("#app");
+
+     // };
+    </script>
+  
+  
+	    
+</body>
+
+
+</html>

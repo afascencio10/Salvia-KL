@@ -1,0 +1,341 @@
+
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-12">
+      <div id="alert" v-if="errors.default&&errors.default.global_msg" class="alert alert-danger alert-dismissible">${errors.default.global_msg}</div>
+      
+        <div class="tituloform">
+          <h2>{{ template "text_translated.html" Text `{"text":"get_entity_branch_title"}` .lang .locale}}</h2>
+        </div>
+        <div class="row">
+          <div class="col-sm-3 mb-3">
+			      <label v-if="data.cities.length > 0">{{ template "text_translated.html" Text `{"text":"get_victim_case_city"}` .lang .locale}}</label>
+              <select v-if="data.cities.length > 0" class="form-control"  id="cities" @change="changeCity($event)"
+                v-model="data.citySelected">
+                <option v-for="(city, idx) in data.cities" :value="city.code" :key="idx">${city.name}</option>
+              </select>           
+          </div>
+          <div class="col-sm-3 mb-3">
+			      <label v-if="data.towns.length > 0" >{{ template "text_translated.html" Text `{"text":"get_victim_case_town"}` .lang .locale}}</label>
+              <select v-if="data.towns.length > 0" class="form-control"  id="towns" @change="changeTown($event)"
+                v-model="data.townSelected">
+                <option v-for="(town, idx) in data.towns" :value="town.code" :key="idx">${town.name}</option>
+              </select>           
+          </div>
+          <div class="col-sm-3 mb-3">
+			      <label v-if="data.townSelected != ''">{{ template "text_translated.html" Text `{"text":"get_entity_branch_sector"}` .lang .locale}}</label>
+              <select v-if="data.townSelected != ''" class="form-control"  id="cities" @change="changeSector($event)"
+                v-model="data.sectorSelected">
+                <option v-for="(sector, idx) in enums.sectors" :value="sector.code" :key="idx">${sector.label}</option>
+              </select>           
+          </div>
+			  </div>
+        <div class="row">
+          <div class="col-sm-3 mb-3">
+			      <label v-if="data.entities.length > 0" >{{ template "text_translated.html" Text `{"text":"get_entity_branch_entities"}` .lang .locale}}</label>
+              <select v-if="data.entities.length > 0" class="form-control"  id="entities" @change="changeEntity($event)"
+                v-model="data.entitySelected">
+                <option v-for="(entity, idx) in data.entities" :value="entity.icode" :key="idx">${entity.name}</option>
+              </select>
+          </div>
+          <div class="col-sm-3 mb-3">
+			      <div v-if="data.entitySelected != ''" class="row justify-content-center botones">
+              {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"back", "buttonLabel":"get_entity_branch_new", "buttonPlaceHolder":"get_entity_branch_new", "onClickHandler":"openNewBranch"}` .lang .locale}} ${getEntityNameByICode(data.entitySelected)} 
+            </div>
+          </div>
+			  </div>
+        <div v-if="data.branches.length == 0 && data.entitySelected != ''"> {{ template "text_translated.html" Text `{"text":"get_entity_branch_empty"}` .lang .locale}} </div>
+        <div v-else-if="data.entitySelected != ''" class="table-responsive">
+          <table class="table">
+              <thead>
+                  <tr>
+                      <th scope="col">{{ template "text_translated.html" Text `{"text":"get_entity_branch_name"}` .lang .locale}}</th>
+                      <th scope="col">{{ template "text_translated.html" Text `{"text":"get_entity_branch_address"}` .lang .locale}}</th>
+                      <th scope="col">{{ template "text_translated.html" Text `{"text":"get_entity_branch_update_date"}` .lang .locale}}</th>
+                      <th scope="col">{{ template "text_translated.html" Text `{"text":"form_actions_title"}` .lang .locale}}</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  <template v-for="branch in data.branches">
+                      <tr>
+                          <td><span v-if="branch.branchSource=='u'">*</span> ${branch.name}</td>
+                          <td>${branch.address}</td>
+                          <td>${branch.updateDate}</td>
+                          <td>
+                              <div class="d-flex justify-content-around acciones">
+                                  <button @click="openUpdateBranch(branch)"> Actualizar</button>
+                              </div>
+                          </td>
+                      </tr>
+                  </template>
+              </tbody>
+          </table>
+        </div>
+
+        <template v-if="data.branches" >          
+          <div class="row justify-content-center botones">
+            {{ template "button.html" Button `{"class":"btn btn-warning", "buttonId":"back", "buttonLabel":"get_entity_branch_back", "buttonPlaceHolder":"get_entity_branch_back", "onClickHandler":"submit('back')"}` .lang .locale}}
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="setBranchOverlay" style="display: none;">
+  <div class="popup-container popup-container2" id="popup">
+    <div >
+      <h2>{{ template "text_translated.html" Text `{"text":"get_entity_branch_new_title"}` .lang .locale}}</h2>
+        <p>${getEntityNameByICode(data.entitySelected)}</p>
+        <hr>
+        <div class="row">
+            <div class="col-sm-6">
+                {{ template "labeled_input.html" Input `{"class":"form-control", "mandatory":true,
+                "errorClass":"form-control is-invalid", "inputId":"get_entity_branch_name",
+                "inputType":"text", "errorSpanId":"get_entity_branch_name_error",
+                "inputLabel":"get_entity_branch_name", "inputPlaceHolder":"get_entity_branch_name_h",
+                "entityPath":"data", "entityName":"entityBranch", "entityAttr":"name"}`
+                .lang .locale}}
+            </div>
+            <div class="col-sm-6">
+                {{ template "labeled_input.html" Input `{"class":"form-control", "mandatory":true,
+                "errorClass":"form-control is-invalid", "inputId":"get_entity_branch_address",
+                "inputType":"text", "errorSpanId":"get_entity_branch_address_error",
+                "inputLabel":"get_entity_branch_address", "inputPlaceHolder":"get_entity_branch_address_h",
+                "entityPath":"data", "entityName":"entityBranch", "entityAttr":"address"}`
+                .lang .locale}}
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-sm-6">
+                {{ template "labeled_input.html" Input `{"class":"form-control", "mandatory":true,
+                "errorClass":"form-control is-invalid", "inputId":"get_entity_branch_latitude",
+                "inputType":"text", "errorSpanId":"get_entity_branch_latitude_error",
+                "inputLabel":"get_entity_branch_latitude", "inputPlaceHolder":"get_entity_branch_latitude_h",
+                "entityPath":"data", "entityName":"entityBranch", "entityAttr":"latitude"}`
+                .lang .locale}}
+            </div>
+            <div class="col-sm-6">
+                {{ template "labeled_input.html" Input `{"class":"form-control", "mandatory":true,
+                "errorClass":"form-control is-invalid", "inputId":"get_entity_branch_longitude",
+                "inputType":"text", "errorSpanId":"get_entity_branch_longitude_error",
+                "inputLabel":"get_entity_branch_longitude", "inputPlaceHolder":"get_entity_branch_longitude_h",
+                "entityPath":"data", "entityName":"entityBranch", "entityAttr":"longitude"}`
+                .lang .locale}}
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-sm-12">
+                  {{ template "labeled_textarea.html" TextArea `{"class":"form-control", "mandatory":true,
+                  "errorClass":"form-control is-invalid", "textAreaId":"get_entity_branch_description",
+                  "rows":"5", "errorSpanId":"get_entity_branch_description_error",
+                  "textAreaLabel":"get_entity_branch_description", "textAreaPlaceHolder":"get_entity_branch_description_h",
+                  "entityPath":"data", "entityName":"entityBranch", "entityAttr":"description"}` .lang .locale }}
+            </div>
+            
+        </div>
+        <div class="row justify-content-xl-center botones">
+            {{ template "button.html" Button `{"class":"btn btn-warning", "buttonId":"back", "buttonLabel":"get_entity_branch_new_back", 
+            "buttonPlaceHolder":"get_entity_branch_new_back", "onClickHandler":"closeNewBranch()"}` .lang .locale}}
+
+            {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"save", "buttonLabel":"get_entity_branch_new_save", 
+            "buttonPlaceHolder":"get_entity_branch_new_save", "onClickHandler":"submit('set')"}` .lang .locale}}
+        </div>
+    </div>
+      
+  </div>
+</div>
+
+<!-- Bootstrap JS y jQuery (al final del documento para optimizar la carga) -->
+
+    {{ template "standard_scripts.html" .}}
+    {{ template "overlay.html" .}}
+    {{ template "html_helper_scripts.html" .}}
+    <script>
+      //var init = function(){
+        
+        var home = Vue.createApp({
+          delimiters : ['${', '}'],
+          data() {
+            return {
+              tmp:false,
+              windowTitle:{{.windowTitle}},
+              currentUser:{{.currentUser}},
+              menuToolsEntityBranchTable:{{.menuToolsEntityBranchTable}},
+              res:{
+                victimCase:JSON.parse({{.victimCase}})
+              },
+              errors:new Object(),
+              data: {
+                default:new Object(),
+                departmentSelected: "{{.department}}",
+                citySelected: "",
+                townSelected: "",
+                sectorSelected: "",
+                entitySelected: "",
+                branchSelected:"",
+                cities: {{.cities}},
+                towns: [],
+                entities: [],
+                branches:[],
+                entityBranch:{}
+              },
+              enums:{
+                nav_rules: {{.nav_rules}},
+                sectors: {{.sectors}},
+                departments: JSON.parse({{.departments}})
+              },
+              message:''
+            }
+          },
+          created: function () {
+          
+          },
+          mounted:  function () {
+            document.title = {{.windowTitle}};
+            document.getElementById('app').style.display = 'block';
+            home.config.globalProperties.enums = this.enums;
+          },
+          methods: {
+            logout(){
+                logout("/seguridad/logout");
+            },
+            
+                  
+            changeCity (event) {
+              
+              getEntity("{{.securityTownFormPath}}/"+this.data.citySelected+"/codigo_ciudad", (function(status, response) {
+                
+                if (status === 200) {
+                  this.data.towns =  response;
+
+                  this.data.sectorSelected = "";
+                  this.data.entities = [];
+                  this.data.entitySelected = "";
+                  this.data.branches = [];
+                  this.data.branchSelected = "";
+                } 
+                else if (status === 400) {
+                  this.errors = response;
+                  
+                  alert(JSON.stringify(this.errors));
+                }else if (status === 404) {
+                  console.log("No records found")
+                }
+              }).bind(this), true);
+            },
+            changeTown (event) {
+              this.data.sectorSelected = "";
+            },
+            changeSector (event) {
+              getEntity("{{.salviaEntityFormPath}}/"+this.data.sectorSelected, (function(status, response) {
+                if (status === 200) {
+                  this.data.entities =  response;
+
+                  this.data.entitySelected = "";
+                  this.data.branches = [];
+                  this.data.branchSelected = "";
+                } else if (status === 400) {
+                  this.errors = response;
+                  alert(JSON.stringify(this.errors));
+                }else if (status === 404) {
+                  console.log("No records found")
+                }
+              }).bind(this), true);
+            },
+            changeEntity (event) {
+              getEntity("{{.salviaEntityBranchFormPath}}/e/"+this.data.entitySelected+"/tc/"+this.data.townSelected, (function(status, response) {
+                if (status === 200) {
+                  this.data.branches =  response;
+
+                  this.data.branchSelected = "";
+                } else if (status === 400) {
+                  this.errors = response;
+                  alert(JSON.stringify(this.errors));
+                }else if (status === 404) {
+                  console.log("No records found")
+                }
+              }).bind(this), true);
+            },
+            changeBranch (event) {
+             
+            },
+            buildInput(inputId, errorSpanId, inputLabel, inputPlaceHolder, entityName, entityAttr) {
+              return buildInput(inputId, errorSpanId, inputLabel, inputPlaceHolder, entityName, entityAttr)
+            },
+            buildSelect(selectId, errorSpanId, selectLabel, selectPlaceHolder, entityName, entityAttr, enumsAttr) {
+              return buildSelect(selectId, errorSpanId, selectLabel, selectPlaceHolder, entityName, entityAttr, enumsAttr);
+            },
+            submit(action,event) {
+              if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
+                location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+              }else if (action == "set"){
+                if(this.data.entityBranch.icode && this.data.entityBranch.icode.length > 0){
+                  //Significa que es un update
+                  updateEntity("{{.salviaPOSTFormPath}}", {entityBranch:this.data.entityBranch}, (function(status, response) {
+                    document.getElementById('successOverlay').style.display = 'none';
+                    if (status === 200) {
+                      window.location.reload();
+                    } 
+                    else if (status === 400) {
+                      this.errors = response;
+                    }else {
+                      alert("Se produjo un error interno, por favor vuelva a intentarlo");
+                    }
+                  }).bind(this));
+                }else{
+                  //Significa que es nuevo
+                  this.data.entityBranch.townCode = this.data.townSelected;
+                  this.data.entityBranch.entityICode = this.data.entitySelected;
+                  newEntity("{{.salviaPOSTFormPath}}", {entityBranch:this.data.entityBranch}, (function(status, response) {
+                    document.getElementById('successOverlay').style.display = 'none';
+                    if (status === 200) {
+                      window.location.reload();
+                    } 
+                    else if (status === 400) {
+                      this.errors = response;
+                    }else {
+                      alert("Se produjo un error interno, por favor vuelva a intentarlo");
+                    }
+                  }).bind(this));
+                } 
+              }              
+            },
+            
+            getCities(action,event) {
+              
+            },
+            openNewBranch (event){
+              this.data.entityBranch = new Object();
+              document.getElementById('setBranchOverlay').style.display = 'flex';
+            },
+            openUpdateBranch (branch){
+              this.data.entityBranch = branch;
+              document.getElementById('setBranchOverlay').style.display = 'flex';
+            },
+            closeNewBranch (event){
+              document.getElementById('setBranchOverlay').style.display = 'none';
+            },
+            closeUpdateBranch (event){
+              document.getElementById('setBranchOverlay').style.display = 'none';
+            },
+            getEntityNameByICode (iCode){
+                for (let idx = 0; idx < this.data.entities.length; idx++) {
+                    if(this.data.entities[idx].icode == iCode){
+                        return this.data.entities[idx].name;
+                    }
+                }
+                
+                return "";
+            },
+            logout(){
+                logout("/seguridad/logout");
+            }
+          }
+        });
+        
+        home.mount("#app");
+
+     // };
+    </script>

@@ -1,0 +1,252 @@
+<div class="container">
+  <div class="welcome-section">
+    <h2><b>Usuarios de Salvia</b></h2>
+    <a href="/seguridad/usuarios/nuevo"><button class="btn btn-primary">Crear Nuevo usuario <i
+          class="fas fa-plus-circle"></i> </button></a>
+  </div>
+  <ul class="nav nav-tabs" id="myTab" role="tablist">
+    <li class="nav-item" role="presentation">
+      <a class="nav-link active" id="tab1-tab" data-toggle="tab" href="#tab1" role="tab" aria-controls="tab1"
+        aria-selected="true">Todos</a>
+    </li>
+    <li class="nav-item" role="presentation">
+      <a class="nav-link" id="tab2-tab" data-toggle="tab" href="#tab2" role="tab" aria-controls="tab2"
+        aria-selected="false"><i class="fa fa-circle circulo_activos"></i>Activos</a>
+    </li>
+    <li class="nav-item" role="presentation">
+      <a class="nav-link" id="tab3-tab" data-toggle="tab" href="#tab3" role="tab" aria-controls="tab3"
+        aria-selected="false"><i class="fa fa-circle circulo_desactivado"></i>Inhabilitados</a>
+    </li>
+    <li class="nav-item ml-auto vistas" > 
+        <button v-on:click="getEntityBranches()" class="btn btn-primary"><i class="fa fa-building" data-toggle="tooltip" data-placement="top"
+                title="Sedes de entidad"></i></button>
+    </li>
+    <li>
+      <button v-on:click="getCases()" class="btn btn-primary"><i class="fa fa-newspaper" data-toggle="tooltip" data-placement="top"
+              title="Casos"></i></button>
+    </li>
+  </ul>
+
+  <div class="tab-content" id="myTabContent">
+    <div class="tab-pane fade show active" id="tab1" role="tabpanel" aria-labelledby="tab1-tab">
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Nombres</th>
+              <th scope="col">Apellidos</th>
+              <th scope="col">Tipo Documento</th>
+              <th scope="col">Documento</th>
+              <th scope="col">Rol</th>
+              <th scope="col">Correo Electrónico</th>
+              <th scope="col">Usuario</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="user in res">
+              <tr class="">
+                <td>${user.profile.names}</td>
+                <td>${user.profile.lastNames}</td>
+                <td>${user.profile.docType}</td>
+                <td>${user.profile.docNumber}</td>
+                <td>
+                    <template  v-for="(r,idx) in user.roles">
+                        <template v-if="idx==0">
+                          ${r.name}
+                        </template>
+                        <template v-else>
+                          , ${r.name}
+                        </template>
+                    </template>
+                </td>
+                <td>${user.profile.email}</td>
+                <td>${user.login}</td>
+                <td>
+                  <span v-if="user.status == 'e'" class="tag activos">Activo</span>
+                  <span v-if="user.status == 'd'" class="tag desactivado">Inhabilitado</span>
+                </td>
+                <td>
+                  <div class="d-flex justify-content-around acciones">
+                    <template v-for="item in menuToolsUserTable">
+                      <a v-if="evaluarItemAssert(item, user)" :href="`${item.path}/${user.icode}/${item.action}`"> ${item.label}</a>
+                    </template>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="tab-pane fade" id="tab2" role="tabpanel" aria-labelledby="tab2-tab">
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Nombres</th>
+              <th scope="col">Apellidos</th>
+              <th scope="col">Tipo Documento</th>
+              <th scope="col">Documento</th>
+              <th scope="col">Rol</th>
+              <th scope="col">Correo Electrónico</th>
+              <th scope="col">Usuario</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="user in res">
+              <tr v-if="user.status == 'e'" class="">
+                <td>${user.profile.names}</td>
+                <td>${user.profile.lastNames}</td>
+                <td>${user.profile.docType}</td>
+                <td>${user.profile.docNumber}</td>
+                <td>
+                  <template  v-for="(r,idx) in user.roles">
+                      <template v-if="idx==0">
+                        ${r.name}
+                      </template>
+                      <template v-else>
+                        , ${r.name}
+                      </template>
+                  </template>
+                </td>
+                <td>${user.profile.email}</td>
+                <td>${user.login}</td>
+                <td>
+                  <span class="tag activos">Activo</span>
+                </td>
+                <td>
+                  <div class="d-flex justify-content-around acciones">
+                    <template v-for="item in menuToolsUserTable">
+                      <a v-if="!item.assert || item.assert && item.assert" :href="`${item.path}/${user.icode}/${item.action}`"> ${item.label}</a>
+                    </template>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <div class="tab-pane fade" id="tab3" role="tabpanel" aria-labelledby="tab3-tab">
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Nombres</th>
+              <th scope="col">Apellidos</th>
+              <th scope="col">Tipo Documento</th>
+              <th scope="col">Documento</th>
+              <th scope="col">Rol</th>
+              <th scope="col">Correo Electrónico</th>
+              <th scope="col">Usuario</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="user in res">
+              <tr v-if="user.status == 'd'" class="">
+                <td>${user.profile.names}</td>
+                <td>${user.profile.lastNames}</td>
+                <td>${user.profile.docType}</td>
+                <td>${user.profile.docNumber}</td>
+                <td>
+                  <template  v-for="(r,idx) in user.roles">
+                      <template v-if="idx==0">
+                        ${r.name}
+                      </template>
+                      <template v-else>
+                        , ${r.name}
+                      </template>
+                  </template>
+                </td>
+                <td>${user.profile.email}</td>
+                <td>${user.login}</td>
+                <td>
+                  <span class="tag desactivado">Inhabilitado</span>
+                </td>
+                <td>
+                  <div class="d-flex justify-content-around acciones">
+                    <template v-for="item in menuToolsUserTable">
+                      <a v-if="!item.assert || item.assert && item.assert" :href="`${item.path}/${user.icode}/${item.action}`"> ${item.label}</a>
+                    </template>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+  {{ template "standard_scripts.html" .}}
+  {{ template "overlay.html" .}}
+
+   
+  <script>
+    var home = Vue.createApp({
+      delimiters : ['${', '}'],
+      data() {
+        return {
+          windowTitle:{{.windowTitle}},
+          currentUser:{{.currentUser}},
+          res: JSON.parse({{.users}}),
+          menu:{{.menu}},
+          menuToolsUserTable: {{.menuToolsUserTable}}
+        }
+      },
+      created: function () {
+        
+        /*getData("/seguridad/usuarios", (function(status, response) {
+          if (status === 200) {
+            //parse JSON datax`x
+            
+            this.res = response;
+            
+          } else if (status === 404) {
+            console.log("No records found")
+          }
+        }).bind(this));
+        */
+      },
+      mounted:  function () {
+            document.title = {{.windowTitle}};
+        document.getElementById('app').style.display = 'block';
+      
+      },
+      methods: {
+        logout(){
+            logout("/seguridad/logout");
+        },
+        goAbout() {
+            //about.mount('#app');
+        },
+        evaluarItemAssert (item, user){
+          var checked = true;
+          if (item.assert){
+            checked = eval(item.assert);
+          }
+          return checked
+        },
+        getCases(){
+            location.assign("{{.salviaVictimCaseFormPath}}");
+        },
+        getEntityBranches(){
+            location.assign("{{.salviaEntityBranchesFormPath}}");
+        },
+      }
+    });
+    
+    home.mount("#app");
+
+    
+  </script>

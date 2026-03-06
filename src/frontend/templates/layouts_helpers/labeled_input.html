@@ -1,0 +1,5 @@
+<label v-if="'{{.InputType}}' != 'hidden'" class= "{{.InputLabelClass}}" for="{{.InputId}}">{{.InputLabel}} <span v-if="{{.Mandatory}}" class="mandatory">*</span></label>
+<div :class="errors.{{.EntityName}}&&errors.{{.EntityName}}.{{.EntityAttr}} ? '{{.InputErrorClass}}' : ''">
+    <input v-model="{{.EntityPath}}.{{.EntityName}}.{{.EntityAttr}}" type="{{.InputType}}" class="{{.InputClass}}" id="{{.InputId}}" placeholder="{{.InputPlaceHolder}}">
+    <span v-if="errors.{{.EntityName}}&&errors.{{.EntityName}}.{{.EntityAttr}}" id="{{.ErrorSpanId}}" class="error_label">${errors.{{.EntityName}}.{{.EntityAttr}}}</span>
+</div>

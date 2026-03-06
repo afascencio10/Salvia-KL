@@ -1,0 +1,127 @@
+
+
+<div class="container">
+  <div class="welcome-section">
+      <h2><b>Eliminar Usuario / Usuaria </b></h2>
+  </div>
+  <div class="table1">
+    <div class="item1">
+      <div class="row1">
+        <div class="thead">Nombres</div>
+        <div class="tbody">${data.user.profile.names}</div>
+      </div>
+      <div class="row1">
+        <div class="thead">Apellidos</div>
+        <div class="tbody">${data.user.profile.lastNames}</div>
+      </div>
+      <div class="row1">
+        <div class="thead">Tipo Documento</div>
+        <div class="tbody">${data.user.profile.docType}</div>
+      </div>
+      <div class="row1">
+        <div class="thead">Documento</div>
+        <div class="tbody">${data.user.profile.docNumber}</div>
+      </div>
+    </div>
+    <div class="item1">
+      <div class="row1">
+        <div class="thead">Correo Electrónico</div>
+        <div class="tbody">${data.user.profile.email}</div>
+      </div>
+      <div class="row1">
+        <div class="thead">Usuario</div>
+        <div class="tbody">${data.user.login}</div>
+      </div>
+      <div class="row1">
+        <div class="thead">Estado</div>
+        <div class="tbody">${data.user.status}</div>
+      </div>
+    </div>
+    <div class="row justify-content-xl-center botones">
+      {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"remove", "buttonLabel":"general_user_remove", "buttonPlaceHolder":"remove_place_holder", "onClickHandler":"submit('remove')"}` .lang  .locale}}
+    </div>
+  </div>
+</div>
+
+      {{ template "standard_scripts.html" .}}
+{{ template "overlay.html" .}}
+      
+      <script>
+      
+        var home = Vue.createApp({
+          delimiters : ['${', '}'],
+          data() {
+            return {
+              windowTitle:{{.windowTitle}},
+              currentUser:{{.currentUser}},
+              res:{},
+              errors:new Object(),
+              data: {
+                default:new Object(),
+                user:JSON.parse({{.users}})
+              },
+              enums:{
+                gender:{{.gender}},
+                docType:{{.docType}},
+                language:{{.language}},
+                nav_rules:{{.nav_rules}},
+              },
+              message:''
+            }
+          },
+          created: function () {
+            
+            /*getData("/seguridad/usuarios", (function(status, response) {
+              if (status === 200) {
+                //parse JSON datax`x
+                
+                this.res = response;
+                
+              } else if (status === 404) {
+                console.log("No records found")
+              }
+            }).bind(this));
+            */
+          },
+          mounted:  function () {
+            document.title = {{.windowTitle}};
+            document.getElementById('app').style.display = 'block';
+            home.config.globalProperties.enums = this.enums;
+          },
+          methods: {
+            logout(){
+                logout("/seguridad/logout");
+            },
+            submit(action,event) {
+              if(action == "remove"){
+                removeEntity("/seguridad/usuarios/"+this.data.user.icode, this.data, (function(status, response) {
+                  
+                  if (status === 200) {
+                    
+                    if(home.config.globalProperties.enums.nav_rules["default"]){
+                        location.assign(home.config.globalProperties.enums.nav_rules["default"]);
+                      }else if(home.config.globalProperties.enums.nav_rules[action]){
+                        location.assign(home.config.globalProperties.enums.nav_rules[action]);
+                      }
+                    
+                  } else if (status === 400) {
+                    document.getElementById('successOverlay').style.display = 'none';
+                    this.errors = response;
+                  }else {
+                    document.getElementById('successOverlay').style.display = 'none';
+                    alert("Se produjo un error interno, por favor vuelva a intentarlo");
+                  }
+                }).bind(this));
+              }else if(home.config.globalProperties.enums.nav_rules[action]){
+                location.assign(home.config.globalProperties.enums.nav_rules[action]);
+              }
+            }
+          }
+          
+        });
+        
+        home.mount("#app");
+  
+        
+      </script>
+  

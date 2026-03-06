@@ -1,0 +1,172 @@
+<div class="container">
+    <div class="welcome-section">
+        <h2><b>Primer contacto </b></h2>
+
+
+    </div>
+
+
+    <hr>
+    <!--
+            <ul class="nav nav-tabs" id="myTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link active" id="tab1-tab" data-toggle="tab" href="#tab1" role="tab" aria-controls="tab1" aria-selected="true">Información de mi caso</a>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link" id="tab2-tab" data-toggle="tab" href="#tab2" role="tab" aria-controls="tab2" aria-selected="false">Estado de mi caso</a>
+                </li>
+                
+                
+                
+                <li class="nav-item ml-auto vistas" role="presentation"> 
+                    <button class="btn btn-primary"><i class="fa fa-bell" data-toggle="tooltip" data-placement="top" title="Ver notificaciones"></i>(34)</button>
+                </li>
+           -->
+    </ul>
+    <div class="tab-content" id="myTabContent">
+        <div class="tab-pane fade show active" id="tab1" role="tabpanel" aria-labelledby="tab1-tab">
+            <div id="info-tab">
+                <div class="table1">
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_creation_date"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.creationDate}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_report_type"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.form.reportType.name}</div>
+                        </div>
+                    </div>
+                    
+                </div>
+                
+                <div class="table1" v-if="res.victimContact.form.reportType.code=='r'">
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_has_care_role"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.form.hasCareRole.name}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_victim_aware_of_report"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.form.victimAwareOfReport.name}</div>
+                        </div>
+                    </div>
+                    <div class="item1" v-if="res.victimContact.form.hasCareRole.code=='y'">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_reporter_names"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.form.reporterNames}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_reporter_phone"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.form.reporterPhone}</div>
+                        </div>                       
+                    </div>
+                </div>
+                
+                <div class="table1">
+                    <div class="item1">
+                        <div class="row1" v-if="res.victimContact.form.reportType.code=='v'">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_will_receive_call"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.form.willReceiveCall.name}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_victim_names"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.names}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_victim_last_names"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.lastNames}</div>
+                        </div>
+                    </div>
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_victim_phone_colombia"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.form.victimColPhone}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_best_contact_time"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.form.bestContactTime}</div>
+                        </div>               
+                    </div>
+                     <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_form2_facts_description"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimContact.form.factsDescription}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <div class="row justify-content-center botones">
+        {{ template "button.html" Button `{"class":"btn btn-secondary", "buttonId":"back",
+        "buttonLabel":"get_victim_contact_back", "buttonPlaceHolder":"get_victim_contact_back_h",
+        "onClickHandler":"submit('back')"}` .lang .locale}}
+        
+    </div>
+
+</div>
+
+
+        {{ template "standard_scripts.html" .}}
+        {{ template "overlay.html" .}}
+          
+        <script>
+        
+          var home = Vue.createApp({
+            delimiters : ['${', '}'],
+            
+            data() {
+              return {
+                windowTitle:{{.windowTitle}},
+               currentUser:{{.currentUser}},
+                errors:{},
+                res:{
+                    victimContact:JSON.parse({{.victimContacts}})
+                },
+                enums:{
+                    victimContactStatus:{{.victimContactStatus}},
+                    nav_rules: {{.nav_rules}},
+
+                    yes_no:{{.yes_no}},
+                    victim_case_form2_report_type:{{.victimCaseForm2ReportType}}
+                }
+              }
+            },
+            created: function () {
+            },
+            mounted:  function () {
+                document.title = {{.windowTitle}};
+                document.getElementById('app').style.display = 'block';
+                home.config.globalProperties.enums = this.enums;
+
+                if(this.res.victimContact.form.icode == ""){
+                    //Si no hay datos en el formulario antiguo, se utiliza el nuevo
+                    this.res.victimContact.form = this.res.victimContact.form2
+                }
+            },
+            methods: {
+            logout(){
+                logout("/seguridad/logout");
+            },
+                submit(action,event) {
+                    if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
+                        location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+                    }else if(home.config.globalProperties.enums.nav_rules[action]){
+                        location.assign(home.config.globalProperties.enums.nav_rules[action]);
+                    }       
+                },
+              goAbout() {
+                  //about.mount('#app');
+              }
+            }
+          });
+          
+          home.mount("#app");
+        
+          
+        </script>
+        
+        

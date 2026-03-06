@@ -1,0 +1,10 @@
+[
+    {
+      "name": "Actualizar responsables de casos",
+      "id": "UpdateVictimCasesOwnersAndRoles",
+      "schedule_type": "daily",
+      "hour": 21,
+      "minute": 36,
+      "enabled":false
+    }
+]

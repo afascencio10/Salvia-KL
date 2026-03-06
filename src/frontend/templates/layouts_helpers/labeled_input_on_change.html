@@ -1,0 +1,9 @@
+<label v-if="'{{.InputType}}' != 'hidden'" class= "{{.InputLabelClass}}" for="{{.InputId}}">{{.InputLabel}} <span v-if="{{.Mandatory}}" class="mandatory">*</span></label>
+
+
+<template v-if="errors.{{.EntityName}}&&errors.{{.EntityName}}.{{.EntityAttr}}">
+    <input @change="{{.OnChange}}" v-model="{{.EntityPath}}.{{.EntityName}}.{{.EntityAttr}}" type="{{.InputType}}" class="{{.InputErrorClass}}" id="{{.InputId}}" placeholder="{{.InputPlaceHolder}}">
+    <span id="{{.ErrorSpanId}}" class="error invalid-feedback">${errors.{{.EntityName}}.{{.EntityAttr}}}</span>
+</template>
+
+<input  @change="{{.OnChange}}" v-else v-model="{{.EntityPath}}.{{.EntityName}}.{{.EntityAttr}}" type="{{.InputType}}" class="{{.InputClass}}" id="{{.InputId}}" placeholder="{{.InputPlaceHolder}}">

@@ -1,0 +1,185 @@
+<div class="container">
+    <div class="welcome-section">
+        <h2><b>Primer contacto </b></h2>
+
+
+    </div>
+
+
+    <hr>
+    <!--
+            <ul class="nav nav-tabs" id="myTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link active" id="tab1-tab" data-toggle="tab" href="#tab1" role="tab" aria-controls="tab1" aria-selected="true">Información de mi caso</a>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link" id="tab2-tab" data-toggle="tab" href="#tab2" role="tab" aria-controls="tab2" aria-selected="false">Estado de mi caso</a>
+                </li>
+                
+                
+                
+                <li class="nav-item ml-auto vistas" role="presentation"> 
+                    <button class="btn btn-primary"><i class="fa fa-bell" data-toggle="tooltip" data-placement="top" title="Ver notificaciones"></i>(34)</button>
+                </li>
+           -->
+    </ul>
+    <div class="tab-content" id="myTabContent">
+        <div class="tab-pane fade show active" id="tab1" role="tabpanel" aria-labelledby="tab1-tab">
+            <div id="info-tab">
+                <div class="table1">
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">Nombres</div>
+                            <div class="tbody">${res.victimContact.names}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Apellidos</div>
+                            <div class="tbody">${res.victimContact.lastNames}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Nombre identitario</div>
+                            <div class="tbody">${res.victimContact.form.nick}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Tipo de documento</div>
+                            <div class="tbody">${enums.docType[res.victimContact.form.docType]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Número de documento</div>
+                            <div class="tbody">${res.victimContact.form.docNumber}</div>
+                        </div>
+                       
+                        
+                    </div>
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">Fecha de nacimiento</div>
+                            <div class="tbody">${res.victimContact.form.birthDate}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Municipio</div>
+                            <div class="tbody">${res.victimContact.form.townCode}</div>
+                            <div class="tbody"></div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Dirección</div>
+                            <div class="tbody">${res.victimContact.form.address}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Número de teléfono</div>
+                            <div class="tbody">${res.victimContact.form.phone}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Identidad de género</div>
+                            <div class="tbody">${enums.genderIdentity[res.victimContact.form.genderIdentity]}</div>
+                        </div>
+                    </div>
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">Orientación sexual</div>
+                            <div class="tbody">${enums.sexualOrientation[res.victimContact.form.sexualOrientation]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Procedencia</div>
+                            <div class="tbody">${enums.origin[res.victimContact.form.origin]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Ocupación</div>
+                            <div class="tbody">${enums.occupation[res.victimContact.form.occupation]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Otra ocupación</div>
+                            <div class="tbody">${res.victimContact.form.occupationOther}</div>
+                        </div>
+                    </div>
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">Descripción de los hechos</div>
+                            <div class="tbody">${res.victimContact.form.factsDescription}</div>
+                        </div>
+                    </div>
+                    <div v-if="res.victimContact.status == 'i'" class="item1">
+                        <div class="row1">
+                            <div class="thead">Estado</div>
+                            <div class="tbody">${enums.victimContactStatus[res.victimContact.status]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Motivo por invalidez</div>
+                            <div class="tbody">${res.victimContact.statusDescription}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <div class="row justify-content-center botones">
+        {{ template "button.html" Button `{"class":"btn btn-secondary", "buttonId":"back",
+        "buttonLabel":"get_victim_contact_back", "buttonPlaceHolder":"get_victim_contact_back_h",
+        "onClickHandler":"submit('back')"}` .lang .locale}}
+        
+    </div>
+
+</div>
+
+
+        {{ template "standard_scripts.html" .}}
+        {{ template "overlay.html" .}}
+          
+        <script>
+        
+          var home = Vue.createApp({
+            delimiters : ['${', '}'],
+            data() {
+              return {
+                windowTitle:{{.windowTitle}},
+              currentUser:{{.currentUser}},
+                errors:{},
+                res:{
+                    victimContact:JSON.parse({{.victimContacts}})
+                },
+                enums:{
+                    victimContactStatus:{{.victimContactStatus}},
+                    nav_rules: {{.nav_rules}},
+
+                    docType:{{.docType}},
+                    livingZone:{{.livingZone}},
+                    genderIdentity:{{.genderIdentity}},
+                    sexualOrientation:{{.sexualOrientation}},
+                    origin:{{.origin}},
+                    occupation:{{.occupation}},
+                    ethnicGroup:{{.ethnicGroup}}
+                }
+              }
+            },
+            created: function () {
+            },
+            mounted:  function () {
+            document.title = {{.windowTitle}};
+            document.getElementById('app').style.display = 'block';
+                home.config.globalProperties.enums = this.enums;
+            },
+            methods: {
+            logout(){
+                logout("/seguridad/logout");
+            },
+                submit(action,event) {
+                    if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
+                        location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+                    }else if(home.config.globalProperties.enums.nav_rules[action]){
+                        location.assign(home.config.globalProperties.enums.nav_rules[action]);
+                    }       
+                },
+              goAbout() {
+                  //about.mount('#app');
+              }
+            }
+          });
+          
+          home.mount("#app");
+        
+          
+        </script>
+        
+        

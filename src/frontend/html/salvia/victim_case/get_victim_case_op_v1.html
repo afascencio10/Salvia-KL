@@ -1,0 +1,838 @@
+<div class="container">
+    <div class="welcome-section">
+        <h2><b>Consultar caso </b></h2>
+    </div>
+
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <a class="nav-link active" id="tab1-tab" data-toggle="tab" href="#tab1" role="tab" aria-controls="tab1"
+                aria-selected="true">{{ template "text_translated.html" Text `{"text":"get_victim_case_info"}` .lang .locale}}</a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="tab2-tab" data-toggle="tab" href="#tab2" role="tab" aria-controls="tab2"
+                aria-selected="false">{{ template "text_translated.html" Text `{"text":"get_victim_case_status"}` .lang .locale}}</a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="tab3-tab" data-toggle="tab" href="#tab3" role="tab" aria-controls="tab3"
+                aria-selected="false">{{ template "text_translated.html" Text `{"text":"follow_up_title"}` .lang .locale}}</a>
+        </li>
+    </ul>
+
+
+
+    <div class="tab-content" id="myTabContent">
+
+        <div class="tab-pane fade show active" id="tab1" role="tabpanel" aria-labelledby="tab1-tab">
+            <div id="info-tab">
+                <div class="table1">
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_owners"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.owners}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_creation_date"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.creationDate}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_update_date"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.updateDate}</div>
+                        </div>
+                    </div>
+                    
+                </div>
+                <hr>
+            
+                <div class="table1">
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_names"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.names}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_last_names"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.lastNames}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_nick"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.nick}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_age"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.age}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_birth_date"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.birthDate}</div>
+                        </div>
+                        
+                    </div>
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_doc_type"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.docType[res.victimCase.docType]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_doc_number"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.docNumber}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_nationality"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.nationality[res.victimCase.form.nationality]} </div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Municipio{{ template "text_translated.html" Text `{"text":"nationality_other"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.nationalityOther}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"case_email"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.email}</div>
+                        </div>
+                       
+                    </div>
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_foreigner_immigration_status"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.foreignerImmigrationStatus[res.victimCase.form.foreignImmigrationStatus]} </div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_address"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.address}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_phone"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.phone}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_gender"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.gender[res.victimCase.form.gender]} </div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_gender_identity"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.genderIdentity[res.victimCase.form.genderIdentity]}</div>
+                        </div>
+                    </div>
+                    <div class="item1">
+                        
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_gender_identity_other"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.genderIdentityOther}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_sexual_orientation"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.sexualOrientation[res.victimCase.form.sexualOrientation]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"sexual_orientation_other"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.sexualOrientationOther}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_origin"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.origin[res.victimCase.form.origin]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_occupation"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.occupation[res.victimCase.form.occupation]}</div>
+                        </div>
+                    </div>
+                    <div class="item1">
+                        
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_occupation_other"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.occupationOther}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_ethnic_group"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.ethnicGroup[res.victimCase.form.ethnicGroup]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_ethnic_group_other"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.ethnicGroupOther}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"if_afro"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.ifAfro[res.victimCase.form.ifAfro]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"if_indigenous"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.ifIndigenous[res.victimCase.form.ifIndigenous]}</div>
+                        </div>
+                    </div>
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"if_indigenous_tongue"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.ifIndigenousTongue[res.victimCase.form.ifIndigenousTongue]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"if_peasant"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.ifPeasant[res.victimCase.form.ifPeasant]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"if_colombian_conflict_victim"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.ifArmedConflict[res.victimCase.form.ifArmedConflict]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_names"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.contactNames}</div>
+                        </div>
+                         <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_phone"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.contactPhone}</div>
+                        </div>
+                    </div>
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_contact_kinship"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.contactKinship}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_dependents"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.dependents[res.victimCase.form.dependents]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_num_children"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.numChildren}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_marital_status"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.maritalStatus[res.victimCase.form.maritalStatus]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_marital_status_other"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.maritalStatusOther}</div>
+                        </div>
+                    </div>
+                    <div class="item1">
+                        
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_children_age"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.childrenAge}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_disability"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.disability[res.victimCase.form.disability]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_special_support"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.specialSupport}</div>
+                        </div>
+                        <div class="row1">
+                            
+                        </div>
+                       
+                    </div>
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_department"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.violenceDepartment.name}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_city"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.violenceCity.name}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_town"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.violenceTown.name}</div>
+                        </div>
+                    </div>
+                    <div class="tituloform">
+                        <i class="fas fa-file fa-2x"></i>
+                        <h2>{{ template "text_translated.html" Text `{"text":"get_victim_case_facts_desrciption_title"}` .lang .locale}}</h2>
+                    </div>
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_facts_desrciption_title"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.factsDescription}</div>
+                        </div>
+                    </div>
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"facts_occurrence"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.occurrence[res.victimCase.form.factsOccurrence]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"facts_start_time"}` .lang .locale}} - {{ template "text_translated.html" Text `{"text":"facts_end_time"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.factsStartTime} - ${res.victimCase.form.factsEndTime}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"facts_weekday"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.weekDay[res.victimCase.form.factsWeekday]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"facts_date"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.factsDate}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_violence_experienced"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.violenceExperienced[res.victimCase.form.violenceExperienced]}</div>
+                        </div>
+                    </div>
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_violence_experienced_other"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.violenceExperiencedOther}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_violence_scope"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.violenceScope[res.victimCase.form.violenceScope]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"violence_scene"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.violenceScene[res.victimCase.form.violenceScene]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"femicide_risk"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.femicideRisk[res.victimCase.form.femicideRisk]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_aggressor"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.aggressor[res.victimCase.form.aggressor]}</div>
+                        </div>
+                    </div>
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_relationship_with_aggressor"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.relationshipWithAggressor}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"aggressor_name"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.aggressorName}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_aggressor_doc_type"}` .lang .locale}}</div>
+                            <div class="tbody">${enums.docType[res.victimCase.form.aggressorDocType]}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"aggressor_doc_number"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.aggressorDocNumber}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"aggressor_address"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.aggressorAddress}</div>
+                        </div>
+                    </div>
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"aggressor_phone"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.form.aggressorPhone}</div>
+                          </div>
+                    </div>
+
+                    <hr>
+                    <div class="tituloform step-container active">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                        <h5>{{ template "text_translated.html" Text `{"text":"set_victim_case_risk_id_title"}` .lang .locale}}</h5>
+                        <div v-if="res.victimCase.form.deathThreats!='' || res.victimCase.form.aggressorHasWeapons!='' || res.victimCase.form.experiencedViolenceBefore!='' || res.victimCase.form.imminentRisk!=''" class="item1">
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_death_threats"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.yes_no_na[res.victimCase.form.deathThreats]}</div>
+                            </div>
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_aggressor_has_weapons"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.yes_no_na[res.victimCase.form.aggressorHasWeapons]}</div>
+                            </div>
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_experienced_physical_or_sexual_violence_before"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.yes_no_na[res.victimCase.form.experiencedViolenceBefore]}</div>
+                            </div>
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_imminent_risk"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.yes_no_na[res.victimCase.form.imminentRisk]}</div>
+                            </div>
+                        </div>
+
+                        <div v-if="res.victimCase.form.physicalViolenceIncreased!='' || res.victimCase.form.separatedFromPartnerLastYear!='' || res.victimCase.form.threatenedWithWeapon!=''" class="item1">
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_physical_violence_increased"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.yes_no_na[res.victimCase.form.physicalViolenceIncreased]}</div>
+                            </div>
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_separated_from_partner_last_year"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.yes_no_na[res.victimCase.form.separatedFromPartnerLastYear]}</div>
+                            </div>
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_threatened_with_weapon"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.yes_no_na[res.victimCase.form.threatenedWithWeapon]}</div>
+                            </div>
+                        </div>
+                        <div v-if="res.victimCase.form.threatenedToKillOrHarmChildren!='' || res.victimCase.form.jealousAndViolent!='' || res.victimCase.form.believesCapableOfKilling!=''"class="item1">
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_threatened_to_kill_or_harm_children"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.yes_no_na[res.victimCase.form.threatenedToKillOrHarmChildren]}</div>
+                            </div>
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_jealous_and_violent"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.yes_no_na[res.victimCase.form.jealousAndViolent]}</div>
+                            </div>
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_believes_capable_of_killing"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.yes_no_na[res.victimCase.form.believesCapableOfKilling]}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+
+                    <div class="tituloform">
+                        <i class="fas fa-map-marker-alt fa-2x"></i>
+                        <h2>{{ template "text_translated.html" Text `{"text":"get_victim_case_attention_place"}` .lang .locale}}</h2>
+                    </div>
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_department"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.department.name}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_city"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.city.name}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_town"}` .lang .locale}}</div>
+                            <div class="tbody">${res.victimCase.town.name}</div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade show" id="tab2" role="tabpanel" aria-labelledby="tab2-tab">
+
+            <div class="container mt-5 mb-5">
+                <div class="row">
+                    <div v-for="(moment, mkey) in enums.momentCodes" class="col-md-4">
+                        <div class="custom-tabs">
+                            <div class="custom-nav-item">
+                                <a class="custom-nav-link" :href="'#moment_'+moment.code">
+                                <i :class="moment.img"></i>${moment.label}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-for="(moment, mkey) in enums.momentCodes" :id="'customTab' + moment.code" class="custom-tab-content mt-3" style="display: block;">
+                    <div class="titulomomento" :id="'moment_'+moment.code">
+                        <i :class="moment.img"></i>
+                        <h2>${moment.label}</h2>
+                    </div>
+
+                    <div v-for="(sector, skey) in enums.sectors">
+
+                        <div v-if="workSpace.entitiesByMomentAndSector[moment.code] && workSpace.entitiesByMomentAndSector[moment.code][sector.code]" class="tituloform1">
+                            <i :class="sector.img"></i>
+                            <h4>${sector.label}</h4>
+                        </div>
+                        <template v-if="workSpace.entitiesByMomentAndSector[moment.code]" v-for="(branches, ekey) in workSpace.entitiesByMomentAndSector[moment.code][sector.code]">
+                            <div class="icono-principal-ruta">
+                                <h3>${this.getEntityNameByICode(ekey)}</h3>
+                            </div>
+                            <template v-for="(branch, idx) in branches">
+                                <div class="ruta-info-container">
+                                    <div class="icono-principal-ruta">
+                                        <h3><span v-if="branch.branchSource='u'">*</span>${branch.name}</h3>
+                                    </div>
+                                    <div v-if="getMoment(moment.code,branch.icode).status == 'a'" class="linea-progreso-ruta-finalizada">
+                                        <div class="estado-ruta">
+                                            <div class="estado-circulo">
+                                                <i class="fas fa-check-circle"></i>
+                                            </div>
+                                            <div class="titulo-estado">{{ template "text_translated.html" Text `{"text":"moment_status_not_attended"}` .lang .locale}}</div>
+                                        </div>
+                                        <div class="estado-ruta">
+                                            <div class="estado-circulo">
+                                                <i class="fas fa-check-circle"></i>
+                                            </div>
+                                            <div class="titulo-estado">{{ template "text_translated.html" Text `{"text":"moment_status_process"}` .lang .locale}}</div>
+                                        </div>
+                                        <div class="estado-ruta">
+                                            <div class="estado-circulo">
+                                                <i class="fas fa-check-circle"></i>
+                                            </div>
+                                            <div class="titulo-estado">{{ template "text_translated.html" Text `{"text":"moment_status_attended"}` .lang .locale}}</div>
+                                        </div>
+                                    </div>
+                                    <div v-else class="linea-progreso-ruta-iniciada">
+                                        <div class="estado-ruta">
+                                            <div class="estado-circulo-inicial">
+                                                <i class="fas fa-circle"></i>
+                                            </div>
+                                            <div class="titulo-estado">{{ template "text_translated.html" Text `{"text":"moment_status_not_attended"}` .lang .locale}}</div>
+                                        </div>
+                                        <div class="estado-ruta">
+                                            <div class="estado-circulo-inicial">
+                                                <i class="fas fa-circle"></i>
+                                            </div>
+                                            <div class="titulo-estado-inicial">{{ template "text_translated.html" Text `{"text":"moment_status_process"}` .lang .locale}}</div>
+                                        </div>
+                                        <div class="estado-ruta">
+                                            <div class="estado-circulo-inicial">
+                                                <i class="fas fa-circle"></i>
+                                            </div>
+                                            <div class="titulo-estado-inicial">{{ template "text_translated.html" Text `{"text":"moment_status_attended"}` .lang .locale}}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="tabla-desplegable mostrar">
+                                    <table >
+                                        <thead>
+                                            <tr>
+                                                <th>Fecha</th>
+                                                <th>Descripción</th>
+                                                <th>Responsable</th>
+                                                <th>Rol</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody v-for="(log, k) in getMoment(moment.code,branch.icode).logs">
+                                            <tr >
+                                                <td>${log.creationDate}</td>
+                                                <td>${log.description}</td>
+                                                <td>${log.profile.names}</td>
+                                                <td>${log.roles}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div v-if="!data.caseLog.saved" class="col-12 icono-principal-ruta">
+                                    <h3>Reportar situación</h3>
+                                    
+                                          {{ template "labeled_textarea.html" TextArea `{"class":"form-control",
+                                          "errorClass":"form-control is-invalid", "textAreaId":"log_description",
+                                          "rows":"5", "errorSpanId":"log_description_error",
+                                          "textAreaLabel":"log_description", "textAreaPlaceHolder":"log_description_h",
+                                          "entityPath":"data", "entityName":"caseLog", "entityAttr":"description"}` .lang .locale }}
+                                    
+                                    <div class="row justify-content-xl-center botones log_save">
+
+                                        {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"save", "buttonLabel":"log_save", "buttonPlaceHolder":"log_save", "onClickHandler":"submit('saveLog', getMoment(moment.code,branch.icode).icode)"}` .lang .locale}}
+                                    </div>
+                                </div>
+                            </template>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade show" id="tab3" role="tabpanel" aria-labelledby="tab3-tab">
+
+            <div class="titulo_seguimiento">
+                <h2>{{ template "text_translated.html" Text `{"text":"follow_up_title"}` .lang .locale}}</h2>
+            </div>
+            <hr>
+            <template v-if="res.victimCase.followUp.icode == ''">
+                <p>{{ template "text_translated.html" Text `{"text":"victim_case_risk_scheme_empty"}` .lang .locale}}</p>
+            </template>
+
+            <template v-else>
+                {{ template "text_translated.html" Text `{"text":"follow_up_status"}` .lang .locale}}: <b>${enums.followUpStatus[res.victimCase.followUp.status]}</b>
+
+                 <div id="info-tab">
+                    <div class="table1">
+                        <div class="item1">
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_creation_date"}` .lang .locale}}</div>
+                                <div class="tbody">${res.victimCase.followUp.creationDate}</div>
+                            </div>
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_update_date"}` .lang .locale}}</div>
+                                <div class="tbody">${res.victimCase.followUp.updateDate}</div>
+                            </div>
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_physical_violence_witnessed_by_family"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.yes_no[res.victimCase.followUp.physicalViolenceWitnessedByFamily]}</div>
+                            </div>
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_violence_escalation"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.yes_no[res.victimCase.followUp.violenceEscalation]}</div>
+                            </div>
+                        </div>
+                        <div class="item1">
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_assault_with_weapon"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.yes_no[res.victimCase.followUp.assaultWithWeapon]}</div>
+                            </div>
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_recent_controlling_or_jealous_behavior"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.yes_no[res.victimCase.followUp.recentControllingOrJealousBehavior]}</div>
+                            </div>
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_violence_history_with_ex_partner"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.yes_no[res.victimCase.followUp.violenceHistoryWithExPartner]}</div>
+                            </div>
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_violence_history_with_others"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.yes_no[res.victimCase.followUp.violenceHistoryWithOthers]}</div>
+                            </div>
+                        </div>
+                        <div class="item1">
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_substance_abuse"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.yes_no[res.victimCase.followUp.substanceAbuse]}</div>
+                            </div>
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_violence_justification"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.yes_no[res.victimCase.followUp.violenceJustification]}</div>
+                            </div>
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_victim_vulnerability"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.yes_no[res.victimCase.followUp.victimVulnerability]}</div>
+                            </div>
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_risk_level"}` .lang .locale}}</div>
+                                <div class="tbody">${enums.riskLevel[res.victimCase.followUp.riskLevel]}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-for="(fue, fkey) in res.victimCase.followUp.entries" class="custom-tab-content mt-3" style="display: block;">
+                    <h4>{{ template "text_translated.html" Text `{"text":"follow_up_entry_title"}` .lang .locale}} ${fkey+1} (${fue.completionDate})</h4>
+                    <div class="row">
+                        <div class="col-sm-12">
+                            {{ template "text_translated.html" Text `{"text":"follow_up_entry_status"}` .lang .locale}}: <b>${enums.followUpEntryStatus[fue.status]}</b>
+                        </div>
+                    </div>
+                        <template v-if="fue.status == 'u'">
+                            <div class="row">
+                                <div class="col-sm-12">                                
+                                    {{ template "button.html" Button `{"class":"btn btn-primary", "buttonId":"approve", "buttonLabel":"follow_up_entry_set", 
+                                    "buttonPlaceHolder":"follow_up_entry_set_h", "onClickHandler":"showSetFollowUpEntry(fue)"}` .lang .locale}}
+                                </div>
+                            </div>
+                        </template>
+                        <template v-else>
+                            <div id="info-tab">
+                                <div class="table1">
+                                    <div class="item1">
+                                        <div class="row1">
+                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_entry_creation_date"}` .lang .locale}}</div>
+                                            <div class="tbody">${fue.creationDate}</div>
+                                        </div>
+                                        <div class="row1">
+                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_entry_update_date"}` .lang .locale}}</div>
+                                            <div class="tbody">${fue.updateDate}</div>
+                                        </div>
+                                        
+                                    </div>
+                                    <div class="item1">
+                                        <div class="row1">
+                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_entry_completion_date"}` .lang .locale}}</div>
+                                            <div class="tbody">${fue.completionDate}</div>
+                                        </div>
+                                        <div class="row1">
+                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_was_done"}` .lang .locale}}</div>
+                                            <div class="tbody">${enums.yes_no[fue.wasDone]}</div>
+                                        </div>
+                                        
+                                    </div>
+                                    <div class="item1">
+                                        <div class="row1">
+                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_sector"}` .lang .locale}}</div>
+                                            <div class="tbody">${getEntityEnumLabel(enums.sectors,fue.sector, "code", "label")}</div>
+                                        </div>
+                                        <div class="row1">
+                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_person_visited_entity"}` .lang .locale}}</div>
+                                            <div class="tbody">${enums.yes_no[fue.personVisitedEntity]}</div>
+                                        </div>
+                                    </div>
+                                    <div class="item1">
+                                        <div class="row1">
+                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_received_attention"}` .lang .locale}}</div>
+                                            <div class="tbody">${enums.yes_no[fue.receivedAttention]}</div>
+                                        </div>
+                                        <div class="row1">
+                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_documents_prepared"}` .lang .locale}}</div>
+                                            <div class="tbody">${enums.yes_no[fue.caseDocumentsPrepared]}</div>
+                                        </div>
+                                    </div>
+                                    <div class="item1">
+                                         <div class="row1">
+                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_comments"}` .lang .locale}}</div>
+                                            <div class="tbody">${fue.comments}</div>
+                                        </div>
+                                    </div>
+                                    <hr>
+                                    <h5>{{ template "text_translated.html" Text `{"text":"follow_up_barriers"}` .lang .locale}}</h5>
+                                    
+                                    <div class="col-xs-12 acting_row" id="selected_barriers_read" v-for="(b, bkey) in fue.identifiedBarriers">
+                                        <div class="col-xs-12">${b.name} [${b.sectorBarrier.name}] </div>
+
+                                        <div id="info-tab">
+                                            <div class="table1">
+                                                <template v-for="(a, akey) in b.acting">
+                                                    <div class="item1">
+                                                        <div class="row1">
+                                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_entry_acting_creation_date"}` .lang .locale}}</div>
+                                                            <div class="tbody">${a.creationDate}</div>
+                                                        </div>
+                                                        <div class="row1">
+                                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_entry_acting_status"}` .lang .locale}}</div>
+                                                            <div class="tbody">${enums.actionStatus[a.actionStatus]}</div>
+                                                        </div>
+                                                        <div class="row1">
+                                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_entry_acting_owner"}` .lang .locale}}</div>
+                                                            <div class="tbody">${a.owner.profile.names} ${a.owner.profile.lastNames}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="item1">
+                                                        <div class="row1">
+                                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_entry_acting_description"}` .lang .locale}}</div>
+                                                            <div class="tbody">${a.description}</div>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+    <div class="row justify-content-center botones">
+        {{ template "button.html" Button `{"class":"btn btn-warning", "buttonId":"back",
+        "buttonLabel":"get_victim_case_back", "buttonPlaceHolder":"get_victim_case_back_h",
+        "onClickHandler":"submit('back')"}` .lang .locale}}
+    </div>
+</div>
+        {{ template "standard_scripts.html" .}}
+        {{ template "overlay.html" .}}
+          
+        <script>
+        
+          var home = Vue.createApp({
+            delimiters : ['${', '}'],
+            data() {
+              return {
+                windowTitle:{{.windowTitle}},
+              currentUser:{{.currentUser}},
+                res: {victimCase: JSON.parse({{.victimCases}})},
+                errors:{},
+                enums:{
+                    nav_rules: {{.nav_rules}},
+                    momentCodes: {{.momentCodes}},
+                    sectors: {{.sectors}},
+                    entities: {{.entities}},
+                    livingZone: {{.livingZone}},
+                    genderIdentity: {{.genderIdentity}},
+                    sexualOrientation: {{.sexualOrientation}},
+                    origin: {{.origin}},
+                    occupation: {{.occupation}},
+                    gender: {{.gender}},
+                    docType: {{.docType}},
+                    ethnicGroup: {{.ethnicGroup}},
+                    maritalStatus: {{.maritalStatus}},
+                    disability: {{.disability}},
+                    yes_no_na: {{.yes_no_na}},
+                    yes_no:{{.yes_no_enum}},
+                    riskLevel:{{.riskLevel}},
+                    actionStatus: {{.actionStatus}},
+
+                    followUpStatus:{{.followUpStatus}},
+                    followUpEntryStatus:{{.followUpEntryStatus}},
+
+                    nationality:{{.victimCaseVictimNationality}},
+                    foreignerImmigrationStatus:{{.victimCaseVictimForeignerImmigrationStatus}},
+                    gender:{{.victimCaseVictimGender}},
+                    dependents:{{.victimCaseVictimDependents}},
+                    deathThreats:{{.victimCaseVictimDeathThreats}},
+                    aggressorHasWeapons:{{.victimCaseVictimAggressorHasWeapons}},
+                    experiencedPhysicalOrSexualViolenceBefore:{{.victimCaseExperiencedPhysicalOrSexualViolenceBefore}},
+                    imminentRisk:{{.victimCaseVictimImminentRisk}},
+                    previouslyReportedSituation:{{.victimCaseVictimPreviouslyReportedSituation}},
+                    ifPreviouslyReported:{{.victimCaseVictimIfPreviouslyReported}},
+
+                    ifAfro:{{.ifAfro}},
+                    ifIndigenous:{{.ifIndigenous}},
+                    ifIndigenousTongue:{{.ifIndigenousTongue}},
+                    ifPeasant:{{.ifPeasant}},
+                    ifArmedConflict:{{.ifArmedConflict}},
+                    violenceScene:{{.violenceScene}},
+
+                    occurrence: {{.occurrence}},
+                    violenceScope: {{.violenceScope}},
+                    weekDay: {{.weekDay}},
+                    aggressor: {{.aggressor}},
+                    femicideRisk: {{.femicideRisk}},
+                    violenceExperienced: {{.violenceExperienced}}
+                },
+                workSpace:{
+                    entitiesByMomentAndSector: {{.entitiesByMomentAndSector}},
+                },
+                data:{
+                    caseLog:{}
+                }
+              }
+            },
+            created: function () {
+            },
+            mounted:  function () {
+            document.title = {{.windowTitle}};
+                document.getElementById('app').style.display = 'block';
+                home.config.globalProperties.enums = this.enums;
+            },
+            methods: {
+                getMoment(momentCode, branchICode){
+                    for (const m of this.res.victimCase.moments) {
+                        console.log(momentCode + " - " +branchICode + ">" + m.code + " - " + m.entityBranch.icode)
+                        if(m.code == momentCode && m.entityBranch.icode == branchICode){
+                            return m
+                        }
+                    }
+                    return {}
+                },
+                getEntityNameByICode (iCode){
+                    for (let idx = 0; idx < this.enums.entities.length; idx++) {
+                        if(this.enums.entities[idx].icode == iCode){
+                            return this.enums.entities[idx].name;
+                        }
+                    }
+                    
+                    return "";
+                },
+                submit(action,momentICode) {
+                    if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
+                        location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+                    }else  if(action == "saveLog"){
+                        
+                        newEntity("{{.salviaCaseLogFormPath}}/"+momentICode, this.data, (function(status, response) {
+                            
+                            if (status === 200) {
+                                this.data.caseLog.saved = true;
+                                window.location.reload();
+                                
+                            } else if (status === 400) {
+                                document.getElementById('successOverlay').style.display = 'none';
+                                this.errors = response;
+                                
+                            }else {
+                                document.getElementById('successOverlay').style.display = 'none';
+                                alert("Se produjo un error interno, por favor vuelva a intentarlo");
+                            }
+                        }).bind(this));
+                    }else  if(action == "update"){
+                        location.assign("{{.salviaVictimCaseUpdateFormPath}}/"+this.res.victimCase.icode+"/actualizar");
+                    }
+                },
+                logout(){
+                    logout("/seguridad/logout");
+                },
+                getEntityEnumLabel(enums, id, idName, labelName){
+                    for (let index = 0; index < enums.length; index++) {
+                        const e = enums[index];
+                        if(e[idName] == id){
+                            return e[labelName];
+                        }
+                    }
+                    return "";
+                }
+            }
+          });
+          
+          home.mount("#app");
+        
+          
+        </script>
+        

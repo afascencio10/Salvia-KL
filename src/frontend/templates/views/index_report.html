@@ -1,0 +1,12 @@
+{{ define "views/index_report.html"}}
+<!--index.html-->
+
+<!--Embed the header.html template at this location-->
+{{ template "layouts/header_report.html" .}}
+
+{{.content}}
+
+<!--Embed the footer.html template at this location-->
+{{ template "layouts/footer.html" .}}
+
+{{ end }}

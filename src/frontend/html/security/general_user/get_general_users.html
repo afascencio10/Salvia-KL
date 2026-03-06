@@ -1,0 +1,243 @@
+<div class="container">
+  <div class="welcome-section">
+    <h2><b>Usuarios de Salvia</b></h2>
+    <a href="/seguridad/usuarios/nuevo"><button class="btn btn-primary">Crear Nuevo usuario <i
+          class="fas fa-plus-circle"></i> </button></a>
+  </div>
+  
+  <ul class="nav">
+        
+    <li class="nav-item" v-on:click="goToTab('all')">
+        <a href="#" class="nav-link"><i class="fa fa-circle circulo_activos"></i>Todos</a>
+    </li>
+    <li class="nav-item" v-on:click="goToTab('active')">
+        <a href="#" class="nav-link"><i class="fa fa-circle circulo_activos"></i>Activos</a>
+    </li>
+    <li class="nav-item" v-on:click="goToTab('disabled')">
+        <a href="#" class="nav-link"><i class="fa fa-circle circulo_desactivado"></i>Desactivados</a>
+    </li>
+    
+    <li class="nav-item ml-auto vistas" role="presentation"> 
+      <button v-on:click="loadPlainFiles()" class="btn btn-primary"><i class="fa fa-file-archive" data-toggle="tooltip" data-placement="top"
+              title="Cargue de archivos"></i></button>
+    </li>
+    
+
+</ul>
+
+  <div class="tab-content" id="myTabContent">
+    
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Nombres</th>
+            <th scope="col">Apellidos</th>
+            <th scope="col">Tipo Documento</th>
+            <th scope="col">Documento</th>
+            <th scope="col">Rol</th>
+            <th scope="col">Correo Electrónico</th>
+            <th scope="col">Usuario</th>
+            <th scope="col">Estado</th>
+            <th scope="col">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template v-for="user in res">
+            <tr class="">
+              <td>${user.profile.names}</td>
+              <td>${user.profile.lastNames}</td>
+              <td>${user.profile.docType}</td>
+              <td>${user.profile.docNumber}</td>
+              <td>
+                  <template  v-for="(r,idx) in user.roles">
+                      <template v-if="idx==0">
+                        ${r.name}
+                      </template>
+                      <template v-else>
+                        , ${r.name}
+                      </template>
+                  </template>
+              </td>
+              <td>${user.profile.email}</td>
+              <td>${user.login}</td>
+              <td>
+                <span v-if="user.status == 'e'" class="tag activos">Activo</span>
+                <span v-if="user.status == 'd'" class="tag desactivado">Inhabilitado</span>
+              </td>
+              <td>
+                <div class="d-flex justify-content-around acciones">
+                  <template v-for="item in menuToolsUserTable">
+                    <a v-if="evaluarItemAssert(item, user)" :href="`${item.path}/${user.icode}/${item.action}`"> ${item.label}</a>
+                  </template>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+      
+      <nav  v-if="numPages>1" aria-label="Paginación">
+        <ul class="pagination justify-content-center">
+          <li class="page-item" :class="{ disabled: currentPage === 0 }">
+              <a class="page-link" href="#" @click.prevent="goToPage(currentPage - 1)">Anterior</a>
+          </li>
+          <template v-for="(p, i) in visiblePages" :key="i">
+              <li v-if="p === '...'" class="page-item disabled">
+                  <span class="page-link">...</span>
+              </li>
+              <li v-else class="page-item" :class="{ active: p === currentPage }">
+                  <a class="page-link" href="#" @click.prevent="goToPage(p)">${ p + 1 }</a>
+              </li>
+          </template>
+          <li class="page-item" :class="{ disabled: currentPage === numPages - 1 }">
+              <a class="page-link" href="#" @click.prevent="goToPage(currentPage + 1)">Siguiente</a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </div>
+</div>
+
+
+  {{ template "standard_scripts.html" .}}
+  {{ template "overlay.html" .}}
+
+   
+  <script>
+      
+    var home = Vue.createApp({
+      delimiters : ['${', '}'],
+      data() {
+        return {
+          windowTitle:{{.windowTitle}},
+          currentUser:{{.currentUser}},
+          res: JSON.parse({{.users}}).data,
+          menu:{{.menu}},
+          menuToolsUserTable: {{.menuToolsUserTable}},
+          numPages: JSON.parse({{.numPages}}),
+          currentPage: 0,
+          currentTab: "all", 
+          currentFilter: "all", //todos
+        }
+      },
+      created: function () {
+        
+        /*getData("/seguridad/usuarios", (function(status, response) {
+          if (status === 200) {
+            //parse JSON datax`x
+            
+            this.res = response;
+            
+          } else if (status === 404) {
+            console.log("No records found")
+          }
+        }).bind(this));
+        */
+      },
+      mounted:  function () {
+            document.title = {{.windowTitle}};
+        document.getElementById('app').style.display = 'block';
+      
+      },
+      computed: {
+        visiblePages() {
+          const pages = []
+          const max = this.numPages
+          const current = this.currentPage
+          const delta = 2 // cuántas páginas mostrar alrededor de la actual
+
+          const range = []
+          const rangeWithDots = []
+          let l
+
+          for (let i = 0; i < max; i++) {
+              if (i == 0 || i == max - 1 || (i >= current - delta && i <= current + delta)) {
+                  range.push(i)
+              }
+          }
+
+          for (let i of range) {
+              if (l !== undefined) {
+                  if (i - l === 2) {
+                      rangeWithDots.push(l + 1)
+                  } else if (i - l > 2) {
+                      rangeWithDots.push('...')
+                  }
+              }
+              rangeWithDots.push(i)
+              l = i
+          }
+
+          return rangeWithDots
+        }
+      },
+      methods: {
+        logout(){
+            logout("/seguridad/logout");
+        },
+        goAbout() {
+            //about.mount('#app');
+        },
+        evaluarItemAssert (item, user){
+          var checked = true;
+          if (item.assert){
+            checked = eval(item.assert);
+          }
+          return checked
+        },
+        loadPlainFiles(){
+            location.assign("{{.salviaPlainFilesFormPath}}");
+        },
+        goToPage(page) {
+                
+          if (page < 0 || page >= this.numPages) return
+          this.currentPage = page;
+          this.res = [];
+          
+          getEntity("{{.salviaGeneralUserGETFormPath}}/f/"+this.currentFilter+"/p/"+this.currentPage, (function(status, response) {
+              if (status === 200) {
+                  window.scrollTo(0, 0);
+                  document.getElementById('successOverlay').style.display = 'none';
+                  this.res = response.data;
+                  if (response.numPages > 0){
+                      // Sólo se trae el número de elementos cuando se consulta la página 0, en adelante se ignora el valor
+                      this.numPages = response.numPages;
+                  }
+                  
+              }else if (status === 400) {
+                  this.errors = response;
+              }else if (status === 404) {
+                  alert("Se produjo un error interno, por favor vuelva a intentarlo");
+              }
+          }).bind(this));
+            
+        },
+        goToTab(tabName) {
+                
+          if (this.currentTab == tabName) return
+            
+          this.currentTab = tabName;
+          var filter = "all";
+          switch (tabName) {
+              case "all":
+              filter = "all";
+              break;
+              case "active":
+              filter = "a";
+              break;
+              case "disabled":
+              filter = "d";
+              break;
+          }
+          this.currentFilter = filter;
+          this.numPages = 1;
+          this.goToPage(0);
+        }
+      }
+    });
+    
+    home.mount("#app");
+
+    
+  </script>

@@ -1,0 +1,326 @@
+
+<div class="container">
+    <div class="welcome-section">
+        <h2><b>Casos Salvia</b></h2>
+        
+    </div>
+    
+    <div class="mt-3 mb-4">
+        <h3>Encontrar caso</h3>
+        <div class="search-form">
+            {{ template "labeled_select_enums.html" Select `{"multiple":false, "containerClass":"form-group",
+            "class":"form-control", "errorClass":"form-control is-invalid",
+            "selectId":"victim_doc_type_type", "errorSpanId":"victim_doc_type_error",
+            "selectLabel":"victim_doc_type", "selectPlaceHolder":"victim_doc_type_h",
+            "entityPath":"workingSpace", "entityName":"victimCase", "entityAttr":"docType",
+            "enumsAttr":"docType"}` .lang .locale}}
+
+            <div class="form-group">
+            {{ template "labeled_input.html" Input `{"class":"form-control",
+            "errorClass":"form-control is-invalid", "inputId":"victim_doc_number",
+            "inputType":"text", "errorSpanId":"victim_doc_number_error",
+            "inputLabel":"victim_doc_number", "inputPlaceHolder":"victim_doc_number_h",
+            "entityPath":"workingSpace", "entityName":"victimCase", "entityAttr":"docNumber"}`
+            .lang .locale}}
+            </div>
+
+            <div class="form-group">
+                <label></label>
+            {{ template "button.html" Button `{"class":"btn btn-primary", "buttonId":"searchButton", "buttonLabel":"victim_case_search", "buttonPlaceHolder":"victim_case_search_h", "onClickHandler":"searchCase()"}` .lang .locale}}
+            {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"searchButton", "buttonLabel":"victim_case_clear_search", "buttonPlaceHolder":"victim_case_clear_search_h", "onClickHandler":"resetCase()"}` .lang .locale}}
+            </div>
+        </div>
+    </div>
+
+    <hr>
+
+    <ul class="nav">
+        
+        
+        <li class="nav-item" v-on:click="goToTab('routing')">
+            <a href="#" class="nav-link"><i class="fa fa-circle circuloenrutados"></i>Enrutados</a>
+        </li>
+        <li class="nav-item" v-on:click="goToTab('routedToApprove')">
+            <a href="#" class="nav-link"><i class="fa fa-circle circuloporaprobar"></i>Enrutados por aprobar</a>
+        </li>
+        <li class="nav-item" v-on:click="goToTab('expired')">
+            <a href="#" class="nav-link"><i class="fa fa-circle circulovencidos"></i>Vencidos</a>
+        </li>
+        <li class="nav-item" v-on:click="goToTab('completed')">
+            <a href="#" class="nav-link"><i class="fa fa-circle circulocompletados"></i>Completados</a>
+        </li>
+        <li class="nav-item" v-on:click="goToTab('issues')">
+            <a href="#" class="nav-link"><i class="fa fa-circle circulovencidos"></i>Con novedades</a>
+        </li>
+        
+        <li class="nav-item ml-auto vistas" > 
+            <button v-on:click="getEntityBranches()" class="btn btn-primary"><i class="fa fa-building" data-toggle="tooltip" data-placement="top"
+                    title="Sedes de entidad"></i></button>    
+        </li>
+        
+        <li class="nav-item ml-auto vistas" > 
+            <button v-on:click="getUsers()" class="btn btn-primary"><i class="fa fa-user" data-toggle="tooltip" data-placement="top"
+                    title="Usuarios"></i></button>
+        </li>
+    
+    </ul>
+    <div class="tab-content" id="myTabContent">
+        
+        <div v-if="!victimCases || victimCases.length == 0"> {{ template "text_translated.html" Text `{"text":"empty_victim_cases_search"}` .lang .locale}} </div>
+
+        <div v-else class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">Fecha Creación</th>
+                        <th scope="col">Identificación</th>
+                        <th scope="col">Nombres y Apellidos</th>
+                        <th scope="col">Riesgo de feminicidio</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col">Funcionarios</th>
+                        <th scope="col">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template v-for="victimCase in victimCases">
+                        <tr>
+                            <td>${victimCase.creationDate}</td>
+                            <td>${victimCase.docType} - ${victimCase.docNumber}</td>
+                            <td>${victimCase.lastNames}, ${victimCase.names}</td>
+                            <td></td>
+                            <td>
+                                <span v-if="victimCase.status == 'ra'" class="tag enrutado">Enrutado</span>
+                                <span v-if="victimCase.status == 'r'" class="tag poraprobar">Enrutado por aprobar</span>
+                                <span v-if="victimCase.status == 'ex'" class="tag vencido">Vencido</span>
+                                <span v-if="victimCase.status == 'cd'" class="tag completado">Completado</span>
+                                <span v-if="victimCase.status == 'is'" class="tag novedad">Con novedad</span>
+                                <span v-if="victimCase.status == 'i'" class="tag invalido">Inválido</span>
+                            </td>
+                            <td>${victimCase.owners}</td>
+                            <td>
+                                <div class="d-flex justify-content-around acciones">
+                                    <template v-for="item in menuToolsCaseTable">
+                                        <a :class="item.customClass"
+                                            :href="`${item.path}/${victimCase.icode}/${item.action}`">
+                                            ${item.label}</a>
+                                    </template>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+            <nav v-if="numPages>1" aria-label="Paginación">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item" :class="{ disabled: currentPage === 0 }">
+                        <a class="page-link" href="#" @click.prevent="goToPage(currentPage - 1)">Anterior</a>
+                    </li>
+                    <template v-for="(p, i) in visiblePages" :key="i">
+                        <li v-if="p === '...'" class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        <li v-else class="page-item" :class="{ active: p === currentPage }">
+                            <a class="page-link" href="#" @click.prevent="goToPage(p)">${ p + 1 }</a>
+                        </li>
+                    </template>
+                    <li class="page-item" :class="{ disabled: currentPage === numPages - 1 }">
+                        <a class="page-link" href="#" @click.prevent="goToPage(currentPage + 1)">Siguiente</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+            
+              
+    </div>
+</div>
+
+{{ template "standard_scripts.html" .}}
+{{ template "overlay.html" .}}
+      
+<script>
+
+    var home = Vue.createApp({
+        delimiters : ['${', '}'],
+        data() {
+        return {
+            windowTitle:{{.windowTitle}},
+            currentUser:{{.currentUser}},
+            
+            victimCases: JSON.parse({{.victimCases}}),
+            numPages: JSON.parse({{.numPages}}),
+            currentPage: 0,
+            currentTab: "routing", // Nombre del tab de primer contacto
+            currentFilter: "ra", //Aprobados
+
+            menu:{{.menu}},
+            menuToolsContactTable: {{.menuToolsContactTable}},
+            menuToolsCaseTable: {{.menuToolsCaseTable}},
+            enums:{
+            docType: {{.docType}}
+            },
+            workingSpace:{
+            victimCase:{
+                docType:"",
+                docNumber:""
+            }
+            },
+            errors:{}
+        }
+        },
+        created: function () {
+        
+        /*getData("/seguridad/usuarios", (function(status, response) {
+            if (status === 200) {
+            //parse JSON datax`x
+            
+            this.res = response;
+            
+            } else if (status === 404) {
+            console.log("No records found")
+            }
+        }).bind(this));
+        */
+        },
+        mounted:  function () {
+        document.title = {{.windowTitle}};
+        document.getElementById('app').style.display = 'block';
+        
+        },
+        computed: {
+        visiblePages() {
+            const pages = []
+            const max = this.numPages
+            const current = this.currentPage
+            const delta = 2 // cuántas páginas mostrar alrededor de la actual
+
+            const range = []
+            const rangeWithDots = []
+            let l
+
+            for (let i = 0; i < max; i++) {
+                if (i == 0 || i == max - 1 || (i >= current - delta && i <= current + delta)) {
+                    range.push(i)
+                }
+            }
+
+            for (let i of range) {
+                if (l !== undefined) {
+                    if (i - l === 2) {
+                        rangeWithDots.push(l + 1)
+                    } else if (i - l > 2) {
+                        rangeWithDots.push('...')
+                    }
+                }
+                rangeWithDots.push(i)
+                l = i
+            }
+
+            return rangeWithDots
+        }
+    },
+    methods: {
+        getAlerts(){
+            location.assign("{{.salviaAlertFormPath}}");
+        },
+        getUsers(){
+            location.assign("{{.salviaUserFormPath}}");
+        },
+        getEntityBranches(){
+            location.assign("{{.salviaEntityBranchesFormPath}}");
+        },
+        getReports(){
+            location.assign("{{.salviaReportFormPath}}");
+        },
+        logout(){
+            logout("/seguridad/logout");
+        },
+        resetCase(){
+            location.reload();
+        },
+        searchCase() {
+            this.victimContacts = [];
+            this.victimCases = [];
+            this.numPages = 1;
+            this.currentFilter = "";
+            this.currentTab = "";
+            
+            getEntity("{{.salviaVictimCaseSearchFormPath}}/"+this.workingSpace.victimCase.docNumber+"/tipo_documento/"+this.workingSpace.victimCase.docType, (function(status, response) {
+            document.getElementById('successOverlay').style.display = 'none';
+            if (status === 200) {
+                //this.victimContacts = [];
+                if(response != null){
+                    this.victimCases = response;
+                    if (response.numPages > 0){
+                        // Sólo se trae el número de elementos cuando se consulta la página 0, en adelante se ignora el valor
+                        this.numPages = response.numPages;
+                    }
+                }
+            } 
+            else if (status === 400) {
+                this.errors = response;
+            }else {
+                alert("Se produjo un error interno, por favor vuelva a intentarlo");
+            }
+            }).bind(this));
+        
+        },
+        goToPage(page) {
+            
+            if (page < 0 || page >= this.numPages) return
+            this.currentPage = page;
+            this.victimCases = [];
+            this.victimContacts = [];
+            
+            getEntity("{{.salviaVictimCaseGETFormPath}}/f/"+this.currentFilter+"/p/"+this.currentPage, (function(status, response) {
+                if (status === 200) {
+                    window.scrollTo(0, 0);
+                    document.getElementById('successOverlay').style.display = 'none';
+                    this.victimCases = response;
+                    if (response.numPages > 0){
+                        // Sólo se trae el número de elementos cuando se consulta la página 0, en adelante se ignora el valor
+                        this.numPages = response.numPages;
+                    }
+                    
+                }else if (status === 400) {
+                    this.errors = response;
+                }else if (status === 404) {
+                    alert("Se produjo un error interno, por favor vuelva a intentarlo");
+                }
+            }).bind(this));
+            
+        },
+        goToTab(tabName) {
+            
+            if (this.currentTab == tabName) return
+            
+            this.currentTab = tabName;
+            var filter = "ra";
+            switch (tabName) {
+                case "routing":
+                filter = "ra";
+                break;
+                case "routedToApprove":
+                filter = "r";
+                break;
+                case "expired":
+                filter = "ex";
+                break;
+                case "completed":
+                filter = "cd";
+                break;
+                case "issues":
+                filter = "is";
+                break;
+            }
+            this.currentFilter = filter;
+            this.numPages = 1;
+            this.goToPage(0);
+        }
+        }
+    });
+
+    home.mount("#app");
+
+
+</script>
+  

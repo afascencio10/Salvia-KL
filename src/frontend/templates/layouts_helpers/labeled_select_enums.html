@@ -1,0 +1,10 @@
+<div class="{{.ContainerClass}}">
+    <label for="{{.SelectId}}">{{.SelectLabel}} <span v-if="{{.Mandatory}}" class="mandatory">*</span></label>
+    <div :class="errors.{{.EntityName}}&&errors.{{.EntityName}}.{{.EntityAttr}} ? '{{.SelectErrorClass}}' : ''">
+        <select :multiple="{{.Multiple}}" v-model="{{.EntityPath}}.{{.EntityName}}.{{.EntityAttr}}" class="{{.SelectClass}}" id="{{.SelectId}}">
+            <option value="{{.EmptyValue}}" selected>{{.EmptyLabel}}</option>
+            <option v-for="(label, key) in enums.{{.EnumsAttr}}" :value="key">${label}</option>
+        </select>
+        <span v-if="errors.{{.EntityName}}&&errors.{{.EntityName}}.{{.EntityAttr}}" id="{{.ErrorSpanId}}" class="error_label">${errors.{{.EntityName}}.{{.EntityAttr}}}</span>
+    </div>    
+</div>

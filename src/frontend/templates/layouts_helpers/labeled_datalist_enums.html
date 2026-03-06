@@ -1,0 +1,16 @@
+<div class="form-group">
+    <label for="{{.DatalistId}}">{{.DatalistLabel}} <span v-if="{{.Mandatory}}" class="mandatory">*</span></label>
+    
+    
+    <template v-if="errors.{{.EntityName}}&&errors.{{.EntityName}}.{{.EntityAttr}}">
+        <input v-model="{{.EntityPath}}.{{.EntityName}}.{{.EntityAttr}}" class="{{.DatalistErrorClass}}"  list="{{.DatalistId}}_dl" id="{{.DatalistId}}">
+        <datalist id="{{.DatalistId}}_dl">
+            <option v-for="(label, key) in enums.{{.EnumsAttr}}" :label="label" :value="key"></option>
+        </datalist>
+        <span id="{{.ErrorSpanId}}" class="error invalid-feedback">${errors.{{.EntityName}}.{{.EntityAttr}}}</span>
+    </template>
+    <input v-else v-model="{{.EntityPath}}.{{.EntityName}}.{{.EntityAttr}}" class="{{.DatalistClass}}"  list="{{.DatalistId}}_dl" id="{{.DatalistId}}">
+    <datalist id="{{.DatalistId}}_dl">
+        <option v-for="(label, key) in enums.{{.EnumsAttr}}"  :label="label" :value="key"></option>
+    </datalist>   
+</div>

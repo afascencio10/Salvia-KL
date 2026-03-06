@@ -1,0 +1,32 @@
+<script src="/js/vue.js"></script>
+
+
+  
+<div id="app">{{ message }}
+
+  <button @click="goAbout">About</button>
+
+ </div>
+
+</div>
+
+<script>
+  
+  var home = Vue.createApp({
+    
+    data() {
+      return {
+        message: 'Testsssssssss!'
+      }
+    },
+    methods: {
+      goAbout() {
+          about.mount('#app2');
+      }
+    }
+  });
+  
+  home.mount("#app");
+
+  
+</script>

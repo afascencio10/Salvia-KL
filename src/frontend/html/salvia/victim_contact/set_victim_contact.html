@@ -1,0 +1,320 @@
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-12">
+      <div id="alert" v-if="errors.default&&errors.default.global_msg" class="alert alert-danger alert-dismissible">${errors.default.global_msg}</div>
+      <div class="step-container active" id="step-container1">
+        <div class="tituloform">
+          <i class="fas fa-list-alt fa-2x"></i>
+          <h2>Autorización de datos personales</h2>
+        </div>
+        <h5>Lectura y aceptación de la ley de protección de Datos</h5>
+        <p>Declaro de manera libre, expresa, inequívoca e informada, que AUTORIZO al Ministerio de Igualdad y Equidad para que de acuerdo con lo establecido en el literal a) del artículo 6 de la Ley 1581 de 2012, realice la recolección y tratamiento de mis datos personales que suministro de manera veraz y completa, los cuales serán utilizados para los diferentes aspectos asociados al Registro de Igualdad y Equidad, en cumplimiento de la Resolución 772 de 2024.</p>
+        <p>A su vez, reconozco que se me ha informado de manera clara que tengo derecho a conocer, actualizar y rectificar los datos personales proporcionados, a solicitar prueba de esta autorización, a enterarme sobre el uso que se le ha dado a mis datos personales, a presentar quejas ante la Superintendencia de Industria y Comercio por el uso indebido de mis datos personales, a revocar esta autorización o solicitar la supresión de los datos personales suministrados y a acceder de forma gratuita a los mismos. Declaro que conozco y acepto la Política para el Tratamiento y Protección de Datos Personales del Ministerio de Igualdad y Equidad: Política para el Tratamiento y Protección de Datos Personales</p>
+        <p>Igualmente, manifiesto que de conformidad con el artículo 56 del Código de Procedimiento Administrativo y de lo Contencioso Administrativo - Ley 1437 de 2011 modificado por el artículo 10 de la Ley 2080 de 2021, autorizo expresamente al Ministerio de Igualdad y Equidad a remitir notificaciones electrónicas al correo electrónico proporcionado por mi parte.</p>
+        <div class="row">
+          <div class="col-md-5 mb-5">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
+            "selectId":"victim_case_form2_authorization_answer", "errorSpanId":"victim_case_form2_authorization_answer_error", 
+            "selectLabel":"victim_case_form2_authorization_answer", "selectPlaceHolder":"victim_case_form2_authorization_answer_h", 
+            "entityPath":"data.victimContact", "entityName":"form2", "entityAttr":"authorizationAnswer", "enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+          <div class="col-md-7 mb-7" v-if="data.victimContact.form2.authorizationAnswer && data.victimContact.form2.authorizationAnswer.code=='y'">
+            {{ template "labeled_select_entity.html" Select `{"multiple":"single",  "mandatory":true,"containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+            "selectId":"victim_case_form2_report_type", "errorSpanId":"victim_case_form2_report_type_error", "selectLabel":"victim_case_form2_report_type", "selectPlaceHolder":"victim_case_form2_report_type_h",
+            "entityPath":"data.victimContact", "entityName":"form2", "entityAttr":"reportType", "enumsAttr":"victim_case_form2_report_type",  "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+          </div>
+        </div>
+        
+        <template v-if="data.victimContact.form2.authorizationAnswer &&  data.victimContact.form2.authorizationAnswer.code=='y' && data.victimContact.form2.reportType && data.victimContact.form2.reportType.code!=''">
+          <div class="tituloform">
+            <i class="fas fa-users fa-2x"></i>
+            <h2>Datos Personales</h2>
+          </div>
+          <div class="row" v-if="data.victimContact.form2.reportType.code=='r'">
+            <div class="col-md-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single",  "mandatory":true,"containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+              "selectId":"victim_contact_form2_has_care_role", "errorSpanId":"victim_contact_form2_has_care_role_error", "selectLabel":"victim_contact_form2_has_care_role", "selectPlaceHolder":"victim_contact_form2_has_care_role_h",
+              "entityPath":"data.victimContact", "entityName":"form2", "entityAttr":"hasCareRole", "enumsAttr":"yes_no",  "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+            <div class="col-md-6 mb-6">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single",  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+              "selectId":"victim_contact_form2_victim_aware_of_report", "errorSpanId":"victim_contact_form2_victim_aware_of_report_error", "selectLabel":"victim_contact_form2_victim_aware_of_report", "selectPlaceHolder":"victim_contact_form2_victim_aware_of_report_h",
+              "entityPath":"data.victimContact", "entityName":"form2", "entityAttr":"victimAwareOfReport", "enumsAttr":"yes_no",  "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+          </div>
+          <div class="row" v-if="data.victimContact.form2.reportType.code=='r' && data.victimContact.form2.hasCareRole && data.victimContact.form2.hasCareRole.code=='y'">
+            <div class="form-group col-md-6 mb-6" >
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form","mandatory":false, "errorClass":"error_input",
+              "inputId":"victim_contact_form2_reporter_names", "inputType":"text", "errorSpanId":"victim_contact_form2_reporter_names_error",
+              "inputLabel":"victim_contact_form2_reporter_names", "inputPlaceHolder":"victim_contact_form2_reporter_names_h", 
+              "entityPath":"data.victimContact", "entityName":"form2","entityAttr":"reporterNames"}` .lang .locale}}
+            </div>
+            <div class="form-group col-md-6 mb-6">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form","mandatory":false, "errorClass":"error_input",
+              "inputId":"victim_contact_form2_reporter_phone", "inputType":"number", "errorSpanId":"victim_contact_form2_reporter_phone_error",
+              "inputLabel":"victim_contact_form2_reporter_phone", "inputPlaceHolder":"victim_contact_form2_reporter_phone_h",
+              "entityPath":"data.victimContact", "entityName":"form2","entityAttr":"reporterPhone"}` .lang .locale}}
+            </div>
+          </div>
+          <div class="row" v-if="data.victimContact.form2.reportType.code=='v'">
+            <div class="col-md-12 mb-12" >
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single",  "mandatory":true,"containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+              "selectId":"victim_contact_form2_will_receive_call", "errorSpanId":"victim_contact_form2_will_receive_call_error", "selectLabel":"victim_contact_form2_will_receive_call", "selectPlaceHolder":"victim_contact_form2_will_receive_call_h",
+              "entityPath":"data.victimContact", "entityName":"form2", "entityAttr":"willReceiveCall", "enumsAttr":"yes_no",  "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+          </div>
+          <div class="row">
+            <div class="form-group col-md-6">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form","mandatory":true, "errorClass":"error_input",
+              "inputId":"victim_contact_form2_victim_names", "inputType":"text", "errorSpanId":"victim_contact_form2_victim_names_error",
+              "inputLabel":"victim_contact_form2_victim_names", "inputPlaceHolder":"victim_contact_form2_victim_names_h",
+              "entityPath":"data", "entityName":"victimContact","entityAttr":"names"}` .lang .locale}}
+            </div>
+            <div class="form-group col-md-6">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form","mandatory":true, "errorClass":"error_input",
+              "inputId":"victim_contact_form2_victim_last_names", "inputType":"text", "errorSpanId":"victim_contact_form2_victim_last_names_error",
+              "inputLabel":"victim_contact_form2_victim_last_names", "inputPlaceHolder":"victim_contact_form2_victim_last_names_h",
+              "entityPath":"data", "entityName":"victimContact","entityAttr":"lastNames"}` .lang .locale}}
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form","mandatory":true, "errorClass":"error_input",
+              "inputId":"victim_contact_form2_victim_phone_colombia", "inputType":"number", "errorSpanId":"victim_contact_form2_victim_phone_colombia_error",
+              "inputLabel":"victim_contact_form2_victim_phone_colombia", "inputPlaceHolder":"victim_contact_form2_victim_phone_colombia_h",
+              "entityPath":"data.victimContact", "entityName":"form2","entityAttr":"victimColPhone"}` .lang .locale}}
+            </div>
+            <div class="col-md-6">
+              {{ template "date_time.html" DateTime `{"class":"","mandatory":true, "errorClass":"error_input",
+              "dateTimeId":"victim_contact_form2_best_contact_time", "dateTimeFormat":"hh:mm", "errorSpanId":"victim_contact_form2_best_contact_time_error",
+              "dateTimeLabel":"victim_contact_form2_best_contact_time", "dateTimePlaceHolder":"victim_contact_form2_best_contact_time_h",
+              "entityPath":"data.victimContact", "entityName":"form2","entityAttr":"bestContactTime"}` .lang .locale}}
+
+            </div>
+          </div>
+          <div class="tituloform">
+            <i class="fas fa-file fa-2x"></i>
+            <h2>Descripción de los hechos</h2>
+          </div>
+          <div class="row">
+            <div class="col-md-12 mb-3">
+              {{ template "labeled_textarea.html" TextArea `{"class":"form-control input_form",
+              "errorClass":"error_input", "textAreaId":"victim_contact_form2_facts_description",
+              "rows":"5", "errorSpanId":"victim_contact_form2_facts_description_error",
+              "textAreaLabel":"victim_contact_form2_facts_description", "textAreaPlaceHolder":"victim_contact_form2_facts_description_h",
+              "entityPath":"data.victimContact", "entityName":"form2", "entityAttr":"factsDescription"}` .lang .locale }}
+            </div>
+            <div class="col-md-4 mb-4">
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form",
+              "errorClass":"error_input", "inputId":"victim_latitude",
+              "inputType":"hidden", "errorSpanId":"victim_latitude_error",
+              "inputLabel":"victim_latitude", "inputPlaceHolder":"victim_latitude_h",
+              "entityPath":"data", "entityName":"victimContact", "entityAttr":"latitude"}`
+              .lang .locale}}
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form",
+              "errorClass":"error_input", "inputId":"victim_longitude",
+              "inputType":"hidden", "errorSpanId":"victim_longitude_error",
+              "inputLabel":"victim_longitude", "inputPlaceHolder":"victim_longitude_h",
+              "entityPath":"data", "entityName":"victimContact", "entityAttr":"longitude"}`
+              .lang .locale}}
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-12 mb-3">
+                <!-- Imagen del CAPTCHA -->
+                <img id="captchaIMG" :src="captchaImgURL" alt="CAPTCHA">
+                <audio id="captchaAudio" :src="captchaAudioURL" alt="CAPTCHA" controls></audio>
+
+                {{ template "labeled_input.html" Input `{ "class":"form-control input_form", "errorClass":"error_input", "inputId":"captcha", "inputType":"text", "errorSpanId":"captcha_error", "inputLabel":"captcha_solution", "labelClass": "loginlabel", "inputPlaceHolder":"captcha_solution_h", "entityPath":"data", "entityName":"victimContact", "entityAttr":"captchaSolution"}` .lang .locale}}
+            </div>
+          </div>
+          <div class="row justify-content-center botones">
+            {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"save", "buttonLabel":"victim_contact_save", "buttonPlaceHolder":"victim_contact_save_h", "onClickHandler":"submit('save')"}` .lang .locale}}
+          </div>
+        
+          <div class="step-container" id="step-container3">
+
+            <h2>El caso ha sido creado exitosamente</h2>
+            <div class="row mensaje">
+              <p>Gracias por registrar el caso, estos son los datos de acceso para
+                el nuevo usuario</p>
+              <p> <span class="fa fa-user"></span> <strong>Usuario:</strong> 7us2y6</p>
+              <p><span class="fa fa-lock"> </span><strong>Contraseña:</strong>
+                1jsh36$&%sjl</p>
+            </div>
+            <div class="row justify-content-xl-center botones">
+              <button class="btn btn-success" onClick="submitForm()">Enviar SMS</button>
+              <a href="dashboard-enrutado.html"><button class="btn btn-success">Finalizar</button></a>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="publicOverlay" id="successOverlay" style="display: none;">
+  <div class="popup-container" id="popup">
+      <div class="popup-content">
+          <i class="fas fa-check fa-2x" style="color:#48ce50;"></i>
+          <h2 class="alertapop">Éxito</h2>
+          <p style="color:#5106A7;">Hemos recibido tu reporte. Estés pendiente de tu teléfono, nos contactaremos contigo tan pronto como sea posible.</p>
+      </div>
+  </div>
+</div>
+<!-- Bootstrap JS y jQuery (al final del documento para optimizar la carga) -->
+
+  {{ template "standard_scripts.html" .}}
+  {{ template "overlay.html" .}}
+  {{ template "html_helper_scripts.html" .}}
+    <script>
+      //var init = function(){
+        
+        var home = Vue.createApp({
+          delimiters : ['${', '}'],
+          components: {
+            CustomSelect,
+            DateTimeInput
+          },
+          data() {
+            return {
+              windowTitle:{{.windowTitle}},
+              currentUser:{{.currentUser}},
+             
+              errors:{},
+              data: {
+                victimContact:{form2:{}, captchaID:{{.CaptchaID}}, captchaSolution:""}
+              },
+              workingPlace: {
+                departmentSelected: "",
+                citySelected: "",
+                townSelected: "",
+                cities: [],
+                towns: [],
+              },
+              enums:{
+                livingZone: {{.livingZone}},
+                genderIdentity: {{.genderIdentity}},
+                sexualOrientation: {{.sexualOrientation}},
+                origin: {{.origin}},
+                occupation: {{.occupation}},
+                gender: {{.gender}},
+                docType: {{.docType}},
+                language: {{.language}},
+                nav_rules: {{.nav_rules}},
+                maritalStatus: {{.maritalStatus}},
+                disability: {{.disability}},
+                ethnicGroup: {{.ethnicGroup}},
+                yes_no:{{.yes_no}},
+                victim_case_form2_report_type:{{.victimCaseForm2ReportType}},
+                departments: JSON.parse({{.departments}})
+              },
+              message:''
+            }
+          },
+          computed:{
+            captchaImgURL() { 
+              return `/seguridad/login/captcha/${this.data.victimContact.captchaID}/img`; 
+            },
+            captchaAudioURL(){
+              return `/seguridad/login/captcha/${this.data.victimContact.captchaID}/audio`;
+            }
+          },
+          created: function () {
+              
+          },
+          mounted:  function () {
+            document.title = {{.windowTitle}};
+            document.getElementById('app').style.display = 'block';
+            home.config.globalProperties.enums = this.enums;
+            home.config.globalProperties.latitude = 0.0;
+            home.config.globalProperties.longitude = 0.0;
+            navigator.geolocation.getCurrentPosition(function(location) {
+              home.config.globalProperties.latitude = location.coords.latitude;
+              home.config.globalProperties.longitude = location.coords.longitude;
+            });
+          },
+          methods: {
+            logout(){
+                logout("/seguridad/logout");
+            },
+            changeDepartment (event) {
+              
+              getEntity("{{.securityCityFormPath}}/"+this.workingPlace.departmentSelected+"/departamento", (function(status, response) {
+                
+                if (status === 200) {
+               
+                  this.workingPlace.cities =  response;
+                  
+                } 
+                else if (status === 400) {
+                  this.errors = response;
+                  
+                  alert(JSON.stringify(this.errors));
+                }else if (status === 404) {
+                  console.log("No records found")
+                }
+              }).bind(this), true);
+            },
+            changeCity (event) {
+              
+              getEntity("{{.securityTownFormPath}}/"+this.workingPlace.citySelected+"/codigo_ciudad", (function(status, response) {
+                
+                if (status === 200) {
+                  this.workingPlace.towns =  response;
+                } 
+                else if (status === 400) {
+                  this.errors = response;
+                  
+                  alert(JSON.stringify(this.errors));
+                }else if (status === 404) {
+                  console.log("No records found")
+                }
+              }).bind(this), true);
+            },
+            
+            buildInput(inputId, errorSpanId, inputLabel, inputPlaceHolder, entityName, entityAttr) {
+              return buildInput(inputId, errorSpanId, inputLabel, inputPlaceHolder, entityName, entityAttr)
+            },
+            buildSelect(selectId, errorSpanId, selectLabel, selectPlaceHolder, entityName, entityAttr, enumsAttr) {
+              return buildSelect(selectId, errorSpanId, selectLabel, selectPlaceHolder, entityName, entityAttr, enumsAttr);
+            },
+            submit(action,event) {
+             
+              this.data.victimContact.latitude = home.config.globalProperties.latitude;
+              this.data.victimContact.longitude = home.config.globalProperties.longitude;
+              
+              newEntity("{{.formPath}}", this.data, (function(status, response) {
+                this.data.victimContact.captchaSolution = "";
+                if (status === 200) {
+                  
+                }else if (status === 400) {
+                  this.errors = response;
+
+                  if (this.errors.default.captchaID){
+                        this.data.victimContact.captchaID = this.errors.default.captchaID
+                        document.getElementById("captchaIMG").src = `/seguridad/login/captcha/${this.data.victimContact.captchaID}/img`;
+                        this.data.audio = new Audio(`/seguridad/login/captcha/${this.data.user.captchaID}/audio`);
+                    }
+                }else {
+                  alert("Se produjo un error interno, por favor vuelva a intentarlo");
+                }
+              }).bind(this), true);
+            },
+            getCities(action,event) {
+              
+            },
+            assertEnumCode(enumsKey,icode,code){
+              for (const key in this.enums[enumsKey]) {
+                if (this.enums[enumsKey][key].icode == icode){
+                  return this.enums[enumsKey][key].code == code;
+                }
+              }
+            }
+          }
+        });
+        
+        home.mount("#app");
+
+     // };
+    </script>

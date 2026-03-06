@@ -1,0 +1,15 @@
+<label class= "{{.DateTimeClass}}" for="{{.DateTimeId}}">{{.DateTimeLabel}} <span v-if="{{.Mandatory}}" class="mandatory">*</span></label>
+
+<div :class="errors.{{.EntityName}}&&errors.{{.EntityName}}.{{.EntityAttr}} ? '{{.DateTimeErrorClass}}' : ''">
+    <div>
+        <date-time-input
+            v-model="{{.EntityPath}}.{{.EntityName}}.{{.EntityAttr}}"
+            format="{{.DateTimeFormat}}"
+            label="{{.DateTimeLabel}}"
+            :required="{{.Mandatory}}"
+            id="{{.DateTimeId}}"
+            :iso-output="false"
+            />
+    </div>
+    <span v-if="errors.{{.EntityName}}&&errors.{{.EntityName}}.{{.EntityAttr}}" id="{{.ErrorSpanId}}" class="error_label">${errors.{{.EntityName}}.{{.EntityAttr}}}</span>
+</div>

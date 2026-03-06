@@ -1,0 +1,389 @@
+<div class="container">
+    <div class="welcome-section">
+        <h2><b>Primer contacto </b></h2>
+
+
+    </div>
+
+
+    <hr>
+    <!--
+            <ul class="nav nav-tabs" id="myTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link active" id="tab1-tab" data-toggle="tab" href="#tab1" role="tab" aria-controls="tab1" aria-selected="true">Información de mi caso</a>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link" id="tab2-tab" data-toggle="tab" href="#tab2" role="tab" aria-controls="tab2" aria-selected="false">Estado de mi caso</a>
+                </li>
+                
+                
+                
+                <li class="nav-item ml-auto vistas" role="presentation"> 
+                    <button class="btn btn-primary"><i class="fa fa-bell" data-toggle="tooltip" data-placement="top" title="Ver notificaciones"></i>(34)</button>
+                </li>
+           -->
+    </ul>
+    <div class="tab-content" id="myTabContent">
+        <div class="tab-pane fade show active" id="tab1" role="tabpanel" aria-labelledby="tab1-tab">
+            <div id="info-tab">
+                <div class="table1">
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">Nombres</div>
+                            <div class="tbody">${res.names}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Apellidos</div>
+                            <div class="tbody">${res.last_names}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Nombre identitario</div>
+                            <div class="tbody">${res.nick}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Tipo de documento</div>
+                            <div class="tbody">${res.docType}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Número de documento</div>
+                            <div class="tbody">${res.docNumber}</div>
+                        </div>
+                       
+                        
+                    </div>
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">Fecha de nacimiento</div>
+                            <div class="tbody">${res.birthDate}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Municipio</div>
+                            <div class="tbody">${res.townCode}</div>
+                            <div class="tbody"></div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Dirección</div>
+                            <div class="tbody">${res.address}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Número de teléfono</div>
+                            <div class="tbody">${res.phone}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Correo electrónico</div>
+                            <div class="tbody"></div>
+                        </div>
+                        
+                    </div>
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">Identidad de género</div>
+                            <div class="tbody">${res.genderIdentity}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Orientación sexual</div>
+                            <div class="tbody">${res.sexualOrientation}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Procedencia</div>
+                            <div class="tbody">${res.origin}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Ocupación</div>
+                            <div class="tbody">${res.occupation}</div>
+                        </div>
+                        <div class="row1">
+                            <div class="thead">Otra ocupación</div>
+                            <div class="tbody">${res.occupationOther}</div>
+                        </div>
+                    </div>
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">Descripción de los hechos</div>
+                            <div class="tbody">${res.factsDescription}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="tab2" role="tabpanel" aria-labelledby="tab2-tab">
+
+            <div class="ruta-info-container">
+                <div class="icono-principal-ruta">
+                    <img src="/static/images/001-policeman.png" class="imgruta">
+                    <h3>Policía</h3>
+                </div>
+                <div class="linea-progreso-ruta">
+                    <div class="estado-ruta">
+                        <div class="estado-circulo-inicial">
+                            <i class="fas fa-circle"></i>
+                        </div>
+                        <div class="titulo-estado-inicial">Por atender</div>
+
+                    </div>
+                    <div class="estado-ruta">
+                        <div class="estado-circulo-inicial">
+                            <i class="fas fa-circle"></i>
+                        </div>
+                        <div class="titulo-estado-inicial">En proceso</div>
+                    </div>
+                    <div class="estado-ruta">
+                        <div class="estado-circulo-inicial">
+                            <i class="fas fa-circle"></i>
+                        </div>
+                        <div class="titulo-estado-inicial">Atendido</div>
+                    </div>
+
+                </div>
+
+                <div class="botones-container">
+                    <a href="infocaso.html"><button class="btn btn-primary"><i class="fas fa-eye"></i></button></a>
+                    <button class="btn btn-primary icono-mas">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="tabla-desplegable" class="tabla-desplegable">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo de actualización</th>
+                            <th>Responsable</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>09.09.23</td>
+                            <td>Caso es atentido y está en proceso por parte de la entidad</td>
+                            <td>Nombre de Funcionario</td>
+                        </tr>
+                        <tr>
+                            <td>09.09.23</td>
+                            <td>Caso es atentido y está en proceso por parte de la entidad</td>
+                            <td>Nombre de Funcionario</td>
+                        </tr>
+                        <tr>
+                            <td>09.09.23</td>
+                            <td>Caso es atentido y está en proceso por parte de la entidad</td>
+                            <td>Nombre de Funcionario</td>
+                        </tr>
+                        <tr>
+                            <td>09.09.23</td>
+                            <td>Caso es atentido y está en proceso por parte de la entidad</td>
+                            <td>Nombre de Funcionario</td>
+                        </tr>
+                        <!-- Añade más filas si es necesario -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="ruta-info-container">
+                <div class="icono-principal-ruta">
+                    <img src="/static/images/002-foster-family.png" class="imgruta">
+                    <h3>Familia</h3>
+                </div>
+                <div class="linea-progreso-ruta-vencido">
+                    <div class="estado-ruta">
+                        <div class="estado-circulo">
+                            <i class="fas fa-exclamation-triangle" style="color:#ffc7c8;"></i>
+                        </div>
+                        <div class="titulo-estado" style="color:#ffc7c8;">VENCIDO</div>
+                    </div>
+
+
+                </div>
+                <div class="botones-container">
+                    <button class="btn btn-primary"><i class="fa fa-eye"></i></button>
+
+                </div>
+            </div>
+            <div class="ruta-info-container">
+                <div class="icono-principal-ruta">
+                    <img src="/static/images/003-balance.png" class="imgruta">
+                    <h3>Justicia</h3>
+                </div>
+                <div class="linea-progreso-ruta-iniciada">
+                    <div class="estado-ruta">
+                        <div class="estado-circulo">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="titulo-estado">Por atender</div>
+                    </div>
+                    <div class="estado-ruta">
+                        <div class="estado-circulo">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+
+                        <div class="titulo-estado">En proceso</div>
+                    </div>
+                    <div class="estado-ruta">
+                        <div class="estado-circulo-inicial">
+                            <i class="fas fa-circle"></i>
+                        </div>
+                        <div class="titulo-estado-inicial">Atendido</div>
+                    </div>
+                </div>
+                <div class="botones-container">
+                    <button class="btn btn-primary"><i class="fa fa-eye"></i></button>
+
+                </div>
+            </div>
+
+            <div class="ruta-info-container">
+                <div class="icono-principal-ruta">
+                    <img src="/static/images/003-balance.png" class="imgruta">
+                    <h3>Justicia</h3>
+                </div>
+                <div class="linea-progreso-ruta-iniciada">
+                    <div class="estado-ruta">
+                        <div class="estado-circulo">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="titulo-estado">Por atender</div>
+                    </div>
+                    <div class="estado-ruta">
+                        <div class="estado-circulo">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="titulo-estado">En proceso</div>
+                    </div>
+                    <div class="estado-ruta">
+                        <div class="estado-circulo-inicial">
+                            <i class="fas fa-circle"></i>
+                        </div>
+                        <div class="titulo-estado-inicial">Atendido</div>
+                    </div>
+                </div>
+                <div class="botones-container">
+                    <button class="btn btn-primary">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-primary icono-mas">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+
+            </div>
+            <div id="tabla-desplegable" class="tabla-desplegable">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo de actualización</th>
+                            <th>Responsable</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>09.09.23</td>
+                            <td>Caso es atentido y está en proceso por parte de la entidad</td>
+                            <td>Nombre de Funcionario</td>
+                        </tr>
+                        <tr>
+                            <td>09.09.23</td>
+                            <td>Caso es atentido y está en proceso por parte de la entidad</td>
+                            <td>Nombre de Funcionario</td>
+                        </tr>
+                        <tr>
+                            <td>09.09.23</td>
+                            <td>Caso es atentido y está en proceso por parte de la entidad</td>
+                            <td>Nombre de Funcionario</td>
+                        </tr>
+                        <tr>
+                            <td>09.09.23</td>
+                            <td>Caso es atentido y está en proceso por parte de la entidad</td>
+                            <td>Nombre de Funcionario</td>
+                        </tr>
+                        <!-- Añade más filas si es necesario -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="ruta-info-container">
+                <div class="icono-principal-ruta">
+                    <img src="/static/images/healthcare_x2C__medical_x2C__protection_1_.png" class="imgruta">
+                    <h3>Salud</h3>
+                </div>
+                <div class="linea-progreso-ruta-finalizada">
+                    <div class="estado-ruta">
+                        <div class="estado-circulo">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="titulo-estado">Por atender</div>
+                    </div>
+                    <div class="estado-ruta">
+                        <div class="estado-circulo">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+
+                        <div class="titulo-estado">En proceso</div>
+                    </div>
+                    <div class="estado-ruta">
+                        <div class="estado-circulo">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="titulo-estado">Atendido</div>
+                    </div>
+                </div>
+                <div class="botones-container">
+                    <button class="btn btn-primary"><i class="fa fa-eye"></i></button>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="row justify-content-center botones">
+        {{ template "button.html" Button `{"class":"btn btn-warning", "buttonId":"back",
+        "buttonLabel":"get_victim_contact_back", "buttonPlaceHolder":"get_victim_contact_back_h",
+        "onClickHandler":"submit('back')"}` .lang .locale}}
+    </div>
+
+</div>
+
+        {{ template "standard_scripts.html" .}}
+        {{ template "overlay.html" .}}
+          
+        <script>
+        
+          var home = Vue.createApp({
+            delimiters : ['${', '}'],
+            data() {
+              return {
+                windowTitle:{{.windowTitle}},
+              currentUser:{{.currentUser}},
+                res: JSON.parse({{.victimContacts}}),
+                enums:{
+                    nav_rules: {{.nav_rules}} 
+                }
+              }
+            },
+            created: function () {
+            },
+            mounted:  function () {
+            document.title = {{.windowTitle}};
+            document.getElementById('app').style.display = 'block';
+                home.config.globalProperties.enums = this.enums;
+            },
+            methods: {
+            logout(){
+                logout("/seguridad/logout");
+            },
+                submit(action,event) {
+                    if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
+                    location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+                    }              
+                },
+              goAbout() {
+                  //about.mount('#app');
+              }
+            }
+          });
+          
+          home.mount("#app");
+        
+          
+        </script>
+        
+        

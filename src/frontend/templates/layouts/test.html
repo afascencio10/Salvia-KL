@@ -1,0 +1,7 @@
+<label for="names">Nombres</label>
+
+                  <template v-if="errors.profile&&errors.profile.last_names">
+                    <input v-model="data.profile.names" type="text" class="form-control" id="names" placeholder="Nombres completos">
+                    <span id="nick-error" class="error invalid-feedback">${errors.profile.names}</span>
+                  </template>
+                  <input v-else v-model="data.profile.names" type="text" class="form-control" id="names" placeholder="Nombres completos">

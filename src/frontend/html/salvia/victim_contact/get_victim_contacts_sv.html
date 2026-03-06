@@ -1,0 +1,640 @@
+
+<div class="container">
+    <div class="welcome-section">
+        <h2><b>Casos Salvia</b></h2>
+    </div>
+    
+    <div class="mt-3 mb-4">
+        <h3>Encontrar caso</h3>
+        <div class="search-form">
+            <select class="form-control">
+                <option>Seleccione tipo de documento </option>
+                <option>Cédula de Ciudadanía</option>
+                <option>Cédula de Extranjería</option>
+                <option>Tarjeta de identidad</option>
+                <option>Tarjeta de Extranjería</option>
+                <option>Pasaporte</option>
+                <option>NIT</option>
+                <option>DNI - documento identidad extranjero</option>
+                <option>NIT de otro país</option>
+                <option>Registro civil</option>
+                <option>Salvoconducto refugiados SVC</option>
+                <option>Permiso especial de permanencia - PEP</option>
+                <option>Permiso de protección temporal</option>
+                <option>Sin información SN</option>
+               
+            </select>
+            <input type="text" class="form-control" placeholder="Número">
+            <button class="btn btn-primary">Encontrar</button>
+        </div>
+    </div>
+
+    <hr>
+
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <a class="nav-link active" id="tab1-tab" data-toggle="tab" href="#tab1" role="tab" aria-controls="tab1"
+                aria-selected="true">Todos</a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="tab2-tab" data-toggle="tab" href="#tab2" role="tab" aria-controls="tab2"
+                aria-selected="false"><i class="fa fa-circle circulorecontacto"></i>Recontacto</a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="tab3-tab" data-toggle="tab" href="#tab3" role="tab" aria-controls="tab3"
+                aria-selected="false"><i class="fa fa-circle circuloenrutados"></i>Enrutados</a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="tab4-tab" data-toggle="tab" href="#tab4" role="tab" aria-controls="tab4"
+                aria-selected="false"><i class="fa fa-circle circuloporaprobar"></i>Enrutados por aprobar</a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="tab5-tab" data-toggle="tab" href="#tab5" role="tab" aria-controls="tab5"
+                aria-selected="false"><i class="fa fa-circle circulovencidos"></i>Vencidos</a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="tab6-tab" data-toggle="tab" href="#tab6" role="tab" aria-controls="tab6"
+                aria-selected="true"><i class="fa fa-circle circulocompletados"></i>Completados</a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="tab7-tab" data-toggle="tab" href="#tab7" role="tab" aria-controls="tab7"
+                aria-selected="true"><i class="fa fa-circle circulovencidos"></i>Con novedades</a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="tab8-tab" data-toggle="tab" href="#tab8" role="tab" aria-controls="tab8"
+                aria-selected="true"><i class="fa fa-circle circuloinvalidos"></i>Inválidos</a>
+        </li>
+        
+        <li class="nav-item ml-auto vistas" role="presentation"> 
+            <button class="btn btn-primary"><i class="fa fa-bell" data-toggle="tooltip" data-placement="top"
+                    title="Ver notificaciones"></i>(34)</button>
+        </li>
+        <li class="nav-item vistas" role="presentation">
+            <button class="btn btn-primary"> <i class="fa fa-map-pin"></i></button>
+        </li>
+    
+    </ul>
+    <div class="tab-content" id="myTabContent">
+        <div class="tab-pane fade show active" id="tab1" role="tabpanel" aria-labelledby="tab1-tab">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Fecha Creación</th>
+                            <th scope="col">Nombres y Apellidos</th>
+                            <th scope="col">Riesgo de feminicidio</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template v-for="victimContact in victimContacts">
+                            <tr class="">
+                                <td>${victimContact.creationDate}</td>
+                                <td>${victimContact.lastNames}, ${victimContact.names}</td>
+                                <td></td>
+                                <td><span class="tag recontacto">Recontacto</span></td>
+                                <td>
+                                    <div class="d-flex justify-content-around acciones">
+                                        <template v-for="item in menuToolsContactTable">
+                                            <a :class="item.customClass"
+                                                :href="`${item.path}/${victimContact.icode}/${item.action}`">
+                                                ${item.label}</a>
+                                        </template>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                        <template v-for="victimCase in victimCases">
+                            <tr class="">
+                                <td>${victimCase.creationDate}</td>
+                                <td>${victimCase.docType} - ${victimCase.docNumber}</td>
+                                <td>${victimCase.lastNames}, ${victimCase.names}</td>
+                                <td></td>
+                                <td>
+                                    <span v-if="victimCase.status == 'ra'" class="tag novedad">Enrutado</span>
+                                    <span v-if="victimCase.status == 'r'" class="tag poraprobar">Enrutado por
+                                        aprobar</span>
+                                    <span v-if="victimCase.status == 'r'" class="tag poraprobar">`Por aprobar</span>
+                                    <span v-if="victimCase.status == 'is'" class="tag poraprobar">Con novedad</span>
+                                    <span v-if="victimCase.status == 'ex'" class="tag vencido">`Vencido</span>
+                                    <span v-if="victimCase.status == 'ex'" class="tag vencido">`Vencido</span>
+                                    <span v-if="victimCase.status == 'c'" class="tag completado">`Completado</span>
+                                    <span v-if="victimCase.status == 'cd'" class="tag finalizado">`Finalizado</span>
+                                </td>
+                                <td>
+                                    <div class="d-flex justify-content-around acciones">
+                                        <template v-for="item in menuToolsCaseTable">
+                                            <a :class="item.customClass"
+                                                :href="`${item.path}/${victimCase.icode}/${item.action}`">
+                                                ${item.label}</a>
+                                        </template>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+            <!--
+            <nav aria-label="Page navigation example">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item disabled">
+                        <span class="page-link">Anterior</span>
+                    </li>
+                    <li class="page-item"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">Siguiente</a>
+                    </li>
+                </ul>
+            </nav>
+        -->
+        </div>
+        <div class="tab-pane fade" id="tab2" role="tabpanel" aria-labelledby="tab2-tab">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Fecha Creación</th>
+                            <th scope="col">Nombres y Apellidos</th>
+                            <th scope="col">Riesgo de feminicidio</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template v-for="victimContact in victimContacts">
+                            <tr class="">
+                                <td>${victimContact.creationDate}</td>
+                                <td>${victimContact.lastNames}, ${victimContact.names}</td>
+                                <td></td>
+                                <td><span class="tag recontacto">Recontacto</span></td>
+                                <td>
+                                    <div class="d-flex justify-content-around acciones">
+                                        <template v-for="item in menuToolsContactTable">
+                                            <a :class="item.customClass"
+                                                :href="`${item.path}/${victimContact.icode}/${item.action}`">
+                                                ${item.label}</a>
+                                        </template>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+            <!--
+            <nav aria-label="Page navigation example">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item disabled">
+                        <span class="page-link">Anterior</span>
+                    </li>
+                    <li class="page-item"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">Siguiente</a>
+                    </li>
+                </ul>
+            </nav>
+        -->
+        </div>
+        <div class="tab-pane fade" id="tab3" role="tabpanel" aria-labelledby="tab3-tab">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Fecha Creación</th>
+                            <th scope="col">Identificación</th>
+                            <th scope="col">Nombres y Apellidos</th>
+                            <th scope="col">Riesgo de feminicidio</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template v-for="victimCase in victimCases">
+                            <template v-if="victimCase.status == 'ra'">
+                                <tr>
+                                    <td>${victimCase.creationDate}</td>
+                                    <td>${victimCase.docType} - ${victimCase.docNumber}</td>
+                                    <td>${victimCase.lastNames}, ${victimCase.names}</td>
+                                    <td></td>
+                                    <td>
+                                        <span class="tag novedad">Enrutado</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex justify-content-around acciones">
+                                            <template v-for="item in menuToolsCaseTable">
+                                                <a :class="item.customClass"
+                                                    :href="`${item.path}/${victimCase.icode}/${item.action}`">
+                                                    ${item.label}</a>
+                                            </template>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+            <!--
+            <nav aria-label="Page navigation example">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item disabled">
+                        <span class="page-link">Anterior</span>
+                    </li>
+                    <li class="page-item"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">Siguiente</a>
+                    </li>
+                </ul>
+            </nav>
+        -->
+        </div>
+        <div class="tab-pane fade" id="tab4" role="tabpanel" aria-labelledby="tab4-tab">
+            <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Fecha Creación</th>
+                                <th scope="col">Identificación</th>
+                                <th scope="col">Nombres y Apellidos</th>
+                                <th scope="col">Riesgo de feminicidio</th>
+                                <th scope="col">Estado</th>
+                                <th scope="col">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template v-for="victimCase in victimCases">
+                                <template v-if="victimCase.status == 'r'">
+                                    <tr>
+                                        <td>${victimCase.creationDate}</td>
+                                        <td>${victimCase.docType} - ${victimCase.docNumber}</td>
+                                        <td>${victimCase.lastNames}, ${victimCase.names}</td>
+                                        <td></td>
+                                        <td>
+                                            <span class="tag poraprobar">Enrutado por aprobar</span>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex justify-content-around acciones">
+                                                <template v-for="item in menuToolsCaseTable">
+                                                    <a :class="item.customClass"
+                                                        :href="`${item.path}/${victimCase.icode}/${item.action}`">
+                                                        ${item.label}</a>
+                                                </template>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </template>
+                        </tbody>
+                    </table>
+                
+            </div>
+            <!--
+            <nav aria-label="Page navigation example">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item disabled">
+                        <span class="page-link">Anterior</span>
+                    </li>
+                    <li class="page-item"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">Siguiente</a>
+                    </li>
+                </ul>
+            </nav>
+        -->
+        </div>
+        <div class="tab-pane fade" id="tab5" role="tabpanel" aria-labelledby="tab5-tab">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Fecha Creación</th>
+                            <th scope="col">Identificación</th>
+                            <th scope="col">Nombres y Apellidos</th>
+                            <th scope="col">Riesgo de feminicidio</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template v-for="victimCase in victimCases">
+                            <template v-if="victimCase.status == 'ex'">
+                                <tr>
+                                    <td>${victimCase.creationDate}</td>
+                                    <td>${victimCase.docType} - ${victimCase.docNumber}</td>
+                                    <td>${victimCase.lastNames}, ${victimCase.names}</td>
+                                    <td></td>
+                                    <td>
+                                        <span class="tag vencido">Vencido</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex justify-content-around acciones">
+                                            <template v-for="item in menuToolsCaseTable">
+                                                <a :class="item.customClass"
+                                                    :href="`${item.path}/${victimCase.icode}/${item.action}`">
+                                                    ${item.label}</a>
+                                            </template>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+            <!--
+            <nav aria-label="Page navigation example">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item disabled">
+                        <span class="page-link">Anterior</span>
+                    </li>
+                    <li class="page-item"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">Siguiente</a>
+                    </li>
+                </ul>
+            </nav>
+        -->
+        </div>
+        <div class="tab-pane fade" id="tab6" role="tabpanel" aria-labelledby="tab6-tab">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Fecha Creación</th>
+                            <th scope="col">Identificación</th>
+                            <th scope="col">Nombres y Apellidos</th>
+                            <th scope="col">Riesgo de feminicidio</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template v-for="victimCase in victimCases">
+                            <template v-if="victimCase.status == 'cd'">
+                                <tr>
+                                    <td>${victimCase.creationDate}</td>
+                                    <td>${victimCase.docType} - ${victimCase.docNumber}</td>
+                                    <td>${victimCase.lastNames}, ${victimCase.names}</td>
+                                    <td></td>
+                                    <td>
+                                        <span class="tag completado">Completado</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex justify-content-around acciones">
+                                            <template v-for="item in menuToolsCaseTable">
+                                                <a :class="item.customClass"
+                                                    :href="`${item.path}/${victimCase.icode}/${item.action}`">
+                                                    ${item.label}</a>
+                                            </template>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+            <!--
+            <nav aria-label="Page navigation example">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item disabled">
+                        <span class="page-link">Anterior</span>
+                    </li>
+                    <li class="page-item"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">Siguiente</a>
+                    </li>
+                </ul>
+            </nav>
+        -->
+        </div>
+        <div class="tab-pane fade" id="tab7" role="tabpanel" aria-labelledby="tab7-tab">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Fecha Creación</th>
+                            <th scope="col">Identificación</th>
+                            <th scope="col">Nombres y Apellidos</th>
+                            <th scope="col">Riesgo de feminicidio</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template v-for="victimCase in victimCases">
+                            <template v-if="victimCase.status == 'is'">
+                                <tr>
+                                    <td>${victimCase.creationDate}</td>
+                                    <td>${victimCase.docType} - ${victimCase.docNumber}</td>
+                                    <td>${victimCase.lastNames}, ${victimCase.names}</td>
+                                    <td></td>
+                                    <td>
+                                        <span class="tag novedad">Con novedad</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex justify-content-around acciones">
+                                            <template v-for="item in menuToolsCaseTable">
+                                                <a :class="item.customClass"
+                                                    :href="`${item.path}/${victimCase.icode}/${item.action}`">
+                                                    ${item.label}</a>
+                                            </template>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+            <!--
+            <nav aria-label="Page navigation example">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item disabled">
+                        <span class="page-link">Anterior</span>
+                    </li>
+                    <li class="page-item"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">Siguiente</a>
+                    </li>
+                </ul>
+            </nav>
+        -->
+        </div>
+        <div class="tab-pane fade" id="tab8" role="tabpanel" aria-labelledby="tab8-tab">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Fecha Creación</th>
+                            <th scope="col">Identificación</th>
+                            <th scope="col">Nombres y Apellidos</th>
+                            <th scope="col">Riesgo de feminicidio</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template v-for="victimCase in victimCases">
+                            <template v-if="victimCase.status == 'ex'">
+                                <tr>
+                                    <td>${victimCase.creationDate}</td>
+                                    <td>${victimCase.docType} - ${victimCase.docNumber}</td>
+                                    <td>${victimCase.lastNames}, ${victimCase.names}</td>
+                                    <td></td>
+                                    <td>
+                                        <span class="tag invalido">Inválidos</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex justify-content-around acciones">
+                                            <template v-for="item in menuToolsCaseTable">
+                                                <a :class="item.customClass"
+                                                    :href="`${item.path}/${victimCase.icode}/${item.action}`">
+                                                    ${item.label}</a>
+                                            </template>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+            <!--
+            <nav aria-label="Page navigation example">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item disabled">
+                        <span class="page-link">Anterior</span>
+                    </li>
+                    <li class="page-item"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">Siguiente</a>
+                    </li>
+                </ul>
+            </nav>
+        -->
+        </div>
+        <div class="tab-pane fade" id="tab8" role="tabpanel" aria-labelledby="tab8-tab">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Fecha</th>
+                            <th scope="col">Nombre</th>
+                            <th scope="col">Identificación</th>
+                            <th scope="col">Riesgo de feminicidio</th>
+                            <th scope="col">Descripción</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Localización</th>
+                            <th scope="col">Responsable</th>
+                            <th scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template v-for="victimCase in victimCases">
+                            <template v-if="victimCase.status == 'ex'">
+                                <tr>
+                                    <td>${victimCase.creationDate}</td>
+                                    <td>${victimCase.docType} - ${victimCase.docNumber}</td>
+                                    <td>${victimCase.lastNames}, ${victimCase.names}</td>
+                                    <td></td>
+                                    <td>
+                                        <span class="tag invalido">Inválidos</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex justify-content-around acciones">
+                                            <template v-for="item in menuToolsCaseTable">
+                                                <a :class="item.customClass"
+                                                    :href="`${item.path}/${victimCase.icode}/${item.action}`">
+                                                    ${item.label}</a>
+                                            </template>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+            <!--
+            <nav aria-label="Page navigation example">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item disabled">
+                        <span class="page-link">Anterior</span>
+                    </li>
+                    <li class="page-item"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">Siguiente</a>
+                    </li>
+                </ul>
+            </nav>
+        -->
+        </div>
+    </div>
+</div>
+    {{ template "standard_scripts.html" .}}
+    {{ template "overlay.html" .}}
+      
+      <script>
+        
+        var home = Vue.createApp({
+          delimiters : ['${', '}'],
+          components: {
+                CustomSelect,
+                DateTimeInput
+            },
+          data() {
+            return {
+              windowTitle:{{.windowTitle}},
+              currentUser:{{.currentUser}},
+              victimContacts: JSON.parse({{.victimContacts}}),
+              victimCases: JSON.parse({{.victimCases}}),
+              menu:{{.menu}},
+              menuToolsContactTable: {{.menuToolsContactTable}},
+              menuToolsCaseTable: {{.menuToolsCaseTable}}
+            }
+          },
+          created: function () {
+            
+           
+          },
+          mounted:  function () {
+            document.title = {{.windowTitle}};
+            document.getElementById('app').style.display = 'block';
+            
+          },
+          methods: {
+            logout(){
+                logout("/seguridad/logout");
+            },
+            goAbout() {
+                //about.mount('#app');
+            }
+          }
+        });
+        
+        home.mount("#app");
+  
+        
+      </script>
+  

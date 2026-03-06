@@ -1,0 +1,271 @@
+
+    
+
+        <!-- Content Wrapper. Contains page content -->
+        <div class="container mt-5">
+          <div class="row justify-content-center">
+            <div class="col-lg-12">
+              <!-- Alert -->
+              <div id="alert" v-if="errors.default&&errors.default.global_msg" class="alert alert-danger alert-dismissible">${errors.default.global_msg}</div>
+              <!-- Small boxes (Stat box) -->
+              <div class="step-container active" id="step-container1">
+               
+                <div class="tituloform">
+                  <i class="fas fa-users fa-2x"></i>
+                  <h2>Modificar usuario</h2>
+                </div>
+                <div class="row">
+                  <div class="col-md-3 mb-3">
+                    {{ template "labeled_input.html" Input `{"class":"form-control", "errorClass":"form-control is-invalid", "inputId":"names", "inputType":"text", "errorSpanId":"names_error", "inputLabel":"general_user_profile_names", "inputPlaceHolder":"general_user_profile_names_h", "entityPath":"data.user", "entityName":"profile", "entityAttr":"names"}` .lang .locale}}
+                  </div>
+                  <div class="col-md-3 mb-3">
+                    {{ template "labeled_input.html" Input `{"class":"form-control", "errorClass":"form-control is-invalid", "inputId":"last_names", "inputType":"text", "errorSpanId":"last_names_error", "inputLabel":"general_user_profile_last_names", "inputPlaceHolder":"general_user_profile_last_names_h", "entityPath":"data.user", "entityName":"profile", "entityAttr":"lastNames"}` .lang .locale}}
+                  </div>
+                  <div class="col-md-3 mb-3">
+                    {{ template "labeled_select_entity.html" Select `{"multiple":"multiple","mandatory":true,"emptyLabel":"general_user_roles_empty","emptyValue":"","containerClass":"form-group","class":"form-control input_form", "errorClass":"error_input","selectId":"role","errorSpanId":"role_error",  "selectLabel":"general_user_roles","selectPlaceHolder":"general_user_roles_h", "entityPath":"data","entityName":"user","entityAttr":"roleIds","enumsAttr":"roles", "entityEnumLabel":"name", "entityEnumId":"icode", "returnObject":false}` .lang .locale}}
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-md-3 mb-3">
+                    {{ template "labeled_input.html" Input `{"class":"form-control", "errorClass":"form-control is-invalid", "inputId":"phone", "inputType":"text", "errorSpanId":"email_error", "inputLabel":"general_user_profile_phones", "inputPlaceHolder":"general_user_profile_phones_h", "entityPath":"data.user", "entityName":"profile", "entityAttr":"phoneNumberStr"}` .lang .locale}}
+                  </div>
+                  <div class="col-md-3 mb-3">
+                    {{ template "labeled_select_enums.html" Select `{"multiple":false, "emptyLabel":"set_victimc_case_empty_select", "emptyValue":"", "containerClass":"form-group", "class":"form-control", "errorClass":"form-control is-invalid", "selectId":"general_user_language", "errorSpanId":"general_user_language_error", "selectLabel":"general_user_language", "selectPlaceHolder":"general_user_language_h", "entityPath":"data", "entityName":"user", "entityAttr":"lang", "enumsAttr":"language"}` .lang .locale}}
+                  </div>
+                  <div class="col-md-3 mb-3">
+                    {{ template "labeled_select_enums.html" Select `{"multiple":false, "emptyLabel":"set_victimc_case_empty_select", "emptyValue":"", "containerClass":"form-group", "class":"form-control", "errorClass":"form-control is-invalid", "selectId":"general_user_profile_gender", "errorSpanId":"general_user_profile_gender_error", "selectLabel":"general_user_profile_gender", "selectPlaceHolder":"general_user_profile_gender_h", "entityPath":"data.user", "entityName":"profile", "entityAttr":"gender", "enumsAttr":"gender"}` .lang .locale}}
+                  </div>
+                </div>
+                
+                <div class="row">
+                  <div class="col-md-3 mb-3">
+                    {{ template "labeled_select_enums.html" Select `{"multiple":false, "emptyLabel":"set_victimc_case_empty_select", "emptyValue":"", "containerClass":"form-group",  "class":"form-control", "errorClass":"form-control is-invalid", "selectId":"doc_type", "errorSpanId":"doc_type_error", "selectLabel":"general_user_profile_doc_type", "selectPlaceHolder":"general_user_profile_doc_type_h", "entityPath":"data.user", "entityName":"profile", "entityAttr":"docType", "enumsAttr":"docType"}` .lang  .locale}}
+                  </div>
+                  <div class="col-md-3 mb-3">
+                    {{ template "labeled_input.html" Input `{"class":"form-control", "errorClass":"form-control is-invalid", "inputId":"doc", "inputType":"text", "errorSpanId":"doc_error", "inputLabel":"general_user_profile_doc_number", "inputPlaceHolder":"general_user_profile_doc_number", "entityPath":"data.user", "entityName":"profile", "entityAttr":"docNumber"}` .lang .locale}}
+                  </div>
+                  <div class="col-md-3 mb-3">
+                    {{ template "labeled_input.html" Input `{"class":"form-control", "errorClass":"form-control is-invalid", "inputId":"emails", "inputType":"text", "errorSpanId":"emails_error", "inputLabel":"general_user_profile_email", "inputPlaceHolder":"general_user_profile_email_h", "entityPath":"data.user", "entityName":"profile", "entityAttr":"emailStr"}` .lang .locale}}
+                  </div>
+                </div>
+              
+            </div>
+                <!-- /.card-body -->
+          </div>
+          <div class="row" v-if="isUserSelected('et') || isUserSelected('do')">
+            <div class="tituloform">
+              <i class="fas fa-map-marker-alt fa-2x"></i><h2>Ubicación funcionario</h2>
+            </div>
+            <div class="col-4"v-if="isUserSelected('et')">
+              <label>Entidad</label>
+              <select  class="form-control"  id="entities"
+                v-model="workingPlace.entitySelected">
+                <option v-for="(ent, idx) in enums.entities" :value="ent.icode" :key="idx">${ent.name}</option>
+              </select>
+            </div>
+            <div class="col-4" v-if="workingPlace.entitySelected != '' || isUserSelected('do')">
+              <label>Departamento</label>
+              <select  class="form-control"  id="departments" @change="changeDepartment($event)"
+                v-model="workingPlace.departmentSelected">
+                <option v-for="(dep, idx) in enums.departments" :value="dep.icode" :key="idx">${dep.name}</option>
+              </select>
+            </div>
+            <div class="col-4" v-if="workingPlace.cities.length > 0">
+              <label>Ciudad</label>
+                <select  class="form-control"  id="cities" @change="changeCity($event)"
+                  v-model="workingPlace.citySelected">
+                  <option v-for="(city, idx) in workingPlace.cities" :value="city.code" :key="idx">${city.name}</option>
+                </select>           
+            </div>
+            <div class="col-4" v-if="workingPlace.towns.length > 0">
+              <label>Municipio/Centro poblado</label>
+                <select  class="form-control"  id="towns" @change="changeTown($event)"
+                  v-model="data.user.profile.townSelected">
+                  <option v-for="(town, idx) in workingPlace.towns" :value="town.code" :key="idx">${town.name}</option>
+                </select>
+            </div>
+            <div class="col-8" v-if="isUserSelected('et') && workingPlace.branches && workingPlace.branches.length > 0">
+              <label>Sucursal</label>
+                <select  class="form-control"  id="branches"
+                  v-model="data.user.profile.branchSelected">
+                  <option v-for="(branch, idx) in workingPlace.branches" :value="branch.icode" :key="idx">${branch.name}</option>
+                </select>
+            </div>
+          </div>
+        </div><!-- /.container-fluid -->
+      </div>
+      <div class="row justify-content-xl-center botones">
+        {{ template "button.html" Button `{"class":"btn btn-warning", "buttonId":"back", "buttonLabel":"general_user_back", "buttonPlaceHolder":"general_user_back_h", "onClickHandler":"submit('back')"}` .lang .locale}}
+        {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"save", "buttonLabel":"general_user_save", "buttonPlaceHolder":"general_user_save", "onClickHandler":"submit('save')"}` .lang .locale}}
+      </div>
+        <!-- /.content -->
+    {{ template "standard_scripts.html" .}}
+{{ template "overlay.html" .}}
+    {{ template "html_helper_scripts.html" .}}
+    <script>
+      //var init = function(){
+        
+        var home = Vue.createApp({
+          delimiters : ['${', '}'],
+          components: {
+            CustomSelect
+          },
+          data() {
+            return {
+              windowTitle:{{.windowTitle}},
+              currentUser:{{.currentUser}},
+              res:{},
+              errors:new Object(),
+              data: {
+                default:new Object(),
+                user:JSON.parse({{.users}}),
+                mail:[],
+                phoneNumber:[]
+              },
+              enums:{
+                gender:{{.gender}},
+                docType:{{.docType}},
+                language:{{.language}},
+                nav_rules:{{.nav_rules}},
+                roles:{{.roles}},
+                departments: JSON.parse({{.departments}}),
+                entities: JSON.parse({{.entities}})
+              },
+              workingPlace: {
+                entitySelected: "",
+                departmentSelected: "",
+                citySelected: "",
+                cities: [],
+                towns: [],
+                branches: [],
+              },
+              message:''
+            }
+          },
+          created: function () {
+          
+          },
+          mounted:  function () {
+            document.title = {{.windowTitle}};
+            document.getElementById('app').style.display = 'block';
+            home.config.globalProperties.enums = this.enums;
+            
+            if (this.data.user.profile.department && this.data.user.profile.department.icode != ""){
+                this.workingPlace.departmentSelected = this.data.user.profile.department.icode;
+            }
+            if (this.data.user.profile.city && this.data.user.profile.city.code != ""){
+                this.workingPlace.citySelected = this.data.user.profile.city.code;
+            }
+            if (this.data.user.profile.entity && this.data.user.profile.entity.icode != ""){
+                this.workingPlace.entitySelected = this.data.user.profile.entity.icode;
+            }
+            if (this.data.user.profile.selectedCities && this.data.user.profile.selectedCities.length > 0){
+                this.workingPlace.cities = this.data.user.profile.selectedCities;
+            }
+            if (this.data.user.profile.selectedTowns && this.data.user.profile.selectedTowns.length > 0){
+                this.workingPlace.towns = this.data.user.profile.selectedTowns;
+            }
+            if (this.data.user.profile.selectedBranches && this.data.user.profile.selectedBranches.length > 0){
+                this.workingPlace.branches = this.data.user.profile.selectedBranches;
+            }
+
+          },
+          methods: {
+            logout(){
+                logout("/seguridad/logout");
+            },
+            submit(action,event) {
+              if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
+                location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+              }else if(action == "save"){
+                updateEntity("/seguridad/usuarios/"+this.data.user.icode, this.data, (function(status, response) {
+                  
+                  if (status === 200) {
+                    
+                    if(home.config.globalProperties.enums.nav_rules["default"]){
+                        location.assign(home.config.globalProperties.enums.nav_rules["default"]);
+                      }else if(home.config.globalProperties.enums.nav_rules[action]){
+                        location.assign(home.config.globalProperties.enums.nav_rules[action]);
+                      }
+                  }else if (status === 400) {
+                    document.getElementById('successOverlay').style.display = 'none';
+                      this.errors = response;
+                  }else {
+                    document.getElementById('successOverlay').style.display = 'none';
+                    alert("Se produjo un error interno, por favor vuelva a intentarlo");
+                  }
+                }).bind(this));
+              }
+            },
+           
+            changeDepartment (event) {
+             
+             getEntity("{{.securityCityFormPath}}/"+this.workingPlace.departmentSelected+"/departamento", (function(status, response) {
+               
+               if (status === 200) {
+              
+                 this.workingPlace.cities =  response;
+                 this.workingPlace.towns = {}
+               } 
+               else if (status === 400) {
+                 this.errors = response;
+                 
+                 
+               }else if (status === 404) {
+                 console.log("No records found")
+               }
+             }).bind(this), true);
+           },
+           changeCity (event) {
+             
+             getEntity("{{.securityTownFormPath}}/"+this.workingPlace.citySelected+"/codigo_ciudad", (function(status, response) {
+               
+               if (status === 200) {
+                 this.workingPlace.towns =  response;
+               } 
+               else if (status === 400) {
+                 this.errors = response;
+               }else if (status === 404) {
+                 console.log("No records found")
+               }
+             }).bind(this), true);
+           },
+           changeTown (event) {
+             
+             getEntity("{{.salviaEntityBranchFormPath}}/e/"+this.workingPlace.entitySelected+"/tc/"+this.data.user.profile.townSelected, (function(status, response) {
+               
+               if (status === 200) {
+                 
+                 this.workingPlace.branches =  response;
+                 
+               } 
+               else if (status === 400) {
+                 this.errors = response;
+                 
+                 
+               }else if (status === 404) {
+                 console.log("No records found")
+               }
+             }).bind(this), true);
+           },
+            isUserSelected(roleCode) {
+              var returnVal = false;
+              if(this.data.user.roleIds){
+                this.data.user.roleIds.forEach(icode => {
+                  this.enums.roles.forEach(role => {
+                    if(icode == role.icode && (role.code == roleCode)){
+                      returnVal = true;
+                    }
+                  });  
+                });
+              }
+              return returnVal;
+            }
+          }
+        } );
+        
+        home.mount("#app");
+
+     // };
+    </script>
+

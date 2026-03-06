@@ -1,0 +1,15 @@
+<label for="{{.SelectId}}">{{.SelectLabel}} <span v-if="{{.Mandatory}}" class="mandatory">*</span></label>
+<div :class="errors.{{.EntityName}}&&errors.{{.EntityName}}.{{.EntityAttr}} ? '{{.SelectErrorClass}}' : ''">
+    <custom-select
+        v-model="{{.EntityPath}}.{{.EntityName}}.{{.EntityAttr}}"
+        :options="enums.{{.EnumsAttr}}"
+        mode="{{.Multiple}}"
+        placeholder="{{.SelectPlaceHolder}}"
+        search-placeholder="Buscar..."
+        value-key="{{.EntityEnumId}}"
+        label-key="{{.EntityEnumLabel}}"
+        :return-object={{.ReturnObject}}
+        @update:model-value={{ if .OnChanged }} "{{ .OnChanged }}" {{ else }} null {{ end }}
+    ></custom-select>
+    <span v-if="errors.{{.EntityName}}&&errors.{{.EntityName}}.{{.EntityAttr}}" id="{{.ErrorSpanId}}" class="error_label">${errors.{{.EntityName}}.{{.EntityAttr}}}</span>
+</div>
