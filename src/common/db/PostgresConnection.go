@@ -142,7 +142,8 @@ func getClientConnection(clientConfig *DBClientConfig) error {
 		for i := 0; i < 80; i++ {
 
 			go func() {
-				var psqlconn = fmt.Sprintf("postgresql://%s:%s@%s:%s/%s",
+				defer wg.Done()
+				var psqlconn = fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=require",
 					clientConfig.UserName, clientConfig.Password, clientConfig.Hostname, clientConfig.Port, clientConfig.DatabaseName)
 
 				var conn, err = pgx.Connect(context.Background(), psqlconn)
@@ -150,6 +151,7 @@ func getClientConnection(clientConfig *DBClientConfig) error {
 				if err != nil {
 					fmt.Println("PostgresConnection getClientConnection Error: ", err)
 					success = false
+					return
 				}
 
 				err = conn.Ping(context.Background())
@@ -157,11 +159,11 @@ func getClientConnection(clientConfig *DBClientConfig) error {
 				if err != nil {
 					fmt.Println("PostgresConnection getClientConnection Ping Error: ", err)
 					success = false
+					return
 				}
 
 				//Se crea una nueva conexión para usar
 				channel <- ConnData{Conn: conn, ConnID: clientConfig.DatabaseName}
-				wg.Done()
 			}()
 
 		}

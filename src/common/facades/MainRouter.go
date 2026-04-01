@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gin-contrib/sessions"
@@ -50,8 +51,11 @@ func InitRouter() *gin.Engine {
 	})
 	// Middleware para restringir la cantidad de threads concurrentes
 	router.Use(limitMiddleware())
-	// Middleware para redirigir HTTP a HTTPS
-	router.Use(ForceHTTPS())
+	
+	if os.Getenv("PORT") == "" {
+		// Middleware para redirigir HTTP a HTTPS solo en local
+		router.Use(ForceHTTPS())
+	}
 
 	router.Use(sessions.Sessions("default_session", store))
 
@@ -109,8 +113,22 @@ func InitRouter() *gin.Engine {
 }
 
 func StartRouter() {
-	err := router.RunTLS(":443", "certs/salviaTest.crt", "certs/salviaTest.key")
-	println(err)
+	port := os.Getenv("PORT")
+	if port != "" {
+		// Modo Producción (Render): 
+		// Render provee el puerto dinámico y maneja automáticamente la seguridad HTTPS.
+		err := router.Run(":" + port)
+		if err != nil {
+			println("Error iniciando servidor en puerto " + port + ": ", err.Error())
+		}
+	} else {
+		// Modo Local:
+		// Se usan los puertos seguros manuales (requiere sudo localmente para puerto 443)
+		err := router.RunTLS(":443", "certs/salviaTest.crt", "certs/salviaTest.key")
+		if err != nil {
+			println("Error iniciando servidor TLS local: ", err.Error())
+		}
+	}
 }
 
 func ForceHTTPS() gin.HandlerFunc {
