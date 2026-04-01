@@ -1,0 +1,54 @@
+name: Build and Push Docker Image to GHCR
+
+on:
+  push:
+    branches:
+      - testing
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # Requerido para publicar paquetes/contenedores en GHCR
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=testing
+            type=sha,format=short
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Trigger Render Deployment webhook
+        run: |
+          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
+            echo "Conectando a Render..."
+            curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          else
+            echo "Ignorando el trigger. Múltiples entornos Render tienen habilitado auto-deploy para Git Packages, o falta configurar RENDER_DEPLOY_HOOK_URL."
+          fi
