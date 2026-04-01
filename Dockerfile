@@ -1,5 +1,5 @@
 # Etapa 1: Build de la aplicación
-FROM golang:1.19-alpine AS builder
+FROM golang:1.22-alpine AS builder
 
 # Instalar dependencias necesarias para compilar
 RUN apk add --no-cache git ca-certificates tzdata
