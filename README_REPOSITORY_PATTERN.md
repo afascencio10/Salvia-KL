@@ -220,3 +220,50 @@ tx.Commit()
 
 **¿El soft-delete afecta las queries automáticamente?**
 Sí. GORM agrega `WHERE deleted_at IS NULL` en todas las queries por defecto cuando el modelo tiene `gorm.DeletedAt`. Para incluir registros eliminados usa `db.Unscoped()`.
+
+---
+
+## Transacciones Complejas: Patrón Unit of Work
+
+Para operaciones que involucran múltiples tablas que deben persistirse de forma atómica, el repositorio específico puede encapsular la transacción internamente. El método `SubmitKoboForm` en `SubmissionRepository` es el ejemplo canónico.
+
+### ¿Qué hace `SubmitKoboForm`?
+
+Persiste tres entidades en una sola transacción, garantizando que o todo se guarda o nada se guarda:
+
+```
+CaseTimeline  →  FormSubmission  →  []Answer
+   (ancla           (vinculado          (vinculadas
+   forense)         al timeline)        al submission)
+```
+
+### Flujo interno
+
+```go
+tx := r.db.WithContext(ctx).Begin()
+
+// 1. Evento de auditoría (append-only, sin DeletedAt)
+tx.Create(timelineEvent)
+
+// 2. Submission anclado al timeline
+submission.TimelineID = timelineEvent.ID
+tx.Create(submission)
+
+// 3. Respuestas en batch insert
+for i := range answers { answers[i].FormSubmissionID = submission.ID }
+tx.Create(&answers)
+
+tx.Commit()
+```
+
+Si cualquier paso falla, se ejecuta `tx.Rollback()` antes de retornar el error, evitando locks y datos parciales en la BD.
+
+### Cómo replicar este patrón para otras operaciones multi-tabla
+
+1. Recibe `*gorm.DB` por inyección en el constructor del repositorio.
+2. Abre la transacción con `db.WithContext(ctx).Begin()`.
+3. Agrega `defer func() { if recover() != nil { tx.Rollback() } }()` para cubrir panics.
+4. Ejecuta cada operación con `tx.Create/Save/Delete`; ante cualquier error llama `tx.Rollback()` y retorna.
+5. Cierra con `tx.Commit().Error`.
+
+> El `CaseTimeline` es **append-only** (sin `DeletedAt`). Nunca se elimina ni actualiza: es el registro forense inmutable de lo que ocurrió.
