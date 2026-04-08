@@ -19,9 +19,9 @@ type CaseTimeline struct {
 	CreatedAt time.Time
 }
 
-// FormSubmission representa el envío de un formulario Kobo.
+// KoboSubmission representa el envío de un formulario Kobo (integración legacy).
 // TimelineID es el ancla forense: vincula el submission al evento de auditoría.
-type FormSubmission struct {
+type KoboSubmission struct {
 	ID         string         `gorm:"type:varchar(36);primaryKey;default:gen_random_uuid()"`
 	FormID     string         `gorm:"type:varchar(36);not null;index"`
 	FollowUpID *string        `gorm:"type:varchar(36);index"` // opcional
@@ -33,15 +33,15 @@ type FormSubmission struct {
 	DeletedAt  gorm.DeletedAt `gorm:"index"`
 }
 
-// Answer almacena la respuesta a una pregunta dentro de un FormSubmission.
+// KoboAnswer almacena la respuesta a una pregunta dentro de un KoboSubmission (integración legacy).
 // QuestionSnapshot preserva el texto de la pregunta en el momento del envío.
-type Answer struct {
-	ID               string         `gorm:"type:varchar(36);primaryKey;default:gen_random_uuid()"`
-	FormSubmissionID string         `gorm:"type:varchar(36);not null;index"`
-	FormSubmission   *FormSubmission `gorm:"foreignKey:FormSubmissionID"`
-	QuestionID       string         `gorm:"type:varchar(36);not null"`
-	Value            string         `gorm:"type:text"`
-	QuestionSnapshot string         `gorm:"type:text"` // snapshot del enunciado al momento del envío
+type KoboAnswer struct {
+	ID               string          `gorm:"type:varchar(36);primaryKey;default:gen_random_uuid()"`
+	FormSubmissionID string          `gorm:"type:varchar(36);not null;index"`
+	FormSubmission   *KoboSubmission `gorm:"foreignKey:FormSubmissionID"`
+	QuestionID       string          `gorm:"type:varchar(36);not null"`
+	Value            string          `gorm:"type:text"`
+	QuestionSnapshot string          `gorm:"type:text"` // snapshot del enunciado al momento del envío
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	DeletedAt        gorm.DeletedAt `gorm:"index"`
