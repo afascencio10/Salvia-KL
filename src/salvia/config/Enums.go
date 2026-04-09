@@ -45,6 +45,7 @@ var HTML_Templates map[string]string = map[string]string{
 	"get_entity_branches":      "get_entity_branches.html",
 	"set_feminicide":           "set_feminicide.html",
 	"set_feminicide_risk":      "set_feminicide_risk.html",
+	"hacer_seguimiento":        "hacer_seguimiento.html",
 }
 
 var FormPaths map[string]map[string]string = map[string]map[string]string{

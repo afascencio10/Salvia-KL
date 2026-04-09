@@ -192,6 +192,11 @@ func StartRouter(router *gin.Engine) {
 		secRouter.POST("/"+translatedEntity+"/"+translatedNew, FeminicidePOST)
 
 		/*
+			HacerSeguimiento
+		*/
+		secRouter.GET("/hacer-seguimiento/:id", HacerSeguimientoGET)
+
+		/*
 			FeminicideRisk
 		*/
 		translatedEntity = salvia_config.Locale["sp"][salvia_daos.FeminicideRiskEntityName]
