@@ -156,6 +156,7 @@ func StartRouter(router *gin.Engine) {
 		secRouter.POST("/"+translatedEntity+"/:id", FollowUpPOST)
 		secRouter.PUT("/"+translatedEntity+"/:id/", FollowUpPUT)
 		secRouter.PUT("/"+translatedEntity+"/:id", FollowUpPUT)
+		secRouter.GET("/"+translatedEntity+"/:id", FollowUpGET)
 
 		/*
 			FollowUpEntry

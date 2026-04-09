@@ -133,11 +133,15 @@ func (s *answerService) ListBySubmissionID(ctx context.Context, submissionID str
 }
 
 func (s *answerService) Create(ctx context.Context, input CreateAnswerInput) (*models.Answer, error) {
+	value := ""
+	if input.Value != nil {
+		value = *input.Value
+	}
 	a := &models.Answer{
 		FormSubmissionID: input.FormSubmissionID,
 		QuestionID:       input.QuestionID,
 		RepeaterEntryID:  input.RepeaterEntryID,
-		Value:            input.Value,
+		Value:            value,
 	}
 	return a, s.repo.Create(ctx, a)
 }

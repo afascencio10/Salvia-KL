@@ -29,46 +29,5 @@ func (r *formSubmissionRepository) FindByFormID(ctx context.Context, formID stri
 	return items, err
 }
 
-// ─── RepeaterEntry ────────────────────────────────────────────────────────────
-
-type RepeaterEntryRepository interface {
-	Repository[models.RepeaterEntry]
-	FindBySubmissionID(ctx context.Context, submissionID string) ([]models.RepeaterEntry, error)
-}
-
-type repeaterEntryRepository struct {
-	repository[models.RepeaterEntry]
-	db *gorm.DB
-}
-
-func NewRepeaterEntryRepository(db *gorm.DB) RepeaterEntryRepository {
-	return &repeaterEntryRepository{repository: repository[models.RepeaterEntry]{db: db}, db: db}
-}
-
-func (r *repeaterEntryRepository) FindBySubmissionID(ctx context.Context, submissionID string) ([]models.RepeaterEntry, error) {
-	var items []models.RepeaterEntry
-	err := r.db.WithContext(ctx).Where("form_submission_id = ?", submissionID).Order("iteration ASC").Find(&items).Error
-	return items, err
-}
-
-// ─── Answer ───────────────────────────────────────────────────────────────────
-
-type AnswerRepository interface {
-	Repository[models.Answer]
-	FindBySubmissionID(ctx context.Context, submissionID string) ([]models.Answer, error)
-}
-
-type answerRepository struct {
-	repository[models.Answer]
-	db *gorm.DB
-}
-
-func NewAnswerRepository(db *gorm.DB) AnswerRepository {
-	return &answerRepository{repository: repository[models.Answer]{db: db}, db: db}
-}
-
-func (r *answerRepository) FindBySubmissionID(ctx context.Context, submissionID string) ([]models.Answer, error) {
-	var items []models.Answer
-	err := r.db.WithContext(ctx).Where("form_submission_id = ?", submissionID).Find(&items).Error
-	return items, err
-}
+// RepeaterEntry y Answer fueron movidos a archivos individuales:
+// repeater_entry_repository.go, answer_repository.go
