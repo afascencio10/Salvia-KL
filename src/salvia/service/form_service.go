@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-=======
-// Package service contiene la lógica de negocio para Form y FormSection.
->>>>>>> e10fe9a63702dc7f74e0c51178b6ec39a2464fcb
 package service
 
 import (
@@ -13,16 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-<<<<<<< HEAD
-var ErrFormNotFound = errors.New("form: registro no encontrado")
-
-// FormService define el contrato de negocio para Form.
-type FormService interface {
-	GetByID(ctx context.Context, id string) (*models.Form, error)
-	List(ctx context.Context, page, limit int) (repository.PageResult[models.Form], error)
-	Create(ctx context.Context, f *models.Form) error
-	Update(ctx context.Context, f *models.Form) error
-=======
 // ─── Errores de dominio ───────────────────────────────────────────────────────
 
 var ErrFormNotFound        = errors.New("form: registro no encontrado")
@@ -47,7 +33,6 @@ type FormService interface {
 	List(ctx context.Context, page, limit int) (repository.PageResult[models.Form], error)
 	Create(ctx context.Context, input CreateFormInput) (*models.Form, error)
 	Update(ctx context.Context, id string, input UpdateFormInput) (*models.Form, error)
->>>>>>> e10fe9a63702dc7f74e0c51178b6ec39a2464fcb
 	Delete(ctx context.Context, id string) error
 }
 
@@ -60,39 +45,20 @@ func NewFormService(repo repository.FormRepository) FormService {
 }
 
 func (s *formService) GetByID(ctx context.Context, id string) (*models.Form, error) {
-<<<<<<< HEAD
-	f, err := s.repo.FindByID(ctx, id)
-=======
 	form, err := s.repo.FindByID(ctx, id)
->>>>>>> e10fe9a63702dc7f74e0c51178b6ec39a2464fcb
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrFormNotFound
 		}
 		return nil, err
 	}
-<<<<<<< HEAD
-	return f, nil
-=======
 	return form, nil
->>>>>>> e10fe9a63702dc7f74e0c51178b6ec39a2464fcb
 }
 
 func (s *formService) List(ctx context.Context, page, limit int) (repository.PageResult[models.Form], error) {
 	return s.repo.FindWithPagination(ctx, page, limit)
 }
 
-<<<<<<< HEAD
-func (s *formService) Create(ctx context.Context, f *models.Form) error {
-	if f.Status == "" {
-		f.Status = "ACTIVE"
-	}
-	return s.repo.Create(ctx, f)
-}
-
-func (s *formService) Update(ctx context.Context, f *models.Form) error {
-	return s.repo.Update(ctx, f)
-=======
 func (s *formService) Create(ctx context.Context, input CreateFormInput) (*models.Form, error) {
 	status := input.Status
 	if status == "" {
@@ -122,7 +88,6 @@ func (s *formService) Update(ctx context.Context, id string, input UpdateFormInp
 		return nil, err
 	}
 	return s.repo.FindByID(ctx, id)
->>>>>>> e10fe9a63702dc7f74e0c51178b6ec39a2464fcb
 }
 
 func (s *formService) Delete(ctx context.Context, id string) error {
@@ -132,8 +97,6 @@ func (s *formService) Delete(ctx context.Context, id string) error {
 	}
 	return err
 }
-<<<<<<< HEAD
-=======
 
 // ─── FormSection ──────────────────────────────────────────────────────────────
 
@@ -216,4 +179,3 @@ func (s *formSectionService) Delete(ctx context.Context, id string) error {
 	}
 	return err
 }
->>>>>>> e10fe9a63702dc7f74e0c51178b6ec39a2464fcb

@@ -7,18 +7,11 @@ import (
 	"gorm.io/gorm"
 )
 
-<<<<<<< HEAD
-type FormSubmissionRepository interface {
-	Repository[models.FormSubmission]
-	FindByFormID(ctx context.Context, formID string) ([]models.FormSubmission, error)
-	FindByFollowUpID(ctx context.Context, followUpID string) ([]models.FormSubmission, error)
-=======
 // ─── FormSubmission ───────────────────────────────────────────────────────────
 
 type FormSubmissionRepository interface {
 	Repository[models.FormSubmission]
 	FindByFormID(ctx context.Context, formID string) ([]models.FormSubmission, error)
->>>>>>> e10fe9a63702dc7f74e0c51178b6ec39a2464fcb
 }
 
 type formSubmissionRepository struct {
@@ -27,26 +20,11 @@ type formSubmissionRepository struct {
 }
 
 func NewFormSubmissionRepository(db *gorm.DB) FormSubmissionRepository {
-<<<<<<< HEAD
-	return &formSubmissionRepository{
-		repository: repository[models.FormSubmission]{db: db},
-		db:         db,
-	}
-=======
 	return &formSubmissionRepository{repository: repository[models.FormSubmission]{db: db}, db: db}
->>>>>>> e10fe9a63702dc7f74e0c51178b6ec39a2464fcb
 }
 
 func (r *formSubmissionRepository) FindByFormID(ctx context.Context, formID string) ([]models.FormSubmission, error) {
 	var items []models.FormSubmission
-<<<<<<< HEAD
-	return items, r.db.WithContext(ctx).Where("form_id = ?", formID).Find(&items).Error
-}
-
-func (r *formSubmissionRepository) FindByFollowUpID(ctx context.Context, followUpID string) ([]models.FormSubmission, error) {
-	var items []models.FormSubmission
-	return items, r.db.WithContext(ctx).Where("follow_up_id = ?", followUpID).Find(&items).Error
-=======
 	err := r.db.WithContext(ctx).Where("form_id = ?", formID).Find(&items).Error
 	return items, err
 }
@@ -93,5 +71,4 @@ func (r *answerRepository) FindBySubmissionID(ctx context.Context, submissionID 
 	var items []models.Answer
 	err := r.db.WithContext(ctx).Where("form_submission_id = ?", submissionID).Find(&items).Error
 	return items, err
->>>>>>> e10fe9a63702dc7f74e0c51178b6ec39a2464fcb
 }

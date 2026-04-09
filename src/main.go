@@ -3,6 +3,7 @@ package main
 import (
 	common_routers "bitsflow/common/facades"
 	"bitsflow/common/utils"
+	_ "bitsflow/docs" // Swagger docs generados por swag init
 	internaldb "bitsflow/internal/db"
 	"bitsflow/internal/models"
 	"bitsflow/internal/repository"
@@ -14,6 +15,8 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 //go:embed config/*
@@ -50,6 +53,7 @@ func main() {
 		&models.FormSubmission{},
 		&models.RepeaterEntry{},
 		&models.Answer{},
+		&models.FollowUpV2{},
 	} {
 		if err := gormDB.AutoMigrate(m); err != nil {
 			log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -65,6 +69,7 @@ func main() {
 	formSubmissionRepo     := repository.NewFormSubmissionRepository(gormDB)
 	repeaterEntryRepo      := repository.NewRepeaterEntryRepository(gormDB)
 	answerRepo             := repository.NewAnswerRepository(gormDB)
+	followUpRepo           := repository.NewFollowUpRepository(gormDB)
 
 	// Services
 	formSvc               := service.NewFormService(formRepo)
@@ -75,6 +80,7 @@ func main() {
 	formSubmissionSvc     := service.NewFormSubmissionService(formSubmissionRepo)
 	repeaterEntrySvc      := service.NewRepeaterEntryService(repeaterEntryRepo)
 	answerSvc             := service.NewAnswerService(answerRepo)
+	followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo)
 
 	// Controllers
 	formCtrl               := salvia_ctrl.NewFormController(formSvc)
@@ -85,6 +91,7 @@ func main() {
 	formSubmissionCtrl     := salvia_ctrl.NewFormSubmissionController(formSubmissionSvc)
 	repeaterEntryCtrl      := salvia_ctrl.NewRepeaterEntryController(repeaterEntrySvc)
 	answerCtrl             := salvia_ctrl.NewAnswerController(answerSvc)
+	followUpV2Ctrl         := salvia_ctrl.NewFollowUpV2Controller(followUpV2Svc)
 
 	// Routes
 	api := router.Group("/api/v1")
@@ -96,6 +103,10 @@ func main() {
 	formSubmissionCtrl.RegisterRoutes(api)
 	repeaterEntryCtrl.RegisterRoutes(api)
 	answerCtrl.RegisterRoutes(api)
+	followUpV2Ctrl.RegisterRoutes(api)
+
+	// Swagger UI — accesible en https://localhost/swagger/index.html
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	// ────────────────────────────────────────────────────────────────────────
 
 	common_routers.StartRouter()
