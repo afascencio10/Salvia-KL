@@ -15,10 +15,15 @@ var ErrAnswerNotFound         = errors.New("answer: registro no encontrado")
 
 // ─── FormSubmission ───────────────────────────────────────────────────────────
 
+type UpdateFormSubmissionInput struct {
+	FormID *string
+}
+
 type FormSubmissionService interface {
 	GetByID(ctx context.Context, id string) (*models.FormSubmission, error)
 	ListByFormID(ctx context.Context, formID string) ([]models.FormSubmission, error)
 	Create(ctx context.Context, formID string) (*models.FormSubmission, error)
+	Update(ctx context.Context, id string, input UpdateFormSubmissionInput) (*models.FormSubmission, error)
 	Delete(ctx context.Context, id string) error
 }
 
@@ -43,6 +48,16 @@ func (s *formSubmissionService) Create(ctx context.Context, formID string) (*mod
 	return fs, s.repo.Create(ctx, fs)
 }
 
+func (s *formSubmissionService) Update(ctx context.Context, id string, input UpdateFormSubmissionInput) (*models.FormSubmission, error) {
+	fields := map[string]interface{}{}
+	if input.FormID != nil { fields["form_id"] = *input.FormID }
+	if err := s.repo.UpdateFields(ctx, id, fields); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) { return nil, ErrFormSubmissionNotFound }
+		return nil, err
+	}
+	return s.repo.FindByID(ctx, id)
+}
+
 func (s *formSubmissionService) Delete(ctx context.Context, id string) error {
 	err := s.repo.Delete(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) { return ErrFormSubmissionNotFound }
@@ -57,10 +72,15 @@ type CreateRepeaterEntryInput struct {
 	Iteration        int
 }
 
+type UpdateRepeaterEntryInput struct {
+	Iteration *int
+}
+
 type RepeaterEntryService interface {
 	GetByID(ctx context.Context, id string) (*models.RepeaterEntry, error)
 	ListBySubmissionID(ctx context.Context, submissionID string) ([]models.RepeaterEntry, error)
 	Create(ctx context.Context, input CreateRepeaterEntryInput) (*models.RepeaterEntry, error)
+	Update(ctx context.Context, id string, input UpdateRepeaterEntryInput) (*models.RepeaterEntry, error)
 	Delete(ctx context.Context, id string) error
 }
 
@@ -87,6 +107,16 @@ func (s *repeaterEntryService) Create(ctx context.Context, input CreateRepeaterE
 		Iteration:        input.Iteration,
 	}
 	return re, s.repo.Create(ctx, re)
+}
+
+func (s *repeaterEntryService) Update(ctx context.Context, id string, input UpdateRepeaterEntryInput) (*models.RepeaterEntry, error) {
+	fields := map[string]interface{}{}
+	if input.Iteration != nil { fields["iteration"] = *input.Iteration }
+	if err := s.repo.UpdateFields(ctx, id, fields); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) { return nil, ErrRepeaterEntryNotFound }
+		return nil, err
+	}
+	return s.repo.FindByID(ctx, id)
 }
 
 func (s *repeaterEntryService) Delete(ctx context.Context, id string) error {

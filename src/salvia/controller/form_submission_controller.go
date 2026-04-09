@@ -12,6 +12,7 @@ import (
 // GET    /api/v1/forms/:id/submissions
 // POST   /api/v1/forms/:id/submissions
 // GET    /api/v1/form-submissions/:id
+// PUT    /api/v1/form-submissions/:id
 // DELETE /api/v1/form-submissions/:id
 
 type FormSubmissionController struct{ svc service.FormSubmissionService }
@@ -25,6 +26,7 @@ func (c *FormSubmissionController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.POST("/forms/:id/submissions", c.Create)
 	g := rg.Group("/form-submissions")
 	g.GET("/:id", c.GetByID)
+	g.PUT("/:id", c.Update)
 	g.DELETE("/:id", c.Delete)
 }
 
@@ -49,6 +51,19 @@ func (c *FormSubmissionController) Create(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, item)
 }
 
+func (c *FormSubmissionController) Update(ctx *gin.Context) {
+	var body struct {
+		FormID *string `json:"formId"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil { ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return }
+	item, err := c.svc.Update(ctx.Request.Context(), ctx.Param("id"), service.UpdateFormSubmissionInput{FormID: body.FormID})
+	if err != nil {
+		if errors.Is(err, service.ErrFormSubmissionNotFound) { ctx.JSON(http.StatusNotFound, gin.H{"error": "no encontrado"}); return }
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"}); return
+	}
+	ctx.JSON(http.StatusOK, item)
+}
+
 func (c *FormSubmissionController) Delete(ctx *gin.Context) {
 	if err := c.svc.Delete(ctx.Request.Context(), ctx.Param("id")); err != nil {
 		if errors.Is(err, service.ErrFormSubmissionNotFound) { ctx.JSON(http.StatusNotFound, gin.H{"error": "no encontrado"}); return }
@@ -61,6 +76,7 @@ func (c *FormSubmissionController) Delete(ctx *gin.Context) {
 // GET    /api/v1/form-submissions/:id/repeater-entries
 // POST   /api/v1/form-submissions/:id/repeater-entries
 // GET    /api/v1/repeater-entries/:id
+// PUT    /api/v1/repeater-entries/:id
 // DELETE /api/v1/repeater-entries/:id
 
 type RepeaterEntryController struct{ svc service.RepeaterEntryService }
@@ -74,6 +90,7 @@ func (c *RepeaterEntryController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.POST("/form-submissions/:id/repeater-entries", c.Create)
 	g := rg.Group("/repeater-entries")
 	g.GET("/:id", c.GetByID)
+	g.PUT("/:id", c.Update)
 	g.DELETE("/:id", c.Delete)
 }
 
@@ -105,6 +122,19 @@ func (c *RepeaterEntryController) Create(ctx *gin.Context) {
 	})
 	if err != nil { ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"}); return }
 	ctx.JSON(http.StatusCreated, item)
+}
+
+func (c *RepeaterEntryController) Update(ctx *gin.Context) {
+	var body struct {
+		Iteration *int `json:"iteration"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil { ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return }
+	item, err := c.svc.Update(ctx.Request.Context(), ctx.Param("id"), service.UpdateRepeaterEntryInput{Iteration: body.Iteration})
+	if err != nil {
+		if errors.Is(err, service.ErrRepeaterEntryNotFound) { ctx.JSON(http.StatusNotFound, gin.H{"error": "no encontrado"}); return }
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"}); return
+	}
+	ctx.JSON(http.StatusOK, item)
 }
 
 func (c *RepeaterEntryController) Delete(ctx *gin.Context) {
