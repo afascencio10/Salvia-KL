@@ -3,3 +3,17 @@
         <h2><b>Hacer Seguimiento</b></h2>
     </div>
 </div>
+
+{{ template "standard_scripts.html" .}}
+
+<script>
+    var app = Vue.createApp({
+        data() {
+            return {};
+        },
+        mounted() {
+            document.getElementById('app').style.display = 'block';
+        }
+    });
+    app.mount("#app");
+</script>
