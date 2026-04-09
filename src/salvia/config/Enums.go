@@ -45,6 +45,7 @@ var HTML_Templates map[string]string = map[string]string{
 	"get_entity_branches":      "get_entity_branches.html",
 	"set_feminicide":           "set_feminicide.html",
 	"set_feminicide_risk":      "set_feminicide_risk.html",
+	"get_follow_up":            "get_follow_up.html",
 }
 
 var FormPaths map[string]map[string]string = map[string]map[string]string{
@@ -122,6 +123,7 @@ var NAVIGATION_RULES map[string]map[string]map[string]string = map[string]map[st
 	"load_plain_files":    {"default": {"module": "salvia", "entity": "VictimCase"}},
 	"assign_operators":    {"default": {"module": "salvia", "entity": "VictimCase"}},
 	"login":               {"login": {"module": "salvia", "entity": "VictimCase"}, "cancel": {"module": "salvia", "VictimCase": ""}},
+	"get_follow_up":       {"default": {"module": "salvia", "entity": "FollowUp"}},
 }
 
 var LIVING_ZONES map[string]string = map[string]string{

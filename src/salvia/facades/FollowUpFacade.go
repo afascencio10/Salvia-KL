@@ -7,6 +7,8 @@ import (
 
 	"bitsflow/common/db"
 	"bitsflow/common/utils"
+	common_facades "bitsflow/common/facades"
+	salvia_daos "bitsflow/salvia/dao"
 	salvia_config "bitsflow/salvia/config"
 	salvia_ctrl "bitsflow/salvia/controllers"
 
@@ -100,4 +102,33 @@ func FollowUpPUT(c *gin.Context) {
 
 	// Se envía la respuesta al cliente en formato JSON utilizando el código y la respuesta obtenida.
 	c.DataFromReader(code, int64(len(res)), gin.MIMEJSON, strings.NewReader(res), nil)
+}
+
+// FollowUpGET maneja la solicitud GET para obtener el detalle de un seguimiento.
+func FollowUpGET(c *gin.Context) {
+	// Se obtiene la sesión del usuario y el ID de sesión.
+	session := sessions.Default(c)
+	var sessionID string = session.Get("userData").(string)
+	s, err := utils.GetCommonSession(sessionID)
+
+	// Establece cabeceras para evitar cache en la respuesta.
+	common_facades.SetHeaderNoCache(c)
+
+	var menu map[string][]map[string]string
+	if err == nil {
+		menu = s.CurrentMenu
+	}
+
+	id := c.Param("id")
+
+	common_facades.RenderTemplate(c, salvia_daos.FollowUpEntityName, "salvia", "follow_up/", salvia_config.HTML_Templates, "get_follow_up", utils.GetFullHtmlTemplates(), utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
+		map[string]interface{}{
+			"windowTitle": "Detalle de Seguimiento",
+			"currentUser": s.Names + " " + s.LastNames,
+			"nav_rules":   salvia_config.TranslateNavigationRule(s.Lang, salvia_config.NAVIGATION_RULES["get_follow_up"]),
+			"locale":      salvia_config.Locale,
+			"lang":        s.Lang,
+			"menu":        menu,
+			"followUpId":  id,
+		}, utils.GetFullHtmlFuncMap())
 }
