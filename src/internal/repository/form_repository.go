@@ -1,4 +1,3 @@
-// Package repository provee repositorios GORM para Form y FormSection.
 package repository
 
 import (

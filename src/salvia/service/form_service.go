@@ -1,4 +1,3 @@
-// Package service contiene la lógica de negocio para Form y FormSection.
 package service
 
 import (

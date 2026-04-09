@@ -1,4 +1,3 @@
-// Package models contiene los structs GORM para el nuevo patrón de repositorios.
 package models
 
 import (
