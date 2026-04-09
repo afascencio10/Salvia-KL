@@ -26,60 +26,61 @@ func init() {
 }
 
 /*
-	type Connections struct {
-		availableConnections map[string]string
-		currentConnections   map[string]*pgx.Conn
-	}
+    type Connections struct {
+        availableConnections map[string]string
+        currentConnections   map[string]*pgx.Conn
+    }
 
 var connections Connections = Connections{availableConnections: make(map[string]string), currentConnections: make(map[string]*pgx.Conn)}
 
 // var connections map[string]map[string]*pgx.Conn
 
-	/*func readCurrentConnections(connData *ConnData) (*pgx.Conn, bool) {
-		//lock.RLock()
-		//defer lock.RUnlock()
-		var conn *pgx.Conn
-		var found bool
-		conn, found = connections.currentConnections[connData]
-		return conn, found
-	}
+    func readCurrentConnections(connData *ConnData) (*pgx.Conn, bool) {
+        //lock.RLock()
+        //defer lock.RUnlock()
+        var conn *pgx.Conn
+        var found bool
+        conn, found = connections.currentConnections[connData]
+        return conn, found
+    }
 
-	func lenCurrentConnections() int {
-		//lock.RLock()
-		//defer lock.RUnlock()
-		return len(connections.currentConnections)
-	}
+    func lenCurrentConnections() int {
+        //lock.RLock()
+        //defer lock.RUnlock()
+        return len(connections.currentConnections)
+    }
 
-	func writeCurrentConnections(connData *ConnData, value *pgx.Conn) {
-		lock.Lock()
-		defer lock.Unlock()
-		connections.currentConnections[connData] = value
-	}
+    func writeCurrentConnections(connData *ConnData, value *pgx.Conn) {
+        lock.Lock()
+        defer lock.Unlock()
+        connections.currentConnections[connData] = value
+    }
 
-	func deletedAvailableConnections(connData *ConnData) {
-		//lock.Lock()
-		//defer lock.Unlock()
-		delete(connections.availableConnections, connData)
-	}
+    func deletedAvailableConnections(connData *ConnData) {
+        //lock.Lock()
+        //defer lock.Unlock()
+        delete(connections.availableConnections, connData)
+    }
 
-	func deleteCurrentConnections(connData *ConnData) {
-		lock.Lock()
-		defer lock.Unlock()
-		delete(connections.currentConnections, connData)
-	}
+    func deleteCurrentConnections(connData *ConnData) {
+        lock.Lock()
+        defer lock.Unlock()
+        delete(connections.currentConnections, connData)
+    }
 
-	func writeAvailableConnections(connData *ConnData, value string) {
-		//lock.Lock()
-		//defer lock.Unlock()
-		connections.availableConnections[connData] = value
-	}
+    func writeAvailableConnections(connData *ConnData, value string) {
+        //lock.Lock()
+        //defer lock.Unlock()
+        connections.availableConnections[connData] = value
+    }
 
-	func lenAvailableConnections() int {
-		//lock.RLock()
-		//defer lock.RUnlock()
-		return len(connections.availableConnections)
-	}
+    func lenAvailableConnections() int {
+        //lock.RLock()
+        //defer lock.RUnlock()
+        return len(connections.availableConnections)
+    }
 */
+
 func GetConnection(connData *ConnData, clientConfig *DBClientConfig, serverConfig *DBServerConfig) (*ConnData, error) {
 
 	getClientConnection(clientConfig)
@@ -112,37 +113,41 @@ func ReleaseConnection(connData *ConnData) error {
 
 	return nil
 }
+
 func readChannel(dbName string) (chan ConnData, bool) {
 	channel, found := connChannels[dbName]
 	return channel, found
 }
+
 func getClientConnection(clientConfig *DBClientConfig) error {
 	lock.Lock()
 	defer lock.Unlock()
 
 	/*
-		TODO:
-			1. Poner variable en PostgresConnection o alguna configuración global con el número máximo de conexiones que aguanta postgres en total
-			2. En clientConfig poner el número de conexiones que se le asignarán al susuario en su base de datos
-			3. Adicionar en ConnData un campo de tiempo para registrar la última vez que se usó alguna conexión de esa BD
-			4. Cada vez que haya una bd nueva, crear su respectivo connChannels[clientConfig.DatabaseName]
-				4.1 Si la BD es nueva pero el número de conexiones para ese cliente supera el total de conexiones existentes,
-					Entonces se identifica el cliente/bd en connChannels con el tiempo más grande de inactividad, cierran las conexiones y se elimina de connChannels
-				4.2 el punto 4.1 se hace en ciclo hasta que hayan conexiones disponibles para darle soporte al nuevo cliente/bd
+	    TODO:
+	        1. Poner variable en PostgresConnection o alguna configuración global con el número máximo de conexiones que aguanta postgres en total
+	        2. En clientConfig poner el número de conexiones que se le asignarán al susuario en su base de datos
+	        3. Adicionar en ConnData un campo de tiempo para registrar la última vez que se usó alguna conexión de esa BD
+	        4. Cada vez que haya una bd nueva, crear su respectivo connChannels[clientConfig.DatabaseName]
+	            4.1 Si la BD es nueva pero el número de conexiones para ese cliente supera el total de conexiones existentes,
+	                Entonces se identifica el cliente/bd en connChannels con el tiempo más grande de inactividad, cierran las conexiones y se elimina de connChannels
+	            4.2 el punto 4.1 se hace en ciclo hasta que hayan conexiones disponibles para darle soporte al nuevo cliente/bd
 	*/
 	if _, found := readChannel(clientConfig.DatabaseName); !found {
 
 		println("X, ", clientConfig.DatabaseName)
-		channel := make(chan ConnData, 80)
+		channel := make(chan ConnData, 10)
 		connChannels[clientConfig.DatabaseName] = channel
 		var wg sync.WaitGroup
-		wg.Add(80)
+		wg.Add(10)
 		println("Inicializando conexiones de Postgres...")
 		var success bool = true
-		for i := 0; i < 80; i++ {
+		for i := 0; i < 10; i++ {
 
 			go func() {
 				defer wg.Done()
+				
+				// AQUI SE APLICA LA CONEXIÓN SEGURA SSL OBLIGATORIA PARA RENDER SIN ROMPER LA LÓGICA
 				var psqlconn = fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=require",
 					clientConfig.UserName, clientConfig.Password, clientConfig.Hostname, clientConfig.Port, clientConfig.DatabaseName)
 

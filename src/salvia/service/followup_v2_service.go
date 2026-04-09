@@ -21,12 +21,21 @@ var ErrFollowUpNotFound = errors.New("followup: registro no encontrado")
 var ErrFollowUpCaseEmpty = errors.New("followup: no se encontraron seguimientos para el caso")
 
 // ── Matriz de riesgo (HU-027) ─────────────────────────────────────────────────
-// Días ACUMULADOS desde HOY para cada nivel: [S1, S2, S3, S4]
-var riskMatrix = map[int][4]int{
-	4: {1, 2, 3, 15},   // Extremo
-	3: {1, 3, 15, 30},  // Alto
-	2: {2, 15, 30, 45}, // Moderado
-	1: {5, 15, 30, 60}, // Bajo
+// Días desde HOY para cada nivel. Extremo tiene 5 seguimientos (S1 = mismo día a las 4h).
+// Los demás niveles tienen 4 seguimientos.
+var riskMatrix = map[int][]int{
+	4: {0, 1, 2, 3, 15},  // Extremo — 5 seguimientos (S1=+4h/hoy, S2=+1d, S3=+2d, S4=+3d, S5=+15d)
+	3: {1, 3, 15, 30},    // Alto    — 4 seguimientos
+	2: {2, 15, 30, 45},   // Moderado — 4 seguimientos
+	1: {5, 15, 30, 60},   // Bajo    — 4 seguimientos
+}
+
+// maxFollowUps retorna la cantidad máxima de seguimientos para un nivel de riesgo.
+func maxFollowUps(riskLevel int) int {
+	if offsets, ok := riskMatrix[riskLevel]; ok {
+		return len(offsets)
+	}
+	return 4
 }
 
 // ── Input ─────────────────────────────────────────────────────────────────────
@@ -34,7 +43,7 @@ var riskMatrix = map[int][4]int{
 // GenerateCalendarInput es el body de entrada para generar/recalcular el calendario.
 type GenerateCalendarInput struct {
 	RiskLevel int    `json:"risk_level" binding:"required,min=1,max=4"`
-	AgentID   string `json:"agent_id"   binding:"required"`
+	AgentID   string `json:"agent_id"`
 	Team      string `json:"team"`
 }
 
@@ -103,6 +112,16 @@ func (s *followUpV2Service) GenerateOrRecalculate(ctx context.Context, caseID st
 		return nil, fmt.Errorf("risk_level inválido: %d (debe ser 1-4)", input.RiskLevel)
 	}
 
+	// Defaults para asignación diferida
+	if input.AgentID == "" {
+		input.AgentID = "SIN_ASIGNAR"
+	}
+	if input.Team == "" {
+		input.Team = "SIN_EQUIPO"
+	}
+
+	totalExpected := maxFollowUps(input.RiskLevel)
+
 	completed, err := s.repo.FindCompletedByCaseID(ctx, caseID)
 	if err != nil {
 		return nil, err
@@ -114,11 +133,12 @@ func (s *followUpV2Service) GenerateOrRecalculate(ctx context.Context, caseID st
 	}
 
 	riskLevelStr := riskLevelToString(input.RiskLevel)
-	today := time.Now().Truncate(24 * time.Hour)
+	now := time.Now()
+	today := now.Truncate(24 * time.Hour)
 
-	// ── Caso 1: sin ningún seguimiento → generar S1..S4 completos ────────────
+	// ── Caso 1: sin ningún seguimiento → generar todos ───────────────────────
 	if len(completed) == 0 && len(pending) == 0 {
-		newFollowUps := buildFollowUps(caseID, input, riskLevelStr, offsets[:], today, 1)
+		newFollowUps := buildFollowUps(caseID, input, riskLevelStr, offsets, now, today, 1)
 		if err := s.repo.RunInTransaction(ctx, func(tx *gorm.DB) error {
 			return s.repo.BulkCreate(ctx, tx, newFollowUps)
 		}); err != nil {
@@ -134,7 +154,7 @@ func (s *followUpV2Service) GenerateOrRecalculate(ctx context.Context, caseID st
 
 	// ── Caso 3: risk_level cambió → reprogramar pendientes + generar faltantes ─
 	numCompleted := len(completed)
-	numFaltantes := 4 - numCompleted
+	numFaltantes := totalExpected - numCompleted
 	if numFaltantes <= 0 {
 		return completed, nil
 	}
@@ -147,7 +167,7 @@ func (s *followUpV2Service) GenerateOrRecalculate(ctx context.Context, caseID st
 		if err := s.repo.SoftDeleteAndReprogramPending(ctx, tx, caseID); err != nil {
 			return err
 		}
-		newFollowUps = buildFollowUps(caseID, input, riskLevelStr, faltantesOffsets, today, startSeq)
+		newFollowUps = buildFollowUps(caseID, input, riskLevelStr, faltantesOffsets, now, today, startSeq)
 		return s.repo.BulkCreate(ctx, tx, newFollowUps)
 	}); err != nil {
 		return nil, err
@@ -158,15 +178,22 @@ func (s *followUpV2Service) GenerateOrRecalculate(ctx context.Context, caseID st
 
 // ── helpers privados ──────────────────────────────────────────────────────────
 
-func buildFollowUps(caseID string, input GenerateCalendarInput, riskLevelStr string, offsets []int, today time.Time, startSeq int) []models.FollowUpV2 {
+func buildFollowUps(caseID string, input GenerateCalendarInput, riskLevelStr string, offsets []int, now time.Time, today time.Time, startSeq int) []models.FollowUpV2 {
 	result := make([]models.FollowUpV2, len(offsets))
 	for i, days := range offsets {
+		var scheduledDate time.Time
+		if days == 0 && input.RiskLevel == 4 {
+			// Extremo S1: programar a las 4 horas desde ahora
+			scheduledDate = now.Add(4 * time.Hour)
+		} else {
+			scheduledDate = today.AddDate(0, 0, days)
+		}
 		result[i] = models.FollowUpV2{
 			CaseID:         caseID,
 			AgentID:        input.AgentID,
 			Team:           input.Team,
 			RiskStatus:     riskLevelStr,
-			ScheduledDate:  today.AddDate(0, 0, days),
+			ScheduledDate:  scheduledDate,
 			IsCompleted:    false,
 			Status:         models.FollowUpStatusPendiente,
 			SequenceNumber: startSeq + i,

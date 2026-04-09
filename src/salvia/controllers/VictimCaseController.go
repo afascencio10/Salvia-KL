@@ -10,9 +10,12 @@ import (
 	"bitsflow/common/utils"
 	salvia_config "bitsflow/salvia/config"
 	salvia_daos "bitsflow/salvia/dao"
+	"bitsflow/salvia/service"
 	security_config "bitsflow/security/config"
 	security_ctrl "bitsflow/security/controllers"
 	security_daos "bitsflow/security/dao"
+	"context"
+	"log"
 	"math"
 	"math/rand"
 	"net/http"
@@ -20,6 +23,10 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+// FollowUpSvc es inyectado desde main.go para generar el calendario automáticamente
+// al crear un caso. Si es nil, la generación automática se omite silenciosamente.
+var FollowUpSvc service.FollowUpV2Service
 
 type VictimCaseRequest struct {
 	VCase salvia_daos.VictimCaseDTO `json:"victimCase"`
@@ -488,6 +495,27 @@ func SetVictimCase(dataInput string, s utils.CommonSession, dbClientConfig db.DB
 	if _, err = db.CommitTransaction(connData, &dbClientConfig, &dbServerConfig); err != nil {
 		return http.StatusInternalServerError, err.Error()
 	}
+
+	// ── HU-027: Generar calendario de seguimientos automáticamente ───────────
+	// Se ejecuta DESPUÉS del commit para no afectar la transacción del caso.
+	// Si falla, se loggea pero NO se deshace la creación del caso.
+	if FollowUpSvc != nil {
+		go func() {
+			calendarInput := service.GenerateCalendarInput{
+				RiskLevel: int(riskLevel), // 1=Bajo, 2=Moderado, 3=Alto, 4=Extremo
+				AgentID:   s.UserICode,    // Operador que creó el caso
+				Team:      "",             // Se asignará "SIN_EQUIPO" por defecto en el servicio
+			}
+			_, calErr := FollowUpSvc.GenerateOrRecalculate(context.Background(), vCaseRequest.VCase.VictimCaseICode, calendarInput)
+			if calErr != nil {
+				log.Printf("[WARN] HU-027: Error generando calendario para caso %s: %v", vCaseRequest.VCase.VictimCaseICode, calErr)
+			} else {
+				log.Printf("[INFO] HU-027: Calendario generado para caso %s (risk_level=%d)", vCaseRequest.VCase.VictimCaseICode, riskLevel)
+			}
+		}()
+	}
+	// ─────────────────────────────────────────────────────────────────────────
+
 	return http.StatusOK, utils.CommMsgGetJSONSuccess(vCaseRequest.VCase.VictimCaseNewUser)
 }
 
