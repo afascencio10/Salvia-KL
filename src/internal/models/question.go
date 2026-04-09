@@ -11,10 +11,10 @@ type Question struct {
 	ID              string         `gorm:"type:varchar(36);primaryKey;default:gen_random_uuid()"`
 	FormID          string         `gorm:"type:varchar(36);not null;index"`
 	FormSectionID   string         `gorm:"type:varchar(36);not null;index"`
-	RepeaterGroupID *string        `gorm:"type:varchar(36);index"` // nullable
-	QuestionTypeID  string         `gorm:"type:varchar(50);not null"`
+	RepeaterGroupID *string        `gorm:"type:varchar(36);index"`
+	QuestionTypeID  string         `gorm:"column:question_type;type:varchar(50);not null"`
 	Description     string         `gorm:"type:text;not null"`
-	OrderIndex      int            `gorm:"default:0"`
+	OrderIndex      int            `gorm:"column:order;default:0"`
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	DeletedAt       gorm.DeletedAt `gorm:"index"`

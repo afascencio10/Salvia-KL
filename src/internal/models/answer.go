@@ -13,7 +13,7 @@ type Answer struct {
 	QuestionID       string         `gorm:"type:varchar(36);not null;index"`
 	RepeaterEntryID  *string        `gorm:"type:varchar(36);index"` // nullable
 	Value            string         `gorm:"type:text"`
-	QuestionSnapshot string         `gorm:"type:text;not null"`
+	QuestionSnapshot *string        `gorm:"type:text"`
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	DeletedAt        gorm.DeletedAt `gorm:"index"`

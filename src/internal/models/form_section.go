@@ -8,10 +8,10 @@ import (
 
 // FormSection representa la tabla salvia.form_section.
 type FormSection struct {
-	ID         string         `gorm:"type:varchar(36);primaryKey;default:gen_random_uuid()"`
-	FormID     string         `gorm:"type:varchar(36);not null;index"`
+	ID         string         `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	FormID     string         `gorm:"type:uuid;not null;index"`
 	Name       string         `gorm:"type:varchar(255);not null"`
-	OrderIndex int            `gorm:"default:0"`
+	OrderIndex int            `gorm:"column:order;default:0"`
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 	DeletedAt  gorm.DeletedAt `gorm:"index"`

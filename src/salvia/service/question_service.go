@@ -14,6 +14,7 @@ var ErrQuestionNotFound = errors.New("question: registro no encontrado")
 type QuestionService interface {
 	GetByID(ctx context.Context, id string) (*models.Question, error)
 	List(ctx context.Context, page, limit int) (repository.PageResult[models.Question], error)
+	ListByFormID(ctx context.Context, formID string) ([]models.Question, error)
 	Create(ctx context.Context, q *models.Question) error
 	Update(ctx context.Context, q *models.Question) error
 	Delete(ctx context.Context, id string) error
@@ -40,6 +41,10 @@ func (s *questionService) GetByID(ctx context.Context, id string) (*models.Quest
 
 func (s *questionService) List(ctx context.Context, page, limit int) (repository.PageResult[models.Question], error) {
 	return s.repo.FindWithPagination(ctx, page, limit)
+}
+
+func (s *questionService) ListByFormID(ctx context.Context, formID string) ([]models.Question, error) {
+	return s.repo.FindByFormID(ctx, formID)
 }
 
 func (s *questionService) Create(ctx context.Context, q *models.Question) error {

@@ -14,6 +14,7 @@ var ErrFormSectionNotFound = errors.New("form_section: registro no encontrado")
 type FormSectionService interface {
 	GetByID(ctx context.Context, id string) (*models.FormSection, error)
 	List(ctx context.Context, page, limit int) (repository.PageResult[models.FormSection], error)
+	ListByFormID(ctx context.Context, formID string) ([]models.FormSection, error)
 	Create(ctx context.Context, s *models.FormSection) error
 	Update(ctx context.Context, s *models.FormSection) error
 	Delete(ctx context.Context, id string) error
@@ -40,6 +41,10 @@ func (s *formSectionService) GetByID(ctx context.Context, id string) (*models.Fo
 
 func (s *formSectionService) List(ctx context.Context, page, limit int) (repository.PageResult[models.FormSection], error) {
 	return s.repo.FindWithPagination(ctx, page, limit)
+}
+
+func (s *formSectionService) ListByFormID(ctx context.Context, formID string) ([]models.FormSection, error) {
+	return s.repo.FindByFormID(ctx, formID)
 }
 
 func (s *formSectionService) Create(ctx context.Context, fs *models.FormSection) error {

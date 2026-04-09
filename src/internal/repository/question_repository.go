@@ -27,10 +27,10 @@ func NewQuestionRepository(db *gorm.DB) QuestionRepository {
 
 func (r *questionRepository) FindByFormID(ctx context.Context, formID string) ([]models.Question, error) {
 	var items []models.Question
-	return items, r.db.WithContext(ctx).Where("form_id = ?", formID).Order("order_index ASC").Find(&items).Error
+	return items, r.db.WithContext(ctx).Where("form_id = ?", formID).Order(`"order" ASC`).Find(&items).Error
 }
 
 func (r *questionRepository) FindBySectionID(ctx context.Context, sectionID string) ([]models.Question, error) {
 	var items []models.Question
-	return items, r.db.WithContext(ctx).Where("form_section_id = ?", sectionID).Order("order_index ASC").Find(&items).Error
+	return items, r.db.WithContext(ctx).Where("form_section_id = ?", sectionID).Order(`"order" ASC`).Find(&items).Error
 }

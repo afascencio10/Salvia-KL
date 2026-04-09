@@ -26,5 +26,5 @@ func NewFormSectionRepository(db *gorm.DB) FormSectionRepository {
 
 func (r *formSectionRepository) FindByFormID(ctx context.Context, formID string) ([]models.FormSection, error) {
 	var items []models.FormSection
-	return items, r.db.WithContext(ctx).Where("form_id = ?", formID).Order("order_index ASC").Find(&items).Error
+	return items, r.db.WithContext(ctx).Where("form_id = ?", formID).Order(`"order" ASC`).Find(&items).Error
 }

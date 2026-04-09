@@ -3,101 +3,86 @@ package controller
 import (
 	"bitsflow/internal/models"
 	"bitsflow/salvia/service"
-	"encoding/json"
 	"errors"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
-type FormSectionController struct {
-	svc service.FormSectionService
-}
+// ─── FormSection ──────────────────────────────────────────────────────────────
+// GET    /api/v1/forms/:id/sections
+// POST   /api/v1/forms/:id/sections
+// GET    /api/v1/form-sections/:id
+// PUT    /api/v1/form-sections/:id
+// DELETE /api/v1/form-sections/:id
+
+type FormSectionController struct{ svc service.FormSectionService }
 
 func NewFormSectionController(svc service.FormSectionService) *FormSectionController {
 	return &FormSectionController{svc: svc}
 }
 
-func (c *FormSectionController) GetByIDHandler(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
-	if id == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "parámetro 'id' requerido"})
-		return
-	}
-	fs, err := c.svc.GetByID(r.Context(), id)
+func (c *FormSectionController) RegisterRoutes(rg *gin.RouterGroup) {
+	rg.GET("/forms/:id/sections", c.ListByForm)
+	rg.POST("/forms/:id/sections", c.Create)
+	g := rg.Group("/form-sections")
+	g.GET("/:id", c.GetByID)
+	g.PUT("/:id", c.Update)
+	g.DELETE("/:id", c.Delete)
+}
+
+func (c *FormSectionController) ListByForm(ctx *gin.Context) {
+	items, err := c.svc.ListByFormID(ctx.Request.Context(), ctx.Param("id"))
+	if err != nil { ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"}); return }
+	ctx.JSON(http.StatusOK, items)
+}
+
+func (c *FormSectionController) GetByID(ctx *gin.Context) {
+	item, err := c.svc.GetByID(ctx.Request.Context(), ctx.Param("id"))
 	if err != nil {
-		if errors.Is(err, service.ErrFormSectionNotFound) {
-			writeJSON(w, http.StatusNotFound, map[string]string{"error": "sección no encontrada"})
-			return
-		}
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "error interno"})
-		return
+		if errors.Is(err, service.ErrFormSectionNotFound) { ctx.JSON(http.StatusNotFound, gin.H{"error": "sección no encontrada"}); return }
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"}); return
 	}
-	writeJSON(w, http.StatusOK, fs)
+	ctx.JSON(http.StatusOK, item)
 }
 
-func (c *FormSectionController) ListHandler(w http.ResponseWriter, r *http.Request) {
-	page := queryInt(r, "page", 0)
-	limit := queryInt(r, "limit", 20)
-	result, err := c.svc.List(r.Context(), page, limit)
+func (c *FormSectionController) Create(ctx *gin.Context) {
+	var body struct {
+		Name       string `json:"name"       binding:"required"`
+		OrderIndex int    `json:"orderIndex"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil { ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return }
+	fs := &models.FormSection{FormID: ctx.Param("id"), Name: body.Name, OrderIndex: body.OrderIndex}
+	if err := c.svc.Create(ctx.Request.Context(), fs); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"}); return
+	}
+	ctx.JSON(http.StatusCreated, fs)
+}
+
+func (c *FormSectionController) Update(ctx *gin.Context) {
+	fs, err := c.svc.GetByID(ctx.Request.Context(), ctx.Param("id"))
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "error interno"})
-		return
+		if errors.Is(err, service.ErrFormSectionNotFound) { ctx.JSON(http.StatusNotFound, gin.H{"error": "sección no encontrada"}); return }
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"}); return
 	}
-	writeJSON(w, http.StatusOK, result)
+	var body struct {
+		Name       *string `json:"name"`
+		OrderIndex *int    `json:"orderIndex"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil { ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return }
+	if body.Name != nil       { fs.Name = *body.Name }
+	if body.OrderIndex != nil { fs.OrderIndex = *body.OrderIndex }
+	if err := c.svc.Update(ctx.Request.Context(), fs); err != nil {
+		if errors.Is(err, service.ErrFormSectionNotFound) { ctx.JSON(http.StatusNotFound, gin.H{"error": "sección no encontrada"}); return }
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"}); return
+	}
+	ctx.JSON(http.StatusOK, fs)
 }
 
-func (c *FormSectionController) CreateHandler(w http.ResponseWriter, r *http.Request) {
-	var fs models.FormSection
-	if err := json.NewDecoder(r.Body).Decode(&fs); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "body inválido"})
-		return
+func (c *FormSectionController) Delete(ctx *gin.Context) {
+	if err := c.svc.Delete(ctx.Request.Context(), ctx.Param("id")); err != nil {
+		if errors.Is(err, service.ErrFormSectionNotFound) { ctx.JSON(http.StatusNotFound, gin.H{"error": "sección no encontrada"}); return }
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"}); return
 	}
-	if fs.Name == "" || fs.FormID == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "campos 'name' y 'form_id' requeridos"})
-		return
-	}
-	if err := c.svc.Create(r.Context(), &fs); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "error interno"})
-		return
-	}
-	writeJSON(w, http.StatusCreated, fs)
-}
-
-func (c *FormSectionController) UpdateHandler(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
-	if id == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "parámetro 'id' requerido"})
-		return
-	}
-	var fs models.FormSection
-	if err := json.NewDecoder(r.Body).Decode(&fs); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "body inválido"})
-		return
-	}
-	fs.ID = id
-	if err := c.svc.Update(r.Context(), &fs); err != nil {
-		if errors.Is(err, service.ErrFormSectionNotFound) {
-			writeJSON(w, http.StatusNotFound, map[string]string{"error": "sección no encontrada"})
-			return
-		}
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "error interno"})
-		return
-	}
-	writeJSON(w, http.StatusOK, fs)
-}
-
-func (c *FormSectionController) DeleteHandler(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
-	if id == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "parámetro 'id' requerido"})
-		return
-	}
-	if err := c.svc.Delete(r.Context(), id); err != nil {
-		if errors.Is(err, service.ErrFormSectionNotFound) {
-			writeJSON(w, http.StatusNotFound, map[string]string{"error": "sección no encontrada"})
-			return
-		}
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "error interno"})
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	ctx.JSON(http.StatusNoContent, nil)
 }

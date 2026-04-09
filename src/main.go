@@ -63,6 +63,8 @@ func main() {
 
 	// Repositories
 	formRepo               := repository.NewFormRepository(gormDB)
+	formSectionRepo        := repository.NewFormSectionRepository(gormDB)
+	questionRepo           := repository.NewQuestionRepository(gormDB)
 	repeaterGroupRepo      := repository.NewRepeaterGroupRepository(gormDB)
 	visibilityCondRepo     := repository.NewVisibilityConditionRepository(gormDB)
 	formSubmissionRepo     := repository.NewFormSubmissionRepository(gormDB)
@@ -72,6 +74,8 @@ func main() {
 
 	// Services
 	formSvc               := service.NewFormService(formRepo)
+	formSectionSvc        := service.NewFormSectionService(formSectionRepo)
+	questionSvc           := service.NewQuestionService(questionRepo)
 	repeaterGroupSvc      := service.NewRepeaterGroupService(repeaterGroupRepo)
 	visibilityCondSvc     := service.NewVisibilityConditionService(visibilityCondRepo)
 	formSubmissionSvc     := service.NewFormSubmissionService(formSubmissionRepo)
@@ -84,6 +88,8 @@ func main() {
 
 	// Controllers
 	formCtrl               := salvia_ctrl.NewFormController(formSvc)
+	formSectionCtrl        := salvia_ctrl.NewFormSectionController(formSectionSvc)
+	questionCtrl           := salvia_ctrl.NewQuestionController(questionSvc)
 	repeaterGroupCtrl      := salvia_ctrl.NewRepeaterGroupController(repeaterGroupSvc)
 	visibilityCondCtrl     := salvia_ctrl.NewVisibilityConditionController(visibilityCondSvc)
 	formSubmissionCtrl     := salvia_ctrl.NewFormSubmissionController(formSubmissionSvc)
@@ -94,9 +100,11 @@ func main() {
 	// Routes
 	api := router.Group("/api/v1")
 	formCtrl.RegisterRoutes(api)
+	formSubmissionCtrl.RegisterRoutes(api)
+	formSectionCtrl.RegisterRoutes(api)
+	questionCtrl.RegisterRoutes(api)
 	repeaterGroupCtrl.RegisterRoutes(api)
 	visibilityCondCtrl.RegisterRoutes(api)
-	formSubmissionCtrl.RegisterRoutes(api)
 	repeaterEntryCtrl.RegisterRoutes(api)
 	answerCtrl.RegisterRoutes(api)
 	followUpV2Ctrl.RegisterRoutes(api)
