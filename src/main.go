@@ -3,9 +3,15 @@ package main
 import (
 	common_routers "bitsflow/common/facades"
 	"bitsflow/common/utils"
+	internaldb "bitsflow/internal/db"
+	"bitsflow/internal/models"
+	"bitsflow/internal/repository"
+	salvia_ctrl "bitsflow/salvia/controller"
 	salvia_facades "bitsflow/salvia/facades"
+	"bitsflow/salvia/service"
 	security_routers "bitsflow/security/facades"
 	"embed"
+	"log"
 
 	"github.com/gin-gonic/gin"
 )
@@ -28,6 +34,69 @@ func main() {
 	var router *gin.Engine = common_routers.InitRouter()
 	salvia_facades.StartRouter(router)
 	security_routers.StartRouter(router)
+
+	// ── Nuevo patrón: GORM + Repository + Service + Controller ──────────────
+	gormDB, err := internaldb.NewGormDB(utils.LoadDBCLientConfig())
+	if err != nil {
+		log.Fatalf("Error conectando GORM: %v", err)
+	}
+	// AutoMigrate por tabla — warning en lugar de fatal para tablas ya existentes
+	for _, m := range []interface{}{
+		&models.Form{},
+		&models.FormSection{},
+		&models.RepeaterGroup{},
+		&models.Question{},
+		&models.VisibilityCondition{},
+		&models.FormSubmission{},
+		&models.RepeaterEntry{},
+		&models.Answer{},
+	} {
+		if err := gormDB.AutoMigrate(m); err != nil {
+			log.Printf("[WARN] AutoMigrate %T: %v", m, err)
+		}
+	}
+
+	// Repositories
+	formRepo               := repository.NewFormRepository(gormDB)
+	formSectionRepo        := repository.NewFormSectionRepository(gormDB)
+	repeaterGroupRepo      := repository.NewRepeaterGroupRepository(gormDB)
+	questionRepo           := repository.NewQuestionRepository(gormDB)
+	visibilityCondRepo     := repository.NewVisibilityConditionRepository(gormDB)
+	formSubmissionRepo     := repository.NewFormSubmissionRepository(gormDB)
+	repeaterEntryRepo      := repository.NewRepeaterEntryRepository(gormDB)
+	answerRepo             := repository.NewAnswerRepository(gormDB)
+
+	// Services
+	formSvc               := service.NewFormService(formRepo)
+	formSectionSvc        := service.NewFormSectionService(formSectionRepo)
+	repeaterGroupSvc      := service.NewRepeaterGroupService(repeaterGroupRepo)
+	questionSvc           := service.NewQuestionService(questionRepo)
+	visibilityCondSvc     := service.NewVisibilityConditionService(visibilityCondRepo)
+	formSubmissionSvc     := service.NewFormSubmissionService(formSubmissionRepo)
+	repeaterEntrySvc      := service.NewRepeaterEntryService(repeaterEntryRepo)
+	answerSvc             := service.NewAnswerService(answerRepo)
+
+	// Controllers
+	formCtrl               := salvia_ctrl.NewFormController(formSvc)
+	formSectionCtrl        := salvia_ctrl.NewFormSectionController(formSectionSvc)
+	repeaterGroupCtrl      := salvia_ctrl.NewRepeaterGroupController(repeaterGroupSvc)
+	questionCtrl           := salvia_ctrl.NewQuestionController(questionSvc)
+	visibilityCondCtrl     := salvia_ctrl.NewVisibilityConditionController(visibilityCondSvc)
+	formSubmissionCtrl     := salvia_ctrl.NewFormSubmissionController(formSubmissionSvc)
+	repeaterEntryCtrl      := salvia_ctrl.NewRepeaterEntryController(repeaterEntrySvc)
+	answerCtrl             := salvia_ctrl.NewAnswerController(answerSvc)
+
+	// Routes
+	api := router.Group("/api/v1")
+	formCtrl.RegisterRoutes(api)
+	formSectionCtrl.RegisterRoutes(api)
+	repeaterGroupCtrl.RegisterRoutes(api)
+	questionCtrl.RegisterRoutes(api)
+	visibilityCondCtrl.RegisterRoutes(api)
+	formSubmissionCtrl.RegisterRoutes(api)
+	repeaterEntryCtrl.RegisterRoutes(api)
+	answerCtrl.RegisterRoutes(api)
+	// ────────────────────────────────────────────────────────────────────────
 
 	common_routers.StartRouter()
 }

@@ -21,6 +21,7 @@ type PageResult[T any] struct {
 type Repository[T any] interface {
 	Create(ctx context.Context, entity *T) error
 	Update(ctx context.Context, entity *T) error
+	UpdateFields(ctx context.Context, id string, fields map[string]interface{}) error
 	Delete(ctx context.Context, id string) error
 	FindByID(ctx context.Context, id string) (*T, error)
 	FindWithPagination(ctx context.Context, page, pageSize int) (PageResult[T], error)
@@ -49,6 +50,27 @@ func (r *repository[T]) Create(ctx context.Context, entity *T) error {
 // Update guarda todos los campos de entity (debe tener PK asignada).
 func (r *repository[T]) Update(ctx context.Context, entity *T) error {
 	return r.db.WithContext(ctx).Save(entity).Error
+}
+
+// UpdateFields actualiza únicamente los campos especificados en el mapa.
+// Usa Updates con map para evitar problemas con zero-values y generar
+// un UPDATE granular: UPDATE ... SET campo1=v1, campo2=v2 WHERE id=?
+// Retorna gorm.ErrRecordNotFound si el registro no existe.
+func (r *repository[T]) UpdateFields(ctx context.Context, id string, fields map[string]interface{}) error {
+	if len(fields) == 0 {
+		return nil
+	}
+	result := r.db.WithContext(ctx).
+		Model(new(T)).
+		Where("id = ?", id).
+		Updates(fields)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // Delete realiza un soft-delete del registro con el id dado.
