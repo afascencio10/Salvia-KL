@@ -50,6 +50,7 @@ func main() {
 		&models.FormSubmission{},
 		&models.RepeaterEntry{},
 		&models.Answer{},
+		&models.FollowUpV2{},
 	} {
 		if err := gormDB.AutoMigrate(m); err != nil {
 			log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -65,6 +66,7 @@ func main() {
 	formSubmissionRepo     := repository.NewFormSubmissionRepository(gormDB)
 	repeaterEntryRepo      := repository.NewRepeaterEntryRepository(gormDB)
 	answerRepo             := repository.NewAnswerRepository(gormDB)
+	followUpRepo           := repository.NewFollowUpRepository(gormDB)
 
 	// Services
 	formSvc               := service.NewFormService(formRepo)
@@ -75,6 +77,7 @@ func main() {
 	formSubmissionSvc     := service.NewFormSubmissionService(formSubmissionRepo)
 	repeaterEntrySvc      := service.NewRepeaterEntryService(repeaterEntryRepo)
 	answerSvc             := service.NewAnswerService(answerRepo)
+	followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo)
 
 	// Controllers
 	formCtrl               := salvia_ctrl.NewFormController(formSvc)
@@ -85,6 +88,7 @@ func main() {
 	formSubmissionCtrl     := salvia_ctrl.NewFormSubmissionController(formSubmissionSvc)
 	repeaterEntryCtrl      := salvia_ctrl.NewRepeaterEntryController(repeaterEntrySvc)
 	answerCtrl             := salvia_ctrl.NewAnswerController(answerSvc)
+	followUpV2Ctrl         := salvia_ctrl.NewFollowUpV2Controller(followUpV2Svc)
 
 	// Routes
 	api := router.Group("/api/v1")
@@ -96,6 +100,7 @@ func main() {
 	formSubmissionCtrl.RegisterRoutes(api)
 	repeaterEntryCtrl.RegisterRoutes(api)
 	answerCtrl.RegisterRoutes(api)
+	followUpV2Ctrl.RegisterRoutes(api)
 	// ────────────────────────────────────────────────────────────────────────
 
 	common_routers.StartRouter()
