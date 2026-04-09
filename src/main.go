@@ -3,6 +3,7 @@ package main
 import (
 	common_routers "bitsflow/common/facades"
 	"bitsflow/common/utils"
+	_ "bitsflow/docs" // Swagger docs generados por swag init
 	internaldb "bitsflow/internal/db"
 	"bitsflow/internal/models"
 	"bitsflow/internal/repository"
@@ -14,6 +15,8 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 //go:embed config/*
@@ -101,6 +104,9 @@ func main() {
 	repeaterEntryCtrl.RegisterRoutes(api)
 	answerCtrl.RegisterRoutes(api)
 	followUpV2Ctrl.RegisterRoutes(api)
+
+	// Swagger UI — accesible en https://localhost/swagger/index.html
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	// ────────────────────────────────────────────────────────────────────────
 
 	common_routers.StartRouter()
