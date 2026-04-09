@@ -8,6 +8,7 @@ import (
 	"bitsflow/internal/models"
 	"bitsflow/internal/repository"
 	salvia_ctrl "bitsflow/salvia/controller"
+	salvia_legacy "bitsflow/salvia/controllers"
 	salvia_facades "bitsflow/salvia/facades"
 	"bitsflow/salvia/service"
 	security_routers "bitsflow/security/facades"
@@ -81,6 +82,9 @@ func main() {
 	repeaterEntrySvc      := service.NewRepeaterEntryService(repeaterEntryRepo)
 	answerSvc             := service.NewAnswerService(answerRepo)
 	followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo)
+
+	// Inyectar el servicio en el controller legacy para generación automática del calendario
+	salvia_legacy.FollowUpSvc = followUpV2Svc
 
 	// Controllers
 	formCtrl               := salvia_ctrl.NewFormController(formSvc)
