@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"gorm.io/gorm"
@@ -58,17 +59,37 @@ type FollowUpV2Service interface {
 	// Nuevos HU-027
 	GetByCaseID(ctx context.Context, caseID string) ([]models.FollowUpV2, error)
 	GenerateOrRecalculate(ctx context.Context, caseID string, input GenerateCalendarInput) ([]models.FollowUpV2, error)
+	GetFollowUpDetail(ctx context.Context, id string, isSupervisor bool) (*models.FollowUpDetailResponse, error)
 }
 
 // ── Implementación ────────────────────────────────────────────────────────────
 
 type followUpV2Service struct {
-	repo repository.FollowUpRepository
+	repo        repository.FollowUpRepository
+	barrierRepo repository.BarrierV2Repository
+	caseRepo    repository.VictimCaseLightRepository
+	emRepo      repository.EmergencyMeasureRepository
+	psRepo      repository.PsychosocialSupportRepository
+	esRepo      repository.EconomicStabilizationRepository
 }
 
-// NewFollowUpV2Service construye el servicio inyectando el repositorio.
-func NewFollowUpV2Service(repo repository.FollowUpRepository) FollowUpV2Service {
-	return &followUpV2Service{repo: repo}
+// NewFollowUpV2Service construye el servicio inyectando los repositorios.
+func NewFollowUpV2Service(
+	repo repository.FollowUpRepository,
+	barrierRepo repository.BarrierV2Repository,
+	caseRepo repository.VictimCaseLightRepository,
+	emRepo repository.EmergencyMeasureRepository,
+	psRepo repository.PsychosocialSupportRepository,
+	esRepo repository.EconomicStabilizationRepository,
+) FollowUpV2Service {
+	return &followUpV2Service{
+		repo:        repo,
+		barrierRepo: barrierRepo,
+		caseRepo:    caseRepo,
+		emRepo:      emRepo,
+		psRepo:      psRepo,
+		esRepo:      esRepo,
+	}
 }
 
 // GetFollowUpByID busca un FollowUpV2 por su ID.
@@ -174,6 +195,58 @@ func (s *followUpV2Service) GenerateOrRecalculate(ctx context.Context, caseID st
 	}
 
 	return newFollowUps, nil
+}
+
+// GetFollowUpDetail ensambla el modelo de detalle de seguimiento (CSR para carga de pantalla)
+func (s *followUpV2Service) GetFollowUpDetail(ctx context.Context, id string, isSupervisor bool) (*models.FollowUpDetailResponse, error) {
+	// 1. Obtener los datos base del Seguimiento
+	fu, err := s.GetFollowUpByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Obtener información del Caso
+	vcase, err := s.caseRepo.FindByID(ctx, fu.CaseID)
+	if err != nil {
+		return nil, fmt.Errorf("error al obtener el caso: %v", err)
+	}
+
+	// 3. Consultar Barreras activas
+	barriers, err := s.barrierRepo.FindByFollowUpID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("error al obtener las barreras: %v", err)
+	}
+
+	// 4. Consultar Remisiones (EmergencyMeasure, PsychosocialSupport, EconomicStabilization)
+	emergencyMeasures, err := s.emRepo.FindByFollowUpID(ctx, id)
+	if err != nil {
+		log.Printf("[WARN] Error al obtener medidas de emergencia: %v", err)
+	}
+
+	psychosocialSupports, err := s.psRepo.FindByFollowUpID(ctx, id)
+	if err != nil {
+		log.Printf("[WARN] Error al obtener apoyos psicosociales: %v", err)
+	}
+
+	economicStabilizations, err := s.esRepo.FindByFollowUpID(ctx, id)
+	if err != nil {
+		log.Printf("[WARN] Error al obtener estabilizaciones económicas: %v", err)
+	}
+
+	// 5. Determinar permisos
+	perms := models.Permissions{
+		CanEdit: isSupervisor,
+	}
+
+	return &models.FollowUpDetailResponse{
+		FollowUp:               *fu,
+		CaseInfo:               *vcase,
+		Barriers:               barriers,
+		Permissions:            perms,
+		EmergencyMeasures:      emergencyMeasures,
+		PsychosocialSupports:   psychosocialSupports,
+		EconomicStabilizations: economicStabilizations,
+	}, nil
 }
 
 // ── helpers privados ──────────────────────────────────────────────────────────

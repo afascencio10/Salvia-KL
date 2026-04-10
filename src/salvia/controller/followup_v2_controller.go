@@ -34,6 +34,8 @@ func (c *FollowUpV2Controller) RegisterRoutes(api *gin.RouterGroup) {
 		followUps.GET("/by-id", c.GetByID)
 		followUps.GET("/list", c.List)
 	}
+	
+	api.GET("/cases/follow-ups/detail", c.GetDetail)
 }
 
 // GetCalendar godoc
@@ -143,6 +145,39 @@ func (c *FollowUpV2Controller) List(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, result)
+}
+
+// GetDetail godoc
+//
+//	@Summary		Obtener el detalle estructurado de un seguimiento
+//	@Tags			Seguimientos
+//	@Produce		json
+//	@Param			victim_case_id	path		string				true	"ID del caso"
+//	@Param			id				query		string				true	"UUID del seguimiento"
+//	@Success		200				{object}	models.FollowUpDetailResponse	"Detalle del seguimiento"
+//	@Failure		400				{object}	map[string]string	"Parámetro id faltante"
+//	@Failure		404				{object}	map[string]string	"No encontrado"
+//	@Router			/cases/{victim_case_id}/follow-ups/detail [get]
+func (c *FollowUpV2Controller) GetDetail(ctx *gin.Context) {
+	id := ctx.Query("id")
+	if id == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "parámetro 'id' requerido"})
+		return
+	}
+
+	// Por ahora asignamos isSupervisor = true. En el futuro, integrar middleware de roles (ej. GetCommonSession)
+	isSupervisor := true
+
+	detail, err := c.svc.GetFollowUpDetail(ctx.Request.Context(), id, isSupervisor)
+	if err != nil {
+		if errors.Is(err, service.ErrFollowUpNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "seguimiento no encontrado"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno al cargar detalle"})
+		return
+	}
+	ctx.JSON(http.StatusOK, detail)
 }
 
 // ginQueryInt está definido en form_controller.go (mismo package controller).

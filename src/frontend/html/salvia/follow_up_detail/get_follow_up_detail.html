@@ -1,0 +1,456 @@
+
+<div class="container-detalle">
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-detalle">
+        <button @click="goBack"><i class="fas fa-arrow-left"></i> ${ victimCase.name }</button>
+        <span>/</span>
+        <span style="color: #374151; font-weight: 500;">Seguimiento #${ followUp.id }</span>
+    </div>
+
+    <!-- Header Header Card -->
+    <div class="header-card">
+        <div class="status-icon ejecutado"><i class="fas fa-check"></i></div>
+        <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+                <h2 style="font-size: 1.125rem; font-weight: 700; color: #111827; margin: 0;">Seguimiento #${ followUp.id }</h2>
+                <span class="badge-status ejecutado">Ejecutado</span>
+            </div>
+            <p style="font-size: 0.875rem; color: var(--gray-text-muted); margin: 0;">
+                <i class="fas fa-calendar-alt"></i> ${ followUp.date || '-' } &nbsp;·&nbsp; <i class="fas fa-clock"></i> ${ followUp.time || '-' } &nbsp;·&nbsp; <i class="fas fa-user-circle"></i> ${ followUp.agent || '-' }
+            </p>
+        </div>
+        <div class="case-card-info">
+            <p style="font-size: 0.75rem; color: #9CA3AF; margin-bottom: 0.125rem;">Caso</p>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <span style="font-size: 0.875rem; font-weight: 600; color: #374151;">${ victimCase.name }</span>
+                <span :class="['badge-status', victimCase.riskLevel.toLowerCase()]" 
+                      :style="getRiskStyle(victimCase.riskLevel)">${ victimCase.riskLevel }</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs Layout -->
+    <div class="tabs-container">
+        <div class="tabs-header">
+            <button v-for="tab in TABS" :key="tab.id"
+                @click="activeTab = tab.id"
+                :class="['tab-btn', { active: activeTab === tab.id }]">
+                <i :class="tab.icono"></i>
+                ${ tab.label }
+            </button>
+        </div>
+
+        <div class="tab-content-inner">
+            <!-- TAB RESUMEN -->
+            <div v-if="activeTab === 'resumen'" class="space-y-6">
+                
+                <!-- Información General -->
+                <section>
+                    <h3 class="section-title">Información General</h3>
+                    <div class="info-grid">
+                        <div>
+                            <p class="info-label">Fecha de realización</p>
+                            <p class="info-value">${ followUp.date } ${ followUp.time }</p>
+                        </div>
+                        <div>
+                            <p class="info-label">Agente</p>
+                            <p class="info-value">${ followUp.agent || '-' }</p>
+                        </div>
+                        <div>
+                            <p class="info-label">Duración</p>
+                            <p class="info-value">${ followUp.values.duracion || '-' }</p>
+                        </div>
+                        <div>
+                            <p class="info-label">¿Se contactó a la víctima?</p>
+                            <p class="info-value">${ followUp.values.contacto_exitoso || '-' }</p>
+                        </div>
+                        <div>
+                            <p class="info-label">Medio de contacto</p>
+                            <p class="info-value">${ followUp.values.medio_contacto || '-' }</p>
+                        </div>
+                        <div>
+                            <p class="info-label">Estado de la víctima</p>
+                            <p class="info-value">${ followUp.values.estado_victima || '-' }</p>
+                        </div>
+                        <div style="grid-column: span 3;">
+                            <p class="info-label">Observaciones</p>
+                            <p class="info-value" style="font-weight: 400; line-height: 1.5;">${ followUp.values.gestion_realizada || '-' }</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Nivel de Riesgo -->
+                <section>
+                    <h3 class="section-title">Nivel de Riesgo</h3>
+                    <div style="background-color: #F9FAFB; border: 1px solid #F3F4F6; border-radius: 0.75rem; padding: 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <p class="info-label" style="margin-bottom: 0.5rem;">Antes del seguimiento</p>
+                            <span :class="['badge-status', originalRiskLevel.toLowerCase()]" 
+                                  :style="getRiskStyle(originalRiskLevel)">${ originalRiskLevel }</span>
+                        </div>
+                        <div style="text-align: right;">
+                            <p class="info-label" style="margin-bottom: 0.5rem;">Resultado</p>
+                            <p v-if="!followUp.values.variacion_riesgo" style="font-size: 0.875rem; color: #9CA3AF; font-weight: 500; margin: 0;">Sin cambios</p>
+                            <span v-else class="badge-status alto" :style="getRiskStyle('Alto')">Alto</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Plan de Orientación y Atención -->
+                <section>
+                    <h3 class="section-title">Plan de Orientación y Atención</h3>
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <!-- Barreras -->
+                        <div v-if="activeBarriers && activeBarriers.length > 0" style="background-color: var(--orange-bg); border: 1px solid #FDE68A; border-radius: 0.75rem; overflow: hidden;">
+                            <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #FDE68A; display: flex; align-items: center; justify-content: space-between;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <span style="font-size: 0.875rem; font-weight: 700; color: #92400E;">Barreras identificadas</span>
+                                    <!-- Tooltip pedagógico (Burbujita) -->
+                                    <span title="Las barreras son todas las acciones u omisiones de actores institucionales que obstaculizan el acceso a la ruta." style="cursor: help; color: #B45309; font-size: 0.875rem;">
+                                        <i class="fas fa-info-circle"></i>
+                                    </span>
+                                </div>
+                                <span style="font-size: 0.75rem; font-weight: 700; color: #F59E0B;">${ activeBarriers.length }</span>
+                            </div>
+                            <div v-for="barrera in activeBarriers" :key="barrera.id" style="padding: 1rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #FDE68A;">
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    <span style="font-size: 0.75rem; font-weight: 700; color: #92400E; background: white; border: 1px solid #FDE68A; padding: 0.125rem 0.5rem; border-radius: 0.375rem;">${ barrera.sector }</span>
+                                    <p style="font-size: 0.875rem; color: #92400E; margin: 0;">${ barrera.description }</p>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 0.375rem;" title="Gestión interna de notificación y oficios para superar la barrera">
+                                    <i class="fas fa-file-signature" style="font-size: 0.75rem; color: #D97706;"></i>
+                                    <span style="font-size: 0.75rem; color: #D97706; font-weight: 700;">Oficio radicado</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else style="padding: 1rem; background-color: white; border: 1px solid #E5E7EB; border-radius: 0.75rem;">
+                            <p style="font-size: 0.875rem; color: #6B7280; margin: 0;">No se identificaron barreras institucionales en este seguimiento.</p>
+                        </div>
+
+                        <!-- Remisiones -->
+                        <div v-if="(emergencyMeasures && emergencyMeasures.length > 0) || (psychosocialSupports && psychosocialSupports.length > 0) || (economicStabilizations && economicStabilizations.length > 0)" 
+                             style="background-color: #F9FAFB; border: 1px solid #F3F4F6; border-radius: 0.75rem; padding: 1rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                                <i class="fas fa-external-link-alt"></i>
+                                <span style="font-size: 0.875rem; font-weight: 700; color: #374151;">Remisiones a equipos Salvia</span>
+                            </div>
+                            
+                            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                                <!-- Medidas de Emergencia -->
+                                <div v-for="em in emergencyMeasures" :key="em.id" style="display: flex; flex-direction: column; gap: 0.375rem; border-bottom: 1px solid #F3F4F6; padding-bottom: 0.75rem;">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        <span style="background-color: #FEE2E2; color: #B91C1C; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.625rem; border-radius: 9999px; border: 1px solid #EF4444;">
+                                            <i class="fas fa-shield-alt"></i> Medida: ${ em.type }
+                                        </span>
+                                        <span :title="'Autoridad: ' + em.issuingAuthority" style="cursor: help; color: #6B7280; font-size: 0.875rem;">
+                                            <i class="fas fa-info-circle"></i>
+                                        </span>
+                                    </div>
+                                    <p style="font-size: 0.875rem; color: #6B7280; margin: 0; padding-left: 0.25rem;">${ em.notes || 'Sin observaciones adicionales' }</p>
+                                </div>
+
+                                <!-- Apoyo Psicosocial -->
+                                <div v-for="ps in psychosocialSupports" :key="ps.id" style="display: flex; flex-direction: column; gap: 0.375rem; border-bottom: 1px solid #F3F4F6; padding-bottom: 0.75rem;">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        <span style="background-color: var(--violet-light); color: var(--violet-primary); font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.625rem; border-radius: 9999px; border: 1px solid var(--violet-primary);">
+                                            <i class="fas fa-brain"></i> Psicosocial: ${ ps.type }
+                                        </span>
+                                        <span title="Evaluar variables asociadas a los malestares y bienestares de las mujeres víctimas de VBG." style="cursor: help; color: #6B7280; font-size: 0.875rem;">
+                                            <i class="fas fa-info-circle"></i>
+                                        </span>
+                                    </div>
+                                    <p style="font-size: 0.875rem; color: #6B7280; margin: 0; padding-left: 0.25rem;">${ ps.notes || 'Sin observaciones' }</p>
+                                </div>
+
+                                <!-- Estabilización Económica -->
+                                <div v-for="es in economicStabilizations" :key="es.id" style="display: flex; flex-direction: column; gap: 0.375rem;">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        <span style="background-color: #D1FAE5; color: #065F46; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.625rem; border-radius: 9999px; border: 1px solid #10B981;">
+                                            <i class="fas fa-hand-holding-usd"></i> Económica: ${ es.type }
+                                        </span>
+                                        <span :title="'Institución: ' + es.institution" style="cursor: help; color: #6B7280; font-size: 0.875rem;">
+                                            <i class="fas fa-info-circle"></i>
+                                        </span>
+                                    </div>
+                                    <p style="font-size: 0.875rem; color: #6B7280; margin: 0; padding-left: 0.25rem;">${ es.benefit || 'Gestión en proceso' }</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else style="padding: 1rem; background-color: white; border: 1px solid #E5E7EB; border-radius: 0.75rem;">
+                            <p style="font-size: 0.875rem; color: #6B7280; margin: 0;">No se registraron remisiones a equipos Salvia en este seguimiento.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Observaciones finales -->
+                <section>
+                    <h3 class="section-title">Observaciones Finales</h3>
+                    <div style="background-color: #F9FAFB; border: 1px solid #F3F4F6; border-radius: 0.75rem; padding: 1rem;">
+                        <p style="font-size: 0.875rem; color: #374151; margin: 0;">Se remite a psicosocial. Monitorear evolución.</p>
+                    </div>
+                </section>
+            </div>
+
+            <!-- TAB FORMULARIO -->
+            <div v-if="activeTab === 'formulario'" style="display: flex; gap: 1.5rem; align-items: start;">
+                <!-- Sidebar -->
+                <aside class="form-sidebar">
+                    <div style="padding: 0.5rem 0.75rem; border-bottom: 1px solid #F3F4F6; margin-bottom: 0.5rem;">
+                        <p style="font-size: 0.625rem; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.05em;">Secciones</p>
+                    </div>
+                    <nav class="space-y-1">
+                        <button v-for="(sec, idx) in FORM_SECTIONS" :key="sec.id"
+                            @click="activeSection = idx"
+                            :class="['sidebar-btn', { active: activeSection === idx }]">
+                            <div :class="['step-number', activeSection === idx ? 'active' : 'inactive']">${ idx + 1 }</div>
+                            <span style="line-height: 1.2;">${ sec.titulo }</span>
+                        </button>
+                    </nav>
+                </aside>
+
+                <!-- Content -->
+                <div style="flex: 1;">
+                    <div style="background: white; border: 1px solid #E5E7EB; border-radius: 0.75rem; overflow: hidden;">
+                        <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid #F3F4F6; background-color: #F9FAFB; display: flex; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <div style="background-color: var(--violet-primary); color: white; width: 1.5rem; height: 1.5rem; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;">
+                                    ${ activeSection + 1 }
+                                </div>
+                                <h4 style="font-size: 1rem; font-weight: 700; color: #111827; margin: 0;">${ FORM_SECTIONS[activeSection].titulo }</h4>
+                            </div>
+                            <button @click="toggleEdit" 
+                                    :style="isEditing ? 'background-color: var(--violet-primary); color: white; border: none;' : 'border: 1px solid #D1D5DB; background: white; color: #4B5563;'"
+                                    style="font-size: 0.75rem; font-weight: 600; padding: 0.5rem 0.875rem; border-radius: 0.5rem; cursor: pointer; transition: all 0.2s;">
+                                <i class="fas fa-edit"></i> ${ isEditing ? 'Guardando cambios' : 'Editar respuestas' }
+                            </button>
+                        </div>
+
+                        <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.75rem;">
+                            <!-- Renderizado de campos (Simulado para el front-end) -->
+                            <div v-for="campo in FORM_SECTIONS[activeSection].campos" :key="campo.id" 
+                                 style="border-bottom: 1px solid #F9FAFB; padding-bottom: 1rem;">
+                                <p style="font-size: 0.75rem; color: #9CA3AF; margin-bottom: 0.375rem;">${ campo.label }</p>
+                                
+                                <!-- Vista Edición (Inputs simulados) -->
+                                <div v-if="isEditing">
+                                    <input v-if="campo.tipo === 'text' || campo.tipo === 'dropdown' || campo.tipo === 'single'" 
+                                           class="form-control" 
+                                           style="border-radius: 0.5rem; border-color: #E5E7EB; font-size: 0.875rem;"
+                                           :value="followUp.values[campo.id]">
+                                    <div v-else-if="campo.tipo === 'boolean'" class="btn-group">
+                                        <button class="btn btn-outline-secondary btn-sm" :class="{ active: followUp.values[campo.id] === true }">Sí</button>
+                                        <button class="btn btn-outline-secondary btn-sm" :class="{ active: followUp.values[campo.id] === false }">No</button>
+                                    </div>
+                                    <p v-else class="text-muted" style="font-size: 0.875rem;">Selección múltiple / complejo...</p>
+                                </div>
+
+                                <!-- Vista Lectura -->
+                                <div v-else>
+                                    <p v-if="followUp.values[campo.id] !== undefined && followUp.values[campo.id] !== ''" 
+                                       style="font-size: 0.875rem; font-weight: 600; color: #374151; margin: 0;">
+                                       ${ formatValue(followUp.values[campo.id]) }
+                                    </p>
+                                    <p v-else style="font-size: 0.875rem; color: #D1D5DB; margin: 0;">—</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Navegación Formulario -->
+                        <div style="padding: 1rem 1.5rem; border-top: 1px solid #F3F4F6; background-color: #F9FAFB; display: flex; justify-content: space-between;">
+                            <button @click="activeSection = Math.max(0, activeSection - 1)" 
+                                    :disabled="activeSection === 0"
+                                    class="btn btn-outline-secondary btn-sm" style="border-radius: 0.5rem; padding: 0.5rem 1rem;">← Anterior</button>
+                            <button @click="activeSection = Math.min(FORM_SECTIONS.length-1, activeSection + 1)" 
+                                    :disabled="activeSection === FORM_SECTIONS.length - 1"
+                                    class="btn btn-outline-secondary btn-sm" style="border-radius: 0.5rem; padding: 0.5rem 1rem;">Siguiente →</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ template "standard_scripts.html" .}}
+{{ template "overlay.html" .}}
+
+<script>
+    const FORM_SECTIONS = [
+        {
+            id: "inicio_seguimiento",
+            titulo: "Inicio de Seguimiento",
+            campos: [
+                { id: "nivel_riesgo_registro", tipo: "single", label: "¿Nivel de riesgo identificado?" },
+                { id: "equipo_atencion", tipo: "single", label: "Equipo que realiza la atención" },
+                { id: "nombre_profesional", tipo: "dropdown", label: "Nombre del profesional" },
+                { id: "efectividad_llamada", tipo: "single", label: "Efectividad de la llamada" },
+                { id: "numero_seguimiento", tipo: "single", label: "Nº de seguimiento" },
+            ],
+        },
+        {
+            id: "valoracion_riesgo",
+            titulo: "Valoración del Riesgo",
+            campos: [
+                { id: "respondiente", tipo: "single", label: "Respondiente del seguimiento" },
+                { id: "nuevos_hechos_violencia", tipo: "boolean", label: "¿Nuevos hechos de violencia?" },
+                { id: "descripcion_hechos_violencia", tipo: "text", label: "Descripción de nuevos hechos" },
+            ],
+        },
+        {
+            id: "seguimiento_caso",
+            titulo: "Seguimiento de Caso",
+            campos: [
+                { id: "info_psicosocial", tipo: "text", label: "Información psicosocial" },
+                { id: "gestion_realizada", tipo: "text", label: "Gestión realizada" },
+                { id: "variacion_riesgo", tipo: "boolean", label: "¿Variación en el riesgo?" },
+                { id: "descripcion_variacion_riesgo", tipo: "text", label: "Describa la variación" },
+            ],
+        }
+    ];
+
+    const app = Vue.createApp({
+        delimiters: ['${', '}'],
+        data() {
+            return {
+                activeTab: 'resumen',
+                activeSection: 0,
+                isEditing: false,
+                TABS: [
+                    { id: 'resumen', label: 'Resumen', icono: 'fas fa-chart-bar' },
+                    { id: 'formulario', label: 'Formulario', icono: 'fas fa-clipboard-list' },
+                ],
+                FORM_SECTIONS,
+                originalRiskLevel: 'Alto',
+                activeBarriers: [],
+                emergencyMeasures: [],
+                psychosocialSupports: [],
+                economicStabilizations: [],
+                victimCase: {
+                    id: '',
+                    name: '-',
+                    riskLevel: '-',
+                    status: '-'
+                },
+                followUp: {
+                    id: '-',
+                    date: '-',
+                    time: '-',
+                    agent: '-',
+                    values: {
+                        nivel_riesgo_registro: '-',
+                        equipo_atencion: '-',
+                        nombre_profesional: '-',
+                        efectividad_llamada: '-',
+                        numero_seguimiento: '-',
+                        respondiente: '-',
+                        nuevos_hechos_violencia: false,
+                        gestion_realizada: '-',
+                        variacion_riesgo: false,
+                        duracion: '-',
+                        contacto_exitoso: '-',
+                        medio_contacto: '-',
+                        estado_victima: '-'
+                    }
+                }
+            }
+        },
+        mounted() {
+            document.getElementById('app').style.display = 'block';
+            this.loadDetail('{{ .followUpId }}');
+        },
+        methods: {
+            async loadDetail(followUpId) {
+                if (!followUpId) return;
+                try {
+                    // Endpoint CSR que integra todos los datos necesarios
+                    const response = await fetch(`/api/v1/cases/follow-ups/detail?id=${followUpId}`);
+                    if (!response.ok) throw new Error("Error cargando detalle");
+                    const data = await response.json();
+                    
+                    this.victimCase.name = `${data.caseInfo.names} ${data.caseInfo.lastNames}`;
+                    this.victimCase.riskLevel = data.followUp.risk_status || 'Sin Riesgo';
+                    this.victimCase.status = data.caseInfo.status;
+                    this.originalRiskLevel = data.followUp.risk_status || 'Sin Riesgo';
+                    
+                    const dateObj = new Date(data.followUp.scheduled_date);
+                    this.followUp.date = dateObj.toLocaleDateString('es-CO', { 
+                        day: '2-digit', 
+                        month: '2-digit', 
+                        year: 'numeric' 
+                    });
+                    this.followUp.time = dateObj.toLocaleTimeString('es-CO', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                    });
+                    this.followUp.id = data.followUp.sequence_number || 1;
+                    this.followUp.agent = data.followUp.agent_id || '-';
+                    
+                    // Cálculo dinámico de duración
+                    if (data.followUp.scheduled_date && data.followUp.scheduled_time && data.followUp.completed_at) {
+                        const scheduled = new Date(data.followUp.scheduled_date);
+                        const [hours, minutes] = data.followUp.scheduled_time.split(':');
+                        scheduled.setHours(parseInt(hours), parseInt(minutes), 0);
+
+                        const completed = new Date(data.followUp.completed_at);
+                        const diffMs = completed - scheduled;
+                        const diffMins = Math.round(diffMs / 60000);
+                        
+                        if (diffMins > 0) {
+                            if (diffMins >= 60) {
+                                const h = Math.floor(diffMins / 60);
+                                const m = diffMins % 60;
+                                this.followUp.values.duracion = `${h}h ${m}min`;
+                            } else {
+                                this.followUp.values.duracion = `${diffMins} min`;
+                            }
+                        }
+                    }
+
+                    this.activeBarriers = data.barriers || [];
+                    this.emergencyMeasures = data.emergencyMeasures || [];
+                    this.psychosocialSupports = data.psychosocialSupports || [];
+                    this.economicStabilizations = data.economicStabilizations || [];
+                    
+                    // Si el backend envía valores mapeados, los asignamos
+                    if (data.followUpValues) {
+                        this.followUp.values = { ...this.followUp.values, ...data.followUpValues };
+                    }
+                    
+                    this.victimCase.id = data.caseInfo.id;
+                    
+                } catch (error) {
+                    console.error("Error al obtener detalle CSR:", error);
+                }
+            },
+            goBack() {
+                if (this.victimCase.id) {
+                    window.location.href = `/salvia/primer_contacto/${this.victimCase.id}`;
+                } else {
+                    window.history.back();
+                }
+            },
+            toggleEdit() {
+                this.isEditing = !this.isEditing;
+            },
+            formatValue(val) {
+                if (val === true) return 'Sí';
+                if (val === false) return 'No';
+                return val;
+            },
+            getRiskStyle(nivel) {
+                const styles = {
+                    'Extremo': 'background-color: #FEE2E2; color: #B91C1C; border: 1px solid #EF4444;',
+                    'Alto': 'background-color: #FEF3C7; color: #92400E; border: 1px solid #F59E0B;',
+                    'Moderado': 'background-color: #DBEAFE; color: #1E40AF; border: 1px solid #3B82F6;',
+                    'Bajo': 'background-color: #D1FAE5; color: #065F46; border: 1px solid #10B981;',
+                    'Sin Riesgo': 'background-color: #F3F4F6; color: #374151; border: 1px solid #9CA3AF;'
+                };
+                return styles[nivel] || styles['Sin Riesgo'];
+            }
+        }
+    });
+
+    app.mount("#app");
+</script>

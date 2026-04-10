@@ -121,7 +121,7 @@ func FollowUpGET(c *gin.Context) {
 
 	id := c.Param("id")
 
-	common_facades.RenderTemplate(c, salvia_daos.FollowUpEntityName, "salvia", "follow_up/", salvia_config.HTML_Templates, "get_follow_up", utils.GetFullHtmlTemplates(), utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
+	common_facades.RenderTemplate(c, salvia_daos.FollowUpEntityName, "salvia", "follow_up_detail/", salvia_config.HTML_Templates, "get_follow_up_detail", utils.GetFullHtmlTemplates(), utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
 		map[string]interface{}{
 			"windowTitle": "Detalle de Seguimiento",
 			"currentUser": s.Names + " " + s.LastNames,

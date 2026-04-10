@@ -55,6 +55,9 @@ func main() {
 		&models.RepeaterEntry{},
 		&models.Answer{},
 		&models.FollowUpV2{},
+		&models.EmergencyMeasure{},
+		&models.PsychosocialSupport{},
+		&models.EconomicStabilization{},
 	} {
 		if err := gormDB.AutoMigrate(m); err != nil {
 			log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -71,6 +74,11 @@ func main() {
 	repeaterEntryRepo      := repository.NewRepeaterEntryRepository(gormDB)
 	answerRepo             := repository.NewAnswerRepository(gormDB)
 	followUpRepo           := repository.NewFollowUpRepository(gormDB)
+	barrierV2Repo          := repository.NewBarrierV2Repository(gormDB)
+	victimCaseLightRepo    := repository.NewVictimCaseLightRepository(gormDB)
+	emRepo                 := repository.NewEmergencyMeasureRepository(gormDB)
+	psRepo                 := repository.NewPsychosocialSupportRepository(gormDB)
+	esRepo                 := repository.NewEconomicStabilizationRepository(gormDB)
 
 	// Services
 	formSvc               := service.NewFormService(formRepo)
@@ -81,7 +89,7 @@ func main() {
 	formSubmissionSvc     := service.NewFormSubmissionService(formSubmissionRepo)
 	repeaterEntrySvc      := service.NewRepeaterEntryService(repeaterEntryRepo)
 	answerSvc             := service.NewAnswerService(answerRepo)
-	followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo)
+	followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, barrierV2Repo, victimCaseLightRepo, emRepo, psRepo, esRepo)
 
 	// Inyectar el servicio en el controller legacy para generación automática del calendario
 	salvia_legacy.FollowUpSvc = followUpV2Svc
