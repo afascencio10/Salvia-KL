@@ -1,2 +1,5 @@
 # Kiro IDE
 .kiro/
+
+# Sesiones activas del servidor (contienen tokens y datos de usuario)
+src/sessions
