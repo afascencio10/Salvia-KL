@@ -26,6 +26,7 @@ type CommonSession struct {
 	LastNames         string
 	Emails            []string
 	UpdateTime        time.Time
+	Team              string // RIESGO_BAJO | RIESGO_ALTO | "" (para ad y otros)
 }
 
 var commonSessions map[string]*CommonSession = map[string]*CommonSession{}
@@ -140,6 +141,25 @@ func CheckPermission(permissionsMap map[string]map[string]bool, service string, 
 	defer lock.RUnlock()
 	if _, found := permissionsMap[service][role]; !found {
 		c.DataFromReader(401, int64(len("")), gin.MIMEJSON, strings.NewReader(""), nil)
+		return false
+	}
+	return true
+}
+
+// CheckPermissionWithTeam valida el permiso por rol Y verifica que el equipo del usuario
+// coincida con el requerido. Si requiredTeam es "" se omite la validación de equipo.
+func CheckPermissionWithTeam(permissionsMap map[string]map[string]bool, service string, role string, userTeam string, requiredTeam string, c *gin.Context) bool {
+	if role == "ad" {
+		return true
+	}
+	if !CheckPermission(permissionsMap, service, role, c) {
+		return false
+	}
+	if requiredTeam == "" {
+		return true
+	}
+	if userTeam != requiredTeam {
+		c.DataFromReader(403, int64(len(`{"error":"acceso denegado para su equipo"}`)), gin.MIMEJSON, strings.NewReader(`{"error":"acceso denegado para su equipo"}`), nil)
 		return false
 	}
 	return true
