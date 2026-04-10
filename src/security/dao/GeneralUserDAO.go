@@ -43,6 +43,7 @@ var (
 		"GeneralUserStatus":             {Name: "GeneralUserStatus", DBName: "general_user_status", Alias: "", ModelType: "string", MinSize: 1, MaxSize: 2, Required: false},
 		"GeneralUserLanguage":           {Name: "GeneralUserLanguage", DBName: "general_user_language", Alias: "", ModelType: "string", MinSize: 2, MaxSize: 2, Required: false},
 		"GeneralUserGeneralUserProfile": {Name: "GeneralUserGeneralUserProfile", DBName: "general_user_general_user_profile", Alias: "", ModelType: "uint", Required: false},
+		"GeneralUserTeam":               {Name: "GeneralUserTeam", DBName: "general_user_team", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 50, Required: false},
 	}
 )
 
@@ -67,6 +68,7 @@ type GeneralUserDTO struct {
 	GeneralUserResetPasswordICode string    `json:"resetToken"`
 	GeneralUserCaptchaID          string    `json:"captchaID"`
 	GeneralUserCaptchaSolution    string    `json:"captchaSolution"`
+	GeneralUserTeam               string    `json:"team"`
 }
 
 // GeneralUserPgDB es la estructura que representa el modelo de datos de GeneralUser tal
@@ -81,6 +83,7 @@ type GeneralUserPgDB struct {
 	GeneralUserStatus             sql.NullString
 	GeneralUserLanguage           sql.NullString
 	GeneralUserGeneralUserProfile sql.NullInt64
+	GeneralUserTeam              sql.NullString
 	// Campos de formulario que no hacen parte del modelo en la BD
 	GeneralUserPasswordRepeat string           `json:"pass2"`
 	GeneralUserRoles          []sql.NullInt64  `json:"roles"`
@@ -351,7 +354,7 @@ func GetGeneralUser(by common_controllers.By, user *GeneralUserDTO, connData *db
 	}
 
 	// Se definen los campos a consultar para el usuario, el perfil y el municipio.
-	var usrFieldsSlice []string = []string{"GeneralUserId", "GeneralUserICode", "GeneralUserCreationDate", "GeneralUserUpdateDate", "GeneralUserLogin", "GeneralUserPassword", "GeneralUserStatus", "GeneralUserLanguage", "GeneralUserGeneralUserProfile"}
+	var usrFieldsSlice []string = []string{"GeneralUserId", "GeneralUserICode", "GeneralUserCreationDate", "GeneralUserUpdateDate", "GeneralUserLogin", "GeneralUserPassword", "GeneralUserStatus", "GeneralUserLanguage", "GeneralUserGeneralUserProfile", "GeneralUserTeam"}
 	var usrFieldsAliasSlice []string = []string{}
 
 	var profileFieldsSlice []string = []string{"GeneralUserProfileId", "GeneralUserProfileICode", "GeneralUserProfileCreationDate", "GeneralUserProfileUpdateDate",
@@ -394,7 +397,7 @@ func GetGeneralUser(by common_controllers.By, user *GeneralUserDTO, connData *db
 
 	// Se escanean los resultados de la query.
 	persistenceCtrl.Scan(&userPg.GeneralUserId, &userPg.GeneralUserICode, &userPg.GeneralUserCreationDate, &userPg.GeneralUserUpdateDate, &userPg.GeneralUserLogin,
-		&userPg.GeneralUserPassword, &userPg.GeneralUserStatus, &userPg.GeneralUserLanguage, &profile.GeneralUserProfileId,
+		&userPg.GeneralUserPassword, &userPg.GeneralUserStatus, &userPg.GeneralUserLanguage, &profile.GeneralUserProfileId, &userPg.GeneralUserTeam,
 		&profile.GeneralUserProfileId, &profile.GeneralUserProfileICode, &profile.GeneralUserProfileCreationDate, &profile.GeneralUserProfileUpdateDate,
 		&profile.GeneralUserProfileGender, &profile.GeneralUserProfileNick, &profile.GeneralUserProfileDescription, &profile.GeneralUserProfileNames,
 		&profile.GeneralUserProfileLastNames, &profile.GeneralUserProfileDocType, &profile.GeneralUserProfileDocNumber, &profile.GeneralUserProfileTown,
@@ -963,6 +966,10 @@ func (obj *GeneralUserPgDB) ToDTO() GeneralUserDTO {
 
 	if obj.GeneralUserGeneralUserProfile.Valid {
 		dto.GeneralUserGeneralUserProfile = GeneralUserProfileDTO{GeneralUserProfileId: uint64(obj.GeneralUserGeneralUserProfile.Int64)}
+	}
+
+	if obj.GeneralUserTeam.Valid {
+		dto.GeneralUserTeam = obj.GeneralUserTeam.String
 	}
 
 	return dto

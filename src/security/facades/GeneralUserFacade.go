@@ -205,6 +205,7 @@ func GeneralUserLOGIN_POST(c *gin.Context) {
 					EntityBrandICode: usr.GeneralUserGeneralUserProfile.GeneralUserProfileEntityBranchSelected,
 					UserLogin:        usr.GeneralUserLogin,
 					SessionID:        sessionID,
+					Team:             usr.GeneralUserTeam,
 				}
 				// Se almacena la sesión común.
 				utils.AddCommonSession(sessionID, &cs)
