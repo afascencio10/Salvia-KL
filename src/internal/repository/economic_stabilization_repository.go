@@ -8,19 +8,29 @@ import (
 )
 
 type EconomicStabilizationRepository interface {
-	FindByFollowUpID(ctx context.Context, followUpId string) ([]models.EconomicStabilization, error)
+	Repository[models.EconomicStabilization]
+	FindByCaseID(ctx context.Context, caseID string) ([]models.EconomicStabilization, error)
+	FindByFollowUpID(ctx context.Context, followUpID string) ([]models.EconomicStabilization, error)
 }
 
-type economic_stabilizationRepository struct {
+type economicStabilizationRepository struct {
+	repository[models.EconomicStabilization]
 	db *gorm.DB
 }
 
 func NewEconomicStabilizationRepository(db *gorm.DB) EconomicStabilizationRepository {
-	return &economic_stabilizationRepository{db: db}
+	return &economicStabilizationRepository{
+		repository: repository[models.EconomicStabilization]{db: db},
+		db:         db,
+	}
 }
 
-func (r *economic_stabilizationRepository) FindByFollowUpID(ctx context.Context, followUpId string) ([]models.EconomicStabilization, error) {
-	var results []models.EconomicStabilization
-	err := r.db.WithContext(ctx).Where("follow_up_id = ?", followUpId).Find(&results).Error
-	return results, err
+func (r *economicStabilizationRepository) FindByCaseID(ctx context.Context, caseID string) ([]models.EconomicStabilization, error) {
+	var items []models.EconomicStabilization
+	return items, r.db.WithContext(ctx).Where("case_id = ?", caseID).Find(&items).Error
+}
+
+func (r *economicStabilizationRepository) FindByFollowUpID(ctx context.Context, followUpID string) ([]models.EconomicStabilization, error) {
+	var items []models.EconomicStabilization
+	return items, r.db.WithContext(ctx).Where("follow_up_id = ?", followUpID).Find(&items).Error
 }

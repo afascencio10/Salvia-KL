@@ -29,6 +29,31 @@ type FollowUpRepository interface {
 	// Nuevos para "Mis Seguimientos"
 	FindByAgentAndDate(ctx context.Context, agentID string, date time.Time) ([]models.FollowUpV2, error)
 	IncrementAttempt(ctx context.Context, followUpID string) error
+	// Seguimientos Área
+	FindByTeamPaginated(ctx context.Context, team string, filters FollowUpFilters, page, limit int) ([]models.FollowUpV2, int64, error)
+	FindPendingByTeamGroupedByAgent(ctx context.Context, team string, fecha string) ([]AgentWorkload, error)
+	FindAgentsByTeam(ctx context.Context, team string) ([]AgentOption, error)
+	Reschedule(ctx context.Context, id string, fields map[string]interface{}) error
+}
+
+// FollowUpFilters contiene los filtros dinámicos para la consulta paginada.
+type FollowUpFilters struct {
+	Tab         string // "pendientes", "realizados", "vencidos", "todos"
+	FechaInicio string // formato YYYY-MM-DD
+	FechaFin    string // formato YYYY-MM-DD
+	Estado      string
+	AgentID     string
+}
+
+// AgentWorkload agrupa la carga de seguimientos por agente.
+type AgentWorkload struct {
+	AgentID string `json:"agent_id"`
+	Total   int64  `json:"total"`
+}
+
+// AgentOption representa un agente disponible para filtros.
+type AgentOption struct {
+	AgentID string `json:"agent_id"`
 }
 
 type followUpRepository struct {
@@ -145,4 +170,87 @@ func (r *followUpRepository) IncrementAttempt(ctx context.Context, followUpID st
 		Model(&models.FollowUpV2{}).
 		Where("id = ?", followUpID).
 		Update("attempts", gorm.Expr("attempts + 1")).Error
+// ── Seguimientos Área ─────────────────────────────────────────────────────────
+}
+
+// FindByTeamPaginated retorna seguimientos filtrados por team + filtros dinámicos con paginación.
+func (r *followUpRepository) FindByTeamPaginated(ctx context.Context, team string, filters FollowUpFilters, page, limit int) ([]models.FollowUpV2, int64, error) {
+	query := r.db.WithContext(ctx).Where("team = ?", team)
+
+	// Filtros dinámicos
+	switch filters.Tab {
+	case "pendientes":
+		query = query.Where("status = ?", models.FollowUpStatusPendiente)
+	case "realizados":
+		query = query.Where("status = ?", models.FollowUpStatusRealizado)
+	case "vencidos":
+		query = query.Where("status = ?", models.FollowUpStatusVencido)
+	}
+	if filters.Estado != "" && filters.Tab == "" {
+		query = query.Where("status = ?", filters.Estado)
+	}
+	if filters.FechaInicio != "" {
+		query = query.Where("scheduled_date >= ?", filters.FechaInicio)
+	}
+	if filters.FechaFin != "" {
+		query = query.Where("scheduled_date <= ?", filters.FechaFin)
+	}
+	if filters.AgentID != "" {
+		query = query.Where("agent_id = ?", filters.AgentID)
+	}
+
+	var total int64
+	if err := query.Model(&models.FollowUpV2{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var items []models.FollowUpV2
+	offset := page * limit
+	if err := query.Order("scheduled_date ASC").Offset(offset).Limit(limit).Find(&items).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return items, total, nil
+}
+
+// FindPendingByTeamGroupedByAgent retorna la carga de seguimientos pendientes por agente para una fecha.
+func (r *followUpRepository) FindPendingByTeamGroupedByAgent(ctx context.Context, team string, fecha string) ([]AgentWorkload, error) {
+	var results []AgentWorkload
+	query := r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Select("agent_id, COUNT(*) as total").
+		Where("team = ? AND status = ?", team, models.FollowUpStatusPendiente)
+
+	if fecha != "" {
+		query = query.Where("DATE(scheduled_date) = ?", fecha)
+	}
+
+	err := query.Group("agent_id").Order("total DESC").Scan(&results).Error
+	return results, err
+}
+
+// FindAgentsByTeam retorna los agentes distintos que tienen seguimientos en un team.
+func (r *followUpRepository) FindAgentsByTeam(ctx context.Context, team string) ([]AgentOption, error) {
+	var results []AgentOption
+	err := r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Select("DISTINCT agent_id").
+		Where("team = ?", team).
+		Scan(&results).Error
+	return results, err
+}
+
+// Reschedule actualiza los campos de reagendamiento de un seguimiento.
+func (r *followUpRepository) Reschedule(ctx context.Context, id string, fields map[string]interface{}) error {
+	result := r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Where("id = ?", id).
+		Updates(fields)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }

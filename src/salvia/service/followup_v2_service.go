@@ -64,6 +64,26 @@ type FollowUpV2Service interface {
 	// Nuevos para "Mis Seguimientos" - Retornan entidades del dominio
 	GetAgentDayFollowUps(ctx context.Context, agentID string, date time.Time) (pending []models.FollowUpV2, priority []models.FollowUpV2, completed []models.FollowUpV2, err error)
 	RegisterFailedAttempt(ctx context.Context, followUpID string, reason string) (*models.FollowUpV2, error)
+
+	// Seguimientos Área
+	GetByTeamPaginated(ctx context.Context, team string, filters repository.FollowUpFilters, page, limit int) ([]models.FollowUpV2, int64, error)
+	GetAgentWorkload(ctx context.Context, team string, fecha string) ([]repository.AgentWorkload, error)
+	GetFilterOptions(ctx context.Context, team string) (FilterOptions, error)
+	RescheduleFollowUp(ctx context.Context, id string, input RescheduleInput) error
+}
+
+// RescheduleInput es el body para reagendar un seguimiento.
+type RescheduleInput struct {
+	NuevaFecha string `json:"nueva_fecha" binding:"required"`
+	NuevaHora  string `json:"nueva_hora"`
+	Prioridad  string `json:"prioridad"`
+	Motivo     string `json:"motivo" binding:"required"`
+}
+
+// FilterOptions contiene los catálogos para los filtros del frontend.
+type FilterOptions struct {
+	Agentes []repository.AgentOption `json:"agentes"`
+	Estados []string                 `json:"estados"`
 }
 
 // ── Implementación ────────────────────────────────────────────────────────────
@@ -391,4 +411,44 @@ func (s *followUpV2Service) RegisterFailedAttempt(ctx context.Context, followUpI
 	log.Printf("Intento #%d registrado para seguimiento %s: %s", fu.Attempts, followUpID, reason)
 
 	return fu, nil
+}
+// ── Seguimientos Área ─────────────────────────────────────────────────────────
+
+func (s *followUpV2Service) GetByTeamPaginated(ctx context.Context, team string, filters repository.FollowUpFilters, page, limit int) ([]models.FollowUpV2, int64, error) {
+	return s.repo.FindByTeamPaginated(ctx, team, filters, page, limit)
+}
+
+func (s *followUpV2Service) GetAgentWorkload(ctx context.Context, team string, fecha string) ([]repository.AgentWorkload, error) {
+	return s.repo.FindPendingByTeamGroupedByAgent(ctx, team, fecha)
+}
+
+func (s *followUpV2Service) GetFilterOptions(ctx context.Context, team string) (FilterOptions, error) {
+	agentes, err := s.repo.FindAgentsByTeam(ctx, team)
+	if err != nil {
+		return FilterOptions{}, err
+	}
+	return FilterOptions{
+		Agentes: agentes,
+		Estados: []string{
+			models.FollowUpStatusPendiente,
+			models.FollowUpStatusRealizado,
+			models.FollowUpStatusVencido,
+			models.FollowUpStatusReprogramado,
+		},
+	}, nil
+}
+
+func (s *followUpV2Service) RescheduleFollowUp(ctx context.Context, id string, input RescheduleInput) error {
+	fields := map[string]interface{}{
+		"scheduled_date": input.NuevaFecha,
+		"status":         models.FollowUpStatusReprogramado,
+	}
+	if input.NuevaHora != "" {
+		fields["scheduled_date"] = input.NuevaFecha + " " + input.NuevaHora
+	}
+	err := s.repo.Reschedule(ctx, id, fields)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return ErrFollowUpNotFound
+	}
+	return err
 }

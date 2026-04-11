@@ -1,0 +1,32 @@
+<div class="container mt-4">
+    <div class="welcome-section mb-4">
+        <h2><b>Hacer Seguimiento</b></h2>
+        <p class="text-muted">ID del caso: <code>{{ .followUpId }}</code></p>
+    </div>
+
+    <div id="seguimiento-app">
+        <dinamic-form :form-id="formId"></dinamic-form>
+    </div>
+</div>
+
+{{ template "standard_scripts.html" .}}
+
+<script>
+    var app = Vue.createApp({
+        delimiters: ['${', '}'],
+        data() {
+            return {
+                formId: 'form-demo-001'
+            };
+        },
+        mounted() {
+            document.getElementById('app').style.display = 'block';
+        }
+    });
+</script>
+
+<script src="/static/js/components/dinamic-form.js"></script>
+
+<script>
+    app.mount("#seguimiento-app");
+</script>

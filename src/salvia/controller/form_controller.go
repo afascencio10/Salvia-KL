@@ -11,7 +11,6 @@ import (
 )
 
 // ─── Form ─────────────────────────────────────────────────────────────────────
-
 type FormController struct {
 	svc service.FormService
 }
@@ -118,125 +117,6 @@ func (c *FormController) Delete(ctx *gin.Context) {
 	if err := c.svc.Delete(ctx.Request.Context(), id); err != nil {
 		if errors.Is(err, service.ErrFormNotFound) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "formulario no encontrado"})
-			return
-		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
-		return
-	}
-	ctx.JSON(http.StatusNoContent, nil)
-}
-
-// ─── FormSection ──────────────────────────────────────────────────────────────
-
-type FormSectionController struct {
-	svc service.FormSectionService
-}
-
-func NewFormSectionController(svc service.FormSectionService) *FormSectionController {
-	return &FormSectionController{svc: svc}
-}
-
-// RegisterRoutes registra las rutas de FormSection en el grupo /api/v1.
-//
-//	GET    /api/v1/forms/:formId/sections
-//	GET    /api/v1/form-sections/:id
-//	POST   /api/v1/forms/:formId/sections
-//	PUT    /api/v1/form-sections/:id
-//	DELETE /api/v1/form-sections/:id
-func (c *FormSectionController) RegisterRoutes(rg *gin.RouterGroup) {
-	// Rutas anidadas bajo /forms/:id — Gin exige el mismo nombre de wildcard que la ruta padre
-	rg.GET("/forms/:id/sections", c.ListByFormID)
-	rg.POST("/forms/:id/sections", c.Create)
-
-	// Rutas standalone por ID de sección
-	sections := rg.Group("/form-sections")
-	sections.GET("/:id", c.GetByID)
-	sections.PUT("/:id", c.Update)
-	sections.DELETE("/:id", c.Delete)
-}
-
-func (c *FormSectionController) ListByFormID(ctx *gin.Context) {
-	formID := ctx.Param("id")
-	sections, err := c.svc.ListByFormID(ctx.Request.Context(), formID)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
-		return
-	}
-	ctx.JSON(http.StatusOK, sections)
-}
-
-func (c *FormSectionController) GetByID(ctx *gin.Context) {
-	id := ctx.Param("id")
-	section, err := c.svc.GetByID(ctx.Request.Context(), id)
-	if err != nil {
-		if errors.Is(err, service.ErrFormSectionNotFound) {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "sección no encontrada"})
-			return
-		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
-		return
-	}
-	ctx.JSON(http.StatusOK, section)
-}
-
-func (c *FormSectionController) Create(ctx *gin.Context) {
-	formID := ctx.Param("id")
-	var body struct {
-		Name        string  `json:"name"        binding:"required"`
-		Description *string `json:"description"`
-		Order       int     `json:"order"`
-	}
-	if err := ctx.ShouldBindJSON(&body); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	section, err := c.svc.Create(ctx.Request.Context(), service.CreateFormSectionInput{
-		FormID:      formID,
-		Name:        body.Name,
-		Description: body.Description,
-		Order:       body.Order,
-	})
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
-		return
-	}
-	ctx.JSON(http.StatusCreated, section)
-}
-
-func (c *FormSectionController) Update(ctx *gin.Context) {
-	id := ctx.Param("id")
-	var body struct {
-		Name        *string `json:"name"`
-		Description *string `json:"description"`
-		Order       *int    `json:"order"`
-	}
-	if err := ctx.ShouldBindJSON(&body); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	section, err := c.svc.Update(ctx.Request.Context(), id, service.UpdateFormSectionInput{
-		Name:        body.Name,
-		Description: body.Description,
-		Order:       body.Order,
-	})
-	if err != nil {
-		if errors.Is(err, service.ErrFormSectionNotFound) {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "sección no encontrada"})
-			return
-		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
-		return
-	}
-	ctx.JSON(http.StatusOK, section)
-}
-
-func (c *FormSectionController) Delete(ctx *gin.Context) {
-	id := ctx.Param("id")
-	if err := c.svc.Delete(ctx.Request.Context(), id); err != nil {
-		if errors.Is(err, service.ErrFormSectionNotFound) {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "sección no encontrada"})
 			return
 		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})

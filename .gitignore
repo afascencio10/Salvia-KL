@@ -3,3 +3,6 @@
 .qwen/
 sessions
 ContextoRequerimientosDesarrollo
+
+# Sesiones activas del servidor (contienen tokens y datos de usuario)
+src/sessions

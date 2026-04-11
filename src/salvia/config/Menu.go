@@ -228,6 +228,14 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"ro": true,
 		"fo": true,
 	},
+
+	// ── Módulo de Seguimiento (HU-027) ──────────────────────────────────────
+	"get_seguimiento_detalle_caso": {"ad": true, "sv": true, "op": true},
+	"get_seguimiento_detalle":      {"ad": true, "sv": true, "op": true},
+	"get_seguimiento_formulario":   {"op": true},
+	"get_mis_seguimientos_dia":     {"op": true},
+	"get_seguimientos_area":        {"ad": true, "sv": true},
+	"generate_calendario_seguimiento": {"ad": true, "sv": true, "op": true},
 }
 
 //Menús del sistema. Se filtra por el tipo de menú (ie/ default) y luego por la sección principal repesentada por el locale.

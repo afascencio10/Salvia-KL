@@ -8,19 +8,29 @@ import (
 )
 
 type EmergencyMeasureRepository interface {
-	FindByFollowUpID(ctx context.Context, followUpId string) ([]models.EmergencyMeasure, error)
+	Repository[models.EmergencyMeasure]
+	FindByCaseID(ctx context.Context, caseID string) ([]models.EmergencyMeasure, error)
+	FindByFollowUpID(ctx context.Context, followUpID string) ([]models.EmergencyMeasure, error)
 }
 
 type emergencyMeasureRepository struct {
+	repository[models.EmergencyMeasure]
 	db *gorm.DB
 }
 
 func NewEmergencyMeasureRepository(db *gorm.DB) EmergencyMeasureRepository {
-	return &emergencyMeasureRepository{db: db}
+	return &emergencyMeasureRepository{
+		repository: repository[models.EmergencyMeasure]{db: db},
+		db:         db,
+	}
 }
 
-func (r *emergencyMeasureRepository) FindByFollowUpID(ctx context.Context, followUpId string) ([]models.EmergencyMeasure, error) {
-	var results []models.EmergencyMeasure
-	err := r.db.WithContext(ctx).Where("follow_up_id = ?", followUpId).Find(&results).Error
-	return results, err
+func (r *emergencyMeasureRepository) FindByCaseID(ctx context.Context, caseID string) ([]models.EmergencyMeasure, error) {
+	var items []models.EmergencyMeasure
+	return items, r.db.WithContext(ctx).Where("case_id = ?", caseID).Find(&items).Error
+}
+
+func (r *emergencyMeasureRepository) FindByFollowUpID(ctx context.Context, followUpID string) ([]models.EmergencyMeasure, error) {
+	var items []models.EmergencyMeasure
+	return items, r.db.WithContext(ctx).Where("follow_up_id = ?", followUpID).Find(&items).Error
 }
