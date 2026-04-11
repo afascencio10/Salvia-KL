@@ -60,6 +60,10 @@ type FollowUpV2Service interface {
 	GetByCaseID(ctx context.Context, caseID string) ([]models.FollowUpV2, error)
 	GenerateOrRecalculate(ctx context.Context, caseID string, input GenerateCalendarInput) ([]models.FollowUpV2, error)
 	GetFollowUpDetail(ctx context.Context, id string, isSupervisor bool) (*models.FollowUpDetailResponse, error)
+
+	// Nuevos para "Mis Seguimientos" - Retornan entidades del dominio
+	GetAgentDayFollowUps(ctx context.Context, agentID string, date time.Time) (pending []models.FollowUpV2, priority []models.FollowUpV2, completed []models.FollowUpV2, err error)
+	RegisterFailedAttempt(ctx context.Context, followUpID string, reason string) (*models.FollowUpV2, error)
 }
 
 // ── Implementación ────────────────────────────────────────────────────────────
@@ -286,4 +290,105 @@ func riskLevelToString(level int) string {
 	default:
 		return "BAJO"
 	}
+}
+
+// GetAgentDayFollowUps obtiene los seguimientos del agente para una fecha específica
+// y los clasifica en pendientes, priorizados y realizados.
+// Retorna entidades del dominio (NO DTOs).
+func (s *followUpV2Service) GetAgentDayFollowUps(ctx context.Context, agentID string, date time.Time) (pending []models.FollowUpV2, priority []models.FollowUpV2, completed []models.FollowUpV2, err error) {
+	// 1. Obtener todos los seguimientos del agente para esa fecha
+	followUps, err := s.repo.FindByAgentAndDate(ctx, agentID, date)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("followup: error obteniendo seguimientos del agente: %w", err)
+	}
+
+	// 2. Separar en pendientes y priorizados
+	for _, fu := range followUps {
+		if fu.IsPriority {
+			priority = append(priority, fu)
+		} else {
+			pending = append(pending, fu)
+		}
+	}
+
+	// 3. Obtener completados del día (REALIZADO o VENCIDO)
+	completed, err = s.getCompletedByAgentAndDate(ctx, agentID, date)
+	if err != nil {
+		log.Printf("Warning: error obteniendo completados: %v", err)
+		completed = []models.FollowUpV2{}
+	}
+
+	return pending, priority, completed, nil
+}
+
+// getCompletedByAgentAndDate obtiene seguimientos completados del agente para una fecha
+func (s *followUpV2Service) getCompletedByAgentAndDate(ctx context.Context, agentID string, date time.Time) ([]models.FollowUpV2, error) {
+	// Obtener todos los seguimientos del agente (page 0, limit 1000)
+	allFollowUps, err := s.repo.FindWithPagination(ctx, 0, 1000)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filtrar por agente, fecha y status
+	dateOnly := date.Format("2006-01-02")
+	var completed []models.FollowUpV2
+
+	for _, fu := range allFollowUps.Items {
+		if fu.AgentID == agentID &&
+			fu.ScheduledDate.Format("2006-01-02") == dateOnly &&
+			(fu.Status == models.FollowUpStatusRealizado || fu.Status == models.FollowUpStatusVencido) {
+			completed = append(completed, fu)
+		}
+	}
+
+	return completed, nil
+}
+
+// RegisterFailedAttempt registra un intento fallido de contacto
+func (s *followUpV2Service) RegisterFailedAttempt(ctx context.Context, followUpID string, reason string) (*models.FollowUpV2, error) {
+	// 1. Validar que el seguimiento existe
+	fu, err := s.repo.FindByID(ctx, followUpID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrFollowUpNotFound
+		}
+		return nil, fmt.Errorf("followup: error buscando seguimiento: %w", err)
+	}
+
+	// 2. Validar que no haya excedido el máximo de intentos (9)
+	if fu.Attempts >= 9 {
+		return nil, fmt.Errorf("followup: se alcanzó el máximo de intentos permitidos")
+	}
+
+	// 3. Incrementar intentos
+	err = s.repo.IncrementAttempt(ctx, followUpID)
+	if err != nil {
+		return nil, fmt.Errorf("followup: error incrementando intentos: %w", err)
+	}
+
+	// 4. Actualizar el seguimiento en memoria y guardar razón en summary
+	fu.Attempts++
+	
+	// Agregar razón al summary si existe
+	reasonText := fmt.Sprintf("[%s] Intento #%d: %s", 
+		time.Now().Format("2006-01-02 15:04"), 
+		fu.Attempts, 
+		reason)
+	
+	if fu.Summary == nil {
+		fu.Summary = &reasonText
+	} else {
+		updatedSummary := *fu.Summary + "\n" + reasonText
+		fu.Summary = &updatedSummary
+	}
+
+	// 5. Guardar resumen actualizado
+	err = s.repo.Update(ctx, fu)
+	if err != nil {
+		return nil, fmt.Errorf("followup: error actualizando seguimiento: %w", err)
+	}
+
+	log.Printf("Intento #%d registrado para seguimiento %s: %s", fu.Attempts, followUpID, reason)
+
+	return fu, nil
 }

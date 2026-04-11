@@ -1,2 +1,5 @@
 # Kiro IDE
 .kiro/
+.qwen/
+sessions
+ContextoRequerimientosDesarrollo

@@ -1,0 +1,515 @@
+<!-- Monolithic Partial: Mis Seguimientos (Clean Design) -->
+
+<div id="mis-seguimientos-app" class="ms-page-wrapper">
+    <!-- Header Section -->
+    <div class="ms-page-header">
+        <h1 class="ms-page-title">Mis seguimientos</h1>
+        <p class="ms-page-subtitle">${ hoy } · ${ agentName }</p>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="ms-stats-grid">
+        <div class="ms-stat-card ms-stat-card--pending">
+            <p class="ms-stat-label">Pendientes hoy</p>
+            <p class="ms-stat-value">${ pendientes.length }</p>
+        </div>
+        <div class="ms-stat-card ms-stat-card--priority">
+            <p class="ms-stat-label">Priorizados</p>
+            <p class="ms-stat-value">${ priorizados.length }</p>
+        </div>
+        <div class="ms-stat-card ms-stat-card--completed">
+            <p class="ms-stat-label">Realizados</p>
+            <p class="ms-stat-value">${ realizados.length }</p>
+        </div>
+    </div>
+
+    <!-- Tabs Wrapper -->
+    <div class="ms-tabs-wrapper">
+        <div class="ms-tabs-header">
+            <button v-for="tab in tabs" :key="tab.id" @click="tabActiva = tab.id"
+                :class="['ms-tab-button', { active: tabActiva === tab.id }]">
+                ${ tab.label }
+                <span v-if="tab.id === 'priorizados'" style="color: #a78bfa; margin: 0 0.125rem;">·</span>
+                <i v-if="tab.id === 'priorizados'" class="fas fa-clock" style="font-size: 0.75rem; color: #a78bfa;"></i>
+                <span v-if="tab.id === 'priorizados'"
+                    style="font-size: 0.8125rem; color: #a78bfa; font-weight: 700;">10:00</span>
+                <span class="ms-tab-count">${ tab.count }</span>
+            </button>
+        </div>
+
+        <!-- List Content -->
+        <div class="ms-list-content">
+            <!-- Seguimientos Tab -->
+            <div v-if="tabActiva === 'seguimientos'">
+                <div v-if="segHoy.length === 0" class="ms-empty-state">
+                    <i class="fas fa-check-circle ms-empty-state__icon"></i>
+                    <p class="ms-empty-state__text">No hay seguimientos pendientes</p>
+                </div>
+                <tarjeta-seguimiento v-else v-for="seg in segHoy" :key="seg.id" :seg="seg"
+                    @clic="handleClicSeguimiento"></tarjeta-seguimiento>
+            </div>
+
+            <!-- Priorizados Tab -->
+            <div v-else-if="tabActiva === 'priorizados'">
+                <!-- Urgent Alert -->
+                <div v-if="priorizados.length > 0" class="ms-urgent-alert">
+                    <i class="fas fa-clock ms-urgent-alert__icon"></i>
+                    <div class="ms-urgent-alert__content">
+                        <p class="ms-urgent-alert__title">Próximo seguimiento urgente</p>
+                        <p class="ms-urgent-alert__subtitle">${ priorizados[0].casoNombre } · 10:00</p>
+                    </div>
+                </div>
+                <tarjeta-seguimiento v-for="seg in priorizados" :key="seg.id" :seg="seg" :is-prioritized="true"
+                    @clic="handleClicSeguimiento"></tarjeta-seguimiento>
+            </div>
+
+            <!-- Realizados Tab -->
+            <div v-else-if="tabActiva === 'realizados'">
+                <div v-for="seg in realizados" :key="seg.id" class="ms-followup-card" @click="enDetalle = seg"
+                    style="cursor: pointer;">
+                    <div class="ms-avatar">${ seg.casoNombre ? seg.casoNombre.charAt(0) : '?' }</div>
+                    <div class="ms-card-content">
+                        <div class="ms-card-header">
+                            <span class="ms-card-name">${ seg.casoNombre }</span>
+                            <badge-riesgo :nivel="seg.nivelRiesgo"></badge-riesgo>
+                        </div>
+                        <p class="ms-card-subtitle">${ seg.casoId } · ${ seg.municipio }</p>
+                    </div>
+                    <span class="ms-action-link" style="color: #16a34a;">Realizado <i class="fas fa-check"></i></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <modal-contesto v-if="modalContesto" :seguimiento="modalContesto" @contesto="handleContesto"
+        @noContesto="handleNoContesto" @cerrar="modalContesto = null">
+    </modal-contesto>
+
+    <modal-razon v-if="modalRazon" :seguimiento="modalRazon" :razon="razonTexto" @update:razon="razonTexto = $event"
+        @guardar="handleGuardarRazon" @cerrar="modalRazon = null">
+    </modal-razon>
+
+    <modal-acciones v-if="modalAcciones" :seguimiento="modalAcciones" @reagendar="handleReagendar"
+        @anadirIntento="handleAnadirIntento" @sugerirCierre="handleSugerirCierre" @cerrar="modalAcciones = null">
+    </modal-acciones>
+</div>
+
+{{ template "standard_scripts.html" .}}
+{{ template "overlay.html" .}}
+
+<!-- VUE TEMPLATES -->
+<script type="text/x-template" id="tpl-badge-riesgo">
+    <span :class="['ms-badge', estiloClase]">${ nivel }</span>
+</script>
+
+<script type="text/x-template" id="tpl-tarjeta-seguimiento">
+    <div class="ms-followup-card">
+        <div class="ms-avatar">${ seg.casoNombre ? seg.casoNombre.charAt(0) : '?' }</div>
+        <div class="ms-card-content">
+            <div class="ms-card-header">
+                <span class="ms-card-name">${ seg.casoNombre }</span>
+                <badge-riesgo :nivel="seg.nivelRiesgo"></badge-riesgo>
+            </div>
+            <p class="ms-card-subtitle">${ seg.casoId } · ${ seg.municipio }</p>
+            <div v-if="isPrioritized" class="ms-card-time">
+                <i class="fas fa-clock"></i>
+                ${ seg.horaProgramada || '10:00' }
+            </div>
+        </div>
+        <div class="ms-card-actions">
+            <div v-if="seg.intentos > 0" class="ms-flex ms-items-center ms-gap-2">
+                <div class="ms-intent-dots">
+                    <div v-for="i in [1,2,3]" :key="i" class="ms-intent-dot" :class="i <= seg.intentos ? 'ms-intent-dot--filled' : 'ms-intent-dot--empty'"></div>
+                </div>
+                <span class="ms-intent-label">${ seg.intentos } ${ seg.intentos === 1 ? 'intento' : 'intentos' }</span>
+            </div>
+            <a href="#" @click.prevent="$emit('clic', seg)" class="ms-action-link">Iniciar <i class="fas fa-arrow-right"></i></a>
+        </div>
+    </div>
+</script>
+
+<script type="text/x-template" id="tpl-modal-contesto">
+    <div class="ms-modal-overlay" @click.self="$emit('cerrar')">
+        <div class="ms-modal-content">
+            <div style="width: 4rem; height: 4rem; border-radius: 9999px; background-color: #f5f3ff; color: #8b5cf6; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem;">
+                <i class="fas fa-phone-alt"></i>
+            </div>
+            <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">¿Contestó la llamada?</h3>
+            <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.5rem;">Estamos contactando a</p>
+            <p style="font-size: 1rem; font-weight: 700; color: #111827; margin-bottom: 1.5rem;">${ seguimiento.casoNombre }</p>
+            
+            <!-- Advertencia de intentos previos -->
+            <div v-if="seguimiento.attempts > 0" style="background-color: #fee2e2; border: 1px solid #ef4444; border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1.5rem;">
+                <p style="font-size: 0.8125rem; color: #b91c1c; margin: 0; font-weight: 600;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    ${ seguimiento.attempts } intento${ seguimiento.attempts > 1 ? 's' : '' } sin respuesta
+                </p>
+            </div>
+            
+            <div style="display: grid; grid-template-cols: 1fr 1fr; gap: 1rem;">
+                <button @click="$emit('noContesto')" style="background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;">
+                    No contestó
+                </button>
+                <button @click="$emit('contesto')" style="background-color: #8b5cf6; color: white; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;">
+                    Sí contestó <i class="fas fa-check"></i>
+                </button>
+            </div>
+            <button @click="$emit('cerrar')" style="margin-top: 1.5rem; background: none; border: none; font-size: 0.75rem; color: #9ca3af; font-weight: 600; cursor: pointer;">
+                CANCELAR
+            </button>
+        </div>
+    </div>
+</script>
+
+<!-- Modal Razón (No contestó) -->
+<script type="text/x-template" id="tpl-modal-razon">
+    <div class="ms-modal-overlay" @click.self="$emit('cerrar')">
+        <div class="ms-modal-content">
+            <div style="width: 4rem; height: 4rem; border-radius: 9999px; background-color: #fff7ed; color: #ea580c; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem;">
+                <i class="fas fa-phone-slash"></i>
+            </div>
+            <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">Intento sin respuesta</h3>
+            <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 1.5rem;">Registra la razón del intento fallido</p>
+            
+            <textarea 
+                v-model="razon" 
+                placeholder="Ej: El usuario tenía el teléfono apagado..."
+                rows="4"
+                style="width: 100%; padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid #e5e7eb; font-size: 0.875rem; outline: none; transition: all 0.2s; background: white; box-sizing: border-box; resize: none; font-family: inherit;"
+                @input="$emit('update:razon', $event.target.value)"
+            ></textarea>
+            
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button @click="$emit('cerrar')" style="flex: 1; background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;">
+                    Cancelar
+                </button>
+                <button 
+                    @click="$emit('guardar')" 
+                    :disabled="!razon || razon.trim() === ''"
+                    :style="`flex: 1; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: ${!razon || razon.trim() === '' ? 'not-allowed' : 'pointer'}; transition: all 0.2s; font-size: 0.875rem; background-color: ${!razon || razon.trim() === '' ? '#d1d5db' : '#8b5cf6'}; color: ${!razon || razon.trim() === '' ? '#9ca3af' : 'white'};`"
+                >
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</script>
+
+<!-- Modal Acciones (Límite de Intentos) -->
+<script type="text/x-template" id="tpl-modal-acciones">
+    <div class="ms-modal-overlay" @click.self="$emit('cerrar')">
+        <div class="ms-modal-content">
+            <div style="width: 4rem; height: 4rem; border-radius: 9999px; background-color: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem;">
+                <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">Límite de intentos</h3>
+            <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.5rem;">Se han realizado</p>
+            <p style="font-size: 1.5rem; font-weight: 800; color: #dc2626; margin-bottom: 0.5rem;">${ seguimiento.attempts } intentos</p>
+            <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 2rem;">sin respuesta para contactar a ${ seguimiento.casoNombre }</p>
+            
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <!-- Reagendar seguimiento -->
+                <button @click="$emit('reagendar')" style="background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <i class="fas fa-calendar-alt"></i>
+                    Reagendar seguimiento
+                </button>
+                
+                <!-- Añadir intento de contacto -->
+                <button @click="$emit('anadirIntento')" style="background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <i class="fas fa-plus-circle"></i>
+                    Añadir intento de contacto
+                </button>
+                
+                <!-- Sugerir cierre de caso (solo si attempts > 9) -->
+                <button 
+                    v-if="seguimiento.attempts > 9"
+                    @click="$emit('sugerirCierre')" 
+                    style="background-color: #dc2626; color: white; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                >
+                    <i class="fas fa-times-circle"></i>
+                    Sugerir cierre de caso
+                </button>
+            </div>
+            
+            <button @click="$emit('cerrar')" style="margin-top: 1.5rem; background: none; border: none; font-size: 0.75rem; color: #9ca3af; font-weight: 600; cursor: pointer;">
+                VOLVER
+            </button>
+        </div>
+    </div>
+</script>
+
+<!-- VUE APP LOGIC -->
+<script>
+    (function () {
+        if (typeof Vue === 'undefined') return;
+        const { createApp } = Vue;
+
+        const BadgeRiesgo = {
+            template: '#tpl-badge-riesgo',
+            props: ['nivel'],
+            computed: {
+                estiloClase() {
+                    const map = {
+                        'Crítico': 'ms-badge--critical',
+                        'Extremo': 'ms-badge--critical',
+                        'Alto': 'ms-badge--high',
+                        'Moderado': 'ms-badge--medium',
+                        'Bajo': 'ms-badge--low'
+                    };
+                    return map[this.nivel] || '';
+                }
+            },
+            compilerOptions: { delimiters: ['${', '}'] }
+        };
+
+        const TarjetaSeguimiento = {
+            template: '#tpl-tarjeta-seguimiento',
+            props: ['seg', 'isPrioritized'],
+            components: { 'badge-riesgo': BadgeRiesgo },
+            compilerOptions: { delimiters: ['${', '}'] }
+        };
+
+        const ModalContesto = {
+            template: '#tpl-modal-contesto',
+            props: ['seguimiento'],
+            compilerOptions: { delimiters: ['${', '}'] }
+        };
+
+        const ModalRazon = {
+            template: '#tpl-modal-razon',
+            props: ['seguimiento', 'razon'],
+            compilerOptions: { delimiters: ['${', '}'] }
+        };
+
+        const ModalAcciones = {
+            template: '#tpl-modal-acciones',
+            props: ['seguimiento'],
+            compilerOptions: { delimiters: ['${', '}'] }
+        };
+
+        const app = createApp({
+            delimiters: ['${', '}'],
+            components: {
+                'badge-riesgo': BadgeRiesgo,
+                'tarjeta-seguimiento': TarjetaSeguimiento,
+                'modal-contesto': ModalContesto,
+                'modal-razon': ModalRazon,
+                'modal-acciones': ModalAcciones
+            },
+            data() {
+                return {
+                    agentName: "{{.agentName}}",
+                    currentUser: "{{.currentUser}}",
+                    hoy: new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }),
+                    tabActiva: 'seguimientos',
+                    pendientes: [
+                        { id: 83431, casoId: "8343", casoNombre: "María González", nivelRiesgo: "Alto", municipio: "San Salvador", intentos: 0, priorizado: false },
+                        { id: 83432, casoId: "8343", casoNombre: "Carmen Flores", nivelRiesgo: "Moderado", municipio: "Sonsonate", intentos: 1, priorizado: true, horaProgramada: '10:00' },
+                        { id: 83433, casoId: "8344", casoNombre: "Rosa Pérez", nivelRiesgo: "Bajo", municipio: "Usulután", intentos: 0, priorizado: false }
+                    ],
+                    realizados: [{ id: 7001, casoId: "8340", casoNombre: "Ana Martínez", nivelRiesgo: "Crítico", municipio: "Santa Ana", hora: '09:30' }],
+                    modalContesto: null,
+                    modalRazon: null,
+                    modalAcciones: null,
+                    razonTexto: '',
+                    enFormulario: null,
+                    enDetalle: null,
+                    loading: false
+                }
+            },
+            computed: {
+                segHoy() { return this.pendientes.filter(s => !s.priorizado); },
+                priorizados() { return this.pendientes.filter(s => s.priorizado); },
+                tabs() {
+                    return [
+                        { id: 'seguimientos', label: 'Seguimientos', count: this.segHoy.length },
+                        { id: 'priorizados', label: 'Priorizados', count: this.priorizados.length },
+                        { id: 'realizados', label: 'Realizados hoy', count: this.realizados.length }
+                    ];
+                }
+            },
+            mounted() {
+                // Mostrar el body (como en follow_up_detail)
+                const bodyEl = document.getElementById('app');
+                if (bodyEl) {
+                    bodyEl.style.display = 'block';
+                }
+
+                // Mostrar el div de la aplicación (el CSS lo tiene en display:none)
+                const appEl = document.getElementById('mis-seguimientos-app');
+                if (appEl) {
+                    appEl.style.display = 'block';
+                }
+            },
+            methods: {
+                // Cargar seguimientos del día desde API
+                async cargarSeguimientosDelDia() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/api/v1/follow-ups/my-day', {
+                            headers: {
+                                'X-Agent-ID': this.currentUser
+                            }
+                        });
+                        if (!response.ok) throw new Error('Error cargando seguimientos');
+                        const data = await response.json();
+
+                        // Mapear datos del API al formato del frontend
+                        this.pendientes = [
+                            ...data.followUpsPending.map(fu => ({
+                                id: fu.id,
+                                casoId: fu.caseId,
+                                casoNombre: fu.caseName,
+                                nivelRiesgo: fu.riskLevel,
+                                municipio: fu.municipality,
+                                intentos: fu.attempts,
+                                priorizado: false
+                            })),
+                            ...data.followUpsPriority.map(fu => ({
+                                id: fu.id,
+                                casoId: fu.caseId,
+                                casoNombre: fu.caseName,
+                                nivelRiesgo: fu.riskLevel,
+                                municipio: fu.municipality,
+                                intentos: fu.attempts,
+                                priorizado: true,
+                                horaProgramada: fu.scheduledTime
+                            }))
+                        ];
+
+                        this.realizados = data.followUpsCompleted.map(fu => ({
+                            id: fu.id,
+                            casoId: fu.caseId,
+                            casoNombre: fu.caseName,
+                            nivelRiesgo: fu.riskLevel,
+                            municipio: fu.municipality,
+                            hora: fu.scheduledTime || '00:00'
+                        }));
+                    } catch (error) {
+                        console.error('Error:', error);
+                        // TODO: Mostrar alerta de error
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                handleClicSeguimiento(seg) {
+                    // Regla: Si tiene >= 3 intentos, mostrar modal de acciones
+                    if (seg.intentos >= 3) {
+                        this.modalAcciones = seg;
+                    } else {
+                        this.modalContesto = seg;
+                    }
+                },
+
+                handleContesto() {
+                    const seg = this.modalContesto;
+                    this.modalContesto = null;
+                    // Navegar a formulario de seguimiento
+                    this.enFormulario = {
+                        seg,
+                        caso: { id: seg.casoId, nombre: seg.casoNombre, nivelRiesgo: seg.nivelRiesgo }
+                    };
+                },
+
+                handleNoContesto() {
+                    const seg = this.modalContesto;
+                    this.modalContesto = null;
+                    // Abrir modal de razón
+                    this.modalRazon = seg;
+                    this.razonTexto = '';
+                },
+
+                async handleGuardarRazon() {
+                    if (!this.razonTexto || this.razonTexto.trim() === '') return;
+
+                    const seg = this.modalRazon;
+                    this.loading = true;
+
+                    try {
+                        // Llamar al API para registrar el intento
+                        const response = await fetch(`/api/v1/follow-ups/${seg.id}/attempts`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                reason: this.razonTexto
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.error || 'Error registrando intento');
+                        }
+
+                        const data = await response.json();
+
+                        // Actualizar intentos en el frontend
+                        seg.intentos = data.attempts;
+
+                        // Cerrar modal de razón
+                        this.modalRazon = null;
+                        this.razonTexto = '';
+
+                        // Mostrar mensaje de éxito
+                        alert('✅ Intento registrado con éxito');
+
+                        // Evaluar regla de intentos
+                        if (data.maxAttemptsReached) {
+                            // Si alcanzó 3 o más intentos, mostrar modal de acciones
+                            this.modalAcciones = seg;
+                        } else {
+                            // Si no, refrescar lista
+                            // TODO: Reordenar lista según reglas de negocio
+                        }
+
+                    } catch (error) {
+                        console.error('Error:', error);
+                        alert('❌ Error: ' + error.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                handleReagendar() {
+                    // TODO: Implementar navegación a vista de reagendamiento
+                    alert('📅 Reagendar seguimiento - Por implementar');
+                    this.modalAcciones = null;
+                },
+
+                handleAnadirIntento() {
+                    // Volver a abrir modal de contacto para añadir otro intento
+                    this.modalAcciones = null;
+                    this.modalContesto = this.modalAcciones;
+                },
+
+                handleSugerirCierre() {
+                    // TODO: Implementar navegación a vista de sugerir cierre
+                    alert('⚠️ Sugerir cierre de caso - Por implementar');
+                    this.modalAcciones = null;
+                },
+
+                handleGuardarForm({ id }) {
+                    const idx = this.pendientes.findIndex(s => s.id === id);
+                    if (idx !== -1) {
+                        const seg = this.pendientes[idx];
+                        this.realizados.push({
+                            ...seg,
+                            hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        });
+                        this.pendientes.splice(idx, 1);
+                    }
+                    this.enFormulario = null;
+                },
+
+                getCasoPorId(id) {
+                    return { id, nombre: "PACIENTE", nivelRiesgo: "Bajo" };
+                }
+            }
+        });
+
+        app.mount("#mis-seguimientos-app");
+    })();
+</script>

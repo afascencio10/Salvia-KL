@@ -4,6 +4,7 @@ import (
 	"bitsflow/internal/models"
 	"context"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -24,6 +25,10 @@ type FollowUpRepository interface {
 	BulkCreate(ctx context.Context, tx *gorm.DB, followUps []models.FollowUpV2) error
 	SoftDeleteAndReprogramPending(ctx context.Context, tx *gorm.DB, caseID string) error
 	RunInTransaction(ctx context.Context, fn func(tx *gorm.DB) error) error
+
+	// Nuevos para "Mis Seguimientos"
+	FindByAgentAndDate(ctx context.Context, agentID string, date time.Time) ([]models.FollowUpV2, error)
+	IncrementAttempt(ctx context.Context, followUpID string) error
 }
 
 type followUpRepository struct {
@@ -113,4 +118,31 @@ func (r *followUpRepository) RunInTransaction(ctx context.Context, fn func(tx *g
 	}
 
 	return tx.Commit().Error
+}
+
+// FindByAgentAndDate retorna los seguimientos pendientes de un agente para una fecha específica.
+// Ordena por: is_priority DESC, scheduled_time ASC, risk_status DESC, attempts ASC
+func (r *followUpRepository) FindByAgentAndDate(ctx context.Context, agentID string, date time.Time) ([]models.FollowUpV2, error) {
+	var items []models.FollowUpV2
+	
+	// Obtener solo la parte de la fecha (YYYY-MM-DD)
+	dateOnly := date.Format("2006-01-02")
+	
+	err := r.db.WithContext(ctx).
+		Where("agent_id = ? AND status = ? AND DATE(scheduled_date) = ?", 
+			agentID, 
+			models.FollowUpStatusPendiente,
+			dateOnly).
+		Order("is_priority DESC, scheduled_time ASC, risk_status DESC, attempts ASC").
+		Find(&items).Error
+	
+	return items, err
+}
+
+// IncrementAttempt incrementa el contador de intentos de un seguimiento.
+func (r *followUpRepository) IncrementAttempt(ctx context.Context, followUpID string) error {
+	return r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Where("id = ?", followUpID).
+		Update("attempts", gorm.Expr("attempts + 1")).Error
 }

@@ -132,3 +132,31 @@ func FollowUpGET(c *gin.Context) {
 			"followUpId":  id,
 		}, utils.GetFullHtmlFuncMap())
 }
+
+// MyFollowUpsGET maneja la solicitud GET para la vista de "Mis Seguimientos".
+func MyFollowUpsGET(c *gin.Context) {
+	// Se obtiene la sesión del usuario y el ID de sesión.
+	session := sessions.Default(c)
+	var sessionID string = session.Get("userData").(string)
+	s, err := utils.GetCommonSession(sessionID)
+
+	// Establece cabeceras para evitar cache en la respuesta.
+	common_facades.SetHeaderNoCache(c)
+
+	var menu map[string][]map[string]string
+	if err == nil {
+		menu = s.CurrentMenu
+	}
+
+	// Renderiza el template "get_my_follow_ups" definido en salvia_config.HTML_Templates
+	common_facades.RenderTemplate(c, salvia_daos.FollowUpEntityName, "salvia", "my_follow_ups/", salvia_config.HTML_Templates, "get_my_follow_ups", utils.GetFullHtmlTemplates(), utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
+		map[string]interface{}{
+			"windowTitle": "Mis Seguimientos",
+			"currentUser": s.Names + " " + s.LastNames,
+			"agentName":   s.Names + " " + s.LastNames, // Placeholder para el nombre del agente
+			"nav_rules":   salvia_config.TranslateNavigationRule(s.Lang, salvia_config.NAVIGATION_RULES["get_follow_up"]),
+			"locale":      salvia_config.Locale,
+			"lang":        s.Lang,
+			"menu":        menu,
+		}, utils.GetFullHtmlFuncMap())
+}
