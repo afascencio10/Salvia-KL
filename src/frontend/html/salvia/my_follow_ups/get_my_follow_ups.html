@@ -67,6 +67,8 @@
                                     fu.caseName }</p>
                                 <div
                                     style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.875rem; color: #6b7280;">
+                                    <span>Seg #${ fu.sequenceNumber }</span>
+                                    <span>·</span>
                                     <span>Caso #${ fu.case ? fu.case.id : 'N/A' }</span>
                                     <span>·</span>
                                     <span>${ fu.case ? fu.case.municipality : 'N/A' }</span>
@@ -186,6 +188,8 @@
                                 fu.caseName }</p>
                             <div
                                 style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.875rem; color: #6b7280;">
+                                <span>Seg #${ fu.sequenceNumber }</span>
+                                <span>·</span>
                                 <span>Caso #${ fu.case ? fu.case.id : 'N/A' }</span>
                                 <span>·</span>
                                 <span>${ fu.case ? fu.case.municipality : 'N/A' }</span>
@@ -296,7 +300,9 @@
                                     fu.caseName }</p>
                                 <div
                                     style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.875rem; color: #6b7280;">
-                                    <span>#${ fu.case ? fu.case.id : 'N/A' }</span>
+                                    <span>Seg #${ fu.sequenceNumber }</span>
+                                    <span>·</span>
+                                    <span>Caso #${ fu.case ? fu.case.id : 'N/A' }</span>
                                     <span>·</span>
                                     <span>${ fu.case ? fu.case.municipality : 'N/A' }</span>
                                 </div>
@@ -591,7 +597,8 @@
                                 attempts: fu.attempts || 0,
                                 follow_up_attempts: fu.follow_up_attempts || [],
                                 last_attempt_at: fu.last_attempt_at || null,
-                                isPrioritized: false
+                                sequenceNumber: fu.sequence_number || 0,
+                                isPrioritized: fu.is_priority === true // Usar el campo real del backend
                             })),
                             ...(dayData.followUpsPendingPriority || []).map(fu => ({
                                 id: fu.id,
@@ -602,7 +609,8 @@
                                 attempts: fu.attempts || 0,
                                 follow_up_attempts: fu.follow_up_attempts || [],
                                 last_attempt_at: fu.last_attempt_at || null,
-                                isPrioritized: true,
+                                sequenceNumber: fu.sequence_number || 0,
+                                isPrioritized: true, // Forzar true para esta lista por ahora, o usar fu.is_priority
                                 scheduledTime: fu.scheduled_time || '00:00'
                             }))
                         ];
@@ -616,6 +624,8 @@
                             attempts: fu.attempts || 0,
                             follow_up_attempts: fu.follow_up_attempts || [],
                             last_attempt_at: fu.last_attempt_at || null,
+                            sequenceNumber: fu.sequence_number || 0,
+                            isPrioritized: fu.is_priority === true,
                             scheduledTime: fu.scheduled_time || '00:00'
                         }));
 

@@ -163,6 +163,7 @@ func (r *followUpRepository) FindByAgentAndDate(ctx context.Context, agentID str
 			models.FollowUpStatusReprogramado,
 			dateOnly).
 		Order(`
+			is_priority DESC,
 			CASE UPPER(risk_status)
 				WHEN 'EXTREMO' THEN 1 
 				WHEN 'CRÍTICO' THEN 1 
