@@ -506,14 +506,15 @@
             delimiters: ['${', '}'],
             computed: {
                 badgeClass() {
+                    const level = this.level ? this.level.toUpperCase() : '';
                     const map = {
-                        'Crítico': 'ms-badge--critical',
-                        'Extremo': 'ms-badge--critical',
-                        'Alto': 'ms-badge--high',
-                        'Moderado': 'ms-badge--medium',
-                        'Bajo': 'ms-badge--low'
+                        'CRÍTICO': 'ms-badge--critical',
+                        'EXTREMO': 'ms-badge--critical',
+                        'ALTO': 'ms-badge--high',
+                        'MODERADO': 'ms-badge--medium',
+                        'BAJO': 'ms-badge--low'
                     };
-                    return map[this.level] || '';
+                    return map[level] || '';
                 }
             }
         };
@@ -846,14 +847,15 @@
                 // ── Helpers ─────────────────────────────────────────────────
 
                 getBadgeClass(level) {
+                    const lvl = level ? level.toUpperCase() : '';
                     const map = {
-                        'Crítico': 'ms-badge--critical',
-                        'Extremo': 'ms-badge--critical',
-                        'Alto': 'ms-badge--high',
-                        'Moderado': 'ms-badge--medium',
-                        'Bajo': 'ms-badge--low'
+                        'CRÍTICO': 'ms-badge--critical',
+                        'EXTREMO': 'ms-badge--critical',
+                        'ALTO': 'ms-badge--high',
+                        'MODERADO': 'ms-badge--medium',
+                        'BAJO': 'ms-badge--low'
                     };
-                    return map[level] || '';
+                    return map[lvl] || '';
                 },
 
                 logout() {

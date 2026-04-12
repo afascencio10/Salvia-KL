@@ -335,22 +335,23 @@ func riskLevelToString(level int) string {
 // y los clasifica en pendientes, priorizados y realizados.
 // Retorna entidades del dominio (NO DTOs).
 func (s *followUpV2Service) GetAgentDayFollowUps(ctx context.Context, agentID string, date time.Time) (pending []models.FollowUpV2, priority []models.FollowUpV2, completed []models.FollowUpV2, err error) {
-	// 1. Obtener todos los seguimientos del agente para esa fecha
+	// 1. Obtener todos los seguimientos del agente para esa fecha (Pendientes y Reprogramados)
 	followUps, err := s.repo.FindByAgentAndDate(ctx, agentID, date)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("followup: error obteniendo seguimientos del agente: %w", err)
 	}
 
-	// 2. Separar en pendientes y priorizados
+	// 2. Separar en pendientes (sin hora) y priorizados (con hora)
 	for _, fu := range followUps {
-		if fu.IsPriority {
+		// Un seguimiento es prioritario si tiene una hora programada específica
+		if fu.ScheduledTime != "" && fu.ScheduledTime != "00:00:00" {
 			priority = append(priority, fu)
 		} else {
 			pending = append(pending, fu)
 		}
 	}
 
-	// 3. Obtener completados del día (REALIZADO o VENCIDO)
+	// 3. Obtener completados hoy (Cualquier seguimiento con intento hoy y estado REALIZADO)
 	completed, err = s.getCompletedByAgentAndDate(ctx, agentID, date)
 	if err != nil {
 		log.Printf("Warning: error obteniendo completados: %v", err)
@@ -379,7 +380,7 @@ func (s *followUpV2Service) GetMyDayFollowUpsEnriched(ctx context.Context, agent
 				RiskStatus:     fu.RiskStatus,
 				ScheduledTime:  fu.ScheduledTime,
 				Attempts:       fu.Attempts,
-				IsPriority:     fu.IsPriority,
+				IsPriority:     fu.ScheduledTime != "" && fu.ScheduledTime != "00:00:00", // Nueva regla
 				Status:         fu.Status,
 				SequenceNumber: fu.SequenceNumber,
 				LastAttemptAt:  fu.LastAttemptAt,
@@ -457,25 +458,7 @@ func (s *followUpV2Service) GetMyDayFollowUpsEnriched(ctx context.Context, agent
 // getCompletedByAgentAndDate obtiene seguimientos completados del agente para una fecha
 // Un seguimiento se considera "realizado" si tiene al menos un intento registrado hoy
 func (s *followUpV2Service) getCompletedByAgentAndDate(ctx context.Context, agentID string, date time.Time) ([]models.FollowUpV2, error) {
-	// Obtener todos los seguimientos del agente (page 0, limit 1000)
-	allFollowUps, err := s.repo.FindWithPagination(ctx, 0, 1000)
-	if err != nil {
-		return nil, err
-	}
-
-	// Filtrar por agente, fecha y al menos un intento
-	dateOnly := date.Format("2006-01-02")
-	var completed []models.FollowUpV2
-
-	for _, fu := range allFollowUps.Items {
-		if fu.AgentID == agentID &&
-			fu.ScheduledDate.Format("2006-01-02") == dateOnly &&
-			fu.Status == models.FollowUpStatusRealizado {
-			completed = append(completed, fu)
-		}
-	}
-
-	return completed, nil
+	return s.repo.FindRealizedTodayByAgent(ctx, agentID, date)
 }
 
 // RegisterFailedAttempt registra un intento fallido de contacto
@@ -510,15 +493,20 @@ func (s *followUpV2Service) RegisterFailedAttempt(ctx context.Context, followUpI
 		return nil, fmt.Errorf("followup: error contando intentos: %w", err)
 	}
 
-	// 5. Actualizar el campo attempts y last_attempt_at en follow_up_v2
-	// Usamos UTC para almacenamiento consistente, el frontend se encarga de la conversión
+	// 5. Actualizar únicamente el campo attempts y last_attempt_at en follow_up_v2
+	// Usamos UpdateFields para evitar problemas de tipos con strings vacíos en PostgreSQL (ej. scheduled_time)
 	now := time.Now().UTC()
-	fu.Attempts = int(totalAttempts)
-	fu.LastAttemptAt = &now
-	err = s.repo.Update(ctx, fu)
+	err = s.repo.UpdateFields(ctx, followUpID, map[string]interface{}{
+		"attempts":        int(totalAttempts),
+		"last_attempt_at": now,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("followup: error actualizando intento en seguimiento: %w", err)
 	}
+
+	// Sincronizar el objeto local para el retorno
+	fu.Attempts = int(totalAttempts)
+	fu.LastAttemptAt = &now
 
 	log.Printf("Intento #%d registrado para seguimiento %s: %s", fu.Attempts, followUpID, reason)
 
