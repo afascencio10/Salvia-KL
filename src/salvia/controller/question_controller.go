@@ -52,7 +52,8 @@ func (c *QuestionController) Create(ctx *gin.Context) {
 		RepeaterGroupID *string `json:"repeaterGroupId"`
 		QuestionTypeID  string  `json:"questionTypeId" binding:"required"`
 		Description     string  `json:"description"    binding:"required"`
-		OrderIndex      int     `json:"orderIndex"`
+		Required        bool    `json:"required"`
+		Order           int     `json:"order"`
 	}
 	if err := ctx.ShouldBindJSON(&body); err != nil { ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return }
 	q := &models.Question{
@@ -61,7 +62,8 @@ func (c *QuestionController) Create(ctx *gin.Context) {
 		RepeaterGroupID: body.RepeaterGroupID,
 		QuestionTypeID:  body.QuestionTypeID,
 		Description:     body.Description,
-		OrderIndex:      body.OrderIndex,
+		Required:        body.Required,
+		Order:           body.Order,
 	}
 	if err := c.svc.Create(ctx.Request.Context(), q); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"}); return
@@ -78,12 +80,14 @@ func (c *QuestionController) Update(ctx *gin.Context) {
 	var body struct {
 		QuestionTypeID *string `json:"questionTypeId"`
 		Description    *string `json:"description"`
-		OrderIndex     *int    `json:"orderIndex"`
+		Required       *bool   `json:"required"`
+		Order          *int    `json:"order"`
 	}
 	if err := ctx.ShouldBindJSON(&body); err != nil { ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return }
 	if body.QuestionTypeID != nil { q.QuestionTypeID = *body.QuestionTypeID }
 	if body.Description != nil    { q.Description = *body.Description }
-	if body.OrderIndex != nil     { q.OrderIndex = *body.OrderIndex }
+	if body.Required != nil       { q.Required = *body.Required }
+	if body.Order != nil          { q.Order = *body.Order }
 	if err := c.svc.Update(ctx.Request.Context(), q); err != nil {
 		if errors.Is(err, service.ErrQuestionNotFound) { ctx.JSON(http.StatusNotFound, gin.H{"error": "pregunta no encontrada"}); return }
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"}); return

@@ -35,6 +35,7 @@ func main() {
 	ms := []interface{}{
 		&models.RepeaterGroup{}, &models.Question{}, &models.VisibilityCondition{},
 		&models.FormSubmission{}, &models.RepeaterEntry{}, &models.Answer{},
+		&models.Option{},
 	}
 	for _, m := range ms {
 		if err := db.AutoMigrate(m); err != nil {

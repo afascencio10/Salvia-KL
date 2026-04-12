@@ -5,7 +5,7 @@
     </div>
 
     <div id="seguimiento-app">
-        <dinamic-form :form-id="formId"></dinamic-form>
+        <dinamic-form :form-id="formId" :submission-id="submissionId"></dinamic-form>
     </div>
 </div>
 
@@ -16,7 +16,8 @@
         delimiters: ['${', '}'],
         data() {
             return {
-                formId: 'form-demo-001'
+                formId:       '2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff',
+                submissionId: 'ed09276b-47b5-4ea5-9a43-49afb45f9d7b'
             };
         },
         mounted() {

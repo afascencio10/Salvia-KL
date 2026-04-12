@@ -6,3 +6,6 @@ ContextoRequerimientosDesarrollo
 .DS_Store
 # Sesiones activas del servidor (contienen tokens y datos de usuario)
 src/sessions
+
+# Notas y contexto de FigJam (uso local)
+figjamInfo/
