@@ -2,12 +2,15 @@
 package controller
 
 import (
+	"bitsflow/common/utils"
 	"bitsflow/internal/models"
 	"bitsflow/internal/repository"
 	"bitsflow/salvia/service"
 	"errors"
 	"net/http"
-
+	"time"
+	"fmt"
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 )
 
@@ -23,10 +26,12 @@ func NewFollowUpV2Controller(svc service.FollowUpV2Service) *FollowUpV2Controlle
 
 // RegisterRoutes registra todas las rutas de FollowUpV2 en el grupo /api/v1.
 //
-//	GET  /api/v1/cases/:victim_case_id/follow-ups
-//	POST /api/v1/cases/:victim_case_id/follow-ups/generate
-//	GET  /api/v1/cases/:victim_case_id/follow-ups/by-id?id=...
-//	GET  /api/v1/cases/:victim_case_id/follow-ups/list?page=...&limit=...
+//		GET  /api/v1/cases/:victim_case_id/follow-ups
+//		POST /api/v1/cases/:victim_case_id/follow-ups/generate
+//		GET  /api/v1/cases/:victim_case_id/follow-ups/by-id?id=...
+//		GET  /api/v1/cases/:victim_case_id/follow-ups/list?page=...&limit=...
+//	 GET  /api/v1/follow-ups/my-day
+//	 POST /api/v1/follow-ups/:id/attempts
 func (c *FollowUpV2Controller) RegisterRoutes(api *gin.RouterGroup) {
 	followUps := api.Group("/cases/:victim_case_id/follow-ups")
 	{
@@ -36,6 +41,14 @@ func (c *FollowUpV2Controller) RegisterRoutes(api *gin.RouterGroup) {
 		followUps.GET("/list", c.List)
 	}
 
+	api.GET("/cases/follow-ups/detail", c.GetDetail)
+
+	// Nuevas rutas para "Mis Seguimientos"
+	myDay := api.Group("/follow-ups")
+	{
+		myDay.GET("/my-day", c.GetMyDayFollowUps)
+		myDay.POST("/:id/attempts", c.RegisterAttempt)
+	}
 	// Seguimientos Área — rutas para supervisores
 	seg := api.Group("/seguimientos")
 	{
@@ -153,6 +166,139 @@ func (c *FollowUpV2Controller) List(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, result)
+}
+
+// GetDetail godoc
+//
+//	@Summary		Obtener el detalle estructurado de un seguimiento
+//	@Tags			Seguimientos
+//	@Produce		json
+//	@Param			victim_case_id	path		string				true	"ID del caso"
+//	@Param			id				query		string				true	"UUID del seguimiento"
+//	@Success		200				{object}	models.FollowUpDetailResponse	"Detalle del seguimiento"
+//	@Failure		400				{object}	map[string]string	"Parámetro id faltante"
+//	@Failure		404				{object}	map[string]string	"No encontrado"
+//	@Router			/cases/{victim_case_id}/follow-ups/detail [get]
+func (c *FollowUpV2Controller) GetDetail(ctx *gin.Context) {
+	id := ctx.Query("id")
+	if id == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "parámetro 'id' requerido"})
+		return
+	}
+
+	// Por ahora asignamos isSupervisor = true. En el futuro, integrar middleware de roles (ej. GetCommonSession)
+	isSupervisor := true
+
+	detail, err := c.svc.GetFollowUpDetail(ctx.Request.Context(), id, isSupervisor)
+	if err != nil {
+		if errors.Is(err, service.ErrFollowUpNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "seguimiento no encontrado"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno al cargar detalle"})
+		return
+	}
+	ctx.JSON(http.StatusOK, detail)
+}
+
+// GetMyDayFollowUps godoc
+//
+//	@Summary		Obtener seguimientos del día para un agente
+//	@Description	Retorna los seguimientos pendientes, priorizados y realizados del agente logueado para el día actual
+//	@Tags			Seguimientos
+//	@Produce		json
+//	@Success		200	{object}	map[string]interface{}	"Seguimientos del día"
+//	@Failure		500	{object}	map[string]string	"Error interno"
+//	@Router			/follow-ups/my-day [get]
+func (c *FollowUpV2Controller) GetMyDayFollowUps(ctx *gin.Context) {
+	// Obtener agentID de la sesión del usuario autenticado
+	session := sessions.Default(ctx)
+	sessionID, ok := session.Get("userData").(string)
+	if !ok || sessionID == "" {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "sesión inválida"})
+		return
+	}
+
+	s, err := utils.GetCommonSession(sessionID)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "sesión expirada"})
+		return
+	}
+
+	// Usar el UserICode de la sesión como agentID
+	agentID := s.UserICode	
+	//log agent id
+	fmt.Println("agentID", agentID)
+	
+	if agentID == "" {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "usuario sin identificador"})
+		return
+	}
+
+	date := time.Now()
+
+	// Obtener seguimientos enriquecidos con datos del caso
+	response, err := c.svc.GetMyDayFollowUpsEnriched(ctx.Request.Context(), agentID, date)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno al obtener seguimientos"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response)
+}
+
+// RegisterAttempt godoc
+//
+//	@Summary		Registrar un intento fallido de contacto
+//	@Description	Registra un intento fallido con su justificación. Incrementa el contador de intentos.
+//	@Tags			Seguimientos
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string	true	"UUID del seguimiento"
+//	@Param			body	body		RegisterAttemptInput	true	"Razón del intento fallido"
+//	@Success		200		{object}	models.FollowUpV2	"Seguimiento actualizado"
+//	@Failure		400		{object}	map[string]string	"Body inválido o razón vacía"
+//	@Failure		404		{object}	map[string]string	"Seguimiento no encontrado"
+//	@Failure		500		{object}	map[string]string	"Error interno o máximo de intentos alcanzado"
+//	@Router			/follow-ups/{id}/attempts [post]
+func (c *FollowUpV2Controller) RegisterAttempt(ctx *gin.Context) {
+	followUpID := ctx.Param("id")
+
+	var body struct {
+		Reason string `json:"reason" binding:"required"`
+	}
+
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "razón es requerida"})
+		return
+	}
+
+	fu, err := c.svc.RegisterFailedAttempt(ctx.Request.Context(), followUpID, body.Reason)
+	if err != nil {
+		if errors.Is(err, service.ErrFollowUpNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "seguimiento no encontrado"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Retornar información adicional sobre el estado
+	response := gin.H{
+		"success":                 true,
+		"message":                 "Intento registrado con éxito",
+		"followUp":                fu,
+		"attempts":                fu.Attempts,
+		"maxAttemptsReached":      fu.Attempts >= 3,
+		"criticalAttemptsReached": fu.Attempts >= 9,
+	}
+
+	ctx.JSON(http.StatusOK, response)
+}
+
+// RegisterAttemptInput es el body de entrada para registrar un intento
+type RegisterAttemptInput struct {
+	Reason string `json:"reason" binding:"required"`
 }
 
 // ginQueryInt está definido en form_controller.go (mismo package controller).
