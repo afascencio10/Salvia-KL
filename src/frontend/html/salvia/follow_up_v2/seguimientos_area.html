@@ -1,0 +1,313 @@
+<!-- Estilos inline para el layout sidebar + contenido (patrón mockup) -->
+<style>
+    .sa-layout { display: flex; min-height: calc(100vh - 120px); }
+    .sa-sidebar {
+        width: 220px; flex-shrink: 0;
+        background: linear-gradient(180deg, #7c3aed 0%, #5b21b6 100%);
+        color: #fff; padding: 20px 0;
+    }
+    .sa-sidebar-logo { padding: 0 16px 16px; font-size: 13px; opacity: 0.7; }
+    .sa-sidebar-logo img { width: 80px; margin-bottom: 4px; }
+    .sa-sidebar-nav { display: flex; flex-direction: column; gap: 2px; padding: 0 8px; }
+    .sa-sidebar-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 12px; border-radius: 8px;
+        font-size: 14px; color: rgba(255,255,255,0.7);
+        text-decoration: none; cursor: pointer; transition: all 0.15s;
+    }
+    .sa-sidebar-item:hover { background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; }
+    .sa-sidebar-item.active { background: rgba(255,255,255,0.2); color: #fff; font-weight: 600; }
+    .sa-sidebar-item i { width: 18px; text-align: center; }
+    .sa-content { flex: 1; padding: 24px 28px; background: #f8f9fa; overflow-y: auto; }
+    .sa-header h2 { font-size: 22px; font-weight: 700; color: #111827; margin: 0; }
+    .sa-header p { font-size: 14px; color: #6b7280; margin: 2px 0 0; }
+
+    /* Badges de riesgo y estado */
+    .sa-badge {
+        display: inline-block; padding: 2px 10px; border-radius: 12px;
+        font-size: 12px; font-weight: 600; white-space: nowrap;
+    }
+    .sa-badge-extremo  { background: #fef2f2; color: #dc2626; }
+    .sa-badge-alto     { background: #fff7ed; color: #ea580c; }
+    .sa-badge-moderado { background: #eff6ff; color: #2563eb; }
+    .sa-badge-bajo     { background: #f0fdf4; color: #16a34a; }
+    .sa-badge-pendiente    { background: #fefce8; color: #ca8a04; }
+    .sa-badge-realizado    { background: #f0fdf4; color: #16a34a; }
+    .sa-badge-vencido      { background: #fef2f2; color: #dc2626; }
+    .sa-badge-reprogramado { background: #eff6ff; color: #2563eb; }
+    .sa-badge-default      { background: #f3f4f6; color: #6b7280; }
+
+    /* Panel lateral de detalle */
+    .sa-detail-panel {
+        width: 320px; flex-shrink: 0;
+        background: #fff; border-left: 1px solid #e5e7eb;
+        padding: 20px; overflow-y: auto;
+        transition: width 0.2s;
+    }
+    .sa-detail-panel.hidden { width: 0; padding: 0; overflow: hidden; }
+</style>
+
+<div class="sa-layout">
+    <!-- Sidebar morado -->
+    <aside class="sa-sidebar">
+        <div class="sa-sidebar-logo">
+            <div style="font-weight: 700; font-size: 16px;">Salvia</div>
+            <div style="font-size: 11px; opacity: 0.6;">v2 · Seguimientos</div>
+        </div>
+        <nav class="sa-sidebar-nav">
+            <a class="sa-sidebar-item" href="/salvia/hacer-seguimiento/test-id">
+                <i class="fas fa-clipboard-check"></i> Mis seguimientos
+            </a>
+            <a class="sa-sidebar-item active" href="/salvia/seguimientos/area">
+                <i class="fas fa-layer-group"></i> Seguimientos Área
+            </a>
+            <a class="sa-sidebar-item" href="#">
+                <i class="fas fa-users"></i> Carga respondientes
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Contenido principal -->
+    <div class="sa-content" id="seguimientos-area-app">
+        <!-- Header -->
+        <div class="sa-header mb-3">
+            <h2>Seguimientos del área</h2>
+            <p>Vista supervisores · Todos los agentes del equipo</p>
+        </div>
+
+        <!-- Carga por agente -->
+        <carga-agente-bar
+            :agentes="cargaAgentes"
+            :fecha="fechaCarga"
+            @cambiar-fecha="cambiarFechaCarga">
+        </carga-agente-bar>
+
+        <!-- Filtros y tabs -->
+        <seguimientos-filtros
+            :agentes="opcionesAgentes"
+            :estados="opcionesEstados"
+            :total="total"
+            @filtrar="aplicarFiltros">
+        </seguimientos-filtros>
+
+        <!-- Tabla -->
+        <div class="d-flex" style="gap: 0;">
+            <div style="flex: 1; min-width: 0;">
+                <seguimientos-tabla
+                    :items="seguimientos"
+                    :total="total"
+                    :page="page"
+                    :limit="limit"
+                    :loading="cargando"
+                    @reagendar="abrirReagendar"
+                    @paginar="cambiarPagina"
+                    @seleccionar="seleccionarItem">
+                </seguimientos-tabla>
+            </div>
+
+            <!-- Panel lateral de detalle -->
+            <div class="sa-detail-panel" :class="{ hidden: !itemSeleccionado }">
+                <template v-if="itemSeleccionado">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <strong>\${ itemSeleccionado.agent_id }</strong>
+                        <button class="btn btn-sm btn-link text-muted" @click="itemSeleccionado = null">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">Caso</small>
+                        <div>\${ itemSeleccionado.case_id }</div>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">Riesgo</small>
+                        <div><span :class="riesgoBadgeClass(itemSeleccionado.risk_status)">\${ itemSeleccionado.risk_status }</span></div>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">Fecha programada</small>
+                        <div>\${ formatFecha(itemSeleccionado.scheduled_date) } · \${ formatHora(itemSeleccionado.scheduled_date) }</div>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">Estado</small>
+                        <div><span :class="estadoBadgeClass(itemSeleccionado.status)">\${ itemSeleccionado.status }</span></div>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">Seguimiento #</small>
+                        <div>\${ itemSeleccionado.sequence_number }</div>
+                    </div>
+                    <hr>
+                    <button v-if="itemSeleccionado.status === 'PENDIENTE'"
+                            class="btn btn-primary btn-block btn-sm"
+                            @click="abrirReagendar(itemSeleccionado.id)">
+                        <i class="fas fa-calendar-check mr-1"></i> Re agendar y priorizar
+                    </button>
+                </template>
+            </div>
+        </div>
+
+        <!-- Modal Reagendar -->
+        <div class="modal fade" id="modalReagendar" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="fas fa-calendar-check mr-2"></i>Re agendar y priorizar</h5>
+                        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>Nueva fecha</label>
+                            <input type="date" class="form-control" v-model="reagendar.nueva_fecha">
+                        </div>
+                        <div class="form-group">
+                            <label>Nueva hora</label>
+                            <input type="time" class="form-control" v-model="reagendar.nueva_hora">
+                        </div>
+                        <div class="form-group">
+                            <label>Prioridad</label>
+                            <select class="form-control" v-model="reagendar.prioridad">
+                                <option value="">Normal</option>
+                                <option value="ALTA">Alta</option>
+                                <option value="URGENTE">Urgente</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Motivo</label>
+                            <textarea class="form-control" rows="3" v-model="reagendar.motivo"
+                                      placeholder="Describa el motivo del reagendamiento..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-primary" @click="confirmarReagendar"
+                                :disabled="!reagendar.nueva_fecha || !reagendar.motivo">
+                            Confirmar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ template "standard_scripts.html" .}}
+
+<script>
+    var app = Vue.createApp({
+        delimiters: ['${', '}'],
+        data() {
+            return {
+                userId: '{{ .UserId }}',
+                isAdmin: {{ .IsAdmin }},
+                teamId: '{{ .TeamId }}',
+
+                seguimientos: [],
+                total: 0,
+                page: 0,
+                limit: 20,
+                cargando: false,
+                filtrosActivos: { tab: 'pendientes' },
+
+                cargaAgentes: [],
+                fechaCarga: new Date().toISOString().split('T')[0],
+
+                opcionesAgentes: [],
+                opcionesEstados: [],
+
+                itemSeleccionado: null,
+
+                reagendar: { id: '', nueva_fecha: '', nueva_hora: '', prioridad: '', motivo: '' },
+            };
+        },
+        methods: {
+            cargarOpciones() {
+                var self = this;
+                fetch('/api/v1/seguimientos/filtros-opciones?team=' + encodeURIComponent(this.teamId))
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        self.opcionesAgentes = data.agentes || [];
+                        self.opcionesEstados = data.estados || [];
+                    })
+                    .catch(function(err) { console.error('Error opciones:', err); });
+            },
+            cargarSeguimientos() {
+                var self = this;
+                self.cargando = true;
+                var p = new URLSearchParams();
+                p.set('team', this.teamId);
+                p.set('page', this.page);
+                p.set('limit', this.limit);
+                if (this.filtrosActivos.tab)         p.set('tab', this.filtrosActivos.tab);
+                if (this.filtrosActivos.fecha_inicio) p.set('fecha_inicio', this.filtrosActivos.fecha_inicio);
+                if (this.filtrosActivos.fecha_fin)    p.set('fecha_fin', this.filtrosActivos.fecha_fin);
+                if (this.filtrosActivos.estado)       p.set('estado', this.filtrosActivos.estado);
+                if (this.filtrosActivos.agente_id)    p.set('agente_id', this.filtrosActivos.agente_id);
+
+                fetch('/api/v1/seguimientos?' + p.toString())
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        self.seguimientos = data.items || [];
+                        self.total = data.total || 0;
+                        self.cargando = false;
+                    })
+                    .catch(function(err) { console.error('Error:', err); self.cargando = false; });
+            },
+            cargarCargaAgentes() {
+                var self = this;
+                fetch('/api/v1/seguimientos/carga-agentes?team=' + encodeURIComponent(this.teamId) + '&fecha=' + this.fechaCarga)
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) { self.cargaAgentes = data || []; })
+                    .catch(function(err) { console.error('Error carga:', err); });
+            },
+            aplicarFiltros(filtros) {
+                this.filtrosActivos = filtros;
+                this.page = 0;
+                this.cargarSeguimientos();
+            },
+            cambiarPagina(p) { this.page = p; this.cargarSeguimientos(); },
+            cambiarFechaCarga(f) { this.fechaCarga = f; this.cargarCargaAgentes(); },
+            seleccionarItem(item) { this.itemSeleccionado = item; },
+            abrirReagendar(id) {
+                this.reagendar = { id: id, nueva_fecha: '', nueva_hora: '', prioridad: '', motivo: '' };
+                $('#modalReagendar').modal('show');
+            },
+            confirmarReagendar() {
+                var self = this;
+                fetch('/api/v1/seguimientos/' + this.reagendar.id + '/reagendar', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.reagendar),
+                })
+                .then(function(r) { if (!r.ok) throw new Error('Error'); return r.json(); })
+                .then(function() {
+                    $('#modalReagendar').modal('hide');
+                    self.cargarSeguimientos();
+                    self.cargarCargaAgentes();
+                    self.itemSeleccionado = null;
+                })
+                .catch(function(err) { alert('Error: ' + err.message); });
+            },
+            riesgoBadgeClass(risk) {
+                var m = { 'EXTREMO': 'sa-badge sa-badge-extremo', 'ALTO': 'sa-badge sa-badge-alto', 'MODERADO': 'sa-badge sa-badge-moderado', 'BAJO': 'sa-badge sa-badge-bajo' };
+                return m[risk] || 'sa-badge sa-badge-default';
+            },
+            estadoBadgeClass(status) {
+                var m = { 'PENDIENTE': 'sa-badge sa-badge-pendiente', 'REALIZADO': 'sa-badge sa-badge-realizado', 'VENCIDO': 'sa-badge sa-badge-vencido', 'REPROGRAMADO': 'sa-badge sa-badge-reprogramado' };
+                return m[status] || 'sa-badge sa-badge-default';
+            },
+            formatFecha(d) { return d ? new Date(d).toLocaleDateString('es-CO') : '-'; },
+            formatHora(d) { return d ? new Date(d).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '-'; },
+        },
+        mounted() {
+            this.cargarOpciones();
+            this.cargarSeguimientos();
+            this.cargarCargaAgentes();
+        }
+    });
+</script>
+
+<script src="/static/js/components/carga-agente-bar.js"></script>
+<script src="/static/js/components/seguimientos-filtros.js"></script>
+<script src="/static/js/components/seguimientos-tabla.js"></script>
+
+<script>
+    app.mount("#seguimientos-area-app");
+</script>
