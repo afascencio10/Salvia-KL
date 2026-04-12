@@ -470,7 +470,7 @@ func (s *followUpV2Service) getCompletedByAgentAndDate(ctx context.Context, agen
 	for _, fu := range allFollowUps.Items {
 		if fu.AgentID == agentID &&
 			fu.ScheduledDate.Format("2006-01-02") == dateOnly &&
-			fu.Attempts > 0 {
+			fu.Status == models.FollowUpStatusRealizado {
 			completed = append(completed, fu)
 		}
 	}
@@ -558,6 +558,11 @@ func (s *followUpV2Service) RescheduleFollowUp(ctx context.Context, id string, i
 	}
 	if input.NuevaHora != "" {
 		fields["scheduled_time"] = input.NuevaHora
+	}
+	if input.Prioridad == "ALTA" {
+		fields["is_priority"] = true
+	} else if input.Prioridad == "NORMAL" {
+		fields["is_priority"] = false
 	}
 
 	err := s.repo.Reschedule(ctx, id, fields)
