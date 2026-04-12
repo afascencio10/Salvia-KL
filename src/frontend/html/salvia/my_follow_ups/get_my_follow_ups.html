@@ -31,8 +31,9 @@
                 ${ tab.label }
                 <span v-if="tab.id === 'priority'" style="color: #a78bfa; margin: 0 0.125rem;">·</span>
                 <i v-if="tab.id === 'priority'" class="fas fa-clock" style="font-size: 0.75rem; color: #a78bfa;"></i>
-                <span v-if="tab.id === 'priority'"
-                    style="font-size: 0.8125rem; color: #a78bfa; font-weight: 700;">10:00</span>
+                <span v-if="tab.id === 'priority'" style="font-size: 0.8125rem; color: #a78bfa; font-weight: 700;">
+                    ${ priorityFollowUps && priorityFollowUps.length > 0 ?
+                    formatTime(priorityFollowUps[0].scheduledTime) : '' }</span>
                 <span class="ms-tab-count">${ tab.count }</span>
             </button>
         </div>
@@ -69,8 +70,12 @@
                                     <span>Caso #${ fu.case ? fu.case.id : 'N/A' }</span>
                                     <span>·</span>
                                     <span>${ fu.case ? fu.case.municipality : 'N/A' }</span>
-                                    <small>${ fu.lastAttemptAt ? "Último intento: " + fu.lastAttemptAt : ''}</small>
                                 </div>
+                                <p v-if="fu.last_attempt_at"
+                                    style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.25rem; display: flex; align-items: center; gap: 0.375rem; margin-bottom: 0;">
+                                    <i class="fas fa-history" style="font-size: 0.625rem;"></i> Último intento: ${
+                                    formatAttemptDate(fu.last_attempt_at) }
+                                </p>
                             </div>
 
                             <!-- Métricas y acciones -->
@@ -161,7 +166,7 @@
                     <div class="ms-urgent-alert__content">
                         <p class="ms-urgent-alert__title">Próximo seguimiento urgente</p>
                         <p class="ms-urgent-alert__subtitle">${ priorityFollowUps[0].caseName } · Llamar a las ${
-                            priorityFollowUps[0].scheduledTime || 'Sin hora programada' }</p>
+                            formatTime(priorityFollowUps[0].scheduledTime) }</p>
                     </div>
                 </div>
                 <div v-for="fu in priorityFollowUps" :key="fu.id" class="ms-followup-card"
@@ -185,8 +190,13 @@
                                 <span>·</span>
                                 <span>${ fu.case ? fu.case.municipality : 'N/A' }</span>
                             </div>
+                            <p v-if="fu.last_attempt_at"
+                                style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.25rem; display: flex; align-items: center; gap: 0.375rem;">
+                                <i class="fas fa-history" style="font-size: 0.625rem;"></i> Último intento: ${
+                                formatAttemptDate(fu.last_attempt_at) }
+                            </p>
                             <div class="ms-card-time" style="margin-top: 0.375rem;">
-                                <i class="fas fa-clock"></i> Llamar a las ${ fu.scheduledTime || 'Sin hora programada' }
+                                <i class="fas fa-clock"></i> Llamar a las ${ formatTime(fu.scheduledTime) }
                             </div>
                         </div>
 
@@ -261,18 +271,99 @@
 
             <!-- Realizados Tab -->
             <div v-else-if="activeTab === 'completed'">
-                <div v-for="fu in completedFollowUps" :key="fu.id" class="ms-followup-card" @click="detailFollowUp = fu"
-                    style="cursor: pointer;">
-                    <div class="ms-avatar">${ fu.caseName ? fu.caseName.charAt(0) : '?' }</div>
-                    <div class="ms-card-content">
-                        <div class="ms-card-header">
-                            <span class="ms-card-name">${ fu.caseName }</span>
-                            <span class="ms-badge" :class="getBadgeClass(fu.riskLevel)">${ fu.riskLevel }</span>
+                <div v-if="completedFollowUps.length === 0" class="ms-empty-state">
+                    <i class="fas fa-check-circle ms-empty-state__icon"></i>
+                    <p class="ms-empty-state__text">No hay seguimientos realizados hoy</p>
+                </div>
+                <div v-else>
+                    <div v-for="fu in completedFollowUps" :key="fu.id" class="ms-followup-card"
+                        style="display: block !important; padding: 0 !important; overflow: hidden; cursor: pointer; transition: all 0.2s; border: 1px solid #e5e7eb; border-radius: 1rem; margin-bottom: 1rem; background: white; opacity: 0.85;"
+                        @click="toggleExpand(fu)"
+                        :style="expandedFollowUpId === fu.id ? 'border-color: #10b981 !important; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15) !important; opacity: 1;' : ''">
+
+                        <!-- Header del card -->
+                        <div
+                            style="display: flex; align-items: center; gap: 1rem; padding: 1.25rem 1.5rem; width: 100%;">
+                            <!-- Avatar -->
+                            <div
+                                style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: linear-gradient(135deg, #d1fae5, #ecfdf5); display: flex; align-items: center; justify-content: center; color: #059669; font-weight: 700; font-size: 1rem; flex-shrink: 0;">
+                                <i class="fas fa-check"></i>
+                            </div>
+
+                            <!-- Info principal -->
+                            <div style="flex: 1; min-width: 0;">
+                                <p style="font-weight: 700; font-size: 1rem; color: #111827; margin: 0 0 0.25rem 0;">${
+                                    fu.caseName }</p>
+                                <div
+                                    style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.875rem; color: #6b7280;">
+                                    <span>#${ fu.case ? fu.case.id : 'N/A' }</span>
+                                    <span>·</span>
+                                    <span>${ fu.case ? fu.case.municipality : 'N/A' }</span>
+                                    <span v-if="fu.last_attempt_at" style="font-style: italic; color: #9ca3af;">· Último
+                                        intento: ${ formatAttemptDate(fu.last_attempt_at) }</span>
+                                </div>
+                            </div>
+
+                            <!-- Métricas y acciones -->
+                            <div style="display: flex; align-items: center; gap: 1.5rem; flex-shrink: 0;">
+                                <span class="ms-badge" :class="getBadgeClass(fu.riskLevel)"
+                                    style="font-size: 0.75rem; padding: 0.375rem 0.75rem; font-weight: 600;">${
+                                    fu.riskLevel }</span>
+                                <div style="text-align: center;">
+                                    <p
+                                        style="font-size: 0.75rem; color: #6b7280; margin: 0 0 0.125rem 0; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">
+                                        Intentos</p>
+                                    <p style="font-weight: 700; font-size: 1.25rem; color: #111827; margin: 0;">${
+                                        fu.attempts || 0 }</p>
+                                </div>
+                                <span
+                                    style="background: #10b981; color: white; padding: 0.625rem 1.25rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem;">
+                                    <i class="fas fa-check"></i> Realizado
+                                </span>
+                            </div>
                         </div>
-                        <p class="ms-card-subtitle">Caso #${ fu.case ? fu.case.id : 'N/A' } · ${ fu.case ?
-                            fu.case.municipality : 'N/A' }</p>
+
+                        <!-- Historial expandible -->
+                        <div v-if="expandedFollowUpId === fu.id && fu.follow_up_attempts && fu.follow_up_attempts.length > 0"
+                            style="background: #fafafa; border-top: 1px solid #e5e7eb;">
+                            <div style="padding: 1.5rem;">
+                                <p
+                                    style="font-size: 0.75rem; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 1.25rem 0; display: flex; align-items: center; gap: 0.5rem;">
+                                    <i class="fas fa-history"></i> Historial de contacto
+                                </p>
+                                <div
+                                    style="display: flex; flex-direction: column; gap: 1rem; padding-left: 1.5rem; position: relative;">
+                                    <div
+                                        style="position: absolute; left: 0.5rem; top: 0; bottom: 0; width: 2px; background: #e5e7eb;">
+                                    </div>
+                                    <div v-for="(attempt, index) in fu.follow_up_attempts" :key="attempt.id"
+                                        style="background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                        <div
+                                            style="position: absolute; left: -1.75rem; top: 50%; transform: translateY(-50%); width: 12px; height: 12px; border-radius: 50%; background: white; border: 2px solid #e5e7eb; z-index: 1;">
+                                        </div>
+                                        <div style="flex: 1;">
+                                            <p
+                                                style="font-weight: 700; font-size: 0.875rem; color: #374151; margin: 0 0 0.375rem 0;">
+                                                Intento #${ index + 1 }</p>
+                                            <p
+                                                style="font-size: 0.75rem; color: #6b7280; margin: 0 0 0.25rem 0; display: flex; align-items: center; gap: 0.375rem;">
+                                                <i class="fas fa-clock" style="font-size: 0.625rem;"></i> ${
+                                                formatAttemptDate(attempt.created_at) }
+                                            </p>
+                                            <p v-if="attempt.reason"
+                                                style="font-size: 0.75rem; color: #6b7280; margin: 0; font-style: italic;">
+                                                ${ attempt.reason }</p>
+                                        </div>
+                                        <span
+                                            style="font-size: 0.75rem; font-weight: 700; padding: 0.375rem 0.75rem; border-radius: 9999px; white-space: nowrap; text-transform: uppercase; margin-left: 1rem;"
+                                            :style="attempt.was_answered ? 'background: #d1fae5; color: #065f46;' : 'background: #fee2e2; color: #991b1b;'">
+                                            ${ attempt.was_answered ? 'Sí contestó' : 'No contestó' }
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <span class="ms-action-link" style="color: #16a34a;">Realizado <i class="fas fa-check"></i></span>
                 </div>
             </div>
         </div>
@@ -489,6 +580,7 @@
                                 riskLevel: fu.risk_status || 'Sin definir',
                                 attempts: fu.attempts || 0,
                                 follow_up_attempts: fu.follow_up_attempts || [],
+                                last_attempt_at: fu.last_attempt_at || null,
                                 isPrioritized: false
                             })),
                             ...(dayData.followUpsPendingPriority || []).map(fu => ({
@@ -499,6 +591,7 @@
                                 riskLevel: fu.risk_status || 'Sin definir',
                                 attempts: fu.attempts || 0,
                                 follow_up_attempts: fu.follow_up_attempts || [],
+                                last_attempt_at: fu.last_attempt_at || null,
                                 isPrioritized: true,
                                 scheduledTime: fu.scheduled_time || '00:00'
                             }))
@@ -510,6 +603,9 @@
                             case: fu.case || null,
                             caseName: fu.case ? `${fu.case.names} ${fu.case.lastNames}` : `Caso ${fu.case_id ? fu.case_id.substring(0, 8) : 'N/A'}`,
                             riskLevel: fu.risk_status || 'Sin definir',
+                            attempts: fu.attempts || 0,
+                            follow_up_attempts: fu.follow_up_attempts || [],
+                            last_attempt_at: fu.last_attempt_at || null,
                             scheduledTime: fu.scheduled_time || '00:00'
                         }));
 
@@ -659,6 +755,19 @@
                         hour: '2-digit',
                         minute: '2-digit'
                     });
+                },
+
+                formatTime(timeStr) {
+                    if (!timeStr || timeStr === '00:00:00' || timeStr === '00:00') return 'Sin hora programada';
+                    // Asumimos formato HH:mm:ss o HH:mm
+                    const parts = timeStr.split(':');
+                    if (parts.length < 2) return timeStr;
+                    let hours = parseInt(parts[0], 10);
+                    const minutes = parts[1];
+                    const ampm = hours >= 12 ? 'PM' : 'AM';
+                    hours = hours % 12;
+                    hours = hours ? hours : 12; // la hora '0' debería ser '12'
+                    return `${hours}:${minutes} ${ampm}`;
                 },
 
                 // ── Helpers ─────────────────────────────────────────────────

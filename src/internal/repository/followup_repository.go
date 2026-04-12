@@ -162,12 +162,12 @@ func (r *followUpRepository) FindByAgentAndDate(ctx context.Context, agentID str
 			models.FollowUpStatusPendiente,
 			dateOnly).
 		Order(`
-			CASE risk_status 
-				WHEN 'Extremo' THEN 1 
-				WHEN 'Crítico' THEN 1 
-				WHEN 'Alto' THEN 2 
-				WHEN 'Moderado' THEN 3 
-				WHEN 'Bajo' THEN 4 
+			CASE UPPER(risk_status)
+				WHEN 'EXTREMO' THEN 1 
+				WHEN 'CRÍTICO' THEN 1 
+				WHEN 'ALTO' THEN 2 
+				WHEN 'MODERADO' THEN 3 
+				WHEN 'BAJO' THEN 4 
 				ELSE 5 
 			END ASC,
 			last_attempt_at ASC NULLS FIRST,

@@ -370,6 +370,7 @@ func (s *followUpV2Service) GetMyDayFollowUpsEnriched(ctx context.Context, agent
 				IsPriority:     fu.IsPriority,
 				Status:         fu.Status,
 				SequenceNumber: fu.SequenceNumber,
+				LastAttemptAt:  fu.LastAttemptAt,
 			}
 
 			// Obtener datos del caso
@@ -442,6 +443,7 @@ func (s *followUpV2Service) GetMyDayFollowUpsEnriched(ctx context.Context, agent
 }
 
 // getCompletedByAgentAndDate obtiene seguimientos completados del agente para una fecha
+// Un seguimiento se considera "realizado" si tiene al menos un intento registrado hoy
 func (s *followUpV2Service) getCompletedByAgentAndDate(ctx context.Context, agentID string, date time.Time) ([]models.FollowUpV2, error) {
 	// Obtener todos los seguimientos del agente (page 0, limit 1000)
 	allFollowUps, err := s.repo.FindWithPagination(ctx, 0, 1000)
@@ -449,14 +451,14 @@ func (s *followUpV2Service) getCompletedByAgentAndDate(ctx context.Context, agen
 		return nil, err
 	}
 
-	// Filtrar por agente, fecha y status
+	// Filtrar por agente, fecha y al menos un intento
 	dateOnly := date.Format("2006-01-02")
 	var completed []models.FollowUpV2
 
 	for _, fu := range allFollowUps.Items {
 		if fu.AgentID == agentID &&
 			fu.ScheduledDate.Format("2006-01-02") == dateOnly &&
-			(fu.Status == models.FollowUpStatusRealizado || fu.Status == models.FollowUpStatusVencido) {
+			fu.Attempts > 0 {
 			completed = append(completed, fu)
 		}
 	}

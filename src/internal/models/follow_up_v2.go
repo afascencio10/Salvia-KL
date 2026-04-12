@@ -45,16 +45,17 @@ func (FollowUpV2) TableName() string { return "salvia.follow_up_v2" }
 
 // MyDayFollowUpResponse representa un seguimiento enriquecido con datos del caso para la vista "Mis Seguimientos"
 type MyDayFollowUpResponse struct {
-	ID               string               `json:"id"`
-	CaseID           string               `json:"case_id"`
-	Case             *VictimCaseLight     `json:"case,omitempty"`
-	RiskStatus       string               `json:"risk_status"`
-	ScheduledTime    string               `json:"scheduled_time"`
-	Attempts         int                  `json:"attempts"`
-	IsPriority       bool                 `json:"is_priority"`
-	Status           string               `json:"status"`
-	SequenceNumber   int                  `json:"sequence_number"`
-	FollowUpAttempts []FollowUpAttempt    `json:"follow_up_attempts,omitempty"`
+	ID               string            `json:"id"`
+	CaseID           string            `json:"case_id"`
+	Case             *VictimCaseLight  `json:"case,omitempty"`
+	RiskStatus       string            `json:"risk_status"`
+	ScheduledTime    string            `json:"scheduled_time"`
+	Attempts         int               `json:"attempts"`
+	IsPriority       bool              `json:"is_priority"`
+	Status           string            `json:"status"`
+	SequenceNumber   int               `json:"sequence_number"`
+	LastAttemptAt    *time.Time        `json:"last_attempt_at,omitempty"`
+	FollowUpAttempts []FollowUpAttempt `json:"follow_up_attempts,omitempty"`
 }
 
 // MyDayResponse representa la respuesta completa del endpoint /follow-ups/my-day
