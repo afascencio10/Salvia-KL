@@ -48,11 +48,12 @@ func (c *FormSectionController) GetByID(ctx *gin.Context) {
 
 func (c *FormSectionController) Create(ctx *gin.Context) {
 	var body struct {
-		Name       string `json:"name"       binding:"required"`
-		OrderIndex int    `json:"orderIndex"`
+		Name        string  `json:"name"        binding:"required"`
+		Description *string `json:"description"`
+		Order       int     `json:"order"`
 	}
 	if err := ctx.ShouldBindJSON(&body); err != nil { ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return }
-	fs := &models.FormSection{FormID: ctx.Param("id"), Name: body.Name, OrderIndex: body.OrderIndex}
+	fs := &models.FormSection{FormID: ctx.Param("id"), Name: body.Name, Description: body.Description, Order: body.Order}
 	if err := c.svc.Create(ctx.Request.Context(), fs); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"}); return
 	}
@@ -66,12 +67,14 @@ func (c *FormSectionController) Update(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"}); return
 	}
 	var body struct {
-		Name       *string `json:"name"`
-		OrderIndex *int    `json:"orderIndex"`
+		Name        *string `json:"name"`
+		Description *string `json:"description"`
+		Order       *int    `json:"order"`
 	}
 	if err := ctx.ShouldBindJSON(&body); err != nil { ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return }
-	if body.Name != nil       { fs.Name = *body.Name }
-	if body.OrderIndex != nil { fs.OrderIndex = *body.OrderIndex }
+	if body.Name != nil        { fs.Name = *body.Name }
+	if body.Description != nil { fs.Description = body.Description }
+	if body.Order != nil       { fs.Order = *body.Order }
 	if err := c.svc.Update(ctx.Request.Context(), fs); err != nil {
 		if errors.Is(err, service.ErrFormSectionNotFound) { ctx.JSON(http.StatusNotFound, gin.H{"error": "sección no encontrada"}); return }
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"}); return

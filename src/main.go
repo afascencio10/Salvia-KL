@@ -54,6 +54,7 @@ func main() {
 		&models.FormSubmission{},
 		&models.RepeaterEntry{},
 		&models.Answer{},
+		&models.Option{},
 		&models.FollowUpV2{},
 	} {
 		if err := gormDB.AutoMigrate(m); err != nil {
@@ -71,9 +72,20 @@ func main() {
 	repeaterEntryRepo      := repository.NewRepeaterEntryRepository(gormDB)
 	answerRepo             := repository.NewAnswerRepository(gormDB)
 	followUpRepo           := repository.NewFollowUpRepository(gormDB)
+	optionRepo            := repository.NewOptionRepository(gormDB)
 
 	// Services
-	formSvc               := service.NewFormService(formRepo)
+	formSvc               := service.NewFormService(service.FormServiceDeps{
+		FormRepo:           formRepo,
+		FormSectionRepo:    formSectionRepo,
+		QuestionRepo:       questionRepo,
+		RepeaterGroupRepo:  repeaterGroupRepo,
+		OptionRepo:         optionRepo,
+		VisibilityCondRepo: visibilityCondRepo,
+		FormSubmissionRepo: formSubmissionRepo,
+		RepeaterEntryRepo:  repeaterEntryRepo,
+		AnswerRepo:         answerRepo,
+	})
 	formSectionSvc        := service.NewFormSectionService(formSectionRepo)
 	questionSvc           := service.NewQuestionService(questionRepo)
 	repeaterGroupSvc      := service.NewRepeaterGroupService(repeaterGroupRepo)
@@ -82,6 +94,7 @@ func main() {
 	repeaterEntrySvc      := service.NewRepeaterEntryService(repeaterEntryRepo)
 	answerSvc             := service.NewAnswerService(answerRepo)
 	followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo)
+	optionSvc             := service.NewOptionService(optionRepo)
 
 	// Inyectar el servicio en el controller legacy para generación automática del calendario
 	salvia_legacy.FollowUpSvc = followUpV2Svc
@@ -96,6 +109,7 @@ func main() {
 	repeaterEntryCtrl      := salvia_ctrl.NewRepeaterEntryController(repeaterEntrySvc)
 	answerCtrl             := salvia_ctrl.NewAnswerController(answerSvc)
 	followUpV2Ctrl         := salvia_ctrl.NewFollowUpV2Controller(followUpV2Svc)
+	optionCtrl             := salvia_ctrl.NewOptionController(optionSvc)
 
 	// Routes
 	api := router.Group("/api/v1")
@@ -108,6 +122,7 @@ func main() {
 	repeaterEntryCtrl.RegisterRoutes(api)
 	answerCtrl.RegisterRoutes(api)
 	followUpV2Ctrl.RegisterRoutes(api)
+	optionCtrl.RegisterRoutes(api)
 
 	// Swagger UI — accesible en https://localhost/swagger/index.html
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

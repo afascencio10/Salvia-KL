@@ -10,6 +10,7 @@ import (
 type RepeaterGroupRepository interface {
 	Repository[models.RepeaterGroup]
 	FindBySectionID(ctx context.Context, sectionID string) ([]models.RepeaterGroup, error)
+	FindBySectionIDs(ctx context.Context, sectionIDs []string) ([]models.RepeaterGroup, error)
 }
 
 type repeaterGroupRepository struct {
@@ -27,4 +28,15 @@ func NewRepeaterGroupRepository(db *gorm.DB) RepeaterGroupRepository {
 func (r *repeaterGroupRepository) FindBySectionID(ctx context.Context, sectionID string) ([]models.RepeaterGroup, error) {
 	var items []models.RepeaterGroup
 	return items, r.db.WithContext(ctx).Where("form_section_id = ?", sectionID).Find(&items).Error
+}
+
+func (r *repeaterGroupRepository) FindBySectionIDs(ctx context.Context, sectionIDs []string) ([]models.RepeaterGroup, error) {
+	var items []models.RepeaterGroup
+	if len(sectionIDs) == 0 {
+		return items, nil
+	}
+	return items, r.db.WithContext(ctx).
+		Where("form_section_id IN ?", sectionIDs).
+		Order(`"order" ASC`).
+		Find(&items).Error
 }

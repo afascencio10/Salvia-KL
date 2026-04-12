@@ -123,8 +123,9 @@ func StartRouter() {
 		}
 	} else {
 		// Modo Local:
-		// Se usan los puertos seguros manuales (requiere sudo localmente para puerto 443)
-		err := router.RunTLS(":443", "certs/salviaTest.crt", "certs/salviaTest.key")
+		// Puerto 8443 para evitar conflictos con el HTTPS del sistema (443 requiere sudo
+		// y bloquea todo el tráfico HTTPS de la máquina, incluyendo herramientas de desarrollo).
+		err := router.RunTLS(":9443", "certs/salviaTest.crt", "certs/salviaTest.key")
 		if err != nil {
 			println("Error iniciando servidor TLS local: ", err.Error())
 		}
