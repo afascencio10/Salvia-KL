@@ -14,7 +14,7 @@
         <div class="ms-detail-header-info">
             <div class="ms-detail-header-title">
                 <h2>Seguimiento #${ followUp.id }</h2>
-                <span class="ms-badge" :style="getRiskStyle(victimCase.riskLevel)">Ejecutado</span>
+                <span class="ms-badge" :style="getRiskStyle(victimCase.riskLevel)">${followUp.status}</span>
             </div>
             <p class="ms-detail-header-meta">
                 <i class="fas fa-calendar-alt"></i> ${ followUp.date } &nbsp;·&nbsp;
@@ -326,6 +326,7 @@
                 activeTab: 'resumen',
                 activeSection: 0,
                 isEditing: false,
+                loading: false,
                 TABS: [
                     { id: 'resumen', label: 'Resumen', icono: 'fas fa-chart-bar', count: 0 },
                     { id: 'formulario', label: 'Formulario', icono: 'fas fa-clipboard-list', count: 0 },
@@ -347,6 +348,7 @@
                     date: '-',
                     time: '-',
                     agent: '-',
+                    status: '-',
                     values: {
                         nivel_riesgo_registro: '-',
                         equipo_atencion: '-',
@@ -372,6 +374,10 @@
         methods: {
             async loadDetail(followUpId) {
                 if (!followUpId) return;
+                this.loading = true;
+                const loadingOverlay = document.getElementById('loadingOverlay');
+                if (loadingOverlay) loadingOverlay.style.display = 'flex';
+
                 try {
                     // Endpoint CSR que integra todos los datos necesarios
                     const response = await fetch(`/api/v1/cases/follow-ups/detail?id=${followUpId}`);
@@ -381,6 +387,7 @@
                     this.victimCase.name = `${data.caseInfo.names} ${data.caseInfo.lastNames}`;
                     this.victimCase.riskLevel = data.followUp.risk_status || 'Sin Riesgo';
                     this.victimCase.status = data.caseInfo.status;
+                    this.followUp.status = data.followUp.status || '-';
                     this.originalRiskLevel = data.followUp.risk_status || 'Sin Riesgo';
 
                     const dateObj = new Date(data.followUp.scheduled_date);
@@ -436,6 +443,10 @@
 
                 } catch (error) {
                     console.error("Error al obtener detalle CSR:", error);
+                } finally {
+                    this.loading = false;
+                    const loadingOverlay = document.getElementById('loadingOverlay');
+                    if (loadingOverlay) loadingOverlay.style.display = 'none';
                 }
             },
             goBack() {
@@ -451,17 +462,19 @@
                 return val;
             },
             getRiskStyle(nivel) {
+                const lvl = nivel ? nivel.toUpperCase() : '';
                 const styles = {
-                    'Extremo': 'background-color: #FEE2E2; color: #B91C1C; border: 1px solid #EF4444;',
-                    'Alto': 'background-color: #FEF3C7; color: #92400E; border: 1px solid #F59E0B;',
-                    'Moderado': 'background-color: #DBEAFE; color: #1E40AF; border: 1px solid #3B82F6;',
-                    'Bajo': 'background-color: #D1FAE5; color: #065F46; border: 1px solid #10B981;',
-                    'Sin Riesgo': 'background-color: #F3F4F6; color: #374151; border: 1px solid #9CA3AF;'
+                    'EXTREMO': 'background-color: #FEE2E2; color: #B91C1C; border: 1px solid #EF4444;',
+                    'ALTO': 'background-color: #FEF3C7; color: #92400E; border: 1px solid #F59E0B;',
+                    'MODERADO': 'background-color: #DBEAFE; color: #1E40AF; border: 1px solid #3B82F6;',
+                    'BAJO': 'background-color: #D1FAE5; color: #065F46; border: 1px solid #10B981;',
+                    'SIN RIESGO': 'background-color: #F3F4F6; color: #374151; border: 1px solid #9CA3AF;'
                 };
-                return styles[nivel] || styles['Sin Riesgo'];
+                return styles[lvl] || styles['SIN RIESGO'];
             }
         }
     });
 
     app.mount("#app");
 </script>
+{{ template "overlay.html" . }}

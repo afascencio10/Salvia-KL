@@ -26,8 +26,8 @@ type FollowUpRepository interface {
 	SoftDeleteAndReprogramPending(ctx context.Context, tx *gorm.DB, caseID string) error
 	RunInTransaction(ctx context.Context, fn func(tx *gorm.DB) error) error
 
-	// Nuevos para "Mis Seguimientos"
 	FindByAgentAndDate(ctx context.Context, agentID string, date time.Time) ([]models.FollowUpV2, error)
+	FindRealizedTodayByAgent(ctx context.Context, agentID string, date time.Time) ([]models.FollowUpV2, error)
 	IncrementAttempt(ctx context.Context, followUpID string) error
 	// Seguimientos Área
 	FindByTeamPaginated(ctx context.Context, team string, filters FollowUpFilters, page, limit int) ([]models.FollowUpV2, int64, error)
@@ -157,13 +157,17 @@ func (r *followUpRepository) FindByAgentAndDate(ctx context.Context, agentID str
 	dateOnly := date.Format("2006-01-02")
 
 	err := r.db.WithContext(ctx).
-		Where("agent_id = ? AND status IN (?, ?) AND DATE(scheduled_date) = ?",
+		Where("agent_id = ? AND status IN (?, ?) AND (scheduled_date::date) = ?",
 			agentID,
 			models.FollowUpStatusPendiente,
 			models.FollowUpStatusReprogramado,
 			dateOnly).
 		Order(`
-			is_priority DESC,
+			CASE 
+				WHEN (scheduled_time IS NULL OR scheduled_time = '00:00:00') THEN 1 
+				ELSE 0 
+			END ASC,
+			scheduled_time ASC,
 			CASE UPPER(risk_status)
 				WHEN 'EXTREMO' THEN 1 
 				WHEN 'CRÍTICO' THEN 1 
@@ -172,9 +176,25 @@ func (r *followUpRepository) FindByAgentAndDate(ctx context.Context, agentID str
 				WHEN 'BAJO' THEN 4 
 				ELSE 5 
 			END ASC,
-			last_attempt_at ASC NULLS FIRST,
-			scheduled_time ASC
+			last_attempt_at ASC NULLS FIRST
 		`).
+		Find(&items).Error
+
+	return items, err
+}
+
+// FindRealizedTodayByAgent retorna los seguimientos marcados como REALIZADO
+// que tuvieron su último intento el día de hoy.
+func (r *followUpRepository) FindRealizedTodayByAgent(ctx context.Context, agentID string, date time.Time) ([]models.FollowUpV2, error) {
+	var items []models.FollowUpV2
+	dateOnly := date.Format("2006-01-02")
+
+	err := r.db.WithContext(ctx).
+		Where("agent_id = ? AND status = ? AND (scheduled_date::date) = ?",
+			agentID,
+			models.FollowUpStatusRealizado,
+			dateOnly).
+		Order("scheduled_time ASC").
 		Find(&items).Error
 
 	return items, err
