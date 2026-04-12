@@ -434,7 +434,11 @@
                         hour12: true
                     });
                     this.followUp.id = data.followUp.sequence_number || 1;
-                    this.followUp.agent = data.followUp.agent_id || '-';
+                    if (data.followUp.agent_names) {
+                        this.followUp.agent = `${data.followUp.agent_names} ${data.followUp.agent_last_names}`;
+                    } else {
+                        this.followUp.agent = data.followUp.agent_id || '-';
+                    }
 
                     // Cálculo dinámico de duración
                     if (data.followUp.scheduled_date && data.followUp.scheduled_time && data.followUp.completed_at) {
@@ -474,11 +478,8 @@
                 }
             },
             goBack() {
-                if (this.victimCase.id) {
-                    window.location.href = `/salvia/casos/${this.victimCase.id}/detalle`;
-                } else {
-                    window.history.back();
-                }
+                window.history.back();
+                // window.location.href = `/salvia/casos/${this.victimCase.id}/detalle`;                
             },
             toggleEdit() {
                 this.isEditing = !this.isEditing;

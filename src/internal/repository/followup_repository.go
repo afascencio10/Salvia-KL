@@ -157,9 +157,10 @@ func (r *followUpRepository) FindByAgentAndDate(ctx context.Context, agentID str
 	dateOnly := date.Format("2006-01-02")
 
 	err := r.db.WithContext(ctx).
-		Where("agent_id = ? AND status = ? AND DATE(scheduled_date) = ?",
+		Where("agent_id = ? AND status IN (?, ?) AND DATE(scheduled_date) = ?",
 			agentID,
 			models.FollowUpStatusPendiente,
+			models.FollowUpStatusReprogramado,
 			dateOnly).
 		Order(`
 			CASE UPPER(risk_status)

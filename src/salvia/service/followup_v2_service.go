@@ -98,6 +98,7 @@ type followUpV2Service struct {
 	emRepo      repository.EmergencyMeasureRepository
 	psRepo      repository.PsychosocialSupportRepository
 	esRepo      repository.EconomicStabilizationRepository
+	agentRepo   repository.AgentLightRepository
 }
 
 // NewFollowUpV2Service construye el servicio inyectando los repositorios.
@@ -110,6 +111,7 @@ func NewFollowUpV2Service(
 	emRepo repository.EmergencyMeasureRepository,
 	psRepo repository.PsychosocialSupportRepository,
 	esRepo repository.EconomicStabilizationRepository,
+	agentRepo repository.AgentLightRepository,
 ) FollowUpV2Service {
 	return &followUpV2Service{
 		repo:        repo,
@@ -120,6 +122,7 @@ func NewFollowUpV2Service(
 		emRepo:      emRepo,
 		psRepo:      psRepo,
 		esRepo:      esRepo,
+		agentRepo:   agentRepo,
 	}
 }
 
@@ -248,7 +251,16 @@ func (s *followUpV2Service) GetFollowUpDetail(ctx context.Context, id string, is
 		return nil, fmt.Errorf("error al obtener las barreras: %v", err)
 	}
 
-	// 4. Consultar Remisiones (EmergencyMeasure, PsychosocialSupport, EconomicStabilization)
+	// 4. Obtener información del Agente asignado
+	if fu.AgentID != "" && fu.AgentID != "SIN_ASIGNAR" {
+		agent, err := s.agentRepo.FindByICode(ctx, fu.AgentID)
+		if err == nil && agent != nil {
+			fu.AgentNames = agent.Names
+			fu.AgentLastNames = agent.LastNames
+		}
+	}
+
+	// 5. Consultar Remisiones (EmergencyMeasure, PsychosocialSupport, EconomicStabilization)
 	emergencyMeasures, err := s.emRepo.FindByFollowUpID(ctx, id)
 	if err != nil {
 		log.Printf("[WARN] Error al obtener medidas de emergencia: %v", err)
@@ -499,7 +511,8 @@ func (s *followUpV2Service) RegisterFailedAttempt(ctx context.Context, followUpI
 	}
 
 	// 5. Actualizar el campo attempts y last_attempt_at en follow_up_v2
-	now := time.Now()
+	// Usamos UTC para almacenamiento consistente, el frontend se encarga de la conversión
+	now := time.Now().UTC()
 	fu.Attempts = int(totalAttempts)
 	fu.LastAttemptAt = &now
 	err = s.repo.Update(ctx, fu)
@@ -544,8 +557,9 @@ func (s *followUpV2Service) RescheduleFollowUp(ctx context.Context, id string, i
 		"status":         models.FollowUpStatusReprogramado,
 	}
 	if input.NuevaHora != "" {
-		fields["scheduled_date"] = input.NuevaFecha + " " + input.NuevaHora
+		fields["scheduled_time"] = input.NuevaHora
 	}
+
 	err := s.repo.Reschedule(ctx, id, fields)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return ErrFollowUpNotFound

@@ -81,6 +81,7 @@ func main() {
 	emRepo := repository.NewEmergencyMeasureRepository(gormDB)
 	psRepo := repository.NewPsychosocialSupportRepository(gormDB)
 	esRepo := repository.NewEconomicStabilizationRepository(gormDB)
+	agentLightRepo := repository.NewAgentLightRepository(gormDB)
 
 	// Services
 	formSvc := service.NewFormService(formRepo)
@@ -91,7 +92,7 @@ func main() {
 	formSubmissionSvc := service.NewFormSubmissionService(formSubmissionRepo)
 	repeaterEntrySvc := service.NewRepeaterEntryService(repeaterEntryRepo)
 	answerSvc := service.NewAnswerService(answerRepo)
-	followUpV2Svc := service.NewFollowUpV2Service(followUpRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo)
+	followUpV2Svc := service.NewFollowUpV2Service(followUpRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo)
 
 	// Inyectar el servicio en el controller legacy para generación automática del calendario
 	salvia_legacy.FollowUpSvc = followUpV2Svc

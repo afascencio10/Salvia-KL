@@ -299,9 +299,10 @@
                                     <span>#${ fu.case ? fu.case.id : 'N/A' }</span>
                                     <span>·</span>
                                     <span>${ fu.case ? fu.case.municipality : 'N/A' }</span>
-                                    <span v-if="fu.last_attempt_at" style="font-style: italic; color: #9ca3af;">· Último
-                                        intento: ${ formatAttemptDate(fu.last_attempt_at) }</span>
                                 </div>
+                                <p v-if="fu.last_attempt_at" style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.25rem; display: flex; align-items: center; gap: 0.375rem; margin-bottom: 0;">
+                                    <i class="fas fa-history" style="font-size: 0.625rem;"></i> Último intento: ${ formatAttemptDate(fu.last_attempt_at) }
+                                </p>
                             </div>
 
                             <!-- Métricas y acciones -->
@@ -316,10 +317,13 @@
                                     <p style="font-weight: 700; font-size: 1.25rem; color: #111827; margin: 0;">${
                                         fu.attempts || 0 }</p>
                                 </div>
-                                <span
-                                    style="background: #10b981; color: white; padding: 0.625rem 1.25rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem;">
-                                    <i class="fas fa-check"></i> Realizado
-                                </span>
+                                <a :href="'/salvia/seguimiento/' + fu.id"
+                                    style="background: #3b82f6; color: white; padding: 0.625rem 1.25rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.875rem; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;"
+                                    onmouseover="this.style.background='#2563eb'"
+                                    onmouseout="this.style.background='#3b82f6'"
+                                    @click.stop>
+                                    <i class="fas fa-eye"></i> Ver detalle
+                                </a>
                             </div>
                         </div>
 
@@ -424,9 +428,15 @@
                     style="flex: 1; background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;">
                     Cancelar
                 </button>
-                <button @click="handleSaveReason" :disabled="!reasonText || reasonText.trim() === ''"
-                    :style="`flex: 1; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: ${!reasonText || reasonText.trim() === '' ? 'not-allowed' : 'pointer'}; transition: all 0.2s; font-size: 0.875rem; background-color: ${!reasonText || reasonText.trim() === '' ? '#d1d5db' : '#8b5cf6'}; color: ${!reasonText || reasonText.trim() === '' ? '#9ca3af' : 'white'};`">
-                    Guardar
+                <button @click="handleSaveReason" :disabled="loading || !reasonText || reasonText.trim() === ''"
+                    :style="`flex: 1; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: ${loading || !reasonText || reasonText.trim() === '' ? 'not-allowed' : 'pointer'}; transition: all 0.2s; font-size: 0.875rem; background-color: ${loading || !reasonText || reasonText.trim() === '' ? '#d1d5db' : '#8b5cf6'}; color: ${loading || !reasonText || reasonText.trim() === '' ? '#9ca3af' : 'white'};`"
+                    style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <template v-if="loading">
+                        <i class="fas fa-circle-notch fa-spin"></i> Guardando...
+                    </template>
+                    <template v-else>
+                        Guardar
+                    </template>
                 </button>
             </div>
         </div>
@@ -455,9 +465,9 @@
                     style="background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
                     <i class="fas fa-plus-circle"></i> Añadir intento de contacto
                 </button>
-                <button v-if="modalAcciones.attempts > 9" @click="handleSuggestClosure"
+                <button v-if="modalAcciones.attempts >= 9" @click="handleSuggestClosure"
                     style="background-color: #dc2626; color: white; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                    <i class="fas fa-times-circle"></i> Sugerir cierre de caso
+                    <i class="fas fa-times-circle"></i> Cerrar caso
                 </button>
             </div>
             <button @click="closeModals"
@@ -681,6 +691,9 @@
 
                         const data = await response.json();
                         fu.attempts = data.attempts;
+                        if (data.followUp && data.followUp.last_attempt_at) {
+                            fu.last_attempt_at = data.followUp.last_attempt_at;
+                        }
 
                         // Agregar el nuevo intento al timeline localmente
                         const newAttempt = {
@@ -724,14 +737,61 @@
                     }
                 },
 
-                handleReschedule() {
-                    console.log('Reagendar seguimiento - Por implementar');
-                    this.modalAcciones = null;
+                async handleReschedule() {
+                    const fu = this.modalAcciones;
+                    if (!fu) return;
+
+                    this.loading = true;
+                    try {
+                        // Calcular mañana (considerando zona horaria local)
+                        const tomorrow = new Date();
+                        tomorrow.setDate(tomorrow.getDate() + 1);
+                        const fechaManana = tomorrow.toISOString().split('T')[0];
+
+                        const response = await fetch(`/api/v1/seguimientos/${fu.id}/reagendar`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                nueva_fecha: fechaManana,
+                                nueva_hora: fu.scheduledTime || '08:00',
+                                motivo: 'Reagendamiento automático por límite de intentos alcanzado'
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.error || 'Error al reagendar');
+                        }
+
+                        // Eliminar de la lista de pendientes (ya que se movió a mañana)
+                        this.pendingFollowUps = this.pendingFollowUps.filter(f => f.id !== fu.id);
+                        this.modalAcciones = null;
+
+                        // Éxito
+                        const successOverlay = document.getElementById('successOverlay');
+                        if (successOverlay) successOverlay.style.display = 'flex';
+                        setTimeout(() => {
+                            if (successOverlay) successOverlay.style.display = 'none';
+                        }, 2000);
+
+                    } catch (error) {
+                        console.error('Error:', error);
+                        const failOverlay = document.getElementById('failOverlay');
+                        const failMsg = document.getElementById('fail_msg');
+                        if (failMsg) failMsg.textContent = error.message;
+                        if (failOverlay) failOverlay.style.display = 'flex';
+                        setTimeout(() => {
+                            if (failOverlay) failOverlay.style.display = 'none';
+                        }, 3000);
+                    } finally {
+                        this.loading = false;
+                    }
                 },
 
                 handleAddAttempt() {
+                    const fu = this.modalAcciones;
                     this.modalAcciones = null;
-                    this.modalContesto = this.modalAcciones;
+                    this.modalContesto = fu;
                 },
 
                 handleSuggestClosure() {
@@ -748,12 +808,15 @@
                 formatAttemptDate(dateStr) {
                     if (!dateStr) return '';
                     const date = new Date(dateStr);
+                    // Forzar zona horaria de Colombia (UTC-5)
                     return date.toLocaleDateString('es-CO', {
+                        timeZone: 'America/Bogota',
                         day: '2-digit',
                         month: 'short',
                         year: 'numeric',
                         hour: '2-digit',
-                        minute: '2-digit'
+                        minute: '2-digit',
+                        hour12: true
                     });
                 },
 

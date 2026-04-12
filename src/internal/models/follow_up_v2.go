@@ -39,6 +39,10 @@ type FollowUpV2 struct {
 	RiskStatus         string     `gorm:"type:varchar(20)"          json:"risk_status"`
 	SequenceNumber     int        `gorm:"default:0"                 json:"sequence_number"`
 	LastAttemptAt      *time.Time `                                 json:"last_attempt_at,omitempty"`
+
+	// ── Campos enriquecidos (no persistidos) ────────────────────────────────
+	AgentNames     string `gorm:"-" json:"agent_names,omitempty"`
+	AgentLastNames string `gorm:"-" json:"agent_last_names,omitempty"`
 }
 
 func (FollowUpV2) TableName() string { return "salvia.follow_up_v2" }
