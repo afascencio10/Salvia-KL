@@ -38,6 +38,36 @@ type FollowUpV2 struct {
 	Summary            *string    `gorm:"type:text"                 json:"summary,omitempty"`
 	RiskStatus         string     `gorm:"type:varchar(20)"          json:"risk_status"`
 	SequenceNumber     int        `gorm:"default:0"                 json:"sequence_number"`
+	LastAttemptAt      *time.Time `                                 json:"last_attempt_at,omitempty"`
 }
 
 func (FollowUpV2) TableName() string { return "salvia.follow_up_v2" }
+
+// MyDayFollowUpResponse representa un seguimiento enriquecido con datos del caso para la vista "Mis Seguimientos"
+type MyDayFollowUpResponse struct {
+	ID               string               `json:"id"`
+	CaseID           string               `json:"case_id"`
+	Case             *VictimCaseLight     `json:"case,omitempty"`
+	RiskStatus       string               `json:"risk_status"`
+	ScheduledTime    string               `json:"scheduled_time"`
+	Attempts         int                  `json:"attempts"`
+	IsPriority       bool                 `json:"is_priority"`
+	Status           string               `json:"status"`
+	SequenceNumber   int                  `json:"sequence_number"`
+	FollowUpAttempts []FollowUpAttempt    `json:"follow_up_attempts,omitempty"`
+}
+
+// MyDayResponse representa la respuesta completa del endpoint /follow-ups/my-day
+type MyDayResponse struct {
+	Success string            `json:"success"`
+	Data    MyDayDataResponse `json:"data"`
+}
+
+type MyDayDataResponse struct {
+	FollowUpsPendingCount         int                     `json:"followUpsPendingCount"`
+	FollowUpsPendingPriorityCount int                     `json:"followUpsPendingPriorityCount"`
+	FollowUpsCompletedCount       int                     `json:"followUpsCompletedCount"`
+	FollowUpsPending              []MyDayFollowUpResponse `json:"followUpsPending"`
+	FollowUpsPendingPriority      []MyDayFollowUpResponse `json:"followUpsPendingPriority"`
+	FollowUpsCompleted            []MyDayFollowUpResponse `json:"followUpsCompleted"`
+}

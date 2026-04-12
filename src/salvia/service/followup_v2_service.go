@@ -25,10 +25,10 @@ var ErrFollowUpCaseEmpty = errors.New("followup: no se encontraron seguimientos 
 // Días desde HOY para cada nivel. Extremo tiene 5 seguimientos (S1 = mismo día a las 4h).
 // Los demás niveles tienen 4 seguimientos.
 var riskMatrix = map[int][]int{
-	4: {0, 1, 2, 3, 15},  // Extremo — 5 seguimientos (S1=+4h/hoy, S2=+1d, S3=+2d, S4=+3d, S5=+15d)
-	3: {1, 3, 15, 30},    // Alto    — 4 seguimientos
-	2: {2, 15, 30, 45},   // Moderado — 4 seguimientos
-	1: {5, 15, 30, 60},   // Bajo    — 4 seguimientos
+	4: {0, 1, 2, 3, 15}, // Extremo — 5 seguimientos (S1=+4h/hoy, S2=+1d, S3=+2d, S4=+3d, S5=+15d)
+	3: {1, 3, 15, 30},   // Alto    — 4 seguimientos
+	2: {2, 15, 30, 45},  // Moderado — 4 seguimientos
+	1: {5, 15, 30, 60},  // Bajo    — 4 seguimientos
 }
 
 // maxFollowUps retorna la cantidad máxima de seguimientos para un nivel de riesgo.
@@ -63,6 +63,7 @@ type FollowUpV2Service interface {
 
 	// Nuevos para "Mis Seguimientos" - Retornan entidades del dominio
 	GetAgentDayFollowUps(ctx context.Context, agentID string, date time.Time) (pending []models.FollowUpV2, priority []models.FollowUpV2, completed []models.FollowUpV2, err error)
+	GetMyDayFollowUpsEnriched(ctx context.Context, agentID string, date time.Time) (*models.MyDayResponse, error)
 	RegisterFailedAttempt(ctx context.Context, followUpID string, reason string) (*models.FollowUpV2, error)
 
 	// Seguimientos Área
@@ -92,6 +93,8 @@ type followUpV2Service struct {
 	repo        repository.FollowUpRepository
 	barrierRepo repository.BarrierV2Repository
 	caseRepo    repository.VictimCaseLightRepository
+	townRepo    repository.TownLightRepository
+	attemptRepo repository.FollowUpAttemptRepository
 	emRepo      repository.EmergencyMeasureRepository
 	psRepo      repository.PsychosocialSupportRepository
 	esRepo      repository.EconomicStabilizationRepository
@@ -102,6 +105,8 @@ func NewFollowUpV2Service(
 	repo repository.FollowUpRepository,
 	barrierRepo repository.BarrierV2Repository,
 	caseRepo repository.VictimCaseLightRepository,
+	townRepo repository.TownLightRepository,
+	attemptRepo repository.FollowUpAttemptRepository,
 	emRepo repository.EmergencyMeasureRepository,
 	psRepo repository.PsychosocialSupportRepository,
 	esRepo repository.EconomicStabilizationRepository,
@@ -110,6 +115,8 @@ func NewFollowUpV2Service(
 		repo:        repo,
 		barrierRepo: barrierRepo,
 		caseRepo:    caseRepo,
+		townRepo:    townRepo,
+		attemptRepo: attemptRepo,
 		emRepo:      emRepo,
 		psRepo:      psRepo,
 		esRepo:      esRepo,
@@ -341,6 +348,99 @@ func (s *followUpV2Service) GetAgentDayFollowUps(ctx context.Context, agentID st
 	return pending, priority, completed, nil
 }
 
+// GetMyDayFollowUpsEnriched obtiene los seguimientos del día enriquecidos con datos del caso
+// y retorna la estructura esperada por el frontend
+func (s *followUpV2Service) GetMyDayFollowUpsEnriched(ctx context.Context, agentID string, date time.Time) (*models.MyDayResponse, error) {
+	// 1. Obtener seguimientos clasificados
+	pending, priority, completed, err := s.GetAgentDayFollowUps(ctx, agentID, date)
+	if err != nil {
+		return nil, fmt.Errorf("followup: error obteniendo seguimientos del día: %w", err)
+	}
+
+	// 2. Enriquecer con datos del caso
+	enrichFollowUps := func(followUps []models.FollowUpV2) ([]models.MyDayFollowUpResponse, error) {
+		var enriched []models.MyDayFollowUpResponse
+		for _, fu := range followUps {
+			resp := models.MyDayFollowUpResponse{
+				ID:             fu.ID,
+				CaseID:         fu.CaseID,
+				RiskStatus:     fu.RiskStatus,
+				ScheduledTime:  fu.ScheduledTime,
+				Attempts:       fu.Attempts,
+				IsPriority:     fu.IsPriority,
+				Status:         fu.Status,
+				SequenceNumber: fu.SequenceNumber,
+			}
+
+			// Obtener datos del caso
+			vc, err := s.caseRepo.FindByID(ctx, fu.CaseID)
+			if err != nil {
+				log.Printf("Warning: no se pudo obtener caso %s: %v", fu.CaseID, err)
+				resp.Case = nil
+			} else {
+				// DEBUG: Verificar town_code del caso
+				log.Printf("[Municipio] CaseID=%s TownCode=%s", fu.CaseID, vc.TownCode)
+
+				// Si el caso tiene town_code, obtener el nombre del municipio
+				if vc.TownCode != "" && s.townRepo != nil {
+					town, err := s.townRepo.FindByCode(ctx, vc.TownCode)
+					if err != nil {
+						log.Printf("Warning: no se pudo obtener municipio %s: %v", vc.TownCode, err)
+						vc.Municipality = vc.TownCode // Fallback: mostrar el código
+					} else {
+						log.Printf("[Municipio] TownCode=%s -> TownName=%s", vc.TownCode, town.TownName)
+						vc.Municipality = town.TownName
+					}
+				} else if vc.TownCode == "" {
+					log.Printf("[Municipio] CaseID=%s no tiene town_code", fu.CaseID)
+					vc.Municipality = "N/A"
+				}
+				resp.Case = vc
+			}
+
+			// Obtener historial de intentos
+			attempts, err := s.attemptRepo.GetByFollowUpID(ctx, fu.ID)
+			if err != nil {
+				log.Printf("Warning: no se pudieron obtener intentos para %s: %v", fu.ID, err)
+				resp.FollowUpAttempts = []models.FollowUpAttempt{}
+			} else {
+				resp.FollowUpAttempts = attempts
+			}
+
+			enriched = append(enriched, resp)
+		}
+		return enriched, nil
+	}
+
+	enrichedPending, err := enrichFollowUps(pending)
+	if err != nil {
+		return nil, err
+	}
+
+	enrichedPriority, err := enrichFollowUps(priority)
+	if err != nil {
+		return nil, err
+	}
+
+	enrichedCompleted, err := enrichFollowUps(completed)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Construir respuesta
+	return &models.MyDayResponse{
+		Success: "true",
+		Data: models.MyDayDataResponse{
+			FollowUpsPendingCount:         len(enrichedPending),
+			FollowUpsPendingPriorityCount: len(enrichedPriority),
+			FollowUpsCompletedCount:       len(enrichedCompleted),
+			FollowUpsPending:              enrichedPending,
+			FollowUpsPendingPriority:      enrichedPriority,
+			FollowUpsCompleted:            enrichedCompleted,
+		},
+	}, nil
+}
+
 // getCompletedByAgentAndDate obtiene seguimientos completados del agente para una fecha
 func (s *followUpV2Service) getCompletedByAgentAndDate(ctx context.Context, agentID string, date time.Time) ([]models.FollowUpV2, error) {
 	// Obtener todos los seguimientos del agente (page 0, limit 1000)
@@ -380,38 +480,36 @@ func (s *followUpV2Service) RegisterFailedAttempt(ctx context.Context, followUpI
 		return nil, fmt.Errorf("followup: se alcanzó el máximo de intentos permitidos")
 	}
 
-	// 3. Incrementar intentos
-	err = s.repo.IncrementAttempt(ctx, followUpID)
+	// 3. Guardar el intento en la tabla follow_up_attempts
+	attempt := &models.FollowUpAttempt{
+		FollowUpID:  followUpID,
+		Reason:      reason,
+		WasAnswered: false, // Este método es para intentos fallidos
+	}
+	if err := s.attemptRepo.CreateAttempt(ctx, attempt); err != nil {
+		return nil, fmt.Errorf("followup: error guardando intento: %w", err)
+	}
+
+	// 4. Contar el total de intentos reales en la base de datos para ser precisos
+	totalAttempts, err := s.attemptRepo.CountByFollowUpID(ctx, followUpID)
 	if err != nil {
-		return nil, fmt.Errorf("followup: error incrementando intentos: %w", err)
+		return nil, fmt.Errorf("followup: error contando intentos: %w", err)
 	}
 
-	// 4. Actualizar el seguimiento en memoria y guardar razón en summary
-	fu.Attempts++
-	
-	// Agregar razón al summary si existe
-	reasonText := fmt.Sprintf("[%s] Intento #%d: %s", 
-		time.Now().Format("2006-01-02 15:04"), 
-		fu.Attempts, 
-		reason)
-	
-	if fu.Summary == nil {
-		fu.Summary = &reasonText
-	} else {
-		updatedSummary := *fu.Summary + "\n" + reasonText
-		fu.Summary = &updatedSummary
-	}
-
-	// 5. Guardar resumen actualizado
+	// 5. Actualizar el campo attempts y last_attempt_at en follow_up_v2
+	now := time.Now()
+	fu.Attempts = int(totalAttempts)
+	fu.LastAttemptAt = &now
 	err = s.repo.Update(ctx, fu)
 	if err != nil {
-		return nil, fmt.Errorf("followup: error actualizando seguimiento: %w", err)
+		return nil, fmt.Errorf("followup: error actualizando intento en seguimiento: %w", err)
 	}
 
 	log.Printf("Intento #%d registrado para seguimiento %s: %s", fu.Attempts, followUpID, reason)
 
 	return fu, nil
 }
+
 // ── Seguimientos Área ─────────────────────────────────────────────────────────
 
 func (s *followUpV2Service) GetByTeamPaginated(ctx context.Context, team string, filters repository.FollowUpFilters, page, limit int) ([]models.FollowUpV2, int64, error) {

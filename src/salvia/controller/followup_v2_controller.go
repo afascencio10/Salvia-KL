@@ -2,13 +2,15 @@
 package controller
 
 import (
+	"bitsflow/common/utils"
 	"bitsflow/internal/models"
 	"bitsflow/internal/repository"
 	"bitsflow/salvia/service"
 	"errors"
 	"net/http"
 	"time"
-
+	"fmt"
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 )
 
@@ -24,12 +26,12 @@ func NewFollowUpV2Controller(svc service.FollowUpV2Service) *FollowUpV2Controlle
 
 // RegisterRoutes registra todas las rutas de FollowUpV2 en el grupo /api/v1.
 //
-//	GET  /api/v1/cases/:victim_case_id/follow-ups
-//	POST /api/v1/cases/:victim_case_id/follow-ups/generate
-//	GET  /api/v1/cases/:victim_case_id/follow-ups/by-id?id=...
-//	GET  /api/v1/cases/:victim_case_id/follow-ups/list?page=...&limit=...
-//  GET  /api/v1/follow-ups/my-day
-//  POST /api/v1/follow-ups/:id/attempts
+//		GET  /api/v1/cases/:victim_case_id/follow-ups
+//		POST /api/v1/cases/:victim_case_id/follow-ups/generate
+//		GET  /api/v1/cases/:victim_case_id/follow-ups/by-id?id=...
+//		GET  /api/v1/cases/:victim_case_id/follow-ups/list?page=...&limit=...
+//	 GET  /api/v1/follow-ups/my-day
+//	 POST /api/v1/follow-ups/:id/attempts
 func (c *FollowUpV2Controller) RegisterRoutes(api *gin.RouterGroup) {
 	followUps := api.Group("/cases/:victim_case_id/follow-ups")
 	{
@@ -40,7 +42,7 @@ func (c *FollowUpV2Controller) RegisterRoutes(api *gin.RouterGroup) {
 	}
 
 	api.GET("/cases/follow-ups/detail", c.GetDetail)
-	
+
 	// Nuevas rutas para "Mis Seguimientos"
 	myDay := api.Group("/follow-ups")
 	{
@@ -209,30 +211,40 @@ func (c *FollowUpV2Controller) GetDetail(ctx *gin.Context) {
 //	@Failure		500	{object}	map[string]string	"Error interno"
 //	@Router			/follow-ups/my-day [get]
 func (c *FollowUpV2Controller) GetMyDayFollowUps(ctx *gin.Context) {
-	// TODO: Obtener agentID de la sesión real
-	agentID := ctx.GetHeader("X-Agent-ID")
+	// Obtener agentID de la sesión del usuario autenticado
+	session := sessions.Default(ctx)
+	sessionID, ok := session.Get("userData").(string)
+	if !ok || sessionID == "" {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "sesión inválida"})
+		return
+	}
+
+	s, err := utils.GetCommonSession(sessionID)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "sesión expirada"})
+		return
+	}
+
+	// Usar el UserICode de la sesión como agentID
+	agentID := s.UserICode	
+	//log agent id
+	fmt.Println("agentID", agentID)
+	
 	if agentID == "" {
-		agentID = "test-agent-001"
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "usuario sin identificador"})
+		return
 	}
 
 	date := time.Now()
 
-	// Obtener entidades del dominio directamente (SIN DTOs)
-	pending, priority, completed, err := c.svc.GetAgentDayFollowUps(ctx.Request.Context(), agentID, date)
+	// Obtener seguimientos enriquecidos con datos del caso
+	response, err := c.svc.GetMyDayFollowUpsEnriched(ctx.Request.Context(), agentID, date)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno al obtener seguimientos"})
 		return
 	}
 
-	// Retornar entidades directamente con contadores simples
-	ctx.JSON(http.StatusOK, gin.H{
-		"pendingCount":   len(pending),
-		"priorityCount":  len(priority),
-		"completedCount": len(completed),
-		"followUpsPending":   pending,
-		"followUpsPriority":  priority,
-		"followUpsCompleted": completed,
-	})
+	ctx.JSON(http.StatusOK, response)
 }
 
 // RegisterAttempt godoc
@@ -273,11 +285,11 @@ func (c *FollowUpV2Controller) RegisterAttempt(ctx *gin.Context) {
 
 	// Retornar información adicional sobre el estado
 	response := gin.H{
-		"success":  true,
-		"message":  "Intento registrado con éxito",
-		"followUp": fu,
-		"attempts": fu.Attempts,
-		"maxAttemptsReached": fu.Attempts >= 3,
+		"success":                 true,
+		"message":                 "Intento registrado con éxito",
+		"followUp":                fu,
+		"attempts":                fu.Attempts,
+		"maxAttemptsReached":      fu.Attempts >= 3,
 		"criticalAttemptsReached": fu.Attempts >= 9,
 	}
 

@@ -4,34 +4,34 @@
     <!-- Header Section -->
     <div class="ms-page-header">
         <h1 class="ms-page-title">Mis seguimientos</h1>
-        <p class="ms-page-subtitle">${ hoy } · ${ agentName }</p>
+        <p class="ms-page-subtitle">${ today } · ${ agentName }</p>
     </div>
 
     <!-- Stats Grid -->
     <div class="ms-stats-grid">
         <div class="ms-stat-card ms-stat-card--pending">
             <p class="ms-stat-label">Pendientes hoy</p>
-            <p class="ms-stat-value">${ pendientes.length }</p>
+            <p class="ms-stat-value">${ pendingFollowUps.length }</p>
         </div>
         <div class="ms-stat-card ms-stat-card--priority">
             <p class="ms-stat-label">Priorizados</p>
-            <p class="ms-stat-value">${ priorizados.length }</p>
+            <p class="ms-stat-value">${ priorityFollowUps.length }</p>
         </div>
         <div class="ms-stat-card ms-stat-card--completed">
             <p class="ms-stat-label">Realizados</p>
-            <p class="ms-stat-value">${ realizados.length }</p>
+            <p class="ms-stat-value">${ completedFollowUps.length }</p>
         </div>
     </div>
 
     <!-- Tabs Wrapper -->
     <div class="ms-tabs-wrapper">
         <div class="ms-tabs-header">
-            <button v-for="tab in tabs" :key="tab.id" @click="tabActiva = tab.id"
-                :class="['ms-tab-button', { active: tabActiva === tab.id }]">
+            <button v-for="tab in tabs" :key="tab.id" @click="activeTab = tab.id"
+                :class="['ms-tab-button', { active: activeTab === tab.id }]">
                 ${ tab.label }
-                <span v-if="tab.id === 'priorizados'" style="color: #a78bfa; margin: 0 0.125rem;">·</span>
-                <i v-if="tab.id === 'priorizados'" class="fas fa-clock" style="font-size: 0.75rem; color: #a78bfa;"></i>
-                <span v-if="tab.id === 'priorizados'"
+                <span v-if="tab.id === 'priority'" style="color: #a78bfa; margin: 0 0.125rem;">·</span>
+                <i v-if="tab.id === 'priority'" class="fas fa-clock" style="font-size: 0.75rem; color: #a78bfa;"></i>
+                <span v-if="tab.id === 'priority'"
                     style="font-size: 0.8125rem; color: #a78bfa; font-weight: 700;">10:00</span>
                 <span class="ms-tab-count">${ tab.count }</span>
             </button>
@@ -40,40 +40,237 @@
         <!-- List Content -->
         <div class="ms-list-content">
             <!-- Seguimientos Tab -->
-            <div v-if="tabActiva === 'seguimientos'">
-                <div v-if="segHoy.length === 0" class="ms-empty-state">
+            <div v-if="activeTab === 'followups'">
+                <div v-if="regularFollowUps.length === 0" class="ms-empty-state">
                     <i class="fas fa-check-circle ms-empty-state__icon"></i>
                     <p class="ms-empty-state__text">No hay seguimientos pendientes</p>
                 </div>
-                <tarjeta-seguimiento v-else v-for="seg in segHoy" :key="seg.id" :seg="seg"
-                    @clic="handleClicSeguimiento"></tarjeta-seguimiento>
+                <div v-else>
+                    <div v-for="fu in regularFollowUps" :key="fu.id" class="ms-followup-card"
+                        style="display: block !important; padding: 0 !important; overflow: hidden; cursor: pointer; transition: all 0.2s; border: 1px solid #e5e7eb; border-radius: 1rem; margin-bottom: 1rem; background: white;"
+                        @click="toggleExpand(fu)"
+                        :style="expandedFollowUpId === fu.id ? 'border-color: #8b5cf6 !important; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15) !important;' : ''">
+
+                        <!-- Header del card -->
+                        <div
+                            style="display: flex; align-items: center; gap: 1rem; padding: 1.25rem 1.5rem; width: 100%;">
+                            <!-- Avatar -->
+                            <div
+                                style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: linear-gradient(135deg, #ede9fe, #f5f3ff); display: flex; align-items: center; justify-content: center; color: #7c3aed; font-weight: 700; font-size: 1rem; flex-shrink: 0;">
+                                ${ fu.caseName ? fu.caseName.charAt(0) : '?' }
+                            </div>
+
+                            <!-- Info principal -->
+                            <div style="flex: 1; min-width: 0;">
+                                <p style="font-weight: 700; font-size: 1rem; color: #111827; margin: 0 0 0.25rem 0;">${
+                                    fu.caseName }</p>
+                                <div
+                                    style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.875rem; color: #6b7280;">
+                                    <span>Caso #${ fu.case ? fu.case.id : 'N/A' }</span>
+                                    <span>·</span>
+                                    <span>${ fu.case ? fu.case.municipality : 'N/A' }</span>
+                                    <small>${ fu.lastAttemptAt ? "Último intento: " + fu.lastAttemptAt : ''}</small>
+                                </div>
+                            </div>
+
+                            <!-- Métricas y acciones -->
+                            <div style="display: flex; align-items: center; gap: 1.5rem; flex-shrink: 0;">
+                                <!-- Nivel de riesgo primero -->
+                                <span class="ms-badge" :class="getBadgeClass(fu.riskLevel)"
+                                    style="font-size: 0.75rem; padding: 0.375rem 0.75rem; font-weight: 600;">${
+                                    fu.riskLevel }</span>
+                                <!-- Intentos segundo -->
+                                <div style="text-align: center;">
+                                    <p
+                                        style="font-size: 0.75rem; color: #6b7280; margin: 0 0 0.125rem 0; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">
+                                        Intentos</p>
+                                    <p style="font-weight: 700; font-size: 1.25rem; color: #111827; margin: 0;">${
+                                        fu.attempts || 0 }</p>
+                                </div>
+                                <!-- Botón Iniciar al final -->
+                                <a href="#" @click.prevent.stop="handleStartFollowUp(fu)"
+                                    style="background: #7c3aed; color: white; padding: 0.625rem 1.25rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.875rem; text-decoration: none; white-space: nowrap; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;"
+                                    onmouseover="this.style.background='#6d28d9'"
+                                    onmouseout="this.style.background='#7c3aed'">
+                                    <i class="fas fa-play" style="font-size: 0.75rem;"></i> Iniciar
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Historial expandible -->
+                        <div v-if="expandedFollowUpId === fu.id && fu.follow_up_attempts && fu.follow_up_attempts.length > 0"
+                            style="background: #fafafa; border-top: 1px solid #e5e7eb;">
+                            <div style="padding: 1.5rem;">
+                                <p
+                                    style="font-size: 0.75rem; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 1.25rem 0; display: flex; align-items: center; gap: 0.5rem;">
+                                    <i class="fas fa-history"></i> Historial de contacto
+                                </p>
+
+                                <!-- Timeline -->
+                                <div
+                                    style="display: flex; flex-direction: column; gap: 1rem; padding-left: 1.5rem; position: relative;">
+                                    <!-- Línea vertical -->
+                                    <div
+                                        style="position: absolute; left: 0.5rem; top: 0; bottom: 0; width: 2px; background: #e5e7eb;">
+                                    </div>
+
+                                    <!-- Items -->
+                                    <div v-for="(attempt, index) in fu.follow_up_attempts" :key="attempt.id"
+                                        style="background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+
+                                        <!-- Punto en la línea -->
+                                        <div
+                                            style="position: absolute; left: -1.75rem; top: 50%; transform: translateY(-50%); width: 12px; height: 12px; border-radius: 50%; background: white; border: 2px solid #e5e7eb; z-index: 1;">
+                                        </div>
+
+                                        <!-- Info izquierda -->
+                                        <div style="flex: 1;">
+                                            <p
+                                                style="font-weight: 700; font-size: 0.875rem; color: #374151; margin: 0 0 0.375rem 0;">
+                                                Intento #${ index + 1 }</p>
+                                            <p
+                                                style="font-size: 0.75rem; color: #6b7280; margin: 0 0 0.25rem 0; display: flex; align-items: center; gap: 0.375rem;">
+                                                <i class="fas fa-clock" style="font-size: 0.625rem;"></i> ${
+                                                formatAttemptDate(attempt.created_at) }
+                                            </p>
+                                            <!-- Razón debajo de la fecha -->
+                                            <p v-if="attempt.reason"
+                                                style="font-size: 0.75rem; color: #6b7280; margin: 0; font-style: italic;">
+                                                ${ attempt.reason }
+                                            </p>
+                                        </div>
+
+                                        <!-- Estado derecha -->
+                                        <span
+                                            style="font-size: 0.75rem; font-weight: 700; padding: 0.375rem 0.75rem; border-radius: 9999px; white-space: nowrap; text-transform: uppercase; margin-left: 1rem;"
+                                            :style="attempt.was_answered ? 'background: #d1fae5; color: #065f46;' : 'background: #fee2e2; color: #991b1b;'">
+                                            ${ attempt.was_answered ? 'Sí contestó' : 'No contestó' }
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Priorizados Tab -->
-            <div v-else-if="tabActiva === 'priorizados'">
-                <!-- Urgent Alert -->
-                <div v-if="priorizados.length > 0" class="ms-urgent-alert">
+            <div v-else-if="activeTab === 'priority'">
+                <div v-if="priorityFollowUps.length > 0" class="ms-urgent-alert">
                     <i class="fas fa-clock ms-urgent-alert__icon"></i>
                     <div class="ms-urgent-alert__content">
                         <p class="ms-urgent-alert__title">Próximo seguimiento urgente</p>
-                        <p class="ms-urgent-alert__subtitle">${ priorizados[0].casoNombre } · 10:00</p>
+                        <p class="ms-urgent-alert__subtitle">${ priorityFollowUps[0].caseName } · Llamar a las ${
+                            priorityFollowUps[0].scheduledTime || 'Sin hora programada' }</p>
                     </div>
                 </div>
-                <tarjeta-seguimiento v-for="seg in priorizados" :key="seg.id" :seg="seg" :is-prioritized="true"
-                    @clic="handleClicSeguimiento"></tarjeta-seguimiento>
+                <div v-for="fu in priorityFollowUps" :key="fu.id" class="ms-followup-card"
+                    style="display: block !important; padding: 0 !important; overflow: hidden; cursor: pointer; transition: all 0.2s; border: 1px solid #e5e7eb; border-radius: 1rem; margin-bottom: 1rem; background: white;"
+                    @click="toggleExpand(fu)"
+                    :style="expandedFollowUpId === fu.id ? 'border-color: #8b5cf6 !important; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15) !important;' : ''">
+
+                    <!-- Header del card -->
+                    <div style="display: flex; align-items: center; gap: 1rem; padding: 1.25rem 1.5rem; width: 100%;">
+                        <div
+                            style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: linear-gradient(135deg, #ede9fe, #f5f3ff); display: flex; align-items: center; justify-content: center; color: #7c3aed; font-weight: 700; font-size: 1rem; flex-shrink: 0;">
+                            ${ fu.caseName ? fu.caseName.charAt(0) : '?' }
+                        </div>
+
+                        <div style="flex: 1; min-width: 0;">
+                            <p style="font-weight: 700; font-size: 1rem; color: #111827; margin: 0 0 0.25rem 0;">${
+                                fu.caseName }</p>
+                            <div
+                                style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.875rem; color: #6b7280;">
+                                <span>Caso #${ fu.case ? fu.case.id : 'N/A' }</span>
+                                <span>·</span>
+                                <span>${ fu.case ? fu.case.municipality : 'N/A' }</span>
+                            </div>
+                            <div class="ms-card-time" style="margin-top: 0.375rem;">
+                                <i class="fas fa-clock"></i> Llamar a las ${ fu.scheduledTime || 'Sin hora programada' }
+                            </div>
+                        </div>
+
+                        <!-- Métricas y acciones -->
+                        <div style="display: flex; align-items: center; gap: 1.5rem; flex-shrink: 0;">
+                            <!-- Nivel de riesgo primero -->
+                            <span class="ms-badge" :class="getBadgeClass(fu.riskLevel)"
+                                style="font-size: 0.75rem; padding: 0.375rem 0.75rem; font-weight: 600;">${ fu.riskLevel
+                                }</span>
+                            <!-- Intentos segundo -->
+                            <div style="text-align: center;">
+                                <p
+                                    style="font-size: 0.75rem; color: #6b7280; margin: 0 0 0.125rem 0; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">
+                                    Intentos</p>
+                                <p style="font-weight: 700; font-size: 1.25rem; color: #111827; margin: 0;">${
+                                    fu.attempts || 0 }</p>
+                            </div>
+                            <!-- Botón Iniciar al final -->
+                            <a href="#" @click.prevent.stop="handleStartFollowUp(fu)"
+                                style="background: #7c3aed; color: white; padding: 0.625rem 1.25rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.875rem; text-decoration: none; white-space: nowrap; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;"
+                                onmouseover="this.style.background='#6d28d9'"
+                                onmouseout="this.style.background='#7c3aed'">
+                                <i class="fas fa-play" style="font-size: 0.75rem;"></i> Iniciar
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Historial expandible -->
+                    <div v-if="expandedFollowUpId === fu.id && fu.follow_up_attempts && fu.follow_up_attempts.length > 0"
+                        style="background: #fafafa; border-top: 1px solid #e5e7eb;">
+                        <div style="padding: 1.5rem;">
+                            <p
+                                style="font-size: 0.75rem; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 1.25rem 0; display: flex; align-items: center; gap: 0.5rem;">
+                                <i class="fas fa-history"></i> Historial de contacto
+                            </p>
+                            <div
+                                style="display: flex; flex-direction: column; gap: 1rem; padding-left: 1.5rem; position: relative;">
+                                <div
+                                    style="position: absolute; left: 0.5rem; top: 0; bottom: 0; width: 2px; background: #e5e7eb;">
+                                </div>
+                                <div v-for="(attempt, index) in fu.follow_up_attempts" :key="attempt.id"
+                                    style="background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                    <div
+                                        style="position: absolute; left: -1.75rem; top: 50%; transform: translateY(-50%); width: 12px; height: 12px; border-radius: 50%; background: white; border: 2px solid #e5e7eb; z-index: 1;">
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <p
+                                            style="font-weight: 700; font-size: 0.875rem; color: #374151; margin: 0 0 0.375rem 0;">
+                                            Intento #${ index + 1 }</p>
+                                        <p
+                                            style="font-size: 0.75rem; color: #6b7280; margin: 0 0 0.25rem 0; display: flex; align-items: center; gap: 0.375rem;">
+                                            <i class="fas fa-clock" style="font-size: 0.625rem;"></i> ${
+                                            formatAttemptDate(attempt.created_at) }
+                                        </p>
+                                        <!-- Razón debajo de la fecha -->
+                                        <p v-if="attempt.reason"
+                                            style="font-size: 0.75rem; color: #6b7280; margin: 0; font-style: italic;">
+                                            ${ attempt.reason }
+                                        </p>
+                                    </div>
+                                    <span
+                                        style="font-size: 0.75rem; font-weight: 700; padding: 0.375rem 0.75rem; border-radius: 9999px; white-space: nowrap; text-transform: uppercase; margin-left: 1rem;"
+                                        :style="attempt.was_answered ? 'background: #d1fae5; color: #065f46;' : 'background: #fee2e2; color: #991b1b;'">
+                                        ${ attempt.was_answered ? 'Sí contestó' : 'No contestó' }
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Realizados Tab -->
-            <div v-else-if="tabActiva === 'realizados'">
-                <div v-for="seg in realizados" :key="seg.id" class="ms-followup-card" @click="enDetalle = seg"
+            <div v-else-if="activeTab === 'completed'">
+                <div v-for="fu in completedFollowUps" :key="fu.id" class="ms-followup-card" @click="detailFollowUp = fu"
                     style="cursor: pointer;">
-                    <div class="ms-avatar">${ seg.casoNombre ? seg.casoNombre.charAt(0) : '?' }</div>
+                    <div class="ms-avatar">${ fu.caseName ? fu.caseName.charAt(0) : '?' }</div>
                     <div class="ms-card-content">
                         <div class="ms-card-header">
-                            <span class="ms-card-name">${ seg.casoNombre }</span>
-                            <badge-riesgo :nivel="seg.nivelRiesgo"></badge-riesgo>
+                            <span class="ms-card-name">${ fu.caseName }</span>
+                            <span class="ms-badge" :class="getBadgeClass(fu.riskLevel)">${ fu.riskLevel }</span>
                         </div>
-                        <p class="ms-card-subtitle">${ seg.casoId } · ${ seg.municipio }</p>
+                        <p class="ms-card-subtitle">Caso #${ fu.case ? fu.case.id : 'N/A' } · ${ fu.case ?
+                            fu.case.municipality : 'N/A' }</p>
                     </div>
                     <span class="ms-action-link" style="color: #16a34a;">Realizado <i class="fas fa-check"></i></span>
                 </div>
@@ -82,17 +279,102 @@
     </div>
 
     <!-- Modals -->
-    <modal-contesto v-if="modalContesto" :seguimiento="modalContesto" @contesto="handleContesto"
-        @noContesto="handleNoContesto" @cerrar="modalContesto = null">
-    </modal-contesto>
+    <!-- Modal Contesto -->
+    <div v-if="modalContesto" class="ms-modal-overlay" @click.self="closeModals">
+        <div class="ms-modal-content">
+            <div
+                style="width: 4rem; height: 4rem; border-radius: 9999px; background-color: #f5f3ff; color: #8b5cf6; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem;">
+                <i class="fas fa-phone-alt"></i>
+            </div>
+            <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">¿Contestó la
+                llamada?</h3>
+            <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.5rem;">Estamos contactando a</p>
+            <p style="font-size: 1rem; font-weight: 700; color: #111827; margin-bottom: 1.5rem;">${
+                modalContesto.caseName }</p>
+            <div v-if="modalContesto.attempts > 0"
+                style="background-color: #fee2e2; border: 1px solid #ef4444; border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1.5rem;">
+                <p style="font-size: 0.8125rem; color: #b91c1c; margin: 0; font-weight: 600;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    ${ modalContesto.attempts } intento${ modalContesto.attempts > 1 ? 's' : '' } sin respuesta
+                </p>
+            </div>
+            <div style="display: flex; gap: 1rem; width: 100%;">
+                <button @click="handleNoAnswer"
+                    style="flex: 1; background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;">
+                    No contestó
+                </button>
+                <button @click="handleAnswered"
+                    style="flex: 1; background-color: #8b5cf6; color: white; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;">
+                    Sí contestó <i class="fas fa-check"></i>
+                </button>
+            </div>
+            <button @click="closeModals"
+                style="margin-top: 1.5rem; background: none; border: none; font-size: 0.75rem; color: #9ca3af; font-weight: 600; cursor: pointer;">
+                CANCELAR
+            </button>
+        </div>
+    </div>
 
-    <modal-razon v-if="modalRazon" :seguimiento="modalRazon" :razon="razonTexto" @update:razon="razonTexto = $event"
-        @guardar="handleGuardarRazon" @cerrar="modalRazon = null">
-    </modal-razon>
+    <!-- Modal Razón -->
+    <div v-if="modalRazon" class="ms-modal-overlay" @click.self="closeModals">
+        <div class="ms-modal-content">
+            <div
+                style="width: 4rem; height: 4rem; border-radius: 9999px; background-color: #fff7ed; color: #ea580c; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem;">
+                <i class="fas fa-phone-slash"></i>
+            </div>
+            <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">Intento sin
+                respuesta</h3>
+            <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 1.5rem;">Registra la razón del intento fallido
+            </p>
+            <textarea v-model="reasonText" placeholder="Ej: El usuario tenía el teléfono apagado..." rows="4"
+                style="width: 100%; padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid #e5e7eb; font-size: 0.875rem; outline: none; transition: all 0.2s; background: white; box-sizing: border-box; resize: none; font-family: inherit;"></textarea>
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button @click="closeModals"
+                    style="flex: 1; background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;">
+                    Cancelar
+                </button>
+                <button @click="handleSaveReason" :disabled="!reasonText || reasonText.trim() === ''"
+                    :style="`flex: 1; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: ${!reasonText || reasonText.trim() === '' ? 'not-allowed' : 'pointer'}; transition: all 0.2s; font-size: 0.875rem; background-color: ${!reasonText || reasonText.trim() === '' ? '#d1d5db' : '#8b5cf6'}; color: ${!reasonText || reasonText.trim() === '' ? '#9ca3af' : 'white'};`">
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
 
-    <modal-acciones v-if="modalAcciones" :seguimiento="modalAcciones" @reagendar="handleReagendar"
-        @anadirIntento="handleAnadirIntento" @sugerirCierre="handleSugerirCierre" @cerrar="modalAcciones = null">
-    </modal-acciones>
+    <!-- Modal Acciones -->
+    <div v-if="modalAcciones" class="ms-modal-overlay" @click.self="closeModals">
+        <div class="ms-modal-content">
+            <div
+                style="width: 4rem; height: 4rem; border-radius: 9999px; background-color: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem;">
+                <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">Límite de intentos
+            </h3>
+            <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.5rem;">Se han realizado</p>
+            <p style="font-size: 1.5rem; font-weight: 800; color: #dc2626; margin-bottom: 0.5rem;">${
+                modalAcciones.attempts } intentos</p>
+            <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 2rem;">sin respuesta para contactar a ${
+                modalAcciones.caseName }</p>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <button @click="handleReschedule"
+                    style="background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <i class="fas fa-calendar-alt"></i> Reagendar seguimiento
+                </button>
+                <button @click="handleAddAttempt"
+                    style="background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <i class="fas fa-plus-circle"></i> Añadir intento de contacto
+                </button>
+                <button v-if="modalAcciones.attempts > 9" @click="handleSuggestClosure"
+                    style="background-color: #dc2626; color: white; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <i class="fas fa-times-circle"></i> Sugerir cierre de caso
+                </button>
+            </div>
+            <button @click="closeModals"
+                style="margin-top: 1.5rem; background: none; border: none; font-size: 0.75rem; color: #9ca3af; font-weight: 600; cursor: pointer;">
+                VOLVER
+            </button>
+        </div>
+    </div>
 </div>
 
 {{ template "standard_scripts.html" .}}
@@ -100,143 +382,7 @@
 
 <!-- VUE TEMPLATES -->
 <script type="text/x-template" id="tpl-badge-riesgo">
-    <span :class="['ms-badge', estiloClase]">${ nivel }</span>
-</script>
-
-<script type="text/x-template" id="tpl-tarjeta-seguimiento">
-    <div class="ms-followup-card">
-        <div class="ms-avatar">${ seg.casoNombre ? seg.casoNombre.charAt(0) : '?' }</div>
-        <div class="ms-card-content">
-            <div class="ms-card-header">
-                <span class="ms-card-name">${ seg.casoNombre }</span>
-                <badge-riesgo :nivel="seg.nivelRiesgo"></badge-riesgo>
-            </div>
-            <p class="ms-card-subtitle">${ seg.casoId } · ${ seg.municipio }</p>
-            <div v-if="isPrioritized" class="ms-card-time">
-                <i class="fas fa-clock"></i>
-                ${ seg.horaProgramada || '10:00' }
-            </div>
-        </div>
-        <div class="ms-card-actions">
-            <div v-if="seg.intentos > 0" class="ms-flex ms-items-center ms-gap-2">
-                <div class="ms-intent-dots">
-                    <div v-for="i in [1,2,3]" :key="i" class="ms-intent-dot" :class="i <= seg.intentos ? 'ms-intent-dot--filled' : 'ms-intent-dot--empty'"></div>
-                </div>
-                <span class="ms-intent-label">${ seg.intentos } ${ seg.intentos === 1 ? 'intento' : 'intentos' }</span>
-            </div>
-            <a href="#" @click.prevent="$emit('clic', seg)" class="ms-action-link">Iniciar <i class="fas fa-arrow-right"></i></a>
-        </div>
-    </div>
-</script>
-
-<script type="text/x-template" id="tpl-modal-contesto">
-    <div class="ms-modal-overlay" @click.self="$emit('cerrar')">
-        <div class="ms-modal-content">
-            <div style="width: 4rem; height: 4rem; border-radius: 9999px; background-color: #f5f3ff; color: #8b5cf6; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem;">
-                <i class="fas fa-phone-alt"></i>
-            </div>
-            <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">¿Contestó la llamada?</h3>
-            <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.5rem;">Estamos contactando a</p>
-            <p style="font-size: 1rem; font-weight: 700; color: #111827; margin-bottom: 1.5rem;">${ seguimiento.casoNombre }</p>
-            
-            <!-- Advertencia de intentos previos -->
-            <div v-if="seguimiento.attempts > 0" style="background-color: #fee2e2; border: 1px solid #ef4444; border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1.5rem;">
-                <p style="font-size: 0.8125rem; color: #b91c1c; margin: 0; font-weight: 600;">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    ${ seguimiento.attempts } intento${ seguimiento.attempts > 1 ? 's' : '' } sin respuesta
-                </p>
-            </div>
-            
-            <div style="display: grid; grid-template-cols: 1fr 1fr; gap: 1rem;">
-                <button @click="$emit('noContesto')" style="background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;">
-                    No contestó
-                </button>
-                <button @click="$emit('contesto')" style="background-color: #8b5cf6; color: white; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;">
-                    Sí contestó <i class="fas fa-check"></i>
-                </button>
-            </div>
-            <button @click="$emit('cerrar')" style="margin-top: 1.5rem; background: none; border: none; font-size: 0.75rem; color: #9ca3af; font-weight: 600; cursor: pointer;">
-                CANCELAR
-            </button>
-        </div>
-    </div>
-</script>
-
-<!-- Modal Razón (No contestó) -->
-<script type="text/x-template" id="tpl-modal-razon">
-    <div class="ms-modal-overlay" @click.self="$emit('cerrar')">
-        <div class="ms-modal-content">
-            <div style="width: 4rem; height: 4rem; border-radius: 9999px; background-color: #fff7ed; color: #ea580c; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem;">
-                <i class="fas fa-phone-slash"></i>
-            </div>
-            <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">Intento sin respuesta</h3>
-            <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 1.5rem;">Registra la razón del intento fallido</p>
-            
-            <textarea 
-                v-model="razon" 
-                placeholder="Ej: El usuario tenía el teléfono apagado..."
-                rows="4"
-                style="width: 100%; padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid #e5e7eb; font-size: 0.875rem; outline: none; transition: all 0.2s; background: white; box-sizing: border-box; resize: none; font-family: inherit;"
-                @input="$emit('update:razon', $event.target.value)"
-            ></textarea>
-            
-            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                <button @click="$emit('cerrar')" style="flex: 1; background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;">
-                    Cancelar
-                </button>
-                <button 
-                    @click="$emit('guardar')" 
-                    :disabled="!razon || razon.trim() === ''"
-                    :style="`flex: 1; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: ${!razon || razon.trim() === '' ? 'not-allowed' : 'pointer'}; transition: all 0.2s; font-size: 0.875rem; background-color: ${!razon || razon.trim() === '' ? '#d1d5db' : '#8b5cf6'}; color: ${!razon || razon.trim() === '' ? '#9ca3af' : 'white'};`"
-                >
-                    Guardar
-                </button>
-            </div>
-        </div>
-    </div>
-</script>
-
-<!-- Modal Acciones (Límite de Intentos) -->
-<script type="text/x-template" id="tpl-modal-acciones">
-    <div class="ms-modal-overlay" @click.self="$emit('cerrar')">
-        <div class="ms-modal-content">
-            <div style="width: 4rem; height: 4rem; border-radius: 9999px; background-color: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem;">
-                <i class="fas fa-exclamation-circle"></i>
-            </div>
-            <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">Límite de intentos</h3>
-            <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.5rem;">Se han realizado</p>
-            <p style="font-size: 1.5rem; font-weight: 800; color: #dc2626; margin-bottom: 0.5rem;">${ seguimiento.attempts } intentos</p>
-            <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 2rem;">sin respuesta para contactar a ${ seguimiento.casoNombre }</p>
-            
-            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                <!-- Reagendar seguimiento -->
-                <button @click="$emit('reagendar')" style="background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                    <i class="fas fa-calendar-alt"></i>
-                    Reagendar seguimiento
-                </button>
-                
-                <!-- Añadir intento de contacto -->
-                <button @click="$emit('anadirIntento')" style="background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                    <i class="fas fa-plus-circle"></i>
-                    Añadir intento de contacto
-                </button>
-                
-                <!-- Sugerir cierre de caso (solo si attempts > 9) -->
-                <button 
-                    v-if="seguimiento.attempts > 9"
-                    @click="$emit('sugerirCierre')" 
-                    style="background-color: #dc2626; color: white; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
-                >
-                    <i class="fas fa-times-circle"></i>
-                    Sugerir cierre de caso
-                </button>
-            </div>
-            
-            <button @click="$emit('cerrar')" style="margin-top: 1.5rem; background: none; border: none; font-size: 0.75rem; color: #9ca3af; font-weight: 600; cursor: pointer;">
-                VOLVER
-            </button>
-        </div>
-    </div>
+    <span :class="['ms-badge', badgeClass]">${ level }</span>
 </script>
 
 <!-- VUE APP LOGIC -->
@@ -245,11 +391,14 @@
         if (typeof Vue === 'undefined') return;
         const { createApp } = Vue;
 
+        // ── Components ──────────────────────────────────────────────────────
+
         const BadgeRiesgo = {
             template: '#tpl-badge-riesgo',
-            props: ['nivel'],
+            props: ['level'],
+            delimiters: ['${', '}'],
             computed: {
-                estiloClase() {
+                badgeClass() {
                     const map = {
                         'Crítico': 'ms-badge--critical',
                         'Extremo': 'ms-badge--critical',
@@ -257,259 +406,280 @@
                         'Moderado': 'ms-badge--medium',
                         'Bajo': 'ms-badge--low'
                     };
-                    return map[this.nivel] || '';
+                    return map[this.level] || '';
                 }
-            },
-            compilerOptions: { delimiters: ['${', '}'] }
+            }
         };
 
-        const TarjetaSeguimiento = {
-            template: '#tpl-tarjeta-seguimiento',
-            props: ['seg', 'isPrioritized'],
-            components: { 'badge-riesgo': BadgeRiesgo },
-            compilerOptions: { delimiters: ['${', '}'] }
-        };
-
-        const ModalContesto = {
-            template: '#tpl-modal-contesto',
-            props: ['seguimiento'],
-            compilerOptions: { delimiters: ['${', '}'] }
-        };
-
-        const ModalRazon = {
-            template: '#tpl-modal-razon',
-            props: ['seguimiento', 'razon'],
-            compilerOptions: { delimiters: ['${', '}'] }
-        };
-
-        const ModalAcciones = {
-            template: '#tpl-modal-acciones',
-            props: ['seguimiento'],
-            compilerOptions: { delimiters: ['${', '}'] }
-        };
+        // ── Main App ────────────────────────────────────────────────────────
 
         const app = createApp({
             delimiters: ['${', '}'],
             components: {
-                'badge-riesgo': BadgeRiesgo,
-                'tarjeta-seguimiento': TarjetaSeguimiento,
-                'modal-contesto': ModalContesto,
-                'modal-razon': ModalRazon,
-                'modal-acciones': ModalAcciones
+                'badge-riesgo': BadgeRiesgo
             },
             data() {
                 return {
                     agentName: "{{.agentName}}",
                     currentUser: "{{.currentUser}}",
-                    hoy: new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }),
-                    tabActiva: 'seguimientos',
-                    pendientes: [
-                        { id: 83431, casoId: "8343", casoNombre: "María González", nivelRiesgo: "Alto", municipio: "San Salvador", intentos: 0, priorizado: false },
-                        { id: 83432, casoId: "8343", casoNombre: "Carmen Flores", nivelRiesgo: "Moderado", municipio: "Sonsonate", intentos: 1, priorizado: true, horaProgramada: '10:00' },
-                        { id: 83433, casoId: "8344", casoNombre: "Rosa Pérez", nivelRiesgo: "Bajo", municipio: "Usulután", intentos: 0, priorizado: false }
-                    ],
-                    realizados: [{ id: 7001, casoId: "8340", casoNombre: "Ana Martínez", nivelRiesgo: "Crítico", municipio: "Santa Ana", hora: '09:30' }],
+                    today: new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }),
+                    activeTab: 'followups',
+                    pendingFollowUps: [],
+                    completedFollowUps: [],
                     modalContesto: null,
                     modalRazon: null,
                     modalAcciones: null,
-                    razonTexto: '',
+                    reasonText: '',
                     enFormulario: null,
-                    enDetalle: null,
-                    loading: false
-                }
+                    detailFollowUp: null,
+                    loading: false,
+                    expandedFollowUpId: null // ID del seguimiento expandido para ver timeline
+                };
             },
             computed: {
-                segHoy() { return this.pendientes.filter(s => !s.priorizado); },
-                priorizados() { return this.pendientes.filter(s => s.priorizado); },
+                regularFollowUps() {
+                    return this.pendingFollowUps.filter(fu => !fu.isPrioritized);
+                },
+                priorityFollowUps() {
+                    return this.pendingFollowUps.filter(fu => fu.isPrioritized);
+                },
                 tabs() {
                     return [
-                        { id: 'seguimientos', label: 'Seguimientos', count: this.segHoy.length },
-                        { id: 'priorizados', label: 'Priorizados', count: this.priorizados.length },
-                        { id: 'realizados', label: 'Realizados hoy', count: this.realizados.length }
+                        { id: 'followups', label: 'Seguimientos', count: this.regularFollowUps.length },
+                        { id: 'priority', label: 'Priorizados', count: this.priorityFollowUps.length },
+                        { id: 'completed', label: 'Realizados hoy', count: this.completedFollowUps.length }
                     ];
                 }
             },
             mounted() {
-                // Mostrar el body (como en follow_up_detail)
                 const bodyEl = document.getElementById('app');
-                if (bodyEl) {
-                    bodyEl.style.display = 'block';
-                }
+                if (bodyEl) bodyEl.style.display = 'block';
 
-                // Mostrar el div de la aplicación (el CSS lo tiene en display:none)
                 const appEl = document.getElementById('mis-seguimientos-app');
-                if (appEl) {
-                    appEl.style.display = 'block';
-                }
+                if (appEl) appEl.style.display = 'block';
+
+                this.loadFollowUps();
             },
             methods: {
-                // Cargar seguimientos del día desde API
-                async cargarSeguimientosDelDia() {
+                // ── Data Loading ────────────────────────────────────────────
+
+                async loadFollowUps() {
                     this.loading = true;
+                    const loadingOverlay = document.getElementById('loadingOverlay');
+                    if (loadingOverlay) loadingOverlay.style.display = 'flex';
                     try {
-                        const response = await fetch('/api/v1/follow-ups/my-day', {
-                            headers: {
-                                'X-Agent-ID': this.currentUser
-                            }
-                        });
-                        if (!response.ok) throw new Error('Error cargando seguimientos');
+                        const response = await fetch('/api/v1/follow-ups/my-day', { credentials: 'include' });
+                        if (!response.ok) throw new Error('Error loading follow-ups');
                         const data = await response.json();
 
-                        // Mapear datos del API al formato del frontend
-                        this.pendientes = [
-                            ...data.followUpsPending.map(fu => ({
+                        const dayData = data.data || data;
+
+                        console.log('[MisSeguimientos] API Response:', data);
+                        if (dayData.followUpsPending && dayData.followUpsPending.length > 0) {
+                            console.log('[MisSeguimientos] Primer followUp pending:', dayData.followUpsPending[0]);
+                            console.log('[MisSeguimientos] Case object:', dayData.followUpsPending[0].case);
+                        }
+
+                        this.pendingFollowUps = [
+                            ...(dayData.followUpsPending || []).map(fu => ({
                                 id: fu.id,
-                                casoId: fu.caseId,
-                                casoNombre: fu.caseName,
-                                nivelRiesgo: fu.riskLevel,
-                                municipio: fu.municipality,
-                                intentos: fu.attempts,
-                                priorizado: false
+                                caseId: fu.case_id,
+                                case: fu.case || null,
+                                caseName: fu.case ? `${fu.case.names} ${fu.case.lastNames}` : `Caso ${fu.case_id ? fu.case_id.substring(0, 8) : 'N/A'}`,
+                                riskLevel: fu.risk_status || 'Sin definir',
+                                attempts: fu.attempts || 0,
+                                follow_up_attempts: fu.follow_up_attempts || [],
+                                isPrioritized: false
                             })),
-                            ...data.followUpsPriority.map(fu => ({
+                            ...(dayData.followUpsPendingPriority || []).map(fu => ({
                                 id: fu.id,
-                                casoId: fu.caseId,
-                                casoNombre: fu.caseName,
-                                nivelRiesgo: fu.riskLevel,
-                                municipio: fu.municipality,
-                                intentos: fu.attempts,
-                                priorizado: true,
-                                horaProgramada: fu.scheduledTime
+                                caseId: fu.case_id,
+                                case: fu.case || null,
+                                caseName: fu.case ? `${fu.case.names} ${fu.case.lastNames}` : `Caso ${fu.case_id ? fu.case_id.substring(0, 8) : 'N/A'}`,
+                                riskLevel: fu.risk_status || 'Sin definir',
+                                attempts: fu.attempts || 0,
+                                follow_up_attempts: fu.follow_up_attempts || [],
+                                isPrioritized: true,
+                                scheduledTime: fu.scheduled_time || '00:00'
                             }))
                         ];
 
-                        this.realizados = data.followUpsCompleted.map(fu => ({
+                        this.completedFollowUps = (dayData.followUpsCompleted || []).map(fu => ({
                             id: fu.id,
-                            casoId: fu.caseId,
-                            casoNombre: fu.caseName,
-                            nivelRiesgo: fu.riskLevel,
-                            municipio: fu.municipality,
-                            hora: fu.scheduledTime || '00:00'
+                            caseId: fu.case_id,
+                            case: fu.case || null,
+                            caseName: fu.case ? `${fu.case.names} ${fu.case.lastNames}` : `Caso ${fu.case_id ? fu.case_id.substring(0, 8) : 'N/A'}`,
+                            riskLevel: fu.risk_status || 'Sin definir',
+                            scheduledTime: fu.scheduled_time || '00:00'
                         }));
+
+                        console.log('[MisSeguimientos] pendingFollowUps:', this.pendingFollowUps.length);
+                        console.log('[MisSeguimientos] regularFollowUps:', this.regularFollowUps.length);
+                        console.log('[MisSeguimientos] priorityFollowUps:', this.priorityFollowUps.length);
                     } catch (error) {
                         console.error('Error:', error);
-                        // TODO: Mostrar alerta de error
                     } finally {
                         this.loading = false;
+                        const loadingOverlay = document.getElementById('loadingOverlay');
+                        if (loadingOverlay) loadingOverlay.style.display = 'none';
                     }
                 },
 
-                handleClicSeguimiento(seg) {
-                    // Regla: Si tiene >= 3 intentos, mostrar modal de acciones
-                    if (seg.intentos >= 3) {
-                        this.modalAcciones = seg;
-                    } else {
-                        this.modalContesto = seg;
-                    }
-                },
+                // ── Modal Management ────────────────────────────────────────
 
-                handleContesto() {
-                    const seg = this.modalContesto;
+                closeModals() {
                     this.modalContesto = null;
-                    // Navegar a formulario de seguimiento
+                    this.modalRazon = null;
+                    this.modalAcciones = null;
+                    this.reasonText = '';
+                },
+
+                // ── Event Handlers ──────────────────────────────────────────
+
+                handleStartFollowUp(fu) {
+                    console.log('[MisSeguimientos] handleStartFollowUp called', fu);
+                    if (fu.attempts >= 3) {
+                        console.log('[MisSeguimientos] Opening modalAcciones');
+                        this.modalAcciones = fu;
+                    } else {
+                        console.log('[MisSeguimientos] Opening modalContesto');
+                        this.modalContesto = fu;
+                    }
+                    console.log('[MisSeguimientos] modalContesto:', this.modalContesto);
+                    console.log('[MisSeguimientos] modalAcciones:', this.modalAcciones);
+                },
+
+                handleAnswered() {
+                    const fu = this.modalContesto;
+                    this.modalContesto = null;
                     this.enFormulario = {
-                        seg,
-                        caso: { id: seg.casoId, nombre: seg.casoNombre, nivelRiesgo: seg.nivelRiesgo }
+                        fu,
+                        case: { id: fu.caseId, name: fu.caseName, riskLevel: fu.riskLevel }
                     };
                 },
 
-                handleNoContesto() {
-                    const seg = this.modalContesto;
+                handleNoAnswer() {
+                    const fu = this.modalContesto;
                     this.modalContesto = null;
-                    // Abrir modal de razón
-                    this.modalRazon = seg;
-                    this.razonTexto = '';
+                    this.modalRazon = fu;
+                    this.reasonText = '';
                 },
 
-                async handleGuardarRazon() {
-                    if (!this.razonTexto || this.razonTexto.trim() === '') return;
+                async handleSaveReason() {
+                    if (!this.reasonText || this.reasonText.trim() === '') return;
 
-                    const seg = this.modalRazon;
+                    const fu = this.modalRazon;
                     this.loading = true;
 
                     try {
-                        // Llamar al API para registrar el intento
-                        const response = await fetch(`/api/v1/follow-ups/${seg.id}/attempts`, {
+                        const response = await fetch(`/api/v1/follow-ups/${fu.id}/attempts`, {
                             method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                reason: this.razonTexto
-                            })
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ reason: this.reasonText })
                         });
 
                         if (!response.ok) {
                             const error = await response.json();
-                            throw new Error(error.error || 'Error registrando intento');
+                            throw new Error(error.error || 'Error saving attempt');
                         }
 
                         const data = await response.json();
+                        fu.attempts = data.attempts;
 
-                        // Actualizar intentos en el frontend
-                        seg.intentos = data.attempts;
+                        // Agregar el nuevo intento al timeline localmente
+                        const newAttempt = {
+                            id: `temp-${Date.now()}`, // ID temporal hasta recargar
+                            follow_up_id: fu.id,
+                            reason: this.reasonText,
+                            was_answered: false,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                        };
 
-                        // Cerrar modal de razón
+                        // Agregar al inicio del array (más reciente primero)
+                        if (!fu.follow_up_attempts) fu.follow_up_attempts = [];
+                        fu.follow_up_attempts.unshift(newAttempt);
+
                         this.modalRazon = null;
-                        this.razonTexto = '';
+                        this.reasonText = '';
 
-                        // Mostrar mensaje de éxito
-                        alert('✅ Intento registrado con éxito');
+                        // Show success overlay
+                        const successOverlay = document.getElementById('successOverlay');
+                        if (successOverlay) successOverlay.style.display = 'flex';
+                        setTimeout(() => {
+                            if (successOverlay) successOverlay.style.display = 'none';
+                        }, 2000);
 
-                        // Evaluar regla de intentos
                         if (data.maxAttemptsReached) {
-                            // Si alcanzó 3 o más intentos, mostrar modal de acciones
-                            this.modalAcciones = seg;
-                        } else {
-                            // Si no, refrescar lista
-                            // TODO: Reordenar lista según reglas de negocio
+                            this.modalAcciones = fu;
                         }
-
                     } catch (error) {
                         console.error('Error:', error);
-                        alert('❌ Error: ' + error.message);
+                        // Show fail overlay
+                        const failOverlay = document.getElementById('failOverlay');
+                        const failMsg = document.getElementById('fail_msg');
+                        if (failMsg) failMsg.textContent = error.message;
+                        if (failOverlay) failOverlay.style.display = 'flex';
+                        setTimeout(() => {
+                            if (failOverlay) failOverlay.style.display = 'none';
+                        }, 3000);
                     } finally {
                         this.loading = false;
                     }
                 },
 
-                handleReagendar() {
-                    // TODO: Implementar navegación a vista de reagendamiento
-                    alert('📅 Reagendar seguimiento - Por implementar');
+                handleReschedule() {
+                    console.log('Reagendar seguimiento - Por implementar');
                     this.modalAcciones = null;
                 },
 
-                handleAnadirIntento() {
-                    // Volver a abrir modal de contacto para añadir otro intento
+                handleAddAttempt() {
                     this.modalAcciones = null;
                     this.modalContesto = this.modalAcciones;
                 },
 
-                handleSugerirCierre() {
-                    // TODO: Implementar navegación a vista de sugerir cierre
-                    alert('⚠️ Sugerir cierre de caso - Por implementar');
+                handleSuggestClosure() {
+                    console.log('Sugerir cierre de caso - Por implementar');
                     this.modalAcciones = null;
                 },
 
-                handleGuardarForm({ id }) {
-                    const idx = this.pendientes.findIndex(s => s.id === id);
-                    if (idx !== -1) {
-                        const seg = this.pendientes[idx];
-                        this.realizados.push({
-                            ...seg,
-                            hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        });
-                        this.pendientes.splice(idx, 1);
-                    }
-                    this.enFormulario = null;
+                // ── UI Helpers ──────────────────────────────────────────────
+
+                toggleExpand(fu) {
+                    this.expandedFollowUpId = this.expandedFollowUpId === fu.id ? null : fu.id;
                 },
 
-                getCasoPorId(id) {
-                    return { id, nombre: "PACIENTE", nivelRiesgo: "Bajo" };
+                formatAttemptDate(dateStr) {
+                    if (!dateStr) return '';
+                    const date = new Date(dateStr);
+                    return date.toLocaleDateString('es-CO', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                },
+
+                // ── Helpers ─────────────────────────────────────────────────
+
+                getBadgeClass(level) {
+                    const map = {
+                        'Crítico': 'ms-badge--critical',
+                        'Extremo': 'ms-badge--critical',
+                        'Alto': 'ms-badge--high',
+                        'Moderado': 'ms-badge--medium',
+                        'Bajo': 'ms-badge--low'
+                    };
+                    return map[level] || '';
+                },
+
+                logout() {
+                    logout("/seguridad/logout");
                 }
             }
         });
 
-        app.mount("#mis-seguimientos-app");
+        app.mount("#app");
     })();
 </script>

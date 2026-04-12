@@ -1704,7 +1704,7 @@ header img {
     border-radius: 4px;
 }
 
-<<<<<<< HEAD .riesgo_bajo {
+.riesgo_bajo {
     background: #F6F5F7;
 }
 
@@ -1733,7 +1733,7 @@ header img {
     margin-top: 20px;
 }
 
-=======.riesgo_bajo,
+.riesgo_bajo,
 .riesgo_moderado,
 .riesgo_alto,
 .riesgo_extremo {
@@ -1746,7 +1746,6 @@ header img {
     margin-top: 20px;
 }
 
->>>>>>>origin/develop
 /* ====================================================================
 			DETALLE DE SEGUIMIENTO (PREMIUM)
    ==================================================================== */
@@ -1798,9 +1797,7 @@ header img {
     display: flex;
     align-items: center;
     gap: 1.25rem;
-    <<<<<<< HEAD box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    =======box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    >>>>>>>origin/develop
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .status-icon {
@@ -1840,9 +1837,8 @@ header img {
     background: white;
     border: 1px solid #E5E7EB;
     border-radius: 1rem;
-    <<<<<<< HEAD box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    =======box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    >>>>>>>origin/develop overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
 }
 
 .tabs-header {

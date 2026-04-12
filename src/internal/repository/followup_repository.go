@@ -146,31 +146,47 @@ func (r *followUpRepository) RunInTransaction(ctx context.Context, fn func(tx *g
 }
 
 // FindByAgentAndDate retorna los seguimientos pendientes de un agente para una fecha específica.
-// Ordena por: is_priority DESC, scheduled_time ASC, risk_status DESC, attempts ASC
+// Ordena por:
+// 1. nivel Riesgo DESC (Alto > Moderado > Bajo) usando CASE
+// 2. lastAttemptBy null primero (NULLS FIRST)
+// 3. lastAttemptBy ASC (intentos más antiguos primero)
 func (r *followUpRepository) FindByAgentAndDate(ctx context.Context, agentID string, date time.Time) ([]models.FollowUpV2, error) {
 	var items []models.FollowUpV2
-	
+
 	// Obtener solo la parte de la fecha (YYYY-MM-DD)
 	dateOnly := date.Format("2006-01-02")
-	
+
 	err := r.db.WithContext(ctx).
-		Where("agent_id = ? AND status = ? AND DATE(scheduled_date) = ?", 
-			agentID, 
+		Where("agent_id = ? AND status = ? AND DATE(scheduled_date) = ?",
+			agentID,
 			models.FollowUpStatusPendiente,
 			dateOnly).
-		Order("is_priority DESC, scheduled_time ASC, risk_status DESC, attempts ASC").
+		Order(`
+			CASE risk_status 
+				WHEN 'Extremo' THEN 1 
+				WHEN 'Crítico' THEN 1 
+				WHEN 'Alto' THEN 2 
+				WHEN 'Moderado' THEN 3 
+				WHEN 'Bajo' THEN 4 
+				ELSE 5 
+			END ASC,
+			last_attempt_at ASC NULLS FIRST,
+			scheduled_time ASC
+		`).
 		Find(&items).Error
-	
+
 	return items, err
 }
 
-// IncrementAttempt incrementa el contador de intentos de un seguimiento.
+// IncrementAttempt incrementa el contador de intentos de un seguimiento y actualiza last_attempt_at.
 func (r *followUpRepository) IncrementAttempt(ctx context.Context, followUpID string) error {
 	return r.db.WithContext(ctx).
 		Model(&models.FollowUpV2{}).
 		Where("id = ?", followUpID).
-		Update("attempts", gorm.Expr("attempts + 1")).Error
-// ── Seguimientos Área ─────────────────────────────────────────────────────────
+		Updates(map[string]interface{}{
+			"attempts":        gorm.Expr("attempts + 1"),
+			"last_attempt_at": time.Now(),
+		}).Error
 }
 
 // FindByTeamPaginated retorna seguimientos filtrados por team + filtros dinámicos con paginación.
