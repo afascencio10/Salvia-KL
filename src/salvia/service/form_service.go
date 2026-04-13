@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -126,44 +127,60 @@ type FormService interface {
 	GetFormSubmissionStructured(ctx context.Context, formID, submissionID string) (*FormSubmissionStructured, error)
 	LoadForm(ctx context.Context, formID, submissionID string) (*LoadFormResult, error)
 	SaveSection(ctx context.Context, input SaveSectionInput) (*LoadFormResult, error)
+	OnEndFormSubmission(ctx context.Context, formID, submissionID string) error
 	TestFunction(ctx context.Context, fn, id, submissionID string) (interface{}, error)
 }
 
 type FormServiceDeps struct {
-	FormRepo              repository.FormRepository
-	FormSectionRepo       repository.FormSectionRepository
-	QuestionRepo          repository.QuestionRepository
-	RepeaterGroupRepo     repository.RepeaterGroupRepository
-	OptionRepo            repository.OptionRepository
-	VisibilityCondRepo    repository.VisibilityConditionRepository
-	FormSubmissionRepo    repository.FormSubmissionRepository
-	RepeaterEntryRepo     repository.RepeaterEntryRepository
-	AnswerRepo            repository.AnswerRepository
+	FormRepo                   repository.FormRepository
+	FormSectionRepo            repository.FormSectionRepository
+	QuestionRepo               repository.QuestionRepository
+	RepeaterGroupRepo          repository.RepeaterGroupRepository
+	OptionRepo                 repository.OptionRepository
+	VisibilityCondRepo         repository.VisibilityConditionRepository
+	FormSubmissionRepo         repository.FormSubmissionRepository
+	RepeaterEntryRepo          repository.RepeaterEntryRepository
+	AnswerRepo                 repository.AnswerRepository
+	FollowUpRepo               repository.FollowUpRepository
+	EmergencyMeasureRepo       repository.EmergencyMeasureRepository
+	PsychosocialSupportRepo    repository.PsychosocialSupportRepository
+	EconomicStabilizationRepo  repository.EconomicStabilizationRepository
+	BarrierV2Repo              repository.BarrierV2Repository
 }
 
 type formService struct {
-	repo               repository.FormRepository
-	formSectionRepo    repository.FormSectionRepository
-	questionRepo       repository.QuestionRepository
-	repeaterGroupRepo  repository.RepeaterGroupRepository
-	optionRepo         repository.OptionRepository
-	visibilityCondRepo repository.VisibilityConditionRepository
-	submissionRepo     repository.FormSubmissionRepository
-	repeaterEntryRepo  repository.RepeaterEntryRepository
-	answerRepo         repository.AnswerRepository
+	repo                   repository.FormRepository
+	formSectionRepo        repository.FormSectionRepository
+	questionRepo           repository.QuestionRepository
+	repeaterGroupRepo      repository.RepeaterGroupRepository
+	optionRepo             repository.OptionRepository
+	visibilityCondRepo     repository.VisibilityConditionRepository
+	submissionRepo         repository.FormSubmissionRepository
+	repeaterEntryRepo      repository.RepeaterEntryRepository
+	answerRepo             repository.AnswerRepository
+	followUpRepo           repository.FollowUpRepository
+	emergencyMeasureRepo   repository.EmergencyMeasureRepository
+	psychosocialSupportRepo repository.PsychosocialSupportRepository
+	economicStabilizationRepo repository.EconomicStabilizationRepository
+	barrierV2Repo          repository.BarrierV2Repository
 }
 
 func NewFormService(deps FormServiceDeps) FormService {
 	return &formService{
-		repo:               deps.FormRepo,
-		formSectionRepo:    deps.FormSectionRepo,
-		questionRepo:       deps.QuestionRepo,
-		repeaterGroupRepo:  deps.RepeaterGroupRepo,
-		optionRepo:         deps.OptionRepo,
-		visibilityCondRepo: deps.VisibilityCondRepo,
-		submissionRepo:     deps.FormSubmissionRepo,
-		repeaterEntryRepo:  deps.RepeaterEntryRepo,
-		answerRepo:         deps.AnswerRepo,
+		repo:                      deps.FormRepo,
+		formSectionRepo:           deps.FormSectionRepo,
+		questionRepo:              deps.QuestionRepo,
+		repeaterGroupRepo:         deps.RepeaterGroupRepo,
+		optionRepo:                deps.OptionRepo,
+		visibilityCondRepo:        deps.VisibilityCondRepo,
+		submissionRepo:            deps.FormSubmissionRepo,
+		repeaterEntryRepo:         deps.RepeaterEntryRepo,
+		answerRepo:                deps.AnswerRepo,
+		followUpRepo:              deps.FollowUpRepo,
+		emergencyMeasureRepo:      deps.EmergencyMeasureRepo,
+		psychosocialSupportRepo:   deps.PsychosocialSupportRepo,
+		economicStabilizationRepo: deps.EconomicStabilizationRepo,
+		barrierV2Repo:             deps.BarrierV2Repo,
 	}
 }
 
@@ -1729,7 +1746,207 @@ func (s *formService) SaveSection(ctx context.Context, input SaveSectionInput) (
 	}
 
 	// 5. Retornar LoadForm con el estado actualizado (isAnswered/isVisible por sección)
-	return s.LoadForm(ctx, input.FormID, submissionID)
+	result, err := s.LoadForm(ctx, input.FormID, submissionID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 6. Si todas las secciones visibles están respondidas → onEndFormSubmission
+	allAnswered := true
+	for _, sec := range result.FormStructure.Sections {
+		if sec.IsVisible && !sec.IsAnswered {
+			allAnswered = false
+			break
+		}
+	}
+	if allAnswered {
+		go func() {
+			if err := s.OnEndFormSubmission(context.Background(), input.FormID, submissionID); err != nil {
+				fmt.Printf("[OnEndFormSubmission] error: %v\n", err)
+			}
+		}()
+	}
+
+	return result, nil
+}
+
+// ─── OnEndFormSubmission ──────────────────────────────────────────────────────
+
+// IDs de formularios con lógica de end-submission.
+const (
+	seguimientoFormID    = "2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff"
+	barrierUpdateFormID  = "4d0aeb46-5af3-4c47-a0d5-c5bfc4d549ff"
+)
+
+// OnEndFormSubmission es llamado cuando todas las secciones visibles han sido respondidas.
+// Delega a la función específica según el formID.
+func (s *formService) OnEndFormSubmission(ctx context.Context, formID, submissionID string) error {
+	switch formID {
+	case seguimientoFormID:
+		return s.processFollowUpSubmission(ctx, submissionID)
+	case barrierUpdateFormID:
+		return s.processBarrierUpdateSubmission(ctx, submissionID)
+	}
+	return nil
+}
+
+// processFollowUpSubmission marca el follow_up_v2 asociado como REALIZADO y crea las entidades
+// derivadas (barreras, medidas de emergencia, derivaciones) a partir de las respuestas.
+func (s *formService) processFollowUpSubmission(ctx context.Context, submissionID string) error {
+	// 1. Buscar el follow_up asociado al submission
+	fu, err := s.followUpRepo.FindByFormSubmissionID(ctx, submissionID)
+	if err != nil {
+		return fmt.Errorf("processFollowUpSubmission: buscar followUp: %w", err)
+	}
+	// Idempotencia: si ya fue procesado, no volvemos a actuar
+	if fu.Status == models.FollowUpStatusRealizado {
+		return nil
+	}
+
+	// 2. Leer las respuestas directas del submission
+	answers, err := s.answerRepo.FindDirectBySubmissionID(ctx, submissionID)
+	if err != nil {
+		return fmt.Errorf("processFollowUpSubmission: leer respuestas: %w", err)
+	}
+
+	// Indexar respuestas por questionId para acceso rápido
+	answerMap := make(map[string]string, len(answers))
+	for _, a := range answers {
+		answerMap[a.QuestionID] = a.Value
+	}
+
+	// ── IDs de las preguntas del formulario de seguimiento ────────────────────
+	const (
+		// Repeater group de barreras
+		rgBarreras = "5fd3ecdc-2e5f-4b31-97ef-8a994580586a"
+		// Preguntas dentro del repeater de barreras
+		qBarreraSector     = "f19378b6-55c5-4fdf-b765-7ebcc3978741" // Sector (dropdown)
+		qBarreraSalud      = "5fc1f2af-cc30-41f0-aa31-4731e5cb674c" // Barreras Salud (multiple)
+		qBarreraJusticia   = "2bec977e-97c7-42d7-a00a-b536af8038eb" // Barreras Justicia (multiple)
+		qBarreraProteccion = "66c9fc1e-9b5e-4ad4-999f-7aeb483d84dc" // Barreras Protección (multiple)
+		// Preguntas directas del form
+		qEquipos           = "e0d38cf5-fe3f-45cb-9fd3-f5b8f7b2f7dc" // Derivaciones a equipos (multi-select)
+		qMedidasEmergencia = "1a36260c-33a4-4ebd-bffb-e387d7964b96" // Medidas de emergencia (multi-select)
+	)
+
+	// Mapa: questionID → nombre del sector para las preguntas de barrera
+	barrierQuestionSector := map[string]string{
+		qBarreraSalud:      "salud",
+		qBarreraJusticia:   "justicia",
+		qBarreraProteccion: "proteccion",
+	}
+
+	// ── Helper: parsea valor comma-separated y filtra vacíos ─────────────────
+	splitValues := func(v string) []string {
+		var out []string
+		for _, part := range strings.Split(v, ",") {
+			if t := strings.TrimSpace(part); t != "" {
+				out = append(out, t)
+			}
+		}
+		return out
+	}
+
+	// 3. Crear BarrierV2 por cada entrada del repeater de barreras
+	barrierEntries, err := s.repeaterEntryRepo.FindBySubmissionIDAndGroupIDs(ctx, submissionID, []string{rgBarreras})
+	if err != nil {
+		return fmt.Errorf("processFollowUpSubmission: leer entradas de barreras: %w", err)
+	}
+	log.Printf("[processFollowUp] barreras: %d entradas encontradas", len(barrierEntries))
+	for _, entry := range barrierEntries {
+		entryAnswers, err := s.answerRepo.FindByRepeaterEntryID(ctx, entry.ID)
+		if err != nil {
+			return fmt.Errorf("processFollowUpSubmission: leer respuestas entrada [%s]: %w", entry.ID, err)
+		}
+		// Indexar respuestas de esta entrada
+		entryMap := make(map[string]string, len(entryAnswers))
+		for _, a := range entryAnswers {
+			entryMap[a.QuestionID] = a.Value
+		}
+		// Sector explícito (dropdown); si no hay, se inferirá de la pregunta con respuesta
+		sectorExplicit := strings.TrimSpace(entryMap[qBarreraSector])
+
+		for qID, sectorFallback := range barrierQuestionSector {
+			val, ok := entryMap[qID]
+			if !ok || val == "" {
+				continue
+			}
+			sector := sectorExplicit
+			if sector == "" {
+				sector = sectorFallback
+			}
+			for _, option := range splitValues(val) {
+				log.Printf("[processFollowUp] creando barrera sector=%s descripcion=%s", sector, option)
+				b := &models.BarrierV2{
+					CaseID:      fu.CaseID,
+					FollowUpID:  fu.ID,
+					Sector:      sector,
+					Description: option,
+					Status:      "OPEN",
+				}
+				if err := s.barrierV2Repo.Create(ctx, b); err != nil {
+					return fmt.Errorf("processFollowUpSubmission: crear barrera [%s/%s]: %w", sector, option, err)
+				}
+			}
+		}
+	}
+
+	// 4. Crear registros de derivación por equipo
+	if equiposVal, ok := answerMap[qEquipos]; ok && equiposVal != "" {
+		log.Printf("[processFollowUp] derivaciones a equipos: %s", equiposVal)
+		for _, equipo := range splitValues(equiposVal) {
+			switch equipo {
+			case "atencion_psico":
+				log.Printf("[processFollowUp] creando derivacion -> atencion_psico")
+				ps := &models.PsychosocialSupport{
+					CaseID:     fu.CaseID,
+					FollowUpID: fu.ID,
+					Type:       "derivacion",
+					Status:     "ACTIVE",
+				}
+				if err := s.psychosocialSupportRepo.Create(ctx, ps); err != nil {
+					return fmt.Errorf("processFollowUpSubmission: crear derivacion psicosocial: %w", err)
+				}
+			case "estabilizacion":
+				log.Printf("[processFollowUp] creando derivacion -> estabilizacion")
+				ec := &models.EconomicStabilization{
+					CaseID:     fu.CaseID,
+					FollowUpID: fu.ID,
+					Type:       "derivacion",
+					Status:     "ACTIVE",
+				}
+				if err := s.economicStabilizationRepo.Create(ctx, ec); err != nil {
+					return fmt.Errorf("processFollowUpSubmission: crear derivacion economica: %w", err)
+				}
+			}
+		}
+	}
+
+	// 5. Crear una EmergencyMeasure por cada medida de emergencia seleccionada
+	if medidasVal, ok := answerMap[qMedidasEmergencia]; ok && medidasVal != "" {
+		log.Printf("[processFollowUp] medidas de emergencia: %s", medidasVal)
+		for _, medida := range splitValues(medidasVal) {
+			log.Printf("[processFollowUp] creando medida emergencia tipo=%s", medida)
+			em := &models.EmergencyMeasure{
+				CaseID:     fu.CaseID,
+				FollowUpID: fu.ID,
+				Type:       medida,
+				Status:     "ACTIVE",
+			}
+			if err := s.emergencyMeasureRepo.Create(ctx, em); err != nil {
+				return fmt.Errorf("processFollowUpSubmission: crear medida emergencia [%s]: %w", medida, err)
+			}
+		}
+	}
+
+	// 6. Marcar el follow_up como REALIZADO
+	return s.followUpRepo.UpdateStatus(ctx, fu.ID, models.FollowUpStatusRealizado)
+}
+
+// processBarrierUpdateSubmission ejecuta la lógica de fin de formulario para actualización de barreras.
+func (s *formService) processBarrierUpdateSubmission(ctx context.Context, submissionID string) error {
+	// TODO: implementar lógica específica de barrier update
+	return nil
 }
 
 // ─── validateAnswer ───────────────────────────────────────────────────────────

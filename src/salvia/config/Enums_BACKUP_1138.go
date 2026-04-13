@@ -48,8 +48,11 @@ var HTML_Templates map[string]string = map[string]string{
 	"set_feminicide_risk":      "set_feminicide_risk.html",
 	"hacer_seguimiento":        "hacer_seguimiento.html",
 	"get_follow_up_detail":     "get_follow_up_detail.html",
+<<<<<<< HEAD
 	"seguimientos_area":        "seguimientos_area.html",
+=======
 	"get_case_detail_sv":       "get_case_detail_sv.html",
+>>>>>>> 61724ceae1468ab312d0af751096bf38c1e82143
 }
 
 var FormPaths map[string]map[string]string = map[string]map[string]string{

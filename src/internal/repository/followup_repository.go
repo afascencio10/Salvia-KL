@@ -34,7 +34,15 @@ type FollowUpRepository interface {
 	FindPendingByTeamGroupedByAgent(ctx context.Context, team string, fecha string) ([]AgentWorkload, error)
 	FindAgentsByTeam(ctx context.Context, team string) ([]AgentOption, error)
 	Reschedule(ctx context.Context, id string, fields map[string]interface{}) error
+	
+	// De backupDevelop
 	CloseCaseFollowUps(ctx context.Context, followUpID string) error
+
+	// Hacer seguimiento (De develop)
+	LoadVictimInfoByCaseID(ctx context.Context, caseID string) (*VictimCaseInfo, error)
+	UpdateFormSubmissionID(ctx context.Context, id string, fsID string) error
+	FindByFormSubmissionID(ctx context.Context, formSubmissionID string) (*models.FollowUpV2, error)
+	UpdateStatus(ctx context.Context, id string, status string) error
 }
 
 // FollowUpFilters contiene los filtros dinámicos para la consulta paginada.
@@ -214,7 +222,12 @@ func (r *followUpRepository) IncrementAttempt(ctx context.Context, followUpID st
 
 // FindByTeamPaginated retorna seguimientos filtrados por team + filtros dinámicos con paginación.
 func (r *followUpRepository) FindByTeamPaginated(ctx context.Context, team string, filters FollowUpFilters, page, limit int) ([]models.FollowUpV2, int64, error) {
-	query := r.db.WithContext(ctx).Where("team = ?", team)
+	query := r.db.WithContext(ctx).Model(&models.FollowUpV2{})
+
+	// Solo filtrar por team si viene con valor (vacío = todos)
+	if team != "" {
+		query = query.Where("team = ?", team)
+	}
 
 	// Filtros dinámicos
 	switch filters.Tab {
@@ -258,7 +271,11 @@ func (r *followUpRepository) FindPendingByTeamGroupedByAgent(ctx context.Context
 	query := r.db.WithContext(ctx).
 		Model(&models.FollowUpV2{}).
 		Select("agent_id, COUNT(*) as total").
-		Where("team = ? AND status = ?", team, models.FollowUpStatusPendiente)
+		Where("status = ?", models.FollowUpStatusPendiente)
+
+	if team != "" {
+		query = query.Where("team = ?", team)
+	}
 
 	if fecha != "" {
 		query = query.Where("DATE(scheduled_date) = ?", fecha)
@@ -271,11 +288,15 @@ func (r *followUpRepository) FindPendingByTeamGroupedByAgent(ctx context.Context
 // FindAgentsByTeam retorna los agentes distintos que tienen seguimientos en un team.
 func (r *followUpRepository) FindAgentsByTeam(ctx context.Context, team string) ([]AgentOption, error) {
 	var results []AgentOption
-	err := r.db.WithContext(ctx).
+	query := r.db.WithContext(ctx).
 		Model(&models.FollowUpV2{}).
-		Select("DISTINCT agent_id").
-		Where("team = ?", team).
-		Scan(&results).Error
+		Select("DISTINCT agent_id")
+
+	if team != "" {
+		query = query.Where("team = ?", team)
+	}
+
+	err := query.Scan(&results).Error
 	return results, err
 }
 
@@ -307,4 +328,55 @@ func (r *followUpRepository) CloseCaseFollowUps(ctx context.Context, followUpID 
 		Where("case_id = ? AND status IN ?", fu.CaseID,
 			[]string{models.FollowUpStatusPendiente, models.FollowUpStatusReprogramado}).
 		Update("status", models.FollowUpStatusCerrado).Error
+}
+
+// LoadVictimInfoByCaseID obtiene la información resumida del caso para la pantalla hacer-seguimiento.
+func (r *followUpRepository) LoadVictimInfoByCaseID(ctx context.Context, caseID string) (*VictimCaseInfo, error) {
+	var info VictimCaseInfo
+	sql := `
+		SELECT
+			COALESCE(vc.victim_case_victim_names, '')                   AS names,
+			COALESCE(vc.victim_case_victim_last_names, '')              AS last_names,
+			COALESCE(t.town_name, '')                                   AS town_name,
+			COALESCE(f1.victim_case_form1_victim_phone, '')             AS phone,
+			COALESCE(f1.victim_case_form1_victim_gender_identity, '')   AS gender_identity,
+			COALESCE(f1.victim_case_form1_victim_sexual_orientation, '') AS sexual_orientation,
+			COALESCE(f1.victim_case_form1_victim_contact_phone, '')     AS contact_phone,
+			f1.victim_case_form1_age                                    AS age
+		FROM salvia.victim_case vc
+		LEFT JOIN salvia.victim_case_form1 f1 ON f1.victim_case_form1_victim_case = vc.victim_case_id
+		LEFT JOIN security.town t ON t.town_code = vc.victim_case_victim_town_code
+		WHERE vc.victim_case_id::text = ?
+		LIMIT 1`
+	return &info, r.db.WithContext(ctx).Raw(sql, caseID).Scan(&info).Error
+}
+
+// UpdateFormSubmissionID asigna un formSubmissionId a un seguimiento.
+func (r *followUpRepository) UpdateFormSubmissionID(ctx context.Context, id string, fsID string) error {
+	return r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Where("id = ?", id).
+		Update("form_submission_id", fsID).Error
+}
+
+// FindByFormSubmissionID busca el seguimiento asociado a un formSubmissionId.
+func (r *followUpRepository) FindByFormSubmissionID(ctx context.Context, formSubmissionID string) (*models.FollowUpV2, error) {
+	var fu models.FollowUpV2
+	err := r.db.WithContext(ctx).
+		Where("form_submission_id = ?", formSubmissionID).
+		First(&fu).Error
+	return &fu, err
+}
+
+// UpdateStatus actualiza el status de un seguimiento.
+// Si el status es REALIZADO también registra el completed_at.
+func (r *followUpRepository) UpdateStatus(ctx context.Context, id string, status string) error {
+	fields := map[string]interface{}{"status": status}
+	if status == models.FollowUpStatusRealizado {
+		fields["completed_at"] = time.Now()
+	}
+	return r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Where("id = ?", id).
+		Updates(fields).Error
 }

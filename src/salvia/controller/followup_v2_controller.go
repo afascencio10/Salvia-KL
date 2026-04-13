@@ -44,7 +44,10 @@ func (c *FollowUpV2Controller) RegisterRoutes(api *gin.RouterGroup) {
 
 	api.GET("/cases/follow-ups/detail", c.GetDetail)
 
-	// Nuevas rutas para "Mis Seguimientos"
+	// Hacer seguimiento
+	api.GET("/follow-ups/:id/load", c.LoadFollowUp)
+
+	// Mis Seguimientos
 	myDay := api.Group("/follow-ups")
 	{
 		myDay.GET("/my-day", c.GetMyDayFollowUps)
@@ -333,10 +336,7 @@ func (c *FollowUpV2Controller) ListByArea(ctx *gin.Context) {
 	if team == "" {
 		team = ctx.Query("team")
 	}
-	if team == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "team requerido (header X-User-Team o query param)"})
-		return
-	}
+	// team vacío = trae todos los equipos (modo desarrollo)
 
 	filters := repository.FollowUpFilters{
 		Tab:         ctx.Query("tab"),
@@ -378,10 +378,7 @@ func (c *FollowUpV2Controller) AgentWorkload(ctx *gin.Context) {
 	if team == "" {
 		team = ctx.Query("team")
 	}
-	if team == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "team requerido"})
-		return
-	}
+	// team vacío = trae todos los equipos (modo desarrollo)
 
 	fecha := ctx.Query("fecha")
 	results, err := c.svc.GetAgentWorkload(ctx.Request.Context(), team, fecha)
@@ -407,10 +404,7 @@ func (c *FollowUpV2Controller) FilterOptions(ctx *gin.Context) {
 	if team == "" {
 		team = ctx.Query("team")
 	}
-	if team == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "team requerido"})
-		return
-	}
+	// team vacío = trae todos los equipos (modo desarrollo)
 
 	options, err := c.svc.GetFilterOptions(ctx.Request.Context(), team)
 	if err != nil {
@@ -478,4 +472,45 @@ func (c *FollowUpV2Controller) CloseCase(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{"message": "seguimientos cerrados exitosamente"})
+}
+
+// LoadFollowUp godoc
+//
+//	@Summary		Cargar pantalla hacer-seguimiento
+//	@Description	Valida acceso, carga info del caso y crea FormSubmission si no existe
+//	@Tags			Seguimientos
+//	@Produce		json
+//	@Param			id			path	string	true	"UUID del seguimiento"
+//	@Param			agent_id	query	string	true	"ICode del agente"
+//	@Param			form_id		query	string	true	"ID del formulario"
+//	@Success		200	{object}	service.LoadFollowUpResult
+//	@Failure		403	{object}	map[string]string
+//	@Failure		404	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Router			/follow-ups/{id}/load [get]
+func (c *FollowUpV2Controller) LoadFollowUp(ctx *gin.Context) {
+	id := ctx.Param("id")
+	agentID := ctx.Query("agent_id")
+	formID := ctx.Query("form_id")
+
+	if agentID == "" || formID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "agent_id y form_id son requeridos"})
+		return
+	}
+
+	result, err := c.svc.LoadFollowUp(ctx.Request.Context(), id, agentID, formID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrFollowUpNotFound):
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "seguimiento no encontrado"})
+		case errors.Is(err, service.ErrFollowUpNotAssigned):
+			ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		case errors.Is(err, service.ErrFollowUpNotYetDue):
+			ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		}
+		return
+	}
+	ctx.JSON(http.StatusOK, result)
 }

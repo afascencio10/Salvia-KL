@@ -10,11 +10,52 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// ══════════════════════════════════════════════════════════════════════════════
+// MODO DESARROLLO: Cambiar a false para exigir sesión y permisos en producción.
+// Cuando es true, la página se renderiza sin login y muestra TODOS los casos.
+// ══════════════════════════════════════════════════════════════════════════════
+var seguimientosAreaDevMode = true
+
 // SeguimientosAreaGET renderiza la página de Seguimientos del Área para supervisores.
 // Ruta: GET /salvia/seguimientos/area
 func SeguimientosAreaGET(c *gin.Context) {
+
+	// ── Modo desarrollo: sin sesión, sin permisos, trae todo ─────────────────
+	if seguimientosAreaDevMode {
+		common_facades.RenderTemplate(
+			c,
+			"seguimientos_area",
+			"salvia",
+			"follow_up_v2/",
+			salvia_config.HTML_Templates,
+			"seguimientos_area",
+			utils.GetFullHtmlTemplates(),
+			utils.DEFAULT_VIEW,
+			utils.DEFAULT_PANIC_TEMPLATE,
+			map[string]interface{}{
+				"windowTitle": "Seguimientos del Área (DEV)",
+				"currentUser": "Desarrollador Local",
+				"locale":      salvia_config.Locale,
+				"lang":        "sp",
+				"UserId":      "dev-user",
+				"IsAdmin":     true,
+				"TeamId":      "", // vacío = trae todos los equipos
+			},
+			utils.GetFullHtmlFuncMap(),
+		)
+		return
+	}
+
+	// ── Modo producción: requiere sesión y permiso ───────────────────────────
 	session := sessions.Default(c)
-	sessionID := session.Get("userData").(string)
+	userData := session.Get("userData")
+	if userData == nil {
+		c.Redirect(http.StatusTemporaryRedirect, "/static/landing.html")
+		c.Abort()
+		return
+	}
+
+	sessionID := userData.(string)
 	s, err := utils.GetCommonSession(sessionID)
 	if err != nil {
 		c.Redirect(http.StatusTemporaryRedirect, "/static/landing.html")

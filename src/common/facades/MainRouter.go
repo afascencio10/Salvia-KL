@@ -220,7 +220,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		location := c.Request.RequestURI
 
-		if !strings.Contains(location, publicURI) && !strings.Contains(location, staticURI) && !IsLoggedIn(c) && !strings.Contains(location, "login") && !strings.HasPrefix(location, "/api/") && !strings.HasPrefix(location, "/swagger") {
+		if !strings.Contains(location, publicURI) && !strings.Contains(location, staticURI) && !IsLoggedIn(c) && !strings.Contains(location, "login") && !strings.HasPrefix(location, "/api/") && !strings.HasPrefix(location, "/swagger") && !strings.HasPrefix(location, "/salvia/seguimientos") {
 			//c.Redirect(302, "/"+security_config.Locale["sp"][loginModule]+"/login")
 			c.Redirect(http.StatusTemporaryRedirect, staticURI+"/landing.html")
 			c.Abort()
