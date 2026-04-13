@@ -26,6 +26,7 @@ func NewFormController(svc service.FormService) *FormController {
 //	POST   /api/v1/forms
 //	PUT    /api/v1/forms/:id
 //	DELETE /api/v1/forms/:id
+//	GET    /api/v1/forms/:id/load?submissionId=<optional>
 func (c *FormController) RegisterRoutes(rg *gin.RouterGroup) {
 	forms := rg.Group("/forms")
 	forms.GET("", c.List)
@@ -33,6 +34,43 @@ func (c *FormController) RegisterRoutes(rg *gin.RouterGroup) {
 	forms.POST("", c.Create)
 	forms.PUT("/:id", c.Update)
 	forms.DELETE("/:id", c.Delete)
+	forms.GET("/:id/load", c.LoadForm)
+	forms.POST("/saveSection", c.SaveSection)
+
+	rg.GET("/testEndpoint", c.TestEndpoint)
+}
+
+// TestEndpoint es un sandbox de pruebas.
+//   ?fn=getFormStructure&id=<formId>
+//   ?fn=getFormSubmission&id=<submissionId>
+//   ?fn=listSubmissions&id=<formId>
+//   ?fn=validateAnswers&submissionId=<submissionId>
+//   ?fn=checkVisibility&id=<formId>&submissionId=<submissionId>
+//   (sin fn) → default de TestFunction
+func (c *FormController) TestEndpoint(ctx *gin.Context) {
+	fn := ctx.Query("fn")
+	id := ctx.Query("id")
+	submissionID := ctx.Query("submissionId")
+
+	var (
+		result interface{}
+		err    error
+	)
+
+	switch fn {
+	case "getFormStructure":
+		result, err = c.svc.GetFormStructure(ctx.Request.Context(), id)
+	case "getFormSubmission":
+		result, err = c.svc.GetFormSubmission(ctx.Request.Context(), submissionID)
+	default:
+		result, err = c.svc.TestFunction(ctx.Request.Context(), fn, id, submissionID)
+	}
+
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, result)
 }
 
 func (c *FormController) List(ctx *gin.Context) {
@@ -123,6 +161,42 @@ func (c *FormController) Delete(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusNoContent, nil)
+}
+
+// LoadForm carga la estructura del form, la submission si existe, y la sección actual.
+// GET /api/v1/forms/:id/load?submissionId=<optional>
+func (c *FormController) LoadForm(ctx *gin.Context) {
+	result, err := c.svc.LoadForm(ctx.Request.Context(), ctx.Param("id"), ctx.Query("submissionId"))
+	if err != nil {
+		if errors.Is(err, service.ErrFormNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "formulario no encontrado"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		return
+	}
+	ctx.JSON(http.StatusOK, result)
+}
+
+// SaveSection guarda las respuestas de una sección y retorna el LoadFormResult actualizado.
+// POST /api/v1/forms/saveSection
+func (c *FormController) SaveSection(ctx *gin.Context) {
+	var body service.SaveSectionInput
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if body.FormID == "" || body.FormSectionID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "formId y formSectionId son requeridos"})
+		return
+	}
+
+	result, err := c.svc.SaveSection(ctx.Request.Context(), body)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, result)
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────

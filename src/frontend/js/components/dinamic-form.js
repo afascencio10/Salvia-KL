@@ -4,7 +4,8 @@
  * Soporta: single, multiple, boolean, dropdown, text, date, datetime, repeater.
  * Estilos basados en el prototipo Salvia.
  * Props:
- *   - formId (String): ID del formulario a cargar
+ *   - formId      (String, required): ID del formulario a cargar
+ *   - submissionId (String, optional): ID del intento existente a continuar
  */
 
 /* ─── Inyección de estilos ──────────────────────────────────────────────── */
@@ -71,10 +72,12 @@
             transition: background 0.15s, color 0.15s;
             line-height: 1.3;
         }
-        .df-section-item.active  { background: #f5f3ff; color: #6d28d9; font-weight: 600; cursor: default; }
+        .df-section-item.active    { background: #f5f3ff; color: #6d28d9; font-weight: 600; }
         .df-section-item.completed { color: #4b5563; }
         .df-section-item.completed:hover { background: #f9fafb; }
-        .df-section-item.pending { color: #d1d5db; cursor: not-allowed; }
+        .df-section-item.enabled   { color: #4b5563; }
+        .df-section-item.enabled:hover { background: #f9fafb; }
+        .df-section-item.pending   { color: #d1d5db; cursor: not-allowed; }
         .df-badge {
             width: 20px; height: 20px;
             border-radius: 50%;
@@ -84,6 +87,7 @@
         }
         .df-badge.active    { background: #7c3aed; color: #fff; }
         .df-badge.completed { background: #22c55e; color: #fff; }
+        .df-badge.enabled   { background: #e5e7eb; color: #6b7280; }
         .df-badge.pending   { background: #f3f4f6; color: #d1d5db; }
         .df-progress-wrap {
             padding: 12px 16px;
@@ -102,9 +106,21 @@
             border-radius: 999px; transition: width 0.3s ease;
         }
 
+        /* ── Saving overlay ── */
+        .df-saving-overlay {
+            position: absolute; inset: 0;
+            background: rgba(255,255,255,0.75);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            gap: 10px;
+            font-size: 14px; color: #6b7280;
+            z-index: 10;
+        }
+
         /* ── Main panel ── */
         .df-main {
             flex: 1; min-width: 0;
+            position: relative;
             background: #fff;
             border: 1px solid #e5e7eb;
             border-radius: 12px;
@@ -214,7 +230,8 @@
         .df-repeater-add:hover { border-color: #a78bfa; background: #f5f3ff; }
 
         /* multiple hint */
-        .df-hint { font-size: 12px; color: #9ca3af; font-style: italic; }
+        .df-hint  { font-size: 12px; color: #9ca3af; font-style: italic; }
+        .df-error { font-size: 12px; color: #f87171; margin-top: 4px; }
 
         /* ── Navigation ── */
         .df-nav {
@@ -238,6 +255,8 @@
             transition: background 0.15s, border-color 0.15s;
         }
         .df-btn-next:hover { background: #6d28d9; border-color: #6d28d9; }
+
+        @keyframes df-spin { to { transform: rotate(360deg); } }
     `;
     document.head.appendChild(style);
 })();
@@ -522,27 +541,305 @@ var DF_SCHEMA = [
     },
 ];
 
+/* ─── checkVisibility ────────────────────────────────────────────────────────
+ * Réplica exacta en JS de checkVisibility (Go — form_service.go).
+ */
+
+function findQuestion(fs, questionId) {
+    for (const sec of fs.sections) {
+        for (const q of (sec.questions || [])) {
+            if (q.id === questionId) {
+                return { description: q.description, sectionOrder: sec.order, repeaterGroupId: null, orderInSection: q.order, orderInRepeater: 0 };
+            }
+        }
+        for (const r of (sec.repeaters || [])) {
+            for (const q of (r.questions || [])) {
+                if (q.id === questionId) {
+                    return { description: q.description, sectionOrder: sec.order, repeaterGroupId: r.id, orderInSection: r.order, orderInRepeater: q.order };
+                }
+            }
+        }
+    }
+    return null;
+}
+
+function isBeforeInFlow(trigger, item) {
+    return trigger.sectionOrder < item.sectionOrder ||
+        (trigger.sectionOrder === item.sectionOrder && trigger.orderInSection < item.orderInSection);
+}
+
+function checkVisibility(fs, submission, entryAnswers, item) {
+    if (!item.conditions || item.conditions.length === 0) return { name: item.name, visible: true };
+
+    const directAnswers = (submission && submission.directAnswers) || [];
+    const applicable = [];
+
+    for (const cond of item.conditions) {
+        const trigger = findQuestion(fs, cond.triggerQuestionId);
+        if (!trigger) continue;
+        if (trigger.repeaterGroupId !== null) {
+            if (!item.repeaterGroupId || item.repeaterGroupId !== trigger.repeaterGroupId) continue;
+            if (!entryAnswers) continue;
+            if (trigger.orderInRepeater >= item.orderInRepeater) continue;
+        } else {
+            if (!isBeforeInFlow(trigger, item)) continue;
+        }
+        applicable.push(cond);
+    }
+
+    if (applicable.length === 0) return { name: item.name, visible: true };
+
+    const failedConditions = [];
+    for (const cond of applicable) {
+        const trigger = findQuestion(fs, cond.triggerQuestionId);
+        const pool    = trigger.repeaterGroupId !== null ? (entryAnswers || []) : directAnswers;
+        const answer  = pool.find(a => a.questionId === cond.triggerQuestionId) || null;
+        const trigVal = cond.triggerValue ?? '';
+        let condFailed = !answer;
+        if (answer) {
+            switch (cond.operator.toLowerCase()) {
+                case 'equals':               condFailed = answer.value !== trigVal; break;
+                case 'includes':
+                case 'contains':             condFailed = !answer.value.includes(trigVal); break;
+                default:                     condFailed = false;
+            }
+        }
+        if (condFailed) failedConditions.push({ ...cond, triggerQuestionName: trigger.description });
+    }
+
+    return failedConditions.length > 0
+        ? { name: item.name, visible: false, failedConditions }
+        : { name: item.name, visible: true };
+}
+
+function sectionItem(sec) {
+    return { id: sec.id, name: sec.name, conditions: sec.conditions || [], sectionOrder: sec.order, orderInSection: 0, repeaterGroupId: null, orderInRepeater: 0 };
+}
+function repeaterItem(r, sectionOrder) {
+    return { id: r.id, name: r.name, conditions: r.conditions || [], sectionOrder, orderInSection: r.order, repeaterGroupId: null, orderInRepeater: 0 };
+}
+function directQuestionItem(q, sectionOrder) {
+    return { id: q.id, name: q.description, conditions: q.conditions || [], sectionOrder, orderInSection: q.order, repeaterGroupId: null, orderInRepeater: 0 };
+}
+function repeaterQuestionItem(q, sectionOrder, repeaterOrder, repeaterGroupId) {
+    return { id: q.id, name: q.description, conditions: q.conditions || [], sectionOrder, orderInSection: repeaterOrder, repeaterGroupId, orderInRepeater: q.order };
+}
+
+/* ─── buildSectionRenderData ─────────────────────────────────────────────── */
+/**
+ * Construye la estructura de datos para renderizar una sección:
+ * formItems es un array ordenado que mezcla preguntas directas y repeaterGroups,
+ * cada uno con su(s) respuesta(s) asociada(s) del submission actual.
+ *
+ * @param {Object} section    - SectionStructure (de formStructure.sections)
+ * @param {Object|null} submission - SubmissionStructure (de formSubmission)
+ * @returns {{ section, formItems }}
+ */
+function buildSectionRenderData(section, submission, fs) {
+    const sectionOrder = section.order;
+
+    // ── 1. Índices de respuestas ────────────────────────────────────────────
+    const answerByQuestionId  = {};
+    const entriesByRepeaterId = {};
+
+    if (submission) {
+        (submission.directAnswers || []).forEach(a => {
+            answerByQuestionId[a.questionId] = a;
+        });
+        (submission.repeaterEntries || []).forEach(entry => {
+            if (!entriesByRepeaterId[entry.repeaterGroupId])
+                entriesByRepeaterId[entry.repeaterGroupId] = [];
+            entriesByRepeaterId[entry.repeaterGroupId].push(entry);
+        });
+    }
+
+    // ── 2. Preguntas directas ───────────────────────────────────────────────
+    const questionItems = (section.questions || []).map(q => {
+        const visItem  = directQuestionItem(q, sectionOrder);
+        const vis      = fs ? checkVisibility(fs, submission, null, visItem) : { visible: true };
+        return {
+            type:      'question',
+            order:     q.order,
+            question:  q,
+            answer:    answerByQuestionId[q.id] || null,
+            isVisible: vis.visible,
+        };
+    });
+
+    // ── 3. Repeater groups con sus entries y respuestas ────────────────────
+    const repeaterItems = (section.repeaters || []).map(r => {
+        const visItem  = repeaterItem(r, sectionOrder);
+        const vis      = fs ? checkVisibility(fs, submission, null, visItem) : { visible: true };
+
+        const rawEntries = entriesByRepeaterId[r.id] || [];
+        const entries = rawEntries.map(entry => ({
+            entry,
+            questions: (r.questions || []).map(q => {
+                const qVisItem = repeaterQuestionItem(q, sectionOrder, r.order, r.id);
+                const qVis     = fs ? checkVisibility(fs, submission, entry.answers, qVisItem) : { visible: true };
+                return {
+                    question:  q,
+                    answer:    (entry.answers || []).find(a => a.questionId === q.id) || null,
+                    isVisible: qVis.visible,
+                };
+            }),
+        }));
+
+        return {
+            type:      'repeater',
+            order:     r.order,
+            repeater:  r,
+            entries,
+            isVisible: vis.visible,
+        };
+    });
+
+    // ── 4. Mezclar y ordenar por order ─────────────────────────────────────
+    const formItems = [...questionItems, ...repeaterItems]
+        .sort((a, b) => a.order - b.order);
+
+    return { section, formItems };
+}
+
 /* ─── Componente Vue ─────────────────────────────────────────────────────── */
 app.component('dinamic-form', {
     delimiters: ['${', '}'],
     props: {
-        formId: { type: String, required: true },
+        formId:       { type: String, required: true  },
+        submissionId: { type: String, required: false, default: null },
     },
     data() {
         return {
+            // ── Estado de carga ──────────────────────────────────────────
+            loading: true,
+            saving:  false,
+            error:   null,
+
+            // ── Estado principal (poblado por loadForm) ──────────────────
+            formStructure:        null,   // { id, name, sections: [...] }
+            formSubmission:       null,   // { id, directAnswers, repeaterEntries } | null
+            currentSection:       null,   // SectionStructure de la sección activa
+            currentSectionRender: null,   // resultado de buildSectionRenderData — para renderizar
+            localAnswers:         {},     // respuestas editables en memoria { questionId: value }
+            questionErrors:       {},     // errores de validación { answerKey: string | null }
+
+            // ── Estado legacy (a migrar) ─────────────────────────────────
             currentIndex: 0,
             answers: {},
             sections: DF_SCHEMA,
         };
     },
     computed: {
-        currentSection() { return this.sections[this.currentIndex]; },
-        totalSections()  { return this.sections.length; },
-        progressPercent(){ return Math.round(((this.currentIndex + 1) / this.totalSections) * 100); },
+        // ── Secciones visibles del form real ─────────────────────────────
+        visibleSections() {
+            if (!this.formStructure) return [];
+            return this.formStructure.sections.filter(s => s.isVisible);
+        },
+        firstUnansweredSection() {
+            return this.visibleSections.find(s => !s.isAnswered) || null;
+        },
+        answeredCount() {
+            return this.visibleSections.filter(s => s.isAnswered).length;
+        },
+        progressPercent() {
+            if (!this.visibleSections.length) return 0;
+            return Math.round((this.answeredCount / this.visibleSections.length) * 100);
+        },
+
+        isFirstSection() {
+            if (!this.currentSection || !this.visibleSections.length) return true;
+            return this.visibleSections[0].id === this.currentSection.id;
+        },
+        isLastSection() {
+            if (!this.currentSection || !this.visibleSections.length) return false;
+            return this.visibleSections[this.visibleSections.length - 1].id === this.currentSection.id;
+        },
+
+        // ── Legacy (a migrar) ─────────────────────────────────────────────
+        legacyCurrentSection() { return this.sections[this.currentIndex]; },
+        totalSections()        { return this.sections.length; },
         isFirst() { return this.currentIndex === 0; },
         isLast()  { return this.currentIndex === this.totalSections - 1; },
     },
+    async mounted() {
+        await this.loadForm();
+    },
     methods: {
+        /* ── Sidebar ── */
+        isSectionActive(section) {
+            return this.currentSection && section.id === this.currentSection.id;
+        },
+        isSectionEnabled(section) {
+            // Habilitada = respondida  O  es la primera sin responder
+            return section.isAnswered ||
+                   (this.firstUnansweredSection && section.id === this.firstUnansweredSection.id);
+        },
+        sidebarSectionClass(section) {
+            if (this.isSectionActive(section))  return 'active';
+            if (section.isAnswered)             return 'completed';
+            if (this.isSectionEnabled(section)) return 'enabled';   // primera no respondida, no activa
+            return 'pending';
+        },
+        sidebarBadgeClass(section) {
+            if (section.isAnswered)             return 'completed';
+            if (this.isSectionActive(section))  return 'active';
+            if (this.isSectionEnabled(section)) return 'enabled';
+            return 'pending';
+        },
+        goToSectionById(section) {
+            if (!this.isSectionEnabled(section)) return;
+            this.currentSection       = section;
+            this.currentSectionRender = buildSectionRenderData(
+                section,
+                this.formSubmission,
+                this.formStructure,
+            );
+            this.initLocalAnswers();
+        },
+
+        /* ── Carga inicial del formulario ── */
+        async loadForm() {
+            this.loading = true;
+            this.error   = null;
+            console.log('[dinamic-form] mounted — formId:', this.formId, '| submissionId:', this.submissionId);
+            try {
+                const url = this.submissionId
+                    ? `/api/v1/forms/${this.formId}/load?submissionId=${this.submissionId}`
+                    : `/api/v1/forms/${this.formId}/load`;
+
+                console.log('[dinamic-form] GET', url);
+                const res = await fetch(url);
+                console.log('[dinamic-form] response status:', res.status);
+
+                if (!res.ok) throw new Error(`Error ${res.status} al cargar el formulario`);
+
+                const data = await res.json();
+                console.log('[dinamic-form] data recibida:', data);
+
+                this.formStructure        = data.formStructure;
+                this.formSubmission       = data.formSubmission  ?? null;
+                this.currentSection       = data.currentSection;
+                this.currentSectionRender = buildSectionRenderData(
+                    this.currentSection,
+                    this.formSubmission,
+                    this.formStructure,
+                );
+                this.initLocalAnswers();
+
+                console.log('[dinamic-form] estado actualizado:');
+                console.log('  formStructure       :', this.formStructure);
+                console.log('  formSubmission      :', this.formSubmission);
+                console.log('  currentSection      :', this.currentSection);
+                console.log('  currentSectionRender:', this.currentSectionRender);
+            } catch (e) {
+                console.error('[dinamic-form] error en loadForm:', e);
+                this.error = e.message;
+            } finally {
+                this.loading = false;
+                console.log('[dinamic-form] loading finalizado');
+            }
+        },
+
         getSectionState(index) {
             if (index < this.currentIndex) return 'completed';
             if (index === this.currentIndex) return 'active';
@@ -628,12 +925,340 @@ app.component('dinamic-form', {
             this.setAnswer(questionId, items);
         },
 
-        goNext() { if (!this.isLast) this.currentIndex++; },
-        goPrev() { if (!this.isFirst) this.currentIndex--; },
+        /* ── Respuestas locales (editables antes de guardar) ── */
+        answerKey(questionId, entryId) {
+            return entryId ? `${entryId}__${questionId}` : questionId;
+        },
+        initLocalAnswers() {
+            const map = {};
+            if (!this.currentSectionRender) return;
+            for (const item of this.currentSectionRender.formItems) {
+                if (item.type === 'question') {
+                    map[item.question.id] = item.answer?.value ?? '';
+                } else {
+                    for (const e of item.entries) {
+                        for (const q of e.questions) {
+                            map[this.answerKey(q.question.id, e.entry.id)] = q.answer?.value ?? '';
+                        }
+                    }
+                }
+            }
+            this.localAnswers = map;
+        },
+        getLocalAnswer(questionId, entryId = null) {
+            return this.localAnswers[this.answerKey(questionId, entryId)] ?? '';
+        },
+        setLocalAnswer(questionId, value, entryId = null) {
+            this.localAnswers = { ...this.localAnswers, [this.answerKey(questionId, entryId)]: value };
+        },
+        isMultipleSelected(questionId, optionValue, entryId = null) {
+            const val = this.getLocalAnswer(questionId, entryId);
+            return val ? val.split(',').map(v => v.trim()).includes(optionValue) : false;
+        },
+        toggleMultipleAnswer(questionId, optionValue, entryId = null) {
+            const current = this.getLocalAnswer(questionId, entryId);
+            const arr = current ? current.split(',').map(v => v.trim()).filter(Boolean) : [];
+            const idx = arr.indexOf(optionValue);
+            if (idx === -1) arr.push(optionValue); else arr.splice(idx, 1);
+            this.setLocalAnswer(questionId, arr.join(','), entryId);
+        },
+
+        /* ── Responder pregunta: valida + recalcula visibilidad ── */
+        onAnswer(questionId, value, entryId = null) {
+            // 1. Guardar respuesta
+            this.setLocalAnswer(questionId, value, entryId);
+
+            // 2. Validar (v1: solo requerido)
+            const key      = this.answerKey(questionId, entryId);
+            const question = this._findQuestionInRender(questionId, entryId);
+            const errors   = { ...this.questionErrors };
+            if (question && question.required && value === '') {
+                errors[key] = 'Este campo es requerido';
+            } else {
+                delete errors[key];
+            }
+            this.questionErrors = errors;
+
+            // 3. Re-evaluar visibilidad con las respuestas actuales
+            this._reevaluateVisibility(this._buildTempSubmission());
+
+            // 4. Limpiar respuestas de items ocultos y re-evaluar en cascada
+            if (this._clearHiddenAnswers()) {
+                this._reevaluateVisibility(this._buildTempSubmission());
+            }
+        },
+
+        onToggleMultipleAnswer(questionId, optionValue, entryId = null) {
+            this.toggleMultipleAnswer(questionId, optionValue, entryId);
+            this.onAnswer(questionId, this.getLocalAnswer(questionId, entryId), entryId);
+        },
+
+        // Construye un tempSubmission combinando base (sin sección actual) + respuestas actuales
+        _buildTempSubmission() {
+            const base  = this.submissionWithoutCurrentSection() ?? { directAnswers: [], repeaterEntries: [] };
+            const fresh = this.collectSectionAnswers();
+            return {
+                ...base,
+                directAnswers:   [...(base.directAnswers   || []), ...fresh.directAnswers],
+                repeaterEntries: [...(base.repeaterEntries || []), ...fresh.repeaterEntries],
+            };
+        },
+
+        // Re-evalúa isVisible de todos los items de la sección y de secciones posteriores
+        _reevaluateVisibility(tempSubmission) {
+            const fs  = this.formStructure;
+            const ord = this.currentSection.order;
+
+            for (const item of this.currentSectionRender.formItems) {
+                if (item.type === 'question') {
+                    item.isVisible = checkVisibility(fs, tempSubmission, null,
+                        directQuestionItem(item.question, ord)).visible;
+                } else if (item.type === 'repeater') {
+                    item.isVisible = checkVisibility(fs, tempSubmission, null,
+                        repeaterItem(item.repeater, ord)).visible;
+                    for (const entryData of item.entries) {
+                        const entryAnswers = (tempSubmission.repeaterEntries.find(e => e.id === entryData.entry.id) || {}).answers || [];
+                        for (const qData of entryData.questions) {
+                            qData.isVisible = checkVisibility(fs, tempSubmission, entryAnswers,
+                                repeaterQuestionItem(qData.question, ord, item.repeater.order, item.repeater.id)).visible;
+                        }
+                    }
+                }
+            }
+
+            for (const sec of fs.sections) {
+                if (sec.order > ord) {
+                    sec.isVisible = checkVisibility(fs, tempSubmission, null, sectionItem(sec)).visible;
+                }
+            }
+        },
+
+        // Vacía localAnswers de los items ocultos. Retorna true si limpió algo (para cascada).
+        _clearHiddenAnswers() {
+            let anyCleared = false;
+            const newAnswers = { ...this.localAnswers };
+
+            for (const item of this.currentSectionRender.formItems) {
+                if (item.type === 'question' && !item.isVisible) {
+                    const k = this.answerKey(item.question.id);
+                    if (newAnswers[k]) { newAnswers[k] = ''; anyCleared = true; }
+                } else if (item.type === 'repeater') {
+                    for (const entryData of item.entries) {
+                        for (const qData of entryData.questions) {
+                            if (!qData.isVisible) {
+                                const k = this.answerKey(qData.question.id, entryData.entry.id);
+                                if (newAnswers[k]) { newAnswers[k] = ''; anyCleared = true; }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (anyCleared) this.localAnswers = newAnswers;
+            return anyCleared;
+        },
+
+        // Helper: encuentra la question en currentSectionRender por id (y entryId para repeaters)
+        _findQuestionInRender(questionId, entryId = null) {
+            if (!this.currentSectionRender) return null;
+            for (const item of this.currentSectionRender.formItems) {
+                if (item.type === 'question' && item.question.id === questionId && !entryId) {
+                    return item.question;
+                }
+                if (item.type === 'repeater') {
+                    for (const entryData of item.entries) {
+                        if (entryData.entry.id !== entryId) continue;
+                        const qData = entryData.questions.find(q => q.question.id === questionId);
+                        if (qData) return qData.question;
+                    }
+                }
+            }
+            return null;
+        },
+
+        /* ── Colectar respuestas de la sección actual ── */
+        collectSectionAnswers() {
+            const directAnswers   = [];
+            const repeaterEntries = [];
+
+            for (const item of this.currentSectionRender.formItems) {
+                if (item.type === 'question') {
+                    const value = this.getLocalAnswer(item.question.id);
+                    if (value !== '') directAnswers.push({ questionId: item.question.id, value });
+
+                } else if (item.type === 'repeater') {
+                    for (const entryData of item.entries) {
+                        const answers = [];
+                        for (const qData of entryData.questions) {
+                            const value = this.getLocalAnswer(qData.question.id, entryData.entry.id);
+                            if (value !== '') answers.push({ questionId: qData.question.id, value });
+                        }
+                        repeaterEntries.push({
+                            id:              entryData.entry.id,
+                            repeaterGroupId: item.repeater.id,
+                            iteration:       entryData.entry.iteration,
+                            isTemp:          entryData.entry.isTemp || false,
+                            answers,
+                        });
+                    }
+                }
+            }
+
+            return { directAnswers, repeaterEntries };
+        },
+
+        /* ── Submission sin respuestas de la sección actual ── */
+        submissionWithoutCurrentSection() {
+            if (!this.formSubmission) return null;
+
+            const questionIds     = new Set();
+            const repeaterGroupIds = new Set();
+
+            for (const item of this.currentSectionRender.formItems) {
+                if (item.type === 'question')  questionIds.add(item.question.id);
+                if (item.type === 'repeater')  repeaterGroupIds.add(item.repeater.id);
+            }
+
+            return {
+                ...this.formSubmission,
+                directAnswers:   (this.formSubmission.directAnswers   || []).filter(a => !questionIds.has(a.questionId)),
+                repeaterEntries: (this.formSubmission.repeaterEntries || []).filter(e => !repeaterGroupIds.has(e.repeaterGroupId)),
+            };
+        },
+
+        /* ── Repeater: agregar / eliminar entries ── */
+        addRepeaterEntry(item) {
+            const tempId    = 'temp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+            const iteration = item.entries.length + 1;
+            const newEntry  = {
+                id:              tempId,
+                repeaterGroupId: item.repeater.id,
+                iteration,
+                isTemp:          true,
+            };
+
+            const sectionOrder = this.currentSection.order;
+            const questions = (item.repeater.questions || []).map(q => {
+                const qVisItem = repeaterQuestionItem(q, sectionOrder, item.repeater.order, item.repeater.id);
+                const qVis     = checkVisibility(this.formStructure, this.formSubmission, [], qVisItem);
+                return { question: q, answer: null, isVisible: qVis.visible };
+            });
+
+            item.entries.push({ entry: newEntry, questions });
+
+            const newAnswers = { ...this.localAnswers };
+            for (const q of (item.repeater.questions || [])) {
+                newAnswers[this.answerKey(q.id, tempId)] = '';
+            }
+            this.localAnswers = newAnswers;
+        },
+
+        removeRepeaterEntry(item, entryData) {
+            const idx = item.entries.indexOf(entryData);
+            if (idx === -1) return;
+
+            item.entries.splice(idx, 1);
+            item.entries.forEach((e, i) => { e.entry.iteration = i + 1; });
+
+            const prefix  = entryData.entry.id + '__';
+            const cleaned = {};
+            for (const [k, v] of Object.entries(this.localAnswers)) {
+                if (!k.startsWith(prefix)) cleaned[k] = v;
+            }
+            this.localAnswers = cleaned;
+        },
+
+        /* ── Guardar sección y avanzar ── */
+        async saveSection() {
+            this.saving = true;
+            const fresh = this.collectSectionAnswers();
+            const body  = {
+                formId:           this.formId,
+                formSectionId:    this.currentSection.id,
+                formSubmissionId: this.formSubmission?.id ?? '',
+                directAnswers:    fresh.directAnswers,
+                repeaterEntries:  fresh.repeaterEntries,
+            };
+
+            console.log('[saveSection] enviando sección:', this.currentSection.name);
+            console.log('[saveSection] body:', body);
+
+            try {
+                const res = await fetch('/api/v1/forms/saveSection', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify(body),
+                });
+
+                console.log('[saveSection] response status:', res.status);
+                if (!res.ok) throw new Error(`Error ${res.status} al guardar sección`);
+
+                const data = await res.json();
+                console.log('[saveSection] data recibida:', data);
+
+                // Actualizar estado con la respuesta del servidor
+                this.formStructure  = data.formStructure;
+                this.formSubmission = data.formSubmission ?? null;
+                console.log('[saveSection] formSubmission actualizado:', this.formSubmission?.id);
+
+                // Navegación: primera opción → siguiente sección visible
+                // Fallback → currentSection del servidor (si la siguiente no está enabled)
+                const savedId     = this.currentSection.id;
+                const newVisible  = this.formStructure.sections.filter(s => s.isVisible);
+                const savedIdx    = newVisible.findIndex(s => s.id === savedId);
+                const nextSection = savedIdx >= 0 && savedIdx < newVisible.length - 1
+                    ? newVisible[savedIdx + 1]
+                    : null;
+
+                console.log('[saveSection] nextSection:', nextSection?.name ?? 'ninguna');
+                console.log('[saveSection] firstUnanswered:', this.firstUnansweredSection?.name ?? 'ninguna');
+
+                if (nextSection && (nextSection.isAnswered || this.firstUnansweredSection?.id === nextSection.id)) {
+                    console.log('[saveSection] navegando a siguiente sección visible:', nextSection.name);
+                    this.goToSectionById(nextSection);
+                } else if (data.currentSection) {
+                    console.log('[saveSection] fallback → currentSection del server:', data.currentSection.name);
+                    this.goToSectionById(data.currentSection);
+                }
+
+            } catch (e) {
+                console.error('[saveSection] error:', e);
+                this.error = e.message;
+            } finally {
+                this.saving = false;
+            }
+        },
+
+        /* ── Navegación entre secciones ── */
+        goNext() {
+            const idx = this.visibleSections.findIndex(s => s.id === this.currentSection.id);
+            if (idx < this.visibleSections.length - 1) this.goToSectionById(this.visibleSections[idx + 1]);
+        },
+        goPrev() {
+            const idx = this.visibleSections.findIndex(s => s.id === this.currentSection.id);
+            if (idx > 0) this.goToSectionById(this.visibleSections[idx - 1]);
+        },
         goToSection(index) { if (index <= this.currentIndex) this.currentIndex = index; },
     },
     template: `
 <div class="df-wrapper">
+
+    <!-- Loader -->
+    <div v-if="loading" style="display:flex;align-items:center;justify-content:center;width:100%;padding:48px 0;gap:12px;color:#6b7280;font-size:14px;">
+        <svg style="width:20px;height:20px;animation:df-spin 0.8s linear infinite;flex-shrink:0" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="#e5e7eb" stroke-width="3"/>
+            <path d="M12 2a10 10 0 0 1 10 10" stroke="#7c3aed" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+        Cargando formulario...
+    </div>
+
+    <!-- Error -->
+    <div v-else-if="error" style="width:100%;padding:24px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#b91c1c;font-size:14px;">
+        \${ error }
+    </div>
+
+    <!-- Formulario -->
+    <template v-else>
 
     <!-- Sidebar -->
     <aside class="df-sidebar">
@@ -642,25 +1267,25 @@ app.component('dinamic-form', {
         </div>
         <div class="df-sidebar-nav">
             <button
-                v-for="(section, index) in sections"
+                v-for="section in visibleSections"
                 :key="section.id"
                 type="button"
                 class="df-section-item"
-                :class="getSectionState(index)"
-                :disabled="index > currentIndex"
-                @click="goToSection(index)"
+                :class="sidebarSectionClass(section)"
+                :disabled="!isSectionEnabled(section)"
+                @click="goToSectionById(section)"
             >
-                <span class="df-badge" :class="getSectionState(index)">
-                    <span v-if="getSectionState(index) === 'completed'">✓</span>
-                    <span v-else>\${ index + 1 }</span>
+                <span class="df-badge" :class="sidebarBadgeClass(section)">
+                    <span v-if="section.isAnswered">✓</span>
+                    <span v-else>\${ section.order }</span>
                 </span>
-                <span>\${ section.title }</span>
+                <span>\${ section.name }</span>
             </button>
         </div>
         <div class="df-progress-wrap">
             <div class="df-progress-label">
                 <span>Progreso</span>
-                <span>\${ currentIndex + 1 } / \${ totalSections }</span>
+                <span>\${ answeredCount } / \${ visibleSections.length }</span>
             </div>
             <div class="df-progress-bar-bg">
                 <div class="df-progress-bar-fill" :style="{ width: progressPercent + '%' }"></div>
@@ -671,179 +1296,218 @@ app.component('dinamic-form', {
     <!-- Main panel -->
     <div class="df-main">
 
+        <!-- Saving overlay -->
+        <div v-if="saving" class="df-saving-overlay">
+            <svg style="width:18px;height:18px;animation:df-spin 0.8s linear infinite;flex-shrink:0" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="#e5e7eb" stroke-width="3"/>
+                <path d="M12 2a10 10 0 0 1 10 10" stroke="#7c3aed" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+            Guardando...
+        </div>
+
+        <!-- Encabezado de sección -->
         <div class="df-section-header">
             <div class="df-section-header-row">
-                <div class="df-section-number">\${ currentSection.id }</div>
-                <h2 class="df-section-title">\${ currentSection.title }</h2>
+                <div class="df-section-number">\${ currentSection.order }</div>
+                <h2 class="df-section-title">\${ currentSection.name }</h2>
             </div>
             <p v-if="currentSection.description" class="df-section-desc">\${ currentSection.description }</p>
         </div>
 
-        <div class="df-questions">
-            <template v-for="question in currentSection.questions" :key="question.id">
+        <!-- Items de la sección -->
+        <div class="df-questions" v-if="currentSectionRender">
+            <template v-for="item in currentSectionRender.formItems" :key="item.type === 'question' ? item.question.id : item.repeater.id">
 
-                <!-- ── REPEATER ── -->
-                <div v-if="question.type === 'repeater'" class="df-question">
-                    <label>\${ question.label }</label>
-                    <div class="df-repeater">
-                        <div
-                            v-for="(item, idx) in getRepeaterItems(question.id)"
-                            :key="idx"
-                            class="df-repeater-item"
+                <!-- ── Pregunta directa ── -->
+                <div v-if="item.type === 'question' && item.isVisible" class="df-question">
+                    <label>
+                        \${ item.question.description }
+                        <span v-if="item.question.required" class="df-required">*</span>
+                    </label>
+
+                    <!-- single -->
+                    <div v-if="item.question.questionTypeId === 'single'" class="df-btn-group">
+                        <button v-for="opt in item.question.options" :key="opt.id"
+                            type="button" class="df-opt-btn"
+                            :class="{ 'df-selected': getLocalAnswer(item.question.id) === opt.value }"
+                            @click="onAnswer(item.question.id, opt.value)"
+                        >\${ opt.label }</button>
+                    </div>
+
+                    <!-- dropdown -->
+                    <select v-else-if="item.question.questionTypeId === 'dropdown'"
+                        class="df-select"
+                        :value="getLocalAnswer(item.question.id)"
+                        @change="onAnswer(item.question.id, $event.target.value)"
+                    >
+                        <option value="">Selecciona una opción...</option>
+                        <option v-for="opt in item.question.options" :key="opt.id" :value="opt.value">\${ opt.label }</option>
+                    </select>
+
+                    <!-- boolean -->
+                    <div v-else-if="item.question.questionTypeId === 'boolean'" class="df-bool-group">
+                        <button type="button" class="df-bool-btn"
+                            :class="{ 'df-selected': getLocalAnswer(item.question.id) === 'true' }"
+                            @click="onAnswer(item.question.id, 'true')">Sí</button>
+                        <button type="button" class="df-bool-btn"
+                            :class="{ 'df-selected': getLocalAnswer(item.question.id) === 'false' }"
+                            @click="onAnswer(item.question.id, 'false')">No</button>
+                    </div>
+
+                    <!-- multiple -->
+                    <div v-else-if="item.question.questionTypeId === 'multiple'" class="df-btn-group">
+                        <button v-for="opt in item.question.options" :key="opt.id"
+                            type="button" class="df-opt-btn"
+                            :class="{ 'df-selected': isMultipleSelected(item.question.id, opt.value) }"
+                            @click="onToggleMultipleAnswer(item.question.id, opt.value)"
                         >
+                            <span v-if="isMultipleSelected(item.question.id, opt.value)">✓ </span>\${ opt.label }
+                        </button>
+                    </div>
+
+                    <!-- text -->
+                    <textarea v-else-if="item.question.questionTypeId === 'text'"
+                        class="df-textarea"
+                        :value="getLocalAnswer(item.question.id)"
+                        @input="onAnswer(item.question.id, $event.target.value)"
+                    ></textarea>
+
+                    <!-- number -->
+                    <input v-else-if="item.question.questionTypeId === 'number'"
+                        class="df-input" type="number"
+                        :value="getLocalAnswer(item.question.id)"
+                        @input="onAnswer(item.question.id, $event.target.value)"
+                    />
+
+                    <!-- date -->
+                    <input v-else-if="item.question.questionTypeId === 'date'"
+                        class="df-input" type="date"
+                        :value="getLocalAnswer(item.question.id)"
+                        @input="onAnswer(item.question.id, $event.target.value)"
+                    />
+
+                    <!-- datetime -->
+                    <input v-else-if="item.question.questionTypeId === 'datetime'"
+                        class="df-input" type="datetime-local"
+                        :value="getLocalAnswer(item.question.id)"
+                        @input="onAnswer(item.question.id, $event.target.value)"
+                    />
+                    <span v-if="questionErrors[item.question.id]" class="df-error">\${ questionErrors[item.question.id] }</span>
+                </div>
+
+                <!-- ── Repeater group ── -->
+                <div v-else-if="item.type === 'repeater' && item.isVisible" class="df-question">
+                    <label>
+                        \${ item.repeater.name }
+                        <span v-if="item.repeater.minRepetitions > 0" class="df-required">*</span>
+                    </label>
+                    <div class="df-repeater">
+
+                        <!-- entries -->
+                        <div v-for="entryData in item.entries" :key="entryData.entry.id" class="df-repeater-item">
                             <div class="df-repeater-item-header">
-                                <span class="df-repeater-item-title">\${ question.label } #\${ idx + 1 }</span>
-                                <button type="button" class="df-repeater-delete" @click="repeaterRemove(question.id, idx)">
-                                    ✕ Eliminar
-                                </button>
+                                <span class="df-repeater-item-title">\${ item.repeater.itemName || item.repeater.name } #\${ entryData.entry.iteration }</span>
+                                <button type="button" class="df-repeater-delete" @click="removeRepeaterEntry(item, entryData)">✕ Eliminar</button>
                             </div>
 
-                            <template v-for="field in question.fields" :key="field.id">
-                                <div
-                                    v-if="!field.dynamicOptions || getDynamicOptions(field, item).length > 0 || !field.dynamicOptions"
-                                    class="df-question"
-                                    style="gap:0"
-                                >
+                            <template v-for="qData in entryData.questions" :key="qData.question.id">
+                                <div v-if="qData.isVisible" class="df-question" style="gap:0">
                                     <label style="margin-bottom:4px;margin-top:0;min-height:unset">
-                                        \${ field.label }
-                                        <span v-if="field.required" class="df-required">*</span>
+                                        \${ qData.question.description }
+                                        <span v-if="qData.question.required" class="df-required">*</span>
                                     </label>
 
-                                    <!-- dropdown inside repeater -->
-                                    <select
-                                        v-if="field.type === 'dropdown'"
+                                    <!-- single -->
+                                    <div v-if="qData.question.questionTypeId === 'single'" class="df-btn-group">
+                                        <button v-for="opt in qData.question.options" :key="opt.id"
+                                            type="button" class="df-opt-btn"
+                                            :class="{ 'df-selected': getLocalAnswer(qData.question.id, entryData.entry.id) === opt.value }"
+                                            @click="onAnswer(qData.question.id, opt.value, entryData.entry.id)"
+                                        >\${ opt.label }</button>
+                                    </div>
+
+                                    <!-- dropdown -->
+                                    <select v-else-if="qData.question.questionTypeId === 'dropdown'"
                                         class="df-select"
-                                        :value="item[field.id] || ''"
-                                        @change="repeaterSet(question.id, idx, field.id, $event.target.value)"
+                                        :value="getLocalAnswer(qData.question.id, entryData.entry.id)"
+                                        @change="onAnswer(qData.question.id, $event.target.value, entryData.entry.id)"
                                     >
                                         <option value="">Selecciona una opción...</option>
-                                        <option v-for="opt in field.options" :key="opt" :value="opt">\${ opt }</option>
+                                        <option v-for="opt in qData.question.options" :key="opt.id" :value="opt.value">\${ opt.label }</option>
                                     </select>
 
-                                    <!-- multiple inside repeater -->
-                                    <template v-else-if="field.type === 'multiple'">
-                                        <p v-if="getDynamicOptions(field, item).length === 0" class="df-hint">
-                                            Selecciona primero el sector para ver las opciones.
-                                        </p>
-                                        <div v-else class="df-btn-group">
-                                            <button
-                                                v-for="opt in getDynamicOptions(field, item)"
-                                                :key="opt"
-                                                type="button"
-                                                class="df-opt-btn"
-                                                :class="{ 'df-selected': Array.isArray(item[field.id]) && item[field.id].includes(opt) }"
-                                                @click="repeaterToggleMultiple(question.id, idx, field.id, opt)"
-                                            >\${ opt }</button>
-                                        </div>
-                                    </template>
+                                    <!-- boolean -->
+                                    <div v-else-if="qData.question.questionTypeId === 'boolean'" class="df-bool-group">
+                                        <button type="button" class="df-bool-btn"
+                                            :class="{ 'df-selected': getLocalAnswer(qData.question.id, entryData.entry.id) === 'true' }"
+                                            @click="onAnswer(qData.question.id, 'true', entryData.entry.id)">Sí</button>
+                                        <button type="button" class="df-bool-btn"
+                                            :class="{ 'df-selected': getLocalAnswer(qData.question.id, entryData.entry.id) === 'false' }"
+                                            @click="onAnswer(qData.question.id, 'false', entryData.entry.id)">No</button>
+                                    </div>
+
+                                    <!-- multiple -->
+                                    <div v-else-if="qData.question.questionTypeId === 'multiple'" class="df-btn-group">
+                                        <button v-for="opt in qData.question.options" :key="opt.id"
+                                            type="button" class="df-opt-btn"
+                                            :class="{ 'df-selected': isMultipleSelected(qData.question.id, opt.value, entryData.entry.id) }"
+                                            @click="onToggleMultipleAnswer(qData.question.id, opt.value, entryData.entry.id)"
+                                        >
+                                            <span v-if="isMultipleSelected(qData.question.id, opt.value, entryData.entry.id)">✓ </span>\${ opt.label }
+                                        </button>
+                                    </div>
+
+                                    <!-- text -->
+                                    <textarea v-else-if="qData.question.questionTypeId === 'text'"
+                                        class="df-textarea"
+                                        :value="getLocalAnswer(qData.question.id, entryData.entry.id)"
+                                        @input="onAnswer(qData.question.id, $event.target.value, entryData.entry.id)"
+                                    ></textarea>
+
+                                    <!-- number -->
+                                    <input v-else-if="qData.question.questionTypeId === 'number'"
+                                        class="df-input" type="number"
+                                        :value="getLocalAnswer(qData.question.id, entryData.entry.id)"
+                                        @input="onAnswer(qData.question.id, $event.target.value, entryData.entry.id)"
+                                    />
+
+                                    <!-- date -->
+                                    <input v-else-if="qData.question.questionTypeId === 'date'"
+                                        class="df-input" type="date"
+                                        :value="getLocalAnswer(qData.question.id, entryData.entry.id)"
+                                        @input="onAnswer(qData.question.id, $event.target.value, entryData.entry.id)"
+                                    />
+
+                                    <!-- datetime -->
+                                    <input v-else-if="qData.question.questionTypeId === 'datetime'"
+                                        class="df-input" type="datetime-local"
+                                        :value="getLocalAnswer(qData.question.id, entryData.entry.id)"
+                                        @input="onAnswer(qData.question.id, $event.target.value, entryData.entry.id)"
+                                    />
+                                    <span v-if="questionErrors[answerKey(qData.question.id, entryData.entry.id)]" class="df-error">\${ questionErrors[answerKey(qData.question.id, entryData.entry.id)] }</span>
                                 </div>
                             </template>
                         </div>
 
-                        <button type="button" class="df-repeater-add" @click="repeaterAdd(question)">
-                            \${ question.addLabel || '+ Agregar' }
-                        </button>
+                        <button type="button" class="df-repeater-add" @click="addRepeaterEntry(item)">+ Agregar \${ item.repeater.itemName || item.repeater.name }</button>
                     </div>
-                </div>
-
-                <!-- ── Campos normales (con visibilidad condicional) ── -->
-                <div
-                    v-else-if="isVisible(question, sectionAnswers())"
-                    class="df-question"
-                >
-                    <label>
-                        \${ question.label }
-                        <span v-if="question.required" class="df-required">*</span>
-                    </label>
-
-                    <!-- single -->
-                    <div v-if="question.type === 'single'" class="df-btn-group">
-                        <button
-                            v-for="opt in question.options" :key="opt"
-                            type="button" class="df-opt-btn"
-                            :class="{ 'df-selected': getAnswer(question.id) === opt }"
-                            @click="setAnswer(question.id, opt)"
-                        >\${ opt }</button>
-                    </div>
-
-                    <!-- multiple -->
-                    <div v-else-if="question.type === 'multiple'" class="df-btn-group">
-                        <button
-                            v-for="opt in question.options" :key="opt"
-                            type="button" class="df-opt-btn"
-                            :class="{ 'df-selected': Array.isArray(getAnswer(question.id)) && getAnswer(question.id).includes(opt) }"
-                            @click="toggleMultiple(question.id, opt)"
-                        >
-                            <span v-if="Array.isArray(getAnswer(question.id)) && getAnswer(question.id).includes(opt)">✓ </span>\${ opt }
-                        </button>
-                    </div>
-
-                    <!-- boolean -->
-                    <div v-else-if="question.type === 'boolean'" class="df-bool-group">
-                        <button type="button" class="df-bool-btn"
-                            :class="{ 'df-selected': getAnswer(question.id) === true }"
-                            @click="setAnswer(question.id, true)">Sí</button>
-                        <button type="button" class="df-bool-btn"
-                            :class="{ 'df-selected': getAnswer(question.id) === false }"
-                            @click="setAnswer(question.id, false)">No</button>
-                    </div>
-
-                    <!-- dropdown -->
-                    <select
-                        v-else-if="question.type === 'dropdown'"
-                        class="df-select"
-                        :value="getAnswer(question.id) || ''"
-                        @change="setAnswer(question.id, $event.target.value)"
-                    >
-                        <option value="">Selecciona una opción...</option>
-                        <option v-for="opt in question.options" :key="opt" :value="opt">\${ opt }</option>
-                    </select>
-
-                    <!-- text (simple o multiline) -->
-                    <textarea
-                        v-else-if="question.type === 'text' && question.multiline"
-                        class="df-textarea"
-                        :placeholder="question.placeholder || ''"
-                        :value="getAnswer(question.id) || ''"
-                        @input="setAnswer(question.id, $event.target.value)"
-                    ></textarea>
-                    <input
-                        v-else-if="question.type === 'text'"
-                        class="df-input" type="text"
-                        :placeholder="question.placeholder || ''"
-                        :value="getAnswer(question.id) || ''"
-                        @input="setAnswer(question.id, $event.target.value)"
-                    />
-
-                    <!-- date -->
-                    <input
-                        v-else-if="question.type === 'date'"
-                        class="df-input" type="date"
-                        :value="getAnswer(question.id) || ''"
-                        @input="setAnswer(question.id, $event.target.value)"
-                    />
-
-                    <!-- datetime -->
-                    <input
-                        v-else-if="question.type === 'datetime'"
-                        class="df-input" type="datetime-local"
-                        :value="getAnswer(question.id) || ''"
-                        @input="setAnswer(question.id, $event.target.value)"
-                    />
                 </div>
 
             </template>
         </div>
 
+        <!-- Navegación -->
         <div class="df-nav">
-            <button type="button" class="df-btn-prev" :disabled="isFirst" @click="goPrev">← Anterior</button>
-            <button type="button" class="df-btn-next" @click="goNext">
-                <span v-if="isLast">Guardar seguimiento ✓</span>
+            <button type="button" class="df-btn-prev" :disabled="isFirstSection" @click="goPrev">← Anterior</button>
+            <button type="button" class="df-btn-next" @click="saveSection">
+                <span v-if="isLastSection">Guardar seguimiento ✓</span>
                 <span v-else>Siguiente →</span>
             </button>
         </div>
 
     </div>
+
+    </template><!-- v-else -->
 </div>
     `,
 });

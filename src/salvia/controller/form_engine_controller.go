@@ -48,19 +48,19 @@ func (c *RepeaterGroupController) GetByID(ctx *gin.Context) {
 func (c *RepeaterGroupController) Create(ctx *gin.Context) {
 	var body struct {
 		Name           string  `json:"name"           binding:"required"`
+		ItemName       *string `json:"itemName"`
 		Order          int     `json:"order"`
-		MinRepetitions *int    `json:"minRepetitions"`
+		MinRepetitions int     `json:"minRepetitions"`
 		MaxRepetitions *int    `json:"maxRepetitions"`
-		AddButtonLabel *string `json:"addButtonLabel"`
 	}
 	if err := ctx.ShouldBindJSON(&body); err != nil { ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return }
 	item, err := c.svc.Create(ctx.Request.Context(), service.CreateRepeaterGroupInput{
 		FormSectionID:  ctx.Param("id"),
 		Name:           body.Name,
+		ItemName:       body.ItemName,
 		Order:          body.Order,
 		MinRepetitions: body.MinRepetitions,
 		MaxRepetitions: body.MaxRepetitions,
-		AddButtonLabel: body.AddButtonLabel,
 	})
 	if err != nil { ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"}); return }
 	ctx.JSON(http.StatusCreated, item)
@@ -69,16 +69,18 @@ func (c *RepeaterGroupController) Create(ctx *gin.Context) {
 func (c *RepeaterGroupController) Update(ctx *gin.Context) {
 	var body struct {
 		Name           *string `json:"name"`
+		ItemName       *string `json:"itemName"`
 		Order          *int    `json:"order"`
 		MinRepetitions *int    `json:"minRepetitions"`
 		MaxRepetitions *int    `json:"maxRepetitions"`
-		AddButtonLabel *string `json:"addButtonLabel"`
 	}
 	if err := ctx.ShouldBindJSON(&body); err != nil { ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return }
 	item, err := c.svc.Update(ctx.Request.Context(), ctx.Param("id"), service.UpdateRepeaterGroupInput{
-		Name: body.Name, Order: body.Order,
-		MinRepetitions: body.MinRepetitions, MaxRepetitions: body.MaxRepetitions,
-		AddButtonLabel: body.AddButtonLabel,
+		Name:           body.Name,
+		ItemName:       body.ItemName,
+		Order:          body.Order,
+		MinRepetitions: body.MinRepetitions,
+		MaxRepetitions: body.MaxRepetitions,
 	})
 	if err != nil {
 		if errors.Is(err, service.ErrRepeaterGroupNotFound) { ctx.JSON(http.StatusNotFound, gin.H{"error": "no encontrado"}); return }
@@ -139,16 +141,16 @@ func (c *VisibilityConditionController) Create(ctx *gin.Context) {
 		TargetType        string  `json:"targetType"        binding:"required"`
 		TargetID          string  `json:"targetId"          binding:"required"`
 		TriggerQuestionID string  `json:"triggerQuestionId" binding:"required"`
-		TriggerOptionID   *string `json:"triggerOptionId"`
 		TriggerValue      *string `json:"triggerValue"`
 		Operator          string  `json:"operator"          binding:"required"`
-		Logic             string  `json:"logic"             binding:"required"`
 	}
 	if err := ctx.ShouldBindJSON(&body); err != nil { ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return }
 	item, err := c.svc.Create(ctx.Request.Context(), service.CreateVisibilityConditionInput{
-		TargetType: body.TargetType, TargetID: body.TargetID,
-		TriggerQuestionID: body.TriggerQuestionID, TriggerOptionID: body.TriggerOptionID,
-		TriggerValue: body.TriggerValue, Operator: body.Operator, Logic: body.Logic,
+		TargetType:        body.TargetType,
+		TargetID:          body.TargetID,
+		TriggerQuestionID: body.TriggerQuestionID,
+		TriggerValue:      body.TriggerValue,
+		Operator:          body.Operator,
 	})
 	if err != nil { ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"}); return }
 	ctx.JSON(http.StatusCreated, item)
@@ -159,16 +161,16 @@ func (c *VisibilityConditionController) Update(ctx *gin.Context) {
 		TargetType        *string `json:"targetType"`
 		TargetID          *string `json:"targetId"`
 		TriggerQuestionID *string `json:"triggerQuestionId"`
-		TriggerOptionID   *string `json:"triggerOptionId"`
 		TriggerValue      *string `json:"triggerValue"`
 		Operator          *string `json:"operator"`
-		Logic             *string `json:"logic"`
 	}
 	if err := ctx.ShouldBindJSON(&body); err != nil { ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return }
 	item, err := c.svc.Update(ctx.Request.Context(), ctx.Param("id"), service.UpdateVisibilityConditionInput{
-		TargetType: body.TargetType, TargetID: body.TargetID,
-		TriggerQuestionID: body.TriggerQuestionID, TriggerOptionID: body.TriggerOptionID,
-		TriggerValue: body.TriggerValue, Operator: body.Operator, Logic: body.Logic,
+		TargetType:        body.TargetType,
+		TargetID:          body.TargetID,
+		TriggerQuestionID: body.TriggerQuestionID,
+		TriggerValue:      body.TriggerValue,
+		Operator:          body.Operator,
 	})
 	if err != nil {
 		if errors.Is(err, service.ErrVisibilityConditionNotFound) { ctx.JSON(http.StatusNotFound, gin.H{"error": "no encontrado"}); return }

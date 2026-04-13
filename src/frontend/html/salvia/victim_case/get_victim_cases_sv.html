@@ -177,6 +177,12 @@
                                         {{ template "button.html" Button `{"class":"btn btn-assign fas", "buttonId":"openAssign",
                                         "buttonLabel":"open_assign_btn", "buttonPlaceHolder":"open_assign_btn",
                                         "onClickHandler":"submit('openAssign', victimCase.icode)"}` .lang .locale}}
+                                        <a :href="`/salvia/casos/${victimCase.icode}/detalle`"
+                                           class="btn btn-primary btn-sm"
+                                           style="font-size:11px;padding:3px 8px;"
+                                           title="Ver detalle completo">
+                                            <i class="fas fa-layer-group"></i> Detalle
+                                        </a>
                                     </div>
                                 </td>
                             </tr>

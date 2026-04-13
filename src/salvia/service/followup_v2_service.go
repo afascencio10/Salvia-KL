@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"gorm.io/gorm"
@@ -20,14 +21,20 @@ var ErrFollowUpNotFound = errors.New("followup: registro no encontrado")
 // ErrFollowUpCaseEmpty se retorna cuando no hay seguimientos para el caso.
 var ErrFollowUpCaseEmpty = errors.New("followup: no se encontraron seguimientos para el caso")
 
+// ErrFollowUpNotAssigned se retorna cuando el seguimiento no pertenece al agente.
+var ErrFollowUpNotAssigned = errors.New("followup: este seguimiento no está asignado a ti")
+
+// ErrFollowUpNotYetDue se retorna cuando la fecha programada aún no ha llegado.
+var ErrFollowUpNotYetDue = errors.New("followup: la fecha programada aún no ha llegado")
+
 // ── Matriz de riesgo (HU-027) ─────────────────────────────────────────────────
 // Días desde HOY para cada nivel. Extremo tiene 5 seguimientos (S1 = mismo día a las 4h).
 // Los demás niveles tienen 4 seguimientos.
 var riskMatrix = map[int][]int{
-	4: {0, 1, 2, 3, 15},  // Extremo — 5 seguimientos (S1=+4h/hoy, S2=+1d, S3=+2d, S4=+3d, S5=+15d)
-	3: {1, 3, 15, 30},    // Alto    — 4 seguimientos
-	2: {2, 15, 30, 45},   // Moderado — 4 seguimientos
-	1: {5, 15, 30, 60},   // Bajo    — 4 seguimientos
+	4: {0, 1, 2, 3, 15}, // Extremo — 5 seguimientos (S1=+4h/hoy, S2=+1d, S3=+2d, S4=+3d, S5=+15d)
+	3: {1, 3, 15, 30},   // Alto    — 4 seguimientos
+	2: {2, 15, 30, 45},  // Moderado — 4 seguimientos
+	1: {5, 15, 30, 60},  // Bajo    — 4 seguimientos
 }
 
 // maxFollowUps retorna la cantidad máxima de seguimientos para un nivel de riesgo.
@@ -49,6 +56,12 @@ type GenerateCalendarInput struct {
 
 // ── Interfaz ──────────────────────────────────────────────────────────────────
 
+// LoadFollowUpResult es la respuesta del endpoint hacer-seguimiento al cargar la página.
+type LoadFollowUpResult struct {
+	FollowUp   *models.FollowUpV2       `json:"followUp"`
+	VictimInfo *repository.VictimCaseInfo `json:"victimInfo"`
+}
+
 // FollowUpV2Service define el contrato de negocio para FollowUpV2.
 type FollowUpV2Service interface {
 	// Existentes — NO modificar
@@ -58,6 +71,15 @@ type FollowUpV2Service interface {
 	// Nuevos HU-027
 	GetByCaseID(ctx context.Context, caseID string) ([]models.FollowUpV2, error)
 	GenerateOrRecalculate(ctx context.Context, caseID string, input GenerateCalendarInput) ([]models.FollowUpV2, error)
+	GetFollowUpDetail(ctx context.Context, id string, isSupervisor bool) (*models.FollowUpDetailResponse, error)
+
+	// Nuevos para "Mis Seguimientos" - Retornan entidades del dominio
+	GetAgentDayFollowUps(ctx context.Context, agentID string, date time.Time) (pending []models.FollowUpV2, priority []models.FollowUpV2, completed []models.FollowUpV2, err error)
+	GetMyDayFollowUpsEnriched(ctx context.Context, agentID string, date time.Time) (*models.MyDayResponse, error)
+	RegisterContactAttempt(ctx context.Context, followUpID string, reason string, wasAnswered bool) (*models.FollowUpV2, error)
+
+	// Hacer seguimiento
+	LoadFollowUp(ctx context.Context, id string, agentID string, formID string) (*LoadFollowUpResult, error)
 
 	// Seguimientos Área
 	GetByTeamPaginated(ctx context.Context, team string, filters repository.FollowUpFilters, page, limit int) ([]models.FollowUpV2, int64, error)
@@ -83,12 +105,43 @@ type FilterOptions struct {
 // ── Implementación ────────────────────────────────────────────────────────────
 
 type followUpV2Service struct {
-	repo repository.FollowUpRepository
+	repo        repository.FollowUpRepository
+	fsRepo      repository.FormSubmissionRepository
+	barrierRepo repository.BarrierV2Repository
+	caseRepo    repository.VictimCaseLightRepository
+	townRepo    repository.TownLightRepository
+	attemptRepo repository.FollowUpAttemptRepository
+	emRepo      repository.EmergencyMeasureRepository
+	psRepo      repository.PsychosocialSupportRepository
+	esRepo      repository.EconomicStabilizationRepository
+	agentRepo   repository.AgentLightRepository
 }
 
-// NewFollowUpV2Service construye el servicio inyectando el repositorio.
-func NewFollowUpV2Service(repo repository.FollowUpRepository) FollowUpV2Service {
-	return &followUpV2Service{repo: repo}
+// NewFollowUpV2Service construye el servicio inyectando los repositorios.
+func NewFollowUpV2Service(
+	repo repository.FollowUpRepository,
+	fsRepo repository.FormSubmissionRepository,
+	barrierRepo repository.BarrierV2Repository,
+	caseRepo repository.VictimCaseLightRepository,
+	townRepo repository.TownLightRepository,
+	attemptRepo repository.FollowUpAttemptRepository,
+	emRepo repository.EmergencyMeasureRepository,
+	psRepo repository.PsychosocialSupportRepository,
+	esRepo repository.EconomicStabilizationRepository,
+	agentRepo repository.AgentLightRepository,
+) FollowUpV2Service {
+	return &followUpV2Service{
+		repo:        repo,
+		fsRepo:      fsRepo,
+		barrierRepo: barrierRepo,
+		caseRepo:    caseRepo,
+		townRepo:    townRepo,
+		attemptRepo: attemptRepo,
+		emRepo:      emRepo,
+		psRepo:      psRepo,
+		esRepo:      esRepo,
+		agentRepo:   agentRepo,
+	}
 }
 
 // GetFollowUpByID busca un FollowUpV2 por su ID.
@@ -107,6 +160,46 @@ func (s *followUpV2Service) GetFollowUpByID(ctx context.Context, id string) (*mo
 // GetPaginatedFollowUps retorna una página de FollowUpV2.
 func (s *followUpV2Service) GetPaginatedFollowUps(ctx context.Context, page, limit int) (repository.PageResult[models.FollowUpV2], error) {
 	return s.repo.FindWithPagination(ctx, page, limit)
+}
+
+// LoadFollowUp carga toda la información necesaria para la pantalla hacer-seguimiento.
+// Valida que el seguimiento pertenezca al agente y que la fecha programada ya llegó.
+// Si no tiene formSubmissionId, crea uno y lo asigna.
+func (s *followUpV2Service) LoadFollowUp(ctx context.Context, id, agentID, formID string) (*LoadFollowUpResult, error) {
+	fu, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrFollowUpNotFound
+		}
+		return nil, err
+	}
+
+	if fu.AgentID != agentID {
+		return nil, ErrFollowUpNotAssigned
+	}
+
+	today := time.Now().Truncate(24 * time.Hour)
+	if fu.ScheduledDate.Truncate(24 * time.Hour).After(today) {
+		return nil, ErrFollowUpNotYetDue
+	}
+
+	victimInfo, err := s.repo.LoadVictimInfoByCaseID(ctx, fu.CaseID)
+	if err != nil {
+		return nil, fmt.Errorf("loadFollowUp: leer info víctima: %w", err)
+	}
+
+	if fu.FormSubmissionID == nil || *fu.FormSubmissionID == "" {
+		fs := &models.FormSubmission{FormID: formID}
+		if err := s.fsRepo.Create(ctx, fs); err != nil {
+			return nil, fmt.Errorf("loadFollowUp: crear form submission: %w", err)
+		}
+		if err := s.repo.UpdateFormSubmissionID(ctx, fu.ID, fs.ID); err != nil {
+			return nil, fmt.Errorf("loadFollowUp: actualizar formSubmissionId: %w", err)
+		}
+		fu.FormSubmissionID = &fs.ID
+	}
+
+	return &LoadFollowUpResult{FollowUp: fu, VictimInfo: victimInfo}, nil
 }
 
 // GetByCaseID retorna todos los seguimientos del caso ordenados por fecha ASC.
@@ -168,7 +261,7 @@ func (s *followUpV2Service) GenerateOrRecalculate(ctx context.Context, caseID st
 	}
 
 	// ── Caso 2: mismo risk_level → sin cambios ────────────────────────────────
-	if len(pending) > 0 && pending[0].RiskStatus == riskLevelStr {
+	if len(pending) > 0 && pending[0].RiskStatus != nil && *pending[0].RiskStatus == riskLevelStr {
 		return s.repo.FindByCaseIDOrdered(ctx, caseID)
 	}
 
@@ -196,6 +289,67 @@ func (s *followUpV2Service) GenerateOrRecalculate(ctx context.Context, caseID st
 	return newFollowUps, nil
 }
 
+// GetFollowUpDetail ensambla el modelo de detalle de seguimiento (CSR para carga de pantalla)
+func (s *followUpV2Service) GetFollowUpDetail(ctx context.Context, id string, isSupervisor bool) (*models.FollowUpDetailResponse, error) {
+	// 1. Obtener los datos base del Seguimiento
+	fu, err := s.GetFollowUpByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Obtener información del Caso
+	vcase, err := s.caseRepo.FindByID(ctx, fu.CaseID)
+	if err != nil {
+		return nil, fmt.Errorf("error al obtener el caso: %v", err)
+	}
+
+	// 3. Consultar Barreras activas
+	barriers, err := s.barrierRepo.FindByFollowUpID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("error al obtener las barreras: %v", err)
+	}
+
+	// 4. Obtener información del Agente asignado
+	if fu.AgentID != "" && fu.AgentID != "SIN_ASIGNAR" {
+		agent, err := s.agentRepo.FindByICode(ctx, fu.AgentID)
+		if err == nil && agent != nil {
+			fu.AgentNames = agent.Names
+			fu.AgentLastNames = agent.LastNames
+		}
+	}
+
+	// 5. Consultar Remisiones (EmergencyMeasure, PsychosocialSupport, EconomicStabilization)
+	emergencyMeasures, err := s.emRepo.FindByFollowUpID(ctx, id)
+	if err != nil {
+		log.Printf("[WARN] Error al obtener medidas de emergencia: %v", err)
+	}
+
+	psychosocialSupports, err := s.psRepo.FindByFollowUpID(ctx, id)
+	if err != nil {
+		log.Printf("[WARN] Error al obtener apoyos psicosociales: %v", err)
+	}
+
+	economicStabilizations, err := s.esRepo.FindByFollowUpID(ctx, id)
+	if err != nil {
+		log.Printf("[WARN] Error al obtener estabilizaciones económicas: %v", err)
+	}
+
+	// 5. Determinar permisos
+	perms := models.Permissions{
+		CanEdit: isSupervisor,
+	}
+
+	return &models.FollowUpDetailResponse{
+		FollowUp:               *fu,
+		CaseInfo:               *vcase,
+		Barriers:               barriers,
+		Permissions:            perms,
+		EmergencyMeasures:      emergencyMeasures,
+		PsychosocialSupports:   psychosocialSupports,
+		EconomicStabilizations: economicStabilizations,
+	}, nil
+}
+
 // ── helpers privados ──────────────────────────────────────────────────────────
 
 func buildFollowUps(caseID string, input GenerateCalendarInput, riskLevelStr string, offsets []int, now time.Time, today time.Time, startSeq int) []models.FollowUpV2 {
@@ -208,15 +362,14 @@ func buildFollowUps(caseID string, input GenerateCalendarInput, riskLevelStr str
 		} else {
 			scheduledDate = today.AddDate(0, 0, days)
 		}
+		riskStr := riskLevelStr
 		result[i] = models.FollowUpV2{
-			CaseID:         caseID,
-			AgentID:        input.AgentID,
-			Team:           input.Team,
-			RiskStatus:     riskLevelStr,
-			ScheduledDate:  scheduledDate,
-			IsCompleted:    false,
-			Status:         models.FollowUpStatusPendiente,
-			SequenceNumber: startSeq + i,
+			CaseID:        caseID,
+			AgentID:       input.AgentID,
+			Team:          input.Team,
+			RiskStatus:    &riskStr,
+			ScheduledDate: scheduledDate,
+			Status:        models.FollowUpStatusPendiente,
 		}
 	}
 	return result
@@ -233,6 +386,194 @@ func riskLevelToString(level int) string {
 	default:
 		return "BAJO"
 	}
+}
+
+// GetAgentDayFollowUps obtiene los seguimientos del agente para una fecha específica
+// y los clasifica en pendientes, priorizados y realizados.
+// Retorna entidades del dominio (NO DTOs).
+func (s *followUpV2Service) GetAgentDayFollowUps(ctx context.Context, agentID string, date time.Time) (pending []models.FollowUpV2, priority []models.FollowUpV2, completed []models.FollowUpV2, err error) {
+	// 1. Obtener todos los seguimientos del agente para esa fecha (Pendientes y Reprogramados)
+	followUps, err := s.repo.FindByAgentAndDate(ctx, agentID, date)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("followup: error obteniendo seguimientos del agente: %w", err)
+	}
+
+	// 2. Separar en pendientes (sin hora) y priorizados (con hora)
+	for _, fu := range followUps {
+		// Un seguimiento es prioritario si tiene una hora programada específica
+		if fu.ScheduledTime != "" && fu.ScheduledTime != "00:00:00" {
+			priority = append(priority, fu)
+		} else {
+			pending = append(pending, fu)
+		}
+	}
+
+	// 3. Obtener completados hoy (Cualquier seguimiento con intento hoy y estado REALIZADO)
+	completed, err = s.getCompletedByAgentAndDate(ctx, agentID, date)
+	if err != nil {
+		log.Printf("Warning: error obteniendo completados: %v", err)
+		completed = []models.FollowUpV2{}
+	}
+
+	return pending, priority, completed, nil
+}
+
+// GetMyDayFollowUpsEnriched obtiene los seguimientos del día enriquecidos con datos del caso
+// y retorna la estructura esperada por el frontend
+func (s *followUpV2Service) GetMyDayFollowUpsEnriched(ctx context.Context, agentID string, date time.Time) (*models.MyDayResponse, error) {
+	// 1. Obtener seguimientos clasificados
+	pending, priority, completed, err := s.GetAgentDayFollowUps(ctx, agentID, date)
+	if err != nil {
+		return nil, fmt.Errorf("followup: error obteniendo seguimientos del día: %w", err)
+	}
+
+	// 2. Enriquecer con datos del caso
+	enrichFollowUps := func(followUps []models.FollowUpV2) ([]models.MyDayFollowUpResponse, error) {
+		var enriched []models.MyDayFollowUpResponse
+		for _, fu := range followUps {
+			riskStatus := ""
+			if fu.RiskStatus != nil {
+				riskStatus = *fu.RiskStatus
+			}
+			resp := models.MyDayFollowUpResponse{
+				ID:             fu.ID,
+				CaseID:         fu.CaseID,
+				RiskStatus:     riskStatus,
+				ScheduledTime:  fu.ScheduledTime,
+				Attempts:       fu.Attempts,
+				IsPriority:     fu.ScheduledTime != "" && fu.ScheduledTime != "00:00:00", // Nueva regla
+				Status:             fu.Status,
+				SequenceNumber:     fu.SequenceNumber,
+				LastAttemptAt:      fu.LastAttemptAt,
+				ReassignmentReason: fu.ReassignmentReason,
+				Team:               fu.Team,
+			}
+
+			// Obtener datos del caso
+			vc, err := s.caseRepo.FindByID(ctx, fu.CaseID)
+			if err != nil {
+				log.Printf("Warning: no se pudo obtener caso %s: %v", fu.CaseID, err)
+				resp.Case = nil
+			} else {
+				// DEBUG: Verificar town_code del caso
+				log.Printf("[Municipio] CaseID=%s TownCode=%s", fu.CaseID, vc.TownCode)
+
+				// Si el caso tiene town_code, obtener el nombre del municipio
+				if vc.TownCode != "" && s.townRepo != nil {
+					town, err := s.townRepo.FindByCode(ctx, vc.TownCode)
+					if err != nil {
+						log.Printf("Warning: no se pudo obtener municipio %s: %v", vc.TownCode, err)
+						vc.Municipality = vc.TownCode // Fallback: mostrar el código
+					} else {
+						log.Printf("[Municipio] TownCode=%s -> TownName=%s", vc.TownCode, town.TownName)
+						vc.Municipality = town.TownName
+					}
+				} else if vc.TownCode == "" {
+					log.Printf("[Municipio] CaseID=%s no tiene town_code", fu.CaseID)
+					vc.Municipality = "N/A"
+				}
+				resp.Case = vc
+			}
+
+			// Obtener historial de intentos
+			attempts, err := s.attemptRepo.GetByFollowUpID(ctx, fu.ID)
+			if err != nil {
+				log.Printf("Warning: no se pudieron obtener intentos para %s: %v", fu.ID, err)
+				resp.FollowUpAttempts = []models.FollowUpAttempt{}
+			} else {
+				resp.FollowUpAttempts = attempts
+			}
+
+			enriched = append(enriched, resp)
+		}
+		return enriched, nil
+	}
+
+	enrichedPending, err := enrichFollowUps(pending)
+	if err != nil {
+		return nil, err
+	}
+
+	enrichedPriority, err := enrichFollowUps(priority)
+	if err != nil {
+		return nil, err
+	}
+
+	enrichedCompleted, err := enrichFollowUps(completed)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Construir respuesta
+	return &models.MyDayResponse{
+		Success: "true",
+		Data: models.MyDayDataResponse{
+			FollowUpsPendingCount:         len(enrichedPending),
+			FollowUpsPendingPriorityCount: len(enrichedPriority),
+			FollowUpsCompletedCount:       len(enrichedCompleted),
+			FollowUpsPending:              enrichedPending,
+			FollowUpsPendingPriority:      enrichedPriority,
+			FollowUpsCompleted:            enrichedCompleted,
+		},
+	}, nil
+}
+
+// getCompletedByAgentAndDate obtiene seguimientos completados del agente para una fecha
+// Un seguimiento se considera "realizado" si tiene al menos un intento registrado hoy
+func (s *followUpV2Service) getCompletedByAgentAndDate(ctx context.Context, agentID string, date time.Time) ([]models.FollowUpV2, error) {
+	return s.repo.FindRealizedTodayByAgent(ctx, agentID, date)
+}
+
+// RegisterContactAttempt registra un intento de contacto (exitoso o fallido)
+func (s *followUpV2Service) RegisterContactAttempt(ctx context.Context, followUpID string, reason string, wasAnswered bool) (*models.FollowUpV2, error) {
+	// 1. Validar que el seguimiento existe
+	fu, err := s.repo.FindByID(ctx, followUpID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrFollowUpNotFound
+		}
+		return nil, fmt.Errorf("followup: error buscando seguimiento: %w", err)
+	}
+
+	// 2. Validar que no haya excedido el máximo de intentos (9) si no contestó
+	if !wasAnswered && fu.Attempts >= 9 {
+		return nil, fmt.Errorf("followup: se alcanzó el máximo de intentos permitidos")
+	}
+
+	// 3. Guardar el intento en la tabla follow_up_attempts
+	attempt := &models.FollowUpAttempt{
+		FollowUpID:  followUpID,
+		Reason:      reason,
+		WasAnswered: wasAnswered,
+	}
+	if err := s.attemptRepo.CreateAttempt(ctx, attempt); err != nil {
+		return nil, fmt.Errorf("followup: error guardando intento: %w", err)
+	}
+
+	// 4. Contar el total de intentos reales en la base de datos para ser precisos
+	totalAttempts, err := s.attemptRepo.CountByFollowUpID(ctx, followUpID)
+	if err != nil {
+		return nil, fmt.Errorf("followup: error contando intentos: %w", err)
+	}
+
+	// 5. Actualizar únicamente el campo attempts y last_attempt_at en follow_up_v2
+	// Usamos UpdateFields para evitar problemas de tipos con strings vacíos en PostgreSQL (ej. scheduled_time)
+	now := time.Now().UTC()
+	err = s.repo.UpdateFields(ctx, followUpID, map[string]interface{}{
+		"attempts":        int(totalAttempts),
+		"last_attempt_at": now,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("followup: error actualizando intento en seguimiento: %w", err)
+	}
+
+	// Sincronizar el objeto local para el retorno
+	fu.Attempts = int(totalAttempts)
+	fu.LastAttemptAt = &now
+
+	log.Printf("Intento #%d registrado para seguimiento %s: %s", fu.Attempts, followUpID, reason)
+
+	return fu, nil
 }
 
 // ── Seguimientos Área ─────────────────────────────────────────────────────────
@@ -267,8 +608,14 @@ func (s *followUpV2Service) RescheduleFollowUp(ctx context.Context, id string, i
 		"status":         models.FollowUpStatusReprogramado,
 	}
 	if input.NuevaHora != "" {
-		fields["scheduled_date"] = input.NuevaFecha + " " + input.NuevaHora
+		fields["scheduled_time"] = input.NuevaHora
 	}
+	if input.Prioridad == "ALTA" {
+		fields["is_priority"] = true
+	} else if input.Prioridad == "NORMAL" {
+		fields["is_priority"] = false
+	}
+
 	err := s.repo.Reschedule(ctx, id, fields)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return ErrFollowUpNotFound

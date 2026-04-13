@@ -174,8 +174,8 @@ func TestListHandler(t *testing.T) {
 func TestGetCalendar_200_WithResults(t *testing.T) {
 	svcMock := new(MockFollowUpV2Service)
 	items := []models.FollowUpV2{
-		{ID: "fu-1", CaseID: "case-abc", SequenceNumber: 1},
-		{ID: "fu-2", CaseID: "case-abc", SequenceNumber: 2},
+		{ID: "fu-1", CaseID: "case-abc"},
+		{ID: "fu-2", CaseID: "case-abc"},
 	}
 	svcMock.On("GetByCaseID", mock.Anything, "case-abc").Return(items, nil)
 
@@ -211,10 +211,10 @@ func TestGenerateCalendar_201_Created(t *testing.T) {
 	input := service.GenerateCalendarInput{RiskLevel: 3, AgentID: "agent-1", Team: "Equipo A"}
 	today := time.Now().Truncate(24 * time.Hour)
 	created := []models.FollowUpV2{
-		{ID: "fu-1", CaseID: "case-xyz", SequenceNumber: 1, ScheduledDate: today.AddDate(0, 0, 1)},
-		{ID: "fu-2", CaseID: "case-xyz", SequenceNumber: 2, ScheduledDate: today.AddDate(0, 0, 3)},
-		{ID: "fu-3", CaseID: "case-xyz", SequenceNumber: 3, ScheduledDate: today.AddDate(0, 0, 15)},
-		{ID: "fu-4", CaseID: "case-xyz", SequenceNumber: 4, ScheduledDate: today.AddDate(0, 0, 30)},
+		{ID: "fu-1", CaseID: "case-xyz", ScheduledDate: today.AddDate(0, 0, 1)},
+		{ID: "fu-2", CaseID: "case-xyz", ScheduledDate: today.AddDate(0, 0, 3)},
+		{ID: "fu-3", CaseID: "case-xyz", ScheduledDate: today.AddDate(0, 0, 15)},
+		{ID: "fu-4", CaseID: "case-xyz", ScheduledDate: today.AddDate(0, 0, 30)},
 	}
 	svcMock.On("GenerateOrRecalculate", mock.Anything, "case-xyz", input).Return(created, nil)
 
