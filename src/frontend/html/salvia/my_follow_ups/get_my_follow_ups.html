@@ -638,6 +638,7 @@
                     currentUser: "{{.currentUser}}",
                     today: new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }),
                     activeTab: 'followups',
+                    isInitialLoad: true,
                     pendingFollowUps: [],
                     completedFollowUps: [],
                     modalContesto: null,
@@ -688,7 +689,15 @@
                         if (!response.ok) throw new Error('Error loading follow-ups');
                         const data = await response.json();
 
+                        
                         const dayData = data.data || data;
+                        
+                        // Lógica de pestaña inicial inteligente (HU-027)
+                        if (this.isInitialLoad && dayData.followUpsPendingPriorityCount > 0) {
+                            this.activeTab = 'priority';
+                        }
+                        this.isInitialLoad = false;
+
 
                         console.log('[MisSeguimientos] API Response:', data);
                         if (dayData.followUpsPending && dayData.followUpsPending.length > 0) {
