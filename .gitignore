@@ -1,6 +1,10 @@
 # Kiro IDE
 .kiro/
-
+.qwen/
+sessions
+ContextoRequerimientosDesarrollo
+.DS_Store
+*.sql
 # Sesiones activas del servidor (contienen tokens y datos de usuario)
 src/sessions
 

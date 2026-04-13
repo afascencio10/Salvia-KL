@@ -6,6 +6,7 @@ var HTML_Templates_folder string = "frontend/salvia/html/"
 
 var HTML_Templates map[string]string = map[string]string{
 	"home":                     "home.html",
+	"get_my_follow_ups":        "get_my_follow_ups.html",
 	"get_victim_cases":         "get_victim_cases.html",
 	"get_victim_cases_ro":      "get_victim_cases_ro.html",
 	"get_victim_cases_do":      "get_victim_cases_do.html",
@@ -124,6 +125,7 @@ var NAVIGATION_RULES map[string]map[string]map[string]string = map[string]map[st
 	"load_plain_files":    {"default": {"module": "salvia", "entity": "VictimCase"}},
 	"assign_operators":    {"default": {"module": "salvia", "entity": "VictimCase"}},
 	"login":               {"login": {"module": "salvia", "entity": "VictimCase"}, "cancel": {"module": "salvia", "VictimCase": ""}},
+	"get_follow_up":       {"default": {"module": "salvia", "entity": "FollowUp"}},
 }
 
 var LIVING_ZONES map[string]string = map[string]string{

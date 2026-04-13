@@ -26,6 +26,9 @@ type FollowUpRepository interface {
 	SoftDeleteAndReprogramPending(ctx context.Context, tx *gorm.DB, caseID string) error
 	RunInTransaction(ctx context.Context, fn func(tx *gorm.DB) error) error
 
+	FindByAgentAndDate(ctx context.Context, agentID string, date time.Time) ([]models.FollowUpV2, error)
+	FindRealizedTodayByAgent(ctx context.Context, agentID string, date time.Time) ([]models.FollowUpV2, error)
+	IncrementAttempt(ctx context.Context, followUpID string) error
 	// Seguimientos Área
 	FindByTeamPaginated(ctx context.Context, team string, filters FollowUpFilters, page, limit int) ([]models.FollowUpV2, int64, error)
 	FindPendingByTeamGroupedByAgent(ctx context.Context, team string, fecha string) ([]AgentWorkload, error)
@@ -148,7 +151,71 @@ func (r *followUpRepository) RunInTransaction(ctx context.Context, fn func(tx *g
 	return tx.Commit().Error
 }
 
-// ── Seguimientos Área ─────────────────────────────────────────────────────────
+// FindByAgentAndDate retorna los seguimientos pendientes de un agente para una fecha específica.
+// Ordena por:
+// 1. nivel Riesgo DESC (Alto > Moderado > Bajo) usando CASE
+// 2. lastAttemptBy null primero (NULLS FIRST)
+// 3. lastAttemptBy ASC (intentos más antiguos primero)
+func (r *followUpRepository) FindByAgentAndDate(ctx context.Context, agentID string, date time.Time) ([]models.FollowUpV2, error) {
+	var items []models.FollowUpV2
+
+	// Obtener solo la parte de la fecha (YYYY-MM-DD)
+	dateOnly := date.Format("2006-01-02")
+
+	err := r.db.WithContext(ctx).
+		Where("agent_id = ? AND status IN (?, ?) AND (scheduled_date::date) = ?",
+			agentID,
+			models.FollowUpStatusPendiente,
+			models.FollowUpStatusReprogramado,
+			dateOnly).
+		Order(`
+			CASE 
+				WHEN scheduled_time IS NOT NULL AND scheduled_time != '' AND scheduled_time != '00:00:00' THEN 0 
+				ELSE 1 
+			END ASC,
+			scheduled_time ASC,
+			last_attempt_at ASC NULLS FIRST,
+			CASE UPPER(risk_status)
+				WHEN 'EXTREMO' THEN 1 
+				WHEN 'CRÍTICO' THEN 2 
+				WHEN 'ALTO' THEN 3
+				WHEN 'MODERADO' THEN 4
+				WHEN 'BAJO' THEN 5
+				ELSE 6 
+			END ASC
+		`).
+		Find(&items).Error
+
+	return items, err
+}
+
+// FindRealizedTodayByAgent retorna los seguimientos marcados como REALIZADO
+// que tuvieron su último intento el día de hoy.
+func (r *followUpRepository) FindRealizedTodayByAgent(ctx context.Context, agentID string, date time.Time) ([]models.FollowUpV2, error) {
+	var items []models.FollowUpV2
+	dateOnly := date.Format("2006-01-02")
+
+	err := r.db.WithContext(ctx).
+		Where("agent_id = ? AND status = ? AND (scheduled_date::date) = ?",
+			agentID,
+			models.FollowUpStatusRealizado,
+			dateOnly).
+		Order("scheduled_time ASC").
+		Find(&items).Error
+
+	return items, err
+}
+
+// IncrementAttempt incrementa el contador de intentos de un seguimiento y actualiza last_attempt_at.
+func (r *followUpRepository) IncrementAttempt(ctx context.Context, followUpID string) error {
+	return r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Where("id = ?", followUpID).
+		Updates(map[string]interface{}{
+			"attempts":        gorm.Expr("attempts + 1"),
+			"last_attempt_at": time.Now(),
+		}).Error
+}
 
 // FindByTeamPaginated retorna seguimientos filtrados por team + filtros dinámicos con paginación.
 func (r *followUpRepository) FindByTeamPaginated(ctx context.Context, team string, filters FollowUpFilters, page, limit int) ([]models.FollowUpV2, int64, error) {
