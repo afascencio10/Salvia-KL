@@ -73,6 +73,9 @@ func StartRouter(router *gin.Engine) {
 		secRouter.GET("/"+translatedEntity+"/:id", VictimCaseGET)
 		secRouter.GET("/"+translatedEntity+"/:id/", VictimCaseGET)
 
+		// Detalle de caso — solo rol sv
+		secRouter.GET("/"+translatedEntity+"/:id/detalle", CaseDetailGET)
+
 		secRouter.GET("/"+translatedEntity+"/:id/"+translatedDocument+"/:docType", VictimCaseGET)
 		secRouter.GET("/"+translatedEntity+"/:id/"+translatedDocument+"/:docType"+"/p/:p", VictimCaseGET)
 
@@ -156,6 +159,7 @@ func StartRouter(router *gin.Engine) {
 		secRouter.POST("/"+translatedEntity+"/:id", FollowUpPOST)
 		secRouter.PUT("/"+translatedEntity+"/:id/", FollowUpPUT)
 		secRouter.PUT("/"+translatedEntity+"/:id", FollowUpPUT)
+		secRouter.GET("/"+translatedEntity+"/:id", FollowUpGET)
 
 		/*
 			FollowUpEntry
@@ -183,6 +187,11 @@ func StartRouter(router *gin.Engine) {
 		secRouter.POST("/"+translatedEntity+"/e/:e/b/:b", FollowUpEntryActingPOST)
 
 		/*
+			Mis Seguimientos (My Follow Ups)
+		*/
+		secRouter.GET("/mis-seguimientos", MyFollowUpsGET)
+
+		/*
 			Feminicide
 		*/
 		translatedEntity = salvia_config.Locale["sp"][salvia_daos.FeminicideEntityName]
@@ -190,6 +199,16 @@ func StartRouter(router *gin.Engine) {
 		secRouter.GET("/"+translatedEntity, FeminicideGET)
 		secRouter.GET("/"+translatedEntity+"/"+translatedNew, FeminicidePOST_GET)
 		secRouter.POST("/"+translatedEntity+"/"+translatedNew, FeminicidePOST)
+
+		/*
+			HacerSeguimiento
+		*/
+		secRouter.GET("/hacer-seguimiento/:id", HacerSeguimientoGET)
+
+		/*
+			SeguimientosArea
+		*/
+		secRouter.GET("/seguimientos/area", SeguimientosAreaGET)
 
 		/*
 			FeminicideRisk

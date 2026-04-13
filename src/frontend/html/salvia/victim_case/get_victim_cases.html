@@ -2,9 +2,11 @@
 <div class="container">
     <div class="welcome-section">
         <h2><b>Casos Salvia</b></h2>
-        <a href="/salvia/casos/nuevo"><button class="btn btn-primary">Crear Nuevo caso <i
-                    class="fas fa-plus-circle"></i> </button></a>
-
+        <div style="display:flex; gap:8px; align-items:center;">
+            <a href="/salvia/casos/nuevo"><button class="btn btn-primary">Crear Nuevo caso <i class="fas fa-plus-circle"></i></button></a>
+            <!-- TODO: botón temporal - remover cuando se integre en el flujo real -->
+            <a href="/salvia/hacer-seguimiento/test-id"><button class="btn btn-warning">Hacer Seguimiento <i class="fas fa-tasks"></i></button></a>
+        </div>
     </div>
     
     <div class="mt-3 mb-4">
@@ -160,6 +162,12 @@
                                                 :href="`${item.path}/${victimCase.icode}/${item.action}`">
                                                 ${item.label}</a>
                                         </template>
+                                        <a :href="`/salvia/casos/${victimCase.icode}/detalle`"
+                                           class="btn btn-primary btn-sm"
+                                           style="font-size:11px;padding:3px 8px;"
+                                           title="Ver detalle completo">
+                                            <i class="fas fa-layer-group"></i> Detalle
+                                        </a>
                                     </div>
                                 </td>
                             </tr>

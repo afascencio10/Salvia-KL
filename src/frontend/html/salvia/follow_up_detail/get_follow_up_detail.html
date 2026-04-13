@@ -1,0 +1,480 @@
+<div id="follow-up-detail-app" class="ms-page-wrapper">
+    <!-- Breadcrumb -->
+    <div class="ms-breadcrumb">
+        <button @click="goBack" class="ms-breadcrumb-btn"><i class="fas fa-arrow-left"></i></button>
+        <span class="ms-breadcrumb-separator">/</span>
+        <span class="ms-breadcrumb-text">${ victimCase.name } / Seguimiento #${ followUp.id }</span>
+    </div>
+
+    <!-- Header Card -->
+    <div class="ms-detail-header">
+        <div class="ms-detail-header-icon" :style="getRiskStyle(victimCase.riskLevel)">
+            <i class="fas fa-check"></i>
+        </div>
+        <div class="ms-detail-header-info">
+            <div class="ms-detail-header-title">
+                <h2>Seguimiento #${ followUp.id }</h2>
+                <span class="ms-badge" :style="getRiskStyle(victimCase.riskLevel)">${followUp.status}</span>
+            </div>
+            <p class="ms-detail-header-meta">
+                <i class="fas fa-calendar-alt"></i> ${ followUp.date } &nbsp;·&nbsp;
+                <i class="fas fa-clock"></i> ${ followUp.time } &nbsp;·&nbsp;
+                <i class="fas fa-user-circle"></i> ${ followUp.agent }
+            </p>
+        </div>
+        <div class="ms-detail-header-case">
+            <p class="ms-detail-case-label">Caso</p>
+            <div class="ms-detail-case-info">
+                <span class="ms-detail-case-name">${ victimCase.name }</span>
+                <span class="ms-badge" :style="getRiskStyle(victimCase.riskLevel)">${ victimCase.riskLevel }</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="ms-tabs-wrapper">
+        <div class="ms-tabs-header">
+            <button v-for="tab in TABS" :key="tab.id" @click="activeTab = tab.id"
+                :class="['ms-tab-button', { active: activeTab === tab.id }]">
+                <i :class="tab.icono"></i>
+                ${ tab.label }
+                <span class="ms-tab-count">${ tab.count || 0 }</span>
+            </button>
+        </div>
+
+        <div class="ms-tab-content">
+            <!-- TAB RESUMEN -->
+            <div v-if="activeTab === 'resumen'" class="ms-tab-pane">
+
+                <!-- Información General -->
+                <section class="ms-detail-section">
+                    <h3 class="ms-detail-section-title">Información General</h3>
+                    <div class="ms-info-grid">
+                        <div class="ms-info-item">
+                            <p class="ms-info-label">Fecha de realización</p>
+                            <p class="ms-info-value">${ followUp.date } ${ followUp.time }</p>
+                        </div>
+                        <div class="ms-info-item">
+                            <p class="ms-info-label">Agente</p>
+                            <p class="ms-info-value">${ followUp.agent || '-' }</p>
+                        </div>
+                        <div class="ms-info-item">
+                            <p class="ms-info-label">Duración</p>
+                            <p class="ms-info-value">${ followUp.values.duracion || '-' }</p>
+                        </div>
+                        <div class="ms-info-item">
+                            <p class="ms-info-label">¿Se contactó a la víctima?</p>
+                            <p class="ms-info-value">${ followUp.values.contacto_exitoso || '-' }</p>
+                        </div>
+                        <div class="ms-info-item">
+                            <p class="ms-info-label">Medio de contacto</p>
+                            <p class="ms-info-value">${ followUp.values.medio_contacto || '-' }</p>
+                        </div>
+                        <div class="ms-info-item">
+                            <p class="ms-info-label">Estado de la víctima</p>
+                            <p class="ms-info-value">${ followUp.values.estado_victima || '-' }</p>
+                        </div>
+                        <div class="ms-info-item ms-info-item-wide">
+                            <p class="ms-info-label">Observaciones</p>
+                            <p class="ms-info-value ms-info-value-text">${
+                                followUp.values.gestion_realizada || '-' }</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Nivel de Riesgo -->
+                <section class="ms-detail-section">
+                    <h3 class="ms-detail-section-title">Nivel de Riesgo</h3>
+                    <div class="ms-risk-comparison">
+                        <div class="ms-risk-item">
+                            <p class="ms-risk-label">Antes del seguimiento</p>
+                            <span class="ms-badge" :style="getRiskStyle(originalRiskLevel)">${ originalRiskLevel
+                                }</span>
+                        </div>
+                        <div class="ms-risk-arrow">
+                            <i class="fas fa-arrow-right"></i>
+                        </div>
+                        <div class="ms-risk-item">
+                            <p class="ms-risk-label">Resultado</p>
+                            <p v-if="!followUp.values.variacion_riesgo" class="ms-risk-no-changes">Sin cambios</p>
+                            <span v-else class="ms-badge" :style="getRiskStyle('Alto')">Alto</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Plan de Orientación y Atención -->
+                <section class="ms-detail-section">
+                    <h3 class="ms-detail-section-title">Plan de Orientación y Atención</h3>
+                    <div class="ms-care-plan">
+                        <!-- Barreras -->
+                        <div v-if="activeBarriers && activeBarriers.length > 0" class="ms-barriers-list">
+                            <div class="ms-barriers-header">
+                                <div class="ms-barriers-header-left">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <span>Barreras identificadas</span>
+                                    <span class="ms-tooltip"
+                                        title="Las barreras son todas las acciones u omisiones de actores institucionales que obstaculizan el acceso a la ruta.">
+                                        <i class="fas fa-info-circle"></i>
+                                    </span>
+                                </div>
+                                <span class="ms-barriers-count">${ activeBarriers.length }</span>
+                            </div>
+                            <div v-for="barrera in activeBarriers" :key="barrera.id" class="ms-barrier-item">
+                                <div class="ms-barrier-info">
+                                    <span class="ms-barrier-sector">${ barrera.sector }</span>
+                                    <p class="ms-barrier-description">${ barrera.description }</p>
+                                </div>
+                                <div class="ms-barrier-action"
+                                    title="Gestión interna de notificación y oficios para superar la barrera">
+                                    <i class="fas fa-file-signature"></i>
+                                    <span>Oficio radicado</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="ms-empty-state-small">
+                            <p>No se identificaron barreras institucionales en este seguimiento.</p>
+                        </div>
+
+                        <!-- Remisiones -->
+                        <div v-if="(emergencyMeasures && emergencyMeasures.length > 0) || (psychosocialSupports && psychosocialSupports.length > 0) || (economicStabilizations && economicStabilizations.length > 0)"
+                            class="ms-referrals">
+                            <div class="ms-referrals-header">
+                                <i class="fas fa-external-link-alt"></i>
+                                <span>Remisiones a equipos Salvia</span>
+                            </div>
+                            <div class="ms-referrals-list">
+                                <!-- Medidas de Emergencia -->
+                                <div v-for="em in emergencyMeasures" :key="em.id" class="ms-referral-item">
+                                    <div class="ms-referral-header">
+                                        <span class="ms-badge ms-badge--emergency">
+                                            <i class="fas fa-shield-alt"></i> Medida: ${ em.type }
+                                        </span>
+                                        <span class="ms-tooltip" :title="'Autoridad: ' + em.issuingAuthority">
+                                            <i class="fas fa-info-circle"></i>
+                                        </span>
+                                    </div>
+                                    <p class="ms-referral-notes">${ em.notes || 'Sin observaciones adicionales' }</p>
+                                </div>
+
+                                <!-- Apoyo Psicosocial -->
+                                <div v-for="ps in psychosocialSupports" :key="ps.id" class="ms-referral-item">
+                                    <div class="ms-referral-header">
+                                        <span class="ms-badge ms-badge--psychosocial">
+                                            <i class="fas fa-brain"></i> Psicosocial: ${ ps.type }
+                                        </span>
+                                        <span class="ms-tooltip"
+                                            title="Evaluar variables asociadas a los malestares y bienestares de las mujeres víctimas de VBG.">
+                                            <i class="fas fa-info-circle"></i>
+                                        </span>
+                                    </div>
+                                    <p class="ms-referral-notes">${ ps.notes || 'Sin observaciones' }</p>
+                                </div>
+
+                                <!-- Estabilización Económica -->
+                                <div v-for="es in economicStabilizations" :key="es.id" class="ms-referral-item">
+                                    <div class="ms-referral-header">
+                                        <span class="ms-badge ms-badge--economic">
+                                            <i class="fas fa-hand-holding-usd"></i> Económica: ${ es.type }
+                                        </span>
+                                        <span class="ms-tooltip" :title="'Institución: ' + es.institution">
+                                            <i class="fas fa-info-circle"></i>
+                                        </span>
+                                    </div>
+                                    <p class="ms-referral-notes">${ es.benefit || 'Gestión en proceso' }</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="ms-empty-state-small">
+                            <p>No se registraron remisiones a equipos Salvia en este seguimiento.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Observaciones finales -->
+                <section class="ms-detail-section">
+                    <h3 class="ms-detail-section-title">Observaciones Finales</h3>
+                    <div class="ms-observations">
+                        <p>Se remite a psicosocial. Monitorear evolución.</p>
+                    </div>
+                </section>
+            </div>
+
+            <!-- TAB FORMULARIO -->
+            <div v-if="activeTab === 'formulario'" class="ms-tab-pane">
+                <div class="ms-form-layout">
+                    <!-- Sidebar -->
+                    <aside class="ms-form-sidebar">
+                        <div class="ms-form-sidebar-header">
+                            <p>Secciones</p>
+                        </div>
+                        <nav class="ms-form-nav">
+                            <button v-for="(sec, idx) in FORM_SECTIONS" :key="sec.id" @click="activeSection = idx"
+                                :class="['ms-form-nav-btn', { active: activeSection === idx }]">
+                                <div class="ms-form-step-number" :class="{ active: activeSection === idx }">${ idx + 1 }
+                                </div>
+                                <span>${ sec.titulo }</span>
+                            </button>
+                        </nav>
+                    </aside>
+
+                    <!-- Content -->
+                    <div class="ms-form-content">
+                        <div class="ms-form-card">
+                            <div class="ms-form-card-header">
+                                <div class="ms-form-card-header-left">
+                                    <div class="ms-form-step-badge">${ activeSection + 1 }</div>
+                                    <h4 class="ms-form-section-title">${ FORM_SECTIONS[activeSection].titulo }</h4>
+                                </div>
+                                <button @click="toggleEdit" :class="['ms-form-edit-btn', { editing: isEditing }]">
+                                    <i class="fas fa-edit"></i> ${ isEditing ? 'Guardando cambios' : 'Editar respuestas'
+                                    }
+                                </button>
+                            </div>
+
+                            <div class="ms-form-card-body">
+                                <!-- Renderizado de campos -->
+                                <div v-for="campo in FORM_SECTIONS[activeSection].campos" :key="campo.id"
+                                    class="ms-form-field">
+                                    <p class="ms-form-label">${ campo.label }</p>
+
+                                    <!-- Vista Edición -->
+                                    <div v-if="isEditing">
+                                        <input
+                                            v-if="campo.tipo === 'text' || campo.tipo === 'dropdown' || campo.tipo === 'single'"
+                                            class="ms-form-input" :value="followUp.values[campo.id]">
+                                        <div v-else-if="campo.tipo === 'boolean'" class="ms-form-boolean-group">
+                                            <button class="ms-form-boolean-btn"
+                                                :class="{ active: followUp.values[campo.id] === true }">Sí</button>
+                                            <button class="ms-form-boolean-btn"
+                                                :class="{ active: followUp.values[campo.id] === false }">No</button>
+                                        </div>
+                                        <p v-else class="ms-form-text-muted">Selección múltiple / complejo...</p>
+                                    </div>
+
+                                    <!-- Vista Lectura -->
+                                    <div v-else>
+                                        <p v-if="followUp.values[campo.id] !== undefined && followUp.values[campo.id] !== ''"
+                                            class="ms-form-value">
+                                            ${ formatValue(followUp.values[campo.id]) }
+                                        </p>
+                                        <p v-else class="ms-form-empty">—</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Navegación Formulario -->
+                            <div class="ms-form-card-footer">
+                                <button @click="activeSection = Math.max(0, activeSection - 1)"
+                                    :disabled="activeSection === 0" class="ms-form-nav-btn-small">
+                                    ← Anterior
+                                </button>
+                                <button @click="activeSection = Math.min(FORM_SECTIONS.length-1, activeSection + 1)"
+                                    :disabled="activeSection === FORM_SECTIONS.length - 1"
+                                    class="ms-form-nav-btn-small">
+                                    Siguiente →
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ template "standard_scripts.html" .}}
+{{ template "overlay.html" .}}
+
+<script>
+    const FORM_SECTIONS = [
+        {
+            id: "inicio_seguimiento",
+            titulo: "Inicio de Seguimiento",
+            campos: [
+                { id: "nivel_riesgo_registro", tipo: "single", label: "¿Nivel de riesgo identificado?" },
+                { id: "equipo_atencion", tipo: "single", label: "Equipo que realiza la atención" },
+                { id: "nombre_profesional", tipo: "dropdown", label: "Nombre del profesional" },
+                { id: "efectividad_llamada", tipo: "single", label: "Efectividad de la llamada" },
+                { id: "numero_seguimiento", tipo: "single", label: "Nº de seguimiento" },
+            ],
+        },
+        {
+            id: "valoracion_riesgo",
+            titulo: "Valoración del Riesgo",
+            campos: [
+                { id: "respondiente", tipo: "single", label: "Respondiente del seguimiento" },
+                { id: "nuevos_hechos_violencia", tipo: "boolean", label: "¿Nuevos hechos de violencia?" },
+                { id: "descripcion_hechos_violencia", tipo: "text", label: "Descripción de nuevos hechos" },
+            ],
+        },
+        {
+            id: "seguimiento_caso",
+            titulo: "Seguimiento de Caso",
+            campos: [
+                { id: "info_psicosocial", tipo: "text", label: "Información psicosocial" },
+                { id: "gestion_realizada", tipo: "text", label: "Gestión realizada" },
+                { id: "variacion_riesgo", tipo: "boolean", label: "¿Variación en el riesgo?" },
+                { id: "descripcion_variacion_riesgo", tipo: "text", label: "Describa la variación" },
+            ],
+        }
+    ];
+
+    const app = Vue.createApp({
+        delimiters: ['${', '}'],
+        data() {
+            return {
+                activeTab: 'resumen',
+                activeSection: 0,
+                isEditing: false,
+                loading: false,
+                TABS: [
+                    { id: 'resumen', label: 'Resumen', icono: 'fas fa-chart-bar', count: 0 },
+                    { id: 'formulario', label: 'Formulario', icono: 'fas fa-clipboard-list', count: 0 },
+                ],
+                FORM_SECTIONS,
+                originalRiskLevel: 'Alto',
+                activeBarriers: [],
+                emergencyMeasures: [],
+                psychosocialSupports: [],
+                economicStabilizations: [],
+                victimCase: {
+                    id: '',
+                    name: '-',
+                    riskLevel: '-',
+                    status: '-'
+                },
+                followUp: {
+                    id: '-',
+                    date: '-',
+                    time: '-',
+                    agent: '-',
+                    status: '-',
+                    values: {
+                        nivel_riesgo_registro: '-',
+                        equipo_atencion: '-',
+                        nombre_profesional: '-',
+                        efectividad_llamada: '-',
+                        numero_seguimiento: '-',
+                        respondiente: '-',
+                        nuevos_hechos_violencia: false,
+                        gestion_realizada: '-',
+                        variacion_riesgo: false,
+                        duracion: '-',
+                        contacto_exitoso: '-',
+                        medio_contacto: '-',
+                        estado_victima: '-'
+                    }
+                }
+            }
+        },
+        mounted() {
+            document.getElementById('app').style.display = 'block';
+            this.loadDetail('{{ .followUpId }}');
+        },
+        methods: {
+            async loadDetail(followUpId) {
+                if (!followUpId) return;
+                this.loading = true;
+                const loadingOverlay = document.getElementById('loadingOverlay');
+                if (loadingOverlay) loadingOverlay.style.display = 'flex';
+
+                try {
+                    // Endpoint CSR que integra todos los datos necesarios
+                    const response = await fetch(`/api/v1/cases/follow-ups/detail?id=${followUpId}`);
+                    if (!response.ok) throw new Error("Error cargando detalle");
+                    const data = await response.json();
+
+                    this.victimCase.name = `${data.caseInfo.names} ${data.caseInfo.lastNames}`;
+                    this.victimCase.riskLevel = data.followUp.risk_status || 'Sin Riesgo';
+                    this.victimCase.status = data.caseInfo.status;
+                    this.followUp.status = data.followUp.status || '-';
+                    this.originalRiskLevel = data.followUp.risk_status || 'Sin Riesgo';
+
+                    const dateObj = new Date(data.followUp.scheduled_date);
+                    this.followUp.date = dateObj.toLocaleDateString('es-CO', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                    });
+                    this.followUp.time = dateObj.toLocaleTimeString('es-CO', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                    });
+                    this.followUp.id = data.followUp.sequence_number || 1;
+                    if (data.followUp.agent_names) {
+                        this.followUp.agent = `${data.followUp.agent_names} ${data.followUp.agent_last_names}`;
+                    } else {
+                        this.followUp.agent = data.followUp.agent_id || '-';
+                    }
+
+                    // Cálculo dinámico de duración
+                    if (data.followUp.scheduled_date && data.followUp.scheduled_time && data.followUp.completed_at) {
+                        const scheduled = new Date(data.followUp.scheduled_date);
+                        const [hours, minutes] = data.followUp.scheduled_time.split(':');
+                        scheduled.setHours(parseInt(hours), parseInt(minutes), 0);
+
+                        const completed = new Date(data.followUp.completed_at);
+                        const diffMs = completed - scheduled;
+                        const diffMins = Math.round(diffMs / 60000);
+
+                        if (diffMins > 0) {
+                            if (diffMins >= 60) {
+                                const h = Math.floor(diffMins / 60);
+                                const m = diffMins % 60;
+                                this.followUp.values.duracion = `${h}h ${m}min`;
+                            } else {
+                                this.followUp.values.duracion = `${diffMins} min`;
+                            }
+                        }
+                    }
+
+                    this.activeBarriers = data.barriers || [];
+                    this.emergencyMeasures = data.emergencyMeasures || [];
+                    this.psychosocialSupports = data.psychosocialSupports || [];
+                    this.economicStabilizations = data.economicStabilizations || [];
+
+                    // Si el backend envía valores mapeados, los asignamos
+                    if (data.followUpValues) {
+                        this.followUp.values = { ...this.followUp.values, ...data.followUpValues };
+                    }
+
+                    this.victimCase.id = data.caseInfo.id;
+
+                } catch (error) {
+                    console.error("Error al obtener detalle CSR:", error);
+                } finally {
+                    this.loading = false;
+                    const loadingOverlay = document.getElementById('loadingOverlay');
+                    if (loadingOverlay) loadingOverlay.style.display = 'none';
+                }
+            },
+            goBack() {
+                window.history.back();
+                // window.location.href = `/salvia/casos/${this.victimCase.id}/detalle`;                
+            },
+            toggleEdit() {
+                this.isEditing = !this.isEditing;
+            },
+            formatValue(val) {
+                if (val === true) return 'Sí';
+                if (val === false) return 'No';
+                return val;
+            },
+            getRiskStyle(nivel) {
+                const lvl = nivel ? nivel.toUpperCase() : '';
+                const styles = {
+                    'EXTREMO': 'background-color: #FEE2E2; color: #B91C1C; border: 1px solid #EF4444;',
+                    'ALTO': 'background-color: #FEF3C7; color: #92400E; border: 1px solid #F59E0B;',
+                    'MODERADO': 'background-color: #DBEAFE; color: #1E40AF; border: 1px solid #3B82F6;',
+                    'BAJO': 'background-color: #D1FAE5; color: #065F46; border: 1px solid #10B981;',
+                    'SIN RIESGO': 'background-color: #F3F4F6; color: #374151; border: 1px solid #9CA3AF;'
+                };
+                return styles[lvl] || styles['SIN RIESGO'];
+            }
+        }
+    });
+
+    app.mount("#app");
+</script>
+{{ template "overlay.html" . }}

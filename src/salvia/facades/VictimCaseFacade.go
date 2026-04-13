@@ -383,6 +383,7 @@ func VictimCaseGET(c *gin.Context) {
 				"salviaFeminicideRiskSetFormPath":  salvia_config.FormPaths[s.Lang]["FeminicideRiskGET"],
 
 				"salviaUserFormPath": security_config.FormPaths[s.Lang]["GeneralUserGET"],
+				"currentRole":        s.CurrentRole,
 			}, utils.GetFullHtmlFuncMap())
 	}
 }

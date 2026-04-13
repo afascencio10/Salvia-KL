@@ -1,0 +1,718 @@
+﻿<div class="container" style="background:#f3f4f6;min-height:100vh;padding:24px 16px;">
+
+  <!-- Breadcrumb -->
+  <div class="cd-breadcrumb">
+    <a href="{{.salviaVictimCaseGETFormPath}}">← Casos reportados</a>
+    <span>/</span>
+    <span class="cd-current" v-if="caso">${ caso.victimCaseVictimName }</span>
+    <span class="cd-id" v-if="caso">(${ caso.victimCaseICode })</span>
+  </div>
+
+  <!-- Loading -->
+  <div v-if="cargando" style="text-align:center;padding:60px 0;color:#6b7280">
+    <p>Cargando información del caso...</p>
+  </div>
+
+  <!-- Error -->
+  <div v-if="error && !cargando" style="text-align:center;padding:60px 0;color:#dc2626">
+    <p>${ error }</p>
+    <a href="{{.salviaVictimCaseGETFormPath}}" class="btn btn-secondary" style="margin-top:12px">← Volver a casos</a>
+  </div>
+
+  <template v-if="caso && !cargando">
+
+    <!-- ── HEADER ── -->
+    <div class="cd-header">
+      <div class="cd-header-left">
+        <div class="cd-avatar">${ caso.victimCaseVictimName ? caso.victimCaseVictimName.charAt(0).toUpperCase() : '?' }</div>
+        <div>
+          <p class="cd-case-name">${ caso.victimCaseVictimName }</p>
+          <p class="cd-case-sub">
+            ${ form1 && form1.age ? form1.age + ' años' : '' }
+            <span v-if="townName || deptName"> · </span>
+            ${ townName }${ townName && deptName ? ', ' : '' }${ deptName }
+          </p>
+        </div>
+        <div class="cd-badges">
+          <span :class="badgeRiesgo(nivelRiesgo)">${ labelRiesgo(nivelRiesgo) }</span>
+          <span :class="badgeEstado(caso.victimCaseStatus)">${ labelEstado(caso.victimCaseStatus) }</span>
+        </div>
+      </div>
+      <div class="cd-header-right">
+        <button v-if="userRole === 'sv'" class="btn-reasignar" @click="modalReasignar = true">Reasignar</button>
+        <button v-if="userRole === 'sv'" class="btn-nuevo-seg" @click="modalNuevoSeg = true">+ Nuevo seguimiento</button>
+      </div>
+    </div>
+
+    <!-- ── TABS ── -->
+    <div class="cd-panel">
+      <div class="cd-tabs">
+        <button v-for="tab in tabs" :key="tab.id"
+          :class="['cd-tab-btn', tabActiva === tab.id ? 'active' : '']"
+          @click="tabActiva = tab.id">
+          ${ tab.icono } ${ tab.label }
+        </button>
+      </div>
+
+      <div class="cd-tab-content">
+
+        <!-- ══ TAB: INFO GENERAL ══ -->
+        <template v-if="tabActiva === 'info'">
+
+          <!-- 4 métricas superiores -->
+          <div class="cd-info-summary">
+            <div class="cd-info-field">
+              <div class="cd-lbl">Nivel de riesgo</div>
+              <div class="cd-val"><span :class="badgeRiesgo(nivelRiesgo)">${ labelRiesgo(nivelRiesgo) }</span></div>
+            </div>
+            <div class="cd-info-field">
+              <div class="cd-lbl">Estado del caso</div>
+              <div class="cd-val"><span :class="badgeEstado(caso.victimCaseStatus)">${ labelEstado(caso.victimCaseStatus) }</span></div>
+            </div>
+            <div class="cd-info-field">
+              <div class="cd-lbl">Denuncias anteriores</div>
+              <div class="cd-val" style="font-size:1.6rem;font-weight:700;color:#111827">${ denunciasAnteriores }</div>
+            </div>
+            <div class="cd-info-field">
+              <div class="cd-lbl">Agente responsable</div>
+              <div class="cd-val" style="color:#5106A7">${ caso.victimCaseOwnerDescription || '—' }</div>
+            </div>
+          </div>
+
+          <!-- Datos de la víctima -->
+          <p class="cd-section-title">Datos de la víctima</p>
+          <div class="cd-data-grid">
+            <div class="cd-campo">
+              <div class="cd-lbl">Nombre completo</div>
+              <div class="cd-val">${ caso.victimCaseVictimName + ' ' + caso.victimCaseVictimLastName || '—' }</div>
+            </div>
+            <div class="cd-campo">
+              <div class="cd-lbl">Edad</div>
+              <div class="cd-val">${ form1 && form1.age ? form1.age + ' años' : '—' }</div>
+            </div>
+            <div class="cd-campo">
+              <div class="cd-lbl">Tiene hijos</div>
+              <div class="cd-val">${ form1 && form1.childrenNumber && form1.childrenNumber > 0 ? 'Sí (' + form1.childrenNumber + ')' : 'No' }</div>
+            </div>
+            <div class="cd-campo">
+              <div class="cd-lbl">Municipio</div>
+              <div class="cd-val">${ townName || caso.victimCaseTownCode || '—' }</div>
+            </div>
+            <div class="cd-campo">
+              <div class="cd-lbl">Departamento</div>
+              <div class="cd-val">${ deptName || '—' }</div>
+            </div>
+            <div class="cd-campo">
+              <div class="cd-lbl">Tipo de agresor</div>
+              <div class="cd-val">${ form1 && form1.relationshipWithAggressor ? labelRelAgresor(form1.relationshipWithAggressor) : '—' }</div>
+            </div>
+            <div class="cd-campo">
+              <div class="cd-lbl">Fecha de reporte</div>
+              <div class="cd-val">${ formatFecha(caso.victimCaseCreatedAt) }</div>
+            </div>
+            <div class="cd-campo">
+              <div class="cd-lbl">ID del caso</div>
+              <div class="cd-val" style="font-family:monospace">${ caso.victimCaseICode }</div>
+            </div>
+          </div>
+        </template>
+
+        <!-- ══ TAB: DERIVACIONES ══ -->
+        <template v-if="tabActiva === 'derivaciones'">
+          <div v-for="sec in derivaciones" :key="sec.titulo" class="cd-deriv-section">
+            <div class="cd-deriv-header">
+              ${ sec.icono } ${ sec.titulo }
+              <span class="cd-count">${ sec.items.length } registro${ sec.items.length !== 1 ? 's' : '' }</span>
+            </div>
+            <div v-if="sec.items.length === 0" class="cd-deriv-empty">Sin registros</div>
+            <div v-for="item in sec.items" :key="item.followUpEntryId" class="cd-deriv-item">
+              <div class="cd-deriv-desc">
+                Sector: ${ item.followUpEntrySectorCode }
+                <div class="cd-deriv-date" v-if="item.followUpEntryCompletionDate">
+                  📅 ${ formatFecha(item.followUpEntryCompletionDate) }
+                </div>
+              </div>
+              <span :class="['cd-badge-deriv', badgeEntryStatus(item.followUpEntryStatus)]">
+                ${ labelEntryStatus(item.followUpEntryStatus) }
+              </span>
+            </div>
+          </div>
+        </template>
+
+        <!-- ══ TAB: BARRERAS ══ -->
+        <template v-if="tabActiva === 'barreras'">
+          <div class="cd-empty">
+            <div class="cd-empty-icon">✓</div>
+            <p>No se han identificado barreras en este caso</p>
+          </div>
+        </template>
+
+        <!-- ══ TAB: SEGUIMIENTOS ══ -->
+        <template v-if="tabActiva === 'seguimientos'">
+          <div class="cd-seg-stats">
+            <div class="cd-sstat">
+              <div class="cd-lbl">Total seguimientos</div>
+              <div class="cd-val">${ followUpsV2.length }</div>
+            </div>
+            <div class="cd-sstat cd-sstat-green">
+              <div class="cd-lbl">Ejecutados</div>
+              <div class="cd-val">${ followUpsV2.filter(s => s.status === 'REALIZADO' || s.is_completed).length }</div>
+            </div>
+            <div class="cd-sstat cd-sstat-orange">
+              <div class="cd-lbl">Pendientes</div>
+              <div class="cd-val">${ followUpsV2.filter(s => s.status === 'PENDIENTE' && !s.is_completed).length }</div>
+            </div>
+          </div>
+          <div v-if="followUpsV2.length === 0" class="cd-empty">
+            <div class="cd-empty-icon">📋</div>
+            <p>No hay seguimientos registrados para este caso</p>
+          </div>
+          <div v-for="(seg, idx) in followUpsV2" :key="seg.id"
+            :class="['cd-seg-item', seg.is_completed || seg.status === 'REALIZADO' ? 'done' : 'pending']">
+            <div :class="['cd-seg-indicator', seg.is_completed || seg.status === 'REALIZADO' ? 'cd-si-done' : 'cd-si-pending']">
+              ${ seg.is_completed || seg.status === 'REALIZADO' ? '✓' : seg.sequence_number || (idx + 1) }
+            </div>
+            <div class="cd-seg-info">
+              <div class="cd-seg-title">
+                <p>Seguimiento #${ seg.sequence_number || (idx + 1) }</p>
+                <span :class="['cd-seg-badge', seg.is_completed || seg.status === 'REALIZADO' ? 'cd-sb-done' : 'cd-sb-pending']">
+                  ${ seg.status }
+                </span>
+              </div>
+              <div class="cd-seg-meta">
+                📅 ${ formatFecha(seg.scheduled_date) }
+                <span v-if="seg.scheduled_time"> &nbsp;·&nbsp; 🕐 ${ seg.scheduled_time }</span>
+                <span v-if="seg.agent_id"> &nbsp;·&nbsp; 👤 ${ nombreAgente(seg.agent_id) }</span>
+              </div>
+              <div v-if="seg.summary" style="font-size:.82rem;color:#6b7280;margin-top:4px">
+                ${ seg.summary }
+              </div>
+            </div>
+            <!-- Botones para seguimientos EJECUTADOS -->
+            <a v-if="seg.is_completed || seg.status === 'REALIZADO'"
+               :href="'/salvia/seguimiento/' + seg.id"
+               style="font-size:.74rem;color:#15803d;font-weight:600;flex-shrink:0;align-self:center;text-decoration:none">
+              Ver detalle →
+            </a>
+            <!-- Botones para seguimientos PENDIENTES -->
+            <div v-if="!seg.is_completed && seg.status !== 'REALIZADO'" class="cd-seg-actions">
+              <button v-if="userRole === 'ro' || userRole === 'sv'" class="btn-iniciar">▶ Iniciar</button>
+              <button v-if="userRole === 'sv'"
+                      class="btn-reasignar-seg"
+                      @click="reasignarSeguimiento(seg, idx)">
+                📋 Reasignar
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <!-- ══ TAB: TIMELINE ══ -->
+        <template v-if="tabActiva === 'timeline'">
+          <!-- Filtros por categoria -->
+          <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+            <button v-for="cat in tlCategorias" :key="cat.value"
+              :class="['cd-tab-btn', tlFiltro === cat.value ? 'active' : '']"
+              style="padding:6px 14px!important;font-size:.75rem!important"
+              @click="tlFiltro = cat.value; tlPagina = 0">
+              ${ cat.label } (${ tlEventosFiltrados(cat.value).length })
+            </button>
+          </div>
+
+          <div v-if="tlEventosPaginados.length === 0" class="cd-empty">
+            <div class="cd-empty-icon">📋</div>
+            <p>No hay eventos en el timeline</p>
+          </div>
+          <div class="cd-timeline">
+            <div v-for="ev in tlEventosPaginados" :key="ev.id" class="cd-tl-item">
+              <div :class="['cd-tl-dot', tlColor(ev.event_type)]">${ tlIcon(ev.event_type) }</div>
+              <div class="cd-tl-card">
+                <div class="cd-tl-header">
+                  <span class="cd-tl-badge">${ tlLabel(ev.event_type) }</span>
+                  <span class="cd-tl-date">${ formatFecha(ev.created_at) }</span>
+                </div>
+                <div class="cd-tl-desc">${ ev.description }</div>
+                <div v-if="ev.actor_name" class="cd-tl-agent">👤 ${ ev.actor_name }</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Paginado -->
+          <div v-if="tlTotalPaginas > 1" style="display:flex;justify-content:center;gap:6px;margin-top:16px">
+            <button class="btn-reasignar-seg" :disabled="tlPagina === 0" @click="tlPagina--">← Anterior</button>
+            <span style="font-size:.8rem;color:#6b7280;align-self:center">Pagina ${ tlPagina + 1 } de ${ tlTotalPaginas }</span>
+            <button class="btn-reasignar-seg" :disabled="tlPagina >= tlTotalPaginas - 1" @click="tlPagina++">Siguiente →</button>
+          </div>
+        </template>
+
+      </div>
+    </div>
+
+  </template>
+</div>
+
+{{ template "standard_scripts.html" .}}
+{{ template "overlay.html" .}}
+
+<!-- ══ MODAL: NUEVO SEGUIMIENTO ══ -->
+<div v-if="modalNuevoSeg" class="ns-backdrop" @click.self="modalNuevoSeg = false">
+  <div class="ns-modal">
+
+    <!-- Header -->
+    <div class="ns-header">
+      <div>
+        <p class="ns-title">Nuevo seguimiento</p>
+        <p class="ns-subtitle" v-if="caso">${ caso.victimCaseVictimName } · ${ caso.victimCaseICode }</p>
+      </div>
+      <button class="ns-close" @click="modalNuevoSeg = false">✕</button>
+    </div>
+
+    <!-- Campos -->
+    <div class="ns-body">
+
+      <!-- Fecha y Hora en fila -->
+      <div class="ns-row">
+        <div class="ns-field">
+          <label class="ns-label">Fecha <span class="ns-required">*</span></label>
+          <input type="date" class="ns-input" v-model="nuevoSeg.fecha" />
+        </div>
+        <div class="ns-field">
+          <label class="ns-label">Hora <span class="ns-required">*</span></label>
+          <input type="time" class="ns-input" v-model="nuevoSeg.hora" />
+        </div>
+      </div>
+
+      <!-- Agente responsable -->
+      <div class="ns-field">
+        <label class="ns-label">Agente responsable <span class="ns-required">*</span></label>
+        <select class="ns-input" v-model="nuevoSeg.agente">
+          <option value="" disabled>Seleccione el agente</option>
+          <option v-for="ag in agentesRO" :key="ag.icode" :value="ag.icode">
+            ${ ag.fullName || (ag.profile && ag.profile.names ? ag.profile.names + ' ' + ag.profile.lastNames : ag.icode) }
+          </option>
+        </select>
+      </div>
+
+      <!-- Notas -->
+      <div class="ns-field">
+        <label class="ns-label">Notas / Observaciones</label>
+        <textarea class="ns-textarea" v-model="nuevoSeg.notas"
+                  placeholder="Observaciones previas, objetivo del seguimiento..."></textarea>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="ns-footer">
+      <button class="ns-btn-cancel" @click="modalNuevoSeg = false">Cancelar</button>
+      <button class="ns-btn-save" @click="guardarSeguimiento">Guardar seguimiento</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ MODAL: REASIGNAR CASO ══ -->
+<div v-if="modalReasignar" class="ns-backdrop" @click.self="modalReasignar = false">
+  <div class="ns-modal">
+    <div class="ns-header">
+      <div>
+        <p class="ns-title">Reasignar caso</p>
+        <p class="ns-subtitle" v-if="caso">${ caso.victimCaseVictimName } · ${ caso.victimCaseICode }</p>
+      </div>
+      <button class="ns-close" @click="modalReasignar = false">✕</button>
+    </div>
+    <div class="ns-body">
+      <div class="ns-field">
+        <label class="ns-label">Seleccione el operador al que se asignará el caso <span class="ns-required">*</span></label>
+        <select class="ns-input" v-model="reasignarOperador">
+          <option value="" disabled>Seleccione el operador</option>
+          <option v-for="op in operadores" :key="op.icode" :value="op.icode">
+            ${ op.fullName || (op.profile && op.profile.names ? op.profile.names + ' ' + op.profile.lastNames : op.icode) }
+          </option>
+        </select>
+      </div>
+    </div>
+    <div class="ns-footer">
+      <button class="ns-btn-cancel" @click="modalReasignar = false">Cancelar</button>
+      <button class="ns-btn-save" :disabled="!reasignarOperador || reasignando" @click="confirmarReasignacion">
+        ${ reasignando ? 'Asignando...' : 'Asignar operador' }
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: REASIGNAR SEGUIMIENTO ══ -->
+<div v-if="modalReasignarSeg" class="ns-backdrop" @click.self="modalReasignarSeg = false">
+  <div class="ns-modal">
+    <div class="ns-header">
+      <div>
+        <p class="ns-title">Reasignar seguimiento</p>
+        <p class="ns-subtitle" v-if="reasignarSegActual">Seguimiento #${ reasignarSegActual.sequence_number }</p>
+      </div>
+      <button class="ns-close" @click="modalReasignarSeg = false">✕</button>
+    </div>
+    <div class="ns-body">
+      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px 16px;margin-bottom:12px">
+        <p style="font-size:.82rem;color:#b45309;margin:0;min-height:unset">
+          ⚠️ Se recomienda que el seguimiento continue con el agente que inicio la gestion para mantener la continuidad.
+        </p>
+      </div>
+      <div class="ns-field">
+        <label class="ns-label">Seleccione el nuevo agente <span class="ns-required">*</span></label>
+        <select class="ns-input" v-model="reasignarSegAgente">
+          <option value="" disabled>Seleccione el agente</option>
+          <option v-for="ag in agentesRO" :key="ag.icode" :value="ag.icode">
+            ${ ag.fullName || (ag.profile && ag.profile.names ? ag.profile.names + ' ' + ag.profile.lastNames : ag.icode) }
+          </option>
+        </select>
+      </div>
+    </div>
+    <div class="ns-footer">
+      <button class="ns-btn-cancel" @click="modalReasignarSeg = false">Cancelar</button>
+      <button class="ns-btn-save" :disabled="!reasignarSegAgente || reasignandoSeg" @click="confirmarReasignarSeg">
+        ${ reasignandoSeg ? 'Reasignando...' : 'Confirmar reasignacion' }
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+var CASE_ICODE = "{{.caseICode}}";
+var API_URL    = "/api/v1/casos/" + CASE_ICODE + "/detalle";
+
+var home = Vue.createApp({
+  delimiters: ['${', '}'],
+  data() {
+    return {
+      windowTitle: {{.windowTitle}},
+      currentUser: {{.currentUser}},
+      cargando: true,
+      error:    null,
+      caso:     null,
+      followUp: null,
+      form1:    null,
+      form2:    null,
+      entries:  [],
+      followUpsV2: [],
+      townName: '',
+      deptName: '',
+      denunciasAnteriores: 0,
+      timelineEvents: [],
+      tlFiltro: 'TODOS',
+      tlPagina: 0,
+      tlPorPagina: 5,
+      tlCategorias: [
+        { value: 'TODOS', label: 'Todos' },
+        { value: 'REGISTRO', label: 'Registro' },
+        { value: 'SEGUIMIENTO_CREADO', label: 'Seguimientos' },
+        { value: 'REASIGNACION', label: 'Reasig. caso' },
+        { value: 'REASIGNACION_SEGUIMIENTO', label: 'Reasig. seguimiento' },
+        { value: 'CAMBIO_ESTADO', label: 'Cambios de estado' },
+      ],
+      userRole: "{{.userRole}}",
+      operadores: [],
+      agentesRO: [],
+      tabActiva: 'info',
+      modalNuevoSeg: false,
+      modalReasignar: false,
+      reasignarOperador: '',
+      reasignando: false,
+      modalReasignarSeg: false,
+      reasignarSegAgente: '',
+      reasignarSegActual: null,
+      reasignandoSeg: false,
+      nuevoSeg: {
+        fecha: '',
+        hora: '09:00',
+        agente: '',
+        notas: '',
+      },
+      tabs: [
+        { id: 'info',         label: 'Info General',  icono: '👤' },
+        { id: 'derivaciones', label: 'Derivaciones',  icono: '↗️' },
+        { id: 'barreras',     label: 'Barreras',      icono: '⚠️' },
+        { id: 'seguimientos', label: 'Seguimientos',  icono: '📞' },
+        { id: 'timeline',     label: 'Timeline',      icono: '📋' },
+      ],
+    };
+  },
+
+  mounted() {
+    document.title = {{.windowTitle}};
+    document.getElementById('app').style.display = 'block';
+    this.cargarDatos();
+    this.cargarOperadores();
+    this.cargarAgentesRO();
+  },
+
+  computed: {
+    tlEventosPaginados() {
+      var filtrados = this.tlEventosFiltrados(this.tlFiltro);
+      var inicio = this.tlPagina * this.tlPorPagina;
+      return filtrados.slice(inicio, inicio + this.tlPorPagina);
+    },
+    tlTotalPaginas() {
+      var filtrados = this.tlEventosFiltrados(this.tlFiltro);
+      return Math.ceil(filtrados.length / this.tlPorPagina) || 1;
+    },
+    nivelRiesgo() {
+      if (!this.form2 || this.form2.riskLevel === null || this.form2.riskLevel === undefined) return 0;
+      return this.form2.riskLevel;
+    },
+    derivaciones() {
+      var sectores = {
+        'he': { titulo: 'Salud',       icono: '🏥', items: [] },
+        'js': { titulo: 'Justicia',    icono: '⚖️', items: [] },
+        'pm': { titulo: 'Protección',  icono: '🛡️', items: [] },
+        'pt': { titulo: 'Psicosocial', icono: '🧠', items: [] },
+        'os': { titulo: 'Otros',       icono: '💼', items: [] },
+      };
+      this.entries.forEach(function(e) {
+        var key = e.followUpEntrySectorCode || 'os';
+        if (!sectores[key]) key = 'os';
+        sectores[key].items.push(e);
+      });
+      return Object.values(sectores);
+    },
+    timeline() {
+      var eventos = [];
+      if (this.caso) {
+        eventos.push({
+          id: 'registro', tipo: 'Registro del caso', icono: '📋',
+          fecha: this.formatFecha(this.caso.victimCaseCreatedAt),
+          descripcion: 'Caso registrado. Estado: ' + this.labelEstado(this.caso.victimCaseStatus),
+        });
+      }
+      this.entries.forEach(function(e, idx) {
+        if (e.followUpEntryStatus === 'd') {
+          eventos.push({
+            id: 'entry-' + idx, tipo: 'Seguimiento ejecutado', icono: '📞',
+            fecha: e.followUpEntryCompletionDate ? e.followUpEntryCompletionDate.substring(0, 10) : '—',
+            descripcion: 'Sector ' + (e.followUpEntrySectorCode || '—') + ' completado.',
+          });
+        }
+      });
+      return eventos;
+    },
+  },
+
+  methods: {
+    cargarDatos() {
+      var self = this;
+      fetch(API_URL)
+        .then(function(res) {
+          if (!res.ok) throw new Error('Error ' + res.status + ' al cargar el caso');
+          return res.json();
+        })
+        .then(function(data) {
+          self.caso     = data.Case;
+          self.followUp = data.FollowUp;
+          self.form1    = data.Form1;
+          self.form2    = data.Form2;
+          self.entries  = data.Entries || [];
+          self.followUpsV2 = data.FollowUpsV2 || [];
+          self.townName = data.townName || '';
+          self.deptName = data.deptName || '';
+          self.denunciasAnteriores = data.denunciasAnteriores || 0;
+          self.timelineEvents = data.timelineEvents || [];
+          self.cargando = false;
+        })
+        .catch(function(err) {
+          self.error    = err.message;
+          self.cargando = false;
+        });
+    },
+    cargarOperadores() {
+      var self = this;
+      fetch('/api/v1/operadores')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          var lista = [];
+          if (Array.isArray(data)) lista = data;
+          else if (data && Array.isArray(data.data)) lista = data.data;
+          // Filtrar duplicados por icode
+          var vistos = {};
+          self.operadores = lista.filter(function(op) {
+            if (vistos[op.icode]) return false;
+            vistos[op.icode] = true;
+            return true;
+          });
+        })
+        .catch(function(err) { console.log('Error cargando operadores:', err); });
+    },
+    cargarAgentesRO() {
+      var self = this;
+      fetch('/api/v1/agentes-ro')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          var lista = Array.isArray(data) ? data : (data && Array.isArray(data.data) ? data.data : []);
+          var vistos = {};
+          self.agentesRO = lista.filter(function(op) {
+            if (vistos[op.icode]) return false;
+            vistos[op.icode] = true;
+            return true;
+          });
+        })
+        .catch(function(err) { console.log('Error cargando agentes RO:', err); });
+    },
+    formatFecha(f) { return f ? f.substring(0, 10) : '—'; },
+    nombreAgente(agentId) {
+      // Buscar en agentes RO primero, luego en operadores
+      var ag = this.agentesRO.find(function(a) { return a.icode === agentId; });
+      if (!ag) ag = this.operadores.find(function(a) { return a.icode === agentId; });
+      if (ag) return ag.fullName || (ag.profile ? ag.profile.names + ' ' + ag.profile.lastNames : agentId);
+      return agentId;
+    },
+    labelEstado(s) {
+      var m = { 'ra':'Activo', 'is':'Con novedad', 'cd':'Cerrado', 'ex':'Vencido', 'r':'Por aprobar', 'fc':'Recontacto' };
+      return m[s] || s || '—';
+    },
+    labelRiesgo(n) {
+      if (n === 0 || n === null || n === undefined) return 'Sin evaluar';
+      if (n === 1) return 'Bajo';
+      if (n === 2) return 'Medio';
+      if (n === 3 || n === 4) return 'Alto';
+      return 'Extremo';
+    },
+    badgeRiesgo(n) {
+      if (n === 0 || n === null || n === undefined) return 'badge-riesgo badge-cerrado';
+      if (n === 1) return 'badge-riesgo badge-bajo';
+      if (n === 2) return 'badge-riesgo badge-medio';
+      if (n === 3 || n === 4) return 'badge-riesgo badge-alto';
+      return 'badge-riesgo badge-critico';
+    },
+    labelRelAgresor(code) {
+      var m = {'fl':'Familiar conviviente','fn':'Familiar no conviviente','fr':'Amigo','ex':'Expareja',
+        'pn':'Pareja permanente/temporal','wp':'Compañero de trabajo','ng':'Vecino','sp':'Compañero de estudios',
+        'pf':'Amigo de la pareja','fm':'Familiar','bs':'Jefe','bf':'Novio',
+        'fd':'Familiar diferente a la pareja','ot':'Otro','na':'Ninguno','tp':'Pareja temporal'};
+      return m[code] || code || '—';
+    },
+    tlColor(type) {
+      var m = {'REGISTRO':'cd-tl-purple','SEGUIMIENTO_CREADO':'cd-tl-green','REASIGNACION':'cd-tl-blue','REASIGNACION_SEGUIMIENTO':'cd-tl-orange','CAMBIO_ESTADO':'cd-tl-orange','BARRERA_IDENTIFICADA':'cd-tl-orange','NOTA':'cd-tl-gray'};
+      return m[type] || 'cd-tl-gray';
+    },
+    tlIcon(type) {
+      var m = {'REGISTRO':'📋','SEGUIMIENTO_CREADO':'📞','REASIGNACION':'🔄','REASIGNACION_SEGUIMIENTO':'📞','CAMBIO_ESTADO':'🔀','BARRERA_IDENTIFICADA':'⚠️','NOTA':'📝'};
+      return m[type] || '•';
+    },
+    tlLabel(type) {
+      var m = {'REGISTRO':'Registro del caso','SEGUIMIENTO_CREADO':'Seguimiento creado','REASIGNACION':'Reasignacion caso','REASIGNACION_SEGUIMIENTO':'Reasignacion seguimiento','CAMBIO_ESTADO':'Cambio de estado','BARRERA_IDENTIFICADA':'Barrera identificada','NOTA':'Nota'};
+      return m[type] || type;
+    },
+    tlEventosFiltrados(filtro) {
+      if (filtro === 'TODOS') return this.timelineEvents;
+      return this.timelineEvents.filter(function(ev) { return ev.event_type === filtro; });
+    },
+    badgeEstado(s) {
+      var m = { 'ra':'badge-estado badge-activo', 'is':'badge-estado badge-seguimiento', 'cd':'badge-estado badge-cerrado', 'ex':'badge-estado badge-vencido' };
+      return m[s] || 'badge-estado badge-cerrado';
+    },
+    labelEntryStatus(s) {
+      var m = { 'p':'En progreso', 'd':'Realizado', 'u':'Sin iniciar', 'x':'Expirado' };
+      return m[s] || s || '—';
+    },
+    badgeEntryStatus(s) {
+      var m = { 'p':'cd-bd-proceso', 'd':'cd-bd-completado', 'u':'cd-bd-articulando', 'x':'cd-bd-resuelto' };
+      return m[s] || 'cd-bd-proceso';
+    },
+    guardarSeguimiento() {
+      if (!this.nuevoSeg.fecha || !this.nuevoSeg.agente) {
+        alert('Debe completar la fecha y seleccionar un agente.');
+        return;
+      }
+      var self = this;
+      var scheduledDate = this.nuevoSeg.fecha;
+      if (this.nuevoSeg.hora) {
+        scheduledDate += 'T' + this.nuevoSeg.hora;
+      }
+      var url = '/api/v1/casos/' + CASE_ICODE + '/seguimiento';
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_id: this.nuevoSeg.agente,
+          scheduled_date: scheduledDate,
+          notas: this.nuevoSeg.notas
+        })
+      })
+        .then(function(res) {
+          if (!res.ok) throw new Error('Error al crear seguimiento');
+          return res.json();
+        })
+        .then(function() {
+          alert('Seguimiento creado correctamente');
+          self.modalNuevoSeg = false;
+          self.nuevoSeg = { fecha: '', hora: '09:00', agente: '', notas: '' };
+          self.cargarDatos(); // Recargar para ver el nuevo seguimiento
+        })
+        .catch(function(err) {
+          alert(err.message);
+        });
+    },
+    confirmarReasignacion() {
+      var self = this;
+      var opSeleccionado = this.operadores.find(function(op) { return op.icode === self.reasignarOperador; });
+      var nombreOp = opSeleccionado ? (opSeleccionado.fullName || (opSeleccionado.profile ? opSeleccionado.profile.names + ' ' + opSeleccionado.profile.lastNames : '')) : '';
+
+      self.reasignando = true;
+      var url = '/salvia/asignar_operadores/single/' + CASE_ICODE + '/' + self.reasignarOperador;
+
+      fetch(url, { method: 'POST' })
+        .then(function(res) {
+          if (res.ok) {
+            fetch('/api/v1/casos/' + CASE_ICODE + '/timeline', {
+              method: 'POST',
+              headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({event_type:'REASIGNACION', description:'Caso reasignado a ' + nombreOp, actor_name: self.currentUser})
+            });
+            self.modalReasignar = false;
+            self.reasignarOperador = '';
+            self.cargarDatos();
+          }
+          self.reasignando = false;
+        })
+        .catch(function() { self.reasignando = false; });
+    },
+    reasignarSeguimiento(seg, idx) {
+      this.reasignarSegActual = seg;
+      this.reasignarSegAgente = '';
+      this.modalReasignarSeg = true;
+    },
+    confirmarReasignarSeg() {
+      var self = this;
+      var seg = this.reasignarSegActual;
+      var ag = this.agentesRO.find(function(a) { return a.icode === self.reasignarSegAgente; });
+      var nombreAg = ag ? (ag.fullName || (ag.profile ? ag.profile.names + ' ' + ag.profile.lastNames : '')) : '';
+
+      self.reasignandoSeg = true;
+
+      // Actualizar agent_id en follow_up_v2
+      fetch('/api/v1/seguimiento/' + seg.id + '/reasignar', {
+        method: 'PUT',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ agent_id: self.reasignarSegAgente })
+      }).then(function(res) {
+        if (!res.ok) throw new Error('Error al reasignar');
+        // Registrar en timeline
+        return fetch('/api/v1/casos/' + CASE_ICODE + '/timeline', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            event_type: 'REASIGNACION_SEGUIMIENTO',
+            description: 'Seguimiento #' + (seg.sequence_number || '') + ' reasignado a ' + nombreAg,
+            actor_name: self.currentUser
+          })
+        });
+      }).then(function() {
+        self.modalReasignarSeg = false;
+        self.reasignarSegActual = null;
+        self.reasignarSegAgente = '';
+        self.reasignandoSeg = false;
+        self.cargarDatos();
+      }).catch(function() { self.reasignandoSeg = false; });
+    },
+  }
+});
+
+home.mount('#app');
+</script>
