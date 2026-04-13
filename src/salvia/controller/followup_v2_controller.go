@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // FollowUpV2Controller maneja los endpoints del calendario de seguimientos (HU-027).
@@ -48,6 +49,7 @@ func (c *FollowUpV2Controller) RegisterRoutes(api *gin.RouterGroup) {
 	{
 		myDay.GET("/my-day", c.GetMyDayFollowUps)
 		myDay.POST("/:id/attempts", c.RegisterAttempt)
+		myDay.PUT("/:id/close", c.CloseCase)
 	}
 	// Seguimientos Área — rutas para supervisores
 	seg := api.Group("/seguimientos")
@@ -451,4 +453,29 @@ func (c *FollowUpV2Controller) Reschedule(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{"message": "seguimiento reagendado exitosamente"})
+}
+
+// CloseCase godoc
+//
+//	@Summary		Cerrar seguimiento y futuros del mismo caso
+//	@Tags			Seguimientos
+//	@Produce		json
+//	@Param			id	path		string				true	"UUID del seguimiento"
+//	@Success		200	{object}	map[string]string	"Cierre exitoso"
+//	@Failure		404	{object}	map[string]string	"No encontrado"
+//	@Failure		500	{object}	map[string]string	"Error interno"
+//	@Router			/follow-ups/{id}/close [put]
+func (c *FollowUpV2Controller) CloseCase(ctx *gin.Context) {
+	id := ctx.Param("id")
+
+	err := c.svc.CloseCaseFollowUps(ctx.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "seguimiento no encontrado"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno al cerrar seguimientos"})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"message": "seguimientos cerrados exitosamente"})
 }

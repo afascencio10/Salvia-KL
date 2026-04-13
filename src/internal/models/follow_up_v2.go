@@ -12,6 +12,7 @@ const (
 	FollowUpStatusRealizado    = "REALIZADO"
 	FollowUpStatusVencido      = "VENCIDO"
 	FollowUpStatusReprogramado = "REPROGRAMADO"
+	FollowUpStatusCerrado      = "CERRADO"
 )
 
 type FollowUpV2 struct {
