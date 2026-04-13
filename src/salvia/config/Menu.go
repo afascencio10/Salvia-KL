@@ -237,6 +237,17 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	"get_seguimientos_area":        {"ad": true, "sv": true},
 	"get_hacer_seguimiento":        {"ro": true, "ad": true},
 	"generate_calendario_seguimiento": {"ad": true, "sv": true, "op": true},
+
+	"get_case_detail_sv": {
+		"op": true,
+		"ro": true,
+		"do": true,
+		"et": true,
+		"us": true,
+		"sv": true,
+		"no": true,
+		"fo": true,
+	},
 }
 
 //Menús del sistema. Se filtra por el tipo de menú (ie/ default) y luego por la sección principal repesentada por el locale.
