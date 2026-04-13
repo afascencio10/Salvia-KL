@@ -59,6 +59,7 @@ func main() {
         &models.EmergencyMeasure{},
         &models.PsychosocialSupport{},
         &models.EconomicStabilization{},
+        &models.BarrierV2{},
     } {
         if err := gormDB.AutoMigrate(m); err != nil {
             log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -66,46 +67,62 @@ func main() {
     }
 
     // Repositories
-    formRepo               := repository.NewFormRepository(gormDB)
-    formSectionRepo        := repository.NewFormSectionRepository(gormDB)
-    questionRepo           := repository.NewQuestionRepository(gormDB)
-    repeaterGroupRepo      := repository.NewRepeaterGroupRepository(gormDB)
-    visibilityCondRepo     := repository.NewVisibilityConditionRepository(gormDB)
-    formSubmissionRepo     := repository.NewFormSubmissionRepository(gormDB)
-    repeaterEntryRepo      := repository.NewRepeaterEntryRepository(gormDB)
-    answerRepo             := repository.NewAnswerRepository(gormDB)
-    followUpRepo           := repository.NewFollowUpRepository(gormDB)
-    optionRepo             := repository.NewOptionRepository(gormDB)
-    barrierV2Repo          := repository.NewBarrierV2Repository(gormDB)
-    victimCaseLightRepo    := repository.NewVictimCaseLightRepository(gormDB)
-    townLightRepo          := repository.NewTownLightRepository(gormDB)
-    attemptRepo            := repository.NewFollowUpAttemptRepository(gormDB)
-    emRepo                 := repository.NewEmergencyMeasureRepository(gormDB)
-    psRepo                 := repository.NewPsychosocialSupportRepository(gormDB)
-    esRepo                 := repository.NewEconomicStabilizationRepository(gormDB)
-    agentLightRepo         := repository.NewAgentLightRepository(gormDB)
+    formRepo            := repository.NewFormRepository(gormDB)
+    formSectionRepo     := repository.NewFormSectionRepository(gormDB)
+    questionRepo        := repository.NewQuestionRepository(gormDB)
+    repeaterGroupRepo   := repository.NewRepeaterGroupRepository(gormDB)
+    visibilityCondRepo  := repository.NewVisibilityConditionRepository(gormDB)
+    formSubmissionRepo  := repository.NewFormSubmissionRepository(gormDB)
+    repeaterEntryRepo   := repository.NewRepeaterEntryRepository(gormDB)
+    answerRepo          := repository.NewAnswerRepository(gormDB)
+    followUpRepo        := repository.NewFollowUpRepository(gormDB)
+    optionRepo          := repository.NewOptionRepository(gormDB)
+    barrierV2Repo       := repository.NewBarrierV2Repository(gormDB)
+    victimCaseLightRepo := repository.NewVictimCaseLightRepository(gormDB)
+    townLightRepo       := repository.NewTownLightRepository(gormDB)
+    attemptRepo         := repository.NewFollowUpAttemptRepository(gormDB)
+    emRepo              := repository.NewEmergencyMeasureRepository(gormDB)
+    psRepo              := repository.NewPsychosocialSupportRepository(gormDB)
+    esRepo              := repository.NewEconomicStabilizationRepository(gormDB)
+    agentLightRepo      := repository.NewAgentLightRepository(gormDB)
 
     // Services
     formSvc := service.NewFormService(service.FormServiceDeps{
-        FormRepo:           formRepo,
-        FormSectionRepo:    formSectionRepo,
-        QuestionRepo:       questionRepo,
-        RepeaterGroupRepo:  repeaterGroupRepo,
-        OptionRepo:         optionRepo,
-        VisibilityCondRepo: visibilityCondRepo,
-        FormSubmissionRepo: formSubmissionRepo,
-        RepeaterEntryRepo:  repeaterEntryRepo,
-        AnswerRepo:         answerRepo,
+        FormRepo:                  formRepo,
+        FormSectionRepo:           formSectionRepo,
+        QuestionRepo:              questionRepo,
+        RepeaterGroupRepo:         repeaterGroupRepo,
+        OptionRepo:                optionRepo,
+        VisibilityCondRepo:        visibilityCondRepo,
+        FormSubmissionRepo:        formSubmissionRepo,
+        RepeaterEntryRepo:         repeaterEntryRepo,
+        AnswerRepo:                answerRepo,
+        FollowUpRepo:              followUpRepo,
+        EmergencyMeasureRepo:      emRepo,
+        PsychosocialSupportRepo:   psRepo,
+        EconomicStabilizationRepo: esRepo,
+        BarrierV2Repo:             barrierV2Repo,
     })
-    formSectionSvc        := service.NewFormSectionService(formSectionRepo)
-    questionSvc           := service.NewQuestionService(questionRepo)
-    repeaterGroupSvc      := service.NewRepeaterGroupService(repeaterGroupRepo)
-    visibilityCondSvc     := service.NewVisibilityConditionService(visibilityCondRepo)
-    formSubmissionSvc     := service.NewFormSubmissionService(formSubmissionRepo)
-    repeaterEntrySvc      := service.NewRepeaterEntryService(repeaterEntryRepo)
-    answerSvc             := service.NewAnswerService(answerRepo)
-    optionSvc             := service.NewOptionService(optionRepo)
-    followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo)
+    formSectionSvc   := service.NewFormSectionService(formSectionRepo)
+    questionSvc      := service.NewQuestionService(questionRepo)
+    repeaterGroupSvc := service.NewRepeaterGroupService(repeaterGroupRepo)
+    visibilityCondSvc := service.NewVisibilityConditionService(visibilityCondRepo)
+    formSubmissionSvc := service.NewFormSubmissionService(formSubmissionRepo)
+    repeaterEntrySvc := service.NewRepeaterEntryService(repeaterEntryRepo)
+    answerSvc        := service.NewAnswerService(answerRepo)
+    optionSvc        := service.NewOptionService(optionRepo)
+    followUpV2Svc    := service.NewFollowUpV2Service(
+        followUpRepo,
+        formSubmissionRepo,
+        barrierV2Repo,
+        victimCaseLightRepo,
+        townLightRepo,
+        attemptRepo,
+        emRepo,
+        psRepo,
+        esRepo,
+        agentLightRepo,
+    )
 
     // Inyectar el servicio en el controller legacy para generación automática del calendario
     salvia_legacy.FollowUpSvc = followUpV2Svc

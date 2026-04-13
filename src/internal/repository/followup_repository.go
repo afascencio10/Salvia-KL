@@ -34,7 +34,15 @@ type FollowUpRepository interface {
 	FindPendingByTeamGroupedByAgent(ctx context.Context, team string, fecha string) ([]AgentWorkload, error)
 	FindAgentsByTeam(ctx context.Context, team string) ([]AgentOption, error)
 	Reschedule(ctx context.Context, id string, fields map[string]interface{}) error
+	
+	// Cierre de casos
 	CloseCaseFollowUps(ctx context.Context, followUpID string) error
+
+	// Hacer seguimiento
+	LoadVictimInfoByCaseID(ctx context.Context, caseID string) (*VictimCaseInfo, error)
+	UpdateFormSubmissionID(ctx context.Context, id string, fsID string) error
+	FindByFormSubmissionID(ctx context.Context, formSubmissionID string) (*models.FollowUpV2, error)
+	UpdateStatus(ctx context.Context, id string, status string) error
 }
 
 // FollowUpFilters contiene los filtros dinámicos para la consulta paginada.
@@ -307,4 +315,55 @@ func (r *followUpRepository) CloseCaseFollowUps(ctx context.Context, followUpID 
 		Where("case_id = ? AND status IN ?", fu.CaseID,
 			[]string{models.FollowUpStatusPendiente, models.FollowUpStatusReprogramado}).
 		Update("status", models.FollowUpStatusCerrado).Error
+}
+
+// LoadVictimInfoByCaseID obtiene la información resumida del caso para la pantalla hacer-seguimiento.
+func (r *followUpRepository) LoadVictimInfoByCaseID(ctx context.Context, caseID string) (*VictimCaseInfo, error) {
+	var info VictimCaseInfo
+	sql := `
+		SELECT
+			COALESCE(vc.victim_case_victim_names, '')                   AS names,
+			COALESCE(vc.victim_case_victim_last_names, '')              AS last_names,
+			COALESCE(t.town_name, '')                                   AS town_name,
+			COALESCE(f1.victim_case_form1_victim_phone, '')             AS phone,
+			COALESCE(f1.victim_case_form1_victim_gender_identity, '')   AS gender_identity,
+			COALESCE(f1.victim_case_form1_victim_sexual_orientation, '') AS sexual_orientation,
+			COALESCE(f1.victim_case_form1_victim_contact_phone, '')     AS contact_phone,
+			f1.victim_case_form1_age                                    AS age
+		FROM salvia.victim_case vc
+		LEFT JOIN salvia.victim_case_form1 f1 ON f1.victim_case_form1_victim_case = vc.victim_case_id
+		LEFT JOIN security.town t ON t.town_code = vc.victim_case_victim_town_code
+		WHERE vc.victim_case_id::text = ?
+		LIMIT 1`
+	return &info, r.db.WithContext(ctx).Raw(sql, caseID).Scan(&info).Error
+}
+
+// UpdateFormSubmissionID asigna un formSubmissionId a un seguimiento.
+func (r *followUpRepository) UpdateFormSubmissionID(ctx context.Context, id string, fsID string) error {
+	return r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Where("id = ?", id).
+		Update("form_submission_id", fsID).Error
+}
+
+// FindByFormSubmissionID busca el seguimiento asociado a un formSubmissionId.
+func (r *followUpRepository) FindByFormSubmissionID(ctx context.Context, formSubmissionID string) (*models.FollowUpV2, error) {
+	var fu models.FollowUpV2
+	err := r.db.WithContext(ctx).
+		Where("form_submission_id = ?", formSubmissionID).
+		First(&fu).Error
+	return &fu, err
+}
+
+// UpdateStatus actualiza el status de un seguimiento.
+// Si el status es REALIZADO también registra el completed_at.
+func (r *followUpRepository) UpdateStatus(ctx context.Context, id string, status string) error {
+	fields := map[string]interface{}{"status": status}
+	if status == models.FollowUpStatusRealizado {
+		fields["completed_at"] = time.Now()
+	}
+	return r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Where("id = ?", id).
+		Updates(fields).Error
 }
