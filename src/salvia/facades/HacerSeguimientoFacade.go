@@ -4,6 +4,7 @@ import (
 	common_facades "bitsflow/common/facades"
 	"bitsflow/common/utils"
 	salvia_config "bitsflow/salvia/config"
+	"net/http"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -14,7 +15,16 @@ import (
 func HacerSeguimientoGET(c *gin.Context) {
 	session := sessions.Default(c)
 	sessionID := session.Get("userData").(string)
-	s, _ := utils.GetCommonSession(sessionID)
+	s, err := utils.GetCommonSession(sessionID)
+	if err != nil {
+		c.Redirect(http.StatusTemporaryRedirect, "/static/landing.html")
+		c.Abort()
+		return
+	}
+
+	if !utils.CheckPermission(salvia_config.PermissionsByRole, "get_hacer_seguimiento", s.CurrentRole, c) {
+		return
+	}
 
 	followUpID := c.Param("id")
 
@@ -34,6 +44,7 @@ func HacerSeguimientoGET(c *gin.Context) {
 			"locale":      salvia_config.Locale,
 			"lang":        s.Lang,
 			"followUpId":  followUpID,
+			"userICode":   s.UserICode,
 		},
 		utils.GetFullHtmlFuncMap(),
 	)

@@ -56,6 +56,10 @@ func main() {
 		&models.Answer{},
 		&models.Option{},
 		&models.FollowUpV2{},
+		&models.EmergencyMeasure{},
+		&models.PsychosocialSupport{},
+		&models.EconomicStabilization{},
+		&models.BarrierV2{},
 	} {
 		if err := gormDB.AutoMigrate(m); err != nil {
 			log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -63,28 +67,37 @@ func main() {
 	}
 
 	// Repositories
-	formRepo               := repository.NewFormRepository(gormDB)
-	formSectionRepo        := repository.NewFormSectionRepository(gormDB)
-	questionRepo           := repository.NewQuestionRepository(gormDB)
-	repeaterGroupRepo      := repository.NewRepeaterGroupRepository(gormDB)
-	visibilityCondRepo     := repository.NewVisibilityConditionRepository(gormDB)
-	formSubmissionRepo     := repository.NewFormSubmissionRepository(gormDB)
-	repeaterEntryRepo      := repository.NewRepeaterEntryRepository(gormDB)
-	answerRepo             := repository.NewAnswerRepository(gormDB)
-	followUpRepo           := repository.NewFollowUpRepository(gormDB)
-	optionRepo            := repository.NewOptionRepository(gormDB)
+	formRepo                  := repository.NewFormRepository(gormDB)
+	formSectionRepo           := repository.NewFormSectionRepository(gormDB)
+	questionRepo              := repository.NewQuestionRepository(gormDB)
+	repeaterGroupRepo         := repository.NewRepeaterGroupRepository(gormDB)
+	visibilityCondRepo        := repository.NewVisibilityConditionRepository(gormDB)
+	formSubmissionRepo        := repository.NewFormSubmissionRepository(gormDB)
+	repeaterEntryRepo         := repository.NewRepeaterEntryRepository(gormDB)
+	answerRepo                := repository.NewAnswerRepository(gormDB)
+	followUpRepo              := repository.NewFollowUpRepository(gormDB)
+	optionRepo                := repository.NewOptionRepository(gormDB)
+	emergencyMeasureRepo      := repository.NewEmergencyMeasureRepository(gormDB)
+	psychosocialSupportRepo   := repository.NewPsychosocialSupportRepository(gormDB)
+	economicStabilizationRepo := repository.NewEconomicStabilizationRepository(gormDB)
+	barrierV2Repo             := repository.NewBarrierV2Repository(gormDB)
 
 	// Services
 	formSvc               := service.NewFormService(service.FormServiceDeps{
-		FormRepo:           formRepo,
-		FormSectionRepo:    formSectionRepo,
-		QuestionRepo:       questionRepo,
-		RepeaterGroupRepo:  repeaterGroupRepo,
-		OptionRepo:         optionRepo,
-		VisibilityCondRepo: visibilityCondRepo,
-		FormSubmissionRepo: formSubmissionRepo,
-		RepeaterEntryRepo:  repeaterEntryRepo,
-		AnswerRepo:         answerRepo,
+		FormRepo:                  formRepo,
+		FormSectionRepo:           formSectionRepo,
+		QuestionRepo:              questionRepo,
+		RepeaterGroupRepo:         repeaterGroupRepo,
+		OptionRepo:                optionRepo,
+		VisibilityCondRepo:        visibilityCondRepo,
+		FormSubmissionRepo:        formSubmissionRepo,
+		RepeaterEntryRepo:         repeaterEntryRepo,
+		AnswerRepo:                answerRepo,
+		FollowUpRepo:              followUpRepo,
+		EmergencyMeasureRepo:      emergencyMeasureRepo,
+		PsychosocialSupportRepo:   psychosocialSupportRepo,
+		EconomicStabilizationRepo: economicStabilizationRepo,
+		BarrierV2Repo:             barrierV2Repo,
 	})
 	formSectionSvc        := service.NewFormSectionService(formSectionRepo)
 	questionSvc           := service.NewQuestionService(questionRepo)
@@ -93,7 +106,7 @@ func main() {
 	formSubmissionSvc     := service.NewFormSubmissionService(formSubmissionRepo)
 	repeaterEntrySvc      := service.NewRepeaterEntryService(repeaterEntryRepo)
 	answerSvc             := service.NewAnswerService(answerRepo)
-	followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo)
+	followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo)
 	optionSvc             := service.NewOptionService(optionRepo)
 
 	// Inyectar el servicio en el controller legacy para generación automática del calendario
