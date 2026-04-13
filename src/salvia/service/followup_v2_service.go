@@ -64,7 +64,7 @@ type FollowUpV2Service interface {
 	// Nuevos para "Mis Seguimientos" - Retornan entidades del dominio
 	GetAgentDayFollowUps(ctx context.Context, agentID string, date time.Time) (pending []models.FollowUpV2, priority []models.FollowUpV2, completed []models.FollowUpV2, err error)
 	GetMyDayFollowUpsEnriched(ctx context.Context, agentID string, date time.Time) (*models.MyDayResponse, error)
-	RegisterFailedAttempt(ctx context.Context, followUpID string, reason string) (*models.FollowUpV2, error)
+	RegisterContactAttempt(ctx context.Context, followUpID string, reason string, wasAnswered bool) (*models.FollowUpV2, error)
 
 	// Seguimientos Área
 	GetByTeamPaginated(ctx context.Context, team string, filters repository.FollowUpFilters, page, limit int) ([]models.FollowUpV2, int64, error)
@@ -463,8 +463,8 @@ func (s *followUpV2Service) getCompletedByAgentAndDate(ctx context.Context, agen
 	return s.repo.FindRealizedTodayByAgent(ctx, agentID, date)
 }
 
-// RegisterFailedAttempt registra un intento fallido de contacto
-func (s *followUpV2Service) RegisterFailedAttempt(ctx context.Context, followUpID string, reason string) (*models.FollowUpV2, error) {
+// RegisterContactAttempt registra un intento de contacto (exitoso o fallido)
+func (s *followUpV2Service) RegisterContactAttempt(ctx context.Context, followUpID string, reason string, wasAnswered bool) (*models.FollowUpV2, error) {
 	// 1. Validar que el seguimiento existe
 	fu, err := s.repo.FindByID(ctx, followUpID)
 	if err != nil {
@@ -474,8 +474,8 @@ func (s *followUpV2Service) RegisterFailedAttempt(ctx context.Context, followUpI
 		return nil, fmt.Errorf("followup: error buscando seguimiento: %w", err)
 	}
 
-	// 2. Validar que no haya excedido el máximo de intentos (9)
-	if fu.Attempts >= 9 {
+	// 2. Validar que no haya excedido el máximo de intentos (9) si no contestó
+	if !wasAnswered && fu.Attempts >= 9 {
 		return nil, fmt.Errorf("followup: se alcanzó el máximo de intentos permitidos")
 	}
 
@@ -483,7 +483,7 @@ func (s *followUpV2Service) RegisterFailedAttempt(ctx context.Context, followUpI
 	attempt := &models.FollowUpAttempt{
 		FollowUpID:  followUpID,
 		Reason:      reason,
-		WasAnswered: false, // Este método es para intentos fallidos
+		WasAnswered: wasAnswered,
 	}
 	if err := s.attemptRepo.CreateAttempt(ctx, attempt); err != nil {
 		return nil, fmt.Errorf("followup: error guardando intento: %w", err)

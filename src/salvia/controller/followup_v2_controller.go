@@ -265,7 +265,8 @@ func (c *FollowUpV2Controller) RegisterAttempt(ctx *gin.Context) {
 	followUpID := ctx.Param("id")
 
 	var body struct {
-		Reason string `json:"reason" binding:"required"`
+		Reason      string `json:"reason" binding:"required"`
+		WasAnswered bool   `json:"was_answered"`
 	}
 
 	if err := ctx.ShouldBindJSON(&body); err != nil {
@@ -273,7 +274,7 @@ func (c *FollowUpV2Controller) RegisterAttempt(ctx *gin.Context) {
 		return
 	}
 
-	fu, err := c.svc.RegisterFailedAttempt(ctx.Request.Context(), followUpID, body.Reason)
+	fu, err := c.svc.RegisterContactAttempt(ctx.Request.Context(), followUpID, body.Reason, body.WasAnswered)
 	if err != nil {
 		if errors.Is(err, service.ErrFollowUpNotFound) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "seguimiento no encontrado"})
@@ -298,7 +299,8 @@ func (c *FollowUpV2Controller) RegisterAttempt(ctx *gin.Context) {
 
 // RegisterAttemptInput es el body de entrada para registrar un intento
 type RegisterAttemptInput struct {
-	Reason string `json:"reason" binding:"required"`
+	Reason      string `json:"reason" binding:"required"`
+	WasAnswered bool   `json:"was_answered"`
 }
 
 // ginQueryInt está definido en form_controller.go (mismo package controller).
