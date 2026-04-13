@@ -179,9 +179,38 @@
 
         <!-- ══ TAB: BARRERAS ══ -->
         <template v-if="tabActiva === 'barreras'">
-          <div class="cd-empty">
+          <div class="cd-seg-stats">
+            <div class="cd-sstat">
+              <div class="cd-lbl">Total barreras</div>
+              <div class="cd-val">${ barriers.length }</div>
+            </div>
+            <div class="cd-sstat" style="background:#fef2f2;border-color:#fca5a5">
+              <div class="cd-lbl" style="color:#dc2626!important">Abiertas</div>
+              <div class="cd-val" style="color:#dc2626!important">${ barriers.filter(b => b.status === 'OPEN').length }</div>
+            </div>
+            <div class="cd-sstat cd-sstat-green">
+              <div class="cd-lbl">Resueltas</div>
+              <div class="cd-val">${ barriers.filter(b => b.status !== 'OPEN').length }</div>
+            </div>
+          </div>
+          <div v-if="barriers.length === 0" class="cd-empty">
             <div class="cd-empty-icon">✓</div>
             <p>No se han identificado barreras en este caso</p>
+          </div>
+          <div v-for="b in barriers" :key="b.id" class="cd-seg-item" :class="b.status === 'OPEN' ? 'pending' : 'done'">
+            <div :class="['cd-seg-indicator', b.status === 'OPEN' ? 'cd-si-pending' : 'cd-si-done']">
+              ${ b.status === 'OPEN' ? '⚠' : '✓' }
+            </div>
+            <div class="cd-seg-info">
+              <div class="cd-seg-title">
+                <p>${ b.sector || 'Sin sector' }</p>
+                <span :class="['cd-seg-badge', b.status === 'OPEN' ? 'cd-sb-pending' : 'cd-sb-done']">
+                  ${ b.status }
+                </span>
+              </div>
+              <div style="font-size:.83rem;color:#374151;margin-top:4px">${ b.description }</div>
+              <div class="cd-seg-meta">📅 ${ formatFecha(b.createdAt) }</div>
+            </div>
           </div>
         </template>
 
@@ -438,6 +467,7 @@ var home = Vue.createApp({
       emergencyMeasures: [],
       psychosocialSupports: [],
       economicStabilizations: [],
+      barriers: [],
       tlFiltro: 'TODOS',
       tlPagina: 0,
       tlPorPagina: 5,
@@ -558,6 +588,7 @@ var home = Vue.createApp({
           self.emergencyMeasures = data.emergencyMeasures || [];
           self.psychosocialSupports = data.psychosocialSupports || [];
           self.economicStabilizations = data.economicStabilizations || [];
+          self.barriers = data.barriers || [];
           self.cargando = false;
         })
         .catch(function(err) {

@@ -25,6 +25,7 @@ type CaseDetailData struct {
 	EmergencyMeasures      []models.EmergencyMeasure      `json:"emergencyMeasures"`
 	PsychosocialSupports   []models.PsychosocialSupport   `json:"psychosocialSupports"`
 	EconomicStabilizations []models.EconomicStabilization `json:"economicStabilizations"`
+	Barriers               []models.BarrierV2              `json:"barriers"`
 }
 
 type CaseDetailRepository interface {
@@ -136,6 +137,10 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 	var es []models.EconomicStabilization
 	r.db.WithContext(ctx).Where("case_id = ?", vc.VictimCaseICode).Find(&es)
 	result.EconomicStabilizations = es
+
+	var barriers []models.BarrierV2
+	r.db.WithContext(ctx).Where("case_id = ?", vc.VictimCaseICode).Find(&barriers)
+	result.Barriers = barriers
 
 	// Si no tiene follow_up asignado, retornar solo el caso, form1 y followUpsV2
 	if vc.VictimCaseFollowUpId == nil || *vc.VictimCaseFollowUpId == 0 {
