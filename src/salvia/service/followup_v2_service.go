@@ -381,9 +381,11 @@ func (s *followUpV2Service) GetMyDayFollowUpsEnriched(ctx context.Context, agent
 				ScheduledTime:  fu.ScheduledTime,
 				Attempts:       fu.Attempts,
 				IsPriority:     fu.ScheduledTime != "" && fu.ScheduledTime != "00:00:00", // Nueva regla
-				Status:         fu.Status,
-				SequenceNumber: fu.SequenceNumber,
-				LastAttemptAt:  fu.LastAttemptAt,
+				Status:             fu.Status,
+				SequenceNumber:     fu.SequenceNumber,
+				LastAttemptAt:      fu.LastAttemptAt,
+				ReassignmentReason: fu.ReassignmentReason,
+				Team:               fu.Team,
 			}
 
 			// Obtener datos del caso

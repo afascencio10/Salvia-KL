@@ -3052,3 +3052,74 @@ header img {
     color: #6b7280 !important;
     font-size: 0.875rem !important;
 }
+/* --- Tooltip Premium Custom --- */
+.ms-tooltip-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.5rem;
+}
+
+.ms-tooltip-trigger {
+    color: #6366f1;
+    cursor: pointer;
+    transition: transform 0.2s;
+    font-size: 1rem;
+}
+
+.ms-tooltip-trigger:hover {
+    transform: scale(1.2);
+}
+
+.ms-tooltip-content {
+    visibility: hidden;
+    position: absolute;
+    bottom: 150%;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: white;
+    border: 1px solid #e5e7eb;
+    min-width: 250px;
+    max-width: 350px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+    z-index: 10000; /* Asegurar que flote sobre todo */
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    pointer-events: none;
+    text-align: left;
+}
+
+.ms-tooltip-container:hover .ms-tooltip-content {
+    visibility: visible;
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.ms-tooltip-arrow {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -8px;
+    border-width: 8px;
+    border-style: solid;
+    border-color: white transparent transparent transparent;
+}
+
+.ms-tooltip-header {
+    font-weight: 700;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: #7c3aed;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.05em;
+}
+
+.ms-tooltip-body {
+    font-size: 0.8125rem;
+    color: #4b5563;
+    line-height: 1.5;
+    white-space: normal !important;
+    word-wrap: break-word;
+}

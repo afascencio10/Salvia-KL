@@ -59,6 +59,8 @@ type MyDayFollowUpResponse struct {
 	Status           string            `json:"status"`
 	SequenceNumber   int               `json:"sequence_number"`
 	LastAttemptAt    *time.Time        `json:"last_attempt_at,omitempty"`
+	ReassignmentReason *string          `json:"reassignment_reason,omitempty"`
+	Team             string            `json:"team"`
 	FollowUpAttempts []FollowUpAttempt `json:"follow_up_attempts,omitempty"`
 }
 
