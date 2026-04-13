@@ -86,6 +86,7 @@ type FollowUpV2Service interface {
 	GetAgentWorkload(ctx context.Context, team string, fecha string) ([]repository.AgentWorkload, error)
 	GetFilterOptions(ctx context.Context, team string) (FilterOptions, error)
 	RescheduleFollowUp(ctx context.Context, id string, input RescheduleInput) error
+	CloseCaseFollowUps(ctx context.Context, followUpID string) error
 }
 
 // RescheduleInput es el body para reagendar un seguimiento.
@@ -621,4 +622,8 @@ func (s *followUpV2Service) RescheduleFollowUp(ctx context.Context, id string, i
 		return ErrFollowUpNotFound
 	}
 	return err
+}
+
+func (s *followUpV2Service) CloseCaseFollowUps(ctx context.Context, followUpID string) error {
+	return s.repo.CloseCaseFollowUps(ctx, followUpID)
 }

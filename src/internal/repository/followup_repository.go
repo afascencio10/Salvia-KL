@@ -34,6 +34,9 @@ type FollowUpRepository interface {
 	FindPendingByTeamGroupedByAgent(ctx context.Context, team string, fecha string) ([]AgentWorkload, error)
 	FindAgentsByTeam(ctx context.Context, team string) ([]AgentOption, error)
 	Reschedule(ctx context.Context, id string, fields map[string]interface{}) error
+	
+	// Cierre de casos
+	CloseCaseFollowUps(ctx context.Context, followUpID string) error
 
 	// Hacer seguimiento
 	LoadVictimInfoByCaseID(ctx context.Context, caseID string) (*VictimCaseInfo, error)
@@ -169,20 +172,20 @@ func (r *followUpRepository) FindByAgentAndDate(ctx context.Context, agentID str
 			models.FollowUpStatusReprogramado,
 			dateOnly).
 		Order(`
-			CASE 
-				WHEN scheduled_time IS NOT NULL AND scheduled_time != '' AND scheduled_time != '00:00:00' THEN 0 
-				ELSE 1 
-			END ASC,
-			scheduled_time ASC,
-			last_attempt_at ASC NULLS FIRST,
 			CASE UPPER(risk_status)
 				WHEN 'EXTREMO' THEN 1 
 				WHEN 'CRÍTICO' THEN 2 
 				WHEN 'ALTO' THEN 3
 				WHEN 'MODERADO' THEN 4
 				WHEN 'BAJO' THEN 5
-				ELSE 6 
-			END ASC
+				ELSE 5 
+			END ASC,
+			CASE 
+				WHEN (scheduled_time IS NULL OR scheduled_time = '00:00:00') THEN 1 
+				ELSE 0 
+			END ASC,
+			scheduled_time ASC,			
+			last_attempt_at ASC NULLS FIRST
 		`).
 		Find(&items).Error
 
@@ -297,6 +300,21 @@ func (r *followUpRepository) Reschedule(ctx context.Context, id string, fields m
 		return gorm.ErrRecordNotFound
 	}
 	return nil
+}
+
+// CloseCaseFollowUps busca el caseID del seguimiento indicado y cierra todos los 
+// seguimientos pendientes o reprogramados del mismo caso.
+func (r *followUpRepository) CloseCaseFollowUps(ctx context.Context, followUpID string) error {
+	var fu models.FollowUpV2
+	if err := r.db.WithContext(ctx).Where("id = ?", followUpID).First(&fu).Error; err != nil {
+		return err
+	}
+
+	return r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Where("case_id = ? AND status IN ?", fu.CaseID,
+			[]string{models.FollowUpStatusPendiente, models.FollowUpStatusReprogramado}).
+		Update("status", models.FollowUpStatusCerrado).Error
 }
 
 // LoadVictimInfoByCaseID obtiene la información resumida del caso para la pantalla hacer-seguimiento.

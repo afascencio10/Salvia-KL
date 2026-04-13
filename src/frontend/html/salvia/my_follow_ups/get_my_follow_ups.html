@@ -1,5 +1,4 @@
 <!-- Monolithic Partial: Mis Seguimientos (Clean Design) -->
-
 <div id="mis-seguimientos-app" class="ms-page-wrapper">
     <!-- Header Section -->
     <div class="ms-page-header">
@@ -526,7 +525,7 @@
                     style="background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
                     <i class="fas fa-plus-circle"></i> Añadir intento de contacto
                 </button>
-                <button v-if="modalAcciones.attempts >= 9" @click="handleSuggestClosure"
+                <button v-if="shouldShowClosureButton(modalAcciones)" @click="handleSuggestClosure"
                     style="background-color: #dc2626; color: white; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
                     <i class="fas fa-times-circle"></i> Cerrar caso
                 </button>
@@ -542,7 +541,59 @@
 {{ template "standard_scripts.html" .}}
 {{ template "overlay.html" .}}
 
-<!-- VUE TEMPLATES -->
+
+    <!-- Modal Confirmar Cierre -->
+    <div v-if="modalConfirmarCierre" class="ms-modal-overlay" @click.self="closeModals">
+        <div class="ms-modal-content">
+            <div
+                style="width: 4rem; height: 4rem; border-radius: 9999px; background-color: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem;">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">¿Confirmar cierre de caso?</h3>
+            <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.5rem;">Estás por cerrar el caso de</p>
+            <p style="font-size: 1rem; font-weight: 700; color: #111827; margin-bottom: 1.5rem;">${ modalConfirmarCierre.caseName }</p>
+            
+            <div style="background-color: #fff7ed; border: 1px solid #fdba74; border-radius: 0.75rem; padding: 1rem; margin-bottom: 2rem; text-align: left;">
+                <p style="font-size: 0.875rem; color: #9a3412; margin: 0; line-height: 1.5;">
+                    <i class="fas fa-info-circle"></i> 
+                    Esta acción marcará el <strong>seguimiento actual</strong> y <strong>TODOS los seguimientos futuros</strong> programados para este caso como <strong>CERRADOS</strong>.
+                </p>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <button @click="confirmarCierreCaso" :disabled="loading"
+                    style="background-color: #dc2626; color: white; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                    :style="loading ? 'opacity: 0.7; cursor: not-allowed;' : ''">
+                    <span v-if="!loading">Sí, cerrar caso definitivamente</span>
+                    <span v-else><i class="fas fa-spinner fa-spin"></i> Procesando cierre...</span>
+                </button>
+                <button @click="closeModals" :disabled="loading"
+                    style="background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; width: 100%; display: flex; align-items: center; justify-content: center;">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    
+    <!-- Modal Cierre Exitoso -->
+    <div v-if="modalCierreExitoso" class="ms-modal-overlay" @click.self="closeModals">
+        <div class="ms-modal-content">
+            <div
+                style="width: 4rem; height: 4rem; border-radius: 9999px; background-color: #f5f3ff; color: #7c3aed; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem;">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">¡Caso cerrado exitosamente!</h3>
+            <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 2rem;">El seguimiento y todos los contactos futuros para este caso han sido finalizados.</p>
+            
+            <button @click="closeModals"
+                style="background-color: #7c3aed; color: white; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; width: 100%; display: flex; align-items: center; justify-content: center;">
+                Entendido
+            </button>
+        </div>
+    </div>
+
+    <!-- VUE TEMPLATES -->
 <script type="text/x-template" id="tpl-badge-riesgo">
     <span :class="['ms-badge', badgeClass]">${ level }</span>
 </script>
@@ -587,11 +638,14 @@
                     currentUser: "{{.currentUser}}",
                     today: new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }),
                     activeTab: 'followups',
+                    isInitialLoad: true,
                     pendingFollowUps: [],
                     completedFollowUps: [],
                     modalContesto: null,
                     modalRazon: null,
                     modalAcciones: null,
+                    modalConfirmarCierre: null,
+                    modalCierreExitoso: false,
                     reasonText: '',
                     enFormulario: null,
                     detailFollowUp: null,
@@ -635,7 +689,15 @@
                         if (!response.ok) throw new Error('Error loading follow-ups');
                         const data = await response.json();
 
+                        
                         const dayData = data.data || data;
+                        
+                        // Lógica de pestaña inicial inteligente (HU-027)
+                        if (this.isInitialLoad && dayData.followUpsPendingPriorityCount > 0) {
+                            this.activeTab = 'priority';
+                        }
+                        this.isInitialLoad = false;
+
 
                         console.log('[MisSeguimientos] API Response:', data);
                         if (dayData.followUpsPending && dayData.followUpsPending.length > 0) {
@@ -706,6 +768,8 @@
                     this.modalContesto = null;
                     this.modalRazon = null;
                     this.modalAcciones = null;
+                    this.modalConfirmarCierre = null;
+                    this.modalCierreExitoso = false;
                     this.reasonText = '';
                 },
 
@@ -727,15 +791,15 @@
                 async handleAnswered() {
                     const fu = this.modalContesto;
                     if (!fu || this.loading) return;
-                    
+
                     this.loading = true;
                     try {
                         const response = await fetch(`/api/v1/follow-ups/${fu.id}/attempts`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
+                            body: JSON.stringify({
                                 reason: 'Sí contestó',
-                                was_answered: true 
+                                was_answered: true
                             })
                         });
 
@@ -859,6 +923,8 @@
                         // Eliminar de la lista de pendientes (ya que se movió a mañana)
                         this.pendingFollowUps = this.pendingFollowUps.filter(f => f.id !== fu.id);
                         this.modalAcciones = null;
+                    this.modalConfirmarCierre = null;
+                    this.modalCierreExitoso = false;
 
                         // Éxito
                         const successOverlay = document.getElementById('successOverlay');
@@ -884,12 +950,45 @@
                 handleAddAttempt() {
                     const fu = this.modalAcciones;
                     this.modalAcciones = null;
+                    this.modalConfirmarCierre = null;
+                    this.modalCierreExitoso = false;
                     this.modalContesto = fu;
                 },
 
                 handleSuggestClosure() {
-                    console.log('Sugerir cierre de caso - Por implementar');
+                    this.modalConfirmarCierre = this.modalAcciones;
                     this.modalAcciones = null;
+                },
+
+                async confirmarCierreCaso() {
+                    const fu = this.modalConfirmarCierre;
+                    if (!fu || this.loading) return;
+
+                    this.loading = true;
+                    try {
+                        const response = await fetch(`/api/v1/follow-ups/${fu.id}/close`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.error || 'Error al cerrar el caso');
+                        }
+
+                        this.modalConfirmarCierre = null;
+                        this.modalCierreExitoso = true;
+                        await this.loadFollowUps();
+                    } catch (error) {
+                        console.error('Error:', error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: error.message || 'No se pudo cerrar el caso'
+                        });
+                    } finally {
+                        this.loading = false;
+                    }
                 },
 
                 // ── UI Helpers ──────────────────────────────────────────────
@@ -941,6 +1040,23 @@
                             popup: 'ms-swal-popup',
                         }
                     });
+                },
+
+                shouldShowClosureButton(fu) {
+                    if (!fu || !fu.follow_up_attempts || fu.follow_up_attempts.length < 9) {
+                        return false;
+                    }
+                    
+                    const uniqueDays = new Set();
+                    fu.follow_up_attempts.forEach(attempt => {
+                        if (attempt.created_at) {
+                            // Extraer YYYY-MM-DD
+                            const date = attempt.created_at.split('T')[0];
+                            uniqueDays.add(date);
+                        }
+                    });
+                    
+                    return uniqueDays.size >= 3;
                 },
 
                 getBadgeClass(level) {

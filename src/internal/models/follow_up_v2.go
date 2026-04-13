@@ -12,6 +12,7 @@ const (
 	FollowUpStatusRealizado    = "REALIZADO"
 	FollowUpStatusVencido      = "VENCIDO"
 	FollowUpStatusReprogramado = "REPROGRAMADO"
+	FollowUpStatusCerrado      = "CERRADO"
 )
 
 // FollowUpV2 representa la tabla salvia.follow_up_v2 (Fase 2).
