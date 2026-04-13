@@ -164,19 +164,19 @@ func (r *followUpRepository) FindByAgentAndDate(ctx context.Context, agentID str
 			dateOnly).
 		Order(`
 			CASE 
-				WHEN (scheduled_time IS NULL OR scheduled_time = '00:00:00') THEN 1 
-				ELSE 0 
+				WHEN scheduled_time IS NOT NULL AND scheduled_time != '' AND scheduled_time != '00:00:00' THEN 0 
+				ELSE 1 
 			END ASC,
 			scheduled_time ASC,
+			last_attempt_at ASC NULLS FIRST,
 			CASE UPPER(risk_status)
 				WHEN 'EXTREMO' THEN 1 
-				WHEN 'CRÍTICO' THEN 1 
-				WHEN 'ALTO' THEN 2 
-				WHEN 'MODERADO' THEN 3 
-				WHEN 'BAJO' THEN 4 
-				ELSE 5 
-			END ASC,
-			last_attempt_at ASC NULLS FIRST
+				WHEN 'CRÍTICO' THEN 2 
+				WHEN 'ALTO' THEN 3
+				WHEN 'MODERADO' THEN 4
+				WHEN 'BAJO' THEN 5
+				ELSE 6 
+			END ASC
 		`).
 		Find(&items).Error
 
