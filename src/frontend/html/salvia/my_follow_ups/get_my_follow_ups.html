@@ -457,9 +457,11 @@
                     style="flex: 1; background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;">
                     No contestó
                 </button>
-                <button @click="handleAnswered"
-                    style="flex: 1; background-color: #8b5cf6; color: white; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;">
-                    Sí contestó <i class="fas fa-check"></i>
+                <button @click="handleAnswered" :disabled="loading"
+                    style="flex: 1; background-color: #8b5cf6; color: white; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;"
+                    :style="loading ? 'opacity: 0.7; cursor: not-allowed;' : ''">
+                    <span v-if="!loading">Sí contestó <i class="fas fa-check"></i></span>
+                    <span v-else><i class="fas fa-spinner fa-spin"></i> Guardando...</span>
                 </button>
             </div>
             <button @click="closeModals"
@@ -722,13 +724,37 @@
                     console.log('[MisSeguimientos] modalAcciones:', this.modalAcciones);
                 },
 
-                handleAnswered() {
+                async handleAnswered() {
                     const fu = this.modalContesto;
-                    this.modalContesto = null;
-                    this.enFormulario = {
-                        fu,
-                        case: { id: fu.caseId, name: fu.caseName, riskLevel: fu.riskLevel }
-                    };
+                    if (!fu || this.loading) return;
+                    
+                    this.loading = true;
+                    try {
+                        const response = await fetch(`/api/v1/follow-ups/${fu.id}/attempts`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                reason: 'Sí contestó',
+                                was_answered: true 
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.error || 'Error al registrar contacto');
+                        }
+
+                        // Redirigir a la pantalla de gestión del seguimiento
+                        window.location.href = `/salvia/hacer-seguimiento/${fu.id}`;
+                    } catch (error) {
+                        console.error('Error:', error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: error.message || 'No se pudo registrar el contacto'
+                        });
+                        this.loading = false;
+                    }
                 },
 
                 handleNoAnswer() {
