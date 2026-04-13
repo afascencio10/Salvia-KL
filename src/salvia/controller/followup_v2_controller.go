@@ -183,10 +183,7 @@ func (c *FollowUpV2Controller) ListByArea(ctx *gin.Context) {
 	if team == "" {
 		team = ctx.Query("team")
 	}
-	if team == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "team requerido (header X-User-Team o query param)"})
-		return
-	}
+	// team vacío = trae todos los equipos (modo desarrollo)
 
 	filters := repository.FollowUpFilters{
 		Tab:         ctx.Query("tab"),
@@ -228,10 +225,7 @@ func (c *FollowUpV2Controller) AgentWorkload(ctx *gin.Context) {
 	if team == "" {
 		team = ctx.Query("team")
 	}
-	if team == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "team requerido"})
-		return
-	}
+	// team vacío = trae todos los equipos (modo desarrollo)
 
 	fecha := ctx.Query("fecha")
 	results, err := c.svc.GetAgentWorkload(ctx.Request.Context(), team, fecha)
@@ -257,10 +251,7 @@ func (c *FollowUpV2Controller) FilterOptions(ctx *gin.Context) {
 	if team == "" {
 		team = ctx.Query("team")
 	}
-	if team == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "team requerido"})
-		return
-	}
+	// team vacío = trae todos los equipos (modo desarrollo)
 
 	options, err := c.svc.GetFilterOptions(ctx.Request.Context(), team)
 	if err != nil {

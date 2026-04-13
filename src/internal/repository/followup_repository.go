@@ -145,7 +145,12 @@ func (r *followUpRepository) RunInTransaction(ctx context.Context, fn func(tx *g
 
 // FindByTeamPaginated retorna seguimientos filtrados por team + filtros dinámicos con paginación.
 func (r *followUpRepository) FindByTeamPaginated(ctx context.Context, team string, filters FollowUpFilters, page, limit int) ([]models.FollowUpV2, int64, error) {
-	query := r.db.WithContext(ctx).Where("team = ?", team)
+	query := r.db.WithContext(ctx).Model(&models.FollowUpV2{})
+
+	// Solo filtrar por team si viene con valor (vacío = todos)
+	if team != "" {
+		query = query.Where("team = ?", team)
+	}
 
 	// Filtros dinámicos
 	switch filters.Tab {
@@ -189,7 +194,11 @@ func (r *followUpRepository) FindPendingByTeamGroupedByAgent(ctx context.Context
 	query := r.db.WithContext(ctx).
 		Model(&models.FollowUpV2{}).
 		Select("agent_id, COUNT(*) as total").
-		Where("team = ? AND status = ?", team, models.FollowUpStatusPendiente)
+		Where("status = ?", models.FollowUpStatusPendiente)
+
+	if team != "" {
+		query = query.Where("team = ?", team)
+	}
 
 	if fecha != "" {
 		query = query.Where("DATE(scheduled_date) = ?", fecha)
@@ -202,11 +211,15 @@ func (r *followUpRepository) FindPendingByTeamGroupedByAgent(ctx context.Context
 // FindAgentsByTeam retorna los agentes distintos que tienen seguimientos en un team.
 func (r *followUpRepository) FindAgentsByTeam(ctx context.Context, team string) ([]AgentOption, error) {
 	var results []AgentOption
-	err := r.db.WithContext(ctx).
+	query := r.db.WithContext(ctx).
 		Model(&models.FollowUpV2{}).
-		Select("DISTINCT agent_id").
-		Where("team = ?", team).
-		Scan(&results).Error
+		Select("DISTINCT agent_id")
+
+	if team != "" {
+		query = query.Where("team = ?", team)
+	}
+
+	err := query.Scan(&results).Error
 	return results, err
 }
 

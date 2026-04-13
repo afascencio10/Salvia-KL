@@ -245,6 +245,205 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Seguimientos Área — Supervisores",
+      "item": [
+        {
+          "name": "1. Listar seguimientos del área (paginado + filtros)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/seguimientos?team=RIESGO_BAJO&tab=pendientes&page=0&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "seguimientos"],
+              "query": [
+                { "key": "team", "value": "RIESGO_BAJO" },
+                { "key": "tab", "value": "pendientes" },
+                { "key": "page", "value": "0" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2. Listar con filtro por fecha y agente",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/seguimientos?team=RIESGO_BAJO&fecha_inicio=2026-04-01&fecha_fin=2026-04-30&agente_id=agente-lopez&page=0&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "seguimientos"],
+              "query": [
+                { "key": "team", "value": "RIESGO_BAJO" },
+                { "key": "fecha_inicio", "value": "2026-04-01" },
+                { "key": "fecha_fin", "value": "2026-04-30" },
+                { "key": "agente_id", "value": "agente-lopez" },
+                { "key": "page", "value": "0" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3. Listar histórico (todos los estados)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/seguimientos?team=RIESGO_ALTO&tab=todos&page=0&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "seguimientos"],
+              "query": [
+                { "key": "team", "value": "RIESGO_ALTO" },
+                { "key": "tab", "value": "todos" },
+                { "key": "page", "value": "0" },
+                { "key": "limit", "value": "50" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4. Carga de agentes por fecha",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/seguimientos/carga-agentes?team=RIESGO_BAJO&fecha=2026-04-13",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "seguimientos", "carga-agentes"],
+              "query": [
+                { "key": "team", "value": "RIESGO_BAJO" },
+                { "key": "fecha", "value": "2026-04-13" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5. Carga de agentes sin fecha (todos los pendientes)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/seguimientos/carga-agentes?team=RIESGO_ALTO",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "seguimientos", "carga-agentes"],
+              "query": [
+                { "key": "team", "value": "RIESGO_ALTO" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6. Opciones de filtros (agentes + estados)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/seguimientos/filtros-opciones?team=RIESGO_BAJO",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "seguimientos", "filtros-opciones"],
+              "query": [
+                { "key": "team", "value": "RIESGO_BAJO" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "7. Reagendar seguimiento",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nueva_fecha\": \"2026-04-20\",\n  \"nueva_hora\": \"10:00\",\n  \"prioridad\": \"ALTA\",\n  \"motivo\": \"Reagendado por solicitud del supervisor\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seguimientos/REEMPLAZAR_CON_UUID/reagendar",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "seguimientos", "REEMPLAZAR_CON_UUID", "reagendar"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "8. Reagendar — solo campos obligatorios",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nueva_fecha\": \"2026-04-25\",\n  \"motivo\": \"Cambio de prioridad operativa\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seguimientos/REEMPLAZAR_CON_UUID/reagendar",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "seguimientos", "REEMPLAZAR_CON_UUID", "reagendar"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "9. Error — reagendar sin motivo (400)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nueva_fecha\": \"2026-04-20\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seguimientos/REEMPLAZAR_CON_UUID/reagendar",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "seguimientos", "REEMPLAZAR_CON_UUID", "reagendar"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "10. Error — listar sin team (400)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/seguimientos?page=0&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "seguimientos"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "11. Error — reagendar ID inexistente (404)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nueva_fecha\": \"2026-04-20\",\n  \"motivo\": \"Test 404\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/seguimientos/00000000-0000-0000-0000-000000000000/reagendar",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "seguimientos", "00000000-0000-0000-0000-000000000000", "reagendar"]
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }

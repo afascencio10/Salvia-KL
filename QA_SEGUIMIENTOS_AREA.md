@@ -2,6 +2,65 @@
 
 Documentación técnica y plan de pruebas para la integración Frontend (Vue 3 CDN) + Backend (Go/Gin/GORM).
 
+## URL de la página
+
+```
+https://localhost/salvia/seguimientos/area
+```
+
+---
+
+## Modo Desarrollo (acceso sin login)
+
+Para facilitar las pruebas durante el desarrollo, la página funciona sin requerir sesión activa. Cuando no hay usuario logueado, muestra TODOS los casos y seguimientos de todos los equipos.
+
+### Cómo funciona
+
+El archivo `salvia/facades/SeguimientosAreaFacade.go` tiene una variable al inicio:
+
+```go
+var seguimientosAreaDevMode = true   // ← true = sin login, trae todo
+```
+
+Cuando `seguimientosAreaDevMode = true`:
+- No requiere sesión activa (no redirige al landing)
+- No valida permisos por rol
+- Inyecta `TeamId = ""` (vacío = sin filtro de equipo)
+- Inyecta `IsAdmin = true` y `UserId = "dev-user"`
+- Las APIs aceptan `team` vacío y retornan todos los registros
+
+Adicionalmente, el `AuthMiddleware` en `common/facades/MainRouter.go` excluye `/salvia/seguimientos` de la validación de sesión.
+
+### Cómo desactivarlo para producción
+
+1. En `salvia/facades/SeguimientosAreaFacade.go`, cambiar:
+
+```go
+var seguimientosAreaDevMode = false  // ← false = requiere login y permisos
+```
+
+2. En `common/facades/MainRouter.go`, quitar `!strings.HasPrefix(location, "/salvia/seguimientos")` de la condición del `AuthMiddleware`:
+
+```go
+// ANTES (modo dev):
+if ... && !strings.HasPrefix(location, "/salvia/seguimientos") {
+
+// DESPUÉS (producción):
+if ... {
+```
+
+3. En los handlers del controller (`followup_v2_controller.go`), restaurar la validación obligatoria de `team` en `ListByArea`, `AgentWorkload` y `FilterOptions`:
+
+```go
+// Descomentar estas líneas en cada handler:
+if team == "" {
+    ctx.JSON(http.StatusBadRequest, gin.H{"error": "team requerido"})
+    return
+}
+```
+
+Con estos 3 cambios, la página vuelve a exigir sesión + rol `sv` o `ad` + team asignado.
+
 ---
 
 ## 1. Qué se hizo
