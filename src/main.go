@@ -3,7 +3,6 @@ package main
 import (
     common_routers "bitsflow/common/facades"
     "bitsflow/common/utils"
-    _ "bitsflow/docs" // Swagger docs generados por swag init
     internaldb "bitsflow/internal/db"
     "bitsflow/internal/models"
     "bitsflow/internal/repository"
@@ -16,8 +15,6 @@ import (
     "log"
 
     "github.com/gin-gonic/gin"
-    swaggerFiles "github.com/swaggo/files"
-    ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 //go:embed config/*
@@ -59,7 +56,6 @@ func main() {
         &models.EmergencyMeasure{},
         &models.PsychosocialSupport{},
         &models.EconomicStabilization{},
-        &models.BarrierV2{},
     } {
         if err := gormDB.AutoMigrate(m); err != nil {
             log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -67,62 +63,48 @@ func main() {
     }
 
     // Repositories
-    formRepo            := repository.NewFormRepository(gormDB)
-    formSectionRepo     := repository.NewFormSectionRepository(gormDB)
-    questionRepo        := repository.NewQuestionRepository(gormDB)
-    repeaterGroupRepo   := repository.NewRepeaterGroupRepository(gormDB)
-    visibilityCondRepo  := repository.NewVisibilityConditionRepository(gormDB)
-    formSubmissionRepo  := repository.NewFormSubmissionRepository(gormDB)
-    repeaterEntryRepo   := repository.NewRepeaterEntryRepository(gormDB)
-    answerRepo          := repository.NewAnswerRepository(gormDB)
-    followUpRepo        := repository.NewFollowUpRepository(gormDB)
-    optionRepo          := repository.NewOptionRepository(gormDB)
-    barrierV2Repo       := repository.NewBarrierV2Repository(gormDB)
-    victimCaseLightRepo := repository.NewVictimCaseLightRepository(gormDB)
-    townLightRepo       := repository.NewTownLightRepository(gormDB)
-    attemptRepo         := repository.NewFollowUpAttemptRepository(gormDB)
-    emRepo              := repository.NewEmergencyMeasureRepository(gormDB)
-    psRepo              := repository.NewPsychosocialSupportRepository(gormDB)
-    esRepo              := repository.NewEconomicStabilizationRepository(gormDB)
-    agentLightRepo      := repository.NewAgentLightRepository(gormDB)
+    formRepo               := repository.NewFormRepository(gormDB)
+    formSectionRepo        := repository.NewFormSectionRepository(gormDB)
+    questionRepo           := repository.NewQuestionRepository(gormDB)
+    repeaterGroupRepo      := repository.NewRepeaterGroupRepository(gormDB)
+    visibilityCondRepo     := repository.NewVisibilityConditionRepository(gormDB)
+    formSubmissionRepo     := repository.NewFormSubmissionRepository(gormDB)
+    repeaterEntryRepo      := repository.NewRepeaterEntryRepository(gormDB)
+    answerRepo             := repository.NewAnswerRepository(gormDB)
+    followUpRepo           := repository.NewFollowUpRepository(gormDB)
+    optionRepo             := repository.NewOptionRepository(gormDB)
+    barrierV2Repo          := repository.NewBarrierV2Repository(gormDB)
+    victimCaseLightRepo    := repository.NewVictimCaseLightRepository(gormDB)
+    townLightRepo          := repository.NewTownLightRepository(gormDB)
+    attemptRepo            := repository.NewFollowUpAttemptRepository(gormDB)
+    emRepo                 := repository.NewEmergencyMeasureRepository(gormDB)
+    psRepo                 := repository.NewPsychosocialSupportRepository(gormDB)
+    esRepo                 := repository.NewEconomicStabilizationRepository(gormDB)
+    agentLightRepo         := repository.NewAgentLightRepository(gormDB)
+    caseDetailRepo         := repository.NewCaseDetailRepository(gormDB)
 
     // Services
     formSvc := service.NewFormService(service.FormServiceDeps{
-        FormRepo:                  formRepo,
-        FormSectionRepo:           formSectionRepo,
-        QuestionRepo:              questionRepo,
-        RepeaterGroupRepo:         repeaterGroupRepo,
-        OptionRepo:                optionRepo,
-        VisibilityCondRepo:        visibilityCondRepo,
-        FormSubmissionRepo:        formSubmissionRepo,
-        RepeaterEntryRepo:         repeaterEntryRepo,
-        AnswerRepo:                answerRepo,
-        FollowUpRepo:              followUpRepo,
-        EmergencyMeasureRepo:      emRepo,
-        PsychosocialSupportRepo:   psRepo,
-        EconomicStabilizationRepo: esRepo,
-        BarrierV2Repo:             barrierV2Repo,
+        FormRepo:           formRepo,
+        FormSectionRepo:    formSectionRepo,
+        QuestionRepo:       questionRepo,
+        RepeaterGroupRepo:  repeaterGroupRepo,
+        OptionRepo:         optionRepo,
+        VisibilityCondRepo: visibilityCondRepo,
+        FormSubmissionRepo: formSubmissionRepo,
+        RepeaterEntryRepo:  repeaterEntryRepo,
+        AnswerRepo:         answerRepo,
     })
-    formSectionSvc   := service.NewFormSectionService(formSectionRepo)
-    questionSvc      := service.NewQuestionService(questionRepo)
-    repeaterGroupSvc := service.NewRepeaterGroupService(repeaterGroupRepo)
-    visibilityCondSvc := service.NewVisibilityConditionService(visibilityCondRepo)
-    formSubmissionSvc := service.NewFormSubmissionService(formSubmissionRepo)
-    repeaterEntrySvc := service.NewRepeaterEntryService(repeaterEntryRepo)
-    answerSvc        := service.NewAnswerService(answerRepo)
-    optionSvc        := service.NewOptionService(optionRepo)
-    followUpV2Svc    := service.NewFollowUpV2Service(
-        followUpRepo,
-        formSubmissionRepo,
-        barrierV2Repo,
-        victimCaseLightRepo,
-        townLightRepo,
-        attemptRepo,
-        emRepo,
-        psRepo,
-        esRepo,
-        agentLightRepo,
-    )
+    formSectionSvc        := service.NewFormSectionService(formSectionRepo)
+    questionSvc           := service.NewQuestionService(questionRepo)
+    repeaterGroupSvc      := service.NewRepeaterGroupService(repeaterGroupRepo)
+    visibilityCondSvc     := service.NewVisibilityConditionService(visibilityCondRepo)
+    formSubmissionSvc     := service.NewFormSubmissionService(formSubmissionRepo)
+    repeaterEntrySvc      := service.NewRepeaterEntryService(repeaterEntryRepo)
+    answerSvc             := service.NewAnswerService(answerRepo)
+    optionSvc             := service.NewOptionService(optionRepo)
+    followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo)
+    caseDetailSvc         := service.NewCaseDetailService(caseDetailRepo)
 
     // Inyectar el servicio en el controller legacy para generación automática del calendario
     salvia_legacy.FollowUpSvc = followUpV2Svc
@@ -138,6 +120,7 @@ func main() {
     answerCtrl             := salvia_ctrl.NewAnswerController(answerSvc)
     followUpV2Ctrl         := salvia_ctrl.NewFollowUpV2Controller(followUpV2Svc)
     optionCtrl             := salvia_ctrl.NewOptionController(optionSvc)
+    caseDetailCtrl         := salvia_ctrl.NewCaseDetailController(caseDetailSvc)
 
     // Routes
     api := router.Group("/api/v1")
@@ -151,9 +134,7 @@ func main() {
     answerCtrl.RegisterRoutes(api)
     followUpV2Ctrl.RegisterRoutes(api)
     optionCtrl.RegisterRoutes(api)
-
-    // Swagger UI — accesible en https://localhost/swagger/index.html
-    router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+    caseDetailCtrl.RegisterRoutes(api)
     // ────────────────────────────────────────────────────────────────────────
 
     common_routers.StartRouter()

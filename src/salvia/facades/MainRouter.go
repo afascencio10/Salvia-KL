@@ -73,6 +73,9 @@ func StartRouter(router *gin.Engine) {
 		secRouter.GET("/"+translatedEntity+"/:id", VictimCaseGET)
 		secRouter.GET("/"+translatedEntity+"/:id/", VictimCaseGET)
 
+		// Detalle de caso — solo rol sv
+		secRouter.GET("/"+translatedEntity+"/:id/detalle", CaseDetailGET)
+
 		secRouter.GET("/"+translatedEntity+"/:id/"+translatedDocument+"/:docType", VictimCaseGET)
 		secRouter.GET("/"+translatedEntity+"/:id/"+translatedDocument+"/:docType"+"/p/:p", VictimCaseGET)
 
