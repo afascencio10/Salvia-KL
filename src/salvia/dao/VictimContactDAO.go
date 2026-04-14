@@ -355,9 +355,9 @@ func GetVictimContactsWithoutVictimCase(page int, status string, connData *db.Co
 		var countQuery string = `SELECT COUNT(*) ` +
 			` FROM ` + victimContactPath +
 			` LEFT JOIN ` + victimCasePath + ` ON (` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactId"].DBName + ` = ` + victimCasePath + `.` + VictimCaseFieldDefinitions["VictimCaseVictimContact"].DBName + `)` +
-			` WHERE ` + victimCasePath + `.` + VictimCaseFieldDefinitions["VictimCaseVictimContact"].DBName + ` IS NULL AND ` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactStatus"].DBName + ` = 'v'`
+			` WHERE ` + victimCasePath + `.` + VictimCaseFieldDefinitions["VictimCaseVictimContact"].DBName + ` IS NULL AND ` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactStatus"].DBName + ` = $1`
 
-		persistenceCtrl.QueryRow(context.Background(), countQuery)
+		persistenceCtrl.QueryRow(context.Background(), countQuery, status)
 		persistenceCtrl.Scan(&count)
 	}
 

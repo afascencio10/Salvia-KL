@@ -265,5 +265,5 @@ func translate(lang string, code string, locale map[string]map[string]string) st
 			return labelVal
 		}
 	}
-	return ""
+	return code
 }

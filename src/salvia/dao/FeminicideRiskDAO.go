@@ -19,7 +19,7 @@ var (
 	FeminicideRiskEntityName string = "FeminicideRisk"
 	FeminicideRiskJSONName   string = "feminicideRisk"
 	FeminicideRiskDBName     string = "feminicide_risk"
-	FeminicideRiskDBScheme   string = "public" // Cambiar si está en otro esquema
+	FeminicideRiskDBScheme   string = "salvia"
 
 	FeminicideRiskFieldDefinitions map[string]utils.FieldDefinition = map[string]utils.FieldDefinition{
 		"FeminicideRiskId":              {Name: "FeminicideRiskId", DBName: "feminicide_risk_id", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
@@ -259,7 +259,7 @@ func GetFeminicideRisks(by common_controllers.By, page int, connData *db.ConnDat
 
 	if page == 0 {
 		var countQuery string = `SELECT COUNT(*) FROM ` + feminicideRiskPath + common_dao.GetSQL(common_dao.SQL_SELECT_WHERE_ONLY, by.AttrsName, by.AttrsAliasName, FeminicideDBName, by.AttrsName, []string{}, []string{}, by.Operator, FeminicideDBScheme, FeminicideFieldDefinitions, true)
-		persistenceCtrl.QueryRow(context.Background(), countQuery)
+		persistenceCtrl.QueryRow(context.Background(), countQuery, by.AttrsValue...)
 		persistenceCtrl.Scan(&count)
 	}
 

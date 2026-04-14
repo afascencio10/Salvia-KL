@@ -91,7 +91,7 @@ var Locale = map[string]map[string]string{
 		"general_user_language_h":        "Seleccione un Idioma",
 		"general_user_roles":             "Roles de usuario",
 		"general_user_roles_h":           "Seleccione los roles de usuario",
-		"general_user_roles_empty":       "",
+		"general_user_select_empty":      "",
 
 		"menu_tool_get_general_user":         "Ver",
 		"menu_tool_update_general_user":      "Actualizar",

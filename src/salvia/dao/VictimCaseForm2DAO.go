@@ -35,7 +35,7 @@ var (
 		"VictimCaseForm2FactsStartTime":                        {Name: "VictimCaseForm2FactsStartTime", DBName: "victim_case_form2_facts_start_time", Alias: "", ModelType: "time", MinSize: 0, MaxSize: 0, Required: true},
 		"VictimCaseForm2FactsTownCode":                         {Name: "VictimCaseForm2FactsTownCode", DBName: "victim_case_form2_facts_town_code", Alias: "", ModelType: "string", MinSize: 8, MaxSize: 8, Required: true},
 		"VictimCaseForm2FactsZone":                             {Name: "VictimCaseForm2FactsZone", DBName: "victim_case_form2_facts_zone", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
-		"VictimCaseForm2FactsAddress":                          {Name: "VictimCaseForm2FactsAddress", DBName: "victim_case_form2_facts_address", Alias: "", ModelType: "string", MinSize: 3, MaxSize: 32, Required: true},
+		"VictimCaseForm2FactsAddress":                          {Name: "VictimCaseForm2FactsAddress", DBName: "victim_case_form2_facts_address", Alias: "", ModelType: "string", MinSize: 3, MaxSize: 150, Required: true},
 		"VictimCaseForm2ScenarioViolence":                      {Name: "VictimCaseForm2ScenarioViolence", DBName: "victim_case_form2_scenario_violence", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"VictimCaseForm2ReportedPreviously":                    {Name: "VictimCaseForm2ReportedPreviously", DBName: "victim_case_form2_reported_previously", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"VictimCaseForm2RecurrenceAggression":                  {Name: "VictimCaseForm2RecurrenceAggression", DBName: "victim_case_form2_recurrence_aggression", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
@@ -47,7 +47,7 @@ var (
 		"VictimCaseForm2AggressorNames":                        {Name: "VictimCaseForm2AggressorNames", DBName: "victim_case_form2_aggressor_names", Alias: "", ModelType: "string", MinSize: 3, MaxSize: 64, Required: false},
 		"VictimCaseForm2AggressorDocType":                      {Name: "VictimCaseForm2AggressorDocType", DBName: "victim_case_form2_aggressor_doc_type", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: false},
 		"VictimCaseForm2AggressorDocNumber":                    {Name: "VictimCaseForm2AggressorDocNumber", DBName: "victim_case_form2_aggressor_doc_number", Alias: "", ModelType: "string", MinSize: 3, MaxSize: 32, Required: false},
-		"VictimCaseForm2AggressorAddress":                      {Name: "VictimCaseForm2AggressorAddress", DBName: "victim_case_form2_aggressor_address", Alias: "", ModelType: "string", MinSize: 3, MaxSize: 32, Required: false},
+		"VictimCaseForm2AggressorAddress":                      {Name: "VictimCaseForm2AggressorAddress", DBName: "victim_case_form2_aggressor_address", Alias: "", ModelType: "string", MinSize: 3, MaxSize: 150, Required: false},
 		"VictimCaseForm2AggressorPhone":                        {Name: "VictimCaseForm2AggressorPhone", DBName: "victim_case_form2_aggressor_phone", Alias: "", ModelType: "uint", MinSize: 1000000000, MaxSize: 9999999999, Required: false},
 		"VictimCaseForm2AggressorViolencePhysicalIncrease":     {Name: "VictimCaseForm2AggressorViolencePhysicalIncrease", DBName: "victim_case_form2_aggressor_violence_physical_increase", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"VictimCaseForm2AggressorWeaponUsed":                   {Name: "VictimCaseForm2AggressorWeaponUsed", DBName: "victim_case_form2_aggressor_weapon_used", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
@@ -101,7 +101,7 @@ var (
 		"VictimCaseForm2HousingStratum":                        {Name: "VictimCaseForm2HousingStratum", DBName: "victim_case_form2_housing_stratum", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"VictimCaseForm2CurrentlyPregnant":                     {Name: "VictimCaseForm2CurrentlyPregnant", DBName: "victim_case_form2_currently_pregnant", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"VictimCaseForm2ResidenceTownCode":                     {Name: "VictimCaseForm2ResidenceTownCode", DBName: "victim_case_form2_residence_town", Alias: "", ModelType: "string", MinSize: 8, MaxSize: 8, Required: true},
-		"VictimCaseForm2ResidenceAddress":                      {Name: "VictimCaseForm2ResidenceAddress", DBName: "victim_case_form2_residence_address", Alias: "", ModelType: "string", MinSize: 3, MaxSize: 32, Required: true},
+		"VictimCaseForm2ResidenceAddress":                      {Name: "VictimCaseForm2ResidenceAddress", DBName: "victim_case_form2_residence_address", Alias: "", ModelType: "string", MinSize: 3, MaxSize: 150, Required: true},
 		"VictimCaseForm2ResidenceZone":                         {Name: "VictimCaseForm2ResidenceZone", DBName: "victim_case_form2_residence_zone", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"VictimCaseForm2SupportContactNames":                   {Name: "VictimCaseForm2SupportContactNames", DBName: "victim_case_form2_support_contact_names", Alias: "", ModelType: "string", MinSize: 3, MaxSize: 64, Required: false},
 		"VictimCaseForm2SupportContactPhone":                   {Name: "VictimCaseForm2SupportContactPhone", DBName: "victim_case_form2_support_contact_phone", Alias: "", ModelType: "uint", MinSize: 1000000000, MaxSize: 9999999999, Required: false},
@@ -132,6 +132,7 @@ var (
 		"VictimCaseForm2AggressorTakenAdvantagePhysicalVulnerability": {Name: "VictimCaseForm2AggressorTakenAdvantagePhysicalVulnerability", DBName: "victim_case_form2_aggressor_taken_advantage_physical_vulnerabil", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: false},
 		"VictimCaseForm2AggressorSexuallyHarassment2":                 {Name: "VictimCaseForm2AggressorSexuallyHarassment2", DBName: "victim_case_form2_aggressor_sexually_harassment_2", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: false},
 		"VictimCaseForm2AggressorUsedPositionAuthority":               {Name: "VictimCaseForm2AggressorUsedPositionAuthority", DBName: "victim_case_form2_aggressor_used_position_authority", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: false},
+		"VictimCaseForm2AllowsEasyReport":                             {Name: "VictimCaseForm2AllowsEasyReport", DBName: "victim_case_form2_allows_easy_report", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: false},
 
 		"VictimCaseForm2RiskScore": {Name: "VictimCaseForm2RiskScore", DBName: "victim_case_form2_risk_score", Alias: "", ModelType: "int", MinSize: 0, MaxSize: 0, Required: true},
 		"VictimCaseForm2RiskLevel": {Name: "VictimCaseForm2RiskLevel", DBName: "victim_case_form2_risk_level", Alias: "", ModelType: "int", MinSize: 0, MaxSize: 0, Required: true},
@@ -244,6 +245,7 @@ type VictimCaseForm2DTO struct {
 	VictimCaseForm2AggressorTakenAdvantagePhysicalVulnerability VictimCaseForm2EnumsDTO `json:"aggressorTakenAdvantagePhysicalVulnerability"`
 	VictimCaseForm2AggressorSexuallyHarassment2                 VictimCaseForm2EnumsDTO `json:"aggressorSexuallyHarassment2"`
 	VictimCaseForm2AggressorUsedPositionAuthority               VictimCaseForm2EnumsDTO `json:"aggressorUsedPositionAuthority"`
+	VictimCaseForm2AllowsEasyReport                             VictimCaseForm2EnumsDTO `json:"allowsEasyReport"`
 
 	//Campos de calificación
 	VictimCaseForm2ActivitiesUnableToHear       int64 `json:"activitiesUnableToHear"`
@@ -395,6 +397,7 @@ type VictimCaseForm2PgDB struct {
 	VictimCaseForm2AggressorTakenAdvantagePhysicalVulnerability sql.NullInt64
 	VictimCaseForm2AggressorSexuallyHarassment2                 sql.NullInt64
 	VictimCaseForm2AggressorUsedPositionAuthority               sql.NullInt64
+	VictimCaseForm2AllowsEasyReport                             sql.NullInt64
 
 	VictimCaseForm2RiskScore sql.NullInt64
 	VictimCaseForm2RiskLevel sql.NullInt64
@@ -509,7 +512,7 @@ func SetVictimCaseForm2(victimCaseForm2 *VictimCaseForm2DTO, connData *db.ConnDa
 		"VictimCaseForm2ActivitiesUnableToHear", "VictimCaseForm2ActivitiesUnableToTalk", "VictimCaseForm2ActivitiesUnableToSee", "VictimCaseForm2ActivitiesUnableToMove", "VictimCaseForm2ActivitiesUnableToTake",
 		"VictimCaseForm2ActivitiesUnableToUnderstand", "VictimCaseForm2ActivitiesUnableToEat", "VictimCaseForm2ActivitiesUnableToInteract", "VictimCaseForm2ActivitiesUnableToDoEveryday",
 		"VictimCaseForm2StoppedSeekingHelp", "VictimCaseForm2VictimHealthToBlackmail", "VictimCaseForm2ThreatenedRevealSexualOrientation", "VictimCaseForm2ViolenceMotivatedByGender2", "VictimCaseForm2AggressorTakenAdvantagePhysicalVulnerability", "VictimCaseForm2AggressorSexuallyHarassment2", "VictimCaseForm2AggressorUsedPositionAuthority",
-		"VictimCaseForm2RiskScore", "VictimCaseForm2RiskLevel",
+		"VictimCaseForm2AllowsEasyReport", "VictimCaseForm2RiskScore", "VictimCaseForm2RiskLevel",
 		"VictimCaseForm2VictimCase",
 	}
 
@@ -622,6 +625,7 @@ func SetVictimCaseForm2(victimCaseForm2 *VictimCaseForm2DTO, connData *db.ConnDa
 		utils.NilIfZero(victimCaseForm2.VictimCaseForm2AggressorTakenAdvantagePhysicalVulnerability.VictimCaseForm2EnumsId),
 		utils.NilIfZero(victimCaseForm2.VictimCaseForm2AggressorSexuallyHarassment2.VictimCaseForm2EnumsId),
 		utils.NilIfZero(victimCaseForm2.VictimCaseForm2AggressorUsedPositionAuthority.VictimCaseForm2EnumsId),
+		utils.NilIfZero(victimCaseForm2.VictimCaseForm2AllowsEasyReport.VictimCaseForm2EnumsId),
 		victimCaseForm2.VictimCaseForm2RiskScore,
 		victimCaseForm2.VictimCaseForm2RiskLevel,
 		victimCaseForm2.VictimCaseForm2VictimCase.(VictimCaseDTO).VictimCaseId)
@@ -668,7 +672,7 @@ func GetVictimCaseForm2(by common_controllers.By, victimCaseForm2 *VictimCaseFor
 		"VictimCaseForm2ActivitiesUnableToHear", "VictimCaseForm2ActivitiesUnableToTalk", "VictimCaseForm2ActivitiesUnableToSee", "VictimCaseForm2ActivitiesUnableToMove", "VictimCaseForm2ActivitiesUnableToTake",
 		"VictimCaseForm2ActivitiesUnableToUnderstand", "VictimCaseForm2ActivitiesUnableToEat", "VictimCaseForm2ActivitiesUnableToInteract", "VictimCaseForm2ActivitiesUnableToDoEveryday",
 		"VictimCaseForm2StoppedSeekingHelp", "VictimCaseForm2VictimHealthToBlackmail", "VictimCaseForm2ThreatenedRevealSexualOrientation", "VictimCaseForm2ViolenceMotivatedByGender2", "VictimCaseForm2AggressorTakenAdvantagePhysicalVulnerability", "VictimCaseForm2AggressorSexuallyHarassment2", "VictimCaseForm2AggressorUsedPositionAuthority",
-		"VictimCaseForm2RiskScore", "VictimCaseForm2RiskLevel", "VictimCaseForm2VictimCase",
+		"VictimCaseForm2AllowsEasyReport", "VictimCaseForm2RiskScore", "VictimCaseForm2RiskLevel", "VictimCaseForm2VictimCase",
 	}
 
 	var fieldsStr string = common_dao.GetSQL(common_dao.SQL_SELECT_FIELDS_ONLY, fields, []string{}, VictimCaseForm2DBName, []string{}, []string{}, []string{}, common_dao.SQL_AND, VictimCaseForm2DBScheme, VictimCaseForm2FieldDefinitions, true)
@@ -787,6 +791,7 @@ func GetVictimCaseForm2(by common_controllers.By, victimCaseForm2 *VictimCaseFor
 		&victimCaseForm2Pg.VictimCaseForm2AggressorTakenAdvantagePhysicalVulnerability,
 		&victimCaseForm2Pg.VictimCaseForm2AggressorSexuallyHarassment2,
 		&victimCaseForm2Pg.VictimCaseForm2AggressorUsedPositionAuthority,
+		&victimCaseForm2Pg.VictimCaseForm2AllowsEasyReport,
 		&victimCaseForm2Pg.VictimCaseForm2RiskScore,
 		&victimCaseForm2Pg.VictimCaseForm2RiskLevel,
 		&victimCaseForm2Pg.VictimCaseForm2VictimCase)
@@ -836,7 +841,7 @@ func GetVictimCasesForm2(by common_controllers.By, page int,
 		"VictimCaseForm2ActivitiesUnableToHear", "VictimCaseForm2ActivitiesUnableToTalk", "VictimCaseForm2ActivitiesUnableToSee", "VictimCaseForm2ActivitiesUnableToMove", "VictimCaseForm2ActivitiesUnableToTake",
 		"VictimCaseForm2ActivitiesUnableToUnderstand", "VictimCaseForm2ActivitiesUnableToEat", "VictimCaseForm2ActivitiesUnableToInteract", "VictimCaseForm2ActivitiesUnableToDoEveryday",
 		"VictimCaseForm2StoppedSeekingHelp", "VictimCaseForm2VictimHealthToBlackmail", "VictimCaseForm2ThreatenedRevealSexualOrientation", "VictimCaseForm2ViolenceMotivatedByGender2", "VictimCaseForm2AggressorTakenAdvantagePhysicalVulnerability", "VictimCaseForm2AggressorSexuallyHarassment2", "VictimCaseForm2AggressorUsedPositionAuthority",
-		"VictimCaseForm2RiskScore", "VictimCaseForm2RiskLevel", "VictimCaseForm2VictimCase",
+		"VictimCaseForm2AllowsEasyReport", "VictimCaseForm2RiskScore", "VictimCaseForm2RiskLevel", "VictimCaseForm2VictimCase",
 	}
 
 	fieldsStr := common_dao.GetSQL(common_dao.SQL_SELECT_FIELDS_ONLY, fields, []string{}, VictimCaseForm2DBName,
@@ -961,6 +966,7 @@ func GetVictimCasesForm2(by common_controllers.By, page int,
 			&victimCaseForm2Pg.VictimCaseForm2AggressorTakenAdvantagePhysicalVulnerability,
 			&victimCaseForm2Pg.VictimCaseForm2AggressorSexuallyHarassment2,
 			&victimCaseForm2Pg.VictimCaseForm2AggressorUsedPositionAuthority,
+			&victimCaseForm2Pg.VictimCaseForm2AllowsEasyReport,
 			&victimCaseForm2Pg.VictimCaseForm2RiskScore,
 			&victimCaseForm2Pg.VictimCaseForm2RiskLevel,
 			&victimCaseForm2Pg.VictimCaseForm2VictimCase)
@@ -1021,7 +1027,7 @@ func GetAllVictimCasesForm2(victimCaseForm2Status string, page int, connData *db
 		"VictimCaseForm2ActivitiesUnableToHear", "VictimCaseForm2ActivitiesUnableToTalk", "VictimCaseForm2ActivitiesUnableToSee", "VictimCaseForm2ActivitiesUnableToMove", "VictimCaseForm2ActivitiesUnableToTake",
 		"VictimCaseForm2ActivitiesUnableToUnderstand", "VictimCaseForm2ActivitiesUnableToEat", "VictimCaseForm2ActivitiesUnableToInteract", "VictimCaseForm2ActivitiesUnableToDoEveryday",
 		"VictimCaseForm2StoppedSeekingHelp", "VictimCaseForm2VictimHealthToBlackmail", "VictimCaseForm2ThreatenedRevealSexualOrientation", "VictimCaseForm2ViolenceMotivatedByGender2", "VictimCaseForm2AggressorTakenAdvantagePhysicalVulnerability", "VictimCaseForm2AggressorSexuallyHarassment2", "VictimCaseForm2AggressorUsedPositionAuthority",
-		"VictimCaseForm2RiskScore", "VictimCaseForm2RiskLevel", "VictimCaseForm2VictimCase",
+		"VictimCaseForm2AllowsEasyReport", "VictimCaseForm2RiskScore", "VictimCaseForm2RiskLevel", "VictimCaseForm2VictimCase",
 	}
 
 	fieldsStr := common_dao.GetSQL(common_dao.SQL_SELECT_FIELDS_ONLY, fields, []string{}, VictimCaseForm2DBName, []string{}, []string{}, []string{}, common_dao.SQL_AND, VictimCaseForm2DBScheme, VictimCaseForm2FieldDefinitions, true)
@@ -1143,6 +1149,7 @@ func GetAllVictimCasesForm2(victimCaseForm2Status string, page int, connData *db
 			&victimCaseForm2Pg.VictimCaseForm2AggressorTakenAdvantagePhysicalVulnerability,
 			&victimCaseForm2Pg.VictimCaseForm2AggressorSexuallyHarassment2,
 			&victimCaseForm2Pg.VictimCaseForm2AggressorUsedPositionAuthority,
+			&victimCaseForm2Pg.VictimCaseForm2AllowsEasyReport,
 			&victimCaseForm2Pg.VictimCaseForm2RiskScore,
 			&victimCaseForm2Pg.VictimCaseForm2RiskLevel,
 			&victimCaseForm2Pg.VictimCaseForm2VictimCase)
@@ -1202,7 +1209,7 @@ func UpdateVictimCaseForm2(victimCaseForm2 *VictimCaseForm2DTO,
 		"VictimCaseForm2ActivitiesUnableToHear", "VictimCaseForm2ActivitiesUnableToTalk", "VictimCaseForm2ActivitiesUnableToSee", "VictimCaseForm2ActivitiesUnableToMove", "VictimCaseForm2ActivitiesUnableToTake",
 		"VictimCaseForm2ActivitiesUnableToUnderstand", "VictimCaseForm2ActivitiesUnableToEat", "VictimCaseForm2ActivitiesUnableToInteract", "VictimCaseForm2ActivitiesUnableToDoEveryday",
 		"VictimCaseForm2StoppedSeekingHelp", "VictimCaseForm2VictimHealthToBlackmail", "VictimCaseForm2ThreatenedRevealSexualOrientation", "VictimCaseForm2ViolenceMotivatedByGender2", "VictimCaseForm2AggressorTakenAdvantagePhysicalVulnerability", "VictimCaseForm2AggressorSexuallyHarassment2", "VictimCaseForm2AggressorUsedPositionAuthority",
-		"VictimCaseForm2RiskScore", "VictimCaseForm2RiskLevel",
+		"VictimCaseForm2AllowsEasyReport", "VictimCaseForm2RiskScore", "VictimCaseForm2RiskLevel",
 	}
 
 	query := common_dao.GetSQL(common_dao.SQL_UPDATE, fields, []string{}, VictimCaseForm2DBName, []string{"VictimCaseForm2Id"}, []string{}, []string{}, common_dao.SQL_AND, VictimCaseForm2DBScheme, VictimCaseForm2FieldDefinitions, false)
@@ -1314,6 +1321,7 @@ func UpdateVictimCaseForm2(victimCaseForm2 *VictimCaseForm2DTO,
 		utils.NilIfZero(victimCaseForm2.VictimCaseForm2AggressorTakenAdvantagePhysicalVulnerability.VictimCaseForm2EnumsId),
 		utils.NilIfZero(victimCaseForm2.VictimCaseForm2AggressorSexuallyHarassment2.VictimCaseForm2EnumsId),
 		utils.NilIfZero(victimCaseForm2.VictimCaseForm2AggressorUsedPositionAuthority.VictimCaseForm2EnumsId),
+		utils.NilIfZero(victimCaseForm2.VictimCaseForm2AllowsEasyReport.VictimCaseForm2EnumsId),
 		&victimCaseForm2.VictimCaseForm2RiskScore,
 		&victimCaseForm2.VictimCaseForm2RiskLevel,
 	)
@@ -1694,6 +1702,10 @@ func (obj *VictimCaseForm2PgDB) ToDTO() VictimCaseForm2DTO {
 
 	if obj.VictimCaseForm2AggressorUsedPositionAuthority.Valid {
 		dto.VictimCaseForm2AggressorUsedPositionAuthority = VictimCaseForm2EnumsDTO{VictimCaseForm2EnumsId: uint64(obj.VictimCaseForm2AggressorUsedPositionAuthority.Int64)}
+	}
+
+	if obj.VictimCaseForm2AllowsEasyReport.Valid {
+		dto.VictimCaseForm2AllowsEasyReport = VictimCaseForm2EnumsDTO{VictimCaseForm2EnumsId: uint64(obj.VictimCaseForm2AllowsEasyReport.Int64)}
 	}
 
 	if obj.VictimCaseForm2RiskScore.Valid {

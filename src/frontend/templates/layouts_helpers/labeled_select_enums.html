@@ -1,7 +1,13 @@
 <div class="{{.ContainerClass}}">
     <label for="{{.SelectId}}">{{.SelectLabel}} <span v-if="{{.Mandatory}}" class="mandatory">*</span></label>
     <div :class="errors.{{.EntityName}}&&errors.{{.EntityName}}.{{.EntityAttr}} ? '{{.SelectErrorClass}}' : ''">
-        <select :multiple="{{.Multiple}}" v-model="{{.EntityPath}}.{{.EntityName}}.{{.EntityAttr}}" class="{{.SelectClass}}" id="{{.SelectId}}">
+        <select :multiple="{{.Multiple}}" v-model="{{.EntityPath}}.{{.EntityName}}.{{.EntityAttr}}" class="{{.SelectClass}}" id="{{.SelectId}}"
+        
+        :aria-invalid="errors.{{.EntityName}} && errors.{{.EntityName}}.{{.EntityAttr}} ? 'true' : 'false'"
+        :aria-describedby="errors.{{.EntityName}} && errors.{{.EntityName}}.{{.EntityAttr}} ? '{{.ErrorSpanId}}' : null"
+        data-entity="{{.EntityName}}"
+        data-field="{{.EntityAttr}}"
+        data-label="{{.SelectLabel}}">
             <option value="{{.EmptyValue}}" selected>{{.EmptyLabel}}</option>
             <option v-for="(label, key) in enums.{{.EnumsAttr}}" :value="key">${label}</option>
         </select>

@@ -109,7 +109,7 @@ func InitRouter() *gin.Engine {
 }
 
 func StartRouter() {
-	err := router.RunTLS(":443", "certs/salviaTest.crt", "certs/salviaTest.key")
+	err := router.RunTLS(":443", "certs/salvia.crt", "certs/salvia.key")
 	println(err)
 }
 

@@ -1,0 +1,361 @@
+<div class="container">
+    <div class="welcome-section">
+        <!-- <h2><b>Caracterización para la identificación de necesidades de medidas de emergencia de familaires de feminicidio </b></h2>-->
+        <h1><b>{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_header"}` .lang .locale}}</b></h1>
+    </div>
+
+
+    <div class="tab-content" >
+
+        <div id="info-tab">
+            
+           
+            <div class="tituloform">
+                <i class="fas fa-female fa-2x"></i>
+                <h2>{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_general_info"}` .lang .locale}}</h2>
+            </div>
+
+            <div class="table1">
+                
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_victim_names"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.names}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_victim_last_names"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.lastNames}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_victim_doc_type"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.victimDocType.name}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_victim_doc_number"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.victimDocNumber}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_identity_name"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.victimIdentityName}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_birth_date"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.birthDate}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_affiliation_regime"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimSGSSSAffiliation.name}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_birth_date"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.epsName}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_residence_zone"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimLivingZone.name}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_residence_department"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.livingDepartment.name}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_residence_city"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.livingCity.name}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_residence_town"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.livingTown.name}</div>
+                    </div>
+                </div>
+                
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_contact_phone"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.contactPhone}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_emergency_contact_name"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.contactEmergencyContactNames}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_emergency_contact_number"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.contactEmergencyContactNumber}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_marital_status"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimMaritalStatus.name}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_sex"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimSex.name}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_gender_identity"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimGenderIdentity.name}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_sexual_orientation"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimSexualOrientation.name}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_ethnic_affiliation"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimEthnicAffiliation.name}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_indigenous_people"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimIndigenousPeople.name}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_migrant_population"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimIsMigrant.name}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_migration_status"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimMigrationStatus.name}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_education_level"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimMaxEducationLevel.name}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_special_population"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimIsSpecialPopulation.name}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_current_employment"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimCurrentlyHasJob.name}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_explain"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimJobExplanation}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_job_loss_due_to_risk"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimAbandonedJobDueToRisk.name}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_occupation"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimMainOccupation.name}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_disability"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimHasDisability.name}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_disability_type"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimDisabilityType.name}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_risk_violence_description"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimRiskDescription}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_additional_information"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.victimAdditionalInfo}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_received_assistance"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.anyAssistanceReceived.name}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_received_help_subsidy_personal_family_explanation"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.assistanceReceived}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_any_help_city_hall"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.anyAssistanceReceivedCityHall.name}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_explain"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.assistanceReceivedCityHall}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_any_help_womens_office"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.anyAssistanceReceivedWomensOffice.name}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_explain"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.assistanceReceivedWomensOffice}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_any_help_other_entity"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.anyAssistanceReceivedOtherEntity.name}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_explain"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.assistanceReceivedOtherEntity}</div>
+                    </div>
+                </div>
+
+                <div class="item1">
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_any_help_other"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.anyAssistanceReceivedOther.name}</div>
+                    </div>
+                    <div class="row1">
+                        <div class="thead">{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_explain"}` .lang .locale}}</div>
+                        <div class="tbody">${data.feminicideRisk.form.assistanceReceivedOther}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <div class="row justify-content-center botones">
+            {{ template "button.html" Button `{"class":"btn btn-warning", "buttonId":"back",
+            "buttonLabel":"feminicide_risk_back", "buttonPlaceHolder":"feminicide_risk_back_h",
+            "onClickHandler":"submit('back')"}` .lang .locale}}
+            
+            {{ template "button.html" Button `{"class":"btn btn-primary", "buttonId":"update",
+            "buttonLabel":"feminicide_risk_update", "buttonPlaceHolder":"feminicide_risk_update_h",
+            "onClickHandler":"submit('update')"}` .lang .locale}}
+        </div>
+    </div>
+</div>
+
+
+        {{ template "standard_scripts.html" .}}
+        {{ template "overlay.html" .}}
+          
+        <script>
+        
+          var home = Vue.createApp({
+            delimiters : ['${', '}'],
+            data() {
+              return {
+                windowTitle:{{.windowTitle}},
+                currentUser:{{.currentUser}},
+                data: {feminicideRisk: JSON.parse({{.feminicideRisks}})},
+                errors:{},
+                enums:{
+                    nav_rules: {{.nav_rules}},
+                    
+                },
+                workSpace:{
+                    entitiesByMomentAndSector: {{.entitiesByMomentAndSector}},
+                    followUp:{},
+                    currentFollowUpEntry:{identifiedBarriers:[]},
+                    currentSectorBarrier:{},
+                    currentBarrier:{},
+                }
+              }
+            },
+            created: function () {
+            },
+            mounted:  function () {
+            document.title = {{.windowTitle}};
+                document.getElementById('app').style.display = 'block';
+                home.config.globalProperties.enums = this.enums;
+            },
+            methods: {
+                getMoment(momentCode, branchICode){
+                    for (const m of this.data.feminicideRisk.moments) {
+                        
+                        if(m.code == momentCode && m.entityBranch.icode == branchICode){
+                            return m
+                        }
+                    }
+                    return {}
+                },
+                getEntityNameByICode (iCode){
+                    for (let idx = 0; idx < this.enums.entities.length; idx++) {
+                        if(this.enums.entities[idx].icode == iCode){
+                            return this.enums.entities[idx].name;
+                        }
+                    }
+                    
+                    return "";
+                },
+                submit(action,momentICode) {
+                    if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
+                        location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+                    }else  if(action == "update"){
+                        location.assign("{{.salviaFeminicideRiskUpdateFormPath}}/"+this.data.feminicideRisk.icode+"/actualizar");
+                    }
+                },
+                logout(){
+                    logout("/seguridad/logout");
+                },
+                getEntityEnumLabel(enums, id, idName, labelName){
+                    for (let index = 0; index < enums.length; index++) {
+                        const e = enums[index];
+                        if(e[idName] == id){
+                            return e[labelName];
+                        }
+                    }
+                    return "";
+                },
+                concatEnumsNames(enums){
+                    var result = "";
+                    for (let index = 0; index < enums.length; index++) {
+                        result += enums[index].name;
+                        if(index < enums.length -1){
+                            result += ", "
+                        }
+                    }
+                    return result;
+                }
+            }
+          });
+          
+          home.mount("#app");
+        
+          
+        </script>
+        

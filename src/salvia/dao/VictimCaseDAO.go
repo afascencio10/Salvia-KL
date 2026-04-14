@@ -211,7 +211,7 @@ func GetVictimCase(by common_controllers.By, victimCase *VictimCaseDTO, connData
 	// Definición de variables
 	var persistenceCtrl common_controllers.PersistenceController = common_controllers.PersistenceController{}
 
-	var victimCasePath string = VictimCaseDBScheme + "." + VictimCaseDBName
+	//var victimCasePath string = VictimCaseDBScheme + "." + VictimCaseDBName
 
 	//Obtenemos la conexión
 	persistenceCtrl.Setup(connData, clientConfig, serverConfig)
@@ -227,12 +227,9 @@ func GetVictimCase(by common_controllers.By, victimCase *VictimCaseDTO, connData
 
 	var victimCaseFieldsAliasSlice []string = []string{}
 
-	var victimCaseFieldsStr = common_dao.GetSQL(common_dao.SQL_SELECT_FIELDS_ONLY, victimCaseFieldsSlice, victimCaseFieldsAliasSlice, VictimCaseDBName, []string{}, []string{}, []string{}, common_dao.SQL_AND, VictimCaseDBScheme, VictimCaseFieldDefinitions, true)
+	var query string = common_dao.GetSQL(common_dao.SQL_SELECT, victimCaseFieldsSlice, victimCaseFieldsAliasSlice, VictimCaseDBName, by.AttrsName, []string{}, []string{}, by.Operator, VictimCaseDBScheme, VictimCaseFieldDefinitions, true)
 
-	var query string = `SELECT ` + victimCaseFieldsStr +
-		` FROM ` + victimCasePath +
-
-		common_dao.GetSQL(common_dao.SQL_SELECT_WHERE_ONLY, by.AttrsName, by.AttrsAliasName, VictimCaseDBName, by.AttrsName, []string{}, []string{}, by.Operator, VictimCaseDBScheme, VictimCaseFieldDefinitions, true)
+	//		common_dao.GetSQL(common_dao.SQL_SELECT_WHERE_ONLY, by.AttrsName, by.AttrsAliasName, VictimCaseDBName, by.AttrsName, []string{}, []string{}, by.Operator, VictimCaseDBScheme, VictimCaseFieldDefinitions, true)
 
 	fmt.Printf(query, by.AttrsValue...)
 	persistenceCtrl.QueryRow(context.Background(), query, by.AttrsValue...)
@@ -280,7 +277,6 @@ func GetVictimCases(by common_controllers.By, page int, connData *db.ConnData, c
 
 	var query string = `SELECT ` + victimCaseFieldsStr +
 		` FROM ` + victimCasePath +
-
 		common_dao.GetSQL(common_dao.SQL_SELECT_WHERE_ONLY, by.AttrsName, by.AttrsAliasName, VictimCaseDBName, by.AttrsName, []string{}, []string{}, by.Operator, VictimCaseDBScheme, VictimCaseFieldDefinitions, true) +
 		` ORDER BY ` + victimCasePath + `.` + VictimCaseFieldDefinitions["VictimCaseCreationDate"].DBName + ` ASC  ` +
 		common_dao.GetOffsetQuery(page)
@@ -308,7 +304,7 @@ func GetVictimCases(by common_controllers.By, page int, connData *db.ConnData, c
 			` FROM ` + victimCasePath +
 			common_dao.GetSQL(common_dao.SQL_SELECT_WHERE_ONLY, by.AttrsName, by.AttrsAliasName, VictimCaseDBName, by.AttrsName, []string{}, []string{}, by.Operator, VictimCaseDBScheme, VictimCaseFieldDefinitions, true)
 
-		persistenceCtrl.QueryRow(context.Background(), countQuery)
+		persistenceCtrl.QueryRow(context.Background(), countQuery, by.AttrsValue...)
 		persistenceCtrl.Scan(&count)
 	}
 
@@ -621,7 +617,7 @@ func GetVictimCasesByDocumentAndTownCodeWithAttend(docType string, docNumber str
 			` FROM ` + victimCasePath +
 			commonWhere
 
-		persistenceCtrl.QueryRow(context.Background(), countQuery)
+		persistenceCtrl.QueryRow(context.Background(), countQuery, docType, docNumber, townCode)
 		persistenceCtrl.Scan(&count)
 	}
 
@@ -695,7 +691,7 @@ func GetVictimCasesByTownCodeWithAttend(townCode string, page int, connData *db.
 			` FROM ` + victimCasePath +
 			commonWhere
 
-		persistenceCtrl.QueryRow(context.Background(), countQuery)
+		persistenceCtrl.QueryRow(context.Background(), countQuery, townCode)
 		persistenceCtrl.Scan(&count)
 	}
 
@@ -844,7 +840,7 @@ func GetVictimCasesReport(report VictimCaseReportDTO, connData *db.ConnData, cli
 		"VictimCaseForm2PartnerThreatenedSuicide", "VictimCaseForm2PartnerThreatenedDamageMembers", "VictimCaseForm2ThoughtsOfSelfHarm", "VictimCaseForm2AggressorLimitsContactSupportNetworks", "VictimCaseForm2StillLivesWithAggressor",
 		"VictimCaseForm2AggressorViolentlyJealous", "VictimCaseForm2AggressorUnemployed", "VictimCaseForm2AggressorHasPenalBackground2", "VictimCaseForm2AggressorSexuallyHarassment", "VictimCaseForm2AggressorUseDrugs",
 		"VictimCaseForm2AggressorIsAlcoholic2", "VictimCaseForm2AggressorControls", "VictimCaseForm2AggressorThreatenedDamageMembers", "VictimCaseForm2ThoughtsOfSelfHarm2", "VictimCaseForm2AggressorCommonSpaces",
-		"VictimCaseForm2AggressorHierarchy", "VictimCaseForm2BirthDate", "VictimCaseForm2PhysicalMentalSensoryDifficulties", "VictimCaseForm2Nationality", "VictimCaseForm2SpecifiedNationality",
+		"VictimCaseForm2AggressorHierarchy", "VictimCaseForm2RiskScore", "VictimCaseForm2RiskLevel", "VictimCaseForm2AggressorUsedPositionAuthority", "VictimCaseForm2BirthDate", "VictimCaseForm2PhysicalMentalSensoryDifficulties", "VictimCaseForm2Nationality", "VictimCaseForm2SpecifiedNationality",
 		"VictimCaseForm2MigrationCondition", "VictimCaseForm2GenderIdentity", "VictimCaseForm2SexualOrientation", "VictimCaseForm2AssignedSexAtBirth", "VictimCaseForm2EthnicAffiliation",
 		"VictimCaseForm2IndigenousPeople", "VictimCaseForm2CampesinoRecognition", "VictimCaseForm2MaritalStatus", "VictimCaseForm2LastEducationLevel", "VictimCaseForm2Occupation",
 		"VictimCaseForm2IncomeGenerationMethod", "VictimCaseForm2ApproxStartAsp", "VictimCaseForm2HousingTenancyForm", "VictimCaseForm2HousingStratum", "VictimCaseForm2CurrentlyPregnant",
@@ -853,7 +849,7 @@ func GetVictimCasesReport(report VictimCaseReportDTO, connData *db.ConnData, cli
 		"VictimCaseForm2PersonWithDisability", "VictimCaseForm2RequireLanguageInterpreter", "VictimCaseForm2WorkplaceSectorOccurrence", "VictimCaseForm2ViolenceMotivatedByGender", "VictimCaseForm2AttentionWasAppropriate", "VictimCaseForm2AggressorOccupation", "VictimCaseForm2SalivaManagementExplanation",
 		"VictimCaseForm2ActivitiesUnableToHear", "VictimCaseForm2ActivitiesUnableToTalk", "VictimCaseForm2ActivitiesUnableToSee", "VictimCaseForm2ActivitiesUnableToMove", "VictimCaseForm2ActivitiesUnableToTake",
 		"VictimCaseForm2ActivitiesUnableToUnderstand", "VictimCaseForm2ActivitiesUnableToEat", "VictimCaseForm2ActivitiesUnableToInteract", "VictimCaseForm2ActivitiesUnableToDoEveryday",
-		"VictimCaseForm2VictimCase"}
+		"VictimCaseForm2AllowsEasyReport", "VictimCaseForm2VictimCase"}
 
 	var victimCaseForm2FieldsAliasSlice []string = []string{}
 
@@ -917,7 +913,9 @@ func GetVictimCasesReport(report VictimCaseReportDTO, connData *db.ConnData, cli
 
 		` ORDER BY ` + victimCasePath + `.` + VictimCaseFieldDefinitions["VictimCaseCreationDate"].DBName + ` ASC  `
 
-	persistenceCtrl.Query(context.Background(), query, report.VictimCaseReportStartDate.Format(common_config.DateTime.DB_DATE_TIME_FORMAT), report.VictimCaseReportEndDate.Format(common_config.DateTime.DB_DATE_TIME_FORMAT))
+	var endDate time.Time = time.Date(report.VictimCaseReportEndDate.Year(), report.VictimCaseReportEndDate.Month(), report.VictimCaseReportEndDate.Day(), 23, 59, 59, 0, report.VictimCaseReportEndDate.Location())
+
+	persistenceCtrl.Query(context.Background(), query, report.VictimCaseReportStartDate.Format(common_config.DateTime.DB_DATE_TIME_FORMAT), endDate.Format(common_config.DateTime.DB_DATE_TIME_FORMAT))
 
 	for persistenceCtrl.Next() {
 		var victimCasePg VictimCasePgDB = VictimCasePgDB{}
@@ -966,6 +964,7 @@ func GetVictimCasesReport(report VictimCaseReportDTO, connData *db.ConnData, cli
 			&victimCaseForm2Pg.VictimCaseForm2StillLivesWithAggressor, &victimCaseForm2Pg.VictimCaseForm2AggressorViolentlyJealous, &victimCaseForm2Pg.VictimCaseForm2AggressorUnemployed, &victimCaseForm2Pg.VictimCaseForm2AggressorHasPenalBackground2,
 			&victimCaseForm2Pg.VictimCaseForm2AggressorSexuallyHarassment, &victimCaseForm2Pg.VictimCaseForm2AggressorUseDrugs, &victimCaseForm2Pg.VictimCaseForm2AggressorIsAlcoholic2, &victimCaseForm2Pg.VictimCaseForm2AggressorControls,
 			&victimCaseForm2Pg.VictimCaseForm2AggressorThreatenedDamageMembers, &victimCaseForm2Pg.VictimCaseForm2ThoughtsOfSelfHarm2, &victimCaseForm2Pg.VictimCaseForm2AggressorCommonSpaces, &victimCaseForm2Pg.VictimCaseForm2AggressorHierarchy,
+			&victimCaseForm2Pg.VictimCaseForm2RiskScore, &victimCaseForm2Pg.VictimCaseForm2RiskLevel, &victimCaseForm2Pg.VictimCaseForm2AggressorUsedPositionAuthority,
 			&victimCaseForm2Pg.VictimCaseForm2BirthDate, &victimCaseForm2Pg.VictimCaseForm2PhysicalMentalSensoryDifficulties, &victimCaseForm2Pg.VictimCaseForm2Nationality, &victimCaseForm2Pg.VictimCaseForm2SpecifiedNationality,
 			&victimCaseForm2Pg.VictimCaseForm2MigrationCondition, &victimCaseForm2Pg.VictimCaseForm2GenderIdentity, &victimCaseForm2Pg.VictimCaseForm2SexualOrientation, &victimCaseForm2Pg.VictimCaseForm2AssignedSexAtBirth,
 			&victimCaseForm2Pg.VictimCaseForm2EthnicAffiliation, &victimCaseForm2Pg.VictimCaseForm2IndigenousPeople, &victimCaseForm2Pg.VictimCaseForm2CampesinoRecognition, &victimCaseForm2Pg.VictimCaseForm2MaritalStatus,
@@ -976,7 +975,8 @@ func GetVictimCasesReport(report VictimCaseReportDTO, connData *db.ConnData, cli
 			&victimCaseForm2Pg.VictimCaseForm2WorkplaceSectorOccurrence, &victimCaseForm2Pg.VictimCaseForm2ViolenceMotivatedByGender, &victimCaseForm2Pg.VictimCaseForm2AttentionWasAppropriate, &victimCaseForm2Pg.VictimCaseForm2AggressorOccupation,
 			&victimCaseForm2Pg.VictimCaseForm2SalivaManagementExplanation, &victimCaseForm2Pg.VictimCaseForm2ActivitiesUnableToHear, &victimCaseForm2Pg.VictimCaseForm2ActivitiesUnableToTalk, &victimCaseForm2Pg.VictimCaseForm2ActivitiesUnableToSee,
 			&victimCaseForm2Pg.VictimCaseForm2ActivitiesUnableToMove, &victimCaseForm2Pg.VictimCaseForm2ActivitiesUnableToTake, &victimCaseForm2Pg.VictimCaseForm2ActivitiesUnableToUnderstand, &victimCaseForm2Pg.VictimCaseForm2ActivitiesUnableToEat,
-			&victimCaseForm2Pg.VictimCaseForm2ActivitiesUnableToInteract, &victimCaseForm2Pg.VictimCaseForm2ActivitiesUnableToDoEveryday, &victimCaseForm2Pg.VictimCaseForm2VictimCase,
+			&victimCaseForm2Pg.VictimCaseForm2ActivitiesUnableToInteract, &victimCaseForm2Pg.VictimCaseForm2ActivitiesUnableToDoEveryday,
+			&victimCaseForm2Pg.VictimCaseForm2AllowsEasyReport, &victimCaseForm2Pg.VictimCaseForm2VictimCase,
 
 			&victimCasePg.VictimCaseTownLatitude, &victimCasePg.VictimCaseTownLongitude, &victimCasePg.TownName,
 			&victimCasePg.CityName, &victimCasePg.DepartmentName)
@@ -1533,6 +1533,10 @@ func (obj *VictimCaseDTO) LoadFromVictimContactForm2(vc VictimContactDTO, moment
 	obj.VictimCaseForm2.VictimCaseForm2VictimPhone, _ = strconv.ParseUint(string(vc.VictimContactForm2.VictimContactForm2VictimColPhone), 10, 64)
 
 	obj.VictimCaseEntityBranches = make(map[string]map[string]map[string]string)
+
+	//Cargamos el ajuste VBG
+
+	obj.VictimCaseForm2.VictimCaseForm2AdjustmentsGBV = vc.VictimContactForm2.VictimContactForm2AdjustmentsGBV
 
 	for _, m := range moment {
 		obj.VictimCaseEntityBranches[m["code"]] = map[string]map[string]string{}

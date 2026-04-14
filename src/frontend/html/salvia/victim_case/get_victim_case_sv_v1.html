@@ -13,7 +13,7 @@
                 aria-selected="false">{{ template "text_translated.html" Text `{"text":"get_victim_case_status"}` .lang .locale}}</a>
         </li>
         <li class="nav-item" role="presentation">
-            <a class="nav-link" id="tab3-tab" data-toggle="tab" href="#tab3" role="tab" aria-controls="tab3"
+            <a class="nav-link" id="tab3-tab" data-toggle="tab" href="#tab3" role="tab" aria-controls="tab2"
                 aria-selected="false">{{ template "text_translated.html" Text `{"text":"follow_up_title"}` .lang .locale}}</a>
         </li>
     </ul>
@@ -520,6 +520,7 @@
             <hr>
             <template v-if="res.victimCase.followUp.icode == ''">
                 <p>{{ template "text_translated.html" Text `{"text":"victim_case_risk_scheme_empty"}` .lang .locale}}</p>
+                
             </template>
 
             <template v-else>
@@ -591,15 +592,7 @@
                             {{ template "text_translated.html" Text `{"text":"follow_up_entry_status"}` .lang .locale}}: <b>${enums.followUpEntryStatus[fue.status]}</b>
                         </div>
                     </div>
-                        <template v-if="fue.status == 'u'">
-                            <div class="row">
-                                <div class="col-sm-12">                                
-                                    {{ template "button.html" Button `{"class":"btn btn-primary", "buttonId":"approve", "buttonLabel":"follow_up_entry_set", 
-                                    "buttonPlaceHolder":"follow_up_entry_set_h", "onClickHandler":"showSetFollowUpEntry(fue)"}` .lang .locale}}
-                                </div>
-                            </div>
-                        </template>
-                        <template v-else>
+                        <template v-if="fue.status != 'u'">
                             <div id="info-tab">
                                 <div class="table1">
                                     <div class="item1">
@@ -695,17 +688,13 @@
         {{ template "button.html" Button `{"class":"btn btn-warning", "buttonId":"back",
         "buttonLabel":"get_victim_case_back", "buttonPlaceHolder":"get_victim_case_back_h",
         "onClickHandler":"submit('back')"}` .lang .locale}}
-
-        <template v-if="res.victimCase.status == 'r'">
-            {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"approve", 
-            "buttonLabel":"victim_case_approve", "buttonPlaceHolder":"victim_case_approve_h", 
-            "onClickHandler":"submit('approve')"}` .lang .locale}}
-        </template>
-        {{ template "button.html" Button `{"class":"btn btn-primary", "buttonId":"update",
-        "buttonLabel":"get_victim_case_update", "buttonPlaceHolder":"get_victim_case_update_h",
-        "onClickHandler":"submit('update')"}` .lang .locale}}
     </div>
 </div>
+
+
+
+
+
         {{ template "standard_scripts.html" .}}
         {{ template "overlay.html" .}}
           
@@ -713,6 +702,9 @@
         
           var home = Vue.createApp({
             delimiters : ['${', '}'],
+            components: {
+                CustomSelect
+            },
             data() {
               return {
                 windowTitle:{{.windowTitle}},
@@ -739,6 +731,11 @@
                     riskLevel:{{.riskLevel}},
                     actionStatus: {{.actionStatus}},
 
+                   
+                    
+                    sectorBarriers:{{.sectorBarriers}},
+                    barriers: [],
+                    
                     followUpStatus:{{.followUpStatus}},
                     followUpEntryStatus:{{.followUpEntryStatus}},
 
@@ -769,6 +766,10 @@
                 },
                 workSpace:{
                     entitiesByMomentAndSector: {{.entitiesByMomentAndSector}},
+                    followUp:{},
+                    currentFollowUpEntry:{identifiedBarriers:[]},
+                    currentSectorBarrier:{},
+                    currentBarrier:{},
                 },
                 data:{
                     caseLog:{}
@@ -821,12 +822,60 @@
                                 alert("Se produjo un error interno, por favor vuelva a intentarlo");
                             }
                         }).bind(this));
-                    }else  if(action == "update"){
-                        location.assign("{{.salviaVictimCaseUpdateFormPath}}/"+this.res.victimCase.icode+"/actualizar");
                     }
                 },
+                
                 logout(){
                     logout("/seguridad/logout");
+                },
+                onSectorBarrierChanged(event){
+                    if(this.workSpace.currentSectorBarrier.icode != ""){
+                        getEntity("{{.salviaBarrierGETFormPath}}/"+this.workSpace.currentSectorBarrier.icode+"/por_sector", (function(status, response) {
+                            if (status === 200) {
+                                this.enums.barriers =  response;
+                            } else if (status === 400) {
+                                this.errors = response;
+                                alert(JSON.stringify(this.errors));
+                            }else if (status === 404) {
+                                console.log("No records found")
+                            }
+                        }).bind(this), true);
+                    }
+                    
+                },
+                onBarrierChanged(event){
+                    
+                },
+                addBarrier(){
+                    //this.currentBarrier.name = getBarrierNameByICode(this.currentBarrier.icode);
+                    if(this.workSpace.currentBarrier.icode != ""){
+                        for (let idx = 0; idx < this.workSpace.currentFollowUpEntry.identifiedBarriers.length; idx++) {
+                            
+                            if(this.workSpace.currentFollowUpEntry.identifiedBarriers[idx].icode == this.workSpace.currentBarrier.icode){
+                                return;
+                            }
+                        }
+                        this.workSpace.currentFollowUpEntry.identifiedBarriers.push({icode:this.workSpace.currentBarrier.icode, name:this.getBarrierNameByICode(this.workSpace.currentBarrier.icode), sectorName:this.getSectorBarrierNameByICode(this.workSpace.currentSectorBarrier.icode)})
+                    }
+                },
+                dropBarrier(idx){
+                    this.workSpace.currentFollowUpEntry.identifiedBarriers.splice(idx, 1);
+                },
+                getBarrierNameByICode (iCode){
+                    for (let idx = 0; idx < this.enums.barriers.length; idx++) {
+                        if(this.enums.barriers[idx].icode == iCode){
+                            return this.enums.barriers[idx].name;
+                        }
+                    }
+                    return "";
+                },
+                getSectorBarrierNameByICode (iCode){
+                    for (let idx = 0; idx < this.enums.sectorBarriers.length; idx++) {
+                        if(this.enums.sectorBarriers[idx].icode == iCode){
+                            return this.enums.sectorBarriers[idx].name;
+                        }
+                    }
+                    return "";
                 },
                 getEntityEnumLabel(enums, id, idName, labelName){
                     for (let index = 0; index < enums.length; index++) {

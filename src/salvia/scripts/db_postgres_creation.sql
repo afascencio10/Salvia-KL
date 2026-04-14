@@ -638,6 +638,7 @@ CREATE TABLE victim_case_form2 (
    victim_case_form2_aggressor_taken_advantage_physical_vulnerabil BIGINT ,
    victim_case_form2_aggressor_sexually_harassment_2 BIGINT ,
    victim_case_form2_aggressor_used_position_authority BIGINT ,
+   victim_case_form2_allows_easy_report BIGINT ,
    victim_case_form2_violence_motivated_by_gender_2 BIGINT ,
    victim_case_form2_risk_score INTEGER ,
    victim_case_form2_risk_level INTEGER ,
@@ -672,6 +673,15 @@ CREATE TABLE rel_victim_case_form2_enums_victim_case_form2 (
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE rel_victim_case_form2_enums_victim_case_form2 TO salvia_admin;
 
 
+CREATE TABLE rel_victim_case_form2_enums_victim_contact_form2 (
+   rel_victim_case_form2_enums_victim_contact_form2_id SERIAL NOT NULL,
+   victim_case_form2_enums_id BIGINT NOT NULL,
+   victim_contact_form2_id BIGINT NOT NULL,
+   CONSTRAINT rel_victim_case_form2_enums_victim_contact_form2_pkey PRIMARY KEY (rel_victim_case_form2_enums_victim_contact_form2_id)
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE rel_victim_case_form2_enums_victim_contact_form2 TO salvia_admin;
+
+
 
 CREATE TABLE victim_contact_form2 (
    victim_contact_form2_id SERIAL NOT NULL,
@@ -687,6 +697,7 @@ CREATE TABLE victim_contact_form2 (
    victim_contact_form2_facts_description TEXT NOT NULL,
    victim_contact_form2_best_contact_time TIME WITHOUT TIME ZONE NOT NULL,
    victim_contact_form2_report_type BIGINT NOT NULL,
+   victim_contact_form2_report_type_details BIGINT,
    victim_contact_form2_victim_contact BIGINT NOT NULL,
    CONSTRAINT victim_contact_form2_pkey PRIMARY KEY (victim_contact_form2_id),
    CONSTRAINT victim_contact_form2_victim_case_form2_i_code_key UNIQUE (victim_case_form2_i_code)
@@ -924,6 +935,18 @@ ALTER TABLE rel_victim_case_form2_enums_victim_case_form2 ADD CONSTRAINT rel_vic
    FOREIGN KEY ( victim_case_form2_enums_id) REFERENCES victim_case_form2_enums(victim_case_form2_enums_id) MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION ;
 
 
+ALTER TABLE victim_contact_form2 ADD CONSTRAINT victim_contact_form2_report_type_details
+       FOREIGN KEY ( victim_contact_form2_report_type_details) REFERENCES victim_case_form2_enums(victim_case_form2_enums_id) MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION ;
+
+
+ALTER TABLE rel_victim_case_form2_enums_victim_contact_form2 ADD CONSTRAINT rel_victim_case_form2_id
+   FOREIGN KEY ( victim_contact_form2_id) REFERENCES victim_contact_form2(victim_contact_form2_id) MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION ;
+
+
+ALTER TABLE rel_victim_case_form2_enums_victim_contact_form2 ADD CONSTRAINT rel_victim_case_form2_enums_id
+   FOREIGN KEY ( victim_case_form2_enums_id) REFERENCES victim_case_form2_enums(victim_case_form2_enums_id) MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION ;
+
+
 
 
 
@@ -934,6 +957,12 @@ INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victi
 
 INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category)	VALUES (public.uuid_generate_v4(), 'victim_case_form2_report_type_victim', 'v', 'victim_case_form2_report_type');
 INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category)	VALUES (public.uuid_generate_v4(), 'victim_case_form2_report_type_reporter', 'r', 'victim_case_form2_report_type');
+
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category)	VALUES (public.uuid_generate_v4(), 'victim_case_form2_report_type_details_ae', 'ae', 'victim_case_form2_report_type_details');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category)	VALUES (public.uuid_generate_v4(), 'victim_case_form2_report_type_details_et', 'et', 'victim_case_form2_report_type_details');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category)	VALUES (public.uuid_generate_v4(), 'victim_case_form2_report_type_details_ex', 'ex', 'victim_case_form2_report_type_details');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category)	VALUES (public.uuid_generate_v4(), 'victim_case_form2_report_type_details_ot', 'ot', 'victim_case_form2_report_type_details');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category)	VALUES (public.uuid_generate_v4(), 'victim_case_form2_report_type_details_an', 'an', 'victim_case_form2_report_type_details');
 
 --victim_case_form2_victim_doc_type
 INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category)	VALUES (public.uuid_generate_v4(), 'victim_case_form2_victim_doc_type_cd', 'cd', 'victim_case_form2_victim_doc_type');
@@ -955,6 +984,7 @@ INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victi
 INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category)	VALUES (public.uuid_generate_v4(), 'victim_case_form2_victim_doc_type_ti', 'ti', 'victim_case_form2_victim_doc_type');
 INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category)	VALUES (public.uuid_generate_v4(), 'victim_case_form2_victim_doc_type_vs', 'vs', 'victim_case_form2_victim_doc_type');
 INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category)	VALUES (public.uuid_generate_v4(), 'victim_case_form2_victim_doc_type_vr', 'vr', 'victim_case_form2_victim_doc_type');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category)	VALUES (public.uuid_generate_v4(), 'victim_case_form2_victim_doc_type_np', 'np', 'victim_case_form2_victim_doc_type');
 --victim_case_form2_facts_zone
 INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category)	VALUES (public.uuid_generate_v4(), 'victim_case_form2_facts_zone_cm', 'cm', 'victim_case_form2_facts_zone');
 INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category)	VALUES (public.uuid_generate_v4(), 'victim_case_form2_facts_zone_pr', 'pr', 'victim_case_form2_facts_zone');
@@ -990,6 +1020,7 @@ INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victi
 INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'victim_case_form2_scenario_violence_vp',  'vp', 'victim_case_form2_scenario_violence');
 INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'victim_case_form2_scenario_violence_vi',  'vi', 'victim_case_form2_scenario_violence');
 INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'victim_case_form2_scenario_violence_za',  'za', 'victim_case_form2_scenario_violence');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'victim_case_form2_scenario_violence_ot',  'ot', 'victim_case_form2_scenario_violence');
 -- victim_case_form2_recurrence_aggression
 INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(),'victim_case_form2_recurrence_aggression_pr','pr','victim_case_form2_recurrence_aggression');
 INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(),'victim_case_form2_recurrence_aggression_se','se','victim_case_form2_recurrence_aggression');
@@ -1730,6 +1761,46 @@ INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victi
 INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'victim_case_form2_action_plan_rm', 'rm', 'victim_case_form2_action_plan');
 INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'victim_case_form2_action_plan_ga', 'ga', 'victim_case_form2_action_plan');
 
+-- MÓDULO FEMINICIDIO
+-- feminicide_risk_form1_victim_sgsss_affiliation
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code,victim_case_form2_enums_name,victim_case_form2_enums_code,victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(),'feminicide_risk_form1_victim_sgsss_affiliation_su','su','feminicide_risk_form1_victim_sgsss_affiliation');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code,victim_case_form2_enums_name,victim_case_form2_enums_code,victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(),'feminicide_risk_form1_victim_sgsss_affiliation_co','co','feminicide_risk_form1_victim_sgsss_affiliation');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code,victim_case_form2_enums_name,victim_case_form2_enums_code,victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(),'feminicide_risk_form1_victim_sgsss_affiliation_re','re','feminicide_risk_form1_victim_sgsss_affiliation');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code,victim_case_form2_enums_name,victim_case_form2_enums_code,victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(),'feminicide_risk_form1_victim_sgsss_affiliation_na','na','feminicide_risk_form1_victim_sgsss_affiliation');
+-- feminicide_risk_form1_victim_disability_type
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_form1_victim_disability_type_df', 'df', 'feminicide_risk_form1_victim_disability_type');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_form1_victim_disability_type_ds', 'ds', 'feminicide_risk_form1_victim_disability_type');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_form1_victim_disability_type_da', 'da', 'feminicide_risk_form1_victim_disability_type');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_form1_victim_disability_type_dv', 'dv', 'feminicide_risk_form1_victim_disability_type');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_form1_victim_disability_type_so', 'so', 'feminicide_risk_form1_victim_disability_type');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_form1_victim_disability_type_di', 'di', 'feminicide_risk_form1_victim_disability_type');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_form1_victim_disability_type_dm', 'dm', 'feminicide_risk_form1_victim_disability_type');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_form1_victim_disability_type_mu', 'mu', 'feminicide_risk_form1_victim_disability_type');
+-- feminicide_risk_financially_dependent_people
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_financially_dependent_people_gs', 'gs', 'feminicide_risk_financially_dependent_people');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_financially_dependent_people_lc', 'lc', 'feminicide_risk_financially_dependent_people');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_financially_dependent_people_m5', 'm5', 'feminicide_risk_financially_dependent_people');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_financially_dependent_people_pd', 'pd', 'feminicide_risk_financially_dependent_people');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_financially_dependent_people_pm', 'pm', 'feminicide_risk_financially_dependent_people');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_financially_dependent_people_ot', 'ot', 'feminicide_risk_financially_dependent_people');
+-- feminicide_risk_victim_common_transport_mode
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_victim_common_transport_mode_tr', 'tr', 'feminicide_risk_victim_common_transport_mode');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_victim_common_transport_mode_fl', 'fl', 'feminicide_risk_victim_common_transport_mode');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_victim_common_transport_mode_ae', 'ae', 'feminicide_risk_victim_common_transport_mode');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_victim_common_transport_mode_mx', 'mx', 'feminicide_risk_victim_common_transport_mode');
+-- feminicide_risk_places_visit_regularly
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_places_visit_regularly_ec', 'ec', 'feminicide_risk_places_visit_regularly');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_places_visit_regularly_cs', 'cs', 'feminicide_risk_places_visit_regularly');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_places_visit_regularly_fo', 'fo', 'feminicide_risk_places_visit_regularly');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_places_visit_regularly_cf', 'cf', 'feminicide_risk_places_visit_regularly');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_places_visit_regularly_lt', 'lt', 'feminicide_risk_places_visit_regularly');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_places_visit_regularly_ot', 'ot', 'feminicide_risk_places_visit_regularly');
+-- feminicide_risk_victim_food_access_frequency
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_victim_food_access_frequency_fm', 'fm', 'feminicide_risk_victim_food_access_frequency');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_victim_food_access_frequency_cs', 'cs', 'feminicide_risk_victim_food_access_frequency');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_victim_food_access_frequency_av', 'av', 'feminicide_risk_victim_food_access_frequency');
+INSERT INTO salvia.victim_case_form2_enums(victim_case_form2_enums_i_code, victim_case_form2_enums_name, victim_case_form2_enums_code, victim_case_form2_enums_category) VALUES (public.uuid_generate_v4(), 'feminicide_risk_victim_food_access_frequency_nc', 'nc', 'feminicide_risk_victim_food_access_frequency');
+
 
 --**************************************************************
 -- Formularios de feminicidio
@@ -1767,7 +1838,6 @@ CREATE TABLE feminicide_risk (
 
 CREATE TABLE rel_case_owner_feminicide (
     rel_case_owner_feminicide_id SERIAL NOT NULL,
-    rel_case_owner_feminicide_i_code CHARACTER VARYING(36) NOT NULL,
     rel_case_owner_feminicide_creation_date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     rel_case_owner_feminicide_status CHARACTER VARYING(1) NOT NULL,
     rel_case_owner_feminicide_case_owner BIGINT NOT NULL,
@@ -1778,7 +1848,6 @@ CREATE TABLE rel_case_owner_feminicide (
 
 CREATE TABLE rel_case_owner_feminicide_risk (
     rel_case_owner_feminicide_risk_id SERIAL NOT NULL,
-    rel_case_owner_feminicide_risk_i_code CHARACTER VARYING(36) NOT NULL,
     rel_case_owner_feminicide_risk_creation_date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     rel_case_owner_feminicide_risk_status CHARACTER VARYING(1) NOT NULL,
     rel_case_owner_feminicide_risk_case_owner BIGINT NOT NULL,
@@ -1793,7 +1862,13 @@ CREATE TABLE rel_victim_case_form2_enums_feminicide_form1 (
    feminicide_form1_id BIGINT NOT NULL,
    CONSTRAINT rel_victim_case_form2_enums_feminicide_form1_pkey PRIMARY KEY (rel_victim_case_form2_enums_feminicide_form1_id)
 );
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE rel_victim_case_form2_enums_victim_case_form2 TO salvia_admin;
+
+CREATE TABLE rel_victim_case_form2_enums_feminicide_risk_form1 (
+   rel_victim_case_form2_enums_feminicide_risk_form1_id SERIAL NOT NULL,
+   victim_case_form2_enums_id BIGINT NOT NULL,
+   feminicide_risk_form1_id BIGINT NOT NULL,
+   CONSTRAINT rel_victim_case_form2_enums_feminicide_risk_form1_pkey PRIMARY KEY (rel_victim_case_form2_enums_feminicide_risk_form1_id)
+);
 
 
 CREATE TABLE feminicide_form1 (
@@ -1890,7 +1965,7 @@ CREATE TABLE feminicide_form1 (
     feminicide_form1_any_type_of_assistance_received BIGINT NOT NULL,
     feminicide_form1_any_type_of_assistance_received_explanation TEXT ,
     feminicide_form1_compensation_fund_insurance_coverage BIGINT NOT NULL,
-    feminicide_form1_compensation_fund_insurance_coverage_explanation TEXT ,
+    feminicide_form1_compensation_fund_insurance_cov_explanation TEXT ,
     feminicide_form1_funeral_subsidy_received BIGINT NOT NULL,
     feminicide_form1_funeral_subsidy_explanation TEXT ,
     feminicide_form1_funeral_funds_available BIGINT NOT NULL,
@@ -1942,6 +2017,13 @@ ALTER TABLE rel_victim_case_form2_enums_feminicide_form1 ADD CONSTRAINT rel_vict
    FOREIGN KEY ( feminicide_form1_id) REFERENCES feminicide_form1(feminicide_form1_id) MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION ;
 
 ALTER TABLE rel_victim_case_form2_enums_feminicide_form1 ADD CONSTRAINT rel_victim_case_form2_enums_feminicide_enums_id
+   FOREIGN KEY ( victim_case_form2_enums_id) REFERENCES victim_case_form2_enums(victim_case_form2_enums_id) MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION ;
+
+
+ALTER TABLE rel_victim_case_form2_enums_feminicide_risk_form1 ADD CONSTRAINT rel_victim_case_form2_enums_feminicide_risk_form1_id
+   FOREIGN KEY ( feminicide_risk_form1_id) REFERENCES feminicide_risk_form1(feminicide_risk_form1_id) MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION ;
+
+ALTER TABLE rel_victim_case_form2_enums_feminicide_risk_form1 ADD CONSTRAINT rel_victim_case_form2_enums_feminicide_risk_enums_id
    FOREIGN KEY ( victim_case_form2_enums_id) REFERENCES victim_case_form2_enums(victim_case_form2_enums_id) MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION ;
 
 
@@ -2148,8 +2230,8 @@ CREATE TABLE feminicide_risk_form1 (
     feminicide_risk_form1_victim_identity_name CHARACTER VARYING(32) ,
     feminicide_risk_form1_birth_date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     feminicide_risk_form1_victim_address CHARACTER VARYING(32) NOT NULL,
-    feminicide_risk_form1_victim_zone BIGINT NOT NULL,
-    feminicide_risk_form1_victim_living_town TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    feminicide_risk_form1_victim_living_zone BIGINT NOT NULL,
+    feminicide_risk_form1_victim_living_town CHARACTER VARYING(8) NOT NULL,
     feminicide_risk_form1_victim_s_g_s_s_s_affiliation BIGINT NOT NULL,
     feminicide_risk_form1_eps_name CHARACTER VARYING(64),
     feminicide_risk_form1_contact_phone CHARACTER VARYING(10) NOT NULL,
@@ -2162,7 +2244,7 @@ CREATE TABLE feminicide_risk_form1 (
     feminicide_risk_form1_victim_ethnic_affiliation BIGINT NOT NULL,
     feminicide_risk_form1_victim_indigenous_people BIGINT,
     feminicide_risk_form1_victim_is_migrant BIGINT NOT NULL,
-    feminicide_risk_form1_victim_migration_status BIGINT NOT NULL,
+    feminicide_risk_form1_victim_migration_status BIGINT,
     feminicide_risk_form1_victim_max_education_level BIGINT NOT NULL,
     feminicide_risk_form1_victim_is_special_population BIGINT NOT NULL,
     feminicide_risk_form1_victim_currently_has_job BIGINT NOT NULL,
@@ -2170,10 +2252,9 @@ CREATE TABLE feminicide_risk_form1 (
     feminicide_risk_form1_victim_abandoned_job_due_to_risk BIGINT NOT NULL,
     feminicide_risk_form1_victim_main_occupation BIGINT NOT NULL,
     feminicide_risk_form1_victim_has_disability BIGINT NOT NULL,
-    feminicide_risk_form1_victim_disability_type BIGINT NOT NULL,
-    feminicide_risk_form1_victim_risk_description TEXT ,
+    feminicide_risk_form1_victim_disability_type BIGINT,
+    feminicide_risk_form1_victim_risk_description TEXT NOT NULL,
     feminicide_risk_form1_victim_additional_info TEXT ,
-    feminicide_risk_form1_victim_received_help_or_subsidy BIGINT NOT NULL,
     feminicide_risk_form1_victim_is_economic_provider BIGINT NOT NULL,
     feminicide_risk_form1_victim_economic_provider_explanation TEXT ,
     feminicide_risk_form1_victim_has_familiar_support BIGINT NOT NULL,
@@ -2195,7 +2276,7 @@ CREATE TABLE feminicide_risk_form1 (
     feminicide_risk_form1_victim_food_access_frequency BIGINT NOT NULL,
     feminicide_risk_form1_victim_food_access_explanation TEXT ,
     feminicide_risk_form1_victim_agressor_food_restriction BIGINT NOT NULL,
-    feminicide_risk_form1_victim_agressor_food_restriction_explanation TEXT ,
+    feminicide_risk_form1_victim_agressor_food_restrict_explanat TEXT ,
     feminicide_risk_form1_victim_family_fixed_income BIGINT NOT NULL,
     feminicide_risk_form1_victim_family_fixed_income_explanation TEXT ,
     feminicide_risk_form1_victim_is_only_provider_for_food BIGINT NOT NULL,
@@ -2206,13 +2287,13 @@ CREATE TABLE feminicide_risk_form1 (
     feminicide_risk_form1_victim_representations_of_victims BIGINT NOT NULL,
     feminicide_risk_form1_victim_representations_explanation TEXT ,
     feminicide_risk_form1_victim_psychosocial_support_received BIGINT NOT NULL,
-    feminicide_risk_form1_victim_psychosocial_support_received_explain TEXT ,
+    feminicide_risk_form1_victim_psychosocial_supp_received_explain TEXT ,
     feminicide_risk_form1_victim_urgent_emotional_crisis BIGINT NOT NULL,
     feminicide_risk_form1_victim_urgent_crisis_explanation TEXT ,
     feminicide_risk_form1_aggressor_same_residence BIGINT NOT NULL,
     feminicide_risk_form1_aggressor_same_residence_explanation TEXT ,
     feminicide_risk_form1_aggressor_knows_victim_location BIGINT NOT NULL,
-    feminicide_risk_form1_aggressor_knows_victim_location_explanation TEXT ,
+    feminicide_risk_form1_aggressor_knows_victim_loc_explanation TEXT ,
     feminicide_risk_form1_victim_housing_help_received BIGINT NOT NULL,
     feminicide_risk_form1_victim_housing_help_explain TEXT ,
     feminicide_risk_form1_victim_abandon_clothing BIGINT NOT NULL,
@@ -2394,3 +2475,11 @@ ALTER TABLE feminicide_risk_form1 ADD CONSTRAINT feminicide_risk_form1_any_assis
 
 ALTER TABLE feminicide_risk_form1 ADD CONSTRAINT feminicide_risk_form1_any_assistance_received_other_entity
    FOREIGN KEY ( feminicide_risk_form1_any_assistance_received_other_entity) REFERENCES victim_case_form2_enums(victim_case_form2_enums_id) MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION ;
+
+
+
+
+GRANT SELECT, UPDATE, USAGE ON ALL SEQUENCES IN SCHEMA salvia TO salvia_admin;
+GRANT SELECT, UPDATE, USAGE ON ALL SEQUENCES IN SCHEMA security TO salvia_admin;
+GRANT INSERT, UPDATE, DELETE, SELECT ON ALL TABLES IN SCHEMA salvia TO salvia_admin;
+GRANT INSERT, UPDATE, DELETE, SELECT ON ALL TABLES IN SCHEMA security TO salvia_admin;

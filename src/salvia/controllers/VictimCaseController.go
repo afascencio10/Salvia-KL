@@ -150,7 +150,7 @@ func SetVictimCase(dataInput string, s utils.CommonSession, dbClientConfig db.DB
 			"VictimCaseForm2HousingTenancyForm":                    true,
 			"VictimCaseForm2HousingStratum":                        true,
 			"VictimCaseForm2CurrentlyPregnant":                     true,
-			"VictimCaseForm2ResidenceTown":                         true,
+			"VictimCaseForm2ResidenceTownCode":                     true,
 			"VictimCaseForm2ResidenceAddress":                      true,
 			"VictimCaseForm2ResidenceZone":                         true,
 			"VictimCaseForm2SupportContactNames":                   false,
@@ -173,6 +173,7 @@ func SetVictimCase(dataInput string, s utils.CommonSession, dbClientConfig db.DB
 			"VictimCaseForm2ViolenceMotivatedByGender":             true,
 			"VictimCaseForm2AttentionWasAppropriate":               true,
 			"VictimCaseForm2AggressorOccupation":                   true,
+			"VictimCaseForm2AllowsEasyReport":                      true,
 		}
 
 		utils.ValidateJSONInput(&vCaseRequest.VCase.VictimCaseForm2, dtoMap, salvia_daos.VictimCaseJSONName+"."+salvia_daos.VictimCaseForm2JSONName, salvia_daos.VictimCaseForm2FieldDefinitions,
@@ -780,7 +781,7 @@ func UpdateVictimCaseForm1(dataInput string, vCaseICode string, s utils.CommonSe
 	err = salvia_daos.GetCaseOwner(by, &owner, connData, &dbClientConfig, &dbServerConfig)
 	if err != nil {
 		db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
-		return http.StatusInternalServerError, salvia_config.Locale[s.Lang]["victim_contact_error_loading_owner"]
+		return http.StatusInternalServerError, salvia_config.Locale[s.Lang]["victim_contact_error_Ving_owner"]
 	}
 
 	// Se actualiza el objeto en la BD.
@@ -1045,6 +1046,7 @@ func UpdateVictimCaseForm2(dataInput string, vCaseICode string, s utils.CommonSe
 			"VictimCaseForm2ViolenceMotivatedByGender":             true,
 			"VictimCaseForm2AttentionWasAppropriate":               true,
 			"VictimCaseForm2AggressorOccupation":                   true,
+			"VictimCaseForm2AllowsEasyReport":                      true,
 		}
 
 		utils.ValidateJSONInput(&vCaseRequest.VCase.VictimCaseForm2, dtoMap, salvia_daos.VictimCaseJSONName+"."+salvia_daos.VictimCaseForm2JSONName, salvia_daos.VictimCaseForm2FieldDefinitions,
@@ -1112,7 +1114,7 @@ func UpdateVictimCaseForm2(dataInput string, vCaseICode string, s utils.CommonSe
 	}
 
 	//Traemos todos los enums asociados a este formulario
-	enums, err = salvia_daos.GetVictimCasesForm2EnumsByVictimcaseForm2Id(vCaseFormToUpdate.VictimCaseForm2Id, connData, &dbClientConfig, &dbServerConfig)
+	enums, err = salvia_daos.GetVictimCasesForm2EnumsByVictimCaseForm2Id(vCaseFormToUpdate.VictimCaseForm2Id, connData, &dbClientConfig, &dbServerConfig)
 	if err != nil {
 		return http.StatusInternalServerError, err.Error()
 	}
@@ -1266,6 +1268,7 @@ func UpdateVictimCaseForm2(dataInput string, vCaseICode string, s utils.CommonSe
 	vCaseFormToUpdate.VictimCaseForm2ViolenceMotivatedByGender = vCaseRequest.VCase.VictimCaseForm2.VictimCaseForm2ViolenceMotivatedByGender
 	vCaseFormToUpdate.VictimCaseForm2AttentionWasAppropriate = vCaseRequest.VCase.VictimCaseForm2.VictimCaseForm2AttentionWasAppropriate
 	vCaseFormToUpdate.VictimCaseForm2AggressorOccupation = vCaseRequest.VCase.VictimCaseForm2.VictimCaseForm2AggressorOccupation
+	vCaseFormToUpdate.VictimCaseForm2AllowsEasyReport = vCaseRequest.VCase.VictimCaseForm2.VictimCaseForm2AllowsEasyReport
 
 	// Se obtiene el dueño del caso basado en el usuario en sesión.
 	by = common_controllers.By{
@@ -1460,44 +1463,48 @@ func GetVictimCaseByICode(id string, connData *db.ConnData, dbClientConfig db.DB
 			} else {
 				vCase.VictimCaseForm2 = vCaseForm2
 				// Se recupera la información geográfica del lugar de hechos (violencia) y residencia
-				by = common_controllers.By{
-					Operator:   common_dao.SQL_AND,
-					AttrsName:  []string{"TownCode"},
-					AttrsValue: []interface{}{vCaseForm2.VictimCaseForm2FactsTownCode},
-				}
-				err = security_daos.GetTown(by, &town2, connData, &dbClientConfig, &dbServerConfig)
-				if err != nil {
-					return http.StatusInternalServerError, err.Error(), salvia_daos.VictimCaseDTO{}
-				}
-
-				by = common_controllers.By{
-					Operator:   common_dao.SQL_AND,
-					AttrsName:  []string{"TownCode"},
-					AttrsValue: []interface{}{vCaseForm2.VictimCaseForm2ResidenceTownCode},
-				}
-				err = security_daos.GetTown(by, &town3, connData, &dbClientConfig, &dbServerConfig)
-				if err != nil {
-					return http.StatusInternalServerError, err.Error(), salvia_daos.VictimCaseDTO{}
+				if vCaseForm2.VictimCaseForm2FactsTownCode != "" {
+					by = common_controllers.By{
+						Operator:   common_dao.SQL_AND,
+						AttrsName:  []string{"TownCode"},
+						AttrsValue: []interface{}{vCaseForm2.VictimCaseForm2FactsTownCode},
+					}
+					err = security_daos.GetTown(by, &town2, connData, &dbClientConfig, &dbServerConfig)
+					if err != nil {
+						return http.StatusInternalServerError, err.Error(), salvia_daos.VictimCaseDTO{}
+					}
 				}
 
-				by = common_controllers.By{
-					Operator:   common_dao.SQL_AND,
-					AttrsName:  []string{"CityId"},
-					AttrsValue: []interface{}{town3.TownCity},
-				}
-				err = security_daos.GetCity(by, &city3, connData, &dbClientConfig, &dbServerConfig)
-				if err != nil {
-					return http.StatusInternalServerError, err.Error(), salvia_daos.VictimCaseDTO{}
-				}
+				if vCaseForm2.VictimCaseForm2ResidenceTownCode != "" {
+					by = common_controllers.By{
+						Operator:   common_dao.SQL_AND,
+						AttrsName:  []string{"TownCode"},
+						AttrsValue: []interface{}{vCaseForm2.VictimCaseForm2ResidenceTownCode},
+					}
+					err = security_daos.GetTown(by, &town3, connData, &dbClientConfig, &dbServerConfig)
+					if err != nil {
+						return http.StatusInternalServerError, err.Error(), salvia_daos.VictimCaseDTO{}
+					}
 
-				by = common_controllers.By{
-					Operator:   common_dao.SQL_AND,
-					AttrsName:  []string{"DepartmentId"},
-					AttrsValue: []interface{}{city3.CityDepartment},
-				}
-				err = security_daos.GetDepartment(by, &department3, connData, &dbClientConfig, &dbServerConfig)
-				if err != nil {
-					return http.StatusInternalServerError, err.Error(), salvia_daos.VictimCaseDTO{}
+					by = common_controllers.By{
+						Operator:   common_dao.SQL_AND,
+						AttrsName:  []string{"CityId"},
+						AttrsValue: []interface{}{town3.TownCity},
+					}
+					err = security_daos.GetCity(by, &city3, connData, &dbClientConfig, &dbServerConfig)
+					if err != nil {
+						return http.StatusInternalServerError, err.Error(), salvia_daos.VictimCaseDTO{}
+					}
+
+					by = common_controllers.By{
+						Operator:   common_dao.SQL_AND,
+						AttrsName:  []string{"DepartmentId"},
+						AttrsValue: []interface{}{city3.CityDepartment},
+					}
+					err = security_daos.GetDepartment(by, &department3, connData, &dbClientConfig, &dbServerConfig)
+					if err != nil {
+						return http.StatusInternalServerError, err.Error(), salvia_daos.VictimCaseDTO{}
+					}
 				}
 
 				//Ahora se cargan los enums sencillos
@@ -1507,7 +1514,7 @@ func GetVictimCaseByICode(id string, connData *db.ConnData, dbClientConfig db.DB
 				var enums []salvia_daos.VictimCaseForm2EnumsDTO
 
 				//Cargamos todos los enums múltiples asociados al formulario
-				enums, err = salvia_daos.GetVictimCasesForm2EnumsByVictimcaseForm2Id(vCase.VictimCaseForm2.VictimCaseForm2Id, connData, &dbClientConfig, &dbServerConfig)
+				enums, err = salvia_daos.GetVictimCasesForm2EnumsByVictimCaseForm2Id(vCase.VictimCaseForm2.VictimCaseForm2Id, connData, &dbClientConfig, &dbServerConfig)
 				if err != nil {
 					return http.StatusInternalServerError, err.Error(), salvia_daos.VictimCaseDTO{}
 				}
@@ -1880,10 +1887,17 @@ func GetVictimCasesByDocument(docType string, docNumber string, page int, connDa
 
 	var vCases []salvia_daos.VictimCaseDTO = []salvia_daos.VictimCaseDTO{}
 
+	//Buscamos sólo por número de documento
 	var by common_controllers.By = common_controllers.By{
 		Operator:   common_dao.SQL_AND,
-		AttrsName:  []string{"VictimCaseDocType", "VictimCaseDocNumber"},
-		AttrsValue: []interface{}{docType, docNumber},
+		AttrsName:  []string{"VictimCaseDocNumber"},
+		AttrsValue: []interface{}{docNumber},
+	}
+
+	//Si viene tipo de documento, lo adicionamos.
+	if docType != "" {
+		by.AttrsName = append(by.AttrsName, "VictimCaseDocType")
+		by.AttrsValue = append(by.AttrsValue, docType)
 	}
 
 	if vCases, count, err = salvia_daos.GetVictimCases(by, page, connData, &dbClientConfig, &dbServerConfig); err != nil {
@@ -1950,10 +1964,17 @@ func GetVictimCasesByDocumentAndTownCodeWithAttend(docType string, docNumber str
 
 	var vCases []salvia_daos.VictimCaseDTO = []salvia_daos.VictimCaseDTO{}
 
+	//Buscamos sólo por número de documento
 	var by common_controllers.By = common_controllers.By{
 		Operator:   common_dao.SQL_AND,
-		AttrsName:  []string{"VictimCaseDocType", "VictimCaseDocNumber", "VictimCaseTownCode", "VictimCaseStatus"},
-		AttrsValue: []interface{}{docType, docNumber, townCode, victimCaseStatus},
+		AttrsName:  []string{"VictimCaseDocNumber", "VictimCaseTownCode", "VictimCaseStatus"},
+		AttrsValue: []interface{}{docNumber, townCode, victimCaseStatus},
+	}
+
+	//Si viene tipo de documento, lo adicionamos.
+	if docType != "" {
+		by.AttrsName = append(by.AttrsName, "VictimCaseDocType")
+		by.AttrsValue = append(by.AttrsValue, docType)
 	}
 
 	if vCases, count, err = salvia_daos.GetVictimCases(by, page, connData, &dbClientConfig, &dbServerConfig); err != nil {
@@ -2069,7 +2090,7 @@ func ReportVictimCases(dataInput string, connData *db.ConnData, dbClientConfig d
 			var enums []salvia_daos.VictimCaseForm2EnumsDTO
 
 			//Cargamos todos los enums múltiples asociados al formulario
-			enums, err = salvia_daos.GetVictimCasesForm2EnumsByVictimcaseForm2Id(vCases[idx].VictimCaseForm2.VictimCaseForm2Id, connData, &dbClientConfig, &dbServerConfig)
+			enums, err = salvia_daos.GetVictimCasesForm2EnumsByVictimCaseForm2Id(vCases[idx].VictimCaseForm2.VictimCaseForm2Id, connData, &dbClientConfig, &dbServerConfig)
 			if err != nil {
 				return http.StatusInternalServerError, err.Error()
 			}
@@ -2960,6 +2981,13 @@ func getAndVerifyVictimCaseEnums(vCaseForm2 *salvia_daos.VictimCaseForm2DTO, col
 		opRes = false
 	}
 
+	//VictimCaseForm2AllowsEasyReport
+	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&vCaseForm2.VictimCaseForm2AllowsEasyReport)
+	if err != nil && verify {
+		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(vCaseForm2, "VictimCaseForm2AllowsEasyReport", "json"), "victim_case_form2_enums_not_found", "common_global_error", salvia_config.Locale)
+		opRes = false
+	}
+
 	return opRes
 }
 
@@ -3181,6 +3209,8 @@ func loadVictimCaseEnums(vCase *salvia_daos.VictimCaseDTO) {
 	salvia_daos.GetLocalVictimCaseForm2EnumsById(&vCase.VictimCaseForm2.VictimCaseForm2AggressorSexuallyHarassment2)
 
 	salvia_daos.GetLocalVictimCaseForm2EnumsById(&vCase.VictimCaseForm2.VictimCaseForm2AggressorUsedPositionAuthority)
+
+	salvia_daos.GetLocalVictimCaseForm2EnumsById(&vCase.VictimCaseForm2.VictimCaseForm2AllowsEasyReport)
 
 }
 

@@ -10,12 +10,12 @@
     <div class="mt-3 mb-4">
         <h3>Encontrar caso</h3>
         <div class="search-form">
-            {{ template "labeled_select_enums.html" Select `{"multiple":false, "containerClass":"form-group",
+            {{ template "labeled_select_enums.html" Select `{"multiple":false, "containerClass":"form-group", "emptyValue":"na",
             "class":"form-control", "errorClass":"form-control is-invalid",
             "selectId":"victim_doc_type_type", "errorSpanId":"victim_doc_type_error",
             "selectLabel":"victim_doc_type", "selectPlaceHolder":"victim_doc_type_h",
             "entityPath":"workingSpace", "entityName":"victimCase", "entityAttr":"docType",
-            "enumsAttr":"docType"}` .lang .locale}}
+            "enumsAttr":"docTypeUnified"}` .lang .locale}}
 
             <div class="form-group">
             {{ template "labeled_input.html" Input `{"class":"form-control",
@@ -213,11 +213,13 @@
               menuToolsContactTable: {{.menuToolsContactTable}},
               menuToolsCaseTable: {{.menuToolsCaseTable}},
               enums:{
-                docType: {{.docType}}
+                docType: {{.docType}},
+                docTypeUnified:{{.docTypeUnified}}
               },
               workingSpace:{
                 victimCase:{
-                    docType:"",
+                    //Inicializamos el tipo de documento para que sea no aplica (na) por defecto
+                    docType:"na",
                     docNumber:""
                 }
               },

@@ -191,7 +191,7 @@ func GetVictimCasesForm2Enums(by common_controllers.By, connData *db.ConnData, c
 	return victimCaseForm2s, nil
 }
 
-func GetVictimCasesForm2EnumsByVictimcaseForm2Id(form2Id uint64, connData *db.ConnData, clientConfig *db.DBClientConfig, serverConfig *db.DBServerConfig) ([]VictimCaseForm2EnumsDTO, error) {
+func GetVictimCasesForm2EnumsByVictimCaseForm2Id(form2Id uint64, connData *db.ConnData, clientConfig *db.DBClientConfig, serverConfig *db.DBServerConfig) ([]VictimCaseForm2EnumsDTO, error) {
 
 	var persistenceCtrl common_controllers.PersistenceController = common_controllers.PersistenceController{}
 	var victimCaseForm2EnumsForm2Path string = VictimCaseForm2EnumsDBScheme + "." + VictimCaseForm2EnumsDBName
@@ -220,6 +220,59 @@ func GetVictimCasesForm2EnumsByVictimcaseForm2Id(form2Id uint64, connData *db.Co
 		` FROM ` + victimCaseForm2EnumsForm2Path +
 		` RIGHT JOIN ` + relPath + ` ON(` + victimCaseForm2EnumsForm2Path + `.` + VictimCaseForm2EnumsFieldDefinitions["VictimCaseForm2EnumsId"].DBName + ` = ` + relPath + `.` + RelVictimCaseForm2EnumsVictimCaseForm2FieldDefinitions["RelVictimCaseForm2EnumsVictimCaseForm2EnumsId"].DBName + `)` +
 		` WHERE ` + RelVictimCaseForm2EnumsVictimCaseForm2FieldDefinitions["RelVictimCaseForm2EnumsVictimCaseForm2FormId"].DBName + ` = $1`
+
+	persistenceCtrl.Query(context.Background(), query, form2Id)
+
+	var victimCaseForm2s []VictimCaseForm2EnumsDTO
+	for persistenceCtrl.Next() {
+		var victimCaseForm2Pg VictimCaseForm2EnumsPgDB
+		persistenceCtrl.ScanRow(&victimCaseForm2Pg.VictimCaseForm2EnumsId,
+			&victimCaseForm2Pg.VictimCaseForm2EnumsICode,
+			&victimCaseForm2Pg.VictimCaseForm2EnumsName,
+			&victimCaseForm2Pg.VictimCaseForm2EnumsCode,
+			&victimCaseForm2Pg.VictimCaseForm2EnumsCategory)
+
+		victimCaseForm2s = append(victimCaseForm2s, victimCaseForm2Pg.ToDTO())
+	}
+
+	if persistenceCtrl.Error != nil {
+		fmt.Println("SQL Query:", query)
+		fmt.Println("SQL Error:", persistenceCtrl.Error)
+		return nil, persistenceCtrl.Error
+	}
+
+	return victimCaseForm2s, nil
+}
+
+func GetVictimCasesForm2EnumsByVictimContactForm2Id(form2Id uint64, connData *db.ConnData, clientConfig *db.DBClientConfig, serverConfig *db.DBServerConfig) ([]VictimCaseForm2EnumsDTO, error) {
+
+	var persistenceCtrl common_controllers.PersistenceController = common_controllers.PersistenceController{}
+	var victimCaseForm2EnumsForm2Path string = VictimCaseForm2EnumsDBScheme + "." + VictimCaseForm2EnumsDBName
+
+	relPath := RelVictimCaseForm2EnumsVictimContactForm2DBScheme + "." + RelVictimCaseForm2EnumsVictimContactForm2DBName
+
+	persistenceCtrl.Setup(connData, clientConfig, serverConfig)
+
+	if persistenceCtrl.Error != nil {
+		fmt.Println("SQL Error:", persistenceCtrl.Error)
+		return nil, persistenceCtrl.Error
+	}
+
+	fieldsSlice := []string{
+		"VictimCaseForm2EnumsId",
+		"VictimCaseForm2EnumsICode",
+		"VictimCaseForm2EnumsName",
+		"VictimCaseForm2EnumsCode",
+		"VictimCaseForm2EnumsCategory",
+	}
+	fieldsAliasSlice := []string{}
+
+	fieldsStr := common_dao.GetSQL(common_dao.SQL_SELECT_FIELDS_ONLY, fieldsSlice, fieldsAliasSlice, VictimCaseForm2EnumsDBName, []string{}, []string{}, []string{}, common_dao.SQL_AND, VictimCaseForm2EnumsDBScheme, VictimCaseForm2EnumsFieldDefinitions, true)
+
+	query := `SELECT ` + fieldsStr +
+		` FROM ` + victimCaseForm2EnumsForm2Path +
+		` RIGHT JOIN ` + relPath + ` ON(` + victimCaseForm2EnumsForm2Path + `.` + VictimCaseForm2EnumsFieldDefinitions["VictimCaseForm2EnumsId"].DBName + ` = ` + relPath + `.` + RelVictimCaseForm2EnumsVictimContactForm2FieldDefinitions["RelVictimCaseForm2EnumsVictimCaseForm2EnumsId"].DBName + `)` +
+		` WHERE ` + RelVictimCaseForm2EnumsVictimContactForm2FieldDefinitions["RelVictimCaseForm2EnumsVictimContactForm2FormId"].DBName + ` = $1`
 
 	persistenceCtrl.Query(context.Background(), query, form2Id)
 

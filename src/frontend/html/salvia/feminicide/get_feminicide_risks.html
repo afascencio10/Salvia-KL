@@ -1,1239 +1,196 @@
-<div class="container">
-    <div class="welcome-section">
-        <h2><b>Caracterización para la identificación de necesidades de medidas de emergencia de familaires de feminicidio </b></h2>
-        <h2><b>Caracterización para la identificación de necesidades de medidas de emergencia de mujeres en riesgo de feminicidio </b></h2>
-    </div>
 
-
-    <div class="tab-content" >
-
-        <div class="tab-pane fade show active" role="tabpanel" aria-labelledby="tab1-tab">
-            <div id="info-tab">
-                <div class="table1">
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_owners"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.owners}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_creation_date"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.creationDate}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_update_date"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.updateDate}</div>
-                        </div>
-                    </div>
-                </div>
-                 <div class="tituloform">
-                    <i class="fas fa-female fa-2x"></i>
-                    <h2>{{ template "text_translated.html" Text `{"text":"victim_case_form2_victim_header"}` .lang .locale}}</h2>
-                </div>
-
-                <div class="table1">
-                    <!-- Victim Case – Victim Names -->
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_victim_names"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.names}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_victim_last_names"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.lastNames}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_victim_identity_names"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.identityName}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_victim_phone"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.phone}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_victim_doc_type"}` .lang .locale}}</div>
-                            <div class="tbody">${enums['docType2'][res.victimCase.docType]}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_victim_doc_number"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.docNumber}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"person_with_disability"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.personWithDisability.name}</div>
-                        </div>
-                        <div class="row1" v-if="res.victimCase.form2.personWithDisability.code == 'y'">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_adjustments_gbv"}` .lang .locale}}</div>
-                            <div class="tbody">
-                                <ul>
-                                    <li v-for="item in res.victimCase.form2.adjustmentsGBV" :key="item.icode">${ item.name }</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_requires_language_interpreter"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.requireLanguageInterpreter.name}</div>
-                        </div>                           
-                    </div>
-
-                    <div class="tituloform">
-                        <i class="fas fa-life-ring fa-2x"></i>
-                        <h2>{{ template "text_translated.html" Text `{"text":"victim_case_form2_support_header"}` .lang .locale}}</h2>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_support_contact_names"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.supportContactNames}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_support_contact_phone"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.supportContactPhone}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_support_contact_email"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.supportContactEmail}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_support_contact_kinship"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.supportContactKinship.name}</div>
-                        </div>
-                    </div>
-
-                    <div class="tituloform">
-                        <i class="fas fa-fire fa-2x"></i>
-                        <h2>{{ template "text_translated.html" Text `{"text":"victim_case_form2_facts_header"}` .lang .locale}}</h2>
-                    </div>
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_facts_description"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.factsDescription}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_occurrence_date"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.factsDate}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_facts_start_time"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.factsStartTime}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_facts_zone"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.factsZone.name}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_facts_department"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.factsDepartment.name}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_facts_city"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.factsCity.name}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_facts_town"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.factsTown.name}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_address_occurrence"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.factsAddress}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_scenario_violence"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.scenarioViolence.name}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_type_violence_experienced"}` .lang .locale }}</div>
-                            <div class="tbody">
-                                <ul>
-                                    <li v-for="item in res.victimCase.form2.typeViolenceExperienced" :key="item.icode">${ item.name }</li>
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_subtype_violence_experienced"}` .lang .locale }}</div>
-                            <div class="tbody">
-                                <ul>
-                                    <li v-for="item in res.victimCase.form2.subtypeViolenceExperienced" :key="item.icode">${ item.name }</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_scope_of_violence"}` .lang .locale }}</div>
-                            <div class="tbody">
-                                <ul>
-                                    <li v-for="item in res.victimCase.form2.scopeOfViolence" :key="item.icode">${ item.name }</li>
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="row1" v-if="res.victimCase.form2.workplaceSectorOccurrence.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_workplace_sector_occurrence"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.workplaceSectorOccurrence.name}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                           <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_violence_motivated_by_gender"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.violenceMotivatedByGender.name}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_reported_aggression_previously"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.reportedPreviously.name}</div>
-                        </div>
-                    </div>
-
-                    
-                    <div class="item1">
-                        <div class="row1" v-if="res.victimCase.form2.whoReportTo && res.victimCase.form2.whoReportTo.length > 0">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_who_report_to"}` .lang .locale }}</div>
-                            <div class="tbody">
-                                <ul>
-                                    <li v-for="item in res.victimCase.form2.whoReportTo" :key="item.icode">${ item.name }</li>
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_attention_was_appropriate"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.attentionWasAppropriate.name}</div>
-                        </div>
-                    </div>
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_recurrence_of_aggression"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.recurrenceAggression.name}</div>
-                        </div>
-                        
-                    </div>
-
-                    <div class="tituloform">
-                        <i class="fas fa-male fa-2x"></i>
-                        <h2>{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_header"}` .lang .locale}}</h2>
-                    </div>
-                    
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_number_of_aggressors"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.numAgressors.name}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_proximity_with_principal_aggressor"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.proximityPrincipalAggressor.name}</div>
-                        </div>
-                    </div>
-
-                    
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_relationship_with_presumed_aggressor"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.relationshipWithPresumedAggressor.name}</div>
-                        </div>
-                        <div class="row1" v-if="res.victimCase.form2.aggressorOccupation.icode != ''"> 
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_occupation"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorOccupation.name}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1" v-if="res.victimCase.form2.economicallyDependent.icode != ''"> 
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_economically_dependent"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.economicallyDependent.name}</div>
-                        </div>
-                    </div>
-
-                    
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_gender_identity"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorGenderIdentity.name}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_name"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorNames}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_doc_type"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorDocType.name}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_doc_number"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorDocNumber}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_address"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorAddress}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_phone"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorPhone}</div>
-                        </div>
-                    </div>
-
-                    <div class="tituloform">
-                        <i class="fas fa-check-circle fa-2x"></i>
-                        <h2>{{ template "text_translated.html" Text `{"text":"victim_case_form2_tamizaje_header"}` .lang .locale}}</h2>
-                    </div>
-                    
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_physical_violence_increased"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorViolencePhysicalIncrease.name}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_weapon_used"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorWeaponUsed.name}</div>
-                        </div>
-                    </div>
-
-                   
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_has_threatened_to_kill"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorThreatKill.name}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_pursues_spies_destroys_property"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorPursuesSpiesDestroys.name}</div>
-                        </div>
-                    </div>
-
-                    <!-- Could Be Capable of Killing -->
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_could_be_capable_of_killing"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorCapableOfKilling.name}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_has_access_to_weapons"}` .lang .locale }}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorHasAccessToWeapons.name}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1" v-if="res.victimCase.form2.partnerUnemployed.icode != ''">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_partner_unemployed"}`
-                                .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.partnerUnemployed.name}</div>
-                        </div>
-                        <div class="row1"  v-if="res.victimCase.form2.partnerOtherDenunciations.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_partner_has_other_denunciations"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.partnerOtherDenunciations.name}</div>
-                        </div>
-                    </div>
-                  
-                    <div class="item1">
-                        <div class="row1" v-if="res.victimCase.form2.aggressorHasPenalBackground.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_has_penal_background"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorHasPenalBackground.name}</div>
-                        </div>
-                        <div class="row1" v-if="res.victimCase.form2.aggressorForcedSex.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_forced_to_have_sexual_relations"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorForcedSex.name}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="item1">
-                        <div class="row1" v-if="res.victimCase.form2.aggressorAttemptedStrangulation.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_attempted_strangulation"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorAttemptedStrangulation.name}</div>
-                        </div>
-                         <div class="row1" v-if="res.victimCase.form2.aggressorConsumesDrugs.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_consumes_drugs"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorConsumesDrugs.name}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1" v-if="res.victimCase.form2.aggressorIsAlcoholic.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_is_alcoholic"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorIsAlcoholic.name}</div>
-                        </div>
-                        <div class="row1" v-if="res.victimCase.form2.partnerControls.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_partner_controls"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.partnerControls.name}</div>
-                        </div>
-                    </div>
-                   
-                    <div class="item1">
-                        <div class="row1" v-if="res.victimCase.form2.aggressorHadHitInVulnerability.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_had_hit_in_vulnerability"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorHadHitInVulnerability.name}</div>
-                        </div>
-                        <div class="row1" v-if="res.victimCase.form2.partnerThreatenedSuicide.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_partner_threatened_suicide"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.partnerThreatenedSuicide.name}</div>
-                        </div>
-                    </div>
-                   
-                    <div class="item1">
-                        <div class="row1" v-if="res.victimCase.form2.partnerThreatenedDamageMembers.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_partner_threatened_damage_members"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.partnerThreatenedDamageMembers.name}</div>
-                        </div>
-                        <div class="row1" v-if="res.victimCase.form2.thoughtsOfSelfHarm.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_thought_of_self_harm"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.thoughtsOfSelfHarm.name}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="item1">
-                        <div class="row1" v-if="res.victimCase.form2.aggressorLimitsContactSupportNetworks.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_limits_contact_support_networks"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorLimitsContactSupportNetworks.name}</div>
-                        </div>
-                        <div class="row1" v-if="res.victimCase.form2.stillLivesWithAggressor.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_still_lives_with_aggressor"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.stillLivesWithAggressor.name}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="item1">
-                        <div class="row1" v-if="res.victimCase.form2.aggressorViolentlyJealous.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_violently_jealous"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorViolentlyJealous.name}</div>
-                        </div>
-                        <div class="row1">
-                            
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1" v-if="res.victimCase.form2.aggressorUnemployed.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_unemployed"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorUnemployed.name}</div>
-                        </div>
-                        <div class="row1" v-if="res.victimCase.form2.aggressorHasPenalBackground2.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_has_penal_background2"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorHasPenalBackground2.name}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="item1">
-                        <div class="row1" v-if="res.victimCase.form2.aggressorSexuallyHarassment.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_sexually_harassment"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorSexuallyHarassment.name}</div>
-                        </div>
-                        <div class="row1" v-if="res.victimCase.form2.aggressorUseDrugs.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_use_drugs"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorUseDrugs.name}</div>
-                        </div>
-                    </div>
-                  
-                    <div class="item1">
-                        <div class="row1" v-if="res.victimCase.form2.aggressorIsAlcoholic2.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_is_alcoholic2"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorIsAlcoholic2.name}</div>
-                        </div>
-                        <div class="row1" v-if="res.victimCase.form2.aggressorControls.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_controls"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorControls.name}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1" v-if="res.victimCase.form2.aggressorThreatenedDamageMembers.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_threatened_damage_members"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorThreatenedDamageMembers.name}</div>
-                        </div>
-                        <div class="row1" v-if="res.victimCase.form2.thoughtsOfSelfHarm2.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_thought_of_self_harm2"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.thoughtsOfSelfHarm2.name}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1" v-if="res.victimCase.form2.aggressorCommonSpaces.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_common_spaces"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorCommonSpaces.name}</div>
-                        </div>
-                        <div class="row1" v-if="res.victimCase.form2.aggressorHierarchy.icode != ''">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aggressor_hierarchy"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.aggressorHierarchy.name}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_birth_date"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.birthDate}</div>
-                        </div>
-                        <div class="row1">
-
-                        </div>
-                    </div>
-
-                    <div class="tituloform">
-                        <i class="fas fa-address-book fa-2x"></i>
-                        <h2>{{ template "text_translated.html" Text `{"text":"victim_case_form2_personal_data_header"}` .lang .locale}}</h2>
-                    </div>
-                    
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_physical_mental_sensory_difficulties"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.physicalMentalSensoryDifficulties.name}</div>
-                        </div>
-                    </div>
-
-                    <template v-if="res.victimCase.form2.physicalMentalSensoryDifficulties.code == 'y'">
-                        <h4>{{ template "text_translated.html" Text `{"text":"victim_case_form2_activities_unable_to_perform"}` .lang .locale}}</h4>
-                        <div class="item1">
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_activities_unable_to_perform_oi"}` .lang .locale}}</div>
-                                <div class="tbody"><span v-for="i in 4" :key="i" class="star" :class="i <= res.victimCase.form2.activitiesUnableToHear ? 'filled' : 'empty'"> ★ </span>  </div>
-                            </div>
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_activities_unable_to_perform_ha"}` .lang .locale}}</div>
-                                <div class="tbody"><span v-for="i in 4" :key="i" class="star" :class="i <= res.victimCase.form2.activitiesUnableToTalk ? 'filled' : 'empty'"> ★ </span>  </div>
-                            </div>
-                        </div>
-                        <div class="item1">
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_activities_unable_to_perform_ve"}` .lang .locale}}</div>
-                                <div class="tbody"><span v-for="i in 4" :key="i" class="star" :class="i <= res.victimCase.form2.activitiesUnableToSee ? 'filled' : 'empty'"> ★ </span>  </div>
-                            </div>
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_activities_unable_to_perform_mo"}` .lang .locale}}</div>
-                                <div class="tbody"><span v-for="i in 4" :key="i" class="star" :class="i <= res.victimCase.form2.activitiesUnableToMove ? 'filled' : 'empty'"> ★ </span>  </div>
-                            </div>
-                        </div>
-                        <div class="item1">
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_activities_unable_to_perform_ag"}` .lang .locale}}</div>
-                                <div class="tbody"><span v-for="i in 4" :key="i" class="star" :class="i <= res.victimCase.form2.activitiesUnableToTake ? 'filled' : 'empty'"> ★ </span>  </div>
-                            </div>
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_activities_unable_to_perform_en"}` .lang .locale}}</div>
-                                <div class="tbody"><span v-for="i in 4" :key="i" class="star" :class="i <= res.victimCase.form2.activitiesUnableToUnderstand ? 'filled' : 'empty'"> ★ </span>  </div>
-                            </div>
-                        </div>
-                        <div class="item1">
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_activities_unable_to_perform_co"}` .lang .locale}}</div>
-                                <div class="tbody"><span v-for="i in 4" :key="i" class="star" :class="i <= res.victimCase.form2.activitiesUnableToEat ? 'filled' : 'empty'"> ★ </span>  </div>
-                            </div>
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_activities_unable_to_perform_re"}` .lang .locale}}</div>
-                                <div class="tbody"><span v-for="i in 4" :key="i" class="star" :class="i <= res.victimCase.form2.activitiesUnableToInteract ? 'filled' : 'empty'"> ★ </span>  </div>
-                            </div>
-                        </div>
-                        <div class="item1">
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_activities_unable_to_perform_ac"}` .lang .locale}}</div>
-                                <div class="tbody"><span v-for="i in 4" :key="i" class="star" :class="i <= res.victimCase.form2.activitiesUnableToDoEveryday ? 'filled' : 'empty'"> ★ </span>  </div>
-                            </div>
-                            <div class="row1">
-                                
-                            </div>
-                        </div>
-                        <hr>
-                    </template>
-                    
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_law_1996"}` .lang .locale}}</div>
-                            <div class="tbody">
-                                <ul>
-                                    <li v-for="item in res.victimCase.form2.law1996" :key="item.icode">${ item.name }</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_nationality"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.nationality.name}</div>
-                        </div>
-                        <div class="row1">
-
-                        </div>
-                    </div>
-                    
-                    <div class="item1" v-if="res.victimCase.form2.nationality.code == 'ex'">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_specify_nationality"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.specifiedNationality.name}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_migration_condition"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.migrationCondition.name}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_gender_identity"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.genderIdentity.name}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_sexual_orientation"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.sexualOrientation.name}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_assigned_sex_at_birth"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.assignedSexAtBirth.name}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_specially_protected_population"}` .lang .locale }}</div>
-                            <div class="tbody">
-                                <ul>
-                                    <li v-for="item in res.victimCase.form2.speciallyProtectedPopulation" :key="item.icode">${ item.name }</li>
-                                </ul>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_ethnic_affiliation"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.ethnicAffiliation.name}</div>
-                        </div>
-                        <div class="row1" v-if="res.victimCase.form2.ethnicAffiliation.code == 'in'">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_indigenous_people"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.indigenousPeople.name}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_campesino_recognition"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.campesinoRecognition.name}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_marital_status"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.maritalStatus.name}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_education_level"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.lastEducationLevel.name}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_occupation"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.occupation.name}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_current_income_generation_methods"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.incomeGenerationMethod.name}</div>
-                        </div>
-                        <div class="row1" v-if="res.victimCase.form2.incomeGenerationMethod.code == 'pr'">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_asp_mode"}` .lang .locale }}</div>
-                            <div class="tbody">
-                                <ul>
-                                    <li v-for="item in res.victimCase.form2.aspMode" :key="item.icode">${ item.name }</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="item1" v-if="res.victimCase.form2.incomeGenerationMethod.code == 'pr'">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_aprox_start_asp"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.approxStartAsp}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_reason_asp"}` .lang .locale }}</div>
-                            <div class="tbody">
-                                <ul>
-                                    <li v-for="item in res.victimCase.form2.reasonASP" :key="item.icode">${ item.name }</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_housing_tenancy_form"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.housingTenancyForm.name}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_housing_stratum"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.housingStratum.name}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_has_dependents"}` .lang .locale }}</div>
-                            <div class="tbody">
-                                <ul>
-                                    <li v-for="item in res.victimCase.form2.hasDependents" :key="item.icode">${ item.name }</li>
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_currently_pregnant"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.currentlyPregnant.name}</div>
-                        </div>
-                    </div>
-                    
-
-                    <div class="item1">
-                       <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_residence_zone"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.residenceZone.name}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_residence_department"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.residenceDepartment.name}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_residence_city"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.residenceCity.name}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_residence_town"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.residenceTown.name}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_residence_address"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.residenceAddress}</div>
-                        </div>
-                    </div>
-
-                    <div class="tituloform">
-                        <i class="fas fa-play-circle fa-2x"></i>
-                        <h2>{{ template "text_translated.html" Text `{"text":"victim_case_form2_service_header"}` .lang .locale}}</h2>
-                    </div>
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_action_plan"}` .lang .locale }}</div>
-                            <div class="tbody">
-                                <ul>
-                                    <li v-for="item in res.victimCase.form2.actionPlan" :key="item.icode">${ item.name }</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_management_explanation"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form2.salivaManagementExplanation}</div>
-                        </div>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_facts_desrciption_title"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form.factsDescription}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="tituloform">
-                        <i class="fas fa-map-marker-alt fa-2x"></i>
-                        <h2>{{ template "text_translated.html" Text `{"text":"get_victim_case_attention_place"}` .lang .locale}}</h2>
-                    </div>
-
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_facts_department"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.department.name}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_facts_city"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.city.name}</div>
-                        </div>
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_facts_town"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.town.name}</div>
-                        </div>
-                    </div>
-                    
-                </div>
-            </div>
+    <div class="container">
+        <div class="welcome-section">
+            <h2><b>{{ template "text_translated.html" Text `{"text":"feminicide_risk_form1_header"}` .lang .locale}}</b></h2>
         </div>
-        <div class="tab-pane fade show" id="tab2" role="tabpanel" aria-labelledby="tab2-tab">
-
-            <div class="container mt-5 mb-5">
-                <div class="row">
-                    <div v-for="(moment, mkey) in enums.momentCodes" class="col-md-4">
-                        <div class="custom-tabs">
-                            <div class="custom-nav-item">
-                                <a class="custom-nav-link" :href="'#moment_'+moment.code">
-                                <i :class="moment.img"></i>${moment.label}
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div v-for="(moment, mkey) in enums.momentCodes" :id="'customTab' + moment.code" class="custom-tab-content mt-3" style="display: block;">
-                    <div class="titulomomento" :id="'moment_'+moment.code">
-                        <i :class="moment.img"></i>
-                        <h2>${moment.label}</h2>
-                    </div>
-
-                    <div v-for="(sector, skey) in enums.sectors">
-
-                        <div v-if="workSpace.entitiesByMomentAndSector[moment.code] && workSpace.entitiesByMomentAndSector[moment.code][sector.code]" class="tituloform1">
-                            <i :class="sector.img"></i>
-                            <h4>${sector.label}</h4>
-                        </div>
-                        <template v-if="workSpace.entitiesByMomentAndSector[moment.code]" v-for="(branches, ekey) in workSpace.entitiesByMomentAndSector[moment.code][sector.code]">
-                            <div class="icono-principal-ruta">
-                                <h3>${this.getEntityNameByICode(ekey)}</h3>
-                            </div>
-                            <template v-for="(branch, idx) in branches">
-                                <div class="ruta-info-container">
-                                    <div class="icono-principal-ruta">
-                                        <h3><span v-if="branch.branchSource='u'">*</span>${branch.name}</h3>
-                                    </div>
-                                    <div v-if="getMoment(moment.code,branch.icode).status == 'a'" class="linea-progreso-ruta-finalizada">
-                                        <div class="estado-ruta">
-                                            <div class="estado-circulo">
-                                                <i class="fas fa-check-circle"></i>
-                                            </div>
-                                            <div class="titulo-estado">{{ template "text_translated.html" Text `{"text":"moment_status_not_attended"}` .lang .locale}}</div>
-                                        </div>
-                                        <div class="estado-ruta">
-                                            <div class="estado-circulo">
-                                                <i class="fas fa-check-circle"></i>
-                                            </div>
-                                            <div class="titulo-estado">{{ template "text_translated.html" Text `{"text":"moment_status_process"}` .lang .locale}}</div>
-                                        </div>
-                                        <div class="estado-ruta">
-                                            <div class="estado-circulo">
-                                                <i class="fas fa-check-circle"></i>
-                                            </div>
-                                            <div class="titulo-estado">{{ template "text_translated.html" Text `{"text":"moment_status_attended"}` .lang .locale}}</div>
-                                        </div>
-                                    </div>
-                                    <div v-else class="linea-progreso-ruta-iniciada">
-                                        <div class="estado-ruta">
-                                            <div class="estado-circulo-inicial">
-                                                <i class="fas fa-circle"></i>
-                                            </div>
-                                            <div class="titulo-estado">{{ template "text_translated.html" Text `{"text":"moment_status_not_attended"}` .lang .locale}}</div>
-                                        </div>
-                                        <div class="estado-ruta">
-                                            <div class="estado-circulo-inicial">
-                                                <i class="fas fa-circle"></i>
-                                            </div>
-                                            <div class="titulo-estado-inicial">{{ template "text_translated.html" Text `{"text":"moment_status_process"}` .lang .locale}}</div>
-                                        </div>
-                                        <div class="estado-ruta">
-                                            <div class="estado-circulo-inicial">
-                                                <i class="fas fa-circle"></i>
-                                            </div>
-                                            <div class="titulo-estado-inicial">{{ template "text_translated.html" Text `{"text":"moment_status_attended"}` .lang .locale}}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="tabla-desplegable mostrar">
-                                    <table >
-                                        <thead>
-                                            <tr>
-                                                <th>Fecha</th>
-                                                <th>Descripción</th>
-                                                <th>Responsable</th>
-                                                <th>Rol</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody v-for="(log, k) in getMoment(moment.code,branch.icode).logs">
-                                            <tr >
-                                                <td>${log.creationDate}</td>
-                                                <td>${log.description}</td>
-                                                <td>${log.profile.names}</td>
-                                                <td>${log.roles}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div v-if="!data.caseLog.saved" class="col-12 icono-principal-ruta">
-                                    <h3>Reportar situación</h3>
-                                    
-                                          {{ template "labeled_textarea.html" TextArea `{"class":"form-control",
-                                          "errorClass":"form-control is-invalid", "textAreaId":"log_description",
-                                          "rows":"5", "errorSpanId":"log_description_error",
-                                          "textAreaLabel":"log_description", "textAreaPlaceHolder":"log_description_h",
-                                          "entityPath":"data", "entityName":"caseLog", "entityAttr":"description"}` .lang .locale }}
-                                    
-                                    <div class="row justify-content-xl-center botones log_save">
-
-                                        {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"save", "buttonLabel":"log_save", "buttonPlaceHolder":"log_save", "onClickHandler":"submit('saveLog', getMoment(moment.code,branch.icode).icode)"}` .lang .locale}}
-                                    </div>
-                                </div>
-                            </template>
-                        </template>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="tab-pane fade show" id="tab3" role="tabpanel" aria-labelledby="tab3-tab">
-
-            <div class="titulo_seguimiento">
-                <h2>{{ template "text_translated.html" Text `{"text":"follow_up_title"}` .lang .locale}}</h2>
-            </div>
-            <hr>
+        
+        <div class="tab-content" id="myTabContent">
             
-            <template v-if="res.victimCase.followUp.icode == ''">
-                <p>{{ template "text_translated.html" Text `{"text":"victim_case_risk_scheme_empty"}` .lang .locale}}</p>
-            </template>
+            <div v-if="!feminicideRisks || feminicideRisks.length == 0"> {{ template "text_translated.html" Text `{"text":"empty_eminicide_risks_search"}` .lang .locale}} </div>
 
-            <template v-else>
-                {{ template "text_translated.html" Text `{"text":"follow_up_status"}` .lang .locale}}: <b>${enums.followUpStatus[res.victimCase.followUp.status]}</b>
-
-                 <div id="info-tab">
-                    <div class="table1">
-                        <div class="item1">
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_creation_date"}` .lang .locale}}</div>
-                                <div class="tbody">${res.victimCase.followUp.creationDate}</div>
-                            </div>
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_update_date"}` .lang .locale}}</div>
-                                <div class="tbody">${res.victimCase.followUp.updateDate}</div>
-                            </div>
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_physical_violence_witnessed_by_family"}` .lang .locale}}</div>
-                                <div class="tbody">${enums.yes_no[res.victimCase.followUp.physicalViolenceWitnessedByFamily]}</div>
-                            </div>
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_violence_escalation"}` .lang .locale}}</div>
-                                <div class="tbody">${enums.yes_no[res.victimCase.followUp.violenceEscalation]}</div>
-                            </div>
-                        </div>
-                        <div class="item1">
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_assault_with_weapon"}` .lang .locale}}</div>
-                                <div class="tbody">${enums.yes_no[res.victimCase.followUp.assaultWithWeapon]}</div>
-                            </div>
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_recent_controlling_or_jealous_behavior"}` .lang .locale}}</div>
-                                <div class="tbody">${enums.yes_no[res.victimCase.followUp.recentControllingOrJealousBehavior]}</div>
-                            </div>
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_violence_history_with_ex_partner"}` .lang .locale}}</div>
-                                <div class="tbody">${enums.yes_no[res.victimCase.followUp.violenceHistoryWithExPartner]}</div>
-                            </div>
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_violence_history_with_others"}` .lang .locale}}</div>
-                                <div class="tbody">${enums.yes_no[res.victimCase.followUp.violenceHistoryWithOthers]}</div>
-                            </div>
-                        </div>
-                        <div class="item1">
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_substance_abuse"}` .lang .locale}}</div>
-                                <div class="tbody">${enums.yes_no[res.victimCase.followUp.substanceAbuse]}</div>
-                            </div>
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_violence_justification"}` .lang .locale}}</div>
-                                <div class="tbody">${enums.yes_no[res.victimCase.followUp.violenceJustification]}</div>
-                            </div>
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_victim_vulnerability"}` .lang .locale}}</div>
-                                <div class="tbody">${enums.yes_no[res.victimCase.followUp.victimVulnerability]}</div>
-                            </div>
-                            <div class="row1">
-                                <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_risk_level"}` .lang .locale}}</div>
-                                <div class="tbody">${enums.riskLevel[res.victimCase.followUp.riskLevel]}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div v-for="(fue, fkey) in res.victimCase.followUp.entries" class="custom-tab-content mt-3" style="display: block;">
-                    <h4>{{ template "text_translated.html" Text `{"text":"follow_up_entry_title"}` .lang .locale}} ${fkey+1} (${fue.completionDate})</h4>
-                    <div class="row">
-                        <div class="col-sm-12">
-                            {{ template "text_translated.html" Text `{"text":"follow_up_entry_status"}` .lang .locale}}: <b>${enums.followUpEntryStatus[fue.status]}</b>
-                        </div>
-                    </div>
-                        <template v-if="fue.status != 'u'">
-                            <div id="info-tab">
-                                <div class="table1">
-                                    <div class="item1">
-                                        <div class="row1">
-                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_entry_creation_date"}` .lang .locale}}</div>
-                                            <div class="tbody">${fue.creationDate}</div>
-                                        </div>
-                                        <div class="row1">
-                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_entry_update_date"}` .lang .locale}}</div>
-                                            <div class="tbody">${fue.updateDate}</div>
-                                        </div>
-                                        
+            <div v-else class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Fecha Creación</th>
+                            <th scope="col">Identificación</th>
+                            <th scope="col">Nombres y Apellidos</th>
+                            <th scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template v-for="feminicideRisk in feminicideRisks">
+                            <tr>
+                                <td>${feminicideRisk.creationDate}</td>
+                                <td>${feminicideRisk.victimDocType} - ${feminicideRisk.victimDocNumber}</td>
+                                <td>${feminicideRisk.lastNames}, ${feminicideRisk.names}</td>
+                                <td>
+                                    <div class="d-flex justify-content-around acciones">
+                                        <template v-for="item in menuToolsFeminicideRiskTable">
+                                            <a :class="item.customClass"
+                                                :href="`${item.path}/${feminicideRisk.icode}/${item.action}`"
+                                                style="text-decoration:none">
+                                                ${item.label}</a>
+                                        </template>
                                     </div>
-                                    <div class="item1">
-                                        <div class="row1">
-                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_entry_completion_date"}` .lang .locale}}</div>
-                                            <div class="tbody">${fue.completionDate}</div>
-                                        </div>
-                                        <div class="row1">
-                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_was_done"}` .lang .locale}}</div>
-                                            <div class="tbody">${enums.yes_no[fue.wasDone]}</div>
-                                        </div>
-                                        
-                                    </div>
-                                    <div class="item1">
-                                        <div class="row1">
-                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_sector"}` .lang .locale}}</div>
-                                            <div class="tbody">${getEntityEnumLabel(enums.sectors,fue.sector, "code", "label")}</div>
-                                        </div>
-                                        <div class="row1">
-                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_person_visited_entity"}` .lang .locale}}</div>
-                                            <div class="tbody">${enums.yes_no[fue.personVisitedEntity]}</div>
-                                        </div>
-                                    </div>
-                                    <div class="item1">
-                                        <div class="row1">
-                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_received_attention"}` .lang .locale}}</div>
-                                            <div class="tbody">${enums.yes_no[fue.receivedAttention]}</div>
-                                        </div>
-                                        <div class="row1">
-                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_documents_prepared"}` .lang .locale}}</div>
-                                            <div class="tbody">${enums.yes_no[fue.caseDocumentsPrepared]}</div>
-                                        </div>
-                                    </div>
-                                    <div class="item1">
-                                         <div class="row1">
-                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_comments"}` .lang .locale}}</div>
-                                            <div class="tbody">${fue.comments}</div>
-                                        </div>
-                                    </div>
-                                    <hr>
-                                    <h5>{{ template "text_translated.html" Text `{"text":"follow_up_barriers"}` .lang .locale}}</h5>
-                                    
-                                    <div class="col-xs-12 acting_row" id="selected_barriers_read" v-for="(b, bkey) in fue.identifiedBarriers">
-                                        <div class="col-xs-12">${b.name} [${b.sectorBarrier.name}] </div>
-
-                                        <div id="info-tab">
-                                            <div class="table1">
-                                                <template v-for="(a, akey) in b.acting">
-                                                    <div class="item1">
-                                                        <div class="row1">
-                                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_entry_acting_creation_date"}` .lang .locale}}</div>
-                                                            <div class="tbody">${a.creationDate}</div>
-                                                        </div>
-                                                        <div class="row1">
-                                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_entry_acting_status"}` .lang .locale}}</div>
-                                                            <div class="tbody">${enums.actionStatus[a.actionStatus]}</div>
-                                                        </div>
-                                                        <div class="row1">
-                                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_entry_acting_owner"}` .lang .locale}}</div>
-                                                            <div class="tbody">${a.owner.profile.names} ${a.owner.profile.lastNames}</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="item1">
-                                                        <div class="row1">
-                                                            <div class="thead">{{ template "text_translated.html" Text `{"text":"follow_up_entry_acting_description"}` .lang .locale}}</div>
-                                                            <div class="tbody">${a.description}</div>
-                                                        </div>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                                </td>
+                            </tr>
                         </template>
-                    </div>
-                </div>
-            </template>
+                    </tbody>
+                </table>
+                <nav v-if="numPages>1" aria-label="Paginación">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item" :class="{ disabled: currentPage === 0 }">
+                            <a class="page-link" href="#" @click.prevent="goToPage(currentPage - 1)">Anterior</a>
+                        </li>
+                        <template v-for="(p, i) in visiblePages" :key="i">
+                            <li v-if="p === '...'" class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                            <li v-else class="page-item" :class="{ active: p === currentPage }">
+                                <a class="page-link" href="#" @click.prevent="goToPage(p)">${ p + 1 }</a>
+                            </li>
+                        </template>
+                        <li class="page-item" :class="{ disabled: currentPage === numPages - 1 }">
+                            <a class="page-link" href="#" @click.prevent="goToPage(currentPage + 1)">Siguiente</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>      
         </div>
     </div>
-    <div class="row justify-content-center botones">
-        {{ template "button.html" Button `{"class":"btn btn-warning", "buttonId":"back",
-        "buttonLabel":"get_victim_case_back", "buttonPlaceHolder":"get_victim_case_back_h",
-        "onClickHandler":"submit('back')"}` .lang .locale}}
-        <template v-if="res.victimCase.status == 'r'">
-            {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"approve", 
-            "buttonLabel":"victim_case_approve", "buttonPlaceHolder":"victim_case_approve_h", 
-            "onClickHandler":"submit('approve')"}` .lang .locale}}
-        </template>
-        {{ template "button.html" Button `{"class":"btn btn-primary", "buttonId":"update",
-        "buttonLabel":"get_victim_case_update", "buttonPlaceHolder":"get_victim_case_update_h",
-        "onClickHandler":"submit('update')"}` .lang .locale}}
-    </div>
-</div>
 
-
-        {{ template "standard_scripts.html" .}}
+      {{ template "standard_scripts.html" .}}
         {{ template "overlay.html" .}}
-          
-        <script>
+      
+      <script>
         
-          var home = Vue.createApp({
-            delimiters : ['${', '}'],
-            data() {
-              return {
-                windowTitle:{{.windowTitle}},
-                currentUser:{{.currentUser}},
-                res: {victimCase: JSON.parse({{.victimCases}})},
-                errors:{},
-                enums:{
-                    nav_rules: {{.nav_rules}},
-                    yes_no:{{.yes_no_enum}},
-                    riskLevel:{{.riskLevel}},
-                    momentCodes: {{.momentCodes}},
-                    sectors: {{.sectors}},
-                    entities: {{.entities}},
-                    docType2: {{.docType2}},
-                    actionStatus: {{.actionStatus}},
-                    followUpStatus:{{.followUpStatus}},
-                    followUpEntryStatus:{{.followUpEntryStatus}},
-                    sectorBarriers:{{.sectorBarriers}},
-                    barriers: []
-                },
-                workSpace:{
-                    entitiesByMomentAndSector: {{.entitiesByMomentAndSector}},
-                    followUp:{},
-                    currentFollowUpEntry:{identifiedBarriers:[]},
-                    currentSectorBarrier:{},
-                    currentBarrier:{},
-                },
-                data:{
-                    caseLog:{}
-                }
-              }
-            },
-            created: function () {
-            },
-            mounted:  function () {
-            document.title = {{.windowTitle}};
-                document.getElementById('app').style.display = 'block';
-                home.config.globalProperties.enums = this.enums;
-            },
-            methods: {
-                getMoment(momentCode, branchICode){
-                    for (const m of this.res.victimCase.moments) {
-                        
-                        if(m.code == momentCode && m.entityBranch.icode == branchICode){
-                            return m
-                        }
-                    }
-                    return {}
-                },
-                getEntityNameByICode (iCode){
-                    for (let idx = 0; idx < this.enums.entities.length; idx++) {
-                        if(this.enums.entities[idx].icode == iCode){
-                            return this.enums.entities[idx].name;
-                        }
-                    }
-                    
-                    return "";
-                },
-                submit(action,momentICode) {
-                    if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
-                        location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
-                    }else  if(action == "approve"){
-                        updateEntity("{{.salviaVictimCaseUpdateFormPath}}/"+this.res.victimCase.icode+"/aprobar", {}, (function(status, response) {
-                            
-                            if (status === 200) {
-                                if(home.config.globalProperties.enums.nav_rules["default"]){
-                                    location.assign(home.config.globalProperties.enums.nav_rules["default"]);
-                                }else if(home.config.globalProperties.enums.nav_rules[action]){
-                                    location.assign(home.config.globalProperties.enums.nav_rules[action]);
-                                }
-                            } else if (status === 400) {
-                                document.getElementById('successOverlay').style.display = 'none';
-                                this.errors = response;
-                            }else {
-                                document.getElementById('successOverlay').style.display = 'none';
-                                alert("Se produjo un error interno, por favor vuelva a intentarlo");
-                            }
-                        }).bind(this));
-                    }else  if(action == "saveLog"){
-                        
-                        newEntity("{{.salviaCaseLogFormPath}}/"+momentICode, this.data, (function(status, response) {
-                            
-                            if (status === 200) {
-                                this.data.caseLog.saved = true;
-                                window.location.reload();
-                                
-                            } else if (status === 400) {
-                                document.getElementById('successOverlay').style.display = 'none';
-                                this.errors = response;
-                                
-                            }else {
-                                document.getElementById('successOverlay').style.display = 'none';
-                                alert("Se produjo un error interno, por favor vuelva a intentarlo");
-                            }
-                        }).bind(this));
-                    }else  if(action == "update"){
-                        location.assign("{{.salviaVictimCaseUpdateFormPath}}/"+this.res.victimCase.icode+"/actualizar");
-                    }
-                },
-                logout(){
-                    logout("/seguridad/logout");
-                },
-                getEntityEnumLabel(enums, id, idName, labelName){
-                    for (let index = 0; index < enums.length; index++) {
-                        const e = enums[index];
-                        if(e[idName] == id){
-                            return e[labelName];
-                        }
-                    }
-                    return "";
-                },
-                concatEnumsNames(enums){
-                    var result = "";
-                    for (let index = 0; index < enums.length; index++) {
-                        result += enums[index].name;
-                        if(index < enums.length -1){
-                            result += ", "
-                        }
-                    }
-                    return result;
-                }
+        var home = Vue.createApp({
+          delimiters : ['${', '}'],
+          data() {
+            return {
+              windowTitle:{{.windowTitle}},
+              currentUser:{{.currentUser}},
+                
+              feminicideRisks: JSON.parse({{.feminicideRisks}}).data,
+              numPages: JSON.parse({{.numPages}}),
+              currentPage: 0,
+              currentTab: "recontact_v", // Nombre del tab de primer contacto
+              currentFilter: "fcv", //Primer contacto
+
+              menu:{{.menu}},
+              menuToolsFeminicideRiskTable: {{.menuToolsFeminicideRiskTable}},
+              enums:{
+                
+              },
+              errors:{}
             }
-          });
-          
-          home.mount("#app");
+          },
+          created: function () {
+            
+            
+          },
+          mounted:  function () {
+            document.title = {{.windowTitle}};
+            document.getElementById('app').style.display = 'block';
+            
+          },
+          computed: {
+            visiblePages() {
+                const pages = []
+                const max = this.numPages
+                const current = this.currentPage
+                const delta = 2 // cuántas páginas mostrar alrededor de la actual
+
+                const range = []
+                const rangeWithDots = []
+                let l
+
+                for (let i = 0; i < max; i++) {
+                    if (i == 0 || i == max - 1 || (i >= current - delta && i <= current + delta)) {
+                        range.push(i)
+                    }
+                }
+
+                for (let i of range) {
+                    if (l !== undefined) {
+                        if (i - l === 2) {
+                            rangeWithDots.push(l + 1)
+                        } else if (i - l > 2) {
+                            rangeWithDots.push('...')
+                        }
+                    }
+                    rangeWithDots.push(i)
+                    l = i
+                }
+
+                return rangeWithDots
+            }
+        },
+        methods: {
+            logout(){
+                logout("/seguridad/logout");
+            },
+            goToPage(page) {
+                
+                if (page < 0 || page >= this.numPages) return
+                this.currentPage = page;
+                this.feminicideRisks = [];
+                
+                getEntity("{{.salviaVictimCaseGETFormPath}}/f/"+this.currentFilter+"/p/"+this.currentPage, (function(status, response) {
+                    if (status === 200) {
+                        window.scrollTo(0, 0);
+                        document.getElementById('successOverlay').style.display = 'none';
+                        this.feminicideRisks = response.data;
+                        if (response.numPages > 0){
+                            // Sólo se trae el número de elementos cuando se consulta la página 0, en adelante se ignora el valor
+                            this.numPages = response.numPages;
+                        }
+                        
+                    }else if (status === 400) {
+                        this.errors = response;
+                    }else if (status === 404) {
+                        alert("Se produjo un error interno, por favor vuelva a intentarlo");
+                    }
+                }).bind(this));
+            },
+            goToTab(tabName) {
+                
+                if (this.currentTab == tabName) return
+                
+                this.currentTab = tabName;
+                var filter = "fcv";
+                switch (tabName) {
+                    case "recontact_v":
+                    filter = "fcv";
+                    break;
+                    case "recontact_i":
+                    filter = "fci";
+                    break;
+                    case "routing":
+                    filter = "ra";
+                    break;
+                    case "routedToApprove":
+                    filter = "r";
+                    break;
+                    case "expired":
+                    filter = "ex";
+                    break;
+                    case "completed":
+                    filter = "cd";
+                    break;
+                    case "issues":
+                    filter = "is";
+                    break;
+                }
+                this.currentFilter = filter;
+                this.numPages = 1;
+                this.goToPage(0);
+            }
+          }
+        });
         
-          
-        </script>
+        home.mount("#app");
+  
         
+      </script>

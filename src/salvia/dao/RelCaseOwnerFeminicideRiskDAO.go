@@ -19,18 +19,18 @@ import (
 
 var (
 	// Constantes y nombres relacionados con la entidad RelCaseOwnerFeminicideRisk.
-	RelCaseOwnerFeminicideRisk         string = "RelCaseOwnerFeminicideRisk" // Nombre interno de la entidad.
-	RelCaseOwnerFeminicideRiskJSONName string = "relCaseOwner"               // Nombre de la entidad en el JSON.
-	RelCaseOwnerFeminicideRiskDBName   string = "rel_case_owner_feminicide"  // Nombre de la tabla en la base de datos.
-	RelCaseOwnerFeminicideRiskDBScheme string = "salvia"                     // Esquema de la base de datos.
+	RelCaseOwnerFeminicideRisk         string = "RelCaseOwnerFeminicideRisk"     // Nombre interno de la entidad.
+	RelCaseOwnerFeminicideRiskJSONName string = "relCaseOwner"                   // Nombre de la entidad en el JSON.
+	RelCaseOwnerFeminicideRiskDBName   string = "rel_case_owner_feminicide_risk" // Nombre de la tabla en la base de datos.
+	RelCaseOwnerFeminicideRiskDBScheme string = "salvia"                         // Esquema de la base de datos.
 
 	// Atributos relacionados con las validaciones de campos.
 	// Cada entrada del mapa define la relación entre el campo del JSON, su nombre en la base de datos,
 	// el tipo de dato esperado en el modelo y otros parámetros de validación.
 	RelCaseOwnerFeminicideRiskFieldDefinitions map[string]utils.FieldDefinition = map[string]utils.FieldDefinition{
 		"RelCaseOwnerFeminicideRiskId":              {Name: "RelCaseOwnerFeminicideRiskId", DBName: "rel_case_owner_feminicide_risk_id", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: false},
-		"RelCaseOwnerFeminicideRisk_CaseOwner":      {Name: "RelCaseOwnerFeminicideRisk_CaseOwner", DBName: "case_owner_id", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
-		"RelCaseOwnerFeminicideRisk_FeminicideRisk": {Name: "RelCaseOwnerFeminicideRisk_FeminicideRisk", DBName: "feminicide_risk_id", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
+		"RelCaseOwnerFeminicideRisk_CaseOwner":      {Name: "RelCaseOwnerFeminicideRisk_CaseOwner", DBName: "rel_case_owner_feminicide_risk_case_owner", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
+		"RelCaseOwnerFeminicideRisk_FeminicideRisk": {Name: "RelCaseOwnerFeminicideRisk_FeminicideRisk", DBName: "rel_case_owner_feminicide_risk_feminicide_risk", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"RelCaseOwnerFeminicideRisk_CreationDate":   {Name: "RelCaseOwnerFeminicideRisk_CreationDate", DBName: "rel_case_owner_feminicide_risk_creation_date", Alias: "", ModelType: "datetime", MinSize: 0, MaxSize: 0, Required: true},
 		"RelCaseOwnerFeminicideRisk_Status":         {Name: "RelCaseOwnerFeminicideRisk_Status", DBName: "rel_case_owner_feminicide_risk_status", Alias: "", ModelType: "string", MinSize: 1, MaxSize: 1, Required: true},
 	}

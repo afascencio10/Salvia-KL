@@ -3,6 +3,8 @@
   <div class="row justify-content-center">
     <div class="col-lg-12">
       <div id="alert" v-if="errors.default&&errors.default.global_msg" class="alert alert-danger alert-dismissible">${errors.default.global_msg}</div>
+      <div id="global-errors-live" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+      
       <div class="step-container active" id="step-container1">
         
         <template v-if="!data.victimCase.form2.authorizationAnswer || !data.victimCase.form2.authorizationAnswer.code || data.victimCase.form2.authorizationAnswer.code!='y'">
@@ -27,7 +29,7 @@
           <p>Con esta información, le preguntamos:</p>
           
           <div class="row">
-            <div class="col-md-5 mb-5">
+            <div class="col-md-12">
               {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
               "selectId":"victim_case_form2_authorization_answer", "errorSpanId":"victim_case_form2_authorization_answer_error", 
               "selectLabel":"victim_case_form2_authorization_answer", "selectPlaceHolder":"victim_case_form2_authorization_answer_h", 
@@ -282,14 +284,14 @@
 
           <div class="row">
             <div class="col-sm-6 mb-6">
-              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":false,
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,
               "errorClass":"error_input", "inputId":"victim_case_form2_address_occurrence",
               "inputType":"text", "errorSpanId":"victim_case_form2_address_occurrence_error", "inputLabel":"victim_case_form2_address_occurrence",
               "inputPlaceHolder":"victim_case_form2_address_occurrence_h", "entityPath":"data.victimCase",
               "entityName":"form2", "entityAttr":"factsAddress"}` .lang .locale}}
             </div>
             <div class="col-sm-6 mb-6">
-              {{ template "labeled_select_entity.html" Select `{"multiple":"single",  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true, "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
               "selectId":"victim_case_form2_scenario_violence", "errorSpanId":"victim_case_form2_scenario_violence_error", "selectLabel":"victim_case_form2_scenario_violence", "selectPlaceHolder":"victim_case_form2_scenario_violence_h",
               "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"scenarioViolence", "enumsAttr":"victim_case_form2_scenario_violence", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
             </div> 
@@ -423,7 +425,7 @@
               "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"aggressorGenderIdentity", "enumsAttr":"victim_case_form2_aggressor_gender_identity", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
             </div>
             <div class="col-sm-6 mb-6">
-              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":true,
+              {{ template "labeled_input.html" Input `{"class":"form-control input_form", "mandatory":false,
                 "errorClass":"error_input", "inputId":"victim_case_form2_aggressor_name",
                 "inputType":"text", "errorSpanId":"victim_case_form2_aggressor_name_error", "inputLabel":"victim_case_form2_aggressor_name",
                 "inputPlaceHolder":"victim_case_form2_aggressor_name_h", "entityPath":"data.victimCase",
@@ -1059,6 +1061,20 @@
                 "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"salivaManagementExplanation"}` .lang .locale }}
             </div>
           </div>
+
+          <div class="tituloform">
+            <i class="fas fa-bolt fa-2x"></i>
+            <h2>{{ template "text_translated.html" Text `{"text":"victim_case_form2_easy_report"}` .lang .locale}}</h2>
+          </div>
+          <div class="row">
+            <div class="col-sm-12">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
+              "selectId":"victim_case_form2_allows_easy_report", "errorSpanId":"victim_case_form2_allows_easy_report_error", 
+              "selectLabel":"victim_case_form2_allows_easy_report", "selectPlaceHolder":"victim_case_form2_allows_easy_report_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"allowsEasyReport", "enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+          </div>
+          
           
           <div class="tituloform">
             <i class="fas fa-map-marker-alt fa-2x"></i><h2>{{ template "text_translated.html" Text `{"text":"get_victim_case_attention_place"}` .lang .locale}}</h2>
@@ -1734,13 +1750,54 @@
             logout(){
                 logout("/seguridad/logout");
             }
+          },
+          watch: {//Soporte para el lector de pantallas para que lea los errores
+            errors: {
+              handler(newErrors) {
+                if (!newErrors) return;
+
+                this.$nextTick(() => {
+
+                  const mensajes = [];
+
+                  Object.keys(newErrors).forEach(entidad => {
+                    Object.keys(newErrors[entidad]).forEach(campo => {
+
+                      const input = document.querySelector(
+                        `[data-entity="${entidad}"][data-field="${campo}"]`
+                      );
+
+                      let label = campo;
+
+                      if (input) {
+                        label = input.getAttribute("data-label") || campo;
+                      }
+
+                      const error = newErrors[entidad][campo];
+                      if(campo!="global_msg" && campo!="default"){ //Ignoramos el error genérico que viene para poner la lista concreta nada más.
+                        mensajes.push(`${label}: ${error}`);
+                      }
+                    });
+                  });
+
+                  const live = document.getElementById("global-errors-live");
+
+                  if (live && mensajes.length > 0) {
+                    live.textContent =
+                      `El formulario tiene ${mensajes.length} errores. ` +
+                      mensajes.join(". ");
+                  }
+
+                });
+              },
+              deep: true
+            }
           }
         });
         
         //home.directive('click-outside', clickOutsideDirective);
 
         home.mount("#app");
-
 
      // };
     </script>

@@ -264,8 +264,11 @@ func GetFeminicides(by common_controllers.By, page int, connData *db.ConnData, c
 	}
 
 	if page == 0 {
-		var countQuery string = `SELECT COUNT(*) FROM ` + feminicidePath + common_dao.GetSQL(common_dao.SQL_SELECT_WHERE_ONLY, by.AttrsName, by.AttrsAliasName, FeminicideDBName, by.AttrsName, []string{}, []string{}, by.Operator, FeminicideDBScheme, FeminicideFieldDefinitions, true)
-		persistenceCtrl.QueryRow(context.Background(), countQuery)
+		var countQuery string = `SELECT COUNT(*) ` +
+			` FROM ` + feminicidePath +
+			common_dao.GetSQL(common_dao.SQL_SELECT_WHERE_ONLY, by.AttrsName, by.AttrsAliasName, FeminicideDBName, by.AttrsName, []string{}, []string{}, by.Operator, FeminicideDBScheme, FeminicideFieldDefinitions, true)
+
+		persistenceCtrl.QueryRow(context.Background(), countQuery, by.AttrsValue...)
 		persistenceCtrl.Scan(&count)
 	}
 
