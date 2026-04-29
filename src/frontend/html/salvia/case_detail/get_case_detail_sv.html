@@ -119,31 +119,98 @@
 
         <!-- ══ TAB: DERIVACIONES ══ -->
         <template v-if="tabActiva === 'derivaciones'">
-          <div v-for="sec in derivaciones" :key="sec.titulo" class="cd-deriv-section">
-            <div class="cd-deriv-header">
-              ${ sec.icono } ${ sec.titulo }
-              <span class="cd-count">${ sec.items.length } registro${ sec.items.length !== 1 ? 's' : '' }</span>
+
+          <!-- Medidas de Emergencia -->
+          <div class="cd-deriv-section" style="background:#fef2f2;border-color:#fca5a5">
+            <div class="cd-deriv-header" style="border-bottom-color:#fca5a5">
+              🔵 Medidas de Emergencia
+              <span class="cd-count" style="color:#dc2626">${ emergencyMeasures.length } registro${ emergencyMeasures.length !== 1 ? 's' : '' }</span>
             </div>
-            <div v-if="sec.items.length === 0" class="cd-deriv-empty">Sin registros</div>
-            <div v-for="item in sec.items" :key="item.followUpEntryId" class="cd-deriv-item">
+            <div v-if="emergencyMeasures.length === 0" class="cd-deriv-empty">Sin registros</div>
+            <div v-for="item in emergencyMeasures" :key="item.id" class="cd-deriv-item">
               <div class="cd-deriv-desc">
-                Sector: ${ item.followUpEntrySectorCode }
-                <div class="cd-deriv-date" v-if="item.followUpEntryCompletionDate">
-                  📅 ${ formatFecha(item.followUpEntryCompletionDate) }
-                </div>
+                <strong>${ item.type || '—' }</strong>
+                <span v-if="item.issuingAuthority"> · ${ item.issuingAuthority }</span>
+                <div class="cd-deriv-date">📅 ${ formatFecha(item.createdAt) }</div>
+                <div v-if="item.notes" style="font-size:.78rem;color:#6b7280;margin-top:2px">${ item.notes }</div>
               </div>
-              <span :class="['cd-badge-deriv', badgeEntryStatus(item.followUpEntryStatus)]">
-                ${ labelEntryStatus(item.followUpEntryStatus) }
-              </span>
+              <span class="cd-badge-deriv cd-bd-proceso">${ item.status || 'ACTIVE' }</span>
             </div>
           </div>
+
+          <!-- Psicosocial -->
+          <div class="cd-deriv-section" style="background:#eff6ff;border-color:#93c5fd">
+            <div class="cd-deriv-header" style="border-bottom-color:#93c5fd">
+              🩷 Psicosocial
+              <span class="cd-count" style="color:#1d4ed8">${ psychosocialSupports.length } registro${ psychosocialSupports.length !== 1 ? 's' : '' }</span>
+            </div>
+            <div v-if="psychosocialSupports.length === 0" class="cd-deriv-empty">Sin registros</div>
+            <div v-for="item in psychosocialSupports" :key="item.id" class="cd-deriv-item">
+              <div class="cd-deriv-desc">
+                <strong>${ item.type || '—' }</strong>
+                <span v-if="item.provider"> · ${ item.provider }</span>
+                <div class="cd-deriv-date">📅 ${ formatFecha(item.createdAt) } · Sesiones: ${ item.sessionCount || 0 }</div>
+                <div v-if="item.notes" style="font-size:.78rem;color:#6b7280;margin-top:2px">${ item.notes }</div>
+              </div>
+              <span class="cd-badge-deriv cd-bd-completado">${ item.status || 'ACTIVE' }</span>
+            </div>
+          </div>
+
+          <!-- Estabilizacion Socioeconomica -->
+          <div class="cd-deriv-section" style="background:#f0fdf4;border-color:#bbf7d0">
+            <div class="cd-deriv-header" style="border-bottom-color:#bbf7d0">
+              📦 Estabilizacion Socioeconomica
+              <span class="cd-count" style="color:#15803d">${ economicStabilizations.length } registro${ economicStabilizations.length !== 1 ? 's' : '' }</span>
+            </div>
+            <div v-if="economicStabilizations.length === 0" class="cd-deriv-empty">Sin registros</div>
+            <div v-for="item in economicStabilizations" :key="item.id" class="cd-deriv-item">
+              <div class="cd-deriv-desc">
+                <strong>${ item.type || '—' }</strong>
+                <span v-if="item.institution"> · ${ item.institution }</span>
+                <span v-if="item.benefit"> · ${ item.benefit }</span>
+                <div class="cd-deriv-date">📅 ${ formatFecha(item.createdAt) }</div>
+                <div v-if="item.notes" style="font-size:.78rem;color:#6b7280;margin-top:2px">${ item.notes }</div>
+              </div>
+              <span class="cd-badge-deriv cd-bd-articulando">${ item.status || 'ACTIVE' }</span>
+            </div>
+          </div>
+
         </template>
 
         <!-- ══ TAB: BARRERAS ══ -->
         <template v-if="tabActiva === 'barreras'">
-          <div class="cd-empty">
+          <div class="cd-seg-stats">
+            <div class="cd-sstat">
+              <div class="cd-lbl">Total barreras</div>
+              <div class="cd-val">${ barriers.length }</div>
+            </div>
+            <div class="cd-sstat" style="background:#fef2f2;border-color:#fca5a5">
+              <div class="cd-lbl" style="color:#dc2626!important">Abiertas</div>
+              <div class="cd-val" style="color:#dc2626!important">${ barriers.filter(b => b.status === 'OPEN').length }</div>
+            </div>
+            <div class="cd-sstat cd-sstat-green">
+              <div class="cd-lbl">Resueltas</div>
+              <div class="cd-val">${ barriers.filter(b => b.status !== 'OPEN').length }</div>
+            </div>
+          </div>
+          <div v-if="barriers.length === 0" class="cd-empty">
             <div class="cd-empty-icon">✓</div>
             <p>No se han identificado barreras en este caso</p>
+          </div>
+          <div v-for="b in barriers" :key="b.id" class="cd-seg-item" :class="b.status === 'OPEN' ? 'pending' : 'done'">
+            <div :class="['cd-seg-indicator', b.status === 'OPEN' ? 'cd-si-pending' : 'cd-si-done']">
+              ${ b.status === 'OPEN' ? '⚠' : '✓' }
+            </div>
+            <div class="cd-seg-info">
+              <div class="cd-seg-title">
+                <p>${ b.sector || 'Sin sector' }</p>
+                <span :class="['cd-seg-badge', b.status === 'OPEN' ? 'cd-sb-pending' : 'cd-sb-done']">
+                  ${ b.status }
+                </span>
+              </div>
+              <div style="font-size:.83rem;color:#374151;margin-top:4px">${ b.description }</div>
+              <div class="cd-seg-meta">📅 ${ formatFecha(b.createdAt) }</div>
+            </div>
           </div>
         </template>
 
@@ -397,6 +464,10 @@ var home = Vue.createApp({
       deptName: '',
       denunciasAnteriores: 0,
       timelineEvents: [],
+      emergencyMeasures: [],
+      psychosocialSupports: [],
+      economicStabilizations: [],
+      barriers: [],
       tlFiltro: 'TODOS',
       tlPagina: 0,
       tlPorPagina: 5,
@@ -514,6 +585,10 @@ var home = Vue.createApp({
           self.deptName = data.deptName || '';
           self.denunciasAnteriores = data.denunciasAnteriores || 0;
           self.timelineEvents = data.timelineEvents || [];
+          self.emergencyMeasures = data.emergencyMeasures || [];
+          self.psychosocialSupports = data.psychosocialSupports || [];
+          self.economicStabilizations = data.economicStabilizations || [];
+          self.barriers = data.barriers || [];
           self.cargando = false;
         })
         .catch(function(err) {
