@@ -22,8 +22,13 @@ jobs:
       - name: Deploy Local
         shell: powershell
         run: |
-          # 1. Intentar detener el proceso si está corriendo para poder manipular el .exe
-          Stop-Process -Name "salvia" -ErrorAction SilentlyContinue
+          # 1. Intentar detener el proceso de forma forzosa si está corriendo
+          # Usamos taskkill /F para asegurar que se liberen los archivos y el puerto
+          try {
+              taskkill /F /IM salvia.exe /T
+          } catch {
+              Write-Host "No se encontro un proceso salvia.exe activo."
+          }
           
           # 2. Asegurar que la ruta base existe
           $basePath = "C:\salvia"
