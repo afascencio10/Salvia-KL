@@ -48,4 +48,11 @@ jobs:
       - name: Summary
         run: |
           echo "Despliegue finalizado en C:\salvia. El proceso previo ha sido detenido si estaba en ejecucion."
-          echo "Por favor, ejecute C:\salvia\salvia.bat manualmente para iniciar la nueva version y ver los logs."
+          echo "Iniciando nueva ventana de consola..."
+
+      - name: Start Application
+        shell: powershell
+        run: |
+          cd C:\salvia
+          # Inicia el script en una nueva ventana que permanece abierta (/k)
+          Start-Process cmd.exe -ArgumentList "/k C:\salvia\salvia.bat"
