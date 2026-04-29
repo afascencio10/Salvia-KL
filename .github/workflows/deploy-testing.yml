@@ -7,19 +7,20 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: self-hosted # El runner debe estar instalado en el Windows Server
+    runs-on: self-hosted
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Build
-        shell: pwsh
+        shell: powershell
         run: |
           cd src
           go build -o ../salvia.exe main.go
 
       - name: Deploy Local
-        shell: pwsh
+        shell: powershell
         run: |
           # 1. Intentar detener el proceso si está corriendo para poder manipular el .exe
           Stop-Process -Name "salvia" -ErrorAction SilentlyContinue
