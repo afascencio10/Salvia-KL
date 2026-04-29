@@ -22,8 +22,13 @@ jobs:
       - name: Deploy Local
         shell: powershell
         run: |
-          # 1. Intentar detener el proceso si está corriendo para poder manipular el .exe
-          Stop-Process -Name "salvia" -ErrorAction SilentlyContinue
+          # 1. Intentar detener el proceso de forma forzosa si está corriendo
+          # Usamos taskkill /F para asegurar que se liberen los archivos y el puerto
+          try {
+              taskkill /F /IM salvia.exe /T
+          } catch {
+              Write-Host "No se encontro un proceso salvia.exe activo."
+          }
           
           # 2. Asegurar que la ruta base existe
           $basePath = "C:\salvia"
@@ -41,9 +46,18 @@ jobs:
               Move-Item -Path $exePath -Destination $backupPath -Force
           }
           
-          # 4. Copiar el nuevo binario y scripts
+          # 4. Asegurar que la carpeta de certificados existe
+          $certsPath = Join-Path $basePath "certs"
+          if (!(Test-Path $certsPath)) { 
+              New-Item -Path $certsPath -ItemType Directory 
+          }
+
+          # 5. Copiar el nuevo binario y scripts
           Copy-Item "salvia.exe" -Destination $exePath -Force
           Copy-Item "salvia.bat" -Destination (Join-Path $basePath "salvia.bat") -Force
+
+          # 6. Copiar certificados (asegurando que esten presentes en el servidor)
+          Copy-Item "src/certs/*" -Destination $certsPath -Recurse -Force
 
       - name: Summary
         run: |
