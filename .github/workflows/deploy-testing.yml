@@ -22,16 +22,27 @@ jobs:
       - name: Deploy Local
         shell: powershell
         run: |
-          # 1. Intentar detener el proceso de forma forzosa si está corriendo
-          # Usamos taskkill /F para asegurar que se liberen los archivos y el puerto
-          # NOTA: try/catch no captura errores de comandos externos en PowerShell,
-          # por eso verificamos el exit code manualmente con $LASTEXITCODE
+          # 1. Matar por nombre de proceso (todas las instancias)
           taskkill /F /IM salvia.exe /T 2>&1 | Out-Null
           if ($LASTEXITCODE -ne 0) {
-              Write-Host "No se encontro un proceso salvia.exe activo, continuando..."
+              Write-Host "No se encontro proceso salvia.exe por nombre, continuando..."
           } else {
-              Write-Host "Proceso salvia.exe detenido exitosamente."
+              Write-Host "Proceso salvia.exe detenido por nombre."
           }
+
+          # 1b. Matar lo que sea que este ocupando el puerto 443 (por si acaso)
+          $portPid = (netstat -ano | findstr ":443 ") | ForEach-Object {
+              ($_ -split '\s+')[-1]
+          } | Select-Object -First 1
+          if ($portPid -and $portPid -match '^\d+$' -and $portPid -ne '0') {
+              Write-Host "Matando proceso PID $portPid que ocupa el puerto 443..."
+              taskkill /F /PID $portPid 2>&1 | Out-Null
+          } else {
+              Write-Host "Puerto 443 libre."
+          }
+
+          # Esperar un momento para que el OS libere el puerto completamente
+          Start-Sleep -Seconds 3
           
           # 2. Asegurar que la ruta base existe
           $basePath = "C:\salvia"
