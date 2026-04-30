@@ -22,6 +22,9 @@ jobs:
       - name: Deploy Local
         shell: powershell
         run: |
+          # Evitar que errores de comandos externos detengan el script
+          $ErrorActionPreference = 'Continue'
+
           # 1. Matar por nombre de proceso (todas las instancias)
           taskkill /F /IM salvia.exe /T 2>&1 | Out-Null
           if ($LASTEXITCODE -ne 0) {
@@ -30,18 +33,20 @@ jobs:
               Write-Host "Proceso salvia.exe detenido por nombre."
           }
 
-          # 1b. Matar lo que sea que este ocupando el puerto 443 (por si acaso)
-          $portPid = (netstat -ano | findstr ":443 ") | ForEach-Object {
-              ($_ -split '\s+')[-1]
-          } | Select-Object -First 1
-          if ($portPid -and $portPid -match '^\d+$' -and $portPid -ne '0') {
-              Write-Host "Matando proceso PID $portPid que ocupa el puerto 443..."
-              taskkill /F /PID $portPid 2>&1 | Out-Null
+          # 1b. Solo matar si hay algo en estado LISTENING en :443 (ignora TIME_WAIT)
+          $netstatLine = netstat -ano | findstr "LISTENING" | findstr ":443 " | Select-Object -First 1
+          if ($netstatLine) {
+              $portPid = ($netstatLine.Trim() -split '\s+')[-1]
+              if ($portPid -and $portPid -match '^\d+$' -and $portPid -ne '0') {
+                  Write-Host "Puerto 443 LISTENING por PID $portPid, intentando matar..."
+                  taskkill /F /PID $portPid 2>&1 | Out-Null
+                  Write-Host "Kill PID $portPid ejecutado (exit: $LASTEXITCODE)"
+              }
           } else {
-              Write-Host "Puerto 443 libre."
+              Write-Host "Puerto 443 libre (no hay LISTENING)."
           }
 
-          # Esperar un momento para que el OS libere el puerto completamente
+          # Esperar para que el OS libere el puerto completamente
           Start-Sleep -Seconds 3
           
           # 2. Asegurar que la ruta base existe
