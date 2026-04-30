@@ -107,8 +107,9 @@ jobs:
       - name: Start Application
         shell: powershell
         run: |
+          $ErrorActionPreference = 'Continue'
+
           # Cerrar consolas viejas del bat (la que queda con "Presione una tecla")
-          # Buscar cmd.exe cuya linea de comando contenga salvia.bat y matarlo
           Get-WmiObject Win32_Process -Filter "Name='cmd.exe'" | Where-Object {
               $_.CommandLine -like "*salvia.bat*"
           } | ForEach-Object {
@@ -118,14 +119,8 @@ jobs:
 
           Start-Sleep -Seconds 2
 
-          # Disparar la tarea programada (corre en la sesion del usuario, no Session 0)
-          # PREREQUISITO: crear la tarea una sola vez en el servidor con:
-          # schtasks /Create /TN "SalviaServer" /TR "\"C:\salvia\salvia.bat\"" /SC ONDEMAND /RU "SYSTEM" /RL HIGHEST /F
-          schtasks /Run /TN "SalviaServer" 2>&1 | Out-Null
-          if ($LASTEXITCODE -eq 0) {
-              Write-Host "Tarea SalviaServer iniciada correctamente."
-          } else {
-              Write-Host "AVISO: schtasks fallo (exit $LASTEXITCODE). Intentando Start-Process como fallback..."
-              Start-Process cmd.exe -ArgumentList "/k C:\salvia\salvia.bat" -WindowStyle Normal
-          }
+          # Iniciar nueva instancia
+          Start-Process cmd.exe -ArgumentList "/k C:\salvia\salvia.bat" -WindowStyle Normal
+          Write-Host "Proceso iniciado."
           exit 0
+
