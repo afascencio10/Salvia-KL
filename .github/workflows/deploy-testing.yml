@@ -24,10 +24,13 @@ jobs:
         run: |
           # 1. Intentar detener el proceso de forma forzosa si está corriendo
           # Usamos taskkill /F para asegurar que se liberen los archivos y el puerto
-          try {
-              taskkill /F /IM salvia.exe /T
-          } catch {
-              Write-Host "No se encontro un proceso salvia.exe activo."
+          # NOTA: try/catch no captura errores de comandos externos en PowerShell,
+          # por eso verificamos el exit code manualmente con $LASTEXITCODE
+          taskkill /F /IM salvia.exe /T 2>&1 | Out-Null
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "No se encontro un proceso salvia.exe activo, continuando..."
+          } else {
+              Write-Host "Proceso salvia.exe detenido exitosamente."
           }
           
           # 2. Asegurar que la ruta base existe
