@@ -107,6 +107,25 @@ jobs:
       - name: Start Application
         shell: powershell
         run: |
-          cd C:\salvia
-          # Inicia el script en una nueva ventana que permanece abierta (/k)
-          Start-Process cmd.exe -ArgumentList "/k C:\salvia\salvia.bat"
+          # Cerrar consolas viejas del bat (la que queda con "Presione una tecla")
+          # Buscar cmd.exe cuya linea de comando contenga salvia.bat y matarlo
+          Get-WmiObject Win32_Process -Filter "Name='cmd.exe'" | Where-Object {
+              $_.CommandLine -like "*salvia.bat*"
+          } | ForEach-Object {
+              Write-Host "Cerrando consola vieja (PID $($_.ProcessId))..."
+              Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+          }
+
+          Start-Sleep -Seconds 2
+
+          # Disparar la tarea programada (corre en la sesion del usuario, no Session 0)
+          # PREREQUISITO: crear la tarea una sola vez en el servidor con:
+          # schtasks /Create /TN "SalviaServer" /TR "\"C:\salvia\salvia.bat\"" /SC ONDEMAND /RU "SYSTEM" /RL HIGHEST /F
+          schtasks /Run /TN "SalviaServer" 2>&1 | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+              Write-Host "Tarea SalviaServer iniciada correctamente."
+          } else {
+              Write-Host "AVISO: schtasks fallo (exit $LASTEXITCODE). Intentando Start-Process como fallback..."
+              Start-Process cmd.exe -ArgumentList "/k C:\salvia\salvia.bat" -WindowStyle Normal
+          }
+          exit 0
