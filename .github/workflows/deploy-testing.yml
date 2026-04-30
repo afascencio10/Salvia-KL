@@ -120,7 +120,10 @@ jobs:
           Start-Sleep -Seconds 2
 
           # Iniciar nueva instancia
-          Start-Process cmd.exe -ArgumentList "/k C:\salvia\salvia.bat" -WindowStyle Normal
+          # Es CRITICO limpiar RUNNER_TRACKING_ID para que GitHub Actions no mate el proceso hijo al terminar el Job
+          $env:RUNNER_TRACKING_ID = ""
+          
+          Start-Process cmd.exe -ArgumentList "/k C:\salvia\salvia.bat" -WorkingDirectory "C:\salvia" -WindowStyle Normal
           Write-Host "Proceso iniciado."
           exit 0
 
