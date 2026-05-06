@@ -1,7 +1,7 @@
 {
-    "hostname": "dpg-d76je5ffte5s73elf39g-a.virginia-postgres.render.com",
-    "port": "5432",
-    "database": "salvia_pruebas_q9xt",
-    "user": "root",
-    "password": "k07wAhHOlrkswVlOAIms3jvyymiLt2k4"
+    "hostname":"localhost",
+    "port":"5432",
+    "database":"salvia",
+    "user":"salvia_admin",
+    "password":"123456abcABC.X"
 }
