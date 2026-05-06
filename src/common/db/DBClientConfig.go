@@ -6,4 +6,5 @@ type DBClientConfig struct {
 	DatabaseName string `json:"database"`
 	UserName     string `json:"user"`
 	Password     string `json:"password"`
+	SSLMode      string `json:"sslmode,omitempty"`
 }
