@@ -15,9 +15,13 @@ import (
 // que el pool pgx existente (db_config.json vía common/db.DBClientConfig).
 // El pool se limita a 5 conexiones para coexistir con el pool pgx de 80.
 func NewGormDB(cfg commondb.DBClientConfig) (*gorm.DB, error) {
+	sslmode := cfg.SSLMode
+	if sslmode == "" {
+		sslmode = "disable"
+	}
 	dsn := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=require",
-		cfg.Hostname, cfg.Port, cfg.UserName, cfg.Password, cfg.DatabaseName,
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		cfg.Hostname, cfg.Port, cfg.UserName, cfg.Password, cfg.DatabaseName, sslmode,
 	)
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Warn),

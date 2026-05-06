@@ -5,7 +5,6 @@
     <a href="{{.salviaVictimCaseGETFormPath}}">← Casos reportados</a>
     <span>/</span>
     <span class="cd-current" v-if="caso">${ caso.victimCaseVictimName }</span>
-    <span class="cd-id" v-if="caso">(${ caso.victimCaseICode })</span>
   </div>
 
   <!-- Loading -->
@@ -13,10 +12,50 @@
     <p>Cargando información del caso...</p>
   </div>
 
-  <!-- Error -->
-  <div v-if="error && !cargando" style="text-align:center;padding:60px 0;color:#dc2626">
-    <p>${ error }</p>
-    <a href="{{.salviaVictimCaseGETFormPath}}" class="btn btn-secondary" style="margin-top:12px">← Volver a casos</a>
+  <!-- Error: caso no encontrado o error del servidor -->
+  <div v-if="error && !cargando" style="text-align:center;padding:80px 20px;">
+    <div style="max-width:460px;margin:0 auto;background:#fff;border-radius:16px;padding:40px 32px;box-shadow:0 2px 12px rgba(0,0,0,.08)">
+
+      <!-- Icono según tipo de error -->
+      <div v-if="errorTipo === 404" style="font-size:3.5rem;margin-bottom:12px">🔍</div>
+      <div v-else style="font-size:3.5rem;margin-bottom:12px">⚠️</div>
+
+      <!-- Titulo -->
+      <p v-if="errorTipo === 404" style="font-size:1.25rem;font-weight:700;color:#111827;margin:0 0 8px">
+        Caso no encontrado
+      </p>
+      <p v-else style="font-size:1.25rem;font-weight:700;color:#111827;margin:0 0 8px">
+        No se pudo cargar el caso
+      </p>
+
+      <!-- Descripcion amigable -->
+      <p v-if="errorTipo === 404" style="font-size:.9rem;color:#6b7280;margin:0 0 24px;line-height:1.5">
+        El identificador del caso no corresponde a ningún registro en el sistema.
+        Verifique que la dirección sea correcta o busque el caso desde el listado.
+      </p>
+      <p v-else style="font-size:.9rem;color:#6b7280;margin:0 0 24px;line-height:1.5">
+        Ocurrió un problema al intentar obtener la información del caso.
+        Esto puede deberse a una falla temporal del servidor. Intente nuevamente en unos momentos.
+      </p>
+
+      <!-- Botones -->
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <a href="{{.salviaVictimCaseGETFormPath}}" class="btn btn-secondary" style="margin:0;border-radius:8px;padding:10px 20px;font-size:.85rem">
+          ← Volver al listado de casos
+        </a>
+        <button v-if="errorTipo !== 404" class="btn btn-primary" style="margin:0;border-radius:8px;padding:10px 20px;font-size:.85rem;background:#5106A7;border-color:#5106A7" @click="reintentar">
+          🔄 Reintentar
+        </button>
+      </div>
+
+      <!-- Detalle técnico colapsable -->
+      <details style="margin-top:20px;text-align:left">
+        <summary style="font-size:.75rem;color:#9ca3af;cursor:pointer">Detalle técnico</summary>
+        <p style="font-size:.75rem;color:#9ca3af;margin:6px 0 0;font-family:monospace;background:#f9fafb;padding:8px 12px;border-radius:6px">
+          ${ error }
+        </p>
+      </details>
+    </div>
   </div>
 
   <template v-if="caso && !cargando">
@@ -39,8 +78,10 @@
         </div>
       </div>
       <div class="cd-header-right">
-        <button v-if="userRole === 'sv'" class="btn-reasignar" @click="modalReasignar = true">Reasignar</button>
-        <button v-if="userRole === 'sv'" class="btn-nuevo-seg" @click="modalNuevoSeg = true">+ Nuevo seguimiento</button>
+        <button v-if="userRole === 'sv'" class="btn-reasignar" @click="abrirModalReasignar">Reasignar</button>
+        <button v-if="userRole === 'sv'" class="btn-nuevo-seg" :disabled="followUpsV2.length >= 8" @click="abrirModalNuevoSeg">
+          ${ followUpsV2.length >= 8 ? 'Máximo alcanzado (8)' : '+ Nuevo seguimiento' }
+        </button>
       </div>
     </div>
 
@@ -75,7 +116,7 @@
             </div>
             <div class="cd-info-field">
               <div class="cd-lbl">Agente responsable</div>
-              <div class="cd-val" style="color:#5106A7">${ caso.victimCaseOwnerDescription || '—' }</div>
+              <div class="cd-val" style="color:#5106A7">${ ultimoAgente }</div>
             </div>
           </div>
 
@@ -109,10 +150,6 @@
             <div class="cd-campo">
               <div class="cd-lbl">Fecha de reporte</div>
               <div class="cd-val">${ formatFecha(caso.victimCaseCreatedAt) }</div>
-            </div>
-            <div class="cd-campo">
-              <div class="cd-lbl">ID del caso</div>
-              <div class="cd-val" style="font-family:monospace">${ caso.victimCaseICode }</div>
             </div>
           </div>
         </template>
@@ -295,7 +332,7 @@
               <div class="cd-tl-card">
                 <div class="cd-tl-header">
                   <span class="cd-tl-badge">${ tlLabel(ev.event_type) }</span>
-                  <span class="cd-tl-date">${ formatFecha(ev.created_at) }</span>
+                  <span class="cd-tl-date">${ formatFechaHora(ev.created_at) }</span>
                 </div>
                 <div class="cd-tl-desc">${ ev.description }</div>
                 <div v-if="ev.actor_name" class="cd-tl-agent">👤 ${ ev.actor_name }</div>
@@ -328,7 +365,7 @@
     <div class="ns-header">
       <div>
         <p class="ns-title">Nuevo seguimiento</p>
-        <p class="ns-subtitle" v-if="caso">${ caso.victimCaseVictimName } · ${ caso.victimCaseICode }</p>
+        <p class="ns-subtitle" v-if="caso">${ caso.victimCaseVictimName }</p>
       </div>
       <button class="ns-close" @click="modalNuevoSeg = false">✕</button>
     </div>
@@ -336,27 +373,41 @@
     <!-- Campos -->
     <div class="ns-body">
 
+      <!-- Alerta de error del servidor -->
+      <div v-if="nuevoSegError" style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:8px">
+        <span style="font-size:1.1rem">❌</span>
+        <div>
+          <p style="margin:0;font-size:.82rem;font-weight:600;color:#991b1b">Error al crear el seguimiento</p>
+          <p style="margin:4px 0 0;font-size:.78rem;color:#b91c1c">${ nuevoSegError }</p>
+        </div>
+        <button @click="nuevoSegError=''" style="margin-left:auto;background:none;border:none;color:#991b1b;cursor:pointer;font-size:1rem">✕</button>
+      </div>
+
       <!-- Fecha y Hora en fila -->
       <div class="ns-row">
         <div class="ns-field">
           <label class="ns-label">Fecha <span class="ns-required">*</span></label>
-          <input type="date" class="ns-input" v-model="nuevoSeg.fecha" />
+          <input type="date" :class="['ns-input', segTocado && !nuevoSeg.fecha ? 'ns-input-error' : '', segTocado && nuevoSeg.fecha && nuevoSeg.fecha < fechaHoy ? 'ns-input-error' : '']" v-model="nuevoSeg.fecha" :min="fechaHoy" @blur="segTocado = true" />
+          <span v-if="segTocado && !nuevoSeg.fecha" class="ns-error-msg">La fecha es obligatoria</span>
+          <span v-else-if="segTocado && nuevoSeg.fecha && nuevoSeg.fecha < fechaHoy" class="ns-error-msg">No se permiten fechas anteriores a hoy</span>
         </div>
         <div class="ns-field">
           <label class="ns-label">Hora <span class="ns-required">*</span></label>
-          <input type="time" class="ns-input" v-model="nuevoSeg.hora" />
+          <input type="time" :class="['ns-input', segTocado && !nuevoSeg.hora ? 'ns-input-error' : '']" v-model="nuevoSeg.hora" @blur="segTocado = true" />
+          <span v-if="segTocado && !nuevoSeg.hora" class="ns-error-msg">La hora es obligatoria</span>
         </div>
       </div>
 
       <!-- Agente responsable -->
       <div class="ns-field">
         <label class="ns-label">Agente responsable <span class="ns-required">*</span></label>
-        <select class="ns-input" v-model="nuevoSeg.agente">
+        <select :class="['ns-input', segTocado && !nuevoSeg.agente ? 'ns-input-error' : '']" v-model="nuevoSeg.agente" @change="segTocado = true">
           <option value="" disabled>Seleccione el agente</option>
           <option v-for="ag in agentesRO" :key="ag.icode" :value="ag.icode">
             ${ ag.fullName || (ag.profile && ag.profile.names ? ag.profile.names + ' ' + ag.profile.lastNames : ag.icode) }
           </option>
         </select>
+        <span v-if="segTocado && !nuevoSeg.agente" class="ns-error-msg">Debe seleccionar un agente</span>
       </div>
 
       <!-- Notas -->
@@ -370,8 +421,14 @@
 
     <!-- Footer -->
     <div class="ns-footer">
+      <div v-if="!nuevoSegValido && segTocado" style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;margin-right:auto;display:flex;align-items:center;gap:6px">
+        <span style="font-size:.9rem">⚠️</span>
+        <span style="font-size:.75rem;color:#92400e">Complete los campos obligatorios (fecha, hora y agente) para guardar.</span>
+      </div>
       <button class="ns-btn-cancel" @click="modalNuevoSeg = false">Cancelar</button>
-      <button class="ns-btn-save" @click="guardarSeguimiento">Guardar seguimiento</button>
+      <button class="ns-btn-save" :disabled="!nuevoSegValido || guardandoSeg" @click="guardarSeguimiento">
+        ${ guardandoSeg ? 'Guardando...' : 'Guardar seguimiento' }
+      </button>
     </div>
 
   </div>
@@ -383,7 +440,7 @@
     <div class="ns-header">
       <div>
         <p class="ns-title">Reasignar caso</p>
-        <p class="ns-subtitle" v-if="caso">${ caso.victimCaseVictimName } · ${ caso.victimCaseICode }</p>
+        <p class="ns-subtitle" v-if="caso">${ caso.victimCaseVictimName }</p>
       </div>
       <button class="ns-close" @click="modalReasignar = false">✕</button>
     </div>
@@ -454,6 +511,7 @@ var home = Vue.createApp({
       currentUser: {{.currentUser}},
       cargando: true,
       error:    null,
+      errorTipo: null,
       caso:     null,
       followUp: null,
       form1:    null,
@@ -497,6 +555,10 @@ var home = Vue.createApp({
         agente: '',
         notas: '',
       },
+      segTocado: false,
+      guardandoSeg: false,
+      nuevoSegError: '',
+      fechaHoy: new Date().toISOString().substring(0, 10),
       tabs: [
         { id: 'info',         label: 'Info General',  icono: '👤' },
         { id: 'derivaciones', label: 'Derivaciones',  icono: '↗️' },
@@ -525,9 +587,32 @@ var home = Vue.createApp({
       var filtrados = this.tlEventosFiltrados(this.tlFiltro);
       return Math.ceil(filtrados.length / this.tlPorPagina) || 1;
     },
+    nuevoSegValido() {
+      if (!this.nuevoSeg.fecha || !this.nuevoSeg.hora || !this.nuevoSeg.agente) return false;
+      if (this.nuevoSeg.fecha < this.fechaHoy) return false;
+      return true;
+    },
     nivelRiesgo() {
       if (!this.form2 || this.form2.riskLevel === null || this.form2.riskLevel === undefined) return 0;
       return this.form2.riskLevel;
+    },
+    ultimoAgente() {
+      var desc = this.caso ? this.caso.victimCaseOwnerDescription : '';
+      if (!desc) return '—';
+      // El formato es: "(fecha) Nombre [Rol] , [Rol] , (fecha) Nombre [Rol] , ..."
+      var partes = desc.split(' , (');
+      if (partes.length === 0) return desc;
+      var ultima = partes[partes.length - 1];
+      if (!ultima.startsWith('(')) ultima = '(' + ultima;
+      // Extraer: "(2026-04-13 17:04:29) María Fernanda Quintero [Operador]"
+      var match = ultima.match(/\(([^)]+)\)\s*(.+?)\s*\[([^\]]+)\]/);
+      if (match) {
+        var fecha = match[1].substring(0, 10);
+        var nombre = match[2].trim();
+        var rol = match[3].trim();
+        return nombre + ' [' + rol + '] · ' + fecha;
+      }
+      return ultima;
     },
     derivaciones() {
       var sectores = {
@@ -569,9 +654,20 @@ var home = Vue.createApp({
   methods: {
     cargarDatos() {
       var self = this;
+      self.cargando = true;
+      self.error = null;
+      self.errorTipo = null;
       fetch(API_URL)
         .then(function(res) {
-          if (!res.ok) throw new Error('Error ' + res.status + ' al cargar el caso');
+          if (!res.ok) {
+            var err = new Error(
+              res.status === 404
+                ? 'Código HTTP 404 — No se encontró el caso con ID: ' + CASE_ICODE
+                : 'Código HTTP ' + res.status + ' — Error del servidor al consultar el caso'
+            );
+            err.status = res.status;
+            throw err;
+          }
           return res.json();
         })
         .then(function(data) {
@@ -593,8 +689,12 @@ var home = Vue.createApp({
         })
         .catch(function(err) {
           self.error    = err.message;
+          self.errorTipo = err.status || 500;
           self.cargando = false;
         });
+    },
+    reintentar() {
+      this.cargarDatos();
     },
     cargarOperadores() {
       var self = this;
@@ -630,6 +730,13 @@ var home = Vue.createApp({
         .catch(function(err) { console.log('Error cargando agentes RO:', err); });
     },
     formatFecha(f) { return f ? f.substring(0, 10) : '—'; },
+    formatFechaHora(f) {
+      if (!f) return '—';
+      // Si tiene hora (más de 10 chars), mostrar fecha + hora
+      if (f.length > 16) return f.substring(0, 16).replace('T', ' ');
+      if (f.length > 10) return f.substring(0, f.length).replace('T', ' ');
+      return f.substring(0, 10);
+    },
     nombreAgente(agentId) {
       // Buscar en agentes RO primero, luego en operadores
       var ag = this.agentesRO.find(function(a) { return a.icode === agentId; });
@@ -690,12 +797,28 @@ var home = Vue.createApp({
       var m = { 'p':'cd-bd-proceso', 'd':'cd-bd-completado', 'u':'cd-bd-articulando', 'x':'cd-bd-resuelto' };
       return m[s] || 'cd-bd-proceso';
     },
+    abrirModalNuevoSeg() {
+      if (this.followUpsV2.length >= 8) return;
+      this.nuevoSeg = { fecha: '', hora: '09:00', agente: '', notas: '' };
+      this.segTocado = false;
+      this.guardandoSeg = false;
+      this.nuevoSegError = '';
+      this.modalNuevoSeg = true;
+    },
+    abrirModalReasignar() {
+      this.reasignarOperador = '';
+      this.modalReasignar = true;
+    },
     guardarSeguimiento() {
-      if (!this.nuevoSeg.fecha || !this.nuevoSeg.agente) {
-        alert('Debe completar la fecha y seleccionar un agente.');
+      this.segTocado = true;
+      if (!this.nuevoSegValido) return;
+      if (this.followUpsV2.length >= 8) {
+        this.nuevoSegError = 'Este caso ya tiene el máximo de 8 seguimientos permitidos.';
         return;
       }
       var self = this;
+      self.guardandoSeg = true;
+      self.nuevoSegError = '';
       var scheduledDate = this.nuevoSeg.fecha;
       if (this.nuevoSeg.hora) {
         scheduledDate += 'T' + this.nuevoSeg.hora;
@@ -711,17 +834,24 @@ var home = Vue.createApp({
         })
       })
         .then(function(res) {
-          if (!res.ok) throw new Error('Error al crear seguimiento');
+          if (!res.ok) {
+            return res.json().then(function(data) {
+              throw new Error(data.error || 'Error HTTP ' + res.status);
+            }).catch(function(e) {
+              if (e.message) throw e;
+              throw new Error('Error HTTP ' + res.status + ' al crear el seguimiento');
+            });
+          }
           return res.json();
         })
         .then(function() {
-          alert('Seguimiento creado correctamente');
+          self.guardandoSeg = false;
           self.modalNuevoSeg = false;
-          self.nuevoSeg = { fecha: '', hora: '09:00', agente: '', notas: '' };
-          self.cargarDatos(); // Recargar para ver el nuevo seguimiento
+          self.cargarDatos();
         })
         .catch(function(err) {
-          alert(err.message);
+          self.guardandoSeg = false;
+          self.nuevoSegError = err.message || 'Ocurrió un error inesperado. Intente nuevamente.';
         });
     },
     confirmarReasignacion() {
