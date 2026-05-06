@@ -147,9 +147,14 @@ func getClientConnection(clientConfig *DBClientConfig) error {
 			go func() {
 				defer wg.Done()
 				
-				// AQUI SE APLICA LA CONEXIÓN SEGURA SSL OBLIGATORIA PARA RENDER SIN ROMPER LA LÓGICA
-				var psqlconn = fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=require",
-					clientConfig.UserName, clientConfig.Password, clientConfig.Hostname, clientConfig.Port, clientConfig.DatabaseName)
+				sslmode := clientConfig.SSLMode
+				if sslmode == "" {
+					sslmode = "disable"
+				}
+				
+				// AQUI SE APLICA LA CONEXIÓN SEGURA SSL OBLIGATORIA PARA RENDER SIN ROMPER LA LÓGICA (configurable)
+				var psqlconn = fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=%s",
+					clientConfig.UserName, clientConfig.Password, clientConfig.Hostname, clientConfig.Port, clientConfig.DatabaseName, sslmode)
 
 				var conn, err = pgx.Connect(context.Background(), psqlconn)
 
