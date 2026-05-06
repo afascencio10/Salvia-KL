@@ -335,7 +335,24 @@ func (s *followUpV2Service) GetFollowUpDetail(ctx context.Context, id string, is
 		log.Printf("[WARN] Error al obtener estabilizaciones económicas: %v", err)
 	}
 
-	// 5. Determinar permisos
+	// 6. Cargar info completa de la víctima (teléfono, género, edad, etc.)
+	var victimInfo *models.FollowUpVictimInfo
+	if vi, err := s.repo.LoadVictimInfoByCaseID(ctx, fu.CaseID); err != nil {
+		log.Printf("[WARN] GetFollowUpDetail: no se pudo cargar info víctima: %v", err)
+	} else {
+		victimInfo = &models.FollowUpVictimInfo{
+			Names:             vi.Names,
+			LastNames:         vi.LastNames,
+			TownName:          vi.TownName,
+			Phone:             vi.Phone,
+			GenderIdentity:    vi.GenderIdentity,
+			SexualOrientation: vi.SexualOrientation,
+			ContactPhone:      vi.ContactPhone,
+			Age:               vi.Age,
+		}
+	}
+
+	// 7. Determinar permisos
 	perms := models.Permissions{
 		CanEdit: isSupervisor,
 	}
@@ -343,6 +360,7 @@ func (s *followUpV2Service) GetFollowUpDetail(ctx context.Context, id string, is
 	return &models.FollowUpDetailResponse{
 		FollowUp:               *fu,
 		CaseInfo:               *vcase,
+		VictimInfo:             victimInfo,
 		Barriers:               barriers,
 		Permissions:            perms,
 		EmergencyMeasures:      emergencyMeasures,

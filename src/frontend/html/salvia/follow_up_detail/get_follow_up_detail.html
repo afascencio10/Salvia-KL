@@ -6,31 +6,6 @@
         <span class="ms-breadcrumb-text">${ victimCase.name } / Seguimiento #${ followUp.id }</span>
     </div>
 
-    <!-- Header Card -->
-    <div class="ms-detail-header">
-        <div class="ms-detail-header-icon" :style="getRiskStyle(victimCase.riskLevel)">
-            <i class="fas fa-check"></i>
-        </div>
-        <div class="ms-detail-header-info">
-            <div class="ms-detail-header-title">
-                <h2>Seguimiento #${ followUp.id }</h2>
-                <span class="ms-badge" :style="getRiskStyle(victimCase.riskLevel)">${followUp.status}</span>
-            </div>
-            <p class="ms-detail-header-meta">
-                <i class="fas fa-calendar-alt"></i> ${ followUp.date } &nbsp;·&nbsp;
-                <i class="fas fa-clock"></i> ${ followUp.time } &nbsp;·&nbsp;
-                <i class="fas fa-user-circle"></i> ${ followUp.agent }
-            </p>
-        </div>
-        <div class="ms-detail-header-case">
-            <p class="ms-detail-case-label">Caso</p>
-            <div class="ms-detail-case-info">
-                <span class="ms-detail-case-name">${ victimCase.name }</span>
-                <span class="ms-badge" :style="getRiskStyle(victimCase.riskLevel)">${ victimCase.riskLevel }</span>
-            </div>
-        </div>
-    </div>
-
     <!-- Tabs -->
     <div class="ms-tabs-wrapper">
         <div class="ms-tabs-header">
@@ -45,6 +20,63 @@
         <div class="ms-tab-content">
             <!-- TAB RESUMEN -->
             <div v-if="activeTab === 'resumen'" class="ms-tab-pane">
+
+                <!-- Card víctima -->
+                <section v-if="victimInfo" class="ms-detail-section">
+                    <h3 class="ms-detail-section-title">Información de la Víctima</h3>
+                    <div class="vc-card">
+                        <!-- Header: avatar + nombre/ubicación + meta -->
+                        <div class="vc-header">
+                            <div class="vc-avatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="vc-identity">
+                                <div class="vc-name-row">
+                                    <h5 class="vc-name">${ [victimInfo.Names, victimInfo.LastNames].filter(Boolean).join(' ') || '—' }</h5>
+                                </div>
+                                <span class="vc-location">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    <span>${ victimInfo.TownName || '—' }</span>
+                                </span>
+                            </div>
+                            <div class="vc-meta">
+                                <span class="vc-meta-item">
+                                    <i class="fas fa-user-check"></i>
+                                    <span>${ followUp.agent || '—' }</span>
+                                </span>
+                                <span class="vc-meta-item">
+                                    <i class="fas fa-calendar-check"></i>
+                                    <span>${ followUp.completedAt || '—' }</span>
+                                </span>
+                            </div>
+                        </div>
+                        <!-- Divider -->
+                        <div class="vc-divider"></div>
+                        <!-- Datos en grid idéntico a ms-info-grid -->
+                        <div class="ms-info-grid">
+                            <div class="ms-info-item">
+                                <p class="ms-info-label">Teléfono</p>
+                                <p class="ms-info-value">${ victimInfo.Phone || '—' }</p>
+                            </div>
+                            <div class="ms-info-item">
+                                <p class="ms-info-label">Identidad de género</p>
+                                <p class="ms-info-value">${ victimInfo.GenderIdentity || '—' }</p>
+                            </div>
+                            <div class="ms-info-item">
+                                <p class="ms-info-label">Orientación sexual</p>
+                                <p class="ms-info-value">${ victimInfo.SexualOrientation || '—' }</p>
+                            </div>
+                            <div class="ms-info-item">
+                                <p class="ms-info-label">Teléfono de contacto</p>
+                                <p class="ms-info-value">${ victimInfo.ContactPhone || '—' }</p>
+                            </div>
+                            <div class="ms-info-item">
+                                <p class="ms-info-label">Edad</p>
+                                <p class="ms-info-value">${ victimInfo.Age != null ? victimInfo.Age + ' años' : '—' }</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
                 <!-- Información General -->
                 <section class="ms-detail-section">
@@ -201,81 +233,9 @@
 
             <!-- TAB FORMULARIO -->
             <div v-if="activeTab === 'formulario'" class="ms-tab-pane">
-                <div class="ms-form-layout">
-                    <!-- Sidebar -->
-                    <aside class="ms-form-sidebar">
-                        <div class="ms-form-sidebar-header">
-                            <p>Secciones</p>
-                        </div>
-                        <nav class="ms-form-nav">
-                            <button v-for="(sec, idx) in FORM_SECTIONS" :key="sec.id" @click="activeSection = idx"
-                                :class="['ms-form-nav-btn', { active: activeSection === idx }]">
-                                <div class="ms-form-step-number" :class="{ active: activeSection === idx }">${ idx + 1 }
-                                </div>
-                                <span>${ sec.titulo }</span>
-                            </button>
-                        </nav>
-                    </aside>
-
-                    <!-- Content -->
-                    <div class="ms-form-content">
-                        <div class="ms-form-card">
-                            <div class="ms-form-card-header">
-                                <div class="ms-form-card-header-left">
-                                    <div class="ms-form-step-badge">${ activeSection + 1 }</div>
-                                    <h4 class="ms-form-section-title">${ FORM_SECTIONS[activeSection].titulo }</h4>
-                                </div>
-                                <button @click="toggleEdit" :class="['ms-form-edit-btn', { editing: isEditing }]">
-                                    <i class="fas fa-edit"></i> ${ isEditing ? 'Guardando cambios' : 'Editar respuestas'
-                                    }
-                                </button>
-                            </div>
-
-                            <div class="ms-form-card-body">
-                                <!-- Renderizado de campos -->
-                                <div v-for="campo in FORM_SECTIONS[activeSection].campos" :key="campo.id"
-                                    class="ms-form-field">
-                                    <p class="ms-form-label">${ campo.label }</p>
-
-                                    <!-- Vista Edición -->
-                                    <div v-if="isEditing">
-                                        <input
-                                            v-if="campo.tipo === 'text' || campo.tipo === 'dropdown' || campo.tipo === 'single'"
-                                            class="ms-form-input" :value="followUp.values[campo.id]">
-                                        <div v-else-if="campo.tipo === 'boolean'" class="ms-form-boolean-group">
-                                            <button class="ms-form-boolean-btn"
-                                                :class="{ active: followUp.values[campo.id] === true }">Sí</button>
-                                            <button class="ms-form-boolean-btn"
-                                                :class="{ active: followUp.values[campo.id] === false }">No</button>
-                                        </div>
-                                        <p v-else class="ms-form-text-muted">Selección múltiple / complejo...</p>
-                                    </div>
-
-                                    <!-- Vista Lectura -->
-                                    <div v-else>
-                                        <p v-if="followUp.values[campo.id] !== undefined && followUp.values[campo.id] !== ''"
-                                            class="ms-form-value">
-                                            ${ formatValue(followUp.values[campo.id]) }
-                                        </p>
-                                        <p v-else class="ms-form-empty">—</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Navegación Formulario -->
-                            <div class="ms-form-card-footer">
-                                <button @click="activeSection = Math.max(0, activeSection - 1)"
-                                    :disabled="activeSection === 0" class="ms-form-nav-btn-small">
-                                    ← Anterior
-                                </button>
-                                <button @click="activeSection = Math.min(FORM_SECTIONS.length-1, activeSection + 1)"
-                                    :disabled="activeSection === FORM_SECTIONS.length - 1"
-                                    class="ms-form-nav-btn-small">
-                                    Siguiente →
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                <dinamic-form v-if="formId && submissionId" :form-id="formId" :submission-id="submissionId"></dinamic-form>
+                <div v-else class="ms-empty-state-small">
+                    <p>Este seguimiento no tiene un formulario asociado.</p>
                 </div>
             </div>
         </div>
@@ -285,54 +245,22 @@
 {{ template "standard_scripts.html" .}}
 {{ template "overlay.html" .}}
 
-<script>
-    const FORM_SECTIONS = [
-        {
-            id: "inicio_seguimiento",
-            titulo: "Inicio de Seguimiento",
-            campos: [
-                { id: "nivel_riesgo_registro", tipo: "single", label: "¿Nivel de riesgo identificado?" },
-                { id: "equipo_atencion", tipo: "single", label: "Equipo que realiza la atención" },
-                { id: "nombre_profesional", tipo: "dropdown", label: "Nombre del profesional" },
-                { id: "efectividad_llamada", tipo: "single", label: "Efectividad de la llamada" },
-                { id: "numero_seguimiento", tipo: "single", label: "Nº de seguimiento" },
-            ],
-        },
-        {
-            id: "valoracion_riesgo",
-            titulo: "Valoración del Riesgo",
-            campos: [
-                { id: "respondiente", tipo: "single", label: "Respondiente del seguimiento" },
-                { id: "nuevos_hechos_violencia", tipo: "boolean", label: "¿Nuevos hechos de violencia?" },
-                { id: "descripcion_hechos_violencia", tipo: "text", label: "Descripción de nuevos hechos" },
-            ],
-        },
-        {
-            id: "seguimiento_caso",
-            titulo: "Seguimiento de Caso",
-            campos: [
-                { id: "info_psicosocial", tipo: "text", label: "Información psicosocial" },
-                { id: "gestion_realizada", tipo: "text", label: "Gestión realizada" },
-                { id: "variacion_riesgo", tipo: "boolean", label: "¿Variación en el riesgo?" },
-                { id: "descripcion_variacion_riesgo", tipo: "text", label: "Describa la variación" },
-            ],
-        }
-    ];
 
+<script>
     const app = Vue.createApp({
         delimiters: ['${', '}'],
         data() {
             return {
                 activeTab: 'resumen',
-                activeSection: 0,
-                isEditing: false,
                 loading: false,
                 TABS: [
                     { id: 'resumen', label: 'Resumen', icono: 'fas fa-chart-bar', count: 0 },
                     { id: 'formulario', label: 'Formulario', icono: 'fas fa-clipboard-list', count: 0 },
                 ],
-                FORM_SECTIONS,
                 originalRiskLevel: 'Alto',
+                formId:      '2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff',
+                submissionId: null,
+                victimInfo: null,
                 activeBarriers: [],
                 emergencyMeasures: [],
                 psychosocialSupports: [],
@@ -348,6 +276,7 @@
                     date: '-',
                     time: '-',
                     agent: '-',
+                    completedAt: null,
                     status: '-',
                     values: {
                         nivel_riesgo_registro: '-',
@@ -408,6 +337,13 @@
                         this.followUp.agent = data.followUp.agent_id || '-';
                     }
 
+                    if (data.followUp.completed_at) {
+                        this.followUp.completedAt = new Date(data.followUp.completed_at).toLocaleString('es-CO', {
+                            day: '2-digit', month: '2-digit', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit', hour12: true
+                        });
+                    }
+
                     // Cálculo dinámico de duración
                     if (data.followUp.scheduled_date && data.followUp.scheduled_time && data.followUp.completed_at) {
                         const scheduled = new Date(data.followUp.scheduled_date);
@@ -439,7 +375,11 @@
                         this.followUp.values = { ...this.followUp.values, ...data.followUpValues };
                     }
 
-                    this.victimCase.id = data.caseInfo.id;
+                    this.victimCase.id  = data.caseInfo.id;
+                    this.submissionId   = data.followUp.form_submission_id || null;
+
+                    // Card víctima — viene directo del backend con todos los campos
+                    this.victimInfo = data.victimInfo || null;
 
                 } catch (error) {
                     console.error("Error al obtener detalle CSR:", error);
@@ -451,15 +391,6 @@
             },
             goBack() {
                 window.history.back();
-                // window.location.href = `/salvia/casos/${this.victimCase.id}/detalle`;                
-            },
-            toggleEdit() {
-                this.isEditing = !this.isEditing;
-            },
-            formatValue(val) {
-                if (val === true) return 'Sí';
-                if (val === false) return 'No';
-                return val;
             },
             getRiskStyle(nivel) {
                 const lvl = nivel ? nivel.toUpperCase() : '';
@@ -477,4 +408,7 @@
 
     app.mount("#app");
 </script>
+
+<script src="/static/js/components/dinamic-form.js"></script>
+
 {{ template "overlay.html" . }}
