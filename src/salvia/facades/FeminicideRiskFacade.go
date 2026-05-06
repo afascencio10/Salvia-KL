@@ -78,6 +78,7 @@ func FeminicideRiskGET(c *gin.Context) {
 
 	//Si se consulta un caso particular
 	if id != "" {
+		tplName = "get_feminicide_risk"
 		// Si no se especifica "docType", se verifica el permiso "get_feminicide_risk".
 		if !utils.CheckPermission(salvia_config.PermissionsByRole, "get_feminicide_risk", s.CurrentRole, c) {
 			return
@@ -86,6 +87,7 @@ func FeminicideRiskGET(c *gin.Context) {
 		code, feminicideRiskRes, _ = salvia_ctrl.GetFeminicideRiskByICode(id, &db.ConnData{}, dbClientConfig, dbServerConfig)
 
 	} else {
+		tplName = "get_feminicide_risks"
 		//Si se consultan todos los casos
 		// Si no se proporciona un ID, se verifica el permiso "get_feminicide_risks" para obtener todos los casos.
 		if !utils.CheckPermission(salvia_config.PermissionsByRole, "get_feminicide_risks", s.CurrentRole, c) {
@@ -106,12 +108,12 @@ func FeminicideRiskGET(c *gin.Context) {
 		if err == nil {
 			menu = s.CurrentMenu
 		}
-		if v, found := salvia_config.MenuTools[s.Lang][s.CurrentRole]["menu_tool_get_fermincides"]; found {
+		if v, found := salvia_config.MenuTools[s.Lang][s.CurrentRole]["menu_tool_get_feminicide_risks"]; found {
 			feminicideRiskMenuTools = v
 		}
 
 		// Renderiza la plantilla HTML con todos los parámetros necesarios para mostrar el caso de víctima.
-		common_facades.RenderTemplate(c, salvia_daos.VictimContactEntityName, "salvia", "feminicideRisk/", salvia_config.HTML_Templates, tplName, utils.GetFullHtmlTemplates(), utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
+		common_facades.RenderTemplate(c, salvia_daos.VictimContactEntityName, "salvia", "feminicide/", salvia_config.HTML_Templates, tplName, utils.GetFullHtmlTemplates(), utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
 			map[string]interface{}{
 				"windowTitle":     salvia_config.Locale["sp"]["get_feminicide_risk_window_title"],
 				"currentUser":     s.Names + " " + s.LastNames,
@@ -378,6 +380,7 @@ func FeminicideRiskPOST_GET(c *gin.Context) {
 
 			//New form ------
 			//Régimen afiliación al SGSSS
+			"victimSGSSSAffiliation":       salvia_daos.VictimCaseForm2Enums["feminicide_risk_form1_victim_sgsss_affiliation"],
 			"livingZone":                   salvia_daos.VictimCaseForm2Enums["victim_case_form2_facts_zone"],
 			"maritalStatus":                salvia_daos.VictimCaseForm2Enums["victim_case_form2_marital_status"],
 			"assignedSexAtBirth":           salvia_daos.VictimCaseForm2Enums["victim_case_form2_assigned_sex_at_birth"],
@@ -388,16 +391,23 @@ func FeminicideRiskPOST_GET(c *gin.Context) {
 			"migrationCondition":           salvia_daos.VictimCaseForm2Enums["victim_case_form2_migration_condition"],
 			"lastEducationLevel":           salvia_daos.VictimCaseForm2Enums["victim_case_form2_last_education_level"],
 			"speciallyProtectedPopulation": salvia_daos.VictimCaseForm2Enums["victim_case_form2_specially_protected_population"],
+			"occupation":                   salvia_daos.VictimCaseForm2Enums["victim_case_form2_occupation"],
+			"victimDisabilityType":         salvia_daos.VictimCaseForm2Enums["feminicide_risk_form1_victim_disability_type"],
+			"victimCommonTransportMode":    salvia_daos.VictimCaseForm2Enums["feminicide_risk_victim_common_transport_mode"],
+			"financiallyDependentPeople":   salvia_daos.VictimCaseForm2Enums["feminicide_risk_financially_dependent_people"],
+			"placesVisitRegularly":         salvia_daos.VictimCaseForm2Enums["feminicide_risk_places_visit_regularly"],
+			"victimFoodAccessFrequency":    salvia_daos.VictimCaseForm2Enums["feminicide_risk_victim_food_access_frequency"],
+			"victimLivingZone":             salvia_daos.VictimCaseForm2Enums["victim_case_form2_facts_zone"],
 
 			"yes_no":    salvia_daos.VictimCaseForm2Enums["yes_no"],
-			"docType":   salvia_daos.VictimCaseForm2Enums["feminicide_risk_form2_victim_doc_type"],
-			"factsZone": salvia_daos.VictimCaseForm2Enums["feminicide_risk_form2_facts_zone"],
+			"docType2":  common_config.DOCUMENT_TYPE_FORM2,
+			"factsZone": salvia_daos.VictimCaseForm2Enums["victim_case_form2_facts_zone"],
 
 			//Campos múltiples
 
 			"moments":                    salvia_config.MOMENT[s.Lang],
 			"sectors":                    salvia_config.SECTOR[s.Lang],
-			"salviaFormPath":             salvia_config.FormPaths[s.Lang]["FeminicideRiskPOST_GET"],
+			"salviaFormPath":             salvia_config.FormPaths[s.Lang]["FeminicideRiskPOST"],
 			"securityCityFormPath":       security_config.FormPaths[s.Lang]["CityGET"],
 			"salviaEntityBranchFormPath": salvia_config.FormPaths[s.Lang]["EntityBranchGET"],
 			"securityTownFormPath":       security_config.FormPaths[s.Lang]["TownGET"],

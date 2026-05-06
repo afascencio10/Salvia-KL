@@ -13,7 +13,7 @@ import (
 
 var (
 	RelVictimCaseForm2EnumsFeminicideForm1EntityName string = "RelVictimCaseForm2EnumsFeminicideForm1"
-	RelVictimCaseForm2EnumsFeminicideForm1JSONName   string = "rel_victim_case_form2_enums_feminicide_form1"
+	RelVictimCaseForm2EnumsFeminicideForm1JSONName   string = "relVictimVaseForm2EnumsFeminicideForm1"
 	RelVictimCaseForm2EnumsFeminicideForm1DBName     string = "rel_victim_case_form2_enums_feminicide_form1"
 	RelVictimCaseForm2EnumsFeminicideForm1DBScheme   string = "salvia"
 

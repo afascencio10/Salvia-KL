@@ -81,6 +81,7 @@ func SetVictimContact(dataInput string, checkCaptcha bool, connData *db.ConnData
 			"VictimContactForm2FactsDescription":    true,
 			"VictimContactForm2BestContactTime":     true,
 			"VictimContactForm2ReportType":          true,
+			"VictimContactForm2ReportTypeDetails":   false,
 		}
 
 		// Valida la estructura del JSON y asigna los valores al DTO.
@@ -132,6 +133,8 @@ func SetVictimContact(dataInput string, checkCaptcha bool, connData *db.ConnData
 	if !captchaPassed {
 		utils.SetError(collectedErrors, salvia_daos.VictimContactJSONName, utils.GetTag(&vContactRequest.VContact, "VictimContactCaptchaSolution", "json"), "security_general_user_captcha_fail", "common_global_error", security_config.Locale)
 	}
+
+	getAndVerifyVictimContactEnumsMultiple(&vContactRequest.VContact.VictimContactForm2, collectedErrors)
 
 	// Si se han recopilado errores, se genera un nuevo captcha y se retorna el error.
 	if len(collectedErrors) > 0 {
@@ -185,38 +188,35 @@ func SetVictimContact(dataInput string, checkCaptcha bool, connData *db.ConnData
 			return http.StatusBadRequest, utils.CommMsgGetJSONErrors(collectedErrors)
 		}
 
-		if vContactRequest.VContact.VictimContactForm2.VictimContactForm2HasCareRole.VictimCaseForm2EnumsCode == "y" {
+		if vContactRequest.VContact.VictimContactForm2.VictimContactForm2HasCareRole.VictimCaseForm2EnumsCode == "y" || vContactRequest.VContact.VictimContactForm2.VictimContactForm2ReportTypeDetails.VictimCaseForm2EnumsCode == "ae" || vContactRequest.VContact.VictimContactForm2.VictimContactForm2ReportTypeDetails.VictimCaseForm2EnumsCode == "et" || vContactRequest.VContact.VictimContactForm2.VictimContactForm2ReportTypeDetails.VictimCaseForm2EnumsCode == "ex" || vContactRequest.VContact.VictimContactForm2.VictimContactForm2ReportTypeDetails.VictimCaseForm2EnumsCode == "ot" {
 			//Significa que la víctima tiene rol de cuidado, entonces se verifican 2 preguntas más
 			size := len(vContactRequest.VContact.VictimContactForm2.VictimContactForm2ReporterNames)
 			if size == 0 {
 				db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
 				utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(&vContactRequest.VContact.VictimContactForm2, "VictimContactForm2ReporterNames", "json"), "common_validation_field_empty_error", "common_global_error", common_config.Locale)
-				return http.StatusBadRequest, utils.CommMsgGetJSONErrors(collectedErrors)
-			}
-			if int64(size) < salvia_daos.VictimContactForm2FieldDefinitions["VictimContactForm2ReporterNames"].MinSize {
+			} else if int64(size) < salvia_daos.VictimContactForm2FieldDefinitions["VictimContactForm2ReporterNames"].MinSize {
 				db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
 				utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(&vContactRequest.VContact.VictimContactForm2, "VictimContactForm2ReporterNames", "json"), "common_validation_field_number_min_size_error", "common_global_error", common_config.Locale)
-				return http.StatusBadRequest, utils.CommMsgGetJSONErrors(collectedErrors)
-			}
-			if int64(size) > salvia_daos.VictimContactForm2FieldDefinitions["VictimContactForm2ReporterNames"].MaxSize {
+			} else if int64(size) > salvia_daos.VictimContactForm2FieldDefinitions["VictimContactForm2ReporterNames"].MaxSize {
 				db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
 				utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(&vContactRequest.VContact.VictimContactForm2, "VictimContactForm2ReporterNames", "json"), "common_validation_field_number_max_size_error", "common_global_error", common_config.Locale)
-				return http.StatusBadRequest, utils.CommMsgGetJSONErrors(collectedErrors)
 			}
 
-			if vContactRequest.VContact.VictimContactForm2.VictimContactForm2ReporterPhone == 0 {
+			sizePhone := int64(vContactRequest.VContact.VictimContactForm2.VictimContactForm2ReporterPhone)
+			if sizePhone == 0 {
 				db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
-				utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(&vContactRequest.VContact.VictimContactForm2, "VictimContactForm2ReporterPhone", "json"), "common_validation_field_empty_error", "common_global_error", common_config.Locale)
-				return http.StatusBadRequest, utils.CommMsgGetJSONErrors(collectedErrors)
-			}
-			if int64(vContactRequest.VContact.VictimContactForm2.VictimContactForm2ReporterPhone) < salvia_daos.VictimContactForm2FieldDefinitions["VictimContactForm2ReporterPhone"].MinSize {
+				utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(&vContactRequest.VContact.VictimContactForm2, "VictimContactForm2ReporterPhone", "json"), "common_validation_field_number_error", "common_global_error", common_config.Locale)
+			} else if sizePhone < salvia_daos.VictimContactForm2FieldDefinitions["VictimContactForm2ReporterPhone"].MinSize {
 				db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
 				utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(&vContactRequest.VContact.VictimContactForm2, "VictimContactForm2ReporterPhone", "json"), "common_validation_field_number_min_size_error", "common_global_error", common_config.Locale)
-				return http.StatusBadRequest, utils.CommMsgGetJSONErrors(collectedErrors)
-			}
-			if int64(vContactRequest.VContact.VictimContactForm2.VictimContactForm2ReporterPhone) > salvia_daos.VictimContactForm2FieldDefinitions["VictimContactForm2ReporterPhone"].MaxSize {
+
+			} else if sizePhone > salvia_daos.VictimContactForm2FieldDefinitions["VictimContactForm2ReporterPhone"].MaxSize {
 				db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
 				utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(&vContactRequest.VContact.VictimContactForm2, "VictimContactForm2ReporterPhone", "json"), "common_validation_field_number_max_size_error", "common_global_error", common_config.Locale)
+				return http.StatusBadRequest, utils.CommMsgGetJSONErrors(collectedErrors)
+			}
+			if len(collectedErrors) > 0 {
+				db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
 				return http.StatusBadRequest, utils.CommMsgGetJSONErrors(collectedErrors)
 			}
 		}
@@ -235,6 +235,13 @@ func SetVictimContact(dataInput string, checkCaptcha bool, connData *db.ConnData
 	if err = salvia_daos.SetVictimContactForm2(&vContactRequest.VContact.VictimContactForm2, connData, &dbClientConfig, &dbServerConfig); err != nil {
 		db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
 		// Retorna error interno si ocurre algún fallo durante la creación.
+		return http.StatusInternalServerError, err.Error()
+	}
+
+	//Ahora se insertan todos los campos múltiples
+	//Ahora se verifican los enums múltiples que se asociarán al form2
+	if err = setVictimContactEnumsMultiple(&vContactRequest.VContact.VictimContactForm2, connData, dbClientConfig, dbServerConfig); err != nil {
+		db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
 		return http.StatusInternalServerError, err.Error()
 	}
 
@@ -260,6 +267,8 @@ func GetVictimContactByICode(id string, connData *db.ConnData, dbClientConfig db
 	var victimContact salvia_daos.VictimContactDTO = salvia_daos.VictimContactDTO{}
 	var victimContactForm1 salvia_daos.VictimContactForm1DTO = salvia_daos.VictimContactForm1DTO{}
 	var victimContactForm2 salvia_daos.VictimContactForm2DTO = salvia_daos.VictimContactForm2DTO{}
+
+	var enums []salvia_daos.VictimCaseForm2EnumsDTO
 	// Valida que se haya proporcionado un ID.
 	if id == "" {
 		if v, found := common_config.Locale["sp"][common_config.Enums.GLOBAL_ERROR]; found {
@@ -302,29 +311,12 @@ func GetVictimContactByICode(id string, connData *db.ConnData, dbClientConfig db
 		} else {
 			victimContact.VictimContactForm1 = victimContactForm1
 		}
-
-		// Si se encuentra un código de localidad, se procede a obtener información adicional de localización.
-		/*var tc string = victimContact.VictimContactTownCode
-		if tc != "" {
-			var code int
-			var city security_daos.CityDTO = security_daos.CityDTO{}
-			var town security_daos.TownDTO = security_daos.TownDTO{}
-			var department security_daos.DepartmentDTO = security_daos.DepartmentDTO{}
-			// Consulta el Town (localidad) mediante el código.
-			code, _, town = security_ctrl.GetTownByTownCode(tc, connData, dbClientConfig, dbServerConfig)
-			if code == 200 {
-				// Consulta la City (ciudad) asociada al Town.
-				code, _, city = security_ctrl.GetCityById(town.TownCity, connData, dbClientConfig, dbServerConfig)
-				if code == 200 {
-					// Consulta el Department (departamento) asociado a la City.
-					_, _, department = security_ctrl.GetDepartmentById(city.CityDepartment, connData, dbClientConfig, dbServerConfig)
-					// Asigna los datos de localización al DTO.
-					victimContact.VictimContactDepartment = department
-					victimContact.VictimContactCity = city
-					victimContact.VictimContactTown = town
-				}
-			}
-		}*/
+		//Traemos todos los enums asociados a este formulario
+		enums, err = salvia_daos.GetVictimCasesForm2EnumsByVictimContactForm2Id(victimContact.VictimContactForm2.VictimContactForm2Id, connData, &dbClientConfig, &dbServerConfig)
+		if err != nil {
+			return http.StatusInternalServerError, "", salvia_daos.VictimContactDTO{}
+		}
+		loadVictimContactEnumsMultiple(&victimContact.VictimContactForm2, enums)
 
 		// Retorna éxito con el DTO actualizado.
 		return http.StatusOK, utils.CommMsgGetJSONSuccess(victimContact), victimContact
@@ -332,6 +324,19 @@ func GetVictimContactByICode(id string, connData *db.ConnData, dbClientConfig db
 	}
 	// En caso de error no identificado, se retorna un error interno.
 	return http.StatusInternalServerError, "", victimContact
+}
+
+func loadVictimContactEnumsMultiple(vContactForm2 *salvia_daos.VictimContactForm2DTO, enums []salvia_daos.VictimCaseForm2EnumsDTO) {
+	var err error
+
+	for _, e := range enums {
+		if err = salvia_daos.GetLocalVictimCaseForm2EnumsById(&e); err == nil {
+			switch e.VictimCaseForm2EnumsCategory {
+			case "victim_case_form2_adjustments_gbv":
+				vContactForm2.VictimContactForm2AdjustmentsGBV = append(vContactForm2.VictimContactForm2AdjustmentsGBV, e)
+			}
+		}
+	}
 }
 
 // InvalidateVictimContactByICode invalida un registro de VictimContact identificado por su ICode.
@@ -460,4 +465,37 @@ func GetVictimContactByAll(connData *db.ConnData, dbClientConfig db.DBClientConf
 		resData = utils.CommMsgGetJSONSuccess(contacts)
 	}
 	return resCode, resData
+}
+
+func getAndVerifyVictimContactEnumsMultiple(vContactForm2 *salvia_daos.VictimContactForm2DTO, collectedErrors map[string]map[string]string) bool {
+	var opRes bool = true
+	var err error
+
+	for idx := range vContactForm2.VictimContactForm2AdjustmentsGBV {
+		err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&vContactForm2.VictimContactForm2AdjustmentsGBV[idx])
+		if err != nil {
+			opRes = false
+			break
+		}
+	}
+	if len(vContactForm2.VictimContactForm2AdjustmentsGBV) == 0 || err != nil {
+		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(vContactForm2, "VictimContactForm2AdjustmentsGBV", "json"), "victim_case_form2_enums_multiple_not_found", "common_global_error", salvia_config.Locale)
+		opRes = false
+	}
+
+	return opRes
+}
+
+func setVictimContactEnumsMultiple(vContactForm2 *salvia_daos.VictimContactForm2DTO, connData *db.ConnData, dbClientConfig db.DBClientConfig, dbServerConfig db.DBServerConfig) error {
+	var err error
+	for _, e := range vContactForm2.VictimContactForm2AdjustmentsGBV {
+		var rel salvia_daos.RelVictimCaseForm2EnumsVictimContactForm2DTO
+		rel.RelVictimCaseForm2EnumsVictimContactForm2Form = *vContactForm2
+		rel.RelVictimCaseForm2EnumsVictimCaseForm2Enums = e
+		if err = salvia_daos.SetRelVictimCaseForm2EnumsVictimContactForm2(&rel, connData, &dbClientConfig, &dbServerConfig); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

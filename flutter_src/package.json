@@ -1,0 +1,20 @@
+{
+  "name": "salvia",
+  "version": "1.0.0",
+  "description": "Sistema Nacional de Atención a Violencias Basadas en Género",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "flutter",
+    "atención",
+    "género"
+  ],
+  "author": "Tato Rivillas",
+  "license": "ISC"
+}

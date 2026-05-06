@@ -37,7 +37,18 @@
                             <div class="tbody">${res.victimContact.form.reportType.name}</div>
                         </div>
                     </div>
-                    
+                </div>
+                <div class="table1" v-if="res.victimContact.form.adjustmentsGBV.length > 0">
+                    <div class="item1">
+                        <div class="row1">
+                            <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_adjustments_gbv"}` .lang .locale}}</div>
+                            <div class="tbody">
+                                <ul>
+                                    <li v-for="item in res.victimContact.form.adjustmentsGBV" :key="item.icode">${ item.name }</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="table1" v-if="res.victimContact.form.reportType.code=='r'">
@@ -386,8 +397,6 @@
               }
             },
             created: function () {
-            },
-            mounted:  function () {
                 document.title = {{.windowTitle}};
                 document.getElementById('app').style.display = 'block';
                 home.config.globalProperties.enums = this.enums;
@@ -396,6 +405,9 @@
                     //Si no hay datos en el formulario antiguo, se utiliza el nuevo
                     this.res.victimContact.form = this.res.victimContact.form2
                 }
+            },
+            mounted:  function () {
+                
               
             },
             methods: {

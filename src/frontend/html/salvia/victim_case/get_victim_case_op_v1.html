@@ -695,6 +695,15 @@
         {{ template "button.html" Button `{"class":"btn btn-warning", "buttonId":"back",
         "buttonLabel":"get_victim_case_back", "buttonPlaceHolder":"get_victim_case_back_h",
         "onClickHandler":"submit('back')"}` .lang .locale}}
+
+        <template v-if="res.victimCase.status == 'r'">
+            {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"approve", 
+            "buttonLabel":"victim_case_approve", "buttonPlaceHolder":"victim_case_approve_h", 
+            "onClickHandler":"submit('approve')"}` .lang .locale}}
+        </template>
+        {{ template "button.html" Button `{"class":"btn btn-primary", "buttonId":"update",
+        "buttonLabel":"get_victim_case_update", "buttonPlaceHolder":"get_victim_case_update_h",
+        "onClickHandler":"submit('update')"}` .lang .locale}}
     </div>
 </div>
         {{ template "standard_scripts.html" .}}

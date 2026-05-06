@@ -39,9 +39,7 @@ func GetVictimCaseForm2EnumsByAll(connData *db.ConnData, dbClientConfig db.DBCli
 		for _, e := range enums {
 
 			//TODO: Traducimos el nombre, aunque a futuro habrá que traducirlo cuando el usuario lo utilice en idiomas diferentes
-			if e.VictimCaseForm2EnumsCategory == "victim_case_form2_report_type" {
-				println(111)
-			}
+
 			e.VictimCaseForm2EnumsName = salvia_config.Locale["sp"][e.VictimCaseForm2EnumsCategory+"_"+e.VictimCaseForm2EnumsCode]
 			salvia_daos.VictimCaseForm2Enums[e.VictimCaseForm2EnumsCategory] = append(salvia_daos.VictimCaseForm2Enums[e.VictimCaseForm2EnumsCategory], e)
 		}

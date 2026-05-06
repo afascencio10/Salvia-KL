@@ -583,7 +583,7 @@ func GetVictimCasesForm1(by common_controllers.By, page int, connData *db.ConnDa
 			` FROM ` + victimCaseForm1Path +
 			common_dao.GetSQL(common_dao.SQL_SELECT_WHERE_ONLY, by.AttrsName, by.AttrsAliasName, VictimCaseForm1DBName, by.AttrsName, []string{}, []string{}, by.Operator, VictimCaseForm1DBScheme, VictimCaseForm1FieldDefinitions, true)
 
-		persistenceCtrl.QueryRow(context.Background(), countQuery)
+		persistenceCtrl.QueryRow(context.Background(), countQuery, by.AttrsValue...)
 		persistenceCtrl.Scan(&count)
 	}
 

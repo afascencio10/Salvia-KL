@@ -802,12 +802,19 @@
                         </div>
                     </div>
 
-                    <div class="item1">
-                        <div class="row1">
-                            <div class="thead">{{ template "text_translated.html" Text `{"text":"get_victim_case_facts_desrciption_title"}` .lang .locale}}</div>
-                            <div class="tbody">${res.victimCase.form.factsDescription}</div>
+                     <template v-if="res.victimCase.form2.allowsEasyReport.code != ''">
+                        <div class="tituloform">
+                            <i class="fas fa-bolt fa-2x"></i>
+                            <h2>{{ template "text_translated.html" Text `{"text":"victim_case_form2_easy_report"}` .lang .locale}}</h2>
                         </div>
-                    </div>
+                        <div class="item1">
+                            <div class="row1">
+                                <div class="thead">{{ template "text_translated.html" Text `{"text":"victim_case_form2_allows_easy_report"}` .lang .locale}}</div>
+                                <div class="tbody">${res.victimCase.form2.allowsEasyReport.name}</div>
+                            </div>
+                        </div>
+                    </template>
+                    
                     
                     <div class="tituloform">
                         <i class="fas fa-map-marker-alt fa-2x"></i>

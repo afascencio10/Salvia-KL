@@ -21,6 +21,8 @@
 const { ref, computed, nextTick, onBeforeUnmount } = Vue;
 
 const CustomSelect = {
+    inheritAttrs: true,
+
     directives: {
         clickOutside: {
             mounted(el, binding) {
@@ -36,199 +38,201 @@ const CustomSelect = {
     },
 
     template: `
-        <!-- Región polite: apertura, cierre, resultados de búsqueda -->
-        <span
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-            class="sr-only"
-        >{{ liveMessage }}</span>
+        <div>
+            <!-- Región polite: apertura, cierre, resultados de búsqueda -->
+            <span
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                class="sr-only"
+            >{{ liveMessage }}</span>
 
-        <!-- Región assertive: navegación activa entre opciones -->
-        <span
-            role="alert"
-            aria-live="assertive"
-            aria-atomic="true"
-            class="sr-only"
-        >{{ liveNavigationMessage }}</span>
+            <!-- Región assertive: navegación activa entre opciones -->
+            <span
+                role="alert"
+                aria-live="assertive"
+                aria-atomic="true"
+                class="sr-only"
+            >{{ liveNavigationMessage }}</span>
 
-        <div
-            class="custom-select"
-            :class="{ active: isOpen }"
-            v-click-outside="close"
-            ref="rootEl"
-        >
-            <!--
-                Área visual del control: muestra placeholder, valor single o tags multiple.
-                aria-hidden="true" porque toda la semántica va en el botón combobox.
-                @click="toggle" aquí para que el área visible siempre abra el dropdown,
-                incluso cuando hay tags y el trigger tiene pointer-events reducidos.
-            -->
-            <div class="custom-select-face" aria-hidden="true" @click="toggle">
+            <div
+                class="custom-select"
+                :class="{ active: isOpen }"
+                v-click-outside="close"
+                ref="rootEl"
+            >
+                <!--
+                    Área visual del control: muestra placeholder, valor single o tags multiple.
+                    aria-hidden="true" porque toda la semántica va en el botón combobox.
+                    @click="toggle" aquí para que el área visible siempre abra el dropdown,
+                    incluso cuando hay tags y el trigger tiene pointer-events reducidos.
+                -->
+                <div class="custom-select-face" aria-hidden="true" @click="toggle">
 
-                <!-- SINGLE: placeholder o valor seleccionado -->
-                <template v-if="mode === 'single'">
-                    <span v-if="!selectedOption || !selectedOption[valueKey]" class="custom-select-placeholder">
-                        {{ placeholder }}
-                    </span>
-                    <span v-else class="custom-select-single-value">
-                        {{ getOptionLabel(selectedOption) }}
-                    </span>
-                </template>
+                    <!-- SINGLE: placeholder o valor seleccionado -->
+                    <template v-if="mode === 'single'">
+                        <span v-if="!selectedOption || !selectedOption[valueKey]" class="custom-select-placeholder">
+                            {{ placeholder }}
+                        </span>
+                        <span v-else class="custom-select-single-value">
+                            {{ getOptionLabel(selectedOption) }}
+                        </span>
+                    </template>
 
-                <!-- MULTIPLE: placeholder o tags con × -->
-                <template v-else>
-                    <span v-if="selectedOptions.length === 0" class="custom-select-placeholder">
-                        {{ placeholder }}
-                    </span>
-                    <span
-                        v-for="opt in selectedOptions"
-                        :key="getOptionValue(opt)"
-                        class="custom-select-tag"
-                    >
-                        <span class="custom-select-tag-label">{{ getOptionLabel(opt) }}</span>
-                        <!--
-                            tabindex="-1": el botón × es alcanzable programáticamente y con
-                            click/lector, pero NO entra en el flujo de Tab. Así el foco de Tab
-                            siempre llega al combobox trigger primero y el lector lee el label.
-                        -->
-                        <button
-                            type="button"
-                            class="custom-select-tag-remove"
-                            :aria-label="'Eliminar ' + getOptionLabel(opt)"
-                            @click.stop="removeOption(opt)"
-                            @blur="onComboboxBlur"
-                            tabindex="-1"
-                        >×</button>
-                    </span>
-                </template>
-
-                <svg
-                    class="custom-select-arrow"
-                    :class="{ open: isOpen }"
-                    width="16" height="16" viewBox="0 0 16 16"
-                    aria-hidden="true" focusable="false"
-                >
-                    <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2" fill="none"/>
-                </svg>
-            </div>
-
-            <!--
-                COMBOBOX: botón overlay que recibe el foco real y los eventos de teclado.
-                En modo multiple con tags, el CSS puede reducir su área visual, pero
-                el click principal se gestiona también desde custom-select-face arriba.
-            -->
-            <button
-                type="button"
-                class="custom-select-trigger"
-                :class="{ 'has-tags': mode === 'multiple' && selectedOptions.length > 0 }"
-                role="combobox"
-                :aria-expanded="isOpen"
-                aria-haspopup="listbox"
-                :aria-controls="listboxId"
-                :aria-activedescendant="activeDescendant || undefined"
-                :aria-label="comboboxAriaLabel"
-                :aria-multiselectable="mode === 'multiple' ? 'true' : undefined"
-                @click="toggle"
-                @keydown="onComboboxKeydown"
-                @blur="onComboboxBlur"
-                ref="comboboxEl"
-            ></button>
-
-            <transition name="dropdown">
-                <div
-                    v-if="isOpen"
-                    class="custom-select-dropdown"
-                    ref="dropdownEl"
-                >
-                    <!--
-                        BUSCADOR: searchbox independiente fuera del listbox.
-                        Anuncia el número de resultados al escribir.
-                    -->
-                    <div
-                        v-if="options.length > 2"
-                        class="custom-select-search"
-                        role="search"
-                    >
-                        <label :for="searchId" class="sr-only">{{ searchPlaceholder }}</label>
-                        <input
-                            type="text"
-                            :id="searchId"
-                            v-model="searchQuery"
-                            :placeholder="searchPlaceholder"
-                            autocomplete="off"
-                            :aria-controls="listboxId"
-                            :aria-activedescendant="activeDescendant || undefined"
-                            @keydown="onSearchKeydown"
-                            @blur="onComboboxBlur"
-                            ref="searchEl"
-                        />
-                    </div>
-
-                    <!--
-                        LISTBOX: el foco lógico se comunica vía aria-activedescendant
-                        desde el combobox/search. El foco real del DOM nunca entra aquí.
-                        Los <li> tienen tabindex="-1" para que el lector no los recorra
-                        con su cursor virtual de forma independiente.
-                    -->
-                    <ul
-                        :id="listboxId"
-                        role="listbox"
-                        :aria-multiselectable="mode === 'multiple'"
-                        :aria-label="placeholder"
-                        class="custom-select-options"
-                        ref="listboxEl"
-                    >
-                        <li
-                            v-if="filteredOptions.length === 0"
-                            role="option"
-                            aria-disabled="true"
-                            aria-selected="false"
-                            class="custom-select-no-results"
+                    <!-- MULTIPLE: placeholder o tags con × -->
+                    <template v-else>
+                        <span v-if="selectedOptions.length === 0" class="custom-select-placeholder">
+                            {{ placeholder }}
+                        </span>
+                        <span
+                            v-for="opt in selectedOptions"
+                            :key="getOptionValue(opt)"
+                            class="custom-select-tag"
                         >
-                            Sin resultados
-                        </li>
-                        <li
-                            v-for="(option, index) in filteredOptions"
-                            :key="getOptionValue(option)"
-                            :id="optionId(index)"
-                            role="option"
-                            :aria-selected="isSelected(option)"
-                            class="custom-select-option"
-                            :class="{
-                                selected: isSelected(option),
-                                focused: index === focusedIndex
-                            }"
-                            tabindex="-1"
-                            @mousedown.prevent="selectOption(option)"
-                        >
-                            <span
-                                :class="mode === 'single'
-                                    ? 'custom-select-radio'
-                                    : 'custom-select-checkbox'"
-                                aria-hidden="true"
-                            ></span>
-                            <span class="custom-select-option-label">
-                                {{ getOptionLabel(option) }}
-                            </span>
-                        </li>
-                    </ul>
+                            <span class="custom-select-tag-label">{{ getOptionLabel(opt) }}</span>
+                            <!--
+                                tabindex="-1": el botón × es alcanzable programáticamente y con
+                                click/lector, pero NO entra en el flujo de Tab. Así el foco de Tab
+                                siempre llega al combobox trigger primero y el lector lee el label.
+                            -->
+                            <button
+                                type="button"
+                                class="custom-select-tag-remove"
+                                :aria-label="'Eliminar ' + getOptionLabel(opt)"
+                                @click.stop="removeOption(opt)"
+                                @blur="onComboboxBlur"
+                                tabindex="-1"
+                            >×</button>
+                        </span>
+                    </template>
 
-                    <div class="custom-select-actions">
-                        <button
-                            type="button"
-                            class="custom-select-btn custom-select-btn-clear"
-                            :aria-label="mode === 'single'
-                                ? 'Limpiar selección'
-                                : 'Limpiar todas las selecciones'"
-                            @mousedown.prevent="clearAll"
-                            @blur="onComboboxBlur"
-                        >
-                            Limpiar
-                        </button>
-                    </div>
+                    <svg
+                        class="custom-select-arrow"
+                        :class="{ open: isOpen }"
+                        width="16" height="16" viewBox="0 0 16 16"
+                        aria-hidden="true" focusable="false"
+                    >
+                        <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2" fill="none"/>
+                    </svg>
                 </div>
-            </transition>
+
+                <!--
+                    COMBOBOX: botón overlay que recibe el foco real y los eventos de teclado.
+                    En modo multiple con tags, el CSS puede reducir su área visual, pero
+                    el click principal se gestiona también desde custom-select-face arriba.
+                -->
+                <button
+                    type="button"
+                    class="custom-select-trigger"
+                    :class="{ 'has-tags': mode === 'multiple' && selectedOptions.length > 0 }"
+                    role="combobox"
+                    :aria-expanded="isOpen"
+                    aria-haspopup="listbox"
+                    :aria-controls="listboxId"
+                    :aria-activedescendant="activeDescendant || undefined"
+                    :aria-label="comboboxAriaLabel"
+                    :aria-multiselectable="mode === 'multiple' ? 'true' : undefined"
+                    @click="toggle"
+                    @keydown="onComboboxKeydown"
+                    @blur="onComboboxBlur"
+                    ref="comboboxEl"
+                ></button>
+
+                <transition name="dropdown">
+                    <div
+                        v-if="isOpen"
+                        class="custom-select-dropdown"
+                        ref="dropdownEl"
+                    >
+                        <!--
+                            BUSCADOR: searchbox independiente fuera del listbox.
+                            Anuncia el número de resultados al escribir.
+                        -->
+                        <div
+                            v-if="options.length > 2"
+                            class="custom-select-search"
+                            role="search"
+                        >
+                            <label :for="searchId" class="sr-only">{{ searchPlaceholder }}</label>
+                            <input
+                                type="text"
+                                :id="searchId"
+                                v-model="searchQuery"
+                                :placeholder="searchPlaceholder"
+                                autocomplete="off"
+                                :aria-controls="listboxId"
+                                :aria-activedescendant="activeDescendant || undefined"
+                                @keydown="onSearchKeydown"
+                                @blur="onComboboxBlur"
+                                ref="searchEl"
+                            />
+                        </div>
+
+                        <!--
+                            LISTBOX: el foco lógico se comunica vía aria-activedescendant
+                            desde el combobox/search. El foco real del DOM nunca entra aquí.
+                            Los <li> tienen tabindex="-1" para que el lector no los recorra
+                            con su cursor virtual de forma independiente.
+                        -->
+                        <ul
+                            :id="listboxId"
+                            role="listbox"
+                            :aria-multiselectable="mode === 'multiple'"
+                            :aria-label="placeholder"
+                            class="custom-select-options"
+                            ref="listboxEl"
+                        >
+                            <li
+                                v-if="filteredOptions.length === 0"
+                                role="option"
+                                aria-disabled="true"
+                                aria-selected="false"
+                                class="custom-select-no-results"
+                            >
+                                Sin resultados
+                            </li>
+                            <li
+                                v-for="(option, index) in filteredOptions"
+                                :key="getOptionValue(option)"
+                                :id="optionId(index)"
+                                role="option"
+                                :aria-selected="isSelected(option)"
+                                class="custom-select-option"
+                                :class="{
+                                    selected: isSelected(option),
+                                    focused: index === focusedIndex
+                                }"
+                                tabindex="-1"
+                                @mousedown.prevent="selectOption(option)"
+                            >
+                                <span
+                                    :class="mode === 'single'
+                                        ? 'custom-select-radio'
+                                        : 'custom-select-checkbox'"
+                                    aria-hidden="true"
+                                ></span>
+                                <span class="custom-select-option-label">
+                                    {{ getOptionLabel(option) }}
+                                </span>
+                            </li>
+                        </ul>
+
+                        <div class="custom-select-actions">
+                            <button
+                                type="button"
+                                class="custom-select-btn custom-select-btn-clear"
+                                :aria-label="mode === 'single'
+                                    ? 'Limpiar selección'
+                                    : 'Limpiar todas las selecciones'"
+                                @mousedown.prevent="clearAll"
+                                @blur="onComboboxBlur"
+                            >
+                                Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </transition>
+            </div>
         </div>
     `,
 

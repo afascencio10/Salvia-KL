@@ -3,14 +3,14 @@
     --primary-light: #3A5169;
     --accent: #6a00db;
     --accent-light: #8b51ce;
-    --surface: #FFFFFF;
+    --surface: #EDEBF0; 
     --surface-hover: #F8F9FA;
-    --border: #E1E8ED;
+    --border: #9b9b9b;
     --text: #47325e;
     --text-secondary: #794ea7;
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
-    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
-    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);
+    --shadow-sm: 0 2px 8px #9b9b9b;
+    --shadow-md: 0 4px 16px #9b9b9b;
+    --shadow-lg: 0 8px 32px #9b9b9b;
 }
 
 * {
@@ -80,7 +80,6 @@
  * Es aria-hidden; toda la semántica vive en el <button> overlay.
  */
 .custom-select-face {
-    border: 2px solid var(--border);
     border-radius: 12px;
     padding: 0.75rem 3rem 0.75rem 1.25rem; /* derecha reservada para la flecha */
     min-height: 56px;

@@ -2,7 +2,7 @@ package salvia_config
 
 //Definimos todo lo de permisos y menús
 
-//Permisos generales según el rol.
+// Permisos generales según el rol.
 var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	//Victim COntact
 	"get_victim_contact": {
@@ -220,7 +220,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"ro": true,
 		"fo": true,
 	},
-	"get_feminicides_risk": {
+	"get_feminicide_risks": {
 		"ro": true,
 		"fo": true,
 	},
@@ -250,7 +250,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	},
 }
 
-//Menús del sistema. Se filtra por el tipo de menú (ie/ default) y luego por la sección principal repesentada por el locale.
+// Menús del sistema. Se filtra por el tipo de menú (ie/ default) y luego por la sección principal repesentada por el locale.
 var Menu map[string]map[string]map[string][]map[string]string = map[string]map[string]map[string][]map[string]string{
 	"sp": {
 		"op": {
@@ -322,7 +322,7 @@ var Menu map[string]map[string]map[string][]map[string]string = map[string]map[s
 	},
 }
 
-//Menús secundarios del sistema para definir las acciones de edición, eliminación, etc. Se filtra por el idioma, luego por el rol, nombre del menú y finalmente sus respectivos items.
+// Menús secundarios del sistema para definir las acciones de edición, eliminación, etc. Se filtra por el idioma, luego por el rol, nombre del menú y finalmente sus respectivos items.
 var MenuTools map[string]map[string]map[string][]map[string]string = map[string]map[string]map[string][]map[string]string{
 	"sp": {
 		"op": {
@@ -524,6 +524,20 @@ var MenuTools map[string]map[string]map[string][]map[string]string = map[string]
 					"path":        "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["VictimCase"],
 					"action":      "",
 					"customClass": "fas fa-eye icoacciones",
+				},
+			},
+			"menu_tool_get_feminicide_risks": {
+				{
+					"label":       Locale["sp"]["menu_tool_get_feminicide_risk_case"],
+					"path":        "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["FeminicideRisk"],
+					"action":      "",
+					"customClass": "fas fa-eye icoacciones",
+				},
+				{
+					"label":       Locale["sp"]["menu_tool_update_feminicide_risk_case"],
+					"path":        "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["FeminicideRisk"],
+					"action":      Locale["sp"]["update"],
+					"customClass": "fas fa-pencil icoacciones",
 				},
 			},
 		},

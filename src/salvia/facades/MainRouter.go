@@ -198,7 +198,7 @@ func StartRouter(router *gin.Engine) {
 
 		secRouter.GET("/"+translatedEntity, FeminicideGET)
 		secRouter.GET("/"+translatedEntity+"/"+translatedNew, FeminicidePOST_GET)
-		secRouter.POST("/"+translatedEntity+"/"+translatedNew, FeminicidePOST)
+		secRouter.POST("/"+translatedEntity, FeminicidePOST)
 
 		/*
 			HacerSeguimiento
@@ -216,8 +216,9 @@ func StartRouter(router *gin.Engine) {
 		translatedEntity = salvia_config.Locale["sp"][salvia_daos.FeminicideRiskEntityName]
 
 		secRouter.GET("/"+translatedEntity, FeminicideRiskGET)
+		secRouter.GET("/"+translatedEntity+"/:id", FeminicideRiskGET)
 		secRouter.GET("/"+translatedEntity+"/:id/"+translatedNew, FeminicideRiskPOST_GET)
-		secRouter.POST("/"+translatedEntity+"/"+translatedNew, FeminicideRiskPOST)
+		secRouter.POST("/"+translatedEntity, FeminicideRiskPOST)
 
 		/*
 			----------------------------------------------------------

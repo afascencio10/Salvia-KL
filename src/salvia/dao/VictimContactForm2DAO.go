@@ -38,7 +38,9 @@ var (
 		"VictimContactForm2FactsDescription":    {Name: "VictimContactForm2FactsDescription", DBName: "victim_contact_form2_facts_description", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 0, Required: true},
 		"VictimContactForm2BestContactTime":     {Name: "VictimContactForm2BestContactTime", DBName: "victim_contact_form2_best_contact_time", Alias: "", ModelType: "time", MinSize: 0, MaxSize: 0, Required: true},
 		"VictimContactForm2ReportType":          {Name: "VictimContactForm2ReportType", DBName: "victim_contact_form2_report_type", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
-		"VictimContactForm2VictimContact":       {Name: "VictimContactForm2VictimContact", DBName: "victim_contact_form2_victim_contact", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
+		"VictimContactForm2ReportTypeDetails":   {Name: "VictimContactForm2ReportTypeDetails", DBName: "victim_contact_form2_report_type_details", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: false},
+
+		"VictimContactForm2VictimContact": {Name: "VictimContactForm2VictimContact", DBName: "victim_contact_form2_victim_contact", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 	}
 )
 
@@ -59,7 +61,10 @@ type VictimContactForm2DTO struct {
 	VictimContactForm2FactsDescription    string                  `json:"factsDescription"`
 	VictimContactForm2BestContactTime     time.Time               `json:"bestContactTime"`
 	VictimContactForm2ReportType          VictimCaseForm2EnumsDTO `json:"reportType"`
+	VictimContactForm2ReportTypeDetails   VictimCaseForm2EnumsDTO `json:"reportTypeDetails"`
 	VictimContactForm2VictimContact       interface{}             `json:"-"`
+
+	VictimContactForm2AdjustmentsGBV []VictimCaseForm2EnumsDTO `json:"adjustmentsGBV"`
 
 	// Parámetros auxiliares
 	VictimContactForm2AuthorizationAnswer VictimCaseForm2EnumsDTO `json:"authorizationAnswer"`
@@ -82,6 +87,7 @@ type VictimContactForm2PgDB struct {
 	VictimContactForm2FactsDescription    sql.NullString
 	VictimContactForm2BestContactTime     sql.NullString
 	VictimContactForm2ReportType          sql.NullString
+	VictimContactForm2ReportTypeDetails   sql.NullString
 	VictimContactForm2VictimContact       sql.NullString
 }
 
@@ -198,6 +204,7 @@ func SetVictimContactForm2(victimContactForm2 *VictimContactForm2DTO, connData *
 		"VictimContactForm2FactsDescription",
 		"VictimContactForm2BestContactTime",
 		"VictimContactForm2ReportType",
+		"VictimContactForm2ReportTypeDetails",
 		"VictimContactForm2VictimContact",
 	}
 
@@ -220,6 +227,7 @@ func SetVictimContactForm2(victimContactForm2 *VictimContactForm2DTO, connData *
 		victimContactForm2.VictimContactForm2FactsDescription,
 		victimContactForm2.VictimContactForm2BestContactTime.Format(common_config.DateTime.TIME_FORMAT),
 		utils.NilIfZero(victimContactForm2.VictimContactForm2ReportType.VictimCaseForm2EnumsId),
+		utils.NilIfZero(victimContactForm2.VictimContactForm2ReportTypeDetails.VictimCaseForm2EnumsId),
 		victimContactForm2.VictimContactForm2VictimContact.(VictimContactDTO).VictimContactId)
 
 	persistenceCtrl.Scan(&victimContactForm2.VictimContactForm2Id)
@@ -270,6 +278,7 @@ func GetVictimContactForm2(by common_controllers.By, victimContactForm2 *VictimC
 		"VictimContactForm2FactsDescription",
 		"VictimContactForm2BestContactTime",
 		"VictimContactForm2ReportType",
+		"VictimContactForm2ReportTypeDetails",
 		"VictimContactForm2VictimContact",
 	}
 
@@ -298,6 +307,7 @@ func GetVictimContactForm2(by common_controllers.By, victimContactForm2 *VictimC
 		&victimContactForm2Pg.VictimContactForm2FactsDescription,
 		&victimContactForm2Pg.VictimContactForm2BestContactTime,
 		&victimContactForm2Pg.VictimContactForm2ReportType,
+		&victimContactForm2Pg.VictimContactForm2ReportTypeDetails,
 		&victimContactForm2Pg.VictimContactForm2VictimContact)
 
 	*victimContactForm2 = victimContactForm2Pg.ToDTO()
@@ -307,6 +317,7 @@ func GetVictimContactForm2(by common_controllers.By, victimContactForm2 *VictimC
 	GetLocalVictimCaseForm2EnumsById(&victimContactForm2.VictimContactForm2HasCareRole)
 	GetLocalVictimCaseForm2EnumsById(&victimContactForm2.VictimContactForm2VictimAwareOfReport)
 	GetLocalVictimCaseForm2EnumsById(&victimContactForm2.VictimContactForm2ReportType)
+	GetLocalVictimCaseForm2EnumsById(&victimContactForm2.VictimContactForm2ReportTypeDetails)
 
 	if persistenceCtrl.Error != nil {
 		fmt.Println("SQL Query:", query)
@@ -351,6 +362,7 @@ func GetVictimContactsForm2(by common_controllers.By, page int, connData *db.Con
 		"VictimContactForm2FactsDescription",
 		"VictimContactForm2BestContactTime",
 		"VictimContactForm2ReportType",
+		"VictimContactForm2ReportTypeDetails",
 		"VictimContactForm2VictimContact",
 	}
 
@@ -381,6 +393,7 @@ func GetVictimContactsForm2(by common_controllers.By, page int, connData *db.Con
 			&victimContactForm2Pg.VictimContactForm2FactsDescription,
 			&victimContactForm2Pg.VictimContactForm2BestContactTime,
 			&victimContactForm2Pg.VictimContactForm2ReportType,
+			&victimContactForm2Pg.VictimContactForm2ReportTypeDetails,
 			&victimContactForm2Pg.VictimContactForm2VictimContact)
 
 		victimContactsForm2 = append(victimContactsForm2, victimContactForm2Pg.ToDTO())
@@ -444,6 +457,7 @@ func GetAllVictimContactsForm2(page int,
 		"VictimContactForm2FactsDescription",
 		"VictimContactForm2BestContactTime",
 		"VictimContactForm2ReportType",
+		"VictimContactForm2ReportTypeDetails",
 		"VictimContactForm2VictimContact",
 	}
 
@@ -470,6 +484,7 @@ func GetAllVictimContactsForm2(page int,
 			&victimContactForm2Pg.VictimContactForm2FactsDescription,
 			&victimContactForm2Pg.VictimContactForm2BestContactTime,
 			&victimContactForm2Pg.VictimContactForm2ReportType,
+			&victimContactForm2Pg.VictimContactForm2ReportTypeDetails,
 			&victimContactForm2Pg.VictimContactForm2VictimContact)
 
 		victimContactsForm2 = append(victimContactsForm2, victimContactForm2Pg.ToDTO())
@@ -553,6 +568,9 @@ func (obj *VictimContactForm2PgDB) ToDTO() VictimContactForm2DTO {
 	}
 	if obj.VictimContactForm2ReportType.Valid {
 		dto.VictimContactForm2ReportType = VictimCaseForm2EnumsDTO{VictimCaseForm2EnumsId: utils.ParseUint64(obj.VictimContactForm2ReportType.String)}
+	}
+	if obj.VictimContactForm2ReportTypeDetails.Valid {
+		dto.VictimContactForm2ReportTypeDetails = VictimCaseForm2EnumsDTO{VictimCaseForm2EnumsId: utils.ParseUint64(obj.VictimContactForm2ReportTypeDetails.String)}
 	}
 	if obj.VictimContactForm2VictimContact.Valid {
 		dto.VictimContactForm2VictimContact = VictimCaseDTO{VictimCaseId: utils.ParseUint64(obj.VictimContactForm2VictimContact.String)}

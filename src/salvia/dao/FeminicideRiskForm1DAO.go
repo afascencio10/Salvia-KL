@@ -29,7 +29,7 @@ var (
 		"FeminicideRiskForm1VictimIdentityName":                       {Name: "FeminicideRiskForm1VictimIdentityName", DBName: "feminicide_risk_form1_victim_identity_name", Alias: "", ModelType: "string", MinSize: 3, MaxSize: 32, Required: false},
 		"FeminicideRiskForm1BirthDate":                                {Name: "FeminicideRiskForm1BirthDate", DBName: "feminicide_risk_form1_birth_date", Alias: "", ModelType: "date", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideRiskForm1VictimAddress":                            {Name: "FeminicideRiskForm1VictimAddress", DBName: "feminicide_risk_form1_victim_address", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 32, Required: true},
-		"FeminicideRiskForm1VictimZone":                               {Name: "FeminicideRiskForm1VictimZone", DBName: "feminicide_risk_form1_victim_zone", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
+		"FeminicideRiskForm1VictimLivingZone":                         {Name: "FeminicideRiskForm1VictimLivingZone", DBName: "feminicide_risk_form1_victim_living_zone", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideRiskForm1VictimLivingTownCode":                     {Name: "FeminicideRiskForm1VictimLivingTownCode", DBName: "feminicide_risk_form1_victim_living_town", Alias: "", ModelType: "string", MinSize: 8, MaxSize: 8, Required: true},
 		"FeminicideRiskForm1VictimSGSSSAffiliation":                   {Name: "FeminicideRiskForm1VictimSGSSSAffiliation", DBName: "feminicide_risk_form1_victim_s_g_s_s_s_affiliation", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideRiskForm1EpsName":                                  {Name: "FeminicideForm1EpsName", DBName: "feminicide_risk_form1_eps_name", Alias: "", ModelType: "string", MinSize: 3, MaxSize: 64, Required: false},
@@ -43,7 +43,7 @@ var (
 		"FeminicideRiskForm1VictimEthnicAffiliation":                  {Name: "FeminicideRiskForm1VictimEthnicAffiliation", DBName: "feminicide_risk_form1_victim_ethnic_affiliation", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideRiskForm1VictimIndigenousPeople":                   {Name: "FeminicideRiskForm1VictimIndigenousPeople", DBName: "feminicide_risk_form1_victim_indigenous_people", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: false},
 		"FeminicideRiskForm1VictimIsMigrant":                          {Name: "FeminicideRiskForm1VictimIsMigrant", DBName: "feminicide_risk_form1_victim_is_migrant", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
-		"FeminicideRiskForm1VictimMigrationStatus":                    {Name: "FeminicideRiskForm1VictimMigrationStatus", DBName: "feminicide_risk_form1_victim_migration_status", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
+		"FeminicideRiskForm1VictimMigrationStatus":                    {Name: "FeminicideRiskForm1VictimMigrationStatus", DBName: "feminicide_risk_form1_victim_migration_status", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: false},
 		"FeminicideRiskForm1VictimMaxEducationLevel":                  {Name: "FeminicideRiskForm1VictimMaxEducationLevel", DBName: "feminicide_risk_form1_victim_max_education_level", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideRiskForm1VictimIsSpecialPopulation":                {Name: "FeminicideRiskForm1VictimIsSpecialPopulation", DBName: "feminicide_risk_form1_victim_is_special_population", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideRiskForm1VictimCurrentlyHasJob":                    {Name: "FeminicideRiskForm1VictimCurrentlyHasJob", DBName: "feminicide_risk_form1_victim_currently_has_job", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
@@ -51,10 +51,9 @@ var (
 		"FeminicideRiskForm1VictimAbandonedJobDueToRisk":              {Name: "FeminicideRiskForm1VictimAbandonedJobDueToRisk", DBName: "feminicide_risk_form1_victim_abandoned_job_due_to_risk", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideRiskForm1VictimMainOccupation":                     {Name: "FeminicideRiskForm1VictimMainOccupation", DBName: "feminicide_risk_form1_victim_main_occupation", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideRiskForm1VictimHasDisability":                      {Name: "FeminicideRiskForm1VictimHasDisability", DBName: "feminicide_risk_form1_victim_has_disability", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
-		"FeminicideRiskForm1VictimDisabilityType":                     {Name: "FeminicideRiskForm1VictimDisabilityType", DBName: "feminicide_risk_form1_victim_disability_type", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
-		"FeminicideRiskForm1VictimRiskDescription":                    {Name: "FeminicideRiskForm1VictimRiskDescription", DBName: "feminicide_risk_form1_victim_risk_description", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
+		"FeminicideRiskForm1VictimDisabilityType":                     {Name: "FeminicideRiskForm1VictimDisabilityType", DBName: "feminicide_risk_form1_victim_disability_type", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: false},
+		"FeminicideRiskForm1VictimRiskDescription":                    {Name: "FeminicideRiskForm1VictimRiskDescription", DBName: "feminicide_risk_form1_victim_risk_description", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: true},
 		"FeminicideRiskForm1VictimAdditionalInfo":                     {Name: "FeminicideRiskForm1VictimAdditionalInfo", DBName: "feminicide_risk_form1_victim_additional_info", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
-		"FeminicideRiskForm1VictimReceivedHelpOrSubsidy":              {Name: "FeminicideRiskForm1VictimReceivedHelpOrSubsidy", DBName: "feminicide_risk_form1_victim_received_help_or_subsidy", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideRiskForm1VictimIsEconomicProvider":                 {Name: "FeminicideRiskForm1VictimIsEconomicProvider", DBName: "feminicide_risk_form1_victim_is_economic_provider", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideRiskForm1VictimEconomicProviderExplanation":        {Name: "FeminicideRiskForm1VictimEconomicProviderExplanation", DBName: "feminicide_risk_form1_victim_economic_provider_explanation", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
 		"FeminicideRiskForm1VictimHasFamiliarSupport":                 {Name: "FeminicideRiskForm1VictimHasFamiliarSupport", DBName: "feminicide_risk_form1_victim_has_familiar_support", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
@@ -76,7 +75,7 @@ var (
 		"FeminicideRiskForm1VictimFoodAccessFrequency":                {Name: "FeminicideRiskForm1VictimFoodAccessFrequency", DBName: "feminicide_risk_form1_victim_food_access_frequency", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideRiskForm1VictimFoodAccessExplanation":              {Name: "FeminicideRiskForm1VictimFoodAccessExplanation", DBName: "feminicide_risk_form1_victim_food_access_explanation", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
 		"FeminicideRiskForm1VictimAgressorFoodRestriction":            {Name: "FeminicideRiskForm1VictimAgressorFoodRestriction", DBName: "feminicide_risk_form1_victim_agressor_food_restriction", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
-		"FeminicideRiskForm1VictimAgressorFoodRestrictionExplanation": {Name: "FeminicideRiskForm1VictimAgressorFoodRestrictionExplanation", DBName: "feminicide_risk_form1_victim_agressor_food_restriction_explanation", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
+		"FeminicideRiskForm1VictimAgressorFoodRestrictionExplanation": {Name: "FeminicideRiskForm1VictimAgressorFoodRestrictionExplanation", DBName: "feminicide_risk_form1_victim_agressor_food_restrict_explanat", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
 		"FeminicideRiskForm1VictimFamilyFixedIncome":                  {Name: "FeminicideRiskForm1VictimFamilyFixedIncome", DBName: "feminicide_risk_form1_victim_family_fixed_income", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideRiskForm1VictimFamilyFixedIncomeExplanation":       {Name: "FeminicideRiskForm1VictimFamilyFixedIncomeExplanation", DBName: "feminicide_risk_form1_victim_family_fixed_income_explanation", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
 		"FeminicideRiskForm1VictimIsOnlyProviderForFood":              {Name: "FeminicideRiskForm1VictimIsOnlyProviderForFood", DBName: "feminicide_risk_form1_victim_is_only_provider_for_food", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
@@ -87,13 +86,13 @@ var (
 		"FeminicideRiskForm1VictimRepresentationsOfVictims":           {Name: "FeminicideRiskForm1VictimRepresentationsOfVictims", DBName: "feminicide_risk_form1_victim_representations_of_victims", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideRiskForm1VictimRepresentationsExplanation":         {Name: "FeminicideRiskForm1VictimRepresentationsExplanation", DBName: "feminicide_risk_form1_victim_representations_explanation", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
 		"FeminicideRiskForm1VictimPsychosocialSupportReceived":        {Name: "FeminicideRiskForm1VictimPsychosocialSupportReceived", DBName: "feminicide_risk_form1_victim_psychosocial_support_received", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
-		"FeminicideRiskForm1VictimPsychosocialSupportReceivedExplain": {Name: "FeminicideRiskForm1VictimPsychosocialSupportReceivedExplain", DBName: "feminicide_risk_form1_victim_psychosocial_support_received_explain", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
+		"FeminicideRiskForm1VictimPsychosocialSupportReceivedExplain": {Name: "FeminicideRiskForm1VictimPsychosocialSupportReceivedExplain", DBName: "feminicide_risk_form1_victim_psychosocial_supp_received_explain", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
 		"FeminicideRiskForm1VictimUrgentEmotionalCrisis":              {Name: "FeminicideRiskForm1VictimUrgentEmotionalCrisis", DBName: "feminicide_risk_form1_victim_urgent_emotional_crisis", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideRiskForm1VictimUrgentCrisisExplanation":            {Name: "FeminicideRiskForm1VictimUrgentCrisisExplanation", DBName: "feminicide_risk_form1_victim_urgent_crisis_explanation", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
 		"FeminicideRiskForm1AggressorSameResidence":                   {Name: "FeminicideRiskForm1AggressorSameResidence", DBName: "feminicide_risk_form1_aggressor_same_residence", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideRiskForm1AggressorSameResidenceExplanation":        {Name: "FeminicideRiskForm1AggressorSameResidenceExplanation", DBName: "feminicide_risk_form1_aggressor_same_residence_explanation", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
 		"FeminicideRiskForm1AggressorKnowsVictimLocation":             {Name: "FeminicideRiskForm1AggressorKnowsVictimLocation", DBName: "feminicide_risk_form1_aggressor_knows_victim_location", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
-		"FeminicideRiskForm1AggressorKnowsVictimLocationExplanation":  {Name: "FeminicideRiskForm1AggressorKnowsVictimLocationExplanation", DBName: "feminicide_risk_form1_aggressor_knows_victim_location_explanation", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
+		"FeminicideRiskForm1AggressorKnowsVictimLocationExplanation":  {Name: "FeminicideRiskForm1AggressorKnowsVictimLocationExplanation", DBName: "feminicide_risk_form1_aggressor_knows_victim_loc_explanation", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
 		"FeminicideRiskForm1VictimHousingHelpReceived":                {Name: "FeminicideRiskForm1VictimHousingHelpReceived", DBName: "feminicide_risk_form1_victim_housing_help_received", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideRiskForm1VictimHousingHelpExplain":                 {Name: "FeminicideRiskForm1VictimHousingHelpExplain", DBName: "feminicide_risk_form1_victim_housing_help_explain", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
 		"FeminicideRiskForm1VictimAbandonClothing":                    {Name: "FeminicideRiskForm1VictimAbandonClothing", DBName: "feminicide_risk_form1_victim_abandon_clothing", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
@@ -101,7 +100,7 @@ var (
 		"FeminicideRiskForm1VictimClothingHelpReceived":               {Name: "FeminicideRiskForm1VictimClothingHelpReceived", DBName: "feminicide_risk_form1_victim_clothing_help_received", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideRiskForm1VictimClothingHelpExplain":                {Name: "FeminicideRiskForm1VictimClothingHelpExplain", DBName: "feminicide_risk_form1_victim_clothing_help_explain", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
 		"FeminicideRiskForm1VictimOtherNeeds":                         {Name: "FeminicideRiskForm1VictimOtherNeeds", DBName: "feminicide_risk_form1_victim_other_needs", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
-		"FeminicideRiskForm1InterviewDate":                            {Name: "FeminicideRiskForm1InterviewDate", DBName: "feminicide_risk_form1_interview_date", Alias: "", ModelType: "datetime", MinSize: 0, MaxSize: 0, Required: true},
+		"FeminicideRiskForm1InterviewDate":                            {Name: "FeminicideRiskForm1InterviewDate", DBName: "feminicide_risk_form1_interview_date", Alias: "", ModelType: "date", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideRiskForm1Summary":                                  {Name: "FeminicideRiskForm1Summary", DBName: "feminicide_risk_form1_summary", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 20000, Required: false},
 		"FeminicideRiskForm1FeminicideRisk":                           {Name: "FeminicideRiskForm1FeminicideRisk", DBName: "feminicide_form1_feminicide_risk", Alias: "", ModelType: "uint", Required: true},
 
@@ -116,24 +115,24 @@ var (
 		"FeminicideRiskForm1AssistanceReceivedOtherEntity":     {Name: "FeminicideRiskForm1AssistanceReceivedOtherEntity", DBName: "feminicide_risk_form1_assistance_received_other_entity", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 120, Required: false},
 		"FeminicideRiskForm1AssistanceReceivedOther":           {Name: "FeminicideRiskForm1AssistanceReceivedOther", DBName: "feminicide_risk_form1_assistance_received_other", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 120, Required: false},
 
-		"FeminicideRiskForm1FamilyMother":       {Name: "FeminicideRiskForm1FamilyMother", DBName: "feminicide_risk_form1_family_mother", Alias: "", ModelType: "int", MinSize: 1, MaxSize: 120, Required: true},
-		"FeminicideRiskForm1FamilyFather":       {Name: "FeminicideRiskForm1FamilyFather", DBName: "feminicide_risk_form1_family_father", Alias: "", ModelType: "int", MinSize: 1, MaxSize: 120, Required: true},
-		"FeminicideRiskForm1FamilyStepfather":   {Name: "FeminicideRiskForm1FamilyStepfather", DBName: "feminicide_risk_form1_family_stepfather", Alias: "", ModelType: "int", MinSize: 1, MaxSize: 120, Required: true},
-		"FeminicideRiskForm1FamilyStepmother":   {Name: "FeminicideRiskForm1FamilyStepmother", DBName: "feminicide_risk_form1_family_stepmother", Alias: "", ModelType: "int", MinSize: 1, MaxSize: 120, Required: true},
-		"FeminicideRiskForm1FamilyPartner":      {Name: "FeminicideRiskForm1FamilyPartner", DBName: "feminicide_risk_form1_family_partner", Alias: "", ModelType: "int", MinSize: 1, MaxSize: 120, Required: true},
-		"FeminicideRiskForm1FamilySibling1":     {Name: "FeminicideRiskForm1FamilySibling1", DBName: "feminicide_risk_form1_family_sibling_1", Alias: "", ModelType: "int", MinSize: 1, MaxSize: 120, Required: true},
-		"FeminicideRiskForm1FamilySibling2":     {Name: "FeminicideRiskForm1FamilySibling2", DBName: "feminicide_risk_form1_family_sibling_2", Alias: "", ModelType: "int", MinSize: 1, MaxSize: 120, Required: true},
-		"FeminicideRiskForm1FamilySibling3":     {Name: "FeminicideRiskForm1FamilySibling3", DBName: "feminicide_risk_form1_family_sibling_3", Alias: "", ModelType: "int", MinSize: 1, MaxSize: 120, Required: true},
-		"FeminicideRiskForm1FamilySibling4":     {Name: "FeminicideRiskForm1FamilySibling4", DBName: "feminicide_risk_form1_family_sibling_4", Alias: "", ModelType: "int", MinSize: 1, MaxSize: 120, Required: true},
-		"FeminicideRiskForm1FamilySibling5":     {Name: "FeminicideRiskForm1FamilySibling5", DBName: "feminicide_risk_form1_family_sibling_5", Alias: "", ModelType: "int", MinSize: 1, MaxSize: 120, Required: true},
-		"FeminicideRiskForm1FamilySonDaughter1": {Name: "FeminicideRiskForm1FamilySonDaughter1", DBName: "feminicide_risk_form1_family_son_daughter_1", Alias: "", ModelType: "int", MinSize: 1, MaxSize: 120, Required: true},
-		"FeminicideRiskForm1FamilySonDaughter2": {Name: "FeminicideRiskForm1FamilySonDaughter2", DBName: "feminicide_risk_form1_family_son_daughter_2", Alias: "", ModelType: "int", MinSize: 1, MaxSize: 120, Required: true},
-		"FeminicideRiskForm1FamilySonDaughter3": {Name: "FeminicideRiskForm1FamilySonDaughter3", DBName: "feminicide_risk_form1_family_son_daughter_3", Alias: "", ModelType: "int", MinSize: 1, MaxSize: 120, Required: true},
-		"FeminicideRiskForm1FamilySonDaughter4": {Name: "FeminicideRiskForm1FamilySonDaughter4", DBName: "feminicide_risk_form1_family_son_daughter_4", Alias: "", ModelType: "int", MinSize: 1, MaxSize: 120, Required: true},
-		"FeminicideRiskForm1FamilySonDaughter5": {Name: "FeminicideRiskForm1FamilySonDaughter5", DBName: "feminicide_risk_form1_family_son_daughter_5", Alias: "", ModelType: "int", MinSize: 1, MaxSize: 120, Required: true},
-		"FeminicideRiskForm1FamilyGrandmother":  {Name: "FeminicideRiskForm1FamilyGrandmother", DBName: "feminicide_risk_form1_family_grandmother", Alias: "", ModelType: "int", MinSize: 1, MaxSize: 120, Required: true},
-		"FeminicideRiskForm1FamilyGrandfather":  {Name: "FeminicideRiskForm1FamilyGrandfather", DBName: "feminicide_risk_form1_family_grandfather", Alias: "", ModelType: "int", MinSize: 1, MaxSize: 120, Required: true},
-		"FeminicideRiskForm1FamilyOtherMember":  {Name: "FeminicideRiskForm1FamilyOtherMember", DBName: "feminicide_risk_form1_family_other_member", Alias: "", ModelType: "int", MinSize: 1, MaxSize: 120, Required: true},
+		"FeminicideRiskForm1FamilyMother":       {Name: "FeminicideRiskForm1FamilyMother", DBName: "feminicide_risk_form1_family_mother", Alias: "", ModelType: "int", MinSize: 0, MaxSize: 120, Required: true},
+		"FeminicideRiskForm1FamilyFather":       {Name: "FeminicideRiskForm1FamilyFather", DBName: "feminicide_risk_form1_family_father", Alias: "", ModelType: "int", MinSize: 0, MaxSize: 120, Required: true},
+		"FeminicideRiskForm1FamilyStepfather":   {Name: "FeminicideRiskForm1FamilyStepfather", DBName: "feminicide_risk_form1_family_stepfather", Alias: "", ModelType: "int", MinSize: 0, MaxSize: 120, Required: true},
+		"FeminicideRiskForm1FamilyStepmother":   {Name: "FeminicideRiskForm1FamilyStepmother", DBName: "feminicide_risk_form1_family_stepmother", Alias: "", ModelType: "int", MinSize: 0, MaxSize: 120, Required: true},
+		"FeminicideRiskForm1FamilyPartner":      {Name: "FeminicideRiskForm1FamilyPartner", DBName: "feminicide_risk_form1_family_partner", Alias: "", ModelType: "int", MinSize: 0, MaxSize: 120, Required: true},
+		"FeminicideRiskForm1FamilySibling1":     {Name: "FeminicideRiskForm1FamilySibling1", DBName: "feminicide_risk_form1_family_sibling_1", Alias: "", ModelType: "int", MinSize: 0, MaxSize: 120, Required: true},
+		"FeminicideRiskForm1FamilySibling2":     {Name: "FeminicideRiskForm1FamilySibling2", DBName: "feminicide_risk_form1_family_sibling_2", Alias: "", ModelType: "int", MinSize: 0, MaxSize: 120, Required: true},
+		"FeminicideRiskForm1FamilySibling3":     {Name: "FeminicideRiskForm1FamilySibling3", DBName: "feminicide_risk_form1_family_sibling_3", Alias: "", ModelType: "int", MinSize: 0, MaxSize: 120, Required: true},
+		"FeminicideRiskForm1FamilySibling4":     {Name: "FeminicideRiskForm1FamilySibling4", DBName: "feminicide_risk_form1_family_sibling_4", Alias: "", ModelType: "int", MinSize: 0, MaxSize: 120, Required: true},
+		"FeminicideRiskForm1FamilySibling5":     {Name: "FeminicideRiskForm1FamilySibling5", DBName: "feminicide_risk_form1_family_sibling_5", Alias: "", ModelType: "int", MinSize: 0, MaxSize: 120, Required: true},
+		"FeminicideRiskForm1FamilySonDaughter1": {Name: "FeminicideRiskForm1FamilySonDaughter1", DBName: "feminicide_risk_form1_family_son_daughter_1", Alias: "", ModelType: "int", MinSize: 0, MaxSize: 120, Required: true},
+		"FeminicideRiskForm1FamilySonDaughter2": {Name: "FeminicideRiskForm1FamilySonDaughter2", DBName: "feminicide_risk_form1_family_son_daughter_2", Alias: "", ModelType: "int", MinSize: 0, MaxSize: 120, Required: true},
+		"FeminicideRiskForm1FamilySonDaughter3": {Name: "FeminicideRiskForm1FamilySonDaughter3", DBName: "feminicide_risk_form1_family_son_daughter_3", Alias: "", ModelType: "int", MinSize: 0, MaxSize: 120, Required: true},
+		"FeminicideRiskForm1FamilySonDaughter4": {Name: "FeminicideRiskForm1FamilySonDaughter4", DBName: "feminicide_risk_form1_family_son_daughter_4", Alias: "", ModelType: "int", MinSize: 0, MaxSize: 120, Required: true},
+		"FeminicideRiskForm1FamilySonDaughter5": {Name: "FeminicideRiskForm1FamilySonDaughter5", DBName: "feminicide_risk_form1_family_son_daughter_5", Alias: "", ModelType: "int", MinSize: 0, MaxSize: 120, Required: true},
+		"FeminicideRiskForm1FamilyGrandmother":  {Name: "FeminicideRiskForm1FamilyGrandmother", DBName: "feminicide_risk_form1_family_grandmother", Alias: "", ModelType: "int", MinSize: 0, MaxSize: 120, Required: true},
+		"FeminicideRiskForm1FamilyGrandfather":  {Name: "FeminicideRiskForm1FamilyGrandfather", DBName: "feminicide_risk_form1_family_grandfather", Alias: "", ModelType: "int", MinSize: 0, MaxSize: 120, Required: true},
+		"FeminicideRiskForm1FamilyOtherMember":  {Name: "FeminicideRiskForm1FamilyOtherMember", DBName: "feminicide_risk_form1_family_other_member", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 120, Required: false},
 	}
 )
 
@@ -145,7 +144,7 @@ type FeminicideRiskForm1DTO struct {
 	FeminicideRiskForm1VictimIdentityName                       string                  `json:"victimIdentityName"`
 	FeminicideRiskForm1BirthDate                                time.Time               `json:"birthDate"`
 	FeminicideRiskForm1VictimAddress                            string                  `json:"victimAddress"`
-	FeminicideRiskForm1VictimZone                               VictimCaseForm2EnumsDTO `json:"victimZone"`
+	FeminicideRiskForm1VictimLivingZone                         VictimCaseForm2EnumsDTO `json:"victimLivingZone"`
 	FeminicideRiskForm1VictimLivingTownCode                     string                  `json:"victimLivingTownCode"`
 	FeminicideRiskForm1VictimSGSSSAffiliation                   VictimCaseForm2EnumsDTO `json:"victimSGSSSAffiliation"`
 	FeminicideRiskForm1EpsName                                  string                  `json:"epsName"`
@@ -170,7 +169,6 @@ type FeminicideRiskForm1DTO struct {
 	FeminicideRiskForm1VictimDisabilityType                     VictimCaseForm2EnumsDTO `json:"victimDisabilityType"`
 	FeminicideRiskForm1VictimRiskDescription                    string                  `json:"victimRiskDescription"`
 	FeminicideRiskForm1VictimAdditionalInfo                     string                  `json:"victimAdditionalInfo"`
-	FeminicideRiskForm1VictimReceivedHelpOrSubsidy              VictimCaseForm2EnumsDTO `json:"victimReceivedHelpOrSubsidy"`
 	FeminicideRiskForm1VictimIsEconomicProvider                 VictimCaseForm2EnumsDTO `json:"victimIsEconomicProvider"`
 	FeminicideRiskForm1VictimEconomicProviderExplanation        string                  `json:"victimEconomicProviderExplanation"`
 	FeminicideRiskForm1VictimHasFamiliarSupport                 VictimCaseForm2EnumsDTO `json:"victimHasFamiliarSupport"`
@@ -257,9 +255,9 @@ type FeminicideRiskForm1DTO struct {
 
 	//Campos de formulario
 
-	FeminicideRiskForm1VictimLivingDepartment security_daos.DepartmentDTO
-	FeminicideRiskForm1VictimLivingCity       security_daos.CityDTO
-	FeminicideRiskForm1VictimLivingTown       security_daos.TownDTO
+	FeminicideRiskForm1VictimLivingDepartment security_daos.DepartmentDTO `json:"livingDepartment"`
+	FeminicideRiskForm1VictimLivingCity       security_daos.CityDTO       `json:"livingCity"`
+	FeminicideRiskForm1VictimLivingTown       security_daos.TownDTO       `json:"livingTown"`
 }
 
 type FeminicideRiskForm1PgDB struct {
@@ -270,7 +268,7 @@ type FeminicideRiskForm1PgDB struct {
 	FeminicideRiskForm1VictimIdentityName                       sql.NullString
 	FeminicideRiskForm1BirthDate                                sql.NullTime
 	FeminicideRiskForm1VictimAddress                            sql.NullString
-	FeminicideRiskForm1VictimZone                               sql.NullInt64
+	FeminicideRiskForm1VictimLivingZone                         sql.NullInt64
 	FeminicideRiskForm1VictimLivingTownCode                     sql.NullString
 	FeminicideRiskForm1VictimSGSSSAffiliation                   sql.NullInt64
 	FeminicideRiskForm1EpsName                                  sql.NullString
@@ -295,7 +293,6 @@ type FeminicideRiskForm1PgDB struct {
 	FeminicideRiskForm1VictimDisabilityType                     sql.NullInt64
 	FeminicideRiskForm1VictimRiskDescription                    sql.NullString
 	FeminicideRiskForm1VictimAdditionalInfo                     sql.NullString
-	FeminicideRiskForm1VictimReceivedHelpOrSubsidy              sql.NullInt64
 	FeminicideRiskForm1VictimIsEconomicProvider                 sql.NullInt64
 	FeminicideRiskForm1VictimEconomicProviderExplanation        sql.NullString
 	FeminicideRiskForm1VictimHasFamiliarSupport                 sql.NullInt64
@@ -391,7 +388,7 @@ func (f *FeminicideRiskForm1DTO) MarshalJSON() ([]byte, error) {
 		FeminicideRiskForm1BirthDate:     f.FeminicideRiskForm1BirthDate.Format(common_config.DateTime.DATE_FORMAT),
 		FeminicideRiskForm1CreationDate:  f.FeminicideRiskForm1CreationDate.Format(common_config.DateTime.DATE_TIME_FORMAT),
 		FeminicideRiskForm1UpdateDate:    f.FeminicideRiskForm1UpdateDate.Format(common_config.DateTime.DATE_TIME_FORMAT),
-		FeminicideRiskForm1InterviewDate: f.FeminicideRiskForm1InterviewDate.Format(common_config.DateTime.DATE_FORMAT),
+		FeminicideRiskForm1InterviewDate: time.Now().Format(common_config.DateTime.DATE_FORMAT),
 	})
 }
 
@@ -446,7 +443,7 @@ func SetFeminicideRiskForm1(f *FeminicideRiskForm1DTO, connData *db.ConnData, cl
 		"FeminicideRiskForm1VictimIdentityName",
 		"FeminicideRiskForm1BirthDate",
 		"FeminicideRiskForm1VictimAddress",
-		"FeminicideRiskForm1VictimZone",
+		"FeminicideRiskForm1VictimLivingZone",
 		"FeminicideRiskForm1VictimLivingTownCode",
 		"FeminicideRiskForm1VictimSGSSSAffiliation",
 		"FeminicideRiskForm1EpsName",
@@ -471,7 +468,6 @@ func SetFeminicideRiskForm1(f *FeminicideRiskForm1DTO, connData *db.ConnData, cl
 		"FeminicideRiskForm1VictimDisabilityType",
 		"FeminicideRiskForm1VictimRiskDescription",
 		"FeminicideRiskForm1VictimAdditionalInfo",
-		"FeminicideRiskForm1VictimReceivedHelpOrSubsidy",
 		"FeminicideRiskForm1VictimIsEconomicProvider",
 		"FeminicideRiskForm1VictimEconomicProviderExplanation",
 		"FeminicideRiskForm1VictimHasFamiliarSupport",
@@ -558,7 +554,7 @@ func SetFeminicideRiskForm1(f *FeminicideRiskForm1DTO, connData *db.ConnData, cl
 		f.FeminicideRiskForm1VictimIdentityName,
 		f.FeminicideRiskForm1BirthDate.Format(common_config.DateTime.DB_DATE_FORMAT),
 		f.FeminicideRiskForm1VictimAddress,
-		f.FeminicideRiskForm1VictimZone.VictimCaseForm2EnumsId,
+		f.FeminicideRiskForm1VictimLivingZone.VictimCaseForm2EnumsId,
 		f.FeminicideRiskForm1VictimLivingTownCode,
 		f.FeminicideRiskForm1VictimSGSSSAffiliation.VictimCaseForm2EnumsId,
 		f.FeminicideRiskForm1EpsName,
@@ -583,7 +579,6 @@ func SetFeminicideRiskForm1(f *FeminicideRiskForm1DTO, connData *db.ConnData, cl
 		f.FeminicideRiskForm1VictimDisabilityType.VictimCaseForm2EnumsId,
 		f.FeminicideRiskForm1VictimRiskDescription,
 		f.FeminicideRiskForm1VictimAdditionalInfo,
-		f.FeminicideRiskForm1VictimReceivedHelpOrSubsidy.VictimCaseForm2EnumsId,
 		f.FeminicideRiskForm1VictimIsEconomicProvider.VictimCaseForm2EnumsId,
 		f.FeminicideRiskForm1VictimEconomicProviderExplanation,
 		f.FeminicideRiskForm1VictimHasFamiliarSupport.VictimCaseForm2EnumsId,
@@ -630,11 +625,11 @@ func SetFeminicideRiskForm1(f *FeminicideRiskForm1DTO, connData *db.ConnData, cl
 		f.FeminicideRiskForm1VictimClothingHelpReceived.VictimCaseForm2EnumsId,
 		f.FeminicideRiskForm1VictimClothingHelpExplain,
 		f.FeminicideRiskForm1VictimOtherNeeds,
-		f.FeminicideRiskForm1AnyAssistanceReceived,
-		f.FeminicideRiskForm1AnyAssistanceReceivedCityHall,
-		f.FeminicideRiskForm1AnyAssistanceReceivedWomensOffice,
-		f.FeminicideRiskForm1AnyAssistanceReceivedOtherEntity,
-		f.FeminicideRiskForm1AnyAssistanceReceivedOther,
+		f.FeminicideRiskForm1AnyAssistanceReceived.VictimCaseForm2EnumsId,
+		f.FeminicideRiskForm1AnyAssistanceReceivedCityHall.VictimCaseForm2EnumsId,
+		f.FeminicideRiskForm1AnyAssistanceReceivedWomensOffice.VictimCaseForm2EnumsId,
+		f.FeminicideRiskForm1AnyAssistanceReceivedOtherEntity.VictimCaseForm2EnumsId,
+		f.FeminicideRiskForm1AnyAssistanceReceivedOther.VictimCaseForm2EnumsId,
 		f.FeminicideRiskForm1AssistanceReceived,
 		f.FeminicideRiskForm1AssistanceReceivedCityHall,
 		f.FeminicideRiskForm1AssistanceReceivedWomensOffice,
@@ -694,7 +689,7 @@ func GetFeminicideRiskForm1(by common_controllers.By, feminicideRiskForm1 *Femin
 		"FeminicideRiskForm1VictimIdentityName",
 		"FeminicideRiskForm1BirthDate",
 		"FeminicideRiskForm1VictimAddress",
-		"FeminicideRiskForm1VictimZone",
+		"FeminicideRiskForm1VictimLivingZone",
 		"FeminicideRiskForm1VictimLivingTownCode",
 		"FeminicideRiskForm1VictimSGSSSAffiliation",
 		"FeminicideRiskForm1EpsName",
@@ -719,7 +714,6 @@ func GetFeminicideRiskForm1(by common_controllers.By, feminicideRiskForm1 *Femin
 		"FeminicideRiskForm1VictimDisabilityType",
 		"FeminicideRiskForm1VictimRiskDescription",
 		"FeminicideRiskForm1VictimAdditionalInfo",
-		"FeminicideRiskForm1VictimReceivedHelpOrSubsidy",
 		"FeminicideRiskForm1VictimIsEconomicProvider",
 		"FeminicideRiskForm1VictimEconomicProviderExplanation",
 		"FeminicideRiskForm1VictimHasFamiliarSupport",
@@ -816,7 +810,7 @@ func GetFeminicideRiskForm1(by common_controllers.By, feminicideRiskForm1 *Femin
 		&pgDB.FeminicideRiskForm1VictimIdentityName,
 		&pgDB.FeminicideRiskForm1BirthDate,
 		&pgDB.FeminicideRiskForm1VictimAddress,
-		&pgDB.FeminicideRiskForm1VictimZone,
+		&pgDB.FeminicideRiskForm1VictimLivingZone,
 		&pgDB.FeminicideRiskForm1VictimLivingTownCode,
 		&pgDB.FeminicideRiskForm1VictimSGSSSAffiliation,
 		&pgDB.FeminicideRiskForm1EpsName,
@@ -841,7 +835,6 @@ func GetFeminicideRiskForm1(by common_controllers.By, feminicideRiskForm1 *Femin
 		&pgDB.FeminicideRiskForm1VictimDisabilityType,
 		&pgDB.FeminicideRiskForm1VictimRiskDescription,
 		&pgDB.FeminicideRiskForm1VictimAdditionalInfo,
-		&pgDB.FeminicideRiskForm1VictimReceivedHelpOrSubsidy,
 		&pgDB.FeminicideRiskForm1VictimIsEconomicProvider,
 		&pgDB.FeminicideRiskForm1VictimEconomicProviderExplanation,
 		&pgDB.FeminicideRiskForm1VictimHasFamiliarSupport,
@@ -951,7 +944,7 @@ func GetFeminicideRisksForm1(by common_controllers.By, page int, connData *db.Co
 		"FeminicideRiskForm1VictimIdentityName",
 		"FeminicideRiskForm1BirthDate",
 		"FeminicideRiskForm1VictimAddress",
-		"FeminicideRiskForm1VictimZone",
+		"FeminicideRiskForm1VictimLivingZone",
 		"FeminicideRiskForm1VictimLivingTownCode",
 		"FeminicideRiskForm1VictimSGSSSAffiliation",
 		"FeminicideRiskForm1EpsName",
@@ -976,7 +969,6 @@ func GetFeminicideRisksForm1(by common_controllers.By, page int, connData *db.Co
 		"FeminicideRiskForm1VictimDisabilityType",
 		"FeminicideRiskForm1VictimRiskDescription",
 		"FeminicideRiskForm1VictimAdditionalInfo",
-		"FeminicideRiskForm1VictimReceivedHelpOrSubsidy",
 		"FeminicideRiskForm1VictimIsEconomicProvider",
 		"FeminicideRiskForm1VictimEconomicProviderExplanation",
 		"FeminicideRiskForm1VictimHasFamiliarSupport",
@@ -1077,7 +1069,7 @@ func GetFeminicideRisksForm1(by common_controllers.By, page int, connData *db.Co
 			&pgDB.FeminicideRiskForm1VictimIdentityName,
 			&pgDB.FeminicideRiskForm1BirthDate,
 			&pgDB.FeminicideRiskForm1VictimAddress,
-			&pgDB.FeminicideRiskForm1VictimZone,
+			&pgDB.FeminicideRiskForm1VictimLivingZone,
 			&pgDB.FeminicideRiskForm1VictimLivingTownCode,
 			&pgDB.FeminicideRiskForm1VictimSGSSSAffiliation,
 			&pgDB.FeminicideRiskForm1EpsName,
@@ -1102,7 +1094,6 @@ func GetFeminicideRisksForm1(by common_controllers.By, page int, connData *db.Co
 			&pgDB.FeminicideRiskForm1VictimDisabilityType,
 			&pgDB.FeminicideRiskForm1VictimRiskDescription,
 			&pgDB.FeminicideRiskForm1VictimAdditionalInfo,
-			&pgDB.FeminicideRiskForm1VictimReceivedHelpOrSubsidy,
 			&pgDB.FeminicideRiskForm1VictimIsEconomicProvider,
 			&pgDB.FeminicideRiskForm1VictimEconomicProviderExplanation,
 			&pgDB.FeminicideRiskForm1VictimHasFamiliarSupport,
@@ -1193,7 +1184,7 @@ func GetFeminicideRisksForm1(by common_controllers.By, page int, connData *db.Co
 	if page == 0 {
 		var countQuery string = `SELECT COUNT(*) FROM ` + path +
 			common_dao.GetSQL(common_dao.SQL_SELECT_WHERE_ONLY, by.AttrsName, by.AttrsAliasName, FeminicideRiskForm1DBName, by.AttrsName, []string{}, []string{}, by.Operator, FeminicideRiskForm1DBScheme, FeminicideRiskForm1FieldDefinitions, true)
-		persistenceCtrl.QueryRow(context.Background(), countQuery)
+		persistenceCtrl.QueryRow(context.Background(), countQuery, by.AttrsValue...)
 		persistenceCtrl.Scan(&count)
 	}
 
@@ -1214,7 +1205,7 @@ func UpdateFeminicideRiskForm1(feminicideRiskForm1 *FeminicideRiskForm1DTO, conn
 		"FeminicideRiskForm1VictimIdentityName",
 		"FeminicideRiskForm1BirthDate",
 		"FeminicideRiskForm1VictimAddress",
-		"FeminicideRiskForm1VictimZone",
+		"FeminicideRiskForm1VictimLivingZone",
 		"FeminicideRiskForm1VictimLivingTownCode",
 		"FeminicideRiskForm1VictimSGSSSAffiliation",
 		"FeminicideRiskForm1EpsName",
@@ -1239,7 +1230,6 @@ func UpdateFeminicideRiskForm1(feminicideRiskForm1 *FeminicideRiskForm1DTO, conn
 		"FeminicideRiskForm1VictimDisabilityType",
 		"FeminicideRiskForm1VictimRiskDescription",
 		"FeminicideRiskForm1VictimAdditionalInfo",
-		"FeminicideRiskForm1VictimReceivedHelpOrSubsidy",
 		"FeminicideRiskForm1VictimIsEconomicProvider",
 		"FeminicideRiskForm1VictimEconomicProviderExplanation",
 		"FeminicideRiskForm1VictimHasFamiliarSupport",
@@ -1325,7 +1315,7 @@ func UpdateFeminicideRiskForm1(feminicideRiskForm1 *FeminicideRiskForm1DTO, conn
 		feminicideRiskForm1.FeminicideRiskForm1VictimIdentityName,
 		feminicideRiskForm1.FeminicideRiskForm1BirthDate.Format(common_config.DateTime.DB_DATE_FORMAT),
 		feminicideRiskForm1.FeminicideRiskForm1VictimAddress,
-		feminicideRiskForm1.FeminicideRiskForm1VictimZone.VictimCaseForm2EnumsId,
+		feminicideRiskForm1.FeminicideRiskForm1VictimLivingZone.VictimCaseForm2EnumsId,
 		feminicideRiskForm1.FeminicideRiskForm1VictimLivingTownCode,
 		feminicideRiskForm1.FeminicideRiskForm1VictimSGSSSAffiliation.VictimCaseForm2EnumsId,
 		feminicideRiskForm1.FeminicideRiskForm1EpsName,
@@ -1350,7 +1340,6 @@ func UpdateFeminicideRiskForm1(feminicideRiskForm1 *FeminicideRiskForm1DTO, conn
 		feminicideRiskForm1.FeminicideRiskForm1VictimDisabilityType.VictimCaseForm2EnumsId,
 		feminicideRiskForm1.FeminicideRiskForm1VictimRiskDescription,
 		feminicideRiskForm1.FeminicideRiskForm1VictimAdditionalInfo,
-		feminicideRiskForm1.FeminicideRiskForm1VictimReceivedHelpOrSubsidy.VictimCaseForm2EnumsId,
 		feminicideRiskForm1.FeminicideRiskForm1VictimIsEconomicProvider.VictimCaseForm2EnumsId,
 		feminicideRiskForm1.FeminicideRiskForm1VictimEconomicProviderExplanation,
 		feminicideRiskForm1.FeminicideRiskForm1VictimHasFamiliarSupport.VictimCaseForm2EnumsId,
@@ -1484,8 +1473,8 @@ func (obj *FeminicideRiskForm1PgDB) ToDTO() FeminicideRiskForm1DTO {
 		dto.FeminicideRiskForm1VictimAddress = obj.FeminicideRiskForm1VictimAddress.String
 	}
 
-	if obj.FeminicideRiskForm1VictimZone.Valid {
-		dto.FeminicideRiskForm1VictimZone = VictimCaseForm2EnumsDTO{VictimCaseForm2EnumsId: uint64(obj.FeminicideRiskForm1VictimZone.Int64)}
+	if obj.FeminicideRiskForm1VictimLivingZone.Valid {
+		dto.FeminicideRiskForm1VictimLivingZone = VictimCaseForm2EnumsDTO{VictimCaseForm2EnumsId: uint64(obj.FeminicideRiskForm1VictimLivingZone.Int64)}
 	}
 
 	if obj.FeminicideRiskForm1VictimLivingTownCode.Valid {
@@ -1582,10 +1571,6 @@ func (obj *FeminicideRiskForm1PgDB) ToDTO() FeminicideRiskForm1DTO {
 
 	if obj.FeminicideRiskForm1VictimAdditionalInfo.Valid {
 		dto.FeminicideRiskForm1VictimAdditionalInfo = obj.FeminicideRiskForm1VictimAdditionalInfo.String
-	}
-
-	if obj.FeminicideRiskForm1VictimReceivedHelpOrSubsidy.Valid {
-		dto.FeminicideRiskForm1VictimReceivedHelpOrSubsidy = VictimCaseForm2EnumsDTO{VictimCaseForm2EnumsId: uint64(obj.FeminicideRiskForm1VictimReceivedHelpOrSubsidy.Int64)}
 	}
 
 	if obj.FeminicideRiskForm1VictimIsEconomicProvider.Valid {

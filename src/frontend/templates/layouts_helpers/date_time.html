@@ -9,6 +9,12 @@
             :required="{{.Mandatory}}"
             id="{{.DateTimeId}}"
             :iso-output="false"
+
+            :aria-invalid="errors.{{.EntityName}} && errors.{{.EntityName}}.{{.EntityAttr}} ? 'true' : 'false'"
+            :aria-describedby="errors.{{.EntityName}} && errors.{{.EntityName}}.{{.EntityAttr}} ? '{{.ErrorSpanId}}' : null"
+            data-entity="{{.EntityName}}"
+            data-field="{{.EntityAttr}}"
+            data-label="{{.DateTimeLabel}}"
             />
     </div>
     <span v-if="errors.{{.EntityName}}&&errors.{{.EntityName}}.{{.EntityAttr}}" id="{{.ErrorSpanId}}" class="error_label">${errors.{{.EntityName}}.{{.EntityAttr}}}</span>
