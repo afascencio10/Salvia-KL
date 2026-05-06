@@ -58,6 +58,12 @@ func (s *caseDetailService) CreateFollowUp(ctx context.Context, caseICode, agent
 		}
 	}
 
+	// Validar que la fecha no sea del pasado
+	hoy := time.Now().Truncate(24 * time.Hour)
+	if fecha.Before(hoy) {
+		return nil, errors.New("no se permiten seguimientos con fecha anterior a hoy")
+	}
+
 	// Extraer la hora como string para el campo scheduled_time
 	hora := fecha.Format("15:04")
 
@@ -66,6 +72,12 @@ func (s *caseDetailService) CreateFollowUp(ctx context.Context, caseICode, agent
 	if err != nil {
 		return nil, err
 	}
+
+	// Validar máximo 8 seguimientos por caso
+	if count >= 8 {
+		return nil, errors.New("este caso ya tiene el máximo de 8 seguimientos permitidos")
+	}
+
 	nextSeq := count + 1
 
 	sinEvaluar := "SIN_EVALUAR"
