@@ -92,6 +92,10 @@ func VictimCaseGET(c *gin.Context) {
 		// Si se proporciona el parámetro "docType", se realiza la búsqueda por documento.
 		docType := c.Param("docType")
 		if docType != "" {
+			//Revisamos si es la opción no aplica ("na") caso en el cual se busca sólo por el número de doc.
+			if docType == "na" {
+				docType = ""
+			}
 			// Verifica el permiso "get_victim_case_by_document" para el rol actual.
 			if !utils.CheckPermission(salvia_config.PermissionsByRole, "get_victim_case_by_document", s.CurrentRole, c) {
 				return
@@ -143,6 +147,10 @@ func VictimCaseGET(c *gin.Context) {
 				_, _, branches = salvia_ctrl.GetEntityBranchesByTownCodeWithMoments(vCase.VictimCaseTownCode, &db.ConnData{}, dbClientConfig, dbServerConfig)
 			case "sv":
 				tplName = "get_victim_case_sv"
+				if vCase.VictimCaseForm1.VictimCaseForm1ICode != "" {
+					//Si se diligenció el formulario 1 vamos a su plantilla
+					tplName = "get_victim_case_sv_v1"
+				}
 				_, _, branches = salvia_ctrl.GetEntityBranchesByTownCodeWithMoments(vCase.VictimCaseTownCode, &db.ConnData{}, dbClientConfig, dbServerConfig)
 			case "no":
 				tplName = "get_victim_case_no"
@@ -312,6 +320,7 @@ func VictimCaseGET(c *gin.Context) {
 				"victimCases":               victimCaseRes,
 				"numPages":                  int(math.Ceil(float64(count) / float64(salvia_config.NUM_ITEMS_PER_PAGE))),
 				"gender":                    common_config.GENDER_IDENTITY,
+				"docTypeUnified":            mergeDocumentTypes(common_config.DOCUMENT_TYPE_FORM2, common_config.DOCUMENT_TYPE),
 				"docType":                   common_config.DOCUMENT_TYPE,
 				"docType2":                  common_config.DOCUMENT_TYPE_FORM2,
 				"language":                  common_config.LANGUAGE,
@@ -618,7 +627,7 @@ func VictimCasePUT_GET(c *gin.Context) {
 			"violenceExperienced":         salvia_config.VIOLENCE_EXPERIENCED,
 			"relationshipWithAggressor":   salvia_config.RELATIONSHIP_WITH_AGGRESSOR,
 			"weekDay":                     salvia_config.WEEK_DAY,
-			"docType":                     common_config.DOCUMENT_TYPE,
+			"docType2":                    common_config.DOCUMENT_TYPE_FORM2,
 			"victimCaseVictimNationality": salvia_config.VICTIM_CASE_VICTIM_NATIONALITY,
 			"victimCaseVictimForeignerImmigrationStatus":          salvia_config.VICTIM_CASE_VICTIM_FOREIGNER_IMMIGRATION_STATUS,
 			"victimCaseVictimGender":                              salvia_config.VICTIM_CASE_VICTIM_GENDER,
@@ -647,7 +656,7 @@ func VictimCasePUT_GET(c *gin.Context) {
 			//-------------------------------
 
 			"yes_no":                              salvia_daos.VictimCaseForm2Enums["yes_no"],
-			"docType2":                            salvia_daos.VictimCaseForm2Enums["victim_case_form2_victim_doc_type"],
+			"docType":                             salvia_daos.VictimCaseForm2Enums["victim_case_form2_victim_doc_type"],
 			"factsZone":                           salvia_daos.VictimCaseForm2Enums["victim_case_form2_facts_zone"],
 			"scenarioViolence":                    salvia_daos.VictimCaseForm2Enums["victim_case_form2_scenario_violence"],
 			"recurrenceAggression":                salvia_daos.VictimCaseForm2Enums["victim_case_form2_recurrence_aggression"],
@@ -959,4 +968,21 @@ func UpdateVictimCasesOwnersAndRoles() {
 	// Se ejecuta a bajo nivel
 	salvia_ctrl.UpdateVictimCasesOwnersAndRoles(&db.ConnData{}, dbClientConfig, dbServerConfig)
 	println("Fin de ejecución")
+}
+
+func mergeDocumentTypes(main, other map[string]string) map[string]string {
+	// 1️⃣ Copiamos el mapa FORM2 (evitamos modificar el original)
+	result := make(map[string]string, len(main))
+	for k, v := range main {
+		result[k] = v
+	}
+
+	// 2️⃣ Recorremos los demás elementos y sólo añadimos si la clave no está ya.
+	for k, v := range other {
+		if _, ok := result[k]; !ok { // clave nueva → insertamos
+			result[k] = v
+		}
+	}
+
+	return result
 }

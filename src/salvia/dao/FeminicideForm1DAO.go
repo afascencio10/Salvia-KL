@@ -115,7 +115,7 @@ var (
 		"FeminicideForm1AnyTypeOfAssistanceReceived":                  {Name: "FeminicideForm1AnyTypeOfAssistanceReceived", DBName: "feminicide_form1_any_type_of_assistance_received", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideForm1AnyTypeOfAssistanceReceivedExplanation":       {Name: "FeminicideForm1AnyTypeOfAssistanceReceivedExplanation", DBName: "feminicide_form1_any_type_of_assistance_received_explanation", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
 		"FeminicideForm1CompensationFundInsuranceCoverage":            {Name: "FeminicideForm1CompensationFundInsuranceCoverage", DBName: "feminicide_form1_compensation_fund_insurance_coverage", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
-		"FeminicideForm1CompensationFundInsuranceCoverageExplanation": {Name: "FeminicideForm1CompensationFundInsuranceCoverageExplanation", DBName: "feminicide_form1_compensation_fund_insurance_coverage_explanation", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
+		"FeminicideForm1CompensationFundInsuranceCoverageExplanation": {Name: "FeminicideForm1CompensationFundInsuranceCoverageExplanation", DBName: "feminicide_form1_compensation_fund_insurance_cov_explanation", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
 		"FeminicideForm1FuneralSubsidyReceived":                       {Name: "FeminicideForm1FuneralSubsidyReceived", DBName: "feminicide_form1_funeral_subsidy_received", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
 		"FeminicideForm1FuneralSubsidyExplanation":                    {Name: "FeminicideForm1FuneralSubsidyExplanation", DBName: "feminicide_form1_funeral_subsidy_explanation", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 10000, Required: false},
 		"FeminicideForm1FuneralFundsAvailable":                        {Name: "FeminicideForm1FuneralFundsAvailable", DBName: "feminicide_form1_funeral_funds_available", Alias: "", ModelType: "uint", MinSize: 0, MaxSize: 0, Required: true},
@@ -1138,7 +1138,7 @@ func GetFeminicideCases(by common_controllers.By, page int, connData *db.ConnDat
 			` FROM ` + feminicideForm1Path +
 			common_dao.GetSQL(common_dao.SQL_SELECT_WHERE_ONLY, by.AttrsName, by.AttrsAliasName, FeminicideForm1DBName, by.AttrsName, []string{}, []string{}, by.Operator, FeminicideForm1DBScheme, FeminicideForm1FieldDefinitions, true)
 
-		persistenceCtrl.QueryRow(context.Background(), countQuery)
+		persistenceCtrl.QueryRow(context.Background(), countQuery, by.AttrsValue...)
 		persistenceCtrl.Scan(&count)
 	}
 

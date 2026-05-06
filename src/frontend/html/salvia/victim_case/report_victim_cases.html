@@ -118,7 +118,8 @@ var home = Vue.createApp({
             violenceExperienced: {{.violenceExperienced}},
             departments: JSON.parse({{.departments}}),
             caseStatus: {{.caseStatus}},
-            docType: {{.docType}}
+            docType: {{.docType}},
+            riskLevel:{"1":"Bajo", "2":"Moderado", "3":"Alto", "4":"Extremo"}
         },
         res:{
             victimCasesForm1: [],
@@ -214,6 +215,8 @@ var home = Vue.createApp({
                 if (status === 200) {
                     this.errors = {};
                     var locations = [];
+                    this.res.victimCasesForm2 = [];
+                    this.res.victimCasesForm1 = [];
                     for (let idx = 0; idx < response.length; idx++) {
                         const element = response[idx];
                         locations.push(response[idx]);
@@ -222,7 +225,6 @@ var home = Vue.createApp({
                         }else  if (element.form2.icode!=""){
                             this.res.victimCasesForm2.push(response[idx]);
                         }
-                        
                     }
                     home.config.globalProperties.markers.clearLayers();
                     
@@ -419,6 +421,9 @@ var home = Vue.createApp({
                                 '"' + vc['form2']['thoughtsOfSelfHarm2'].name + '",'+
                                 '"' + vc['form2']['aggressorCommonSpaces'].name + '",'+
                                 '"' + vc['form2']['aggressorHierarchy'].name + '",'+
+                                '"' + vc['form2']['aggressorUsedPositionAuthority'].name + '",'+
+                                '"' + vc['form2']['riskScore'] + '",'+
+                                '"' + home.config.globalProperties.enums.riskLevel[vc['form2']['riskLevel']] + '",'+
                                 '"' + vc['form2']['birthDate'] + '",'+
                                 '"' + vc['form2']['physicalMentalSensoryDifficulties'].name + '",'+
                                 '"' + (vc['form2']?.['law1996']?? [] ).map(obj => obj.name).join(";") + '",'+
@@ -465,11 +470,14 @@ var home = Vue.createApp({
                                 '"' + vc['form2']['activitiesUnableToEat'] + '",'+
                                 '"' + vc['form2']['activitiesUnableToInteract'] + '",'+
                                 '"' + vc['form2']['activitiesUnableToDoEveryday'] + '",'+
+                                '"' + (vc['form2']?.['actionPlan']?? [] ).map(obj => obj.name).join(";") + '",'+
+                                '"' + vc['form2']['allowsEasyReport'].name + '",'+
+                                '"' + vc['owners'] + '",'+
                                 '"' + vc['form2']['factsDescription'].replace(/\n/g,'. ').replace(/"/g,'\' ') + '"'
                     }).join('\n');
 
                     // Agregar un encabezado a la primera línea del archivo CSV (opcional)
-                    csv = "Fecha creación,Fecha modificación,Estado,Nombres,Apellidos,Tipo de documento,Número de documento, Se reconoce como persona con discapacidad, Requiere ajuste atención VBG y/o VpP, Nombre identitario, Número de teléfono de contacto en Colombia, Fecha de los hechos, Hora de los hechos, Municipio de los hechos, Zona de los hechos, Dirección de los hechos, Escenario de violencia, Tipo de violencia, Subtipo de violencia, Ámbitos de violencia, Reportó previamente, A quién reportó, Recurrencia, Número agresores, Cercanía con el agresor, Relación con el agresor, Depende económicamente del agresor, Identidad de género agresor, Nombres del agresor, Tipo documento agresor, Número documento agresor, Dirección agresor, Teléfono agresor, Incremento violencia, Agresor amenaza armas, Agresor intentó asesinar, Agresor la persigue o espia, Agresor capaz de matar, Agresor acceso armas, Pareja desempleada, Pareja otras denuncias, Pareja antecedentes penales, Pareja forzó relaciones sexuales, Pareja intentó estrangular, Pareja drogas, Pareja alcohol, Pareja controla actividades, Pareja golpeado estado vulnerabilidad, Pareja amenaza suicidio, Pareja amenaza familiares, Ha pensado en suicidarse, Agresora limita contacto, Vive con agresor, Agresor violencia celos, Agresor desempleado, Agresor antecedentes penales, Agresor acosa sexualmente, Agresor consume drogas, Agresor alcohólico, Agresor controla actividades, Agresor amenaza familiares, Ha pensado en suicidio, Comparte espacios con agresor, Tiene relación jerarquía con agresor, Fecha nacimiento, Dada su condición física tiene dificultades, Según Ley 1996 de 2019, Nacionalidad, País, Condición migratoria, Identidad de género, Orientación sexual, Sexo asignado al nacer, Población especial protección, Grupo étnico, Se reconoce indígena, Se reconoce campesino, Estado civil, Nivel educativo, Ocupación, Generaciónn ingresos, Vinculación laboral, Modalidad ASP, Inicio ASP, Motivo ASP, Tenencia vivienda, Estrato social, Personas a cargo, Está embarazada, Municipio residencia, Dirección residencia, Zona residencia, Nombres de contacto emergencia, Teléfono de contacto emergencia, Correo de contacto emergencia, Parentezco con contacto emergencia, Requiere intérprete de idiomas, Sector laboral de violencia, Violencia de género, Atención de entidad apropiada, Ocupación agresor, No puede oir, No puede hablar, No puede ver, No puede moverse, No puede coger cosas, No puede entender, No puede comer, No puede interactuar, No puede hacer actyividades cotidianas, Descripción de los hechos  \n" + vcs;
+                    csv = "Fecha creación,Fecha modificación,Estado,Nombres,Apellidos,Tipo de documento,Número de documento, Se reconoce como persona con discapacidad, Requiere ajuste atención VBG y/o VpP, Nombre identitario, Número de teléfono de contacto en Colombia, Fecha de los hechos, Hora de los hechos, Municipio de los hechos, Zona de los hechos, Dirección de los hechos, Escenario de violencia, Tipo de violencia, Subtipo de violencia, Ámbitos de violencia, Reportó previamente, A quién reportó, Recurrencia, Número agresores, Cercanía con el agresor, Relación con el agresor, Depende económicamente del agresor, Identidad de género agresor, Nombres del agresor, Tipo documento agresor, Número documento agresor, Dirección agresor, Teléfono agresor, Incremento violencia, Agresor amenaza armas, Agresor intentó asesinar, Agresor la persigue o espia, Agresor capaz de matar, Agresor acceso armas, Pareja desempleada, Pareja otras denuncias, Pareja antecedentes penales, Pareja forzó relaciones sexuales, Pareja intentó estrangular, Pareja drogas, Pareja alcohol, Pareja controla actividades, Pareja golpeado estado vulnerabilidad, Pareja amenaza suicidio, Pareja amenaza familiares, Ha pensado en suicidarse, Agresora limita contacto, Vive con agresor, Agresor violencia celos, Agresor desempleado, Agresor antecedentes penales, Agresor acosa sexualmente, Agresor consume drogas, Agresor alcohólico, Agresor controla actividades, Agresor amenaza familiares, Ha pensado en suicidio, Comparte espacios con agresor, Tiene relación jerarquía con agresor, La agresora ha utilizado su posición de autoridad, Cálculo riesgo, Ponderación riesgo, Fecha nacimiento, Dada su condición física tiene dificultades, Según Ley 1996 de 2019, Nacionalidad, País, Condición migratoria, Identidad de género, Orientación sexual, Sexo asignado al nacer, Población especial protección, Grupo étnico, Se reconoce indígena, Se reconoce campesino, Estado civil, Nivel educativo, Ocupación, Generaciónn ingresos, Vinculación laboral, Modalidad ASP, Inicio ASP, Motivo ASP, Tenencia vivienda, Estrato social, Personas a cargo, Está embarazada, Municipio residencia, Dirección residencia, Zona residencia, Nombres de contacto emergencia, Teléfono de contacto emergencia, Correo de contacto emergencia, Parentezco con contacto emergencia, Requiere intérprete de idiomas, Sector laboral de violencia, Violencia de género, Atención de entidad apropiada, Ocupación agresor, No puede oir, No puede hablar, No puede ver, No puede moverse, No puede coger cosas, No puede entender, No puede comer, No puede interactuar, No puede hacer actividades cotidianas, Plan de Acción, Proceso de denuncia fácil, Funcionarios, Descripción de los hechos  \n" + vcs;
                 }
                     
                 

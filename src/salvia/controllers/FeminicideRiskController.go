@@ -61,10 +61,10 @@ func SetFeminicideRisk(dataInput string, s utils.CommonSession, dbClientConfig d
 
 		// Definición de campos a validar (obligatorios y opcionales).
 		var checkFields map[string]bool = map[string]bool{
-			"FeminicideRiskNames":     true,
-			"FeminicideRiskLastNames": true,
-			"FeminicideRiskDocType":   true,
-			"FeminicideRiskDocNumber": true,
+			"FeminicideRiskNames":           true,
+			"FeminicideRiskLastNames":       true,
+			"FeminicideRiskVictimDocType":   true,
+			"FeminicideRiskVictimDocNumber": true,
 		}
 		// Validación de los campos del JSON contra la definición del DTO.
 		utils.ValidateJSONInput(&feminicideRiskRequest.FeminicideRisk, dtoMap, salvia_daos.FeminicideRiskJSONName, salvia_daos.FeminicideRiskFieldDefinitions,
@@ -75,7 +75,7 @@ func SetFeminicideRisk(dataInput string, s utils.CommonSession, dbClientConfig d
 			"FeminicideRiskForm1VictimIdentityName":                       true,
 			"FeminicideRiskForm1BirthDate":                                true,
 			"FeminicideRiskForm1VictimAddress":                            true,
-			"FeminicideRiskForm1VictimZone":                               true,
+			"FeminicideRiskForm1VictimLivingZone":                         true,
 			"FeminicideRiskForm1VictimLivingTown":                         true,
 			"FeminicideRiskForm1VictimSGSSSAffiliation":                   true,
 			"FeminicideRiskForm1ContactPhone":                             true,
@@ -87,7 +87,7 @@ func SetFeminicideRisk(dataInput string, s utils.CommonSession, dbClientConfig d
 			"FeminicideRiskForm1VictimSexualOrientation":                  true,
 			"FeminicideRiskForm1VictimEthnicAffiliation":                  true,
 			"FeminicideRiskForm1VictimIsMigrant":                          true,
-			"FeminicideRiskForm1VictimMigrationStatus":                    true,
+			"FeminicideRiskForm1VictimMigrationStatus":                    false,
 			"FeminicideRiskForm1VictimMaxEducationLevel":                  true,
 			"FeminicideRiskForm1VictimIsSpecialPopulation":                true,
 			"FeminicideRiskForm1VictimCurrentlyHasJob":                    true,
@@ -95,10 +95,9 @@ func SetFeminicideRisk(dataInput string, s utils.CommonSession, dbClientConfig d
 			"FeminicideRiskForm1VictimAbandonedJobDueToRisk":              true,
 			"FeminicideRiskForm1VictimMainOccupation":                     true,
 			"FeminicideRiskForm1VictimHasDisability":                      true,
-			"FeminicideRiskForm1VictimDisabilityType":                     true,
+			"FeminicideRiskForm1VictimDisabilityType":                     false,
 			"FeminicideRiskForm1VictimRiskDescription":                    true,
 			"FeminicideRiskForm1VictimAdditionalInfo":                     true,
-			"FeminicideRiskForm1VictimReceivedHelpOrSubsidy":              true,
 			"FeminicideRiskForm1VictimIsEconomicProvider":                 true,
 			"FeminicideRiskForm1VictimEconomicProviderExplanation":        true,
 			"FeminicideRiskForm1VictimHasFamiliarSupport":                 true,
@@ -106,6 +105,7 @@ func SetFeminicideRisk(dataInput string, s utils.CommonSession, dbClientConfig d
 			"FeminicideRiskForm1VictimPublicTransportAccess":              true,
 			"FeminicideRiskForm1VictimCommonTransportMode":                true,
 			"FeminicideRiskForm1VictimTransportModeExplanation":           true,
+			"FeminicideRiskForm1VictimLivingTownCode":                     true,
 			"FeminicideRiskForm1VictimEstimatedTravelCost":                true,
 			"FeminicideRiskForm1VictimDifficultiesWithTransport":          true,
 			"FeminicideRiskForm1VictimDifficultiesExplanation":            true,
@@ -126,7 +126,7 @@ func SetFeminicideRisk(dataInput string, s utils.CommonSession, dbClientConfig d
 			"FeminicideRiskForm1VictimIsOnlyProviderForFood":              true,
 			"FeminicideRiskForm1VictimIsOnlyProviderExplanation":          true,
 			"FeminicideRiskForm1VictimJuridicalAssistanceReceived":        true,
-			"FeminicideRiskForm1VictimJuridicalAssistanceExplain":         true,
+			"FeminicideRiskForm1VictimJuridicalAssistanceExplain":         false,
 			"FeminicideRiskForm1VictimWantsJuridicalAssistance":           true,
 			"FeminicideRiskForm1VictimRepresentationsOfVictims":           true,
 			"FeminicideRiskForm1VictimRepresentationsExplanation":         true,
@@ -147,6 +147,24 @@ func SetFeminicideRisk(dataInput string, s utils.CommonSession, dbClientConfig d
 			"FeminicideRiskForm1VictimOtherNeeds":                         true,
 			"FeminicideRiskForm1InterviewDate":                            true,
 			"FeminicideRiskForm1Summary":                                  true,
+			"FeminicideRiskForm1FamilyMother":                             true,
+			"FeminicideRiskForm1FamilyFather":                             true,
+			"FeminicideRiskForm1FamilyStepfather":                         true,
+			"FeminicideRiskForm1FamilyStepmother":                         true,
+			"FeminicideRiskForm1FamilyPartner":                            true,
+			"FeminicideRiskForm1FamilySibling1":                           true,
+			"FeminicideRiskForm1FamilySibling2":                           true,
+			"FeminicideRiskForm1FamilySibling3":                           true,
+			"FeminicideRiskForm1FamilySibling4":                           true,
+			"FeminicideRiskForm1FamilySibling5":                           true,
+			"FeminicideRiskForm1FamilySonDaughter1":                       true,
+			"FeminicideRiskForm1FamilySonDaughter2":                       true,
+			"FeminicideRiskForm1FamilySonDaughter3":                       true,
+			"FeminicideRiskForm1FamilySonDaughter4":                       true,
+			"FeminicideRiskForm1FamilySonDaughter5":                       true,
+			"FeminicideRiskForm1FamilyGrandmother":                        true,
+			"FeminicideRiskForm1FamilyGrandfather":                        true,
+			"FeminicideRiskForm1FamilyOtherMember":                        false,
 		}
 
 		utils.ValidateJSONInput(&feminicideRiskRequest.FeminicideRisk.FeminicideRiskForm1, dtoMap, salvia_daos.FeminicideRiskJSONName+"."+salvia_daos.FeminicideRiskForm1JSONName, salvia_daos.FeminicideRiskForm1FieldDefinitions,
@@ -173,7 +191,7 @@ func SetFeminicideRisk(dataInput string, s utils.CommonSession, dbClientConfig d
 	//Ahora algunos campos opcionales
 	/*if feminicideRiskRequest.FeminicideRisk.FeminicideRiskForm1.FeminicideRiskForm1IncomeGenerationMethod.FeminicideRiskForm1EnumsCode == "pr" {
 		if feminicideRiskRequest.FeminicideRisk.FeminicideRiskForm1.FeminicideRiskForm1FactsStartTime.IsZero() {
-			utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskRequest.FeminicideRisk.FeminicideRiskForm1, "FeminicideRiskForm1FactsStartTime", "json"), "common_validation_field_date_error", "common_global_error", common_config.Locale)
+			utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskRequest.FeminicideRisk.FeminicideRiskForm1, "FeminicideRiskForm1FactsStartTime", "json"), "common_validation_field_date_error", "common_global_error", common_config.Locale)
 		}
 	}*/
 
@@ -191,8 +209,11 @@ func SetFeminicideRisk(dataInput string, s utils.CommonSession, dbClientConfig d
 
 	err = salvia_daos.GetCaseOwner(by, &owner, connData, &dbClientConfig, &dbServerConfig)
 	if err != nil {
-		db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
 		return http.StatusInternalServerError, salvia_config.Locale[s.Lang]["victim_contact_error_loading_owner"]
+	}
+
+	if _, err = db.StartTransaction(connData, &dbClientConfig, &dbServerConfig); err != nil {
+		return http.StatusInternalServerError, err.Error()
 	}
 
 	// Se crea el caso en la BD.
@@ -918,65 +939,65 @@ func GetFeminicideRiskByAll(page int, connData *db.ConnData, dbClientConfig db.D
 func getAndVerifyFeminicideRiskEnums(feminicideRiskForm1 *salvia_daos.FeminicideRiskForm1DTO, collectedErrors map[string]map[string]string, verify bool) bool {
 	var opRes bool = true
 
-	err := salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimZone)
+	err := salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimLivingZone)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimZone", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimLivingZone", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimSGSSSAffiliation)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimSGSSSAffiliation", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimSGSSSAffiliation", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimMaritalStatus)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimMaritalStatus", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimMaritalStatus", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimSex)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimSex", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimSex", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimGenderIdentity)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimGenderIdentity", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimGenderIdentity", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimSexualOrientation)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimSexualOrientation", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimSexualOrientation", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimEthnicAffiliation)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimEthnicAffiliation", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimEthnicAffiliation", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimEthnicAffiliation)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimEthnicAffiliation", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimEthnicAffiliation", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	} else if feminicideRiskForm1.FeminicideRiskForm1VictimEthnicAffiliation.VictimCaseForm2EnumsCode == "in" {
 		// VictimCaseForm2IndigenousPeople
 		err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimIndigenousPeople)
 		if err != nil && verify {
-			utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimIndigenousPeople", "json"), "victim_case_form2_enums_not_found", "common_global_error", salvia_config.Locale)
+			utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimIndigenousPeople", "json"), "victim_case_form2_enums_not_found", "common_global_error", salvia_config.Locale)
 			opRes = false
 		}
 	}
@@ -984,273 +1005,262 @@ func getAndVerifyFeminicideRiskEnums(feminicideRiskForm1 *salvia_daos.Feminicide
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimIsMigrant)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimIsMigrant", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimIsMigrant", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimMigrationStatus)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimMigrationStatus", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimMigrationStatus", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimMaxEducationLevel)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimMaxEducationLevel", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimMaxEducationLevel", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimIsSpecialPopulation)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimIsSpecialPopulation", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimIsSpecialPopulation", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimCurrentlyHasJob)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimCurrentlyHasJob", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimCurrentlyHasJob", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimAbandonedJobDueToRisk)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimAbandonedJobDueToRisk", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimAbandonedJobDueToRisk", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimMainOccupation)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimMainOccupation", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimMainOccupation", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimHasDisability)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimHasDisability", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimHasDisability", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
+	//No es obligatoria
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimDisabilityType)
-	if err != nil && verify {
-		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimDisabilityType", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
-		opRes = false
-	}
-
-	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimReceivedHelpOrSubsidy)
-	if err != nil && verify {
-		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimReceivedHelpOrSubsidy", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
-		opRes = false
-	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimIsEconomicProvider)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimIsEconomicProvider", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimIsEconomicProvider", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimHasFamiliarSupport)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimHasFamiliarSupport", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimHasFamiliarSupport", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimFamiliarSupportType)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimFamiliarSupportType", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimFamiliarSupportType", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimPublicTransportAccess)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimPublicTransportAccess", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimPublicTransportAccess", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimCommonTransportMode)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimCommonTransportMode", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimCommonTransportMode", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimDifficultiesWithTransport)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimDifficultiesWithTransport", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimDifficultiesWithTransport", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimEconomicResourcesForTransport)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimEconomicResourcesForTransport", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimEconomicResourcesForTransport", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimHasDebtOrHelpDueToTransport)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimHasDebtOrHelpDueToTransport", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimHasDebtOrHelpDueToTransport", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimReceivedTransportSubsidy)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimReceivedTransportSubsidy", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimReceivedTransportSubsidy", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimSafetyAvoidedTransport)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimSafetyAvoidedTransport", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimSafetyAvoidedTransport", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimFoodAccessFrequency)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimFoodAccessFrequency", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimFoodAccessFrequency", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimAgressorFoodRestriction)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimAgressorFoodRestriction", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimAgressorFoodRestriction", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimFamilyFixedIncome)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimFamilyFixedIncome", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimFamilyFixedIncome", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimIsOnlyProviderForFood)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimIsOnlyProviderForFood", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimIsOnlyProviderForFood", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimJuridicalAssistanceReceived)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimJuridicalAssistanceReceived", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimJuridicalAssistanceReceived", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimWantsJuridicalAssistance)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimWantsJuridicalAssistance", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimWantsJuridicalAssistance", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimRepresentationsOfVictims)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimRepresentationsOfVictims", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimRepresentationsOfVictims", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimPsychosocialSupportReceived)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimPsychosocialSupportReceived", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimPsychosocialSupportReceived", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimUrgentEmotionalCrisis)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimUrgentEmotionalCrisis", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimUrgentEmotionalCrisis", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1AggressorSameResidence)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1AggressorSameResidence", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1AggressorSameResidence", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1AggressorKnowsVictimLocation)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1AggressorKnowsVictimLocation", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1AggressorKnowsVictimLocation", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimHousingHelpReceived)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimHousingHelpReceived", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimHousingHelpReceived", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimAbandonClothing)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimAbandonClothing", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimAbandonClothing", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1VictimClothingHelpReceived)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimClothingHelpReceived", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1VictimClothingHelpReceived", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1AnyAssistanceReceived)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1AnyAssistanceReceived", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1AnyAssistanceReceived", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1AnyAssistanceReceivedCityHall)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1AnyAssistanceReceivedCityHall", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1AnyAssistanceReceivedCityHall", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1AnyAssistanceReceivedWomensOffice)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1AnyAssistanceReceivedWomensOffice", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1AnyAssistanceReceivedWomensOffice", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1AnyAssistanceReceivedOtherEntity)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1AnyAssistanceReceivedOtherEntity", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1AnyAssistanceReceivedOtherEntity", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
 	err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&feminicideRiskForm1.FeminicideRiskForm1AnyAssistanceReceivedOther)
 	if err != nil && verify {
 		// Retorna error interno en caso de fallo.
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1AnyAssistanceReceivedOther", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1AnyAssistanceReceivedOther", "json"), "feminicide_risk_form1_enums_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
@@ -1259,7 +1269,7 @@ func getAndVerifyFeminicideRiskEnums(feminicideRiskForm1 *salvia_daos.Feminicide
 
 func loadFeminicideRiskEnums(feminicideRisk *salvia_daos.FeminicideRiskDTO) {
 
-	salvia_daos.GetLocalVictimCaseForm2EnumsById(&feminicideRisk.FeminicideRiskForm1.FeminicideRiskForm1VictimZone)
+	salvia_daos.GetLocalVictimCaseForm2EnumsById(&feminicideRisk.FeminicideRiskForm1.FeminicideRiskForm1VictimLivingZone)
 	salvia_daos.GetLocalVictimCaseForm2EnumsById(&feminicideRisk.FeminicideRiskForm1.FeminicideRiskForm1VictimSGSSSAffiliation)
 	salvia_daos.GetLocalVictimCaseForm2EnumsById(&feminicideRisk.FeminicideRiskForm1.FeminicideRiskForm1VictimMaritalStatus)
 	salvia_daos.GetLocalVictimCaseForm2EnumsById(&feminicideRisk.FeminicideRiskForm1.FeminicideRiskForm1VictimSex)
@@ -1276,7 +1286,6 @@ func loadFeminicideRiskEnums(feminicideRisk *salvia_daos.FeminicideRiskDTO) {
 	salvia_daos.GetLocalVictimCaseForm2EnumsById(&feminicideRisk.FeminicideRiskForm1.FeminicideRiskForm1VictimMainOccupation)
 	salvia_daos.GetLocalVictimCaseForm2EnumsById(&feminicideRisk.FeminicideRiskForm1.FeminicideRiskForm1VictimHasDisability)
 	salvia_daos.GetLocalVictimCaseForm2EnumsById(&feminicideRisk.FeminicideRiskForm1.FeminicideRiskForm1VictimDisabilityType)
-	salvia_daos.GetLocalVictimCaseForm2EnumsById(&feminicideRisk.FeminicideRiskForm1.FeminicideRiskForm1VictimReceivedHelpOrSubsidy)
 	salvia_daos.GetLocalVictimCaseForm2EnumsById(&feminicideRisk.FeminicideRiskForm1.FeminicideRiskForm1VictimIsEconomicProvider)
 	salvia_daos.GetLocalVictimCaseForm2EnumsById(&feminicideRisk.FeminicideRiskForm1.FeminicideRiskForm1VictimHasFamiliarSupport)
 	salvia_daos.GetLocalVictimCaseForm2EnumsById(&feminicideRisk.FeminicideRiskForm1.FeminicideRiskForm1VictimFamiliarSupportType)
@@ -1325,7 +1334,7 @@ func getAndVerifyFeminicideRiskEnumsMultiple(feminicideRiskForm1 *salvia_daos.Fe
 		}
 	}
 	if len(feminicideRiskForm1.FeminicideRiskForm1FinanciallyDependentPeople) == 0 || err != nil {
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1FinanciallyDependentPeople", "json"), "feminicide_risk_form1_enums_multiple_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1FinanciallyDependentPeople", "json"), "feminicide_risk_form1_enums_multiple_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
@@ -1341,7 +1350,7 @@ func getAndVerifyFeminicideRiskEnumsMultiple(feminicideRiskForm1 *salvia_daos.Fe
 		}
 	}
 	if len(feminicideRiskForm1.FeminicideRiskForm1PlacesVisitRegularly) == 0 || err != nil {
-		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1PlacesVisitRegularly", "json"), "feminicide_risk_form1_enums_multiple_not_found", "common_global_error", salvia_config.Locale)
+		utils.SetError(collectedErrors, salvia_daos.FeminicideRiskForm1JSONName, utils.GetTag(feminicideRiskForm1, "FeminicideRiskForm1PlacesVisitRegularly", "json"), "feminicide_risk_form1_enums_multiple_not_found", "common_global_error", salvia_config.Locale)
 		opRes = false
 	}
 
@@ -1355,7 +1364,7 @@ func loadFeminicideRiskEnumsMultiple(feminicideRiskForm1 *salvia_daos.Feminicide
 	for _, e := range enums {
 		if err = salvia_daos.GetLocalVictimCaseForm2EnumsById(&e); err == nil {
 			switch e.VictimCaseForm2EnumsCategory {
-			case "feminicide_risk_form1_financially_dependent_people":
+			case "feminicide_risk_financially_dependent_people":
 				feminicideRiskForm1.FeminicideRiskForm1FinanciallyDependentPeople = append(feminicideRiskForm1.FeminicideRiskForm1FinanciallyDependentPeople, e)
 			}
 		}
@@ -1364,7 +1373,7 @@ func loadFeminicideRiskEnumsMultiple(feminicideRiskForm1 *salvia_daos.Feminicide
 	for _, e := range enums {
 		if err = salvia_daos.GetLocalVictimCaseForm2EnumsById(&e); err == nil {
 			switch e.VictimCaseForm2EnumsCategory {
-			case "feminicide_risk_form1_places_visit_regularly":
+			case "feminicide_risk_places_visit_regularly":
 				feminicideRiskForm1.FeminicideRiskForm1PlacesVisitRegularly = append(feminicideRiskForm1.FeminicideRiskForm1PlacesVisitRegularly, e)
 			}
 		}

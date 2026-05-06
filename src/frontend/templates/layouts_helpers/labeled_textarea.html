@@ -1,5 +1,11 @@
 <label class= "{{.TextAreaLabelClass}}" for="{{.TextAreaId}}">{{.TextAreaLabel}} <span v-if="{{.Mandatory}}" class="mandatory">*</span></label>
 <div :class="errors.{{.EntityName}}&&errors.{{.EntityName}}.{{.EntityAttr}} ? '{{.TextAreaErrorClass}}' : ''">
-    <textarea v-model="{{.EntityPath}}.{{.EntityName}}.{{.EntityAttr}}" rows="{{.TextAreaRows}}" class="{{.TextAreaClass}}" id="{{.TextAreaId}}" placeholder="{{.TextAreaPlaceHolder}}"></textarea>
+    <textarea v-model="{{.EntityPath}}.{{.EntityName}}.{{.EntityAttr}}" rows="{{.TextAreaRows}}" class="{{.TextAreaClass}}" id="{{.TextAreaId}}" placeholder="{{.TextAreaPlaceHolder}}"
+        :aria-invalid="errors.{{.EntityName}} && errors.{{.EntityName}}.{{.EntityAttr}} ? 'true' : 'false'"
+        :aria-describedby="errors.{{.EntityName}} && errors.{{.EntityName}}.{{.EntityAttr}} ? '{{.ErrorSpanId}}' : null"
+        data-entity="{{.EntityName}}"
+        data-field="{{.EntityAttr}}"
+        data-label="{{.TextAreaLabel}}">
+    </textarea>
     <span v-if="errors.{{.EntityName}}&&errors.{{.EntityName}}.{{.EntityAttr}}" id="{{.ErrorSpanId}}" class="error_label">${errors.{{.EntityName}}.{{.EntityAttr}}}</span>
 </div>

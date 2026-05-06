@@ -2,6 +2,8 @@
   <div class="row justify-content-center">
     <div class="col-lg-12">
       <div id="alert" v-if="errors.default&&errors.default.global_msg" class="alert alert-danger alert-dismissible">${errors.default.global_msg}</div>
+      <div id="global-errors-live" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+      
       <div class="step-container active" id="step-container1">
         
         <div class="tituloform">
@@ -1019,6 +1021,18 @@
           </div>
         </div>
         
+        <div class="tituloform">
+            <i class="fas fa-bolt fa-2x"></i>
+            <h2>{{ template "text_translated.html" Text `{"text":"victim_case_form2_easy_report"}` .lang .locale}}</h2>
+          </div>
+          <div class="row">
+            <div class="col-sm-12">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,  "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",  
+              "selectId":"victim_case_form2_allows_easy_report", "errorSpanId":"victim_case_form2_allows_easy_report_error", 
+              "selectLabel":"victim_case_form2_allows_easy_report", "selectPlaceHolder":"victim_case_form2_allows_easy_report_h", 
+              "entityPath":"data.victimCase", "entityName":"form2", "entityAttr":"allowsEasyReport", "enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang  .locale}}
+            </div>
+          </div>
         
       </div>
         
@@ -1160,7 +1174,7 @@
                 riskLevelCSS:{"1":"riesgo_bajo", "2":"riesgo_moderado", "3":"riesgo_alto", "4":"riesgo_extremo"},
                 //New form ----------
                 yes_no: {{.yes_no}},
-                docType:{{.docType}},
+                docType2:{{.docType2}},
                 victim_case_form2_victim_doc_type:{{.docType}},
                 victim_case_form2_facts_zone:{{.factsZone}},
                 victim_case_form2_scenario_violence:{{.scenarioViolence}},
@@ -1614,6 +1628,48 @@
                   return enums[idx];
                 }
               }
+            }
+          },
+          watch: {//Soporte para el lector de pantallas para que lea los errores
+            errors: {
+              handler(newErrors) {
+                if (!newErrors) return;
+
+                this.$nextTick(() => {
+
+                  const mensajes = [];
+
+                  Object.keys(newErrors).forEach(entidad => {
+                    Object.keys(newErrors[entidad]).forEach(campo => {
+
+                      const input = document.querySelector(
+                        `[data-entity="${entidad}"][data-field="${campo}"]`
+                      );
+
+                      let label = campo;
+
+                      if (input) {
+                        label = input.getAttribute("data-label") || campo;
+                      }
+
+                      const error = newErrors[entidad][campo];
+                      if(campo!="global_msg" && campo!="default"){ //Ignoramos el error genérico que viene para poner la lista concreta nada más.
+                        mensajes.push(`${label}: ${error}`);
+                      }
+                    });
+                  });
+
+                  const live = document.getElementById("global-errors-live");
+
+                  if (live && mensajes.length > 0) {
+                    live.textContent =
+                      `El formulario tiene ${mensajes.length} errores. ` +
+                      mensajes.join(". ");
+                  }
+
+                });
+              },
+              deep: true
             }
           }
         });

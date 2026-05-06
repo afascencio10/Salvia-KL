@@ -1020,7 +1020,7 @@ func validateStringSize(fields map[string]FieldDefinition, fieldName string, val
 func validateIntSize(fields map[string]FieldDefinition, fieldName string, value int64, isRequired bool, errors map[string]map[string]string, entity string, jsonName string, config map[string]map[string]string) bool {
 	var empty int64
 
-	if empty == value && !isRequired {
+	if empty == value && (!isRequired || value == fields[fieldName].MinSize) {
 		return true
 	}
 
@@ -1047,7 +1047,7 @@ func validateIntSize(fields map[string]FieldDefinition, fieldName string, value 
 func validateFloatSize(fields map[string]FieldDefinition, fieldName string, value float64, isRequired bool, errors map[string]map[string]string, entity string, jsonName string, config map[string]map[string]string) bool {
 	var empty float64
 
-	if empty == value && !isRequired {
+	if empty == value && (!isRequired || value == float64(fields[fieldName].MinSize)) {
 		return true
 	}
 
@@ -1073,7 +1073,7 @@ func validateFloatSize(fields map[string]FieldDefinition, fieldName string, valu
 func validateUintSize(fields map[string]FieldDefinition, fieldName string, value uint64, isRequired bool, errors map[string]map[string]string, entity string, jsonName string, config map[string]map[string]string) bool {
 	var empty uint64
 
-	if empty == value && !isRequired {
+	if empty == value && (!isRequired || value == uint64(fields[fieldName].MinSize)) {
 		return true
 	}
 

@@ -3,6 +3,8 @@
   <div class="row justify-content-center">
     <div class="col-lg-12">
       <div id="alert" v-if="errors.default&&errors.default.global_msg" class="alert alert-danger alert-dismissible">${errors.default.global_msg}</div>
+      <div id="global-errors-live" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+
       <div class="step-container active" id="step-container1">
         
         <div class="tituloform">
@@ -146,23 +148,20 @@
             "enumsAttr":"occurrence"}` .lang .locale}}
           </div>
           <div class="col-sm-3 mb-3">
-            {{ template "labeled_input.html" Input `{"class":"form-control", "mandatory":true,
-            "errorClass":"form-control is-invalid", "inputId":"facts_start_time",
-            "inputType":"time", "errorSpanId":"facts_start_time_error",
-            "inputLabel":"facts_start_time", "inputPlaceHolder":"facts_start_time_h",
-            "entityPath":"res.victimCase", "entityName":"form", "entityAttr":"factsStartTime"}`
-            .lang .locale}}
+            {{ template "date_time.html" DateTime `{"class":"", "mandatory":true,
+              "errorClass":"error_input", "dateTimeId":"facts_start_time",
+              "dateTimeFormat":"hh:mm", "errorSpanId":"facts_start_time_error", "dateTimeLabel":"facts_start_time",
+              "dateTimePlaceHolder":"facts_start_time_h", "entityPath":"res.victimCase",
+              "entityName":"form","entityAttr":"factsStartTime"}` .lang .locale}}
           </div>
         </div>
         <div class="row">
-          
           <div class="col-sm-3 mb-3">
-            {{ template "labeled_input.html" Input `{"class":"form-control", "mandatory":true,
-            "errorClass":"form-control is-invalid", "inputId":"facts_end_time",
-            "inputType":"time", "errorSpanId":"facts_end_time_error",
-            "inputLabel":"facts_end_time", "inputPlaceHolder":"facts_end_time_h",
-            "entityPath":"res.victimCase", "entityName":"form", "entityAttr":"factsEndTime"}`
-            .lang .locale}}
+            {{ template "date_time.html" DateTime `{"class":"", "mandatory":true,
+              "errorClass":"error_input", "dateTimeId":"facts_end_time",
+              "dateTimeFormat":"hh:mm", "errorSpanId":"facts_end_time_error", "dateTimeLabel":"facts_end_time",
+              "dateTimePlaceHolder":"facts_end_time_h", "entityPath":"res.victimCase",
+              "entityName":"form","entityAttr":"factsEndTime"}` .lang .locale}}
           </div>
           <div class="col-sm-3 mb-3">
             {{ template "labeled_select_enums.html" Select `{"multiple":false, "emptyLabel":"set_victim_case_empty_select", "emptyValue":"", "containerClass":"form-group", "mandatory":true,
@@ -719,6 +718,9 @@
         
         var home = Vue.createApp({
           delimiters : ['${', '}'],
+          components: {
+            DateTimeInput
+          },
           data() {
             return {
               windowTitle:{{.windowTitle}},
@@ -962,6 +964,48 @@
             },
             logout(){
                 logout("/seguridad/logout");
+            }
+          },
+          watch: {//Soporte para el lector de pantallas para que lea los errores
+            errors: {
+              handler(newErrors) {
+                if (!newErrors) return;
+
+                this.$nextTick(() => {
+
+                  const mensajes = [];
+
+                  Object.keys(newErrors).forEach(entidad => {
+                    Object.keys(newErrors[entidad]).forEach(campo => {
+
+                      const input = document.querySelector(
+                        `[data-entity="${entidad}"][data-field="${campo}"]`
+                      );
+
+                      let label = campo;
+
+                      if (input) {
+                        label = input.getAttribute("data-label") || campo;
+                      }
+
+                      const error = newErrors[entidad][campo];
+                      if(campo!="global_msg" && campo!="default"){ //Ignoramos el error genérico que viene para poner la lista concreta nada más.
+                        mensajes.push(`${label}: ${error}`);
+                      }
+                    });
+                  });
+
+                  const live = document.getElementById("global-errors-live");
+
+                  if (live && mensajes.length > 0) {
+                    live.textContent =
+                      `El formulario tiene ${mensajes.length} errores. ` +
+                      mensajes.join(". ");
+                  }
+
+                });
+              },
+              deep: true
             }
           }
         });

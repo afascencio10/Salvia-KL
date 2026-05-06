@@ -33,6 +33,7 @@ var Locale = map[string]map[string]string{
 
 		"salvia_global_error": "Se presentaron los siguientes errores",
 		"permission_denied":   "No tiene autorización para realizar esta operación",
+		"common_global_error": "Se presentaron los siguientes errores",
 
 		//Menu
 
@@ -46,6 +47,9 @@ var Locale = map[string]map[string]string{
 		"menu_tool_get_case_alerts":       " Ver alertas",
 		"menu_tool_new_victim_case":       " Crear caso",
 		"menu_tool_get_case_logs":         "Ver logs",
+
+		"menu_tool_get_feminicide_risk_case":    "Ver caracterización",
+		"menu_tool_update_feminicide_risk_case": "Actualizar caracterización",
 
 		"get_alert_window_title":          "Alertas",
 		"assign_operators_window_title":   "Asignar operadores",
@@ -298,6 +302,7 @@ var Locale = map[string]map[string]string{
 		"victim_contact_new_case":                   "Crear caso",
 		"set_victim_case_empty_select":              "",
 		"set_victim_contact_empty_select":           "",
+		"victim_case_form2_empty_select":            "",
 
 		"report_victim_case_back":   "Atrás",
 		"report_victim_case_back_h": "Haga click para regresar",
@@ -346,6 +351,7 @@ var Locale = map[string]map[string]string{
 		"empty_victim_contacts_search": "No hay reportes de primer contacto para mostrar",
 
 		//FollowUp
+		"follow_up_entry_acting_description_h":             "Escriba una descripción de la actividad",
 		"follow_up_creation_date":                          "Fecha de creación",
 		"follow_up_update_date":                            "Fecha de última modificación",
 		"set_follow_up_empty_select":                       "",
@@ -483,6 +489,8 @@ var Locale = map[string]map[string]string{
 		"victim_case_form2_personal_data_header": "Datos personales",
 		"victim_case_form2_support_header":       "Contacto de apoyo o de emergencia",
 		"victim_case_form2_service_header":       "Atención",
+		"victim_case_form2_easy_report":          "Denuncia fácil o denuncia virtual",
+		"victim_case_form2_allows_easy_report_h": "Indique si desea denuncia fácil o denuncia virtual",
 		"victim_case_form2_risk_score":           "Cálculo de riesgo",
 		"victim_case_form2_risk_level":           "Ponderación de riesgo",
 
@@ -701,6 +709,12 @@ var Locale = map[string]map[string]string{
 
 		"victim_case_form2_residence_zone":            "¿En qué zona se encuentra su lugar de residencia?",
 		"victim_case_form2_residence_zone_h":          "Por favor ingrese la zona de residencia",
+		"get_victim_case_residence_department":        "¿En qué departamento se encuentra su lugar de residencia?",
+		"get_victim_case_residence_department_h":      "Por favor ingrese el departamento de residencia",
+		"get_victim_case_residence_city":              "¿En qué ciudad se encuentra su lugar de residencia?",
+		"get_victim_case_residence_city_h":            "Por favor ingrese la ciudad de residencia",
+		"get_victim_case_residence_town":              "¿En qué municipio se encuentra su lugar de residencia?",
+		"get_victim_case_residence_town_h":            "Por favor ingrese el municipio de residencia",
 		"victim_case_form2_residence_address":         "¿Cuál es la dirección de su lugar de residencia?",
 		"victim_case_form2_residence_address_h":       "Por favor ingrese la Dirección",
 		"victim_case_form2_support_contact_names":     "¿Podría indicarme el nombre de una persona de contacto de apoyo o emergencia en Colombia?",
@@ -734,8 +748,18 @@ var Locale = map[string]map[string]string{
 		"victim_case_form2_report_type_v": "Usted es la víctima de violencia basada en género",
 		"victim_case_form2_report_type_r": "Usted quiere reportar un hecho de violencia basada en género experimentado por otra persona",
 
+		"victim_case_form2_report_type_details":   "Usted es una persona",
+		"victim_case_form2_report_type_details_h": "Indique si usted es una persona",
+
+		"victim_case_form2_report_type_details_ae": "Educadora par ASP",
+		"victim_case_form2_report_type_details_et": "Enlace Territorial Salvia",
+		"victim_case_form2_report_type_details_ex": "Persona Servidora MIyE externa a Salvia",
+		"victim_case_form2_report_type_details_ot": "Otra",
+		"victim_case_form2_report_type_details_an": "Anónima",
+
 		"victim_case_form2_enums_not_found":          "Por favor escoja una opción",
 		"feminicide_form2_enums_not_found":           "Por favor escoja una opción",
+		"feminicide_risk_form1_enums_not_found":      "Por favor escoja una opción",
 		"victim_case_form2_enums_multiple_not_found": "Por favor escoja una o más opciones",
 		"feminicide_form1_enums_multiple_not_found":  "Por favor escoja una o más opciones",
 
@@ -754,7 +778,7 @@ var Locale = map[string]map[string]string{
 		"victim_case_form2_victim_doc_type_ps": "Pasaporte",
 		"victim_case_form2_victim_doc_type_pp": "Permiso Especial de Permanencia (PEP)",
 		"victim_case_form2_victim_doc_type_pf": "Permiso Especial de Permanencia para el Fomento de la Formalización (PEP FF)",
-		"victim_case_form2_victim_doc_type_pt": "Permiso por Protección Temporal",
+		"victim_case_form2_victim_doc_type_pt": "Permiso de Protección Temporal",
 		"victim_case_form2_victim_doc_type_si": "Persona sin identificación",
 		"victim_case_form2_victim_doc_type_rc": "Registro Civil de Nacimiento",
 		"victim_case_form2_victim_doc_type_sc": "Salvoconducto",
@@ -798,6 +822,7 @@ var Locale = map[string]map[string]string{
 		"victim_case_form2_scenario_violence_vp": "Vehículo servicio público",
 		"victim_case_form2_scenario_violence_vi": "Vivienda",
 		"victim_case_form2_scenario_violence_za": "Zonas de actividades agropecuarias",
+		"victim_case_form2_scenario_violence_ot": "Otro",
 
 		// victim_case_form2_recurrence_aggression
 		"victim_case_form2_recurrence_aggression_pr": "Es la primera vez que la agrede",
@@ -1571,7 +1596,56 @@ var Locale = map[string]map[string]string{
 		"victim_case_form2_action_plan_rm": "Remisión a Equipo de Masculinidades",
 		"victim_case_form2_action_plan_ga": "Gestión de Barreras y Alertas",
 
+		"victim_case_form2_allows_easy_report": "¿Usted permitiría que el Sistema SALVIA realice el proceso de denuncia fácil ante la Fiscalia General de la Nación (FGN)?",
 		//Formularios de feminicidio
+
+		//Riesgo de feminicdio
+
+		"empty_eminicide_risks_search":                      "No hay reportes",
+		"feminicide_risk_save":                              "Guardar",
+		"feminicide_risk_save_h":                            "Haga click para guardar",
+		"feminicide_risk_update":                            "Actualizar",
+		"feminicide_risk_update_h":                          "Haga click para ctualizar",
+		"feminicide_risk_back":                              "Atrás",
+		"feminicide_risk_back_h":                            "Haga click para salir sin guardar",
+		"feminicide_risk_form1_victim_sgsss_affiliation_su": "Subsidiado",
+		"feminicide_risk_form1_victim_sgsss_affiliation_co": "Contributivo",
+		"feminicide_risk_form1_victim_sgsss_affiliation_re": "Régimen de excepción/especial",
+		"feminicide_risk_form1_victim_sgsss_affiliation_na": "No asegurado",
+
+		"feminicide_risk_form1_victim_disability_type_df": "Discapacidad Física",
+		"feminicide_risk_form1_victim_disability_type_ds": "Discapacidad Sensorial",
+		"feminicide_risk_form1_victim_disability_type_da": "Discapacidad Auditiva",
+		"feminicide_risk_form1_victim_disability_type_dv": "Discapacidad Visual",
+		"feminicide_risk_form1_victim_disability_type_so": "Sordoceguera",
+		"feminicide_risk_form1_victim_disability_type_di": "Discapacidad Intelectual/Cognitiva",
+		"feminicide_risk_form1_victim_disability_type_dm": "Discapacidad Mental/Psicosocisocial",
+		"feminicide_risk_form1_victim_disability_type_mu": "Multiple",
+
+		"feminicide_risk_financially_dependent_people_gs": "Gestantes",
+		"feminicide_risk_financially_dependent_people_lc": "Lactantes",
+		"feminicide_risk_financially_dependent_people_m5": "Menores de 5 años",
+		"feminicide_risk_financially_dependent_people_pd": "Personas con discapacidad",
+		"feminicide_risk_financially_dependent_people_pm": "Persona Mayor",
+		"feminicide_risk_financially_dependent_people_ot": "Otro",
+
+		"feminicide_risk_victim_common_transport_mode_tr": "Terrestre ",
+		"feminicide_risk_victim_common_transport_mode_fl": "Fluvial",
+		"feminicide_risk_victim_common_transport_mode_ae": "Aéreo",
+		"feminicide_risk_victim_common_transport_mode_mx": "Mixto",
+
+		"feminicide_risk_places_visit_regularly_ec": "Escuela o colegio",
+		"feminicide_risk_places_visit_regularly_cs": "Centro de salud u hospital",
+		"feminicide_risk_places_visit_regularly_fo": "Fiscalía u otras entidades judiciales",
+		"feminicide_risk_places_visit_regularly_cf": "Comisaría de familia",
+		"feminicide_risk_places_visit_regularly_lt": "Lugar de trabajo",
+		"feminicide_risk_places_visit_regularly_ot": "Otro",
+
+		"feminicide_risk_victim_food_access_frequency_fm": "Siempre",
+		"feminicide_risk_victim_food_access_frequency_cs": "Casi siempre",
+		"feminicide_risk_victim_food_access_frequency_av": "Algunas veces",
+		"feminicide_risk_victim_food_access_frequency_nc": "Nunca",
+
 		//Feminicide
 		"feminicide_victim_header":          "Datos de la victima de feminicidio",
 		"feminicide_informant_header":       "Inforamcion del familiar o persona que suministra información de la victima de Feminicidio",
@@ -1607,6 +1681,8 @@ var Locale = map[string]map[string]string{
 		"feminicide_risk_form1_header":              "Caracterización para la identificación de necesidades de medidas de emergencia de mujeres en riesgo de feminicidio",
 
 		//FeminicideRiskForm1
+		"feminicide_risk_interview_date":        "Fecha de la entrevista",
+		"feminicide_risk_interview_date_h":      "DD/MM/AA",
 		"feminicide_risk_victim_names":          "Nombres",
 		"feminicide_risk_victim_names_h":        "Por favor ingrese los nombres",
 		"feminicide_risk_victim_last_names":     "Apellidos",
@@ -1752,8 +1828,8 @@ var Locale = map[string]map[string]string{
 		"feminicide_risk_form1_any_help_womens_office_h": "Indique si ha recibido ayuda de la secretaria u oficina de la mujer",
 		"feminicide_risk_form1_any_help_other_entity":    "Otra entidad no estatal",
 		"feminicide_risk_form1_any_help_other_entity_h":  "Indique si ha recibido ayuda de otra entidad no estatal",
-		"feminicide_risk_form1_any_help_other":           "¿Cuál?",
-		"feminicide_risk_form1_any_help_other_h":         "Indique cuál entidad",
+		"feminicide_risk_form1_any_help_other":           "Otra",
+		"feminicide_risk_form1_any_help_other_h":         "Otra entidad",
 		"feminicide_risk_form1_family_members_label":     "Miembros que  integra su  familia (con quienes convive)/Edad",
 		"feminicide_risk_form1_family_mother":            "Madre",
 		"feminicide_risk_form1_family_mother_h":          "Indique la edad de la Madre",

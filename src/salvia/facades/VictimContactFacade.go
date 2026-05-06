@@ -248,23 +248,24 @@ func VictimContactPOST_GET(c *gin.Context) {
 	// Renderizar la plantilla HTML para el formulario de contacto de víctima, pasando datos de configuración y navegación.
 	common_routers.RenderTemplate(c, salvia_daos.VictimContactEntityName, "salvia", "victim_contact/", salvia_config.HTML_Templates, "set_victim_contact", utils.GetFullHtmlTemplates(), utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
 		map[string]interface{}{
-			"windowTitle":               salvia_config.Locale["sp"]["set_victim_contact_window_title"],
-			"currentUser":               s.Names + " " + s.LastNames,
-			"gender":                    common_config.GENDER_IDENTITY,
-			"docType":                   common_config.DOCUMENT_TYPE,
-			"livingZone":                salvia_config.LIVING_ZONES,
-			"genderIdentity":            common_config.GENDER_IDENTITY,
-			"sexualOrientation":         salvia_config.SEXUAL_ORIENTATION,
-			"origin":                    salvia_config.ORIGIN_PLACE,
-			"occupation":                salvia_config.OCCUPATION,
-			"language":                  common_config.LANGUAGE,
-			"ethnicGroup":               salvia_config.ETHNIC_GROUP,
-			"locale":                    salvia_config.Locale,
-			"lang":                      s.Lang,
-			"yes_no":                    salvia_daos.VictimCaseForm2Enums["yes_no"],
-			"victimCaseForm2ReportType": salvia_daos.VictimCaseForm2Enums["victim_case_form2_report_type"],
-			"formPath":                  salvia_config.FormPaths[s.Lang]["VictimContactPOST_GET"],
-			"nav_rules":                 salvia_config.TranslateNavigationRule(s.Lang, salvia_config.NAVIGATION_RULES["set_victim_contact"]),
+			"windowTitle":                      salvia_config.Locale["sp"]["set_victim_contact_window_title"],
+			"currentUser":                      s.Names + " " + s.LastNames,
+			"gender":                           common_config.GENDER_IDENTITY,
+			"docType":                          common_config.DOCUMENT_TYPE,
+			"livingZone":                       salvia_config.LIVING_ZONES,
+			"genderIdentity":                   common_config.GENDER_IDENTITY,
+			"sexualOrientation":                salvia_config.SEXUAL_ORIENTATION,
+			"origin":                           salvia_config.ORIGIN_PLACE,
+			"occupation":                       salvia_config.OCCUPATION,
+			"language":                         common_config.LANGUAGE,
+			"ethnicGroup":                      salvia_config.ETHNIC_GROUP,
+			"locale":                           salvia_config.Locale,
+			"lang":                             s.Lang,
+			"yes_no":                           salvia_daos.VictimCaseForm2Enums["yes_no"],
+			"victimCaseForm2ReportType":        salvia_daos.VictimCaseForm2Enums["victim_case_form2_report_type"],
+			"victimCaseForm2ReportTypeDetails": salvia_daos.VictimCaseForm2Enums["victim_case_form2_report_type_details"],
+			"formPath":                         salvia_config.FormPaths[s.Lang]["VictimContactPOST_GET"],
+			"nav_rules":                        salvia_config.TranslateNavigationRule(s.Lang, salvia_config.NAVIGATION_RULES["set_victim_contact"]),
 		}, utils.GetFullHtmlFuncMap())
 }
 
@@ -289,16 +290,23 @@ func VictimContactPOST_GET_Public(c *gin.Context) {
 	if v, found := c.Request.Header["Accept"]; found && v[0] == "application/json" {
 
 		type VictimContactForm2 struct {
-			YesNo                     []salvia_daos.VictimCaseForm2EnumsDTO `json:"yesNo"`
-			VictimCaseForm2ReportType []salvia_daos.VictimCaseForm2EnumsDTO `json:"reportType"`
-			CaptchaID                 string                                `json:"captchaID"`
+			YesNo                            []salvia_daos.VictimCaseForm2EnumsDTO `json:"yesNo"`
+			VictimCaseForm2ReportType        []salvia_daos.VictimCaseForm2EnumsDTO `json:"reportType"`
+			VictimCaseForm2ReportTypeDetails []salvia_daos.VictimCaseForm2EnumsDTO `json:"reportTypeDetails"`
+			VictimContactForm2AdjustmentsGBV []salvia_daos.VictimCaseForm2EnumsDTO `json:"adjustmentsGBV"`
+			CaptchaID                        string                                `json:"captchaID"`
 		}
 
 		type VictimContactFields struct {
 			Fields VictimContactForm2 `json:"fields"`
 		}
 
-		var formFields VictimContactForm2 = VictimContactForm2{YesNo: salvia_daos.VictimCaseForm2Enums["yes_no"], VictimCaseForm2ReportType: salvia_daos.VictimCaseForm2Enums["victim_case_form2_report_type"], CaptchaID: captchaID}
+		var formFields VictimContactForm2 = VictimContactForm2{YesNo: salvia_daos.VictimCaseForm2Enums["yes_no"],
+			VictimCaseForm2ReportType:        salvia_daos.VictimCaseForm2Enums["victim_case_form2_report_type"],
+			VictimCaseForm2ReportTypeDetails: salvia_daos.VictimCaseForm2Enums["victim_case_form2_report_type_details"],
+			VictimContactForm2AdjustmentsGBV: salvia_daos.VictimCaseForm2Enums["victim_case_form2_adjustments_gbv"],
+			CaptchaID:                        captchaID}
+
 		var fields VictimContactFields = VictimContactFields{Fields: formFields}
 		fieldsStr, _ := utils.DTOtoString(fields)
 		// Devolver respuesta en formato JSON.
@@ -308,26 +316,28 @@ func VictimContactPOST_GET_Public(c *gin.Context) {
 		// tanto datos de configuración como rutas de formularios para seguridad.
 		common_routers.RenderTemplate(c, salvia_daos.VictimContactEntityName, "salvia", "victim_contact/", salvia_config.HTML_Templates, "set_victim_contact", utils.GetFullHtmlTemplates(), utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
 			map[string]interface{}{
-				"windowTitle":               salvia_config.Locale["sp"]["set_victim_contact_window_title"],
-				"gender":                    common_config.GENDER_IDENTITY,
-				"docType":                   common_config.DOCUMENT_TYPE,
-				"livingZone":                salvia_config.LIVING_ZONES,
-				"genderIdentity":            common_config.GENDER_IDENTITY,
-				"sexualOrientation":         salvia_config.SEXUAL_ORIENTATION,
-				"origin":                    salvia_config.ORIGIN_PLACE,
-				"occupation":                salvia_config.OCCUPATION,
-				"language":                  common_config.LANGUAGE,
-				"locale":                    salvia_config.Locale,
-				"ethnicGroup":               salvia_config.ETHNIC_GROUP,
-				"lang":                      "sp",
-				"yes_no":                    salvia_daos.VictimCaseForm2Enums["yes_no"],
-				"victimCaseForm2ReportType": salvia_daos.VictimCaseForm2Enums["victim_case_form2_report_type"],
-				"CaptchaID":                 captchaID,
-				"formPath":                  salvia_config.FormPaths["sp"]["VictimContactPOST_GET_Public"],
-				"securityCityFormPath":      security_config.FormPaths["sp"]["CityGET_Public"],
-				"securityTownFormPath":      security_config.FormPaths["sp"]["TownGET_Public"],
-				"nav_rules":                 salvia_config.TranslateNavigationRule("sp", salvia_config.NAVIGATION_RULES["set_victim_contact"]),
-				"departments":               departments,
+				"windowTitle":                      salvia_config.Locale["sp"]["set_victim_contact_window_title"],
+				"gender":                           common_config.GENDER_IDENTITY,
+				"docType":                          common_config.DOCUMENT_TYPE,
+				"livingZone":                       salvia_config.LIVING_ZONES,
+				"genderIdentity":                   common_config.GENDER_IDENTITY,
+				"sexualOrientation":                salvia_config.SEXUAL_ORIENTATION,
+				"origin":                           salvia_config.ORIGIN_PLACE,
+				"occupation":                       salvia_config.OCCUPATION,
+				"language":                         common_config.LANGUAGE,
+				"locale":                           salvia_config.Locale,
+				"ethnicGroup":                      salvia_config.ETHNIC_GROUP,
+				"lang":                             "sp",
+				"yes_no":                           salvia_daos.VictimCaseForm2Enums["yes_no"],
+				"victimCaseForm2ReportType":        salvia_daos.VictimCaseForm2Enums["victim_case_form2_report_type"],
+				"victimCaseForm2ReportTypeDetails": salvia_daos.VictimCaseForm2Enums["victim_case_form2_report_type_details"],
+				"adjustmentsGBV":                   salvia_daos.VictimCaseForm2Enums["victim_case_form2_adjustments_gbv"],
+				"CaptchaID":                        captchaID,
+				"formPath":                         salvia_config.FormPaths["sp"]["VictimContactPOST_GET_Public"],
+				"securityCityFormPath":             security_config.FormPaths["sp"]["CityGET_Public"],
+				"securityTownFormPath":             security_config.FormPaths["sp"]["TownGET_Public"],
+				"nav_rules":                        salvia_config.TranslateNavigationRule("sp", salvia_config.NAVIGATION_RULES["set_victim_contact"]),
+				"departments":                      departments,
 			},
 
 			utils.GetFullHtmlFuncMap())

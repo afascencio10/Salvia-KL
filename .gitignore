@@ -10,3 +10,5 @@ src/sessions
 
 # Notas y contexto de FigJam (uso local)
 figjamInfo/
+
+node_modules

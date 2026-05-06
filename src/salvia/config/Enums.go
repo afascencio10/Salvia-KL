@@ -24,6 +24,7 @@ var HTML_Templates map[string]string = map[string]string{
 	"get_victim_case_ro":       "get_victim_case_ro.html",
 	"get_victim_case_ro_v1":    "get_victim_case_ro_v1.html",
 	"get_victim_case_sv":       "get_victim_case_sv.html",
+	"get_victim_case_sv_v1":    "get_victim_case_sv_v1.html",
 	"get_victim_case_no":       "get_victim_case_no.html",
 	"get_victim_case_et":       "get_victim_case_et.html",
 	"get_victim_case_et_v1":    "get_victim_case_et_v1.html",
@@ -49,6 +50,8 @@ var HTML_Templates map[string]string = map[string]string{
 	"hacer_seguimiento":        "hacer_seguimiento.html",
 	"get_follow_up_detail":     "get_follow_up_detail.html",
 	"get_case_detail_sv":       "get_case_detail_sv.html",
+	"get_feminicide_risks":     "get_feminicide_risks.html",
+	"get_feminicide_risk":      "get_feminicide_risk.html",
 }
 
 var FormPaths map[string]map[string]string = map[string]map[string]string{
@@ -102,7 +105,8 @@ var FormPaths map[string]map[string]string = map[string]map[string]string{
 		"FeminicideGET": "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["Feminicide"],
 
 		//FeminicideRisk
-		"FeminicideRiskGET": "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["FeminicideRisk"],
+		"FeminicideRiskGET":  "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["FeminicideRisk"],
+		"FeminicideRiskPOST": "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["FeminicideRisk"],
 	},
 }
 

@@ -80,11 +80,11 @@ var DOCUMENT_TYPE map[string]string = map[string]string{
 	"ps": "Pasaporte",
 	"ni": "NIT",
 	"dn": "DNI - documento identidad extranjero",
-	"no": "NIT de otro país",
+	"np": "NIT de otro país",
 	"rc": "Registro civil",
 	"sc": "Salvoconducto refugiados SVC",
-	"pe": "Permiso especial de permanencia - PEP",
-	"pp": "Permiso de protección temporal",
+	"pp": "Permiso especial de permanencia - PEP",
+	"pt": "Permiso de protección temporal",
 	"sn": "Sin información SN",
 }
 
@@ -108,6 +108,7 @@ var DOCUMENT_TYPE_FORM2 map[string]string = map[string]string{
 	"ti": "Tarjeta Identidad",
 	"vs": "Visa",
 	"vr": "Visa de Refugiado",
+	"np": "NIT de otro país",
 }
 
 var LANGUAGE map[string]string = map[string]string{
