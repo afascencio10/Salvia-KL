@@ -25,6 +25,9 @@ var frontendAssets embed.FS
 
 func main() {
 
+    // Cargar variables de entorno desde .env (solo para desarrollo local; en producción se ignora si no existe)
+    _ = godotenv.Load()
+
     // Definimos todos los archivos estáticos
     utils.ConfigAssets = configAssets
     utils.FrontendAssets = frontendAssets
@@ -57,6 +60,7 @@ func main() {
         &models.PsychosocialSupport{},
         &models.EconomicStabilization{},
         &models.CaseTimelineEvent{},
+        &models.EntityLetter{},
     } {
         if err := gormDB.AutoMigrate(m); err != nil {
             log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -83,6 +87,7 @@ func main() {
     esRepo                 := repository.NewEconomicStabilizationRepository(gormDB)
     agentLightRepo         := repository.NewAgentLightRepository(gormDB)
     caseDetailRepo         := repository.NewCaseDetailRepository(gormDB)
+    entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
 
     // Services
     formSvc := service.NewFormService(service.FormServiceDeps{
@@ -106,6 +111,7 @@ func main() {
     optionSvc             := service.NewOptionService(optionRepo)
     followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo)
     caseDetailSvc         := service.NewCaseDetailService(caseDetailRepo)
+    entityLetterSvc       := service.NewEntityLetterService(entityLetterRepo)
 
     // Inyectar el servicio en el controller legacy para generación automática del calendario
     salvia_legacy.FollowUpSvc = followUpV2Svc
@@ -122,6 +128,7 @@ func main() {
     followUpV2Ctrl         := salvia_ctrl.NewFollowUpV2Controller(followUpV2Svc)
     optionCtrl             := salvia_ctrl.NewOptionController(optionSvc)
     caseDetailCtrl         := salvia_ctrl.NewCaseDetailController(caseDetailSvc)
+    entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
 
     // Routes
     api := router.Group("/api/v1")
@@ -136,6 +143,7 @@ func main() {
     followUpV2Ctrl.RegisterRoutes(api)
     optionCtrl.RegisterRoutes(api)
     caseDetailCtrl.RegisterRoutes(api)
+    entityLetterCtrl.RegisterRoutes(api)
     // ────────────────────────────────────────────────────────────────────────
 
     common_routers.StartRouter()
