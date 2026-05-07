@@ -1,0 +1,45 @@
+{{ define "notifications/modal_corregir.html" }}
+{{/* Modal: Corregir oficio — estado en_correccion
+     Rol habilitado: Agente Seguimiento
+     El agente ajusta el oficio según los comentarios del área jurídica y sube la nueva versión. */}}
+
+<div v-if="showModal && activeModal === 'corregir'" class="nf-modal-overlay" @click.self="closeModal">
+    <div class="nf-modal">
+
+        <div class="nf-modal-header">
+            <h5>Corregir oficio</h5>
+            <button class="nf-modal-close" @click="closeModal">&times;</button>
+        </div>
+
+        <div class="nf-modal-body">
+
+            <p class="nf-modal-desc" v-if="selectedOficio">
+                ${ selectedOficio.title }
+            </p>
+
+            <p class="nf-modal-hint">
+                Marca el oficio como corregido después de ajustar según los comentarios del área jurídica.
+            </p>
+
+            <div class="nf-modal-form-group">
+                <label class="nf-modal-label">
+                    Ruta del oficio en el Kofax <span class="nf-required">*</span>
+                </label>
+                <input
+                    v-model="modalForm.kofaxPath"
+                    type="text"
+                    class="form-control nf-modal-input"
+                    placeholder="Ej: Oficios/2026/Vacaciones/OF-062">
+            </div>
+
+            <div class="nf-modal-footer">
+                <button class="btn nf-btn-modal-cancel" @click="closeModal">Cancelar</button>
+                <button class="btn nf-btn-modal-primary" @click="submitModal('corregir')">
+                    Marcar oficio como corregido
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+{{ end }}

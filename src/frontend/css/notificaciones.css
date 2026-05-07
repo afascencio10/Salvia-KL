@@ -1,0 +1,686 @@
+/* ====================================================================
+   NOTIFICACIONES SALVIA — Pantalla de Oficios (EntityLetter)
+   Prefijo: nf-  (notification-specific, evita colisión con styles.css)
+   ==================================================================== */
+
+/* ---- Contenedor principal ---- */
+.nf-container {
+    padding-top: 10px;
+    padding-bottom: 40px;
+}
+
+/* ---- Encabezado de página ---- */
+.nf-header {
+    background-color: #F6F5F7;
+    border-radius: 15px;
+    padding: 20px 24px;
+    margin: 20px 0 16px;
+}
+
+.nf-header h2 {
+    margin: 0 0 4px;
+    font-size: 1.4rem;
+    color: #1a1a1a;
+}
+
+.nf-header-subtitle {
+    margin: 0;
+    color: #777;
+    font-size: 0.875rem;
+}
+
+/* ---- Tabs ---- */
+.nf-tabs-wrapper {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.nf-tab {
+    padding: 8px 20px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background: #fff;
+    color: #555;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Nunito Sans', sans-serif;
+}
+
+.nf-tab.active {
+    background: #5106A7;
+    color: #fff;
+    border-color: #5106A7;
+}
+
+.nf-tab:hover:not(.active) {
+    border-color: #c4b5fd;
+    color: #5106A7;
+}
+
+.nf-tab-badge {
+    background: rgba(0, 0, 0, 0.12);
+    color: #555;
+    border-radius: 12px;
+    padding: 1px 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.6;
+}
+
+.nf-tab.active .nf-tab-badge {
+    background: rgba(255, 255, 255, 0.28);
+    color: #fff;
+}
+
+/* ---- Barra de filtros ---- */
+.nf-filters {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    display: grid;
+    grid-template-columns: 1.3fr 1fr 1fr 1fr;
+    gap: 16px;
+    align-items: end;
+}
+
+.nf-filter-group label {
+    display: block;
+    font-size: 0.78rem;
+    color: #777;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.nf-filter-input {
+    font-size: 0.85rem !important;
+    border-radius: 6px !important;
+    border: 1px solid #dee2e6 !important;
+    color: #333 !important;
+    padding: 7px 10px !important;
+    height: auto !important;
+    min-height: unset !important;
+}
+
+.nf-filter-input:focus {
+    border-color: #a78bfa !important;
+    box-shadow: 0 0 0 2px rgba(81, 6, 167, 0.12) !important;
+    outline: none;
+}
+
+/* ---- Tabla de oficios ---- */
+.nf-table-wrapper {
+    border: 1px solid #e8e8e8;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.nf-table-header {
+    display: grid;
+    grid-template-columns: 21% 24% 1fr;
+    background: #fafafa;
+    border-bottom: 2px solid #eeeeee;
+    padding: 10px 20px;
+    gap: 16px;
+}
+
+.nf-table-header > div {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #5106A7;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+}
+
+.nf-row {
+    display: grid;
+    grid-template-columns: 21% 24% 1fr;
+    padding: 16px 20px;
+    border-bottom: 1px solid #f2f2f2;
+    gap: 16px;
+    align-items: start;
+    transition: background 0.15s;
+}
+
+.nf-row:last-child {
+    border-bottom: none;
+}
+
+.nf-row:hover {
+    background: #fdf8ff;
+}
+
+/* ---- Columna CASO ---- */
+.nf-caso-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #1a1a1a;
+    margin-bottom: 3px;
+    line-height: 1.3;
+}
+
+.nf-caso-code {
+    font-size: 0.77rem;
+    color: #999;
+    margin-bottom: 8px;
+    letter-spacing: 0.01em;
+}
+
+.nf-prioridad-tag {
+    display: inline-block;
+    padding: 2px 12px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.nf-prioridad-alto {
+    background-color: #FFE0D0;
+    border: 1px solid #DD736A;
+    color: #c0402e;
+}
+
+.nf-prioridad-critico,
+.nf-prioridad-crítico {
+    background-color: #FFAFAF;
+    border: 1px solid #A31616;
+    color: #A31616;
+}
+
+.nf-link {
+    display: inline-block;
+    font-size: 0.8rem;
+    color: #5106A7;
+    text-decoration: none;
+    font-weight: 500;
+    margin-top: 4px;
+}
+
+.nf-link:hover {
+    color: #3d0080;
+    text-decoration: underline;
+}
+
+/* ---- Columna BARRERA ---- */
+.nf-sectors-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 7px;
+}
+
+.nf-sector-tag {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+/* Colores por sector */
+.nf-sector-justicia {
+    background: #ede9fe;
+    color: #5106A7;
+    border: 1px solid #c4b5fd;
+}
+
+.nf-sector-policia-nacional,
+.nf-sector-policía-nacional {
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #6ee7b7;
+}
+
+.nf-sector-fiscalía,
+.nf-sector-fiscalia {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+}
+
+.nf-sector-salud {
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #93c5fd;
+}
+
+.nf-sector-vivienda {
+    background: #fce7f3;
+    color: #9d174d;
+    border: 1px solid #f9a8d4;
+}
+
+.nf-sector-educacion,
+.nf-sector-educación {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #6ee7b7;
+}
+
+.nf-barrera-org {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 3px;
+}
+
+.nf-barrera-desc {
+    font-size: 0.8rem;
+    color: #777;
+    margin-bottom: 4px;
+    line-height: 1.35;
+}
+
+/* ---- Columna INFORMACIÓN DEL OFICIO ---- */
+.nf-info-badges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.nf-status-tag {
+    display: inline-block;
+    padding: 3px 13px;
+    border-radius: 20px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.nf-status-para_revisar {
+    background: #ccfbf1;
+    color: #0f766e;
+    border: 1px solid #5eead4;
+}
+
+.nf-status-en_correccion {
+    background: #fef9c3;
+    color: #854d0e;
+    border: 1px solid #fde047;
+}
+
+.nf-status-para_radicar {
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #93c5fd;
+}
+
+.nf-status-radicado {
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #6ee7b7;
+}
+
+.nf-btn-gestionar {
+    background: #5106A7 !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 3px 14px !important;
+    font-size: 0.76rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    line-height: 1.6 !important;
+    min-height: unset !important;
+    width: auto !important;
+    margin: 0 !important;
+    font-family: 'Nunito Sans', sans-serif !important;
+    transition: background 0.2s !important;
+}
+
+.nf-btn-gestionar:hover {
+    background: #3d0080 !important;
+    color: #fff !important;
+}
+
+.nf-info-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 8px;
+    line-height: 1.35;
+}
+
+.nf-info-meta-row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 2px;
+}
+
+.nf-meta-item {
+    font-size: 0.77rem;
+    color: #aaa;
+}
+
+.nf-meta-val {
+    color: #666;
+    font-weight: 500;
+}
+
+.nf-meta-prioridad-alto,
+.nf-meta-prioridad-alta {
+    color: #d97706;
+    font-weight: 700;
+}
+
+.nf-meta-prioridad-critico,
+.nf-meta-prioridad-crítico {
+    color: #dc2626;
+    font-weight: 700;
+}
+
+.nf-meta-correo {
+    font-size: 0.77rem;
+    color: #aaa;
+    margin-top: 2px;
+}
+
+.nf-meta-correo span {
+    color: #666;
+}
+
+/* ---- Estado vacío ---- */
+.nf-empty-state {
+    padding: 48px 20px;
+    text-align: center;
+    color: #aaa;
+    font-size: 0.9rem;
+}
+
+.nf-empty-state i {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    display: block;
+    color: #d0b8f0;
+}
+
+/* ---- Modal Gestionar ---- */
+.nf-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nf-modal {
+    background: #fff;
+    border-radius: 14px;
+    padding: 28px;
+    min-width: 480px;
+    max-width: 680px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+    animation: nf-modal-in 0.18s ease;
+}
+
+@keyframes nf-modal-in {
+    from { transform: translateY(-16px); opacity: 0; }
+    to   { transform: translateY(0);     opacity: 1; }
+}
+
+.nf-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #eeeeee;
+}
+
+.nf-modal-header h5 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
+.nf-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.15s;
+}
+
+.nf-modal-close:hover {
+    color: #333;
+}
+
+.nf-modal-body {
+    color: #555;
+    font-size: 0.9rem;
+}
+
+/* ---- Formulario interior de modales ---- */
+.nf-modal-desc {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 4px;
+    line-height: 1.4;
+}
+
+.nf-modal-hint {
+    font-size: 0.82rem;
+    color: #888;
+    margin-bottom: 16px;
+    line-height: 1.4;
+}
+
+.nf-modal-form-group {
+    margin-bottom: 14px;
+}
+
+.nf-modal-label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #444;
+    margin-bottom: 5px;
+}
+
+.nf-required {
+    color: #dc2626;
+    margin-left: 2px;
+}
+
+.nf-modal-input {
+    font-size: 0.875rem !important;
+    border-radius: 7px !important;
+    border: 1px solid #dee2e6 !important;
+    color: #333 !important;
+    padding: 8px 11px !important;
+    height: auto !important;
+    min-height: unset !important;
+    transition: border-color 0.15s, box-shadow 0.15s !important;
+}
+
+.nf-modal-input:focus {
+    border-color: #a78bfa !important;
+    box-shadow: 0 0 0 3px rgba(81, 6, 167, 0.1) !important;
+    outline: none !important;
+}
+
+.nf-modal-form-row {
+    margin-bottom: 0;
+}
+
+.nf-two-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+/* ---- Cajas informativas dentro de modales ---- */
+.nf-modal-info-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 11px 14px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    margin-bottom: 16px;
+    line-height: 1.45;
+}
+
+.nf-modal-info-box i {
+    flex-shrink: 0;
+    margin-top: 2px;
+    font-size: 0.9rem;
+}
+
+.nf-info-amber {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+}
+
+.nf-info-amber i {
+    color: #d97706;
+}
+
+.nf-info-red {
+    background: #fff1f2;
+    border: 1px solid #fecdd3;
+    color: #9f1239;
+}
+
+.nf-info-red i {
+    color: #e11d48;
+}
+
+/* ---- Footer de modales ---- */
+.nf-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #f0f0f0;
+}
+
+.nf-btn-modal-cancel {
+    background: #fff !important;
+    color: #555 !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 8px !important;
+    padding: 7px 20px !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    font-family: 'Nunito Sans', sans-serif !important;
+    transition: background 0.15s, border-color 0.15s !important;
+    min-height: unset !important;
+    width: auto !important;
+}
+
+.nf-btn-modal-cancel:hover {
+    background: #f9fafb !important;
+    border-color: #9ca3af !important;
+    color: #333 !important;
+}
+
+.nf-btn-modal-primary {
+    background: #5106A7 !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 7px 20px !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    font-family: 'Nunito Sans', sans-serif !important;
+    transition: background 0.2s !important;
+    min-height: unset !important;
+    width: auto !important;
+}
+
+.nf-btn-modal-primary:hover {
+    background: #3d0080 !important;
+    color: #fff !important;
+}
+
+/* Nuevos estados de badge */
+.nf-status-por_proyectar {
+    background: #f3e8ff;
+    color: #6b21a8;
+    border: 1px solid #d8b4fe;
+}
+
+.nf-status-aprobacion_juridica {
+    background: #fdf2f8;
+    color: #9d174d;
+    border: 1px solid #f9a8d4;
+}
+
+/* ---- Paginación (complementa Bootstrap) ---- */
+.nf-pagination-wrapper {
+    margin-top: 20px;
+}
+
+.nf-pagination-wrapper .page-link {
+    color: #5106A7;
+    border-color: #e0e0e0;
+}
+
+.nf-pagination-wrapper .page-item.active .page-link {
+    background-color: #5106A7;
+    border-color: #5106A7;
+    color: #fff;
+}
+
+.nf-pagination-wrapper .page-link:hover {
+    background-color: #ede9fe;
+    color: #5106A7;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 1100px) {
+    .nf-filters {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .nf-table-header {
+        display: none;
+    }
+
+    .nf-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 16px;
+    }
+
+    .nf-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .nf-modal {
+        min-width: unset;
+        margin: 16px;
+    }
+}

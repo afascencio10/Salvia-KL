@@ -1,0 +1,79 @@
+{{ define "notifications/modal_registrar_respuesta.html" }}
+{{/* Modal: Registrar respuesta — estado radicado
+     Rol habilitado: Agente de Notificaciones
+     El agente registra la respuesta recibida por parte de la entidad notificada. */}}
+
+<div v-if="showModal && activeModal === 'registrar_respuesta'" class="nf-modal-overlay" @click.self="closeModal">
+    <div class="nf-modal">
+
+        <div class="nf-modal-header">
+            <h5>Registrar respuesta</h5>
+            <button class="nf-modal-close" @click="closeModal">&times;</button>
+        </div>
+
+        <div class="nf-modal-body">
+
+            <p class="nf-modal-desc" v-if="selectedOficio">
+                ${ selectedOficio.title }
+            </p>
+
+            <p class="nf-modal-hint">
+                Registra la respuesta recibida por parte de la entidad a la que se le envió el oficio.
+            </p>
+
+            <div class="nf-modal-form-row nf-two-cols">
+                <div class="nf-modal-form-group">
+                    <label class="nf-modal-label">
+                        Fecha de respuesta <span class="nf-required">*</span>
+                    </label>
+                    <input
+                        v-model="modalForm.fechaRespuesta"
+                        type="date"
+                        class="form-control nf-modal-input">
+                </div>
+
+                <div class="nf-modal-form-group">
+                    <label class="nf-modal-label">
+                        Correo del remitente <span class="nf-required">*</span>
+                    </label>
+                    <input
+                        v-model="modalForm.correoRemitente"
+                        type="email"
+                        class="form-control nf-modal-input"
+                        :placeholder="selectedOficio ? selectedOficio.correo : 'correo@entidad.gov.co'">
+                </div>
+            </div>
+
+            <div class="nf-modal-form-group">
+                <label class="nf-modal-label">
+                    Asunto de la respuesta <span class="nf-required">*</span>
+                </label>
+                <input
+                    v-model="modalForm.asuntoRespuesta"
+                    type="text"
+                    class="form-control nf-modal-input"
+                    placeholder="Asunto de la respuesta recibida">
+            </div>
+
+            <div class="nf-modal-form-group">
+                <label class="nf-modal-label">
+                    Respuesta recibida por <span class="nf-required">*</span>
+                </label>
+                <input
+                    v-model="modalForm.respuestaRecibidaPor"
+                    type="text"
+                    class="form-control nf-modal-input"
+                    placeholder="Nombre del agente">
+            </div>
+
+            <div class="nf-modal-footer">
+                <button class="btn nf-btn-modal-cancel" @click="closeModal">Cancelar</button>
+                <button class="btn nf-btn-modal-primary" @click="submitModal('registrar_respuesta')">
+                    Registrar respuesta
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+{{ end }}
