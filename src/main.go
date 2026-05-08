@@ -15,6 +15,7 @@ import (
     "log"
 
     "github.com/gin-gonic/gin"
+    "github.com/joho/godotenv"
 )
 
 //go:embed config/*
@@ -91,15 +92,20 @@ func main() {
 
     // Services
     formSvc := service.NewFormService(service.FormServiceDeps{
-        FormRepo:           formRepo,
-        FormSectionRepo:    formSectionRepo,
-        QuestionRepo:       questionRepo,
-        RepeaterGroupRepo:  repeaterGroupRepo,
-        OptionRepo:         optionRepo,
-        VisibilityCondRepo: visibilityCondRepo,
-        FormSubmissionRepo: formSubmissionRepo,
-        RepeaterEntryRepo:  repeaterEntryRepo,
-        AnswerRepo:         answerRepo,
+        FormRepo:                  formRepo,
+        FormSectionRepo:           formSectionRepo,
+        QuestionRepo:              questionRepo,
+        RepeaterGroupRepo:         repeaterGroupRepo,
+        OptionRepo:                optionRepo,
+        VisibilityCondRepo:        visibilityCondRepo,
+        FormSubmissionRepo:        formSubmissionRepo,
+        RepeaterEntryRepo:         repeaterEntryRepo,
+        AnswerRepo:                answerRepo,
+        FollowUpRepo:              followUpRepo,
+        EmergencyMeasureRepo:      emRepo,
+        PsychosocialSupportRepo:   psRepo,
+        EconomicStabilizationRepo: esRepo,
+        BarrierV2Repo:             barrierV2Repo,
     })
     formSectionSvc        := service.NewFormSectionService(formSectionRepo)
     questionSvc           := service.NewQuestionService(questionRepo)

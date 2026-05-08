@@ -257,6 +257,39 @@
         .df-btn-next:hover { background: #6d28d9; border-color: #6d28d9; }
 
         @keyframes df-spin { to { transform: rotate(360deg); } }
+
+        /* ── Validation popup ── */
+        .df-popup-backdrop {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.35);
+            z-index: 100;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .df-popup {
+            background: #fff;
+            border-radius: 12px;
+            padding: 28px 32px;
+            max-width: 360px; width: 90%;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+            display: flex; flex-direction: column; align-items: center; gap: 16px;
+            text-align: center;
+        }
+        .df-popup-icon {
+            width: 44px; height: 44px; border-radius: 50%;
+            background: #fef2f2;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        .df-popup-title {
+            font-size: 15px; font-weight: 600; color: #111827; margin: 0;
+        }
+        .df-popup-btn {
+            padding: 8px 24px; border-radius: 8px;
+            background: #7c3aed; color: #fff;
+            border: none; font-size: 14px; font-weight: 500;
+            cursor: pointer; transition: background 0.15s;
+        }
+        .df-popup-btn:hover { background: #6d28d9; }
     `;
     document.head.appendChild(style);
 })();
@@ -727,6 +760,10 @@ app.component('dinamic-form', {
             currentIndex: 0,
             answers: {},
             sections: DF_SCHEMA,
+
+            // ── Validación ───────────────────────────────────────────────
+            showValidationError: false,
+            repeaterErrors: {},
         };
     },
     computed: {
@@ -993,6 +1030,23 @@ app.component('dinamic-form', {
             this.onAnswer(questionId, this.getLocalAnswer(questionId, entryId), entryId);
         },
 
+        onBlur(questionId, entryId = null) {
+            console.log('[onBlur] questionId:', questionId, '| entryId:', entryId);
+            const question = this._findQuestionInRender(questionId, entryId);
+            console.log('[onBlur] question encontrada:', question);
+            if (!question || !question.required) {
+                console.log('[onBlur] saliendo — no required o no encontrada');
+                return;
+            }
+            const value = this.getLocalAnswer(questionId, entryId);
+            console.log('[onBlur] value:', JSON.stringify(value));
+            if (value === '') {
+                const key = this.answerKey(questionId, entryId);
+                console.log('[onBlur] seteando error en key:', key);
+                this.questionErrors = { ...this.questionErrors, [key]: 'Este campo es requerido' };
+            }
+        },
+
         // Construye un tempSubmission combinando base (sin sección actual) + respuestas actuales
         _buildTempSubmission() {
             const base  = this.submissionWithoutCurrentSection() ?? { directAnswers: [], repeaterEntries: [] };
@@ -1151,6 +1205,12 @@ app.component('dinamic-form', {
                 newAnswers[this.answerKey(q.id, tempId)] = '';
             }
             this.localAnswers = newAnswers;
+
+            const min = item.repeater.minRepetitions || 0;
+            if (min > 0 && item.entries.length >= min) {
+                const { [item.repeater.id]: _, ...rest } = this.repeaterErrors;
+                this.repeaterErrors = rest;
+            }
         },
 
         removeRepeaterEntry(item, entryData) {
@@ -1166,10 +1226,62 @@ app.component('dinamic-form', {
                 if (!k.startsWith(prefix)) cleaned[k] = v;
             }
             this.localAnswers = cleaned;
+
+            const min = item.repeater.minRepetitions || 0;
+            if (min > 0 && item.entries.length < min) {
+                const itemName = item.repeater.itemName || item.repeater.name;
+                this.repeaterErrors = {
+                    ...this.repeaterErrors,
+                    [item.repeater.id]: `Se deben agregar mínimo ${min} ${itemName}`,
+                };
+            }
+        },
+
+        /* ── Validar sección completa antes de guardar ── */
+        validateCurrentSection() {
+            const errors         = {};
+            const repeaterErrors = {};
+            let valid = true;
+
+            for (const item of this.currentSectionRender.formItems) {
+                if (item.type === 'question' && item.isVisible && item.question.required) {
+                    if (this.getLocalAnswer(item.question.id) === '') {
+                        errors[this.answerKey(item.question.id)] = 'Este campo es requerido';
+                        valid = false;
+                    }
+                } else if (item.type === 'repeater' && item.isVisible) {
+                    const min = item.repeater.minRepetitions || 0;
+                    if (min > 0 && item.entries.length < min) {
+                        const baseName = item.repeater.itemName || item.repeater.name;
+                        const itemName = min > 1 ? baseName + 's' : baseName;
+                        repeaterErrors[item.repeater.id] = `Se deben agregar mínimo ${min} ${itemName}`;
+                        valid = false;
+                    }
+                    for (const entryData of item.entries) {
+                        for (const qData of entryData.questions) {
+                            if (qData.isVisible && qData.question.required) {
+                                if (this.getLocalAnswer(qData.question.id, entryData.entry.id) === '') {
+                                    errors[this.answerKey(qData.question.id, entryData.entry.id)] = 'Este campo es requerido';
+                                    valid = false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            this.questionErrors  = { ...this.questionErrors,  ...errors };
+            this.repeaterErrors  = { ...this.repeaterErrors,  ...repeaterErrors };
+            return valid;
         },
 
         /* ── Guardar sección y avanzar ── */
         async saveSection() {
+            if (!this.validateCurrentSection()) {
+                this.showValidationError = true;
+                return;
+            }
+
             this.saving = true;
             const fresh = this.collectSectionAnswers();
             const body  = {
@@ -1191,7 +1303,7 @@ app.component('dinamic-form', {
                 });
 
                 console.log('[saveSection] response status:', res.status);
-                if (!res.ok) throw new Error(`Error ${res.status} al guardar sección`);
+                if (!res.ok) throw new Error('Hubo un error al guardar la información, por favor verifique su conexión a internet y vuelva a intentarlo');
 
                 const data = await res.json();
                 console.log('[saveSection] data recibida:', data);
@@ -1339,6 +1451,7 @@ app.component('dinamic-form', {
                         class="df-select"
                         :value="getLocalAnswer(item.question.id)"
                         @change="onAnswer(item.question.id, $event.target.value)"
+                        @blur="onBlur(item.question.id)"
                     >
                         <option value="">Selecciona una opción...</option>
                         <option v-for="opt in item.question.options" :key="opt.id" :value="opt.value">\${ opt.label }</option>
@@ -1370,6 +1483,7 @@ app.component('dinamic-form', {
                         class="df-textarea"
                         :value="getLocalAnswer(item.question.id)"
                         @input="onAnswer(item.question.id, $event.target.value)"
+                        @blur="onBlur(item.question.id)"
                     ></textarea>
 
                     <!-- number -->
@@ -1384,6 +1498,7 @@ app.component('dinamic-form', {
                         class="df-input" type="date"
                         :value="getLocalAnswer(item.question.id)"
                         @input="onAnswer(item.question.id, $event.target.value)"
+                        @blur="onBlur(item.question.id)"
                     />
 
                     <!-- datetime -->
@@ -1391,6 +1506,7 @@ app.component('dinamic-form', {
                         class="df-input" type="datetime-local"
                         :value="getLocalAnswer(item.question.id)"
                         @input="onAnswer(item.question.id, $event.target.value)"
+                        @blur="onBlur(item.question.id)"
                     />
                     <span v-if="questionErrors[item.question.id]" class="df-error">\${ questionErrors[item.question.id] }</span>
                 </div>
@@ -1431,6 +1547,7 @@ app.component('dinamic-form', {
                                         class="df-select"
                                         :value="getLocalAnswer(qData.question.id, entryData.entry.id)"
                                         @change="onAnswer(qData.question.id, $event.target.value, entryData.entry.id)"
+                                        @blur="onBlur(qData.question.id, entryData.entry.id)"
                                     >
                                         <option value="">Selecciona una opción...</option>
                                         <option v-for="opt in qData.question.options" :key="opt.id" :value="opt.value">\${ opt.label }</option>
@@ -1462,6 +1579,7 @@ app.component('dinamic-form', {
                                         class="df-textarea"
                                         :value="getLocalAnswer(qData.question.id, entryData.entry.id)"
                                         @input="onAnswer(qData.question.id, $event.target.value, entryData.entry.id)"
+                                        @blur="onBlur(qData.question.id, entryData.entry.id)"
                                     ></textarea>
 
                                     <!-- number -->
@@ -1476,6 +1594,7 @@ app.component('dinamic-form', {
                                         class="df-input" type="date"
                                         :value="getLocalAnswer(qData.question.id, entryData.entry.id)"
                                         @input="onAnswer(qData.question.id, $event.target.value, entryData.entry.id)"
+                                        @blur="onBlur(qData.question.id, entryData.entry.id)"
                                     />
 
                                     <!-- datetime -->
@@ -1483,6 +1602,7 @@ app.component('dinamic-form', {
                                         class="df-input" type="datetime-local"
                                         :value="getLocalAnswer(qData.question.id, entryData.entry.id)"
                                         @input="onAnswer(qData.question.id, $event.target.value, entryData.entry.id)"
+                                        @blur="onBlur(qData.question.id, entryData.entry.id)"
                                     />
                                     <span v-if="questionErrors[answerKey(qData.question.id, entryData.entry.id)]" class="df-error">\${ questionErrors[answerKey(qData.question.id, entryData.entry.id)] }</span>
                                 </div>
@@ -1491,6 +1611,7 @@ app.component('dinamic-form', {
 
                         <button type="button" class="df-repeater-add" @click="addRepeaterEntry(item)">+ Agregar \${ item.repeater.itemName || item.repeater.name }</button>
                     </div>
+                    <span v-if="repeaterErrors[item.repeater.id]" class="df-error">\${ repeaterErrors[item.repeater.id] }</span>
                 </div>
 
             </template>
@@ -1508,6 +1629,16 @@ app.component('dinamic-form', {
     </div>
 
     </template><!-- v-else -->
+
+    <!-- Popup validación -->
+    <div v-if="showValidationError" class="df-popup-backdrop" @click.self="showValidationError = false">
+        <div class="df-popup">
+            <div class="df-popup-icon">⚠️</div>
+            <p class="df-popup-title">Algunas respuestas no son válidas, revisa el formulario</p>
+            <button type="button" class="df-popup-btn" @click="showValidationError = false">Entendido</button>
+        </div>
+    </div>
+
 </div>
     `,
 });

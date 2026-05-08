@@ -518,7 +518,7 @@ func (c *FollowUpV2Controller) LoadFollowUp(ctx *gin.Context) {
 		case errors.Is(err, service.ErrFollowUpNotYetDue):
 			ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		default:
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Hubo un error al obtener la informacion del servidor, por favor verifique su conexion a internet y vuelva a intentarlo"})
 		}
 		return
 	}
