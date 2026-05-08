@@ -1,8 +1,7 @@
 {
-    "hostname":"aws-1-us-west-1.pooler.supabase.com",
+    "hostname":"localhost",
     "port":"5432",
-    "database":"postgres",
-    "user":"postgres.pwwelwfhauspznpatuqm",
-    "password":"Salvia2026@",
-    "sslmode":"require"
+    "database":"salvia",
+    "user":"salvia_admin",
+    "password":"123456abcABC.X"
 }
