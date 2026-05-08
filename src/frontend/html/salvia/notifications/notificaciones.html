@@ -1,0 +1,463 @@
+{{/* Template: notificaciones.html — Pantalla de Notificaciones Salvia (EntityLetter) */}}
+<link rel="stylesheet" href="/static/css/notificaciones.css">
+
+<div class="container nf-container">
+
+    <!-- ─── Encabezado ─── -->
+    <div class="nf-header">
+        <h2><b>Notificaciones Salvia</b></h2>
+        <p class="nf-header-subtitle">Gestión de oficios asignados a tu rol</p>
+    </div>
+
+    <!-- ─── Tabs ─── -->
+    <div class="nf-tabs-wrapper">
+        <button class="nf-tab" :class="{ active: currentTab === 'todos' }" @click="switchTab('todos')">
+            Todos mis oficios
+        </button>
+        <button class="nf-tab" :class="{ active: currentTab === 'gestionar' }" @click="switchTab('gestionar')">
+            Oficios por gestionar
+            <span class="nf-tab-badge">${ pendingCount }</span>
+        </button>
+    </div>
+
+    <!-- ─── Filtros ─── -->
+    <div class="nf-filters">
+        <div class="nf-filter-group">
+            <label>Estado del oficio</label>
+            <select v-model="filters.estado" class="nf-filter-input form-control">
+                <option value="">Todos</option>
+                <option value="por_proyectar">Por proyectar</option>
+                <option value="para_revisar">Para revisar</option>
+                <option value="en_correccion">En corrección</option>
+                <option value="aprobacion_juridica">Aprobación jurídica</option>
+                <option value="para_radicar">Para radicar</option>
+                <option value="radicado">Radicado</option>
+            </select>
+        </div>
+        <div class="nf-filter-group">
+            <label>Número de identidad</label>
+            <input v-model="filters.identidad" type="text" class="nf-filter-input form-control" placeholder="Ej: 52.123.456">
+        </div>
+        <div class="nf-filter-group">
+            <label>Entidad</label>
+            <input v-model="filters.entidad" type="text" class="nf-filter-input form-control" placeholder="Ej: Fiscalía">
+        </div>
+        <div class="nf-filter-group">
+            <label>Número radicado</label>
+            <input v-model="filters.radicado" type="text" class="nf-filter-input form-control" placeholder="Ej: 2026-FGN-00412">
+        </div>
+    </div>
+
+    <!-- ─── Tabla de oficios ─── -->
+    <div class="nf-table-wrapper">
+
+        <div class="nf-table-header">
+            <div>Caso</div>
+            <div>Barrera</div>
+            <div>Información del Oficio</div>
+        </div>
+
+        <template v-if="paginatedOficios.length > 0">
+            <div v-for="(oficio, idx) in paginatedOficios" :key="oficio.id" class="nf-row">
+
+                <!-- CASO -->
+                <div>
+                    <div class="nf-caso-name">${ oficio.victimName }</div>
+                    <div class="nf-caso-code">${ oficio.caseCode } · ${ oficio.docNumber }</div>
+                    <span class="nf-prioridad-tag" :class="'nf-prioridad-' + slugify(oficio.priority)">${ oficio.priority }</span>
+                    <br>
+                    <a :href="'/salvia/casos/' + oficio.caseId + '/detalle'" class="nf-link">Ver caso →</a>
+                </div>
+
+                <!-- BARRERA -->
+                <div>
+                    <div class="nf-sectors-row">
+                        <span
+                            v-for="sector in oficio.sectors"
+                            :key="sector"
+                            class="nf-sector-tag"
+                            :class="'nf-sector-' + slugify(sector)">
+                            ${ sector }
+                        </span>
+                    </div>
+                    <div class="nf-barrera-org">${ oficio.barrierOrg }</div>
+                    <div class="nf-barrera-desc">${ oficio.barrierDesc }</div>
+                    <a href="#" class="nf-link">Ver barrera →</a>
+                </div>
+
+                <!-- INFORMACIÓN DEL OFICIO -->
+                <div>
+                    <div class="nf-info-badges">
+                        <span class="nf-status-tag" :class="'nf-status-' + oficio.status">${ statusLabels[oficio.status] }</span>
+                        <button
+                            v-if="oficio.canManage"
+                            @click="openGestionarModal(oficio)"
+                            class="btn nf-btn-gestionar">
+                            Gestionar
+                        </button>
+                    </div>
+                    <div class="nf-info-title">${ oficio.title }</div>
+                    <div class="nf-info-meta-row">
+                        <span class="nf-meta-item">Radicado: <span class="nf-meta-val">${ oficio.radicado || '—' }</span></span>
+                        <span class="nf-meta-item">Fecha: <span class="nf-meta-val">${ oficio.fecha || '—' }</span></span>
+                    </div>
+                    <div class="nf-info-meta-row">
+                        <span class="nf-meta-item">Prioridad: <span :class="'nf-meta-prioridad-' + slugify(oficio.priority)">${ oficio.priority }</span></span>
+                    </div>
+                    <div class="nf-meta-correo">Correo: <span>${ oficio.correo }</span></div>
+                </div>
+
+            </div>
+        </template>
+
+        <div v-else class="nf-empty-state">
+            <i class="fas fa-inbox"></i>
+            No se encontraron oficios con los filtros seleccionados.
+        </div>
+
+    </div>
+
+    <!-- ─── Paginador ─── -->
+    <nav v-if="numPages > 1" aria-label="Paginación" class="nf-pagination-wrapper">
+        <ul class="pagination justify-content-center mt-3">
+            <li class="page-item" :class="{ disabled: currentPage === 0 }">
+                <a class="page-link" href="#" @click.prevent="goToPage(currentPage - 1)">Anterior</a>
+            </li>
+            <template v-for="(p, i) in visiblePages" :key="i">
+                <li v-if="p === '...'" class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+                <li v-else class="page-item" :class="{ active: p === currentPage }">
+                    <a class="page-link" href="#" @click.prevent="goToPage(p)">${ p + 1 }</a>
+                </li>
+            </template>
+            <li class="page-item" :class="{ disabled: currentPage === numPages - 1 }">
+                <a class="page-link" href="#" @click.prevent="goToPage(currentPage + 1)">Siguiente</a>
+            </li>
+        </ul>
+    </nav>
+
+</div>
+
+<!-- ─── Modales (uno por estado) ─── -->
+{{ template "notifications/modal_corregir.html" . }}
+{{ template "notifications/modal_proyectar.html" . }}
+{{ template "notifications/modal_revisar.html" . }}
+{{ template "notifications/modal_radicar.html" . }}
+{{ template "notifications/modal_registrar_respuesta.html" . }}
+{{ template "notifications/modal_aprobar.html" . }}
+
+{{ template "standard_scripts.html" .}}
+{{ template "overlay.html" .}}
+
+<script>
+    var home = Vue.createApp({
+        delimiters: ['${', '}'],
+        data() {
+            return {
+                currentUser: null,
+
+                currentTab: 'todos',
+
+                filters: {
+                    estado:    '',
+                    identidad: '',
+                    entidad:   '',
+                    radicado:  ''
+                },
+
+                itemsPerPage: 3,
+                currentPage:  0,
+
+                /* Estado del modal activo */
+                showModal:      false,
+                activeModal:    null,
+                selectedOficio: null,
+
+                /* Formulario compartido por todos los modales */
+                modalForm: {
+                    kofaxPath:           '',
+                    area:                '',
+                    entidad:             '',
+                    asunto:              '',
+                    correoEntidad:       '',
+                    numeroRadicado:      '',
+                    fechaRespuesta:      '',
+                    correoRemitente:     '',
+                    asuntoRespuesta:     '',
+                    respuestaRecibidaPor: ''
+                },
+
+                /* Mapa estado → nombre de modal */
+                modalByStatus: {
+                    por_proyectar:      'proyectar',
+                    para_revisar:       'revisar',
+                    en_correccion:      'corregir',
+                    aprobacion_juridica:'aprobar',
+                    para_radicar:       'radicar',
+                    radicado:           'registrar_respuesta'
+                },
+
+                statusLabels: {
+                    por_proyectar:       'Por proyectar',
+                    para_revisar:        'Para revisar',
+                    en_correccion:       'En corrección (proyección)',
+                    aprobacion_juridica: 'Aprobación jurídica',
+                    para_radicar:        'Para radicar',
+                    radicado:            'Radicado'
+                },
+
+                /* ── Datos quemados (mock EntityLetter) ── */
+                oficios: [
+                    {
+                        id: 1,
+                        victimName:  'María García López',
+                        caseCode:    'SAL-001',
+                        docNumber:   '52.123.456',
+                        caseId:      'sal-001',
+                        priority:    'Alto',
+                        sectors:     ['Justicia', 'Policía Nacional'],
+                        barrierOrg:  'Policía Nacional',
+                        barrierDesc: 'Negación de recibir denuncia formal',
+                        status:      'para_revisar',
+                        canManage:   true,
+                        title:       'Solicitud de recepción formal de denuncia',
+                        radicado:    null,
+                        fecha:       null,
+                        correo:      'denuncias@policia.gov.co'
+                    },
+                    {
+                        id: 2,
+                        victimName:  'María García López',
+                        caseCode:    'SAL-001',
+                        docNumber:   '52.123.456',
+                        caseId:      'sal-001',
+                        priority:    'Alto',
+                        sectors:     ['Justicia', 'Policía Nacional'],
+                        barrierOrg:  'Policía Nacional',
+                        barrierDesc: 'Negación de recibir denuncia formal',
+                        status:      'en_correccion',
+                        canManage:   true,
+                        title:       'Oficio a Defensoría del Pueblo — Escalamiento barrera de denuncia',
+                        radicado:    null,
+                        fecha:       null,
+                        correo:      'correspondencia@defensoria.gov.co'
+                    },
+                    {
+                        id: 3,
+                        victimName:  'Laura Martínez Ruiz',
+                        caseCode:    'SAL-002',
+                        docNumber:   '43.987.654',
+                        caseId:      'sal-002',
+                        priority:    'Crítico',
+                        sectors:     ['Justicia'],
+                        barrierOrg:  'Fiscalía General de la Nación',
+                        barrierDesc: 'Proceso legal demorado sin justificación',
+                        status:      'para_radicar',
+                        canManage:   true,
+                        title:       'Solicitud de celeridad en proceso penal',
+                        radicado:    null,
+                        fecha:       null,
+                        correo:      'radicacion@fiscalia.gov.co'
+                    },
+                    {
+                        id: 4,
+                        victimName:  'Ana Rodríguez Pérez',
+                        caseCode:    'SAL-003',
+                        docNumber:   '31.456.789',
+                        caseId:      'sal-003',
+                        priority:    'Alto',
+                        sectors:     ['Salud'],
+                        barrierOrg:  'Hospital General del Sur',
+                        barrierDesc: 'Negativa de atención médica especializada',
+                        status:      'por_proyectar',
+                        canManage:   true,
+                        title:       'Solicitud de atención prioritaria en salud mental',
+                        radicado:    null,
+                        fecha:       null,
+                        correo:      'atencion@hospitalgeneralsur.gov.co'
+                    },
+                    {
+                        id: 5,
+                        victimName:  'Carmen Díaz Flores',
+                        caseCode:    'SAL-004',
+                        docNumber:   '28.765.432',
+                        caseId:      'sal-004',
+                        priority:    'Crítico',
+                        sectors:     ['Vivienda'],
+                        barrierOrg:  'ICBF',
+                        barrierDesc: 'Demora injustificada en proceso de restitución',
+                        status:      'aprobacion_juridica',
+                        canManage:   true,
+                        title:       'Oficio de seguimiento a proceso de restitución familiar',
+                        radicado:    '2026-ICBF-00123',
+                        fecha:       '2026-04-15',
+                        correo:      'atencion@icbf.gov.co'
+                    },
+                    {
+                        id: 6,
+                        victimName:  'Sofía Morales Castro',
+                        caseCode:    'SAL-005',
+                        docNumber:   '45.678.901',
+                        caseId:      'sal-005',
+                        priority:    'Alto',
+                        sectors:     ['Justicia'],
+                        barrierOrg:  'Juzgado Civil del Circuito',
+                        barrierDesc: 'Demora injustificada en fijación de audiencias',
+                        status:      'para_radicar',
+                        canManage:   false,
+                        title:       'Solicitud de fijación urgente de audiencia oral',
+                        radicado:    null,
+                        fecha:       null,
+                        correo:      'despacho@juzgadocivil.gov.co'
+                    },
+                    {
+                        id: 7,
+                        victimName:  'Patricia Vargas León',
+                        caseCode:    'SAL-006',
+                        docNumber:   '19.234.567',
+                        caseId:      'sal-006',
+                        priority:    'Alto',
+                        sectors:     ['Educación'],
+                        barrierOrg:  'Secretaría de Educación',
+                        barrierDesc: 'Negativa de matrícula en situación de desplazamiento',
+                        status:      'radicado',
+                        canManage:   true,
+                        title:       'Oficio de garantía de acceso a educación',
+                        radicado:    '2026-SED-00451',
+                        fecha:       '2026-04-28',
+                        correo:      'atencion@sedbogota.gov.co'
+                    }
+                ]
+            };
+        },
+
+        mounted() {
+            document.getElementById('app').style.display = 'block';
+        },
+
+        computed: {
+            pendingCount() {
+                return this.oficios.filter(o => o.canManage).length;
+            },
+
+            filteredOficios() {
+                return this.oficios.filter(o => {
+                    const tabOk      = this.currentTab === 'todos' || o.canManage;
+                    const estadoOk   = !this.filters.estado || o.status === this.filters.estado;
+                    const idOk       = !this.filters.identidad || o.docNumber.includes(this.filters.identidad);
+                    const entidadOk  = !this.filters.entidad ||
+                        o.barrierOrg.toLowerCase().includes(this.filters.entidad.toLowerCase());
+                    const radicadoOk = !this.filters.radicado ||
+                        (o.radicado && o.radicado.toLowerCase().includes(this.filters.radicado.toLowerCase()));
+                    return tabOk && estadoOk && idOk && entidadOk && radicadoOk;
+                });
+            },
+
+            numPages() {
+                return Math.max(1, Math.ceil(this.filteredOficios.length / this.itemsPerPage));
+            },
+
+            paginatedOficios() {
+                const start = this.currentPage * this.itemsPerPage;
+                return this.filteredOficios.slice(start, start + this.itemsPerPage);
+            },
+
+            visiblePages() {
+                const max    = this.numPages;
+                const cur    = this.currentPage;
+                const delta  = 2;
+                const range  = [];
+                const result = [];
+                let   last;
+
+                for (let i = 0; i < max; i++) {
+                    if (i === 0 || i === max - 1 || (i >= cur - delta && i <= cur + delta)) {
+                        range.push(i);
+                    }
+                }
+                for (let i of range) {
+                    if (last !== undefined) {
+                        if (i - last === 2) result.push(last + 1);
+                        else if (i - last > 2) result.push('...');
+                    }
+                    result.push(i);
+                    last = i;
+                }
+                return result;
+            }
+        },
+
+        methods: {
+            slugify(str) {
+                if (!str) return '';
+                return str.toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/\s+/g, '-');
+            },
+
+            switchTab(tab) {
+                this.currentTab  = tab;
+                this.currentPage = 0;
+            },
+
+            goToPage(page) {
+                if (page < 0 || page >= this.numPages) return;
+                this.currentPage = page;
+                window.scrollTo(0, 0);
+            },
+
+            openGestionarModal(oficio) {
+                console.log('[Notificaciones] Gestionar oficio:', oficio);
+
+                this.selectedOficio = oficio;
+                this.activeModal    = this.modalByStatus[oficio.status] || null;
+
+                /* Pre-rellenar campos comunes */
+                this.modalForm = {
+                    kofaxPath:           '',
+                    area:                '',
+                    entidad:             oficio.barrierOrg || '',
+                    asunto:              oficio.title || '',
+                    correoEntidad:       oficio.correo || '',
+                    numeroRadicado:      '',
+                    fechaRespuesta:      '',
+                    correoRemitente:     oficio.correo || '',
+                    asuntoRespuesta:     '',
+                    respuestaRecibidaPor:''
+                };
+
+                this.showModal = true;
+            },
+
+            closeModal() {
+                this.showModal      = false;
+                this.activeModal    = null;
+                this.selectedOficio = null;
+            },
+
+            submitModal(action) {
+                console.log('[Notificaciones] Submit modal:', action, {
+                    oficio: this.selectedOficio,
+                    form:   this.modalForm
+                });
+                /* TODO: llamar al endpoint correspondiente */
+                this.closeModal();
+            },
+
+            logout() {
+                logout('/seguridad/logout');
+            }
+        },
+
+        watch: {
+            filters: {
+                deep: true,
+                handler() { this.currentPage = 0; }
+            }
+        }
+    });
+
+    home.mount('#app');
+</script>

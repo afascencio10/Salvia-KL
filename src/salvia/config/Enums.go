@@ -52,6 +52,7 @@ var HTML_Templates map[string]string = map[string]string{
 	"get_case_detail_sv":       "get_case_detail_sv.html",
 	"get_feminicide_risks":     "get_feminicide_risks.html",
 	"get_feminicide_risk":      "get_feminicide_risk.html",
+	"notificaciones":           "notificaciones.html",
 }
 
 var FormPaths map[string]map[string]string = map[string]map[string]string{

@@ -1,0 +1,57 @@
+{{ define "notifications/modal_aprobar.html" }}
+{{/* Modal: Aprobar oficio — estado aprobacion_juridica
+     Rol habilitado: Abogados (actualmente deshabilitado — solo UI)
+     El abogado aprueba el oficio y lo envía al agente de notificaciones para radicar. */}}
+
+<div v-if="showModal && activeModal === 'aprobar'" class="nf-modal-overlay" @click.self="closeModal">
+    <div class="nf-modal">
+
+        <div class="nf-modal-header">
+            <h5>Aprobar oficio</h5>
+            <button class="nf-modal-close" @click="closeModal">&times;</button>
+        </div>
+
+        <div class="nf-modal-body">
+
+            <p class="nf-modal-desc" v-if="selectedOficio">
+                ${ selectedOficio.title }
+            </p>
+
+            <div class="nf-modal-info-box nf-info-red">
+                <i class="fas fa-info-circle"></i>
+                Marca el oficio como aprobado y el agente de notificaciones lo radicará.
+            </div>
+
+            <div class="nf-modal-form-group">
+                <label class="nf-modal-label">
+                    Asunto <span class="nf-required">*</span>
+                </label>
+                <input
+                    v-model="modalForm.asunto"
+                    type="text"
+                    class="form-control nf-modal-input"
+                    :placeholder="selectedOficio ? selectedOficio.title : 'Asunto del oficio'">
+            </div>
+
+            <div class="nf-modal-form-group">
+                <label class="nf-modal-label">
+                    Ruta del oficio en el Kofax <span class="nf-required">*</span>
+                </label>
+                <input
+                    v-model="modalForm.kofaxPath"
+                    type="text"
+                    class="form-control nf-modal-input"
+                    placeholder="Ej: Oficios/2026/Justicia/OF-005">
+            </div>
+
+            <div class="nf-modal-footer">
+                <button class="btn nf-btn-modal-cancel" @click="closeModal">Cancelar</button>
+                <button class="btn nf-btn-modal-primary" @click="submitModal('aprobar')">
+                    Marcar oficio como aprobado
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+{{ end }}

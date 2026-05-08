@@ -12,3 +12,4 @@ src/sessions
 figjamInfo/
 
 node_modules
+.claude/

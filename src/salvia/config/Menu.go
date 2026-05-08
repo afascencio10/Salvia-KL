@@ -229,13 +229,16 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"fo": true,
 	},
 
+	// ── Módulo de Notificaciones ─────────────────────────────────────────────
+	"get_notificaciones": {"op": true, "no": true, "sv": true, "ad": true, "ro": true, "et": true},
+
 	// ── Módulo de Seguimiento (HU-027) ──────────────────────────────────────
-	"get_seguimiento_detalle_caso": {"ad": true, "sv": true, "op": true},
-	"get_seguimiento_detalle":      {"ad": true, "sv": true, "op": true},
-	"get_seguimiento_formulario":   {"op": true},
-	"get_mis_seguimientos_dia":     {"op": true},
-	"get_seguimientos_area":        {"ad": true, "sv": true},
-	"get_hacer_seguimiento":        {"ro": true, "ad": true},
+	"get_seguimiento_detalle_caso":    {"ad": true, "sv": true, "op": true},
+	"get_seguimiento_detalle":         {"ad": true, "sv": true, "op": true},
+	"get_seguimiento_formulario":      {"op": true},
+	"get_mis_seguimientos_dia":        {"op": true},
+	"get_seguimientos_area":           {"ad": true, "sv": true},
+	"get_hacer_seguimiento":           {"ro": true, "ad": true},
 	"generate_calendario_seguimiento": {"ad": true, "sv": true, "op": true},
 
 	"get_case_detail_sv": {
