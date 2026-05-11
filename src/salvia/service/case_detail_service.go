@@ -83,7 +83,7 @@ func (s *caseDetailService) CreateFollowUp(ctx context.Context, caseICode, agent
 	sinEvaluar := "SIN_EVALUAR"
 	followUp := &models.FollowUpV2{
 		CaseID:         caseICode,
-		AgentID:        agentID,
+		AgentID:        &agentID,
 		Status:         models.FollowUpStatusPendiente,
 		ScheduledDate:  fecha,
 		ScheduledTime:  hora,

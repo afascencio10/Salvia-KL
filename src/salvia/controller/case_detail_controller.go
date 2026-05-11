@@ -2,8 +2,9 @@
 // Controlador HTTP para la pantalla de detalle de caso (rol sv).
 //
 // ARQUITECTURA:
-//   main.go → RegisterRoutes → CaseDetailGET (fachada HTML)
-//   main.go → GET /api/v1/casos/:id/detalle → GetByID (API JSON)
+//
+//	main.go → RegisterRoutes → CaseDetailGET (fachada HTML)
+//	main.go → GET /api/v1/casos/:id/detalle → GetByID (API JSON)
 //
 // La ruta HTML vive en MainRouter.go (sistema de fachadas existente).
 // La ruta API JSON se registra aquí con RegisterRoutes.
@@ -70,6 +71,7 @@ func (c *CaseDetailController) GetOperadores(ctx *gin.Context) {
 
 // GetAgentesRO devuelve la lista de usuarios con rol "ro" para asignar seguimientos.
 func (c *CaseDetailController) GetAgentesRO(ctx *gin.Context) {
+	//No crear conexiones a la DB en controllers, usar repositorios
 	dbCfg := utils.LoadDBCLientConfig()
 	dbSrv := db.DBServerConfig{PoolSize: 80}
 	code, res := security_ctrl.GetGeneralUsersByRole("ro", &db.ConnData{}, dbCfg, dbSrv)

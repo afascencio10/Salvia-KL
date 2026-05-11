@@ -21,7 +21,7 @@ type FollowUpV2 struct {
 	ID               string         `gorm:"type:varchar(36);primaryKey;default:gen_random_uuid()" json:"id"`
 	CaseID           string         `gorm:"type:varchar(36);index;not null"                       json:"case_id"`
 	FormSubmissionID *string        `gorm:"type:varchar(36)"                                      json:"form_submission_id,omitempty"`
-	AgentID          string         `gorm:"type:varchar(36);not null"                             json:"agent_id"`
+	AgentID          *string        `gorm:"type:varchar(36)"                                      json:"agent_id,omitempty"`
 	SupervisorID     string         `gorm:"type:varchar(36)"                                      json:"supervisor_id"`
 
 	// ── Estado y equipo ──────────────────────────────────────────────────────
