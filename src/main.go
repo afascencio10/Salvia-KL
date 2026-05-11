@@ -2,6 +2,7 @@ package main
 
 import (
     common_routers "bitsflow/common/facades"
+    commondb "bitsflow/common/db"
     "bitsflow/common/utils"
     internaldb "bitsflow/internal/db"
     "bitsflow/internal/models"
@@ -11,8 +12,13 @@ import (
     salvia_facades "bitsflow/salvia/facades"
     "bitsflow/salvia/service"
     security_routers "bitsflow/security/facades"
+    "context"
     "embed"
     "log"
+    "os"
+    "os/signal"
+    "syscall"
+    "time"
 
     "github.com/gin-gonic/gin"
 )
@@ -37,7 +43,7 @@ func main() {
     security_routers.StartRouter(router)
 
     // ── Nuevo patrón: GORM + Repository + Service + Controller ──────────────
-    gormDB, err := internaldb.NewGormDB(utils.LoadDBCLientConfig())
+    gormDB, err := internaldb.NewGormDB(utils.LoadDBCLientConfig().AsGormConfig())
     if err != nil {
         log.Fatalf("Error conectando GORM: %v", err)
     }
@@ -148,5 +154,46 @@ func main() {
     reportCtrl.RegisterRoutes(api)
     // ────────────────────────────────────────────────────────────────────────
 
-    common_routers.StartRouter()
+    // ── Graceful shutdown ────────────────────────────────────────────────────
+    srv := common_routers.NewHTTPServer()
+
+    go func() {
+        port := os.Getenv("PORT")
+        if port != "" {
+            log.Printf("Servidor corriendo en :%s", port)
+            if err := srv.ListenAndServe(); err != nil && err.Error() != "http: Server closed" {
+                log.Fatalf("Error iniciando servidor: %v", err)
+            }
+        } else {
+            log.Println("Servidor corriendo en :443 (TLS)")
+            if err := srv.ListenAndServeTLS("certs/salvia.crt", "certs/salvia.key"); err != nil && err.Error() != "http: Server closed" {
+                log.Fatalf("Error iniciando servidor TLS: %v", err)
+            }
+        }
+    }()
+
+    // Esperar señal de apagado (Ctrl+C o SIGTERM)
+    quit := make(chan os.Signal, 1)
+    signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+    <-quit
+    log.Println("Apagando servidor — cerrando conexiones...")
+
+    // 1. Detener el servidor HTTP (esperar hasta 10s a que terminen requests activos)
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+    if err := srv.Shutdown(ctx); err != nil {
+        log.Printf("[HTTP] Error en shutdown: %v", err)
+    }
+
+    // 2. Cerrar pool GORM
+    if sqlDB, err := gormDB.DB(); err == nil {
+        sqlDB.Close()
+        log.Println("[GORM] Conexiones cerradas")
+    }
+
+    // 3. Cerrar pool legacy pgx
+    commondb.CloseAllConnections()
+
+    log.Println("Servidor apagado correctamente ✓")
+    // ─────────────────────────────────────────────────────────────────────────
 }

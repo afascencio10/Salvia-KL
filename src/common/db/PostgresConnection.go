@@ -83,7 +83,7 @@ var connections Connections = Connections{availableConnections: make(map[string]
 
 func GetConnection(connData *ConnData, clientConfig *DBClientConfig, serverConfig *DBServerConfig) (*ConnData, error) {
 
-	getClientConnection(clientConfig)
+	getClientConnection(clientConfig, serverConfig)
 
 	if connData.ConnID == "" {
 
@@ -137,30 +137,25 @@ func readChannel(dbName string) (chan ConnData, bool) {
 	return channel, found
 }
 
-func getClientConnection(clientConfig *DBClientConfig) error {
+func getClientConnection(clientConfig *DBClientConfig, serverConfig *DBServerConfig) error {
 	lock.Lock()
 	defer lock.Unlock()
 
-	/*
-	    TODO:
-	        1. Poner variable en PostgresConnection o alguna configuración global con el número máximo de conexiones que aguanta postgres en total
-	        2. En clientConfig poner el número de conexiones que se le asignarán al susuario en su base de datos
-	        3. Adicionar en ConnData un campo de tiempo para registrar la última vez que se usó alguna conexión de esa BD
-	        4. Cada vez que haya una bd nueva, crear su respectivo connChannels[clientConfig.DatabaseName]
-	            4.1 Si la BD es nueva pero el número de conexiones para ese cliente supera el total de conexiones existentes,
-	                Entonces se identifica el cliente/bd en connChannels con el tiempo más grande de inactividad, cierran las conexiones y se elimina de connChannels
-	            4.2 el punto 4.1 se hace en ciclo hasta que hayan conexiones disponibles para darle soporte al nuevo cliente/bd
-	*/
+	poolSize := 3 // valor por defecto conservador
+	if serverConfig != nil && serverConfig.PoolSize > 0 {
+		poolSize = int(serverConfig.PoolSize)
+	}
+
 	if _, found := readChannel(clientConfig.DatabaseName); !found {
 
 		println("X, ", clientConfig.DatabaseName)
-		channel := make(chan ConnData, 10)
+		channel := make(chan ConnData, poolSize)
 		connChannels[clientConfig.DatabaseName] = channel
 		var wg sync.WaitGroup
-		wg.Add(10)
+		wg.Add(poolSize)
 		println("Inicializando conexiones de Postgres...")
 		var success bool = true
-		for i := 0; i < 10; i++ {
+		for i := 0; i < poolSize; i++ {
 
 			go func() {
 				defer wg.Done()
@@ -243,4 +238,19 @@ func CommitTransaction(connData *ConnData, clientConfig *DBClientConfig, serverC
 }
 func RollbackTransaction(connData *ConnData, clientConfig *DBClientConfig, serverConfig *DBServerConfig) (*ConnData, error) {
 	return performTransaction("ROLLBACK", connData, clientConfig, serverConfig)
+}
+
+// CloseAllConnections cierra todas las conexiones pgx del pool al apagar el servidor.
+func CloseAllConnections() {
+	lock.Lock()
+	defer lock.Unlock()
+	for dbName, channel := range connChannels {
+		n := len(channel)
+		for i := 0; i < n; i++ {
+			conn := <-channel
+			conn.Conn.Close(context.Background())
+		}
+		delete(connChannels, dbName)
+		fmt.Printf("[pgx] Pool '%s' cerrado (%d conexiones)\n", dbName, n)
+	}
 }
