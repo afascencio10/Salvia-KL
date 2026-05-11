@@ -31,7 +31,7 @@ var ErrFollowUpNotYetDue = errors.New("followup: la fecha programada aún no ha 
 // Días desde HOY para cada nivel. Extremo tiene 5 seguimientos (S1 = mismo día a las 4h).
 // Los demás niveles tienen 4 seguimientos.
 var riskMatrix = map[int][]int{
-	4: {0, 1, 2, 3, 15}, // Extremo — 5 seguimientos (S1=+4h/hoy, S2=+1d, S3=+2d, S4=+3d, S5=+15d)
+	4: {0, 1, 2, 3, 15, 30}, // Extremo — 6 seguimientos (S1=+4h/hoy, S2=+1d, S3=+2d, S4=+3d, S5=+15d, S6=+30d)
 	3: {1, 3, 15, 30},   // Alto    — 4 seguimientos
 	2: {2, 15, 30, 45},  // Moderado — 4 seguimientos
 	1: {5, 15, 30, 60},  // Bajo    — 4 seguimientos
@@ -175,7 +175,7 @@ func (s *followUpV2Service) LoadFollowUp(ctx context.Context, id, agentID, formI
 		return nil, err
 	}
 
-	if fu.AgentID != agentID {
+	if fu.AgentID == nil || *fu.AgentID != agentID {
 		return nil, ErrFollowUpNotAssigned
 	}
 
@@ -226,15 +226,14 @@ func (s *followUpV2Service) GenerateOrRecalculate(ctx context.Context, caseID st
 		return nil, fmt.Errorf("risk_level inválido: %d (debe ser 1-4)", input.RiskLevel)
 	}
 
-	// Defaults para asignación diferida
-	if input.AgentID == "" {
-		input.AgentID = "SIN_ASIGNAR"
-	}
-	if input.Team == "" {
-		input.Team = "SIN_EQUIPO"
-	}
+	// AgentID vacío se persiste como NULL (asignación diferida por supervisor)
 
-	totalExpected := maxFollowUps(input.RiskLevel)
+	// El equipo se define por el nivel de riesgo, ignorando lo que venga en el input
+	if input.RiskLevel >= 3 {
+		input.Team = "Riesgo alto"
+	} else {
+		input.Team = "Riesgo bajo"
+	}
 
 	completed, err := s.repo.FindCompletedByCaseID(ctx, caseID)
 	if err != nil {
@@ -261,33 +260,8 @@ func (s *followUpV2Service) GenerateOrRecalculate(ctx context.Context, caseID st
 		return newFollowUps, nil
 	}
 
-	// ── Caso 2: mismo risk_level → sin cambios ────────────────────────────────
-	if len(pending) > 0 && pending[0].RiskStatus != nil && *pending[0].RiskStatus == riskLevelStr {
-		return s.repo.FindByCaseIDOrdered(ctx, caseID)
-	}
-
-	// ── Caso 3: risk_level cambió → reprogramar pendientes + generar faltantes ─
-	numCompleted := len(completed)
-	numFaltantes := totalExpected - numCompleted
-	if numFaltantes <= 0 {
-		return completed, nil
-	}
-
-	faltantesOffsets := offsets[numCompleted : numCompleted+numFaltantes]
-	startSeq := numCompleted + 1
-
-	var newFollowUps []models.FollowUpV2
-	if err := s.repo.RunInTransaction(ctx, func(tx *gorm.DB) error {
-		if err := s.repo.SoftDeleteAndReprogramPending(ctx, tx, caseID); err != nil {
-			return err
-		}
-		newFollowUps = buildFollowUps(caseID, input, riskLevelStr, faltantesOffsets, now, today, startSeq)
-		return s.repo.BulkCreate(ctx, tx, newFollowUps)
-	}); err != nil {
-		return nil, err
-	}
-
-	return newFollowUps, nil
+	// ── Caso 2: mismo risk_level o distinto → sin cambios ───────────────────
+	return s.repo.FindByCaseIDOrdered(ctx, caseID)
 }
 
 // GetFollowUpDetail ensambla el modelo de detalle de seguimiento (CSR para carga de pantalla)
@@ -311,8 +285,8 @@ func (s *followUpV2Service) GetFollowUpDetail(ctx context.Context, id string, is
 	}
 
 	// 4. Obtener información del Agente asignado
-	if fu.AgentID != "" && fu.AgentID != "SIN_ASIGNAR" {
-		agent, err := s.agentRepo.FindByICode(ctx, fu.AgentID)
+	if fu.AgentID != nil && *fu.AgentID != "" && *fu.AgentID != "SIN_ASIGNAR" {
+		agent, err := s.agentRepo.FindByICode(ctx, *fu.AgentID)
 		if err == nil && agent != nil {
 			fu.AgentNames = agent.Names
 			fu.AgentLastNames = agent.LastNames
@@ -375,19 +349,26 @@ func buildFollowUps(caseID string, input GenerateCalendarInput, riskLevelStr str
 	result := make([]models.FollowUpV2, len(offsets))
 	for i, days := range offsets {
 		var scheduledDate time.Time
+		var scheduledTime string
 		if days == 0 && input.RiskLevel == 4 {
 			// Extremo S1: programar a las 4 horas desde ahora
 			scheduledDate = now.Add(4 * time.Hour)
+			scheduledTime = scheduledDate.Format("15:04:05")
 		} else {
 			scheduledDate = today.AddDate(0, 0, days)
 		}
 		riskStr := riskLevelStr
+		var agentID *string
+		if input.AgentID != "" {
+			agentID = &input.AgentID
+		}
 		result[i] = models.FollowUpV2{
 			CaseID:        caseID,
-			AgentID:       input.AgentID,
+			AgentID:       agentID,
 			Team:          input.Team,
 			RiskStatus:    &riskStr,
 			ScheduledDate: scheduledDate,
+			ScheduledTime: scheduledTime,
 			Status:        models.FollowUpStatusPendiente,
 		}
 	}

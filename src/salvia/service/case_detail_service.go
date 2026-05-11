@@ -21,14 +21,20 @@ type CaseDetailService interface {
 	CreateFollowUp(ctx context.Context, caseICode, agentID, scheduledDate, notas string) (*models.FollowUpV2, error)
 	AddTimelineEvent(ctx context.Context, caseICode, eventType, description, actorID, actorName string) error
 	ReassignFollowUp(ctx context.Context, followUpID, newAgentID string) error
+	GetDB() *gorm.DB
 }
 
 type caseDetailService struct {
 	repo repository.CaseDetailRepository
+	db   *gorm.DB
 }
 
-func NewCaseDetailService(repo repository.CaseDetailRepository) CaseDetailService {
-	return &caseDetailService{repo: repo}
+func NewCaseDetailService(repo repository.CaseDetailRepository, db *gorm.DB) CaseDetailService {
+	return &caseDetailService{repo: repo, db: db}
+}
+
+func (s *caseDetailService) GetDB() *gorm.DB {
+	return s.db
 }
 
 func (s *caseDetailService) GetDetail(ctx context.Context, caseICode string) (*repository.CaseDetailData, error) {
@@ -83,7 +89,7 @@ func (s *caseDetailService) CreateFollowUp(ctx context.Context, caseICode, agent
 	sinEvaluar := "SIN_EVALUAR"
 	followUp := &models.FollowUpV2{
 		CaseID:         caseICode,
-		AgentID:        agentID,
+		AgentID:        &agentID,
 		Status:         models.FollowUpStatusPendiente,
 		ScheduledDate:  fecha,
 		ScheduledTime:  hora,

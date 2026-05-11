@@ -5,6 +5,7 @@ package db
 import (
 	commondb "bitsflow/common/db"
 	"fmt"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -35,5 +36,7 @@ func NewGormDB(cfg commondb.DBClientConfig) (*gorm.DB, error) {
 	}
 	sqlDB.SetMaxOpenConns(10)
 	sqlDB.SetMaxIdleConns(5)
+	sqlDB.SetConnMaxLifetime(5 * time.Minute)  // rota conexiones cada 5 min
+	sqlDB.SetConnMaxIdleTime(4 * time.Minute)  // cierra conexiones idle tras 4 min
 	return db, nil
 }

@@ -504,8 +504,8 @@ func SetVictimCase(dataInput string, s utils.CommonSession, dbClientConfig db.DB
 		go func() {
 			calendarInput := service.GenerateCalendarInput{
 				RiskLevel: int(riskLevel), // 1=Bajo, 2=Moderado, 3=Alto, 4=Extremo
-				AgentID:   s.UserICode,    // Operador que creó el caso
-				Team:      "",             // Se asignará "SIN_EQUIPO" por defecto en el servicio
+				AgentID:   "",             // Se asignará "SIN_ASIGNAR" por defecto en el servicio
+				Team:      "",             // Se define por nivel de riesgo en el servicio
 			}
 			_, calErr := FollowUpSvc.GenerateOrRecalculate(context.Background(), vCaseRequest.VCase.VictimCaseICode, calendarInput)
 			if calErr != nil {

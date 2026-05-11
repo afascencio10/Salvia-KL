@@ -85,13 +85,31 @@ func GetConnection(connData *ConnData, clientConfig *DBClientConfig, serverConfi
 
 	getClientConnection(clientConfig)
 
-	//println("Conn status - Curr num conn: "+strconv.Itoa(lenCurrentConnections()), ", Avail num conn: ")
-
 	if connData.ConnID == "" {
 
 		if channel, found := readChannel(clientConfig.DatabaseName); found {
 
-			*connData = <-channel
+			conn := <-channel
+
+			// Verificar que la conexión sigue viva; reconectar si está muerta (broken pipe)
+			if pingErr := conn.Conn.Ping(context.Background()); pingErr != nil {
+				conn.Conn.Close(context.Background())
+				sslmode := clientConfig.SSLMode
+				if sslmode == "" {
+					sslmode = "disable"
+				}
+				psqlconn := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=%s",
+					clientConfig.UserName, clientConfig.Password,
+					clientConfig.Hostname, clientConfig.Port,
+					clientConfig.DatabaseName, sslmode)
+				newConn, err := pgx.Connect(context.Background(), psqlconn)
+				if err != nil {
+					return connData, err
+				}
+				conn.Conn = newConn
+			}
+
+			*connData = conn
 		}
 	}
 
