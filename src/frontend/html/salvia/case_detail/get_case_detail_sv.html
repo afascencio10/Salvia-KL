@@ -300,7 +300,7 @@
             </a>
             <!-- Botones para seguimientos PENDIENTES -->
             <div v-if="!seg.is_completed && seg.status !== 'REALIZADO'" class="cd-seg-actions">
-              <button v-if="(userRole === 'ro' || userRole === 'op') && seg.agent_id === userICode" class="btn-iniciar">▶ Iniciar</button>
+              <a v-if="(userRole === 'ro' || userRole === 'op') && seg.agent_id === userICode" :href="'/salvia/hacer-seguimiento/' + seg.id" class="btn-iniciar" style="text-decoration:none;text-align:center">▶ Iniciar</a>
               <button v-else-if="userRole === 'ro' || userRole === 'op'" class="btn-iniciar" disabled style="opacity:.5;cursor:not-allowed" title="Este seguimiento está asignado a otro agente">▶ Iniciar</button>
               <button v-if="puedeReasignar"
                       class="btn-reasignar-seg"
