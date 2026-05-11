@@ -16,7 +16,7 @@ import (
 // var dbClientConfig db.DBClientConfig = db.DBClientConfig{Hostname: "localhost", Port: "5432", DatabaseName: "salvia", UserName: "salvia_admin", Password: "asd876.!@asdSDS5a36Z"}
 var dbClientConfig db.DBClientConfig
 
-var dbServerConfig db.DBServerConfig = db.DBServerConfig{PoolSize: 20}
+var dbServerConfig db.DBServerConfig = db.DBServerConfig{PoolSize: 5}
 
 const module string = "security"
 
