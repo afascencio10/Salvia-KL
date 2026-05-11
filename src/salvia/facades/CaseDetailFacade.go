@@ -33,6 +33,8 @@ func CaseDetailGET(c *gin.Context) {
 	vars["windowTitle"]                 = "Detalle del Caso"
 	vars["caseICode"]                   = caseICode
 	vars["userRole"]                    = sc.Session.CurrentRole
+	vars["userTeam"]                    = sc.Session.Team
+	vars["userICode"]                   = sc.Session.UserICode
 	vars["salviaVictimCaseGETFormPath"] = salvia_config.FormPaths[sc.Session.Lang]["VictimCaseGET"]
 
 	common_facades.RenderTemplate(

@@ -64,6 +64,7 @@ type VictimCaseForm1 struct {
 	VictimCaseForm1ThreatenedToKillOrHarmChildren string `gorm:"column:victim_case_form1_threatened_to_kill_or_harm_children"      json:"threatenedToKillOrHarmChildren"`
 	VictimCaseForm1JealousAndViolent             string  `gorm:"column:victim_case_form1_jealous_and_violent"                       json:"jealousAndViolent"`
 	VictimCaseForm1BelievesCapableOfKilling      string  `gorm:"column:victim_case_form1_believes_capable_of_killing"               json:"believesCapableOfKilling"`
+	VictimCaseForm1VictimFemicideRisk            string  `gorm:"column:victim_case_form1_victim_femicide_risk"                      json:"femicideRisk"`
 }
 
 func (VictimCaseForm1) TableName() string { return "salvia.victim_case_form1" }
@@ -74,7 +75,7 @@ type VictimCaseForm2 struct {
 	VictimCaseForm2RiskLevel  *int  `gorm:"column:victim_case_form2_risk_level"             json:"riskLevel"`
 }
 
-func (VictimCaseForm2) TableName() string { return "salvia.victim_case_form_2" }
+func (VictimCaseForm2) TableName() string { return "salvia.victim_case_form2" }
 
 // FollowUp mapea salvia.follow_up.
 type FollowUp struct {

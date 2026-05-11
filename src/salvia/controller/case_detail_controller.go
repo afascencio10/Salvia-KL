@@ -36,6 +36,7 @@ func (c *CaseDetailController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/casos/:id/detalle", c.GetByID)
 	rg.GET("/operadores", c.GetOperadores)
 	rg.GET("/agentes-ro", c.GetAgentesRO)
+	rg.GET("/equipo-operadores", c.GetOperadoresByTeam)
 	rg.POST("/casos/:id/seguimiento", c.CrearSeguimiento)
 	rg.POST("/casos/:id/timeline", c.AddTimelineEvent)
 	rg.PUT("/seguimiento/:segId/reasignar", c.ReassignFollowUp)
@@ -74,6 +75,67 @@ func (c *CaseDetailController) GetAgentesRO(ctx *gin.Context) {
 	dbSrv := db.DBServerConfig{PoolSize: 80}
 	code, res := security_ctrl.GetGeneralUsersByRole("ro", &db.ConnData{}, dbCfg, dbSrv)
 	ctx.Data(code, "application/json", []byte(res))
+}
+
+// GetOperadoresByTeam devuelve operadores (op + ro) filtrados por team.
+// GET /api/v1/equipo-operadores?team=Riesgo alto
+// Usa query GORM directa para incluir el campo team que el DAO legacy no expone.
+func (c *CaseDetailController) GetOperadoresByTeam(ctx *gin.Context) {
+	team := ctx.Query("team")
+
+	type OperadorResult struct {
+		ICode    string `json:"icode" gorm:"column:general_user_i_code"`
+		FullName string `json:"fullName" gorm:"column:full_name"`
+		Team     string `json:"team" gorm:"column:general_user_team"`
+		Names    string `json:"names" gorm:"column:general_user_profile_names"`
+		LastNames string `json:"lastNames" gorm:"column:general_user_profile_last_names"`
+	}
+
+	var results []OperadorResult
+	query := `
+		SELECT DISTINCT gu.general_user_i_code,
+			   gup.general_user_profile_names || ' ' || gup.general_user_profile_last_names as full_name,
+			   gu.general_user_team,
+			   gup.general_user_profile_names,
+			   gup.general_user_profile_last_names
+		FROM security.general_user gu
+		JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+		JOIN security.rel_role_general_user rr ON rr.general_user_id = gu.general_user_id
+		JOIN security.role r ON r.role_id = rr.role_id
+		WHERE r.role_code IN ('op', 'ro')
+		  AND gu.general_user_status = 'e'
+	`
+	args := []interface{}{}
+	if team != "" {
+		query += " AND gu.general_user_team = ?"
+		args = append(args, team)
+	}
+	query += " ORDER BY full_name ASC"
+
+	c.svc.GetDB().Raw(query, args...).Scan(&results)
+
+	if results == nil {
+		results = []OperadorResult{}
+	}
+
+	// Transformar a formato compatible con el frontend
+	type FrontendUser struct {
+		ICode    string `json:"icode"`
+		FullName string `json:"fullName"`
+		Team     string `json:"team"`
+	}
+	var output []FrontendUser
+	for _, r := range results {
+		output = append(output, FrontendUser{
+			ICode:    r.ICode,
+			FullName: r.FullName,
+			Team:     r.Team,
+		})
+	}
+	if output == nil {
+		output = []FrontendUser{}
+	}
+	ctx.JSON(200, output)
 }
 
 // CrearSeguimiento crea un registro básico en follow_up_v2.
