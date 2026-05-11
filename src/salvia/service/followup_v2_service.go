@@ -230,9 +230,9 @@ func (s *followUpV2Service) GenerateOrRecalculate(ctx context.Context, caseID st
 
 	// El equipo se define por el nivel de riesgo, ignorando lo que venga en el input
 	if input.RiskLevel >= 3 {
-		input.Team = "RIESGO_ALTO"
+		input.Team = "Riesgo alto"
 	} else {
-		input.Team = "RIESGO_BAJO"
+		input.Team = "Riesgo bajo"
 	}
 
 	completed, err := s.repo.FindCompletedByCaseID(ctx, caseID)
