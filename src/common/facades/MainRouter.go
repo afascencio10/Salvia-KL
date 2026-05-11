@@ -112,6 +112,19 @@ func InitRouter() *gin.Engine {
 	return router
 }
 
+// NewHTTPServer retorna un *http.Server configurado pero sin arrancar.
+// Úsalo en main.go para implementar graceful shutdown.
+func NewHTTPServer() *http.Server {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "443"
+	}
+	return &http.Server{
+		Addr:    ":" + port,
+		Handler: router,
+	}
+}
+
 func StartRouter() {
 	port := os.Getenv("PORT")
 	if port != "" {

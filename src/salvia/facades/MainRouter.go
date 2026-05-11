@@ -16,7 +16,7 @@ import (
 var dbClientConfig db.DBClientConfig
 
 // var dbClientConfig db.DBClientConfig = db.DBClientConfig{Hostname: "localhost", Port: "5432", DatabaseName: "salvia", UserName: "postgres", Password: "123456"}
-var dbServerConfig db.DBServerConfig = db.DBServerConfig{PoolSize: 3}
+var dbServerConfig db.DBServerConfig = db.DBServerConfig{PoolSize: db.DefaultPoolSize}
 
 const module string = "salvia"
 
