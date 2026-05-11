@@ -217,23 +217,22 @@
         delimiters: ['${', '}'],
         data() {
             return {
-                windowTitle: {{.windowTitle
-    }},
-    currentUser: { {.currentUser } },
+                windowTitle: {{.windowTitle}},
+    currentUser: {{.currentUser}},
 
-    victimContacts: JSON.parse({{.victimContacts }}).data,
-        victimCases: JSON.parse({{.victimCases }}),
-            numPages: JSON.parse({{.numPages }}),
+    victimContacts: JSON.parse({{.victimContacts}}).data,
+        victimCases: JSON.parse({{.victimCases}}),
+            numPages: JSON.parse({{.numPages}}),
                 currentPage: 0,
                     currentTab: "recontact_v", // Nombre del tab de primer contacto
                         currentFilter: "fcv", //Primer contacto
 
-                            menu: { {.menu } },
-    menuToolsContactTable: { {.menuToolsContactTable } },
-    menuToolsCaseTable: { {.menuToolsCaseTable } },
+                            menu: {{.menu}},
+    menuToolsContactTable: {{.menuToolsContactTable}},
+    menuToolsCaseTable: {{.menuToolsCaseTable}},
     enums: {
-        docType: { {.docType } },
-        docTypeUnified: { {.docTypeUnified } }
+        docType: {{.docType}},
+        docTypeUnified: {{.docTypeUnified}}
     },
     workingSpace: {
         victimCase: {
@@ -260,8 +259,7 @@
         */
     },
     mounted: function () {
-        document.title = {{.windowTitle }
-    };
+        document.title = {{.windowTitle}};
     document.getElementById('app').style.display = 'block';
             
           },

@@ -63,29 +63,26 @@ func StartRouter(router *gin.Engine) {
 		secRouter.POST("/"+translatedEntity, VictimCasePOST)
 		secRouter.POST("/"+translatedEntity+"/:id", VictimCasePOST)
 
-		secRouter.GET("/"+translatedEntity+"/:id"+"/"+translatedNew, VictimCasePOST_GET)
+		// Rutas estáticas primero (antes de /:id para evitar conflictos en Gin)
 		secRouter.GET("/"+translatedEntity+"/"+translatedNew, VictimCasePOST_GET)
-		secRouter.GET("/"+translatedEntity+"/:id"+"/"+translatedUpdate, VictimCasePUT_GET)
-		secRouter.GET("/"+translatedEntity, VictimCaseGET)
+		secRouter.GET("/"+translatedEntity+"/"+translatedReport, VictimCaseReportGET)
+		secRouter.POST("/"+translatedEntity+"/"+translatedReport, VictimCaseReportPOST)
 		secRouter.GET("/"+translatedEntity+"/p/:p", VictimCaseGET)
 		secRouter.GET("/"+translatedEntity+"/f/:f/p/:p", VictimCaseGET)
+		secRouter.GET("/"+translatedEntity, VictimCaseGET)
 
+		// Rutas con parámetro :id
+		secRouter.GET("/"+translatedEntity+"/:id"+"/"+translatedNew, VictimCasePOST_GET)
+		secRouter.GET("/"+translatedEntity+"/:id"+"/"+translatedUpdate, VictimCasePUT_GET)
+		secRouter.GET("/"+translatedEntity+"/:id/detalle", CaseDetailGET)
+		secRouter.GET("/"+translatedEntity+"/:id/"+translatedDocument+"/:docType", VictimCaseGET)
+		secRouter.GET("/"+translatedEntity+"/:id/"+translatedDocument+"/:docType"+"/p/:p", VictimCaseGET)
 		secRouter.GET("/"+translatedEntity+"/:id", VictimCaseGET)
 		secRouter.GET("/"+translatedEntity+"/:id/", VictimCaseGET)
 
-		// Detalle de caso — solo rol sv
-		secRouter.GET("/"+translatedEntity+"/:id/detalle", CaseDetailGET)
-
-		secRouter.GET("/"+translatedEntity+"/:id/"+translatedDocument+"/:docType", VictimCaseGET)
-		secRouter.GET("/"+translatedEntity+"/:id/"+translatedDocument+"/:docType"+"/p/:p", VictimCaseGET)
-
 		secRouter.PUT("/"+translatedEntity, VictimCasePUT)
-
 		secRouter.PUT("/"+translatedEntity+"/:id/:by", VictimCasePUT)
 		secRouter.PUT("/"+translatedEntity+"/:id/:by/:form", VictimCasePUT)
-
-		secRouter.GET("/"+translatedEntity+"/"+translatedReport, VictimCaseReportGET)
-		secRouter.POST("/"+translatedEntity+"/"+translatedReport, VictimCaseReportPOST)
 
 		/*
 			EntityBranch

@@ -181,6 +181,10 @@
 
             <!-- Priorizados Tab -->
             <div v-else-if="activeTab === 'priority'">
+                <div v-if="priorityFollowUps.length === 0" class="ms-empty-state">
+                    <i class="fas fa-check-circle ms-empty-state__icon"></i>
+                    <p class="ms-empty-state__text">No hay seguimientos priorizados</p>
+                </div>
                 <div v-if="priorityFollowUps.length > 0" class="ms-urgent-alert">
                     <i class="fas fa-clock ms-urgent-alert__icon"></i>
                     <div class="ms-urgent-alert__content">
