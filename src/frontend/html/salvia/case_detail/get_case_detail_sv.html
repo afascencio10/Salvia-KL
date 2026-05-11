@@ -78,8 +78,8 @@
         </div>
       </div>
       <div class="cd-header-right">
-        <button v-if="userRole === 'sv'" class="btn-reasignar" @click="abrirModalReasignar">Reasignar</button>
-        <button v-if="userRole === 'sv'" class="btn-nuevo-seg" :disabled="followUpsV2.length >= 8" @click="abrirModalNuevoSeg">
+        <button v-if="puedeReasignar" class="btn-reasignar" @click="abrirModalReasignar">Reasignar</button>
+        <button v-if="puedeReasignar" class="btn-nuevo-seg" :disabled="followUpsV2.length >= 8" @click="abrirModalNuevoSeg">
           ${ followUpsV2.length >= 8 ? 'Máximo alcanzado (8)' : '+ Nuevo seguimiento' }
         </button>
       </div>
@@ -300,8 +300,9 @@
             </a>
             <!-- Botones para seguimientos PENDIENTES -->
             <div v-if="!seg.is_completed && seg.status !== 'REALIZADO'" class="cd-seg-actions">
-              <button v-if="userRole === 'ro' || userRole === 'sv'" class="btn-iniciar">▶ Iniciar</button>
-              <button v-if="userRole === 'sv'"
+              <button v-if="(userRole === 'ro' || userRole === 'op') && seg.agent_id === userICode" class="btn-iniciar">▶ Iniciar</button>
+              <button v-else-if="userRole === 'ro' || userRole === 'op'" class="btn-iniciar" disabled style="opacity:.5;cursor:not-allowed" title="Este seguimiento está asignado a otro agente">▶ Iniciar</button>
+              <button v-if="puedeReasignar"
                       class="btn-reasignar-seg"
                       @click="reasignarSeguimiento(seg, idx)">
                 📋 Reasignar
@@ -392,9 +393,8 @@
           <span v-else-if="segTocado && nuevoSeg.fecha && nuevoSeg.fecha < fechaHoy" class="ns-error-msg">No se permiten fechas anteriores a hoy</span>
         </div>
         <div class="ns-field">
-          <label class="ns-label">Hora <span class="ns-required">*</span></label>
-          <input type="time" :class="['ns-input', segTocado && !nuevoSeg.hora ? 'ns-input-error' : '']" v-model="nuevoSeg.hora" @blur="segTocado = true" />
-          <span v-if="segTocado && !nuevoSeg.hora" class="ns-error-msg">La hora es obligatoria</span>
+          <label class="ns-label">Hora</label>
+          <input type="time" class="ns-input" v-model="nuevoSeg.hora" />
         </div>
       </div>
 
@@ -423,7 +423,7 @@
     <div class="ns-footer">
       <div v-if="!nuevoSegValido && segTocado" style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;margin-right:auto;display:flex;align-items:center;gap:6px">
         <span style="font-size:.9rem">⚠️</span>
-        <span style="font-size:.75rem;color:#92400e">Complete los campos obligatorios (fecha, hora y agente) para guardar.</span>
+        <span style="font-size:.75rem;color:#92400e">Complete los campos obligatorios (fecha y agente) para guardar.</span>
       </div>
       <button class="ns-btn-cancel" @click="modalNuevoSeg = false">Cancelar</button>
       <button class="ns-btn-save" :disabled="!nuevoSegValido || guardandoSeg" @click="guardarSeguimiento">
@@ -538,6 +538,8 @@ var home = Vue.createApp({
         { value: 'CAMBIO_ESTADO', label: 'Cambios de estado' },
       ],
       userRole: "{{.userRole}}",
+      userTeam: "{{.userTeam}}",
+      userICode: "{{.userICode}}",
       operadores: [],
       agentesRO: [],
       tabActiva: 'info',
@@ -588,13 +590,39 @@ var home = Vue.createApp({
       return Math.ceil(filtrados.length / this.tlPorPagina) || 1;
     },
     nuevoSegValido() {
-      if (!this.nuevoSeg.fecha || !this.nuevoSeg.hora || !this.nuevoSeg.agente) return false;
+      if (!this.nuevoSeg.fecha || !this.nuevoSeg.agente) return false;
       if (this.nuevoSeg.fecha < this.fechaHoy) return false;
       return true;
     },
+    puedeReasignar() {
+      if (this.userRole !== 'sv') return false;
+      if (!this.userTeam) return true; // sin team asignado = ve todo (fallback admin)
+      // Determinar si el caso es riesgo alto
+      var esRiesgoAlto = false;
+      if (this.form2 && this.form2.riskLevel) {
+        // Form2: nivel >= 3 es riesgo alto
+        esRiesgoAlto = this.form2.riskLevel >= 3;
+      } else if (this.form1) {
+        // Form1: femicideRisk "1" = riesgo alto, "0" o vacío = riesgo bajo
+        esRiesgoAlto = this.form1.femicideRisk === '1';
+      }
+      if (this.userTeam === 'Riesgo alto' && esRiesgoAlto) return true;
+      if (this.userTeam === 'Riesgo bajo' && !esRiesgoAlto) return true;
+      return false;
+    },
     nivelRiesgo() {
-      if (!this.form2 || this.form2.riskLevel === null || this.form2.riskLevel === undefined) return 0;
-      return this.form2.riskLevel;
+      // Prioridad: form2 (nivel graduado), luego form1 (binario)
+      if (this.form2 && this.form2.riskLevel !== null && this.form2.riskLevel !== undefined && this.form2.riskLevel > 0) {
+        return this.form2.riskLevel;
+      }
+      // Form1: femicideRisk "1" = riesgo alto (mapeamos a 3), "0" = riesgo bajo (mapeamos a 1)
+      if (this.form1 && this.form1.femicideRisk === '1') {
+        return 3; // Alto
+      }
+      if (this.form1 && this.form1.femicideRisk === '0') {
+        return 1; // Bajo
+      }
+      return 0; // Sin evaluar
     },
     ultimoAgente() {
       var desc = this.caso ? this.caso.victimCaseOwnerDescription : '';
@@ -652,6 +680,9 @@ var home = Vue.createApp({
   },
 
   methods: {
+    logout(){
+      logout("/seguridad/logout");
+    },
     cargarDatos() {
       var self = this;
       self.cargando = true;
@@ -698,33 +729,87 @@ var home = Vue.createApp({
     },
     cargarOperadores() {
       var self = this;
-      fetch('/api/v1/operadores')
+      // Cargar todos los operadores del equipo (op + ro filtrados por team)
+      var url = '/api/v1/equipo-operadores';
+      if (self.userTeam) {
+        url += '?team=' + encodeURIComponent(self.userTeam);
+      }
+      fetch(url)
         .then(function(res) { return res.json(); })
         .then(function(data) {
           var lista = [];
           if (Array.isArray(data)) lista = data;
           else if (data && Array.isArray(data.data)) lista = data.data;
-          // Filtrar duplicados por icode
+          // Si no hay resultados con filtro de team, cargar sin filtro como fallback
+          if (lista.length === 0 && self.userTeam) {
+            fetch('/api/v1/equipo-operadores')
+              .then(function(res2) { return res2.json(); })
+              .then(function(data2) {
+                var lista2 = Array.isArray(data2) ? data2 : (data2 && Array.isArray(data2.data) ? data2.data : []);
+                var vistos = {};
+                self.operadores = lista2.filter(function(op) {
+                  if (vistos[op.icode]) return false;
+                  vistos[op.icode] = true;
+                  return true;
+                }).sort(function(a, b) {
+                  var na = (a.fullName || (a.profile ? a.profile.names + ' ' + a.profile.lastNames : '')).toLowerCase();
+                  var nb = (b.fullName || (b.profile ? b.profile.names + ' ' + b.profile.lastNames : '')).toLowerCase();
+                  return na.localeCompare(nb);
+                });
+              });
+            return;
+          }
           var vistos = {};
           self.operadores = lista.filter(function(op) {
             if (vistos[op.icode]) return false;
             vistos[op.icode] = true;
             return true;
+          }).sort(function(a, b) {
+            var na = (a.fullName || (a.profile ? a.profile.names + ' ' + a.profile.lastNames : '')).toLowerCase();
+            var nb = (b.fullName || (b.profile ? b.profile.names + ' ' + b.profile.lastNames : '')).toLowerCase();
+            return na.localeCompare(nb);
           });
         })
         .catch(function(err) { console.log('Error cargando operadores:', err); });
     },
     cargarAgentesRO() {
       var self = this;
-      fetch('/api/v1/agentes-ro')
+      var url = '/api/v1/equipo-operadores';
+      if (self.userTeam) {
+        url += '?team=' + encodeURIComponent(self.userTeam);
+      }
+      fetch(url)
         .then(function(res) { return res.json(); })
         .then(function(data) {
           var lista = Array.isArray(data) ? data : (data && Array.isArray(data.data) ? data.data : []);
+          // Fallback si no hay resultados
+          if (lista.length === 0 && self.userTeam) {
+            fetch('/api/v1/equipo-operadores')
+              .then(function(res2) { return res2.json(); })
+              .then(function(data2) {
+                var lista2 = Array.isArray(data2) ? data2 : (data2 && Array.isArray(data2.data) ? data2.data : []);
+                var vistos = {};
+                self.agentesRO = lista2.filter(function(op) {
+                  if (vistos[op.icode]) return false;
+                  vistos[op.icode] = true;
+                  return true;
+                }).sort(function(a, b) {
+                  var na = (a.fullName || (a.profile ? a.profile.names + ' ' + a.profile.lastNames : '')).toLowerCase();
+                  var nb = (b.fullName || (b.profile ? b.profile.names + ' ' + b.profile.lastNames : '')).toLowerCase();
+                  return na.localeCompare(nb);
+                });
+              });
+            return;
+          }
           var vistos = {};
           self.agentesRO = lista.filter(function(op) {
             if (vistos[op.icode]) return false;
             vistos[op.icode] = true;
             return true;
+          }).sort(function(a, b) {
+            var na = (a.fullName || (a.profile ? a.profile.names + ' ' + a.profile.lastNames : '')).toLowerCase();
+            var nb = (b.fullName || (b.profile ? b.profile.names + ' ' + b.profile.lastNames : '')).toLowerCase();
+            return na.localeCompare(nb);
           });
         })
         .catch(function(err) { console.log('Error cargando agentes RO:', err); });
@@ -799,7 +884,13 @@ var home = Vue.createApp({
     },
     abrirModalNuevoSeg() {
       if (this.followUpsV2.length >= 8) return;
-      this.nuevoSeg = { fecha: '', hora: '09:00', agente: '', notas: '' };
+      // Preseleccionar el agente del último seguimiento si existe
+      var agenteDefault = '';
+      if (this.followUpsV2.length > 0) {
+        var ultimo = this.followUpsV2[this.followUpsV2.length - 1];
+        if (ultimo.agent_id) agenteDefault = ultimo.agent_id;
+      }
+      this.nuevoSeg = { fecha: '', hora: '', agente: agenteDefault, notas: '' };
       this.segTocado = false;
       this.guardandoSeg = false;
       this.nuevoSegError = '';
