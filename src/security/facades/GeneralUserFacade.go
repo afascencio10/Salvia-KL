@@ -189,6 +189,15 @@ func GeneralUserLOGIN_POST(c *gin.Context) {
 					if v, found := salvia_config.Menu[usr.GeneralUserLanguage]["fo"]; found {
 						utils.MergeMaps(menu, v)
 					}
+
+				case "an":
+					// Agente de Notificaciones: redirigir directamente a la pantalla de notificaciones.
+					navMap := map[string]string{
+						"login": "/salvia/notificaciones",
+						"role":  currentRole,
+					}
+					navByte, _ := json.Marshal(navMap)
+					navStr = string(navByte)
 				}
 
 				// Se crea una sesión común con la información del usuario autenticado.

@@ -230,7 +230,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	},
 
 	// ── Módulo de Notificaciones ─────────────────────────────────────────────
-	"get_notificaciones": {"op": true, "no": true, "sv": true, "ad": true, "ro": true, "et": true},
+	"get_notificaciones": {"op": true, "an": true, "no": true, "sv": true, "ad": true, "ro": true, "et": true},
 
 	// ── Módulo de Seguimiento (HU-027) ──────────────────────────────────────
 	"get_seguimiento_detalle_caso":    {"ad": true, "sv": true, "op": true},

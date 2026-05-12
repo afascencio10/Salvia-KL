@@ -1,7 +1,9 @@
 {{ define "notifications/modal_revisar.html" }}
 {{/* Modal: Revisar oficio — estado para_revisar
      Rol habilitado: Agente de Notificaciones
-     El agente revisa el oficio proyectado y lo envía a aprobación jurídica. */}}
+     El agente abre el oficio proyectado en el Kofax y decide:
+       · Marcar como revisado → aprobacion_juridica  (review_by = userId)
+       · Por corregir         → en_correccion */}}
 
 <div v-if="showModal && activeModal === 'revisar'" class="nf-modal-overlay" @click.self="closeModal">
     <div class="nf-modal">
@@ -17,26 +19,50 @@
                 ${ selectedOficio.title }
             </p>
 
-            <div class="nf-modal-info-box nf-info-amber">
-                <i class="fas fa-exclamation-triangle"></i>
-                El oficio fue revisado. Este oficio pasa a la etapa de aprobación jurídica.
+            <!-- Enlace al oficio en el Kofax -->
+            <div class="nf-modal-form-group">
+                <label class="nf-modal-label">Oficio en el Kofax</label>
+
+                <div v-if="selectedOficio && selectedOficio.urlKofax" class="nf-kofax-link-wrapper">
+                    <i class="fas fa-file-alt nf-kofax-icon"></i>
+                    <a :href="selectedOficio.urlKofax" target="_blank" rel="noopener" class="nf-kofax-link">
+                        ${ selectedOficio.urlKofax }
+                        <i class="fas fa-external-link-alt" style="margin-left:6px;font-size:0.8em;"></i>
+                    </a>
+                </div>
+
+                <div v-else class="nf-modal-hint">
+                    <i class="fas fa-exclamation-circle"></i>
+                    No hay ruta del oficio registrada.
+                </div>
             </div>
 
-            <div class="nf-modal-form-group">
-                <label class="nf-modal-label">
-                    Ruta del oficio en el Kofax <span class="nf-required">*</span>
-                </label>
-                <input
-                    v-model="modalForm.kofaxPath"
-                    type="text"
-                    class="form-control nf-modal-input"
-                    placeholder="Ej: Oficios/2026/Justicia/OF-031">
+            <!-- Info de entidad y nivel -->
+            <div v-if="selectedOficio && (selectedOficio.entidad || selectedOficio.nivel)"
+                 class="nf-modal-meta-row">
+                <span v-if="selectedOficio.entidad" class="nf-meta-item">
+                    Entidad: <strong>${ selectedOficio.entidad }</strong>
+                </span>
+                <span v-if="selectedOficio.nivel" class="nf-meta-item" style="margin-left:16px;">
+                    Nivel: <strong>${ selectedOficio.nivel }</strong>
+                </span>
+            </div>
+
+            <div v-if="saveError" class="nf-error-state" style="margin-top:12px;">
+                <i class="fas fa-exclamation-triangle"></i> ${ saveError }
             </div>
 
             <div class="nf-modal-footer">
-                <button class="btn nf-btn-modal-cancel" @click="closeModal">Cancelar</button>
-                <button class="btn nf-btn-modal-primary" @click="submitModal('revisar')">
-                    Marcar oficio como revisado
+                <button class="btn nf-btn-modal-cancel" @click="closeModal" :disabled="isSaving">
+                    Cancelar
+                </button>
+                <button class="btn nf-btn-modal-secondary" @click="submitModal('por_corregir')" :disabled="isSaving">
+                    <span v-if="isSaving"><i class="fas fa-spinner fa-spin"></i></span>
+                    <span v-else><i class="fas fa-undo"></i> Por corregir</span>
+                </button>
+                <button class="btn nf-btn-modal-primary" @click="submitModal('revisar')" :disabled="isSaving">
+                    <span v-if="isSaving"><i class="fas fa-spinner fa-spin"></i> Guardando...</span>
+                    <span v-else><i class="fas fa-check"></i> Marcar oficio como revisado</span>
                 </button>
             </div>
 

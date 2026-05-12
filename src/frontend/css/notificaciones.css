@@ -623,6 +623,69 @@
     color: #fff !important;
 }
 
+.nf-btn-modal-secondary {
+    background: #fff !important;
+    color: #b45309 !important;
+    border: 1px solid #fbbf24 !important;
+    border-radius: 8px !important;
+    padding: 7px 20px !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    font-family: 'Nunito Sans', sans-serif !important;
+    transition: background 0.15s, border-color 0.15s !important;
+    min-height: unset !important;
+    width: auto !important;
+}
+
+.nf-btn-modal-secondary:hover {
+    background: #fffbeb !important;
+    border-color: #f59e0b !important;
+    color: #92400e !important;
+}
+
+/* ---- Link al Kofax dentro del modal ---- */
+.nf-kofax-link-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f5f3ff;
+    border: 1px solid #ddd6fe;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-top: 4px;
+}
+
+.nf-kofax-icon {
+    color: #5106A7;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.nf-kofax-link {
+    color: #5106A7;
+    font-size: 0.85rem;
+    word-break: break-all;
+    text-decoration: underline;
+}
+
+.nf-kofax-link:hover {
+    color: #3d0080;
+}
+
+/* ---- Meta fila en modales (entidad, nivel, etc.) ---- */
+.nf-modal-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: #fafafa;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: #555;
+}
+
 /* Nuevos estados de badge */
 .nf-status-por_proyectar {
     background: #f3e8ff;
@@ -634,6 +697,42 @@
     background: #fdf2f8;
     color: #9d174d;
     border: 1px solid #f9a8d4;
+}
+
+.nf-status-respondido {
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #86efac;
+}
+
+/* ---- Link Kofax dentro de la tabla ---- */
+.nf-info-kofax {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 6px 0 4px;
+    font-size: 0.78rem;
+    color: #5106A7;
+    overflow: hidden;
+}
+
+.nf-info-kofax i.fa-file-alt {
+    flex-shrink: 0;
+    font-size: 0.85rem;
+}
+
+.nf-info-kofax a {
+    color: #5106A7;
+    text-decoration: underline;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 260px;
+    display: inline-block;
+}
+
+.nf-info-kofax a:hover {
+    color: #3d0080;
 }
 
 /* ---- Paginación (complementa Bootstrap) ---- */
@@ -655,6 +754,50 @@
 .nf-pagination-wrapper .page-link:hover {
     background-color: #ede9fe;
     color: #5106A7;
+}
+
+/* ---- Estado de carga ---- */
+.nf-loading-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 48px 0;
+    color: #6c5b9e;
+    font-size: 15px;
+}
+
+.nf-spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid #e0d8f4;
+    border-top-color: #6c5b9e;
+    border-radius: 50%;
+    animation: nf-spin 0.75s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes nf-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ---- Estado de error ---- */
+.nf-error-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 40px 24px;
+    background: #fff8f8;
+    border: 1px solid #f5c6c6;
+    border-radius: 10px;
+    color: #b94a48;
+    font-size: 15px;
+    margin: 20px 0;
+}
+
+.nf-error-state i {
+    font-size: 20px;
 }
 
 /* ---- Responsive ---- */

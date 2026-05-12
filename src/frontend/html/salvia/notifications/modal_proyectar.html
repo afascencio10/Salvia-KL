@@ -23,14 +23,13 @@
 
             <div class="nf-modal-form-group">
                 <label class="nf-modal-label">
-                    Selecciona el área <span class="nf-required">*</span>
+                    Nivel <span class="nf-required">*</span>
                 </label>
-                <select v-model="modalForm.area" class="form-control nf-modal-input">
-                    <option value="">Selecciona el área...</option>
-                    <option value="juridica">Área Jurídica</option>
-                    <option value="notificaciones">Área de Notificaciones</option>
-                    <option value="seguimiento">Área de Seguimiento</option>
-                    <option value="coordinacion">Coordinación</option>
+                <select v-model="modalForm.nivel" class="form-control nf-modal-input">
+                    <option value="">Selecciona el nivel...</option>
+                    <option value="municipal">Municipal</option>
+                    <option value="departamental">Departamental</option>
+                    <option value="nacional">Nacional</option>
                 </select>
             </div>
 
@@ -56,10 +55,15 @@
                     placeholder="Ej: U:/Users/X/file/oficio">
             </div>
 
+            <div v-if="saveError" class="nf-error-state" style="margin-top:12px;">
+                <i class="fas fa-exclamation-triangle"></i> ${ saveError }
+            </div>
+
             <div class="nf-modal-footer">
-                <button class="btn nf-btn-modal-cancel" @click="closeModal">Cancelar</button>
-                <button class="btn nf-btn-modal-primary" @click="submitModal('proyectar')">
-                    Registrar
+                <button class="btn nf-btn-modal-cancel" @click="closeModal" :disabled="isSaving">Cancelar</button>
+                <button class="btn nf-btn-modal-primary" @click="submitModal('proyectar')" :disabled="isSaving">
+                    <span v-if="isSaving"><i class="fas fa-spinner fa-spin"></i> Guardando...</span>
+                    <span v-else>Registrar</span>
                 </button>
             </div>
 

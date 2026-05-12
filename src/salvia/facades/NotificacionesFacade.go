@@ -4,7 +4,9 @@ import (
 	common_facades "bitsflow/common/facades"
 	"bitsflow/common/utils"
 	salvia_config "bitsflow/salvia/config"
+	"net/http"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 )
 
@@ -22,8 +24,28 @@ var notifModalTemplates = []string{
 
 // NotificacionesGET renderiza la pantalla de Notificaciones Salvia.
 // Ruta: GET /salvia/notificaciones
-// NOTA: Sin validación de sesión — acceso público para desarrollo/prototipo.
+// Roles permitidos: op (Agente Seguimiento), an (Agente de Notificaciones)
 func NotificacionesGET(c *gin.Context) {
+	session := sessions.Default(c)
+	sessionIDVal := session.Get("userData")
+	if sessionIDVal == nil {
+		c.Redirect(http.StatusTemporaryRedirect, "/static/landing.html")
+		return
+	}
+
+	sessionID := sessionIDVal.(string)
+	s, err := utils.GetCommonSession(sessionID)
+	if err != nil {
+		c.Redirect(http.StatusTemporaryRedirect, "/static/landing.html")
+		return
+	}
+
+	// Validar que el usuario tenga permiso para acceder a notificaciones.
+	// Roles válidos: op (Agente Seguimiento) y an (Agente de Notificaciones).
+	if !utils.CheckPermission(salvia_config.PermissionsByRole, "get_notificaciones", s.CurrentRole, c) {
+		return
+	}
+
 	extraTemplates := append(utils.GetFullHtmlTemplates(), notifModalTemplates...)
 
 	common_facades.RenderTemplate(
@@ -37,11 +59,12 @@ func NotificacionesGET(c *gin.Context) {
 		utils.DEFAULT_VIEW,
 		utils.DEFAULT_PANIC_TEMPLATE,
 		map[string]interface{}{
-			"windowTitle": "Notificaciones Salvia",
-			"currentUser": "",
-			"locale":      salvia_config.Locale,
-			"lang":        "sp",
-			"currentRole": "",
+			"windowTitle":   "Notificaciones Salvia",
+			"currentUser":   s.Names + " " + s.LastNames,
+			"currentRole":   s.CurrentRole,
+			"currentUserId": s.UserICode,
+			"locale":        salvia_config.Locale,
+			"lang":          s.Lang,
 		},
 		utils.GetFullHtmlFuncMap(),
 	)
