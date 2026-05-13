@@ -455,16 +455,15 @@
                     ${ modalContesto.attempts } intento${ modalContesto.attempts > 1 ? 's' : '' } sin respuesta
                 </p>
             </div>
+
             <div style="display: flex; gap: 1rem; width: 100%;">
                 <button @click="handleNoAnswer"
                     style="flex: 1; background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;">
                     No contestó
                 </button>
-                <button @click="handleAnswered" :disabled="loading"
-                    style="flex: 1; background-color: #8b5cf6; color: white; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;"
-                    :style="loading ? 'opacity: 0.7; cursor: not-allowed;' : ''">
-                    <span v-if="!loading">Sí contestó <i class="fas fa-check"></i></span>
-                    <span v-else><i class="fas fa-spinner fa-spin"></i> Guardando...</span>
+                <button @click="handleYesAnswer"
+                    style="flex: 1; background-color: #8b5cf6; color: white; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;">
+                    Sí contestó <i class="fas fa-check"></i>
                 </button>
             </div>
             <button @click="closeModals"
@@ -506,6 +505,36 @@
         </div>
     </div>
 
+    <!-- Modal Sí Contestó (Quién contestó) -->
+    <div v-if="modalSiContesto" class="ms-modal-overlay" @click.self="closeModals">
+        <div class="ms-modal-content">
+            <div
+                style="width: 4rem; height: 4rem; border-radius: 9999px; background-color: #f0fdf4; color: #16a34a; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem;">
+                <i class="fas fa-user-check"></i>
+            </div>
+            <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">Llamada exitosa</h3>
+            <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 1.5rem;">¿Quién contestó la llamada?</p>
+            <input type="text" v-model="answeredByName" placeholder="Ej: La víctima, su madre, etc."
+                style="width: 100%; padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid #e5e7eb; font-size: 0.875rem; outline: none; transition: all 0.2s; background: white; box-sizing: border-box; font-family: inherit;">
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button @click="closeModals"
+                    style="flex: 1; background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;">
+                    Cancelar
+                </button>
+                <button @click="confirmAnswered" :disabled="loading"
+                    :style="`flex: 1; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: ${loading ? 'not-allowed' : 'pointer'}; transition: all 0.2s; font-size: 0.875rem; background-color: ${loading ? '#d1d5db' : '#8b5cf6'}; color: white;`"
+                    style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <template v-if="loading">
+                        <i class="fas fa-circle-notch fa-spin"></i> Guardando...
+                    </template>
+                    <template v-else>
+                        Continuar <i class="fas fa-arrow-right"></i>
+                    </template>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Acciones -->
     <div v-if="modalAcciones" class="ms-modal-overlay" @click.self="closeModals">
         <div class="ms-modal-content">
@@ -521,10 +550,23 @@
             <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 2rem;">sin respuesta para contactar a ${
                 modalAcciones.caseName }</p>
             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                <button @click="handleReschedule"
-                    style="background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                    <i class="fas fa-calendar-alt"></i> Reagendar seguimiento
-                </button>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 0.75rem;">
+                <p style="font-size: 0.75rem; font-weight: 700; color: #4b5563; text-align: center; margin: 0 0 0.5rem 0;">POSPONER SEGUIMIENTO PARA:</p>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button @click="handleReschedule(1)"
+                        style="flex: 1; background: white; border: 1px solid #d1d5db; color: #374151; padding: 0.625rem; border-radius: 0.5rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.8125rem;">
+                        ${ getFutureDateLabel(1) }
+                    </button>
+                    <button @click="handleReschedule(2)"
+                        style="flex: 1; background: white; border: 1px solid #d1d5db; color: #374151; padding: 0.625rem; border-radius: 0.5rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.8125rem;">
+                        ${ getFutureDateLabel(2) }
+                    </button>
+                    <button @click="handleReschedule(3)"
+                        style="flex: 1; background: white; border: 1px solid #d1d5db; color: #374151; padding: 0.625rem; border-radius: 0.5rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.8125rem;">
+                        ${ getFutureDateLabel(3) }
+                    </button>
+                </div>
+            </div>
                 <button @click="handleAddAttempt"
                     style="background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
                     <i class="fas fa-plus-circle"></i> Añadir intento de contacto
@@ -647,10 +689,12 @@
                     completedFollowUps: [],
                     modalContesto: null,
                     modalRazon: null,
+                    modalSiContesto: null,
                     modalAcciones: null,
                     modalConfirmarCierre: null,
                     modalCierreExitoso: false,
                     reasonText: '',
+                    answeredByName: '',
                     enFormulario: null,
                     detailFollowUp: null,
                     loading: false,
@@ -771,10 +815,12 @@
                 closeModals() {
                     this.modalContesto = null;
                     this.modalRazon = null;
+                    this.modalSiContesto = null;
                     this.modalAcciones = null;
                     this.modalConfirmarCierre = null;
                     this.modalCierreExitoso = false;
                     this.reasonText = '';
+                    this.answeredByName = '';
                 },
 
                 // ── Event Handlers ──────────────────────────────────────────
@@ -792,17 +838,29 @@
                     console.log('[MisSeguimientos] modalAcciones:', this.modalAcciones);
                 },
 
-                async handleAnswered() {
+                handleYesAnswer() {
                     const fu = this.modalContesto;
+                    this.modalContesto = null;
+                    this.modalSiContesto = fu;
+                    this.answeredByName = '';
+                },
+                
+                async confirmAnswered() {
+                    const fu = this.modalSiContesto;
                     if (!fu || this.loading) return;
 
                     this.loading = true;
                     try {
+                        let reason = 'Sí contestó';
+                        if (this.answeredByName && this.answeredByName.trim() !== '') {
+                            reason = `Contestó: ${this.answeredByName.trim()}`;
+                        }
+
                         const response = await fetch(`/api/v1/follow-ups/${fu.id}/attempts`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                reason: 'Sí contestó',
+                                reason: reason,
                                 was_answered: true
                             })
                         });
@@ -898,24 +956,24 @@
                     }
                 },
 
-                async handleReschedule() {
+                async handleReschedule(daysToAdd) {
                     const fu = this.modalAcciones;
                     if (!fu) return;
 
                     this.loading = true;
                     try {
-                        // Calcular mañana (considerando zona horaria local)
-                        const tomorrow = new Date();
-                        tomorrow.setDate(tomorrow.getDate() + 1);
-                        const fechaManana = tomorrow.toISOString().split('T')[0];
+                        // Calcular fecha destino (considerando zona horaria local)
+                        const targetDate = new Date();
+                        targetDate.setDate(targetDate.getDate() + daysToAdd);
+                        const fechaDestino = targetDate.toISOString().split('T')[0];
 
                         const response = await fetch(`/api/v1/seguimientos/${fu.id}/reagendar`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                nueva_fecha: fechaManana,
+                                nueva_fecha: fechaDestino,
                                 nueva_hora: fu.scheduledTime || '08:00',
-                                motivo: 'Reagendamiento automático por límite de intentos alcanzado'
+                                motivo: `Reagendamiento automático por límite de intentos alcanzado (+${daysToAdd} días)`
                             })
                         });
 
@@ -1073,6 +1131,18 @@
                         'BAJO': 'ms-badge--low'
                     };
                     return map[lvl] || '';
+                },
+
+                getFutureDateLabel(daysToAdd) {
+                    const date = new Date();
+                    date.setDate(date.getDate() + daysToAdd);
+                    
+                    if (daysToAdd === 1) return 'Mañana';
+                    
+                    const d = date.getDate().toString().padStart(2, '0');
+                    const m = (date.getMonth() + 1).toString().padStart(2, '0');
+                    const y = date.getFullYear().toString().substring(2);
+                    return `${d}/${m}/${y}`;
                 },
 
                 logout() {
