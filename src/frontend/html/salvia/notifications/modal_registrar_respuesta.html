@@ -66,10 +66,17 @@
                     placeholder="Nombre del agente">
             </div>
 
+            <div v-if="saveError" class="nf-error-state" style="margin-top:12px;">
+                <i class="fas fa-exclamation-triangle"></i> ${ saveError }
+            </div>
+
             <div class="nf-modal-footer">
-                <button class="btn nf-btn-modal-cancel" @click="closeModal">Cancelar</button>
-                <button class="btn nf-btn-modal-primary" @click="submitModal('registrar_respuesta')">
-                    Registrar respuesta
+                <button class="btn nf-btn-modal-cancel" @click="closeModal" :disabled="isSaving">
+                    Cancelar
+                </button>
+                <button class="btn nf-btn-modal-primary" @click="submitModal('registrar_respuesta')" :disabled="isSaving">
+                    <span v-if="isSaving"><i class="fas fa-spinner fa-spin"></i> Guardando...</span>
+                    <span v-else><i class="fas fa-check-circle"></i> Registrar respuesta</span>
                 </button>
             </div>
 

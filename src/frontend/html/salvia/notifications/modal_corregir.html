@@ -1,7 +1,8 @@
 {{ define "notifications/modal_corregir.html" }}
 {{/* Modal: Corregir oficio — estado en_correccion
-     Rol habilitado: Agente Seguimiento
-     El agente ajusta el oficio según los comentarios del área jurídica y sube la nueva versión. */}}
+     Rol habilitado: Agente Seguimiento (op)
+     El agente revisa el oficio en el Kofax, lo corrige y lo marca como corregido
+     para que vuelva al estado para_revisar. */}}
 
 <div v-if="showModal && activeModal === 'corregir'" class="nf-modal-overlay" @click.self="closeModal">
     <div class="nf-modal">
@@ -18,24 +19,38 @@
             </p>
 
             <p class="nf-modal-hint">
-                Marca el oficio como corregido después de ajustar según los comentarios del área jurídica.
+                Revisa el oficio en el Kofax, aplica las correcciones solicitadas
+                y presiona "Marcar como corregido" para enviarlo nuevamente a revisión.
             </p>
 
+            <!-- Ruta del Kofax (solo lectura) -->
             <div class="nf-modal-form-group">
-                <label class="nf-modal-label">
-                    Ruta del oficio en el Kofax <span class="nf-required">*</span>
-                </label>
-                <input
-                    v-model="modalForm.kofaxPath"
-                    type="text"
-                    class="form-control nf-modal-input"
-                    placeholder="Ej: Oficios/2026/Vacaciones/OF-062">
+                <label class="nf-modal-label">Oficio en el Kofax</label>
+
+                <div v-if="selectedOficio && selectedOficio.urlKofax" class="nf-kofax-link-wrapper">
+                    <i class="fas fa-file-alt nf-kofax-icon"></i>
+                    <a :href="selectedOficio.urlKofax" target="_blank" rel="noopener" class="nf-kofax-link">
+                        ${ selectedOficio.urlKofax }
+                        <i class="fas fa-external-link-alt" style="margin-left:6px;font-size:0.8em;"></i>
+                    </a>
+                </div>
+
+                <div v-else class="nf-modal-hint">
+                    <i class="fas fa-exclamation-circle"></i> No hay ruta del oficio registrada.
+                </div>
+            </div>
+
+            <div v-if="saveError" class="nf-error-state" style="margin-top:12px;">
+                <i class="fas fa-exclamation-triangle"></i> ${ saveError }
             </div>
 
             <div class="nf-modal-footer">
-                <button class="btn nf-btn-modal-cancel" @click="closeModal">Cancelar</button>
-                <button class="btn nf-btn-modal-primary" @click="submitModal('corregir')">
-                    Marcar oficio como corregido
+                <button class="btn nf-btn-modal-cancel" @click="closeModal" :disabled="isSaving">
+                    Cancelar
+                </button>
+                <button class="btn nf-btn-modal-primary" @click="submitModal('corregir')" :disabled="isSaving">
+                    <span v-if="isSaving"><i class="fas fa-spinner fa-spin"></i> Guardando...</span>
+                    <span v-else><i class="fas fa-check"></i> Marcar oficio como corregido</span>
                 </button>
             </div>
 

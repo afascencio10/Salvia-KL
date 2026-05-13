@@ -31,6 +31,9 @@ import (
 //	    review_by             VARCHAR(36),
 //	    radicado_by           VARCHAR(36),
 //	    register_by           VARCHAR(36),
+//	    entidad               VARCHAR(255),
+//	    nivel                 VARCHAR(50),
+//	    url_kofax             TEXT,
 //	    created_at            TIMESTAMPTZ,
 //	    updated_at            TIMESTAMPTZ,
 //	    deleted_at            TIMESTAMPTZ
@@ -45,6 +48,16 @@ type EntityLetter struct {
 	ReviewBy           *string        `gorm:"type:varchar(36);column:review_by"                    json:"reviewBy,omitempty"`
 	RadicadoBy         *string        `gorm:"type:varchar(36);column:radicado_by"                  json:"radicadoBy,omitempty"`
 	RegisterBy         *string        `gorm:"type:varchar(36);column:register_by"                  json:"registerBy,omitempty"`
+	Entidad            *string        `gorm:"type:varchar(255);column:entidad"                     json:"entidad,omitempty"`
+	Nivel              *string        `gorm:"type:varchar(50);column:nivel"                        json:"nivel,omitempty"`
+	UrlKofax           *string        `gorm:"type:text;column:url_kofax"                           json:"urlKofax,omitempty"`
+	AsuntoRadicado     *string        `gorm:"type:varchar(255);column:asunto_radicado"             json:"asuntoRadicado,omitempty"`
+	CorreoEntidad      *string        `gorm:"type:varchar(255);column:correo_entidad"              json:"correoEntidad,omitempty"`
+	NumeroRadicado     *string        `gorm:"type:varchar(100);column:numero_radicado"             json:"numeroRadicado,omitempty"`
+	ResponseDate       *time.Time     `gorm:"column:response_date"                                 json:"responseDate,omitempty"`
+	CorreoRemitente    *string        `gorm:"type:varchar(255);column:correo_remitente"            json:"correoRemitente,omitempty"`
+	AsuntoRespuesta    *string        `gorm:"type:varchar(255);column:asunto_respuesta"            json:"asuntoRespuesta,omitempty"`
+	ResponseReviewBy   *string        `gorm:"type:varchar(36);column:response_review_by"           json:"responseReviewBy,omitempty"`
 	CreatedAt          time.Time      `                                                            json:"createdAt"`
 	UpdatedAt          time.Time      `                                                            json:"updatedAt"`
 	DeletedAt          gorm.DeletedAt `gorm:"index"                                                json:"deletedAt,omitempty"`
