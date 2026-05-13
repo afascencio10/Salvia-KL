@@ -573,6 +573,38 @@ func (s *followUpV2Service) RegisterContactAttempt(ctx context.Context, followUp
 
 	log.Printf("Intento #%d registrado para seguimiento %s: %s", fu.Attempts, followUpID, reason)
 
+	// 6. Si el intento fue fallido (no contestó), registrar en el timeline (HU-027 / Requerimiento adicional)
+	if !wasAnswered {
+		// Obtener info de la víctima para la descripción
+		victim, err := s.repo.LoadVictimInfoByCaseID(ctx, fu.CaseID)
+		victimName := "la víctima"
+		if err == nil && victim != nil {
+			victimName = fmt.Sprintf("%s %s", victim.Names, victim.LastNames)
+		}
+
+		agentID := ""
+		if fu.AgentID != nil {
+			agentID = *fu.AgentID
+		}
+
+		timelineEvent := &models.CaseTimelineEvent{
+			CaseID:      fu.CaseID,
+			Category:    "Seguimientos",
+			Type:        "Intento de Seguimiento",
+			Icon:        "fa fa-calendar",
+			Date:        time.Now(),
+			Description: fmt.Sprintf("Llamada realizada sin exito. Se intento contactar a %s + Comentario %s", victimName, reason),
+			EventUserID: agentID,
+			Color:       "blue",
+			FollowUpID:  fu.ID,
+		}
+
+		if err := s.repo.CreateTimelineEvent(ctx, timelineEvent); err != nil {
+			log.Printf("[WARN] No se pudo crear evento en timeline para intento fallido: %v", err)
+			// No retornamos error para no bloquear el registro del intento principal
+		}
+	}
+
 	return fu, nil
 }
 
@@ -603,6 +635,12 @@ func (s *followUpV2Service) GetFilterOptions(ctx context.Context, team string) (
 }
 
 func (s *followUpV2Service) RescheduleFollowUp(ctx context.Context, id string, input RescheduleInput) error {
+	// 1. Obtener el seguimiento para tener el case_id y agent_id
+	fu, err := s.GetFollowUpByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
 	fields := map[string]interface{}{
 		"scheduled_date": input.NuevaFecha,
 		"status":         models.FollowUpStatusReprogramado,
@@ -616,11 +654,38 @@ func (s *followUpV2Service) RescheduleFollowUp(ctx context.Context, id string, i
 		fields["is_priority"] = false
 	}
 
-	err := s.repo.Reschedule(ctx, id, fields)
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return ErrFollowUpNotFound
+	err = s.repo.Reschedule(ctx, id, fields)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrFollowUpNotFound
+		}
+		return err
 	}
-	return err
+
+	// 2. Registrar evento en el timeline (HU-027 / Requerimiento adicional)
+	agentID := ""
+	if fu.AgentID != nil {
+		agentID = *fu.AgentID
+	}
+
+	timelineEvent := &models.CaseTimelineEvent{
+		CaseID:      fu.CaseID,
+		Category:    "Seguimientos",
+		Type:        "Seguimiento Pospuesto",
+		Icon:        "fa fa-calendar",
+		Date:        time.Now(),
+		Description: fmt.Sprintf("Se reprogamo el seguimiento para el %s", input.NuevaFecha),
+		EventUserID: agentID,
+		Color:       "blue",
+		FollowUpID:  fu.ID,
+	}
+
+	if err := s.repo.CreateTimelineEvent(ctx, timelineEvent); err != nil {
+		log.Printf("[WARN] No se pudo crear evento en timeline para seguimiento pospuesto: %v", err)
+		// No retornamos error para no bloquear la operación principal
+	}
+
+	return nil
 }
 
 func (s *followUpV2Service) CloseCaseFollowUps(ctx context.Context, followUpID string) error {

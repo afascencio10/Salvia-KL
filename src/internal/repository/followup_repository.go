@@ -43,6 +43,7 @@ type FollowUpRepository interface {
 	UpdateFormSubmissionID(ctx context.Context, id string, fsID string) error
 	FindByFormSubmissionID(ctx context.Context, formSubmissionID string) (*models.FollowUpV2, error)
 	UpdateStatus(ctx context.Context, id string, status string) error
+	CreateTimelineEvent(ctx context.Context, event *models.CaseTimelineEvent) error
 }
 
 // FollowUpFilters contiene los filtros dinámicos para la consulta paginada.
@@ -366,4 +367,8 @@ func (r *followUpRepository) UpdateStatus(ctx context.Context, id string, status
 		Model(&models.FollowUpV2{}).
 		Where("id = ?", id).
 		Updates(fields).Error
+}
+
+func (r *followUpRepository) CreateTimelineEvent(ctx context.Context, event *models.CaseTimelineEvent) error {
+	return r.db.WithContext(ctx).Create(event).Error
 }
