@@ -10,6 +10,7 @@ import (
 // VictimCaseLightRepository define el acceso a datos para victim_case (light)
 type VictimCaseLightRepository interface {
 	FindByID(ctx context.Context, caseId string) (*models.VictimCaseLight, error)
+	FindByICode(ctx context.Context, iCode string) (*models.VictimCaseLight, error)
 }
 
 type victimCaseLightRepository struct {
@@ -24,6 +25,15 @@ func NewVictimCaseLightRepository(db *gorm.DB) VictimCaseLightRepository {
 func (r *victimCaseLightRepository) FindByID(ctx context.Context, caseId string) (*models.VictimCaseLight, error) {
 	var vcase models.VictimCaseLight
 	err := r.db.WithContext(ctx).Where("victim_case_id::text = ?", caseId).First(&vcase).Error
+	if err != nil {
+		return nil, err
+	}
+	return &vcase, nil
+}
+
+func (r *victimCaseLightRepository) FindByICode(ctx context.Context, iCode string) (*models.VictimCaseLight, error) {
+	var vcase models.VictimCaseLight
+	err := r.db.WithContext(ctx).Where("victim_case_i_code = ?", iCode).First(&vcase).Error
 	if err != nil {
 		return nil, err
 	}

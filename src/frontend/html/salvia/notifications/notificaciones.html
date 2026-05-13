@@ -260,7 +260,7 @@
                     const entidadOk  = !this.filters.entidad ||
                         o.barrierOrg.toLowerCase().includes(this.filters.entidad.toLowerCase());
                     const radicadoOk = !this.filters.radicado ||
-                        (o.radicado && o.radicado.toLowerCase().includes(this.filters.radicado.toLowerCase()));
+                        (o.numeroRadicado && o.numeroRadicado.toLowerCase().includes(this.filters.radicado.toLowerCase()));
                     return tabOk && estadoOk && idOk && entidadOk && radicadoOk;
                 });
             },
@@ -529,6 +529,12 @@
                     this.isSaving = false;
 
                     if (status === 200) {
+                        /* Ocultar el overlay de éxito del dao.js y cerrar el modal */
+                        setTimeout(() => {
+                            const overlay = document.getElementById('successOverlay');
+                            if (overlay) overlay.style.display = 'none';
+                        }, 1200);
+
                         /* Actualizar el oficio en la lista local para reflejar el nuevo estado */
                         const idx = this.oficios.findIndex(o => o.id === this.selectedOficio.id);
                         if (idx !== -1) {
