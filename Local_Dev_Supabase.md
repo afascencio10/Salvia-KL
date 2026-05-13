@@ -43,6 +43,8 @@ var dbServerConfig db.DBServerConfig = db.DBServerConfig{PoolSize: 3}
 ```go
 sqlDB.SetMaxOpenConns(2)
 sqlDB.SetMaxIdleConns(1)
+sqlDB.SetConnMaxLifetime(5 * time.Minute)
+sqlDB.SetConnMaxIdleTime(4 * time.Minute)
 ```
 
 ---
