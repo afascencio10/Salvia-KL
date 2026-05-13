@@ -20,8 +20,20 @@
         </button>
     </div>
 
+    <!-- ─── Estado de carga ─── -->
+    <div v-if="isLoading" class="nf-loading-state">
+        <div class="nf-spinner"></div>
+        <span>Cargando oficios...</span>
+    </div>
+
+    <!-- ─── Error: rol no autorizado o fallo de red ─── -->
+    <div v-if="loadError && !isLoading" class="nf-error-state">
+        <i class="fas fa-exclamation-triangle"></i>
+        ${ loadError }
+    </div>
+
     <!-- ─── Filtros ─── -->
-    <div class="nf-filters">
+    <div v-if="!isLoading && !loadError" class="nf-filters">
         <div class="nf-filter-group">
             <label>Estado del oficio</label>
             <select v-model="filters.estado" class="nf-filter-input form-control">
@@ -32,6 +44,7 @@
                 <option value="aprobacion_juridica">Aprobación jurídica</option>
                 <option value="para_radicar">Para radicar</option>
                 <option value="radicado">Radicado</option>
+                <option value="respondido">Respondido</option>
             </select>
         </div>
         <div class="nf-filter-group">
@@ -49,7 +62,7 @@
     </div>
 
     <!-- ─── Tabla de oficios ─── -->
-    <div class="nf-table-wrapper">
+    <div v-if="!isLoading && !loadError" class="nf-table-wrapper">
 
         <div class="nf-table-header">
             <div>Caso</div>
@@ -88,7 +101,7 @@
                 <!-- INFORMACIÓN DEL OFICIO -->
                 <div>
                     <div class="nf-info-badges">
-                        <span class="nf-status-tag" :class="'nf-status-' + oficio.status">${ statusLabels[oficio.status] }</span>
+                        <span class="nf-status-tag" :class="'nf-status-' + oficio.status">${ statusLabels[oficio.status] || oficio.status }</span>
                         <button
                             v-if="oficio.canManage"
                             @click="openGestionarModal(oficio)"
@@ -96,15 +109,23 @@
                             Gestionar
                         </button>
                     </div>
-                    <div class="nf-info-title">${ oficio.title }</div>
+
+                    <!-- URL Kofax (si existe) -->
+                    <div v-if="oficio.urlKofax" class="nf-info-kofax">
+                        <i class="fas fa-file-alt"></i>
+                        <a :href="oficio.urlKofax" target="_blank" rel="noopener" class="nf-link">
+                            ${ oficio.urlKofax }
+                            <i class="fas fa-external-link-alt" style="font-size:0.75em;margin-left:3px;"></i>
+                        </a>
+                    </div>
+
                     <div class="nf-info-meta-row">
-                        <span class="nf-meta-item">Radicado: <span class="nf-meta-val">${ oficio.radicado || '—' }</span></span>
+                        <span class="nf-meta-item">Radicado: <span class="nf-meta-val">${ oficio.numeroRadicado || '—' }</span></span>
                         <span class="nf-meta-item">Fecha: <span class="nf-meta-val">${ oficio.fecha || '—' }</span></span>
                     </div>
-                    <div class="nf-info-meta-row">
-                        <span class="nf-meta-item">Prioridad: <span :class="'nf-meta-prioridad-' + slugify(oficio.priority)">${ oficio.priority }</span></span>
+                    <div v-if="oficio.correoEntidad" class="nf-meta-correo">
+                        Correo entidad: <span>${ oficio.correoEntidad }</span>
                     </div>
-                    <div class="nf-meta-correo">Correo: <span>${ oficio.correo }</span></div>
                 </div>
 
             </div>
@@ -118,7 +139,7 @@
     </div>
 
     <!-- ─── Paginador ─── -->
-    <nav v-if="numPages > 1" aria-label="Paginación" class="nf-pagination-wrapper">
+    <nav v-if="!isLoading && !loadError && numPages > 1" aria-label="Paginación" class="nf-pagination-wrapper">
         <ul class="pagination justify-content-center mt-3">
             <li class="page-item" :class="{ disabled: currentPage === 0 }">
                 <a class="page-link" href="#" @click.prevent="goToPage(currentPage - 1)">Anterior</a>
@@ -155,7 +176,12 @@
         delimiters: ['${', '}'],
         data() {
             return {
-                currentUser: null,
+                currentUser:   {{.currentUser}},
+                currentRole:   {{.currentRole}},
+                currentUserId: {{.currentUserId}},
+
+                isLoading: false,
+                loadError: null,
 
                 currentTab: 'todos',
 
@@ -166,7 +192,7 @@
                     radicado:  ''
                 },
 
-                itemsPerPage: 3,
+                itemsPerPage: 5,
                 currentPage:  0,
 
                 /* Estado del modal activo */
@@ -176,8 +202,8 @@
 
                 /* Formulario compartido por todos los modales */
                 modalForm: {
+                    nivel:               '',
                     kofaxPath:           '',
-                    area:                '',
                     entidad:             '',
                     asunto:              '',
                     correoEntidad:       '',
@@ -187,6 +213,9 @@
                     asuntoRespuesta:     '',
                     respuestaRecibidaPor: ''
                 },
+
+                isSaving: false,
+                saveError: null,
 
                 /* Mapa estado → nombre de modal */
                 modalByStatus: {
@@ -204,136 +233,18 @@
                     en_correccion:       'En corrección (proyección)',
                     aprobacion_juridica: 'Aprobación jurídica',
                     para_radicar:        'Para radicar',
-                    radicado:            'Radicado'
+                    radicado:            'Radicado',
+                    respondido:          'Respondido'
                 },
 
-                /* ── Datos quemados (mock EntityLetter) ── */
-                oficios: [
-                    {
-                        id: 1,
-                        victimName:  'María García López',
-                        caseCode:    'SAL-001',
-                        docNumber:   '52.123.456',
-                        caseId:      'sal-001',
-                        priority:    'Alto',
-                        sectors:     ['Justicia', 'Policía Nacional'],
-                        barrierOrg:  'Policía Nacional',
-                        barrierDesc: 'Negación de recibir denuncia formal',
-                        status:      'para_revisar',
-                        canManage:   true,
-                        title:       'Solicitud de recepción formal de denuncia',
-                        radicado:    null,
-                        fecha:       null,
-                        correo:      'denuncias@policia.gov.co'
-                    },
-                    {
-                        id: 2,
-                        victimName:  'María García López',
-                        caseCode:    'SAL-001',
-                        docNumber:   '52.123.456',
-                        caseId:      'sal-001',
-                        priority:    'Alto',
-                        sectors:     ['Justicia', 'Policía Nacional'],
-                        barrierOrg:  'Policía Nacional',
-                        barrierDesc: 'Negación de recibir denuncia formal',
-                        status:      'en_correccion',
-                        canManage:   true,
-                        title:       'Oficio a Defensoría del Pueblo — Escalamiento barrera de denuncia',
-                        radicado:    null,
-                        fecha:       null,
-                        correo:      'correspondencia@defensoria.gov.co'
-                    },
-                    {
-                        id: 3,
-                        victimName:  'Laura Martínez Ruiz',
-                        caseCode:    'SAL-002',
-                        docNumber:   '43.987.654',
-                        caseId:      'sal-002',
-                        priority:    'Crítico',
-                        sectors:     ['Justicia'],
-                        barrierOrg:  'Fiscalía General de la Nación',
-                        barrierDesc: 'Proceso legal demorado sin justificación',
-                        status:      'para_radicar',
-                        canManage:   true,
-                        title:       'Solicitud de celeridad en proceso penal',
-                        radicado:    null,
-                        fecha:       null,
-                        correo:      'radicacion@fiscalia.gov.co'
-                    },
-                    {
-                        id: 4,
-                        victimName:  'Ana Rodríguez Pérez',
-                        caseCode:    'SAL-003',
-                        docNumber:   '31.456.789',
-                        caseId:      'sal-003',
-                        priority:    'Alto',
-                        sectors:     ['Salud'],
-                        barrierOrg:  'Hospital General del Sur',
-                        barrierDesc: 'Negativa de atención médica especializada',
-                        status:      'por_proyectar',
-                        canManage:   true,
-                        title:       'Solicitud de atención prioritaria en salud mental',
-                        radicado:    null,
-                        fecha:       null,
-                        correo:      'atencion@hospitalgeneralsur.gov.co'
-                    },
-                    {
-                        id: 5,
-                        victimName:  'Carmen Díaz Flores',
-                        caseCode:    'SAL-004',
-                        docNumber:   '28.765.432',
-                        caseId:      'sal-004',
-                        priority:    'Crítico',
-                        sectors:     ['Vivienda'],
-                        barrierOrg:  'ICBF',
-                        barrierDesc: 'Demora injustificada en proceso de restitución',
-                        status:      'aprobacion_juridica',
-                        canManage:   true,
-                        title:       'Oficio de seguimiento a proceso de restitución familiar',
-                        radicado:    '2026-ICBF-00123',
-                        fecha:       '2026-04-15',
-                        correo:      'atencion@icbf.gov.co'
-                    },
-                    {
-                        id: 6,
-                        victimName:  'Sofía Morales Castro',
-                        caseCode:    'SAL-005',
-                        docNumber:   '45.678.901',
-                        caseId:      'sal-005',
-                        priority:    'Alto',
-                        sectors:     ['Justicia'],
-                        barrierOrg:  'Juzgado Civil del Circuito',
-                        barrierDesc: 'Demora injustificada en fijación de audiencias',
-                        status:      'para_radicar',
-                        canManage:   false,
-                        title:       'Solicitud de fijación urgente de audiencia oral',
-                        radicado:    null,
-                        fecha:       null,
-                        correo:      'despacho@juzgadocivil.gov.co'
-                    },
-                    {
-                        id: 7,
-                        victimName:  'Patricia Vargas León',
-                        caseCode:    'SAL-006',
-                        docNumber:   '19.234.567',
-                        caseId:      'sal-006',
-                        priority:    'Alto',
-                        sectors:     ['Educación'],
-                        barrierOrg:  'Secretaría de Educación',
-                        barrierDesc: 'Negativa de matrícula en situación de desplazamiento',
-                        status:      'radicado',
-                        canManage:   true,
-                        title:       'Oficio de garantía de acceso a educación',
-                        radicado:    '2026-SED-00451',
-                        fecha:       '2026-04-28',
-                        correo:      'atencion@sedbogota.gov.co'
-                    }
-                ]
+                /* Oficios cargados dinámicamente desde la API (EntityLetter) */
+                oficios: []
             };
         },
 
         mounted() {
             document.getElementById('app').style.display = 'block';
+            this.loadOficios();
         },
 
         computed: {
@@ -349,7 +260,7 @@
                     const entidadOk  = !this.filters.entidad ||
                         o.barrierOrg.toLowerCase().includes(this.filters.entidad.toLowerCase());
                     const radicadoOk = !this.filters.radicado ||
-                        (o.radicado && o.radicado.toLowerCase().includes(this.filters.radicado.toLowerCase()));
+                        (o.numeroRadicado && o.numeroRadicado.toLowerCase().includes(this.filters.radicado.toLowerCase()));
                     return tabOk && estadoOk && idOk && entidadOk && radicadoOk;
                 });
             },
@@ -389,6 +300,106 @@
         },
 
         methods: {
+
+            /* ── Evento: Cuando carga la pantalla ───────────────────────────── */
+
+            loadOficios() {
+                const VALID_ROLES = ['op', 'an'];
+                if (!VALID_ROLES.includes(this.currentRole)) {
+                    this.loadError = 'Rol no autorizado para acceder a esta pantalla.';
+                    return;
+                }
+
+                this.isLoading = true;
+                this.loadError = null;
+
+                /* Construir query según rol:
+                   op  → Agente Seguimiento       → filtra por agentId
+                   an  → Agente de Notificaciones → filtra por notificationUserId */
+                let url = '/api/v1/entity-letters?limit=100&page=0';
+                if (this.currentRole === 'op') {
+                    url += '&agentId=' + encodeURIComponent(this.currentUserId);
+                } else if (this.currentRole === 'an') {
+                    url += '&notificationUserId=' + encodeURIComponent(this.currentUserId);
+                }
+
+                getData(url, (function(status, response) {
+                    this.isLoading = false;
+
+                    if (status === 200) {
+                        /* La API puede devolver un array plano o un objeto paginado */
+                        const items = Array.isArray(response)
+                            ? response
+                            : (response && response.items ? response.items : []);
+
+                        if (items.length > 0) {
+                            /* Transformar datos para UI: ordenar por createdAt desc */
+                            this.oficios = items
+                                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                                .map(el => this.mapApiToOficio(el));
+                        }
+                        /* Si items.length === 0 queda oficios: [] → muestra estado vacío */
+
+                    } else if (status === 401) {
+                        location.assign('/static/landing.html');
+                    } else {
+                        this.loadError = 'No se pudo cargar la lista de oficios. Intenta de nuevo.';
+                    }
+                }).bind(this), true /* hideDialogs: usamos nuestro propio loader */);
+            },
+
+            /* Determina si el usuario puede gestionar un oficio según su rol y el estado */
+            canManageForRole(state) {
+                if (this.currentRole === 'op') {
+                    return ['por_proyectar', 'en_correccion'].includes(state);
+                }
+                if (this.currentRole === 'an') {
+                    return ['para_revisar', 'aprobacion_juridica', 'para_radicar', 'radicado'].includes(state);
+                }
+                return false;
+            },
+
+            /* Mapea un EntityLetterWithRelations de la API al formato que espera la tabla */
+            mapApiToOficio(el) {
+                const fecha = el.createdAt ? el.createdAt.split('T')[0] : null;
+
+                /* Nombre completo de la víctima */
+                const victimFull = [el.victimName, el.victimLastName]
+                    .filter(s => s && s.trim())
+                    .join(' ') || '—';
+
+                /* Sectores: la API devuelve un solo sector por barrera */
+                const sectors = (el.barrierSector && el.barrierSector.trim())
+                    ? [el.barrierSector]
+                    : [];
+
+                return {
+                    id:          el.id,
+                    victimName:  victimFull,
+                    caseCode:    el.caseCode   || el.caseId   || '—',
+                    docNumber:   el.victimDocNumber || '—',
+                    caseId:      el.caseId     || '',
+                    priority:    'Alto',               /* pendiente: dato del caso */
+                    sectors:     sectors,
+                    barrierOrg:  el.barrierSector      || '—',
+                    barrierDesc: el.barrierDescription || '—',
+                    status:      el.state,
+                    canManage:   this.canManageForRole(el.state),
+                    title:       '—',                  /* pendiente: campo del oficio */
+                    radicado:    null,
+                    fecha:       fecha,
+                    correo:      '—',
+                    entidad:        el.entidad        || null,
+                    nivel:          el.nivel          || null,
+                    urlKofax:       el.urlKofax       || null,
+                    asuntoRadicado: el.asuntoRadicado || null,
+                    correoEntidad:  el.correoEntidad  || null,
+                    numeroRadicado: el.numeroRadicado || null
+                };
+            },
+
+            /* ── Utilidades ──────────────────────────────────────────────────── */
+
             slugify(str) {
                 if (!str) return '';
                 return str.toLowerCase()
@@ -416,18 +427,19 @@
 
                 /* Pre-rellenar campos comunes */
                 this.modalForm = {
-                    kofaxPath:           '',
-                    area:                '',
-                    entidad:             oficio.barrierOrg || '',
-                    asunto:              oficio.title || '',
-                    correoEntidad:       oficio.correo || '',
-                    numeroRadicado:      '',
+                    nivel:               oficio.nivel      || '',
+                    kofaxPath:           oficio.urlKofax   || '',
+                    entidad:             oficio.entidad    || oficio.barrierOrg || '',
+                    asunto:              oficio.asuntoRadicado || oficio.title || '',
+                    correoEntidad:       oficio.correoEntidad || oficio.correo || '',
+                    numeroRadicado:      oficio.numeroRadicado || '',
                     fechaRespuesta:      '',
                     correoRemitente:     oficio.correo || '',
                     asuntoRespuesta:     '',
                     respuestaRecibidaPor:''
                 };
 
+                this.saveError = null;
                 this.showModal = true;
             },
 
@@ -435,15 +447,115 @@
                 this.showModal      = false;
                 this.activeModal    = null;
                 this.selectedOficio = null;
+                this.saveError      = null;
             },
 
             submitModal(action) {
-                console.log('[Notificaciones] Submit modal:', action, {
-                    oficio: this.selectedOficio,
-                    form:   this.modalForm
-                });
-                /* TODO: llamar al endpoint correspondiente */
-                this.closeModal();
+                if (!this.selectedOficio) return;
+
+                /* Construir payload según la acción */
+                let payload = {
+                    action: action,
+                    userId: this.currentUserId
+                };
+
+                if (action === 'proyectar') {
+                    if (!this.modalForm.nivel) {
+                        alert('El campo "Nivel" es requerido.');
+                        return;
+                    }
+                    if (!this.modalForm.entidad) {
+                        alert('El campo "Entidad" es requerido.');
+                        return;
+                    }
+                    if (!this.modalForm.kofaxPath) {
+                        alert('El campo "Ruta del oficio en el Kofax" es requerido.');
+                        return;
+                    }
+                    payload.nivel    = this.modalForm.nivel;
+                    payload.entidad  = this.modalForm.entidad;
+                    payload.urlKofax = this.modalForm.kofaxPath;
+                }
+
+                /* revisar / por_corregir: no requieren campos adicionales */
+
+                if (action === 'registrar_respuesta') {
+                    if (!this.modalForm.fechaRespuesta) {
+                        alert('El campo "Fecha de respuesta" es requerido.');
+                        return;
+                    }
+                    if (!this.modalForm.correoRemitente) {
+                        alert('El campo "Correo del remitente" es requerido.');
+                        return;
+                    }
+                    if (!this.modalForm.asuntoRespuesta) {
+                        alert('El campo "Asunto de la respuesta" es requerido.');
+                        return;
+                    }
+                    if (!this.modalForm.respuestaRecibidaPor) {
+                        alert('El campo "Respuesta recibida por" es requerido.');
+                        return;
+                    }
+                    payload.responseDate     = this.modalForm.fechaRespuesta;
+                    payload.correoRemitente  = this.modalForm.correoRemitente;
+                    payload.asuntoRespuesta  = this.modalForm.asuntoRespuesta;
+                    payload.responseReviewBy = this.modalForm.respuestaRecibidaPor;
+                }
+
+                if (action === 'radicar') {
+                    if (!this.modalForm.asunto) {
+                        alert('El campo "Asunto" es requerido.');
+                        return;
+                    }
+                    if (!this.modalForm.correoEntidad) {
+                        alert('El campo "Correo entidad" es requerido.');
+                        return;
+                    }
+                    if (!this.modalForm.numeroRadicado) {
+                        alert('El campo "Número radicado" es requerido.');
+                        return;
+                    }
+                    payload.asuntoRadicado = this.modalForm.asunto;
+                    payload.correoEntidad  = this.modalForm.correoEntidad;
+                    payload.numeroRadicado = this.modalForm.numeroRadicado;
+                }
+
+                this.isSaving  = true;
+                this.saveError = null;
+
+                const url = '/api/v1/entity-letters/' + this.selectedOficio.id + '/action';
+
+                updateEntity(url, payload, (function(status, response) {
+                    this.isSaving = false;
+
+                    if (status === 200) {
+                        /* Ocultar el overlay de éxito del dao.js y cerrar el modal */
+                        setTimeout(() => {
+                            const overlay = document.getElementById('successOverlay');
+                            if (overlay) overlay.style.display = 'none';
+                        }, 1200);
+
+                        /* Actualizar el oficio en la lista local para reflejar el nuevo estado */
+                        const idx = this.oficios.findIndex(o => o.id === this.selectedOficio.id);
+                        if (idx !== -1) {
+                            const updated = response;
+                            this.oficios[idx] = {
+                                ...this.oficios[idx],
+                                status:     updated.state,
+                                canManage:  this.canManageForRole(updated.state)
+                            };
+                        }
+                        this.closeModal();
+                    } else if (status === 401) {
+                        location.assign('/static/landing.html');
+                    } else if (status === 422) {
+                        this.saveError = (response && response.error) ? response.error : 'Transición de estado no permitida.';
+                    } else {
+                        this.saveError = (response && response.error)
+                            ? response.error
+                            : 'No se pudo guardar el oficio. Intenta de nuevo.';
+                    }
+                }).bind(this));
             },
 
             logout() {

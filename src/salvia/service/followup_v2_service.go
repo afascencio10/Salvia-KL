@@ -273,7 +273,7 @@ func (s *followUpV2Service) GetFollowUpDetail(ctx context.Context, id string, is
 	}
 
 	// 2. Obtener información del Caso
-	vcase, err := s.caseRepo.FindByID(ctx, fu.CaseID)
+	vcase, err := s.caseRepo.FindByICode(ctx, fu.CaseID)
 	if err != nil {
 		return nil, fmt.Errorf("error al obtener el caso: %v", err)
 	}
@@ -450,7 +450,7 @@ func (s *followUpV2Service) GetMyDayFollowUpsEnriched(ctx context.Context, agent
 			}
 
 			// Obtener datos del caso
-			vc, err := s.caseRepo.FindByID(ctx, fu.CaseID)
+			vc, err := s.caseRepo.FindByICode(ctx, fu.CaseID)
 			if err != nil {
 				log.Printf("Warning: no se pudo obtener caso %s: %v", fu.CaseID, err)
 				resp.Case = nil

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -35,6 +36,39 @@ type UpdateEntityLetterInput struct {
 	ReviewBy           *string
 	RadicadoBy         *string
 	RegisterBy         *string
+	Entidad            *string
+	Nivel              *string
+	UrlKofax           *string
+}
+
+// ActionInput contiene los datos enviados desde cualquier modal de gestión.
+// Cada acción solo utiliza los campos que le corresponden; los demás se ignoran.
+//
+// Acciones soportadas:
+//
+//	"proyectar"   — modal Proyectar oficio  (por_proyectar → para_revisar)
+//	"revisar"     — modal Revisar oficio    (para_revisar  → aprobacion_juridica)
+//	"por_corregir"— modal Revisar oficio    (para_revisar  → en_correccion)
+//	"radicar"     — modal Radicar oficio    (aprobacion_juridica → radicado)
+type ActionInput struct {
+	Action string  // nombre de la acción
+	UserID string  // ID del usuario que ejecuta la acción
+
+	// Campos del modal "Proyectar oficio"
+	Nivel    *string
+	Entidad  *string
+	UrlKofax *string
+
+	// Campos del modal "Radicar oficio"
+	AsuntoRadicado *string
+	CorreoEntidad  *string
+	NumeroRadicado *string
+
+	// Campos del modal "Registrar respuesta"
+	ResponseDate     *string // fecha en formato "YYYY-MM-DD" — se parsea a time.Time
+	CorreoRemitente  *string
+	AsuntoRespuesta  *string
+	ResponseReviewBy *string
 }
 
 // UpdateStateInput contiene el nuevo estado y quién realiza la transición.
@@ -50,7 +84,7 @@ var validTransitions = map[string][]string{
 	models.EntityLetterStatePorProyectar:       {models.EntityLetterStateParaRevisar},
 	models.EntityLetterStateParaRevisar:        {models.EntityLetterStateAprobacionJuridica, models.EntityLetterStateEnCorreccion},
 	models.EntityLetterStateEnCorreccion:       {models.EntityLetterStateParaRevisar},
-	models.EntityLetterStateAprobacionJuridica: {models.EntityLetterStateParaRadicar, models.EntityLetterStateEnCorreccion},
+	models.EntityLetterStateAprobacionJuridica: {models.EntityLetterStateParaRadicar, models.EntityLetterStateEnCorreccion, models.EntityLetterStateRadicado},
 	models.EntityLetterStateParaRadicar:        {models.EntityLetterStateRadicado},
 	models.EntityLetterStateRadicado:           {models.EntityLetterStateRespondido},
 }
@@ -85,8 +119,16 @@ type EntityLetterService interface {
 	ListByAgent(ctx context.Context, agentID string) ([]models.EntityLetter, error)
 	ListByNotificationUser(ctx context.Context, notificationUserID string) ([]models.EntityLetter, error)
 
+	// Consultas enriquecidas con relaciones (barrier_v2 + victim_case)
+	ListByAgentWithRelations(ctx context.Context, agentID string) ([]models.EntityLetterWithRelations, error)
+	ListByNotificationUserWithRelations(ctx context.Context, notifUserID string) ([]models.EntityLetterWithRelations, error)
+
 	// Transición de estado con validación
 	UpdateState(ctx context.Context, id string, input UpdateStateInput) (*models.EntityLetter, error)
+
+	// PerformAction ejecuta la acción de un modal: actualiza los campos relevantes
+	// y realiza la transición de estado en una sola operación atómica.
+	PerformAction(ctx context.Context, id string, input ActionInput) (*models.EntityLetter, error)
 }
 
 // ─── Implementación ───────────────────────────────────────────────────────────
@@ -135,11 +177,137 @@ func (s *entityLetterService) Update(ctx context.Context, id string, input Updat
 	if input.ReviewBy != nil           { fields["review_by"] = *input.ReviewBy }
 	if input.RadicadoBy != nil         { fields["radicado_by"] = *input.RadicadoBy }
 	if input.RegisterBy != nil         { fields["register_by"] = *input.RegisterBy }
+	if input.Entidad != nil            { fields["entidad"] = *input.Entidad }
+	if input.Nivel != nil              { fields["nivel"] = *input.Nivel }
+	if input.UrlKofax != nil           { fields["url_kofax"] = *input.UrlKofax }
 
 	if err := s.repo.UpdateFields(ctx, id, fields); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrEntityLetterNotFound
 		}
+		return nil, err
+	}
+	return s.repo.FindByID(ctx, id)
+}
+
+// PerformAction ejecuta la acción del modal correspondiente:
+// valida el estado actual, actualiza los campos propios de la acción
+// y realiza la transición de estado en una sola operación.
+func (s *entityLetterService) PerformAction(ctx context.Context, id string, input ActionInput) (*models.EntityLetter, error) {
+	letter, err := s.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	fields := map[string]interface{}{}
+
+	switch input.Action {
+	case "proyectar":
+		// por_proyectar → para_revisar
+		if letter.State != models.EntityLetterStatePorProyectar {
+			return nil, fmt.Errorf("%w: acción 'proyectar' requiere estado '%s', estado actual: '%s'",
+				ErrEntityLetterInvalidState, models.EntityLetterStatePorProyectar, letter.State)
+		}
+		if input.Nivel == nil || *input.Nivel == "" {
+			return nil, fmt.Errorf("entity_letter: el campo 'nivel' es requerido para proyectar")
+		}
+		if input.Entidad == nil || *input.Entidad == "" {
+			return nil, fmt.Errorf("entity_letter: el campo 'entidad' es requerido para proyectar")
+		}
+		if input.UrlKofax == nil || *input.UrlKofax == "" {
+			return nil, fmt.Errorf("entity_letter: el campo 'urlKofax' es requerido para proyectar")
+		}
+		fields["nivel"]      = *input.Nivel
+		fields["entidad"]    = *input.Entidad
+		fields["url_kofax"]  = *input.UrlKofax
+		if input.UserID != "" {
+			fields["register_by"] = input.UserID
+		}
+		fields["state"] = models.EntityLetterStateParaRevisar
+
+	case "revisar":
+		// para_revisar → aprobacion_juridica
+		if letter.State != models.EntityLetterStateParaRevisar {
+			return nil, fmt.Errorf("%w: acción 'revisar' requiere estado '%s', estado actual: '%s'",
+				ErrEntityLetterInvalidState, models.EntityLetterStateParaRevisar, letter.State)
+		}
+		if input.UserID != "" {
+			fields["review_by"] = input.UserID
+		}
+		fields["state"] = models.EntityLetterStateAprobacionJuridica
+
+	case "por_corregir":
+		// para_revisar → en_correccion
+		if letter.State != models.EntityLetterStateParaRevisar {
+			return nil, fmt.Errorf("%w: acción 'por_corregir' requiere estado '%s', estado actual: '%s'",
+				ErrEntityLetterInvalidState, models.EntityLetterStateParaRevisar, letter.State)
+		}
+		fields["state"] = models.EntityLetterStateEnCorreccion
+
+	case "radicar":
+		// aprobacion_juridica → radicado (el paso "para_radicar" lo omitimos mientras solo existen roles op/an)
+		if letter.State != models.EntityLetterStateAprobacionJuridica {
+			return nil, fmt.Errorf("%w: acción 'radicar' requiere estado '%s', estado actual: '%s'",
+				ErrEntityLetterInvalidState, models.EntityLetterStateAprobacionJuridica, letter.State)
+		}
+		if input.AsuntoRadicado == nil || *input.AsuntoRadicado == "" {
+			return nil, fmt.Errorf("entity_letter: el campo 'asuntoRadicado' es requerido para radicar")
+		}
+		if input.CorreoEntidad == nil || *input.CorreoEntidad == "" {
+			return nil, fmt.Errorf("entity_letter: el campo 'correoEntidad' es requerido para radicar")
+		}
+		if input.NumeroRadicado == nil || *input.NumeroRadicado == "" {
+			return nil, fmt.Errorf("entity_letter: el campo 'numeroRadicado' es requerido para radicar")
+		}
+		fields["asunto_radicado"] = *input.AsuntoRadicado
+		fields["correo_entidad"]  = *input.CorreoEntidad
+		fields["numero_radicado"] = *input.NumeroRadicado
+		if input.UserID != "" {
+			fields["radicado_by"] = input.UserID
+		}
+		fields["state"] = models.EntityLetterStateRadicado
+
+	case "corregir":
+		// en_correccion → para_revisar
+		if letter.State != models.EntityLetterStateEnCorreccion {
+			return nil, fmt.Errorf("%w: acción 'corregir' requiere estado '%s', estado actual: '%s'",
+				ErrEntityLetterInvalidState, models.EntityLetterStateEnCorreccion, letter.State)
+		}
+		fields["state"] = models.EntityLetterStateParaRevisar
+
+	case "registrar_respuesta":
+		// radicado → respondido
+		if letter.State != models.EntityLetterStateRadicado {
+			return nil, fmt.Errorf("%w: acción 'registrar_respuesta' requiere estado '%s', estado actual: '%s'",
+				ErrEntityLetterInvalidState, models.EntityLetterStateRadicado, letter.State)
+		}
+		if input.ResponseDate == nil || *input.ResponseDate == "" {
+			return nil, fmt.Errorf("entity_letter: el campo 'responseDate' es requerido para registrar respuesta")
+		}
+		if input.CorreoRemitente == nil || *input.CorreoRemitente == "" {
+			return nil, fmt.Errorf("entity_letter: el campo 'correoRemitente' es requerido para registrar respuesta")
+		}
+		if input.AsuntoRespuesta == nil || *input.AsuntoRespuesta == "" {
+			return nil, fmt.Errorf("entity_letter: el campo 'asuntoRespuesta' es requerido para registrar respuesta")
+		}
+		if input.ResponseReviewBy == nil || *input.ResponseReviewBy == "" {
+			return nil, fmt.Errorf("entity_letter: el campo 'responseReviewBy' es requerido para registrar respuesta")
+		}
+		parsedDate, err := time.Parse("2006-01-02", *input.ResponseDate)
+		if err != nil {
+			return nil, fmt.Errorf("entity_letter: formato de fecha inválido para 'responseDate' (esperado YYYY-MM-DD): %w", err)
+		}
+		fields["correo_remitente"]   = *input.CorreoRemitente
+		fields["asunto_respuesta"]   = *input.AsuntoRespuesta
+		fields["response_review_by"] = *input.ResponseReviewBy
+		fields["response_date"]      = parsedDate
+		fields["state"]              = models.EntityLetterStateRespondido
+
+	default:
+		return nil, fmt.Errorf("entity_letter: acción desconocida: %s", input.Action)
+	}
+
+	if err := s.repo.UpdateFields(ctx, id, fields); err != nil {
 		return nil, err
 	}
 	return s.repo.FindByID(ctx, id)
@@ -171,6 +339,14 @@ func (s *entityLetterService) ListByAgent(ctx context.Context, agentID string) (
 
 func (s *entityLetterService) ListByNotificationUser(ctx context.Context, notificationUserID string) ([]models.EntityLetter, error) {
 	return s.repo.FindByNotificationUserID(ctx, notificationUserID)
+}
+
+func (s *entityLetterService) ListByAgentWithRelations(ctx context.Context, agentID string) ([]models.EntityLetterWithRelations, error) {
+	return s.repo.FindByAgentIDWithRelations(ctx, agentID)
+}
+
+func (s *entityLetterService) ListByNotificationUserWithRelations(ctx context.Context, notifUserID string) ([]models.EntityLetterWithRelations, error) {
+	return s.repo.FindByNotificationUserIDWithRelations(ctx, notifUserID)
 }
 
 // UpdateState valida que la transición sea permitida y actualiza el estado.

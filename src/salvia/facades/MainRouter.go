@@ -1,6 +1,8 @@
 package salvia_facades
 
 import (
+	"fmt"
+
 	"bitsflow/common/db"
 	"bitsflow/common/utils"
 	salvia_config "bitsflow/salvia/config"
@@ -24,6 +26,15 @@ const module string = "salvia"
 
 func StartRouter(router *gin.Engine) {
 	dbClientConfig = utils.LoadDBCLientConfig()
+
+	// Sincroniza todas las secuencias del schema salvia al arrancar el servidor.
+	// Previene errores de duplicate key causados por secuencias desincronizadas
+	// (p.ej. tras migraciones o inserts con IDs explícitos).
+	go func() {
+		if err := db.SyncAllSequences(&dbClientConfig, "salvia"); err != nil {
+			fmt.Printf("[StartRouter] Advertencia: error al sincronizar secuencias: %v\n", err)
+		}
+	}()
 
 	var translatedModule string = salvia_config.Locale["sp"][module]
 	var translatedEntity string
@@ -61,6 +72,7 @@ func StartRouter(router *gin.Engine) {
 		translatedEntity = salvia_config.Locale["sp"][salvia_daos.VictimCaseEntityName]
 
 		secRouter.POST("/"+translatedEntity, VictimCasePOST)
+		secRouter.POST("/"+translatedEntity+"/simular", SimulateCasePOST)
 		secRouter.POST("/"+translatedEntity+"/:id", VictimCasePOST)
 
 		// Rutas estáticas primero (antes de /:id para evitar conflictos en Gin)
@@ -238,6 +250,16 @@ func StartRouter(router *gin.Engine) {
 
 		secRouter.POST("/"+translatedEntity+"/"+translatedNew, VictimContactPOST_Public)
 		secRouter.GET("/"+translatedEntity+"/"+translatedNew, VictimContactPOST_GET_Public)
+
+		/*
+			SimularCaso — sin autenticación, solo para desarrollo/pruebas
+		*/
+		secRouter.POST("/simular/caso", SimulateCasePOST)
+
+		/*
+			SyncSequences — sin autenticación, solo para desarrollo/pruebas
+		*/
+		secRouter.POST("/sync/sequences", SyncSequencesPOST)
 
 		/*
 			----------------------------------------------------------

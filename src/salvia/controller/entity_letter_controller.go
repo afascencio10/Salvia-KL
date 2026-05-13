@@ -43,6 +43,7 @@ func (c *EntityLetterController) RegisterRoutes(rg *gin.RouterGroup) {
 	letters.PUT("/:id", c.Update)
 	letters.DELETE("/:id", c.Delete)
 	letters.PUT("/:id/state", c.UpdateState)
+	letters.PUT("/:id/action", c.Action)
 }
 
 // ─── List ─────────────────────────────────────────────────────────────────────
@@ -86,7 +87,8 @@ func (c *EntityLetterController) List(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, items)
 
 	case agentID != "":
-		items, err := c.svc.ListByAgent(ctx.Request.Context(), agentID)
+		// Devuelve la lista enriquecida con datos de barrier_v2 y victim_case
+		items, err := c.svc.ListByAgentWithRelations(ctx.Request.Context(), agentID)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
 			return
@@ -94,7 +96,8 @@ func (c *EntityLetterController) List(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, items)
 
 	case notificationUserID != "":
-		items, err := c.svc.ListByNotificationUser(ctx.Request.Context(), notificationUserID)
+		// Devuelve la lista enriquecida con datos de barrier_v2 y victim_case
+		items, err := c.svc.ListByNotificationUserWithRelations(ctx.Request.Context(), notificationUserID)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
 			return
@@ -176,6 +179,9 @@ func (c *EntityLetterController) Update(ctx *gin.Context) {
 		ReviewBy           *string `json:"reviewBy"`
 		RadicadoBy         *string `json:"radicadoBy"`
 		RegisterBy         *string `json:"registerBy"`
+		Entidad            *string `json:"entidad"`
+		Nivel              *string `json:"nivel"`
+		UrlKofax           *string `json:"urlKofax"`
 	}
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -188,6 +194,9 @@ func (c *EntityLetterController) Update(ctx *gin.Context) {
 		ReviewBy:           body.ReviewBy,
 		RadicadoBy:         body.RadicadoBy,
 		RegisterBy:         body.RegisterBy,
+		Entidad:            body.Entidad,
+		Nivel:              body.Nivel,
+		UrlKofax:           body.UrlKofax,
 	})
 	if err != nil {
 		if errors.Is(err, service.ErrEntityLetterNotFound) {
@@ -280,4 +289,61 @@ func (c *EntityLetterController) ListByBarrier(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, items)
+}
+
+// ─── Action ───────────────────────────────────────────────────────────────────
+
+// Action ejecuta la acción de un modal de gestión (actualiza campos + transición de estado).
+// Es el endpoint unificado para todos los modales; el campo "action" determina qué lógica aplicar.
+//
+//	PUT /api/v1/entity-letters/:id/action
+//	Body proyectar: { "action": "proyectar", "userId": "...", "nivel": "...", "entidad": "...", "urlKofax": "..." }
+func (c *EntityLetterController) Action(ctx *gin.Context) {
+	id := ctx.Param("id")
+
+	var body struct {
+		Action           string  `json:"action"            binding:"required"`
+		UserID           string  `json:"userId"`
+		Nivel            *string `json:"nivel"`
+		Entidad          *string `json:"entidad"`
+		UrlKofax         *string `json:"urlKofax"`
+		AsuntoRadicado   *string `json:"asuntoRadicado"`
+		CorreoEntidad    *string `json:"correoEntidad"`
+		NumeroRadicado   *string `json:"numeroRadicado"`
+		ResponseDate     *string `json:"responseDate"`
+		CorreoRemitente  *string `json:"correoRemitente"`
+		AsuntoRespuesta  *string `json:"asuntoRespuesta"`
+		ResponseReviewBy *string `json:"responseReviewBy"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	letter, err := c.svc.PerformAction(ctx.Request.Context(), id, service.ActionInput{
+		Action:           body.Action,
+		UserID:           body.UserID,
+		Nivel:            body.Nivel,
+		Entidad:          body.Entidad,
+		UrlKofax:         body.UrlKofax,
+		AsuntoRadicado:   body.AsuntoRadicado,
+		CorreoEntidad:    body.CorreoEntidad,
+		NumeroRadicado:   body.NumeroRadicado,
+		ResponseDate:     body.ResponseDate,
+		CorreoRemitente:  body.CorreoRemitente,
+		AsuntoRespuesta:  body.AsuntoRespuesta,
+		ResponseReviewBy: body.ResponseReviewBy,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrEntityLetterNotFound):
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "oficio no encontrado"})
+		case errors.Is(err, service.ErrEntityLetterInvalidState):
+			ctx.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		default:
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		}
+		return
+	}
+	ctx.JSON(http.StatusOK, letter)
 }

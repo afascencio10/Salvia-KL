@@ -69,6 +69,7 @@ func main() {
         &models.PsychosocialSupport{},
         &models.EconomicStabilization{},
         &models.CaseTimelineEvent{},
+        &models.EntityLetter{},
     } {
         if err := gormDB.AutoMigrate(m); err != nil {
             log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -137,6 +138,9 @@ func main() {
     optionCtrl             := salvia_ctrl.NewOptionController(optionSvc)
     caseDetailCtrl         := salvia_ctrl.NewCaseDetailController(caseDetailSvc)
     reportCtrl             := salvia_ctrl.NewReportController(reportSvc)
+    entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
+    entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo)
+    entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
 
     // Routes
     api := router.Group("/api/v1")
@@ -152,6 +156,7 @@ func main() {
     optionCtrl.RegisterRoutes(api)
     caseDetailCtrl.RegisterRoutes(api)
     reportCtrl.RegisterRoutes(api)
+    entityLetterCtrl.RegisterRoutes(api)
     // ────────────────────────────────────────────────────────────────────────
 
     // ── Graceful shutdown ────────────────────────────────────────────────────

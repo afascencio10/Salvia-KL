@@ -1,13 +1,14 @@
 {{ define "notifications/modal_aprobar.html" }}
-{{/* Modal: Aprobar oficio — estado aprobacion_juridica
-     Rol habilitado: Abogados (actualmente deshabilitado — solo UI)
-     El abogado aprueba el oficio y lo envía al agente de notificaciones para radicar. */}}
+{{/* Modal: Radicar oficio — estado aprobacion_juridica
+     Rol habilitado: Agente de Notificaciones (an)
+     El agente visualiza la ruta del oficio en el Kofax (solo lectura),
+     completa los datos de radicación y cambia el estado a "radicado". */}}
 
 <div v-if="showModal && activeModal === 'aprobar'" class="nf-modal-overlay" @click.self="closeModal">
     <div class="nf-modal">
 
         <div class="nf-modal-header">
-            <h5>Aprobar oficio</h5>
+            <h5>Radicar oficio</h5>
             <button class="nf-modal-close" @click="closeModal">&times;</button>
         </div>
 
@@ -17,12 +18,34 @@
                 ${ selectedOficio.title }
             </p>
 
-            <div class="nf-modal-info-box nf-info-red">
-                <i class="fas fa-info-circle"></i>
-                Marca el oficio como aprobado y el agente de notificaciones lo radicará.
+            <!-- Ruta del Kofax (solo lectura) -->
+            <div class="nf-modal-form-group">
+                <label class="nf-modal-label">Ruta del oficio en el Kofax</label>
+                <div v-if="selectedOficio && selectedOficio.urlKofax" class="nf-kofax-link-wrapper">
+                    <i class="fas fa-file-alt nf-kofax-icon"></i>
+                    <a :href="selectedOficio.urlKofax" target="_blank" rel="noopener" class="nf-kofax-link">
+                        ${ selectedOficio.urlKofax }
+                        <i class="fas fa-external-link-alt" style="margin-left:6px;font-size:0.8em;"></i>
+                    </a>
+                </div>
+                <div v-else class="nf-modal-hint">
+                    <i class="fas fa-exclamation-circle"></i> No hay ruta del oficio registrada.
+                </div>
             </div>
 
-            <div class="nf-modal-form-group">
+            <!-- Info de entidad y nivel -->
+            <div v-if="selectedOficio && (selectedOficio.entidad || selectedOficio.nivel)"
+                 class="nf-modal-meta-row">
+                <span v-if="selectedOficio.entidad" class="nf-meta-item">
+                    Entidad: <strong>${ selectedOficio.entidad }</strong>
+                </span>
+                <span v-if="selectedOficio.nivel" class="nf-meta-item" style="margin-left:16px;">
+                    Nivel: <strong>${ selectedOficio.nivel }</strong>
+                </span>
+            </div>
+
+            <!-- Asunto -->
+            <div class="nf-modal-form-group" style="margin-top:16px;">
                 <label class="nf-modal-label">
                     Asunto <span class="nf-required">*</span>
                 </label>
@@ -30,24 +53,45 @@
                     v-model="modalForm.asunto"
                     type="text"
                     class="form-control nf-modal-input"
-                    :placeholder="selectedOficio ? selectedOficio.title : 'Asunto del oficio'">
+                    placeholder="Ej: Solicitud de celeridad en proceso penal">
             </div>
 
-            <div class="nf-modal-form-group">
-                <label class="nf-modal-label">
-                    Ruta del oficio en el Kofax <span class="nf-required">*</span>
-                </label>
-                <input
-                    v-model="modalForm.kofaxPath"
-                    type="text"
-                    class="form-control nf-modal-input"
-                    placeholder="Ej: Oficios/2026/Justicia/OF-005">
+            <!-- Correo entidad + Número radicado -->
+            <div class="nf-modal-form-row nf-two-cols">
+                <div class="nf-modal-form-group">
+                    <label class="nf-modal-label">
+                        Correo entidad <span class="nf-required">*</span>
+                    </label>
+                    <input
+                        v-model="modalForm.correoEntidad"
+                        type="email"
+                        class="form-control nf-modal-input"
+                        placeholder="correo@entidad.gov.co">
+                </div>
+
+                <div class="nf-modal-form-group">
+                    <label class="nf-modal-label">
+                        Número radicado <span class="nf-required">*</span>
+                    </label>
+                    <input
+                        v-model="modalForm.numeroRadicado"
+                        type="text"
+                        class="form-control nf-modal-input"
+                        placeholder="Ej: 2026-FGN-00415">
+                </div>
+            </div>
+
+            <div v-if="saveError" class="nf-error-state" style="margin-top:12px;">
+                <i class="fas fa-exclamation-triangle"></i> ${ saveError }
             </div>
 
             <div class="nf-modal-footer">
-                <button class="btn nf-btn-modal-cancel" @click="closeModal">Cancelar</button>
-                <button class="btn nf-btn-modal-primary" @click="submitModal('aprobar')">
-                    Marcar oficio como aprobado
+                <button class="btn nf-btn-modal-cancel" @click="closeModal" :disabled="isSaving">
+                    Cancelar
+                </button>
+                <button class="btn nf-btn-modal-primary" @click="submitModal('radicar')" :disabled="isSaving">
+                    <span v-if="isSaving"><i class="fas fa-spinner fa-spin"></i> Guardando...</span>
+                    <span v-else><i class="fas fa-stamp"></i> Marcar oficio como radicado</span>
                 </button>
             </div>
 
