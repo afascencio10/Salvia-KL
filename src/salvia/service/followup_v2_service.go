@@ -9,7 +9,8 @@ import (
 	"fmt"
 	"log"
 	"time"
-
+	"math"
+    "sort"
 	"gorm.io/gorm"
 )
 
@@ -251,6 +252,20 @@ func (s *followUpV2Service) GenerateOrRecalculate(ctx context.Context, caseID st
 
 	// ── Caso 1: sin ningún seguimiento → generar todos ───────────────────────
 	if len(completed) == 0 && len(pending) == 0 {
+
+		// [Auto-asignación] Elige el agente con rol "ro" del mismo equipo que tenga
+        // el menor promedio de posición de carga en las fechas a generar.
+        // Descomentar cuando el evento esté listo para activarse.
+        //
+        scheduledDates := computeScheduledDates(offsets, now, today, input.RiskLevel)
+        assignedAgentID, autoErr := s.calcularAgente(ctx, scheduledDates, input.Team)
+        if autoErr != nil {
+            log.Printf("[WARN] AutoAsignacion: %v — se usará el agentID del input", autoErr)
+        } else {
+            input.AgentID = assignedAgentID
+        }
+		// ───────────────────────────────────────────────────────────────────────
+
 		newFollowUps := buildFollowUps(caseID, input, riskLevelStr, offsets, now, today, 1)
 		if err := s.repo.RunInTransaction(ctx, func(tx *gorm.DB) error {
 			return s.repo.BulkCreate(ctx, tx, newFollowUps)
@@ -690,4 +705,128 @@ func (s *followUpV2Service) RescheduleFollowUp(ctx context.Context, id string, i
 
 func (s *followUpV2Service) CloseCaseFollowUps(ctx context.Context, followUpID string) error {
 	return s.repo.CloseCaseFollowUps(ctx, followUpID)
+}
+
+// ── Auto-asignación de agente ─────────────────────────────────────────────────
+
+// computeScheduledDates calcula las fechas absolutas que tendrán los seguimientos
+// dado el slice de offsets de la riskMatrix, la referencia de tiempo y el nivel de riesgo.
+func computeScheduledDates(offsets []int, now, today time.Time, riskLevel int) []time.Time {
+    dates := make([]time.Time, len(offsets))
+    for i, days := range offsets {
+        if days == 0 && riskLevel == 4 {
+            // Extremo S1: +4 h desde ahora
+            dates[i] = now.Add(4 * time.Hour)
+        } else {
+            dates[i] = today.AddDate(0, 0, days)
+        }
+    }
+    return dates
+}
+
+// getDateMatrix devuelve un mapa [agentID]cantidad con la carga de seguimientos
+// pendientes/reprogramados que cada agente tiene programada para la fecha indicada.
+// Los agentes sin seguimientos en esa fecha no aparecerán en el mapa (carga = 0 implícita).
+func (s *followUpV2Service) getDateMatrix(ctx context.Context, date time.Time, team string) (map[string]int64, error) {
+    dateStr := date.Format("2006-01-02")
+    workload, err := s.repo.FindPendingByTeamGroupedByAgent(ctx, team, dateStr)
+    if err != nil {
+        return nil, fmt.Errorf("getDateMatrix: %w", err)
+    }
+    matrix := make(map[string]int64, len(workload))
+    for _, w := range workload {
+        if w.AgentID != "" {
+            matrix[w.AgentID] = w.Total
+        }
+    }
+    return matrix, nil
+}
+
+// calcularAgente implementa el algoritmo de auto-asignación balanceada:
+//
+//  1. Obtiene todos los agentes con rol "ro" que pertenecen al mismo equipo del caso.
+//  2. Para cada fecha programada calcula la carga de cada agente y le asigna
+//     una posición por dense-rank (menor carga = posición 1).
+//  3. Calcula avg_pos(Aj) = suma_posiciones / n_fechas.
+//  4. Elige el agente con menor avg_pos.
+//     En empate: elige el de menor carga total absoluta.
+func (s *followUpV2Service) calcularAgente(ctx context.Context, dates []time.Time, team string) (string, error) {
+	if len(dates) == 0 {
+		return "", fmt.Errorf("calcularAgente: no se recibieron fechas")
+	}
+
+	// 1. Listar agentes del mismo equipo con rol "ro" (Operador de riesgo)
+	agents, err := s.agentRepo.FindAllByRoleAndTeam(ctx, "ro", team)
+	if err != nil {
+		return "", fmt.Errorf("calcularAgente: obtener agentes ro del equipo %q: %w", team, err)
+	}
+	if len(agents) == 0 {
+		return "", fmt.Errorf("calcularAgente: no hay agentes con rol ro en el equipo %q", team)
+	}
+
+    n := len(dates)
+    agentPosSum := make(map[string]float64, len(agents))
+    agentTotalLoad := make(map[string]int64, len(agents))
+    for _, a := range agents {
+        agentPosSum[a.ICode] = 0
+        agentTotalLoad[a.ICode] = 0
+    }
+
+    // 2. Por cada fecha: obtener carga, calcular dense-rank y acumular posición
+    for _, date := range dates {
+        matrix, err := s.getDateMatrix(ctx, date, team)
+        if err != nil {
+            return "", err
+        }
+
+        // Carga de cada agente en esta fecha (0 si no está en la matriz)
+        loadByAgent := make(map[string]int64, len(agents))
+        for _, a := range agents {
+            loadByAgent[a.ICode] = matrix[a.ICode]
+            agentTotalLoad[a.ICode] += matrix[a.ICode]
+        }
+
+        // Valores únicos de carga para dense-rank
+        loadSet := make(map[int64]struct{}, len(agents))
+        for _, v := range loadByAgent {
+            loadSet[v] = struct{}{}
+        }
+        sortedLoads := make([]int64, 0, len(loadSet))
+        for v := range loadSet {
+            sortedLoads = append(sortedLoads, v)
+        }
+        sort.Slice(sortedLoads, func(i, j int) bool { return sortedLoads[i] < sortedLoads[j] })
+
+        rankOf := make(map[int64]int, len(sortedLoads))
+        for i, v := range sortedLoads {
+            rankOf[v] = i + 1
+        }
+
+        for _, a := range agents {
+            agentPosSum[a.ICode] += float64(rankOf[loadByAgent[a.ICode]])
+        }
+    }
+
+    // 3. Elegir agente con menor avg_pos; desempate → menor carga total absoluta
+    bestID := ""
+    bestAvg := math.MaxFloat64
+    bestLoad := int64(math.MaxInt64)
+
+    for _, a := range agents {
+        avg := agentPosSum[a.ICode] / float64(n)
+        load := agentTotalLoad[a.ICode]
+
+        isBetter := avg < bestAvg-1e-9
+        isTie := math.Abs(avg-bestAvg) < 1e-9 && load < bestLoad
+        if isBetter || isTie {
+            bestID = a.ICode
+            bestAvg = avg
+            bestLoad = load
+        }
+    }
+
+	log.Printf("[AutoAsignacion] Agente seleccionado: %s (rol=ro, equipo=%q, avg_pos=%.3f, carga_total=%d)",
+		bestID, team, bestAvg, bestLoad)
+
+    return bestID, nil
 }
