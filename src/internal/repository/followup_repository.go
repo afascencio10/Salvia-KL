@@ -35,6 +35,15 @@ type FollowUpRepository interface {
 	FindAgentsByTeam(ctx context.Context, team string) ([]AgentOption, error)
 	Reschedule(ctx context.Context, id string, fields map[string]interface{}) error
 	
+	// Auto-asignación de agente
+	// FindWorkloadByDates retorna la carga (PENDIENTE + REPROGRAMADO) de cada agente
+	// para el conjunto de fechas dado en una sola query. Usa UTC explícito para evitar
+	// problemas de timezone entre Go y PostgreSQL.
+	FindWorkloadByDates(ctx context.Context, team string, dates []time.Time) ([]AgentDateWorkload, error)
+	// FindGlobalWorkloadByTeam retorna el total de seguimientos pendientes/reprogramados
+	// de cada agente en el equipo sin filtro de fecha. Úsalo como tiebreaker global.
+	FindGlobalWorkloadByTeam(ctx context.Context, team string) ([]AgentWorkload, error)
+
 	// Cierre de casos
 	CloseCaseFollowUps(ctx context.Context, followUpID string) error
 
@@ -57,8 +66,16 @@ type FollowUpFilters struct {
 
 // AgentWorkload agrupa la carga de seguimientos por agente.
 type AgentWorkload struct {
-	AgentID string `json:"agent_id"`
-	Total   int64  `json:"total"`
+	AgentID string `gorm:"column:agent_id" json:"agent_id"`
+	Total   int64  `gorm:"column:total"    json:"total"`
+}
+
+// AgentDateWorkload agrupa la carga de seguimientos por agente Y fecha.
+// Usado por el algoritmo de auto-asignación para construir la matriz en una sola query.
+type AgentDateWorkload struct {
+	AgentID string `gorm:"column:agent_id"`
+	DateStr string `gorm:"column:date_str"` // formato "2006-01-02" en UTC
+	Total   int64  `gorm:"column:total"`
 }
 
 // AgentOption representa un agente disponible para filtros.
@@ -301,6 +318,49 @@ func (r *followUpRepository) Reschedule(ctx context.Context, id string, fields m
 		return gorm.ErrRecordNotFound
 	}
 	return nil
+}
+
+// FindWorkloadByDates retorna la carga de cada agente para un conjunto de fechas en
+// una sola query, usando AT TIME ZONE 'UTC' para garantizar comparaciones consistentes
+// sin importar la configuración de timezone del servidor PostgreSQL.
+func (r *followUpRepository) FindWorkloadByDates(ctx context.Context, team string, dates []time.Time) ([]AgentDateWorkload, error) {
+	if len(dates) == 0 {
+		return nil, nil
+	}
+	dateStrings := make([]string, len(dates))
+	for i, d := range dates {
+		dateStrings[i] = d.UTC().Format("2006-01-02")
+	}
+	var results []AgentDateWorkload
+	err := r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Select("agent_id, (scheduled_date AT TIME ZONE 'UTC')::date::text AS date_str, COUNT(*) AS total").
+		Where(
+			"team = ? AND status IN ? AND (scheduled_date AT TIME ZONE 'UTC')::date::text IN ?",
+			team,
+			[]string{models.FollowUpStatusPendiente, models.FollowUpStatusReprogramado},
+			dateStrings,
+		).
+		Group("agent_id, (scheduled_date AT TIME ZONE 'UTC')::date::text").
+		Scan(&results).Error
+	return results, err
+}
+
+// FindGlobalWorkloadByTeam retorna el conteo total de seguimientos PENDIENTE+REPROGRAMADO
+// de cada agente en el equipo, sin filtro de fecha.
+// Se usa como tiebreaker final en el algoritmo de auto-asignación.
+func (r *followUpRepository) FindGlobalWorkloadByTeam(ctx context.Context, team string) ([]AgentWorkload, error) {
+	var results []AgentWorkload
+	err := r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Select("agent_id, COUNT(*) AS total").
+		Where("team = ? AND status IN ?",
+			team,
+			[]string{models.FollowUpStatusPendiente, models.FollowUpStatusReprogramado},
+		).
+		Group("agent_id").
+		Scan(&results).Error
+	return results, err
 }
 
 // CloseCaseFollowUps busca el caseID del seguimiento indicado y cierra todos los 
