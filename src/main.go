@@ -106,9 +106,14 @@ func main() {
         RepeaterGroupRepo:  repeaterGroupRepo,
         OptionRepo:         optionRepo,
         VisibilityCondRepo: visibilityCondRepo,
-        FormSubmissionRepo: formSubmissionRepo,
-        RepeaterEntryRepo:  repeaterEntryRepo,
-        AnswerRepo:         answerRepo,
+        FormSubmissionRepo:        formSubmissionRepo,
+        RepeaterEntryRepo:         repeaterEntryRepo,
+        AnswerRepo:                answerRepo,
+        FollowUpRepo:              followUpRepo,
+        EmergencyMeasureRepo:      emRepo,
+        PsychosocialSupportRepo:   psRepo,
+        EconomicStabilizationRepo: esRepo,
+        BarrierV2Repo:             barrierV2Repo,
     })
     formSectionSvc        := service.NewFormSectionService(formSectionRepo)
     questionSvc           := service.NewQuestionService(questionRepo)
