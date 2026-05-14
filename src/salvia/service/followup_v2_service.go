@@ -10,6 +10,7 @@ import (
 	"log"
 	"time"
 	"math"
+	"strings"
     "sort"
 	"gorm.io/gorm"
 )
@@ -598,10 +599,13 @@ func (s *followUpV2Service) RegisterContactAttempt(ctx context.Context, followUp
 	// 6. Si el intento fue fallido (no contestó), registrar en el timeline (HU-027 / Requerimiento adicional)
 	if !wasAnswered {
 		// Obtener info de la víctima para la descripción
-		victim, err := s.repo.LoadVictimInfoByCaseID(ctx, fu.CaseID)
+		// fu.CaseID almacena el victim_case_i_code (UUID), no el victim_case_id (entero)
 		victimName := "la víctima"
-		if err == nil && victim != nil {
-			victimName = fmt.Sprintf("%s %s", victim.Names, victim.LastNames)
+		if vc, vcErr := s.caseRepo.FindByICode(ctx, fu.CaseID); vcErr == nil && vc != nil {
+			name := strings.TrimSpace(vc.VictimNames + " " + vc.VictimLastNames)
+			if name != "" {
+				victimName = name
+			}
 		}
 
 		agentID := ""
@@ -615,7 +619,7 @@ func (s *followUpV2Service) RegisterContactAttempt(ctx context.Context, followUp
 			Type:        "Intento de Seguimiento",
 			Icon:        "fa fa-calendar",
 			Date:        time.Now(),
-			Description: fmt.Sprintf("Llamada realizada sin exito. Se intento contactar a %s + Comentario %s", victimName, reason),
+			Description: fmt.Sprintf("Llamada realizada sin éxito. Se intentó contactar a %s. Motivo: %s", victimName, reason),
 			EventUserID: agentID,
 			Color:       "blue",
 			FollowUpID:  fu.ID,
@@ -711,6 +715,45 @@ func (s *followUpV2Service) RescheduleFollowUp(ctx context.Context, id string, i
 }
 
 func (s *followUpV2Service) CloseCaseFollowUps(ctx context.Context, followUpID string) error {
+	// 1. Obtener el follow-up para extraer case_id y agent_id
+	fu, err := s.repo.FindByID(ctx, followUpID)
+	if err != nil {
+		return s.repo.CloseCaseFollowUps(ctx, followUpID) // fallback: cerrar sin timeline
+	}
+
+	// 2. Obtener nombre de la víctima
+	victimName := "la víctima"
+	if vc, vcErr := s.caseRepo.FindByICode(ctx, fu.CaseID); vcErr == nil && vc != nil {
+		name := strings.TrimSpace(vc.VictimNames + " " + vc.VictimLastNames)
+		if name != "" {
+			victimName = name
+		}
+	}
+
+	// 3. Obtener agent_id
+	agentID := ""
+	if fu.AgentID != nil {
+		agentID = *fu.AgentID
+	}
+
+	// 4. Crear evento de cierre en el timeline
+	timelineEvent := &models.CaseTimelineEvent{
+		CaseID:      fu.CaseID,
+		Category:    "Seguimientos",
+		Type:        "Cierre de Caso",
+		Icon:        "fa fa-calendar",
+		Date:        time.Now(),
+		Description: fmt.Sprintf("Se procede con cierre de caso de %s. Motivo: No se logró contactar a la víctima", victimName),
+		EventUserID: agentID,
+		Color:       "red",
+		FollowUpID:  fu.ID,
+	}
+
+	if err := s.repo.CreateTimelineEvent(ctx, timelineEvent); err != nil {
+		log.Printf("[WARN] No se pudo crear evento en timeline para cierre de caso: %v", err)
+	}
+
+	// 5. Cerrar los seguimientos del caso
 	return s.repo.CloseCaseFollowUps(ctx, followUpID)
 }
 
