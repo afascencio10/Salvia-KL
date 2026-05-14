@@ -107,16 +107,17 @@ type FilterOptions struct {
 // ── Implementación ────────────────────────────────────────────────────────────
 
 type followUpV2Service struct {
-	repo        repository.FollowUpRepository
-	fsRepo      repository.FormSubmissionRepository
-	barrierRepo repository.BarrierV2Repository
-	caseRepo    repository.VictimCaseLightRepository
-	townRepo    repository.TownLightRepository
-	attemptRepo repository.FollowUpAttemptRepository
-	emRepo      repository.EmergencyMeasureRepository
-	psRepo      repository.PsychosocialSupportRepository
-	esRepo      repository.EconomicStabilizationRepository
-	agentRepo   repository.AgentLightRepository
+	repo         repository.FollowUpRepository
+	fsRepo       repository.FormSubmissionRepository
+	barrierRepo  repository.BarrierV2Repository
+	caseRepo     repository.VictimCaseLightRepository
+	townRepo     repository.TownLightRepository
+	attemptRepo  repository.FollowUpAttemptRepository
+	emRepo       repository.EmergencyMeasureRepository
+	psRepo       repository.PsychosocialSupportRepository
+	esRepo       repository.EconomicStabilizationRepository
+	agentRepo    repository.AgentLightRepository
+	timelineRepo repository.CaseTimelineEventRepository
 }
 
 // NewFollowUpV2Service construye el servicio inyectando los repositorios.
@@ -131,18 +132,20 @@ func NewFollowUpV2Service(
 	psRepo repository.PsychosocialSupportRepository,
 	esRepo repository.EconomicStabilizationRepository,
 	agentRepo repository.AgentLightRepository,
+	timelineRepo repository.CaseTimelineEventRepository,
 ) FollowUpV2Service {
 	return &followUpV2Service{
-		repo:        repo,
-		fsRepo:      fsRepo,
-		barrierRepo: barrierRepo,
-		caseRepo:    caseRepo,
-		townRepo:    townRepo,
-		attemptRepo: attemptRepo,
-		emRepo:      emRepo,
-		psRepo:      psRepo,
-		esRepo:      esRepo,
-		agentRepo:   agentRepo,
+		repo:         repo,
+		fsRepo:       fsRepo,
+		barrierRepo:  barrierRepo,
+		caseRepo:     caseRepo,
+		townRepo:     townRepo,
+		attemptRepo:  attemptRepo,
+		emRepo:       emRepo,
+		psRepo:       psRepo,
+		esRepo:       esRepo,
+		agentRepo:    agentRepo,
+		timelineRepo: timelineRepo,
 	}
 }
 
@@ -272,6 +275,10 @@ func (s *followUpV2Service) GenerateOrRecalculate(ctx context.Context, caseID st
 		}); err != nil {
 			return nil, err
 		}
+
+		// Registrar eventos del timeline (no bloquea si falla)
+		s.registrarEventosCreacion(ctx, caseID, input.AgentID, riskLevelStr, newFollowUps, now)
+
 		return newFollowUps, nil
 	}
 
@@ -705,6 +712,59 @@ func (s *followUpV2Service) RescheduleFollowUp(ctx context.Context, id string, i
 
 func (s *followUpV2Service) CloseCaseFollowUps(ctx context.Context, followUpID string) error {
 	return s.repo.CloseCaseFollowUps(ctx, followUpID)
+}
+
+// ── Timeline de eventos ───────────────────────────────────────────────────────
+
+// registrarEventosCreacion persiste en el timeline:
+//   - 1 evento de "Creación de Caso" con el resumen del calendario generado.
+//   - 1 evento de "Seguimiento Programado" por cada followup creado.
+//
+// Los errores se loguean como warnings y no interrumpen el flujo principal.
+func (s *followUpV2Service) registrarEventosCreacion(
+	ctx context.Context,
+	caseID, actorID, riskLevelStr string,
+	followUps []models.FollowUpV2,
+	now time.Time,
+) {
+	if s.timelineRepo == nil {
+		return
+	}
+
+	// Evento del caso
+	caseEvent := &models.CaseTimelineEvent{
+		CaseID:      caseID,
+		EventType:   models.TimelineEventRegistro,
+		Category:    "Seguimientos",
+		Type:        "Creación de Caso",
+		Description: fmt.Sprintf("Caso registrado con %d seguimientos programados (riesgo %s)", len(followUps), riskLevelStr),
+		ActorID:     actorID,
+		EventUserID: actorID,
+		Date:        now,
+	}
+	if err := s.timelineRepo.Create(ctx, caseEvent); err != nil {
+		log.Printf("[WARN] timeline: evento caso %s: %v", caseID, err)
+	}
+
+	// Un evento por cada seguimiento creado
+	for i, fu := range followUps {
+		seq := i + 1
+		fecha := fu.ScheduledDate.Format("02/01/2006")
+		fuEvent := &models.CaseTimelineEvent{
+			CaseID:      caseID,
+			FollowUpID:  fu.ID,
+			EventType:   models.TimelineEventSeguimiento,
+			Category:    "Seguimientos",
+			Type:        "Seguimiento Programado",
+			Description: fmt.Sprintf("Seguimiento #%d programado para el %s", seq, fecha),
+			ActorID:     actorID,
+			EventUserID: actorID,
+			Date:        now,
+		}
+		if err := s.timelineRepo.Create(ctx, fuEvent); err != nil {
+			log.Printf("[WARN] timeline: evento seguimiento #%d (caso %s): %v", seq, caseID, err)
+		}
+	}
 }
 
 // ── Auto-asignación de agente ─────────────────────────────────────────────────
