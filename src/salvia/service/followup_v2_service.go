@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"log"
 	"time"
-
+	"math"
+	"strings"
+    "sort"
 	"gorm.io/gorm"
 )
 
@@ -106,16 +108,17 @@ type FilterOptions struct {
 // ── Implementación ────────────────────────────────────────────────────────────
 
 type followUpV2Service struct {
-	repo        repository.FollowUpRepository
-	fsRepo      repository.FormSubmissionRepository
-	barrierRepo repository.BarrierV2Repository
-	caseRepo    repository.VictimCaseLightRepository
-	townRepo    repository.TownLightRepository
-	attemptRepo repository.FollowUpAttemptRepository
-	emRepo      repository.EmergencyMeasureRepository
-	psRepo      repository.PsychosocialSupportRepository
-	esRepo      repository.EconomicStabilizationRepository
-	agentRepo   repository.AgentLightRepository
+	repo         repository.FollowUpRepository
+	fsRepo       repository.FormSubmissionRepository
+	barrierRepo  repository.BarrierV2Repository
+	caseRepo     repository.VictimCaseLightRepository
+	townRepo     repository.TownLightRepository
+	attemptRepo  repository.FollowUpAttemptRepository
+	emRepo       repository.EmergencyMeasureRepository
+	psRepo       repository.PsychosocialSupportRepository
+	esRepo       repository.EconomicStabilizationRepository
+	agentRepo    repository.AgentLightRepository
+	timelineRepo repository.CaseTimelineEventRepository
 }
 
 // NewFollowUpV2Service construye el servicio inyectando los repositorios.
@@ -130,18 +133,20 @@ func NewFollowUpV2Service(
 	psRepo repository.PsychosocialSupportRepository,
 	esRepo repository.EconomicStabilizationRepository,
 	agentRepo repository.AgentLightRepository,
+	timelineRepo repository.CaseTimelineEventRepository,
 ) FollowUpV2Service {
 	return &followUpV2Service{
-		repo:        repo,
-		fsRepo:      fsRepo,
-		barrierRepo: barrierRepo,
-		caseRepo:    caseRepo,
-		townRepo:    townRepo,
-		attemptRepo: attemptRepo,
-		emRepo:      emRepo,
-		psRepo:      psRepo,
-		esRepo:      esRepo,
-		agentRepo:   agentRepo,
+		repo:         repo,
+		fsRepo:       fsRepo,
+		barrierRepo:  barrierRepo,
+		caseRepo:     caseRepo,
+		townRepo:     townRepo,
+		attemptRepo:  attemptRepo,
+		emRepo:       emRepo,
+		psRepo:       psRepo,
+		esRepo:       esRepo,
+		agentRepo:    agentRepo,
+		timelineRepo: timelineRepo,
 	}
 }
 
@@ -251,12 +256,30 @@ func (s *followUpV2Service) GenerateOrRecalculate(ctx context.Context, caseID st
 
 	// ── Caso 1: sin ningún seguimiento → generar todos ───────────────────────
 	if len(completed) == 0 && len(pending) == 0 {
+
+		// [Auto-asignación] Elige el agente con rol "ro" del mismo equipo que tenga
+        // el menor promedio de posición de carga en las fechas a generar.
+        // Descomentar cuando el evento esté listo para activarse.
+        //
+        scheduledDates := computeScheduledDates(offsets, now, today, input.RiskLevel)
+        assignedAgentID, autoErr := s.calcularAgente(ctx, scheduledDates, input.Team)
+        if autoErr != nil {
+            log.Printf("[WARN] AutoAsignacion: %v — se usará el agentID del input", autoErr)
+        } else {
+            input.AgentID = assignedAgentID
+        }
+		// ───────────────────────────────────────────────────────────────────────
+
 		newFollowUps := buildFollowUps(caseID, input, riskLevelStr, offsets, now, today, 1)
 		if err := s.repo.RunInTransaction(ctx, func(tx *gorm.DB) error {
 			return s.repo.BulkCreate(ctx, tx, newFollowUps)
 		}); err != nil {
 			return nil, err
 		}
+
+		// Registrar eventos del timeline (no bloquea si falla)
+		s.registrarEventosCreacion(ctx, caseID, input.AgentID, riskLevelStr, newFollowUps, now)
+
 		return newFollowUps, nil
 	}
 
@@ -573,6 +596,41 @@ func (s *followUpV2Service) RegisterContactAttempt(ctx context.Context, followUp
 
 	log.Printf("Intento #%d registrado para seguimiento %s: %s", fu.Attempts, followUpID, reason)
 
+	// 6. Si el intento fue fallido (no contestó), registrar en el timeline (HU-027 / Requerimiento adicional)
+	if !wasAnswered {
+		// Obtener info de la víctima para la descripción
+		// fu.CaseID almacena el victim_case_i_code (UUID), no el victim_case_id (entero)
+		victimName := "la víctima"
+		if vc, vcErr := s.caseRepo.FindByICode(ctx, fu.CaseID); vcErr == nil && vc != nil {
+			name := strings.TrimSpace(vc.VictimNames + " " + vc.VictimLastNames)
+			if name != "" {
+				victimName = name
+			}
+		}
+
+		agentID := ""
+		if fu.AgentID != nil {
+			agentID = *fu.AgentID
+		}
+
+		timelineEvent := &models.CaseTimelineEvent{
+			CaseID:      fu.CaseID,
+			Category:    "Seguimientos",
+			Type:        "Intento de Seguimiento",
+			Icon:        "fa fa-calendar",
+			Date:        time.Now(),
+			Description: fmt.Sprintf("Llamada realizada sin éxito. Se intentó contactar a %s. Motivo: %s", victimName, reason),
+			EventUserID: agentID,
+			Color:       "#f8a625",
+			FollowUpID:  fu.ID,
+		}
+
+		if err := s.repo.CreateTimelineEvent(ctx, timelineEvent); err != nil {
+			log.Printf("[WARN] No se pudo crear evento en timeline para intento fallido: %v", err)
+			// No retornamos error para no bloquear el registro del intento principal
+		}
+	}
+
 	return fu, nil
 }
 
@@ -603,6 +661,12 @@ func (s *followUpV2Service) GetFilterOptions(ctx context.Context, team string) (
 }
 
 func (s *followUpV2Service) RescheduleFollowUp(ctx context.Context, id string, input RescheduleInput) error {
+	// 1. Obtener el seguimiento para tener el case_id y agent_id
+	fu, err := s.GetFollowUpByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
 	fields := map[string]interface{}{
 		"scheduled_date": input.NuevaFecha,
 		"status":         models.FollowUpStatusReprogramado,
@@ -616,13 +680,256 @@ func (s *followUpV2Service) RescheduleFollowUp(ctx context.Context, id string, i
 		fields["is_priority"] = false
 	}
 
-	err := s.repo.Reschedule(ctx, id, fields)
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return ErrFollowUpNotFound
+	err = s.repo.Reschedule(ctx, id, fields)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrFollowUpNotFound
+		}
+		return err
 	}
-	return err
+
+	// 2. Registrar evento en el timeline (HU-027 / Requerimiento adicional)
+	agentID := ""
+	if fu.AgentID != nil {
+		agentID = *fu.AgentID
+	}
+
+	timelineEvent := &models.CaseTimelineEvent{
+		CaseID:      fu.CaseID,
+		Category:    "Seguimientos",
+		Type:        "Seguimiento Pospuesto",
+		Icon:        "fa fa-calendar",
+		Date:        time.Now(),
+		Description: fmt.Sprintf("Se reprogamo el seguimiento para el %s", input.NuevaFecha),
+		EventUserID: agentID,
+		Color:       "#f8a625",
+		FollowUpID:  fu.ID,
+	}
+
+	if err := s.repo.CreateTimelineEvent(ctx, timelineEvent); err != nil {
+		log.Printf("[WARN] No se pudo crear evento en timeline para seguimiento pospuesto: %v", err)
+		// No retornamos error para no bloquear la operación principal
+	}
+
+	return nil
 }
 
 func (s *followUpV2Service) CloseCaseFollowUps(ctx context.Context, followUpID string) error {
+	// 1. Obtener el follow-up para extraer case_id y agent_id
+	fu, err := s.repo.FindByID(ctx, followUpID)
+	if err != nil {
+		return s.repo.CloseCaseFollowUps(ctx, followUpID) // fallback: cerrar sin timeline
+	}
+
+	// 2. Obtener nombre de la víctima
+	victimName := "la víctima"
+	if vc, vcErr := s.caseRepo.FindByICode(ctx, fu.CaseID); vcErr == nil && vc != nil {
+		name := strings.TrimSpace(vc.VictimNames + " " + vc.VictimLastNames)
+		if name != "" {
+			victimName = name
+		}
+	}
+
+	// 3. Obtener agent_id
+	agentID := ""
+	if fu.AgentID != nil {
+		agentID = *fu.AgentID
+	}
+
+	// 4. Crear evento de cierre en el timeline
+	timelineEvent := &models.CaseTimelineEvent{
+		CaseID:      fu.CaseID,
+		Category:    "Seguimientos",
+		Type:        "Cierre de Caso",
+		Icon:        "fa fa-calendar-xmark",
+		Date:        time.Now(),
+		Description: fmt.Sprintf("Se procede con cierre de caso de %s. Motivo: No se logró contactar a la víctima", victimName),
+		EventUserID: agentID,
+		Color:       "#d62d20",
+		FollowUpID:  fu.ID,
+	}
+
+	if err := s.repo.CreateTimelineEvent(ctx, timelineEvent); err != nil {
+		log.Printf("[WARN] No se pudo crear evento en timeline para cierre de caso: %v", err)
+	}
+
+	// 5. Cerrar los seguimientos del caso
 	return s.repo.CloseCaseFollowUps(ctx, followUpID)
+}
+
+// ── Timeline de eventos ───────────────────────────────────────────────────────
+
+// registrarEventosCreacion persiste en el timeline:
+//   - 1 evento de "Creación de Caso" con el resumen del calendario generado.
+//   - 1 evento de "Seguimiento Programado" por cada followup creado.
+//
+// Los errores se loguean como warnings y no interrumpen el flujo principal.
+func (s *followUpV2Service) registrarEventosCreacion(
+	ctx context.Context,
+	caseID, actorID, riskLevelStr string,
+	followUps []models.FollowUpV2,
+	now time.Time,
+) {
+	if s.timelineRepo == nil {
+		return
+	}
+
+	// Evento del caso
+	caseEvent := &models.CaseTimelineEvent{
+		CaseID:      caseID,
+		EventType:   models.TimelineEventRegistro,
+		Category:    "Seguimientos",
+		Type:        "Creación de Caso",
+		Description: fmt.Sprintf("Caso registrado con %d seguimientos programados (riesgo %s)", len(followUps), riskLevelStr),
+		ActorID:     actorID,
+		EventUserID: actorID,
+		Date:        now,
+	}
+	if err := s.timelineRepo.Create(ctx, caseEvent); err != nil {
+		log.Printf("[WARN] timeline: evento caso %s: %v", caseID, err)
+	}
+
+	// Un evento por cada seguimiento creado
+	for i, fu := range followUps {
+		seq := i + 1
+		fecha := fu.ScheduledDate.Format("02/01/2006")
+		fuEvent := &models.CaseTimelineEvent{
+			CaseID:      caseID,
+			FollowUpID:  fu.ID,
+			EventType:   models.TimelineEventSeguimiento,
+			Category:    "Seguimientos",
+			Type:        "Seguimiento Programado",
+			Description: fmt.Sprintf("Seguimiento #%d programado para el %s", seq, fecha),
+			ActorID:     actorID,
+			EventUserID: actorID,
+			Date:        now,
+		}
+		if err := s.timelineRepo.Create(ctx, fuEvent); err != nil {
+			log.Printf("[WARN] timeline: evento seguimiento #%d (caso %s): %v", seq, caseID, err)
+		}
+	}
+}
+
+// ── Auto-asignación de agente ─────────────────────────────────────────────────
+
+// computeScheduledDates calcula las fechas absolutas que tendrán los seguimientos
+// dado el slice de offsets de la riskMatrix, la referencia de tiempo y el nivel de riesgo.
+func computeScheduledDates(offsets []int, now, today time.Time, riskLevel int) []time.Time {
+    dates := make([]time.Time, len(offsets))
+    for i, days := range offsets {
+        if days == 0 && riskLevel == 4 {
+            // Extremo S1: +4 h desde ahora
+            dates[i] = now.Add(4 * time.Hour)
+        } else {
+            dates[i] = today.AddDate(0, 0, days)
+        }
+    }
+    return dates
+}
+
+// getDateMatrix devuelve un mapa [agentID]cantidad con la carga de seguimientos
+// pendientes/reprogramados que cada agente tiene programada para la fecha indicada.
+// Los agentes sin seguimientos en esa fecha no aparecerán en el mapa (carga = 0 implícita).
+func (s *followUpV2Service) getDateMatrix(ctx context.Context, date time.Time, team string) (map[string]int64, error) {
+    dateStr := date.Format("2006-01-02")
+    workload, err := s.repo.FindPendingByTeamGroupedByAgent(ctx, team, dateStr)
+    if err != nil {
+        return nil, fmt.Errorf("getDateMatrix: %w", err)
+    }
+    matrix := make(map[string]int64, len(workload))
+    for _, w := range workload {
+        if w.AgentID != "" {
+            matrix[w.AgentID] = w.Total
+        }
+    }
+    return matrix, nil
+}
+
+// calcularAgente implementa el algoritmo de auto-asignación balanceada:
+//
+//  1. Obtiene todos los agentes con rol "ro" que pertenecen al mismo equipo del caso.
+//  2. Para cada fecha programada calcula la carga de cada agente y le asigna
+//     una posición por dense-rank (menor carga = posición 1).
+//  3. Calcula avg_pos(Aj) = suma_posiciones / n_fechas.
+//  4. Elige el agente con menor avg_pos.
+//     En empate: elige el de menor carga total absoluta.
+func (s *followUpV2Service) calcularAgente(ctx context.Context, dates []time.Time, team string) (string, error) {
+	if len(dates) == 0 {
+		return "", fmt.Errorf("calcularAgente: no se recibieron fechas")
+	}
+
+	// 1. Listar agentes del mismo equipo con rol "ro" (Operador de riesgo)
+	agents, err := s.agentRepo.FindAllByRoleAndTeam(ctx, "ro", team)
+	if err != nil {
+		return "", fmt.Errorf("calcularAgente: obtener agentes ro del equipo %q: %w", team, err)
+	}
+	if len(agents) == 0 {
+		return "", fmt.Errorf("calcularAgente: no hay agentes con rol ro en el equipo %q", team)
+	}
+
+    n := len(dates)
+    agentPosSum := make(map[string]float64, len(agents))
+    agentTotalLoad := make(map[string]int64, len(agents))
+    for _, a := range agents {
+        agentPosSum[a.ICode] = 0
+        agentTotalLoad[a.ICode] = 0
+    }
+
+    // 2. Por cada fecha: obtener carga, calcular dense-rank y acumular posición
+    for _, date := range dates {
+        matrix, err := s.getDateMatrix(ctx, date, team)
+        if err != nil {
+            return "", err
+        }
+
+        // Carga de cada agente en esta fecha (0 si no está en la matriz)
+        loadByAgent := make(map[string]int64, len(agents))
+        for _, a := range agents {
+            loadByAgent[a.ICode] = matrix[a.ICode]
+            agentTotalLoad[a.ICode] += matrix[a.ICode]
+        }
+
+        // Valores únicos de carga para dense-rank
+        loadSet := make(map[int64]struct{}, len(agents))
+        for _, v := range loadByAgent {
+            loadSet[v] = struct{}{}
+        }
+        sortedLoads := make([]int64, 0, len(loadSet))
+        for v := range loadSet {
+            sortedLoads = append(sortedLoads, v)
+        }
+        sort.Slice(sortedLoads, func(i, j int) bool { return sortedLoads[i] < sortedLoads[j] })
+
+        rankOf := make(map[int64]int, len(sortedLoads))
+        for i, v := range sortedLoads {
+            rankOf[v] = i + 1
+        }
+
+        for _, a := range agents {
+            agentPosSum[a.ICode] += float64(rankOf[loadByAgent[a.ICode]])
+        }
+    }
+
+    // 3. Elegir agente con menor avg_pos; desempate → menor carga total absoluta
+    bestID := ""
+    bestAvg := math.MaxFloat64
+    bestLoad := int64(math.MaxInt64)
+
+    for _, a := range agents {
+        avg := agentPosSum[a.ICode] / float64(n)
+        load := agentTotalLoad[a.ICode]
+
+        isBetter := avg < bestAvg-1e-9
+        isTie := math.Abs(avg-bestAvg) < 1e-9 && load < bestLoad
+        if isBetter || isTie {
+            bestID = a.ICode
+            bestAvg = avg
+            bestLoad = load
+        }
+    }
+
+	log.Printf("[AutoAsignacion] Agente seleccionado: %s (rol=ro, equipo=%q, avg_pos=%.3f, carga_total=%d)",
+		bestID, team, bestAvg, bestLoad)
+
+    return bestID, nil
 }

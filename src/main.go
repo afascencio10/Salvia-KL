@@ -95,6 +95,7 @@ func main() {
     psRepo                 := repository.NewPsychosocialSupportRepository(gormDB)
     esRepo                 := repository.NewEconomicStabilizationRepository(gormDB)
     agentLightRepo         := repository.NewAgentLightRepository(gormDB)
+    caseTimelineRepo       := repository.NewCaseTimelineEventRepository(gormDB)
     caseDetailRepo         := repository.NewCaseDetailRepository(gormDB)
     reportRepo             := repository.NewReportRepository(gormDB)
 
@@ -106,9 +107,14 @@ func main() {
         RepeaterGroupRepo:  repeaterGroupRepo,
         OptionRepo:         optionRepo,
         VisibilityCondRepo: visibilityCondRepo,
-        FormSubmissionRepo: formSubmissionRepo,
-        RepeaterEntryRepo:  repeaterEntryRepo,
-        AnswerRepo:         answerRepo,
+        FormSubmissionRepo:        formSubmissionRepo,
+        RepeaterEntryRepo:         repeaterEntryRepo,
+        AnswerRepo:                answerRepo,
+        FollowUpRepo:              followUpRepo,
+        EmergencyMeasureRepo:      emRepo,
+        PsychosocialSupportRepo:   psRepo,
+        EconomicStabilizationRepo: esRepo,
+        BarrierV2Repo:             barrierV2Repo,
     })
     formSectionSvc        := service.NewFormSectionService(formSectionRepo)
     questionSvc           := service.NewQuestionService(questionRepo)
@@ -118,7 +124,7 @@ func main() {
     repeaterEntrySvc      := service.NewRepeaterEntryService(repeaterEntryRepo)
     answerSvc             := service.NewAnswerService(answerRepo)
     optionSvc             := service.NewOptionService(optionRepo)
-    followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo)
+    followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo)
     caseDetailSvc         := service.NewCaseDetailService(caseDetailRepo, gormDB)
     reportSvc             := service.NewReportService(reportRepo)
 
