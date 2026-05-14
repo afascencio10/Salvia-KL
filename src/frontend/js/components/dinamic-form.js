@@ -290,6 +290,23 @@
             cursor: pointer; transition: background 0.15s;
         }
         .df-popup-btn:hover { background: #6d28d9; }
+
+        /* ── Read-only ── */
+        .df-input:disabled, .df-textarea:disabled, .df-select:disabled {
+            background: #f9fafb; color: #6b7280; cursor: default; opacity: 1;
+        }
+        .df-opt-btn:disabled, .df-bool-btn:disabled { cursor: default; opacity: 1; }
+        .df-opt-btn:disabled:not(.df-selected),
+        .df-bool-btn:disabled:not(.df-selected) {
+            background: #f9fafb; border-color: #e5e7eb; color: #9ca3af;
+        }
+        .df-readonly-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 11px; font-weight: 600; color: #9ca3af;
+            background: #f3f4f6; border: 1px solid #e5e7eb;
+            border-radius: 6px; padding: 2px 8px;
+            text-transform: uppercase; letter-spacing: 0.05em;
+        }
     `;
     document.head.appendChild(style);
 })();
@@ -738,8 +755,9 @@ function buildSectionRenderData(section, submission, fs) {
 app.component('dinamic-form', {
     delimiters: ['${', '}'],
     props: {
-        formId:       { type: String, required: true  },
-        submissionId: { type: String, required: false, default: null },
+        formId:       { type: String,  required: true  },
+        submissionId: { type: String,  required: false, default: null },
+        canEdit:      { type: Boolean, required: false, default: true },
     },
     data() {
         return {
@@ -1313,6 +1331,16 @@ app.component('dinamic-form', {
                 this.formSubmission = data.formSubmission ?? null;
                 console.log('[saveSection] formSubmission actualizado:', this.formSubmission?.id);
 
+                // Detectar formulario completado (todas las secciones visibles respondidas)
+                const allAnswered = this.formStructure.sections
+                    .filter(s => s.isVisible)
+                    .every(s => s.isAnswered);
+                if (allAnswered) {
+                    console.log('[saveSection] formulario completado — emitiendo form-completed');
+                    this.$emit('form-completed');
+                    return;
+                }
+
                 // Navegación: primera opción → siguiente sección visible
                 // Fallback → currentSection del servidor (si la siguiente no está enabled)
                 const savedId     = this.currentSection.id;
@@ -1422,6 +1450,7 @@ app.component('dinamic-form', {
             <div class="df-section-header-row">
                 <div class="df-section-number">\${ currentSection.order }</div>
                 <h2 class="df-section-title">\${ currentSection.name }</h2>
+                <span v-if="!canEdit" class="df-readonly-badge">🔒 Solo lectura</span>
             </div>
             <p v-if="currentSection.description" class="df-section-desc">\${ currentSection.description }</p>
         </div>
@@ -1442,6 +1471,7 @@ app.component('dinamic-form', {
                         <button v-for="opt in item.question.options" :key="opt.id"
                             type="button" class="df-opt-btn"
                             :class="{ 'df-selected': getLocalAnswer(item.question.id) === opt.value }"
+                            :disabled="!canEdit"
                             @click="onAnswer(item.question.id, opt.value)"
                         >\${ opt.label }</button>
                     </div>
@@ -1449,6 +1479,7 @@ app.component('dinamic-form', {
                     <!-- dropdown -->
                     <select v-else-if="item.question.questionTypeId === 'dropdown'"
                         class="df-select"
+                        :disabled="!canEdit"
                         :value="getLocalAnswer(item.question.id)"
                         @change="onAnswer(item.question.id, $event.target.value)"
                         @blur="onBlur(item.question.id)"
@@ -1461,9 +1492,11 @@ app.component('dinamic-form', {
                     <div v-else-if="item.question.questionTypeId === 'boolean'" class="df-bool-group">
                         <button type="button" class="df-bool-btn"
                             :class="{ 'df-selected': getLocalAnswer(item.question.id) === 'true' }"
+                            :disabled="!canEdit"
                             @click="onAnswer(item.question.id, 'true')">Sí</button>
                         <button type="button" class="df-bool-btn"
                             :class="{ 'df-selected': getLocalAnswer(item.question.id) === 'false' }"
+                            :disabled="!canEdit"
                             @click="onAnswer(item.question.id, 'false')">No</button>
                     </div>
 
@@ -1472,6 +1505,7 @@ app.component('dinamic-form', {
                         <button v-for="opt in item.question.options" :key="opt.id"
                             type="button" class="df-opt-btn"
                             :class="{ 'df-selected': isMultipleSelected(item.question.id, opt.value) }"
+                            :disabled="!canEdit"
                             @click="onToggleMultipleAnswer(item.question.id, opt.value)"
                         >
                             <span v-if="isMultipleSelected(item.question.id, opt.value)">✓ </span>\${ opt.label }
@@ -1481,6 +1515,7 @@ app.component('dinamic-form', {
                     <!-- text -->
                     <textarea v-else-if="item.question.questionTypeId === 'text'"
                         class="df-textarea"
+                        :disabled="!canEdit"
                         :value="getLocalAnswer(item.question.id)"
                         @input="onAnswer(item.question.id, $event.target.value)"
                         @blur="onBlur(item.question.id)"
@@ -1489,6 +1524,7 @@ app.component('dinamic-form', {
                     <!-- number -->
                     <input v-else-if="item.question.questionTypeId === 'number'"
                         class="df-input" type="number"
+                        :disabled="!canEdit"
                         :value="getLocalAnswer(item.question.id)"
                         @input="onAnswer(item.question.id, $event.target.value)"
                     />
@@ -1496,6 +1532,7 @@ app.component('dinamic-form', {
                     <!-- date -->
                     <input v-else-if="item.question.questionTypeId === 'date'"
                         class="df-input" type="date"
+                        :disabled="!canEdit"
                         :value="getLocalAnswer(item.question.id)"
                         @input="onAnswer(item.question.id, $event.target.value)"
                         @blur="onBlur(item.question.id)"
@@ -1504,6 +1541,7 @@ app.component('dinamic-form', {
                     <!-- datetime -->
                     <input v-else-if="item.question.questionTypeId === 'datetime'"
                         class="df-input" type="datetime-local"
+                        :disabled="!canEdit"
                         :value="getLocalAnswer(item.question.id)"
                         @input="onAnswer(item.question.id, $event.target.value)"
                         @blur="onBlur(item.question.id)"
@@ -1523,7 +1561,7 @@ app.component('dinamic-form', {
                         <div v-for="entryData in item.entries" :key="entryData.entry.id" class="df-repeater-item">
                             <div class="df-repeater-item-header">
                                 <span class="df-repeater-item-title">\${ item.repeater.itemName || item.repeater.name } #\${ entryData.entry.iteration }</span>
-                                <button type="button" class="df-repeater-delete" @click="removeRepeaterEntry(item, entryData)">✕ Eliminar</button>
+                                <button v-if="canEdit" type="button" class="df-repeater-delete" @click="removeRepeaterEntry(item, entryData)">✕ Eliminar</button>
                             </div>
 
                             <template v-for="qData in entryData.questions" :key="qData.question.id">
@@ -1538,6 +1576,7 @@ app.component('dinamic-form', {
                                         <button v-for="opt in qData.question.options" :key="opt.id"
                                             type="button" class="df-opt-btn"
                                             :class="{ 'df-selected': getLocalAnswer(qData.question.id, entryData.entry.id) === opt.value }"
+                                            :disabled="!canEdit"
                                             @click="onAnswer(qData.question.id, opt.value, entryData.entry.id)"
                                         >\${ opt.label }</button>
                                     </div>
@@ -1545,6 +1584,7 @@ app.component('dinamic-form', {
                                     <!-- dropdown -->
                                     <select v-else-if="qData.question.questionTypeId === 'dropdown'"
                                         class="df-select"
+                                        :disabled="!canEdit"
                                         :value="getLocalAnswer(qData.question.id, entryData.entry.id)"
                                         @change="onAnswer(qData.question.id, $event.target.value, entryData.entry.id)"
                                         @blur="onBlur(qData.question.id, entryData.entry.id)"
@@ -1557,9 +1597,11 @@ app.component('dinamic-form', {
                                     <div v-else-if="qData.question.questionTypeId === 'boolean'" class="df-bool-group">
                                         <button type="button" class="df-bool-btn"
                                             :class="{ 'df-selected': getLocalAnswer(qData.question.id, entryData.entry.id) === 'true' }"
+                                            :disabled="!canEdit"
                                             @click="onAnswer(qData.question.id, 'true', entryData.entry.id)">Sí</button>
                                         <button type="button" class="df-bool-btn"
                                             :class="{ 'df-selected': getLocalAnswer(qData.question.id, entryData.entry.id) === 'false' }"
+                                            :disabled="!canEdit"
                                             @click="onAnswer(qData.question.id, 'false', entryData.entry.id)">No</button>
                                     </div>
 
@@ -1568,6 +1610,7 @@ app.component('dinamic-form', {
                                         <button v-for="opt in qData.question.options" :key="opt.id"
                                             type="button" class="df-opt-btn"
                                             :class="{ 'df-selected': isMultipleSelected(qData.question.id, opt.value, entryData.entry.id) }"
+                                            :disabled="!canEdit"
                                             @click="onToggleMultipleAnswer(qData.question.id, opt.value, entryData.entry.id)"
                                         >
                                             <span v-if="isMultipleSelected(qData.question.id, opt.value, entryData.entry.id)">✓ </span>\${ opt.label }
@@ -1577,6 +1620,7 @@ app.component('dinamic-form', {
                                     <!-- text -->
                                     <textarea v-else-if="qData.question.questionTypeId === 'text'"
                                         class="df-textarea"
+                                        :disabled="!canEdit"
                                         :value="getLocalAnswer(qData.question.id, entryData.entry.id)"
                                         @input="onAnswer(qData.question.id, $event.target.value, entryData.entry.id)"
                                         @blur="onBlur(qData.question.id, entryData.entry.id)"
@@ -1585,6 +1629,7 @@ app.component('dinamic-form', {
                                     <!-- number -->
                                     <input v-else-if="qData.question.questionTypeId === 'number'"
                                         class="df-input" type="number"
+                                        :disabled="!canEdit"
                                         :value="getLocalAnswer(qData.question.id, entryData.entry.id)"
                                         @input="onAnswer(qData.question.id, $event.target.value, entryData.entry.id)"
                                     />
@@ -1592,6 +1637,7 @@ app.component('dinamic-form', {
                                     <!-- date -->
                                     <input v-else-if="qData.question.questionTypeId === 'date'"
                                         class="df-input" type="date"
+                                        :disabled="!canEdit"
                                         :value="getLocalAnswer(qData.question.id, entryData.entry.id)"
                                         @input="onAnswer(qData.question.id, $event.target.value, entryData.entry.id)"
                                         @blur="onBlur(qData.question.id, entryData.entry.id)"
@@ -1600,6 +1646,7 @@ app.component('dinamic-form', {
                                     <!-- datetime -->
                                     <input v-else-if="qData.question.questionTypeId === 'datetime'"
                                         class="df-input" type="datetime-local"
+                                        :disabled="!canEdit"
                                         :value="getLocalAnswer(qData.question.id, entryData.entry.id)"
                                         @input="onAnswer(qData.question.id, $event.target.value, entryData.entry.id)"
                                         @blur="onBlur(qData.question.id, entryData.entry.id)"
@@ -1609,7 +1656,7 @@ app.component('dinamic-form', {
                             </template>
                         </div>
 
-                        <button type="button" class="df-repeater-add" @click="addRepeaterEntry(item)">+ Agregar \${ item.repeater.itemName || item.repeater.name }</button>
+                        <button v-if="canEdit" type="button" class="df-repeater-add" @click="addRepeaterEntry(item)">+ Agregar \${ item.repeater.itemName || item.repeater.name }</button>
                     </div>
                     <span v-if="repeaterErrors[item.repeater.id]" class="df-error">\${ repeaterErrors[item.repeater.id] }</span>
                 </div>
@@ -1620,8 +1667,8 @@ app.component('dinamic-form', {
         <!-- Navegación -->
         <div class="df-nav">
             <button type="button" class="df-btn-prev" :disabled="isFirstSection" @click="goPrev">← Anterior</button>
-            <button type="button" class="df-btn-next" @click="saveSection">
-                <span v-if="isLastSection">Guardar seguimiento ✓</span>
+            <button v-if="!isLastSection || canEdit" type="button" class="df-btn-next" @click="canEdit ? saveSection() : goNext()">
+                <span v-if="isLastSection && canEdit">Guardar seguimiento ✓</span>
                 <span v-else>Siguiente →</span>
             </button>
         </div>

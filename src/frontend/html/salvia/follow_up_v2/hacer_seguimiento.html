@@ -46,7 +46,22 @@
         </div>
 
         <div v-if="loadError" class="alert alert-danger">${ loadError }</div>
-        <dinamic-form v-else-if="formId && submissionId" :form-id="formId" :submission-id="submissionId"></dinamic-form>
+        <dinamic-form v-else-if="formId && submissionId" :form-id="formId" :submission-id="submissionId" :can-edit="canEdit" @form-completed="onFormCompleted"></dinamic-form>
+
+        <!-- Overlay formulario completado -->
+        <div v-if="formCompleted" class="hs-completed-backdrop">
+    <div class="hs-completed-card">
+        <div class="hs-completed-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" fill="#22c55e"/>
+                <path d="M7 12.5l3.5 3.5 6-7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+        <h4 class="hs-completed-title">Seguimiento registrado</h4>
+        <p class="hs-completed-text">El seguimiento fue completado exitosamente.</p>
+        <button class="hs-completed-btn" @click="goToCase">Ver caso</button>
+        </div>
+    </div>
     </div>
 </div>
 
@@ -116,6 +131,58 @@
     font-weight: 500;
     color: #333;
 }
+.hs-completed-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.hs-completed-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 40px 48px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+}
+.hs-completed-icon {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: #f0fdf4;
+    display: flex; align-items: center; justify-content: center;
+}
+.hs-completed-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+}
+.hs-completed-text {
+    margin: 0;
+    font-size: 14px;
+    color: #6b7280;
+}
+.hs-completed-btn {
+    margin-top: 6px;
+    padding: 10px 28px;
+    background: #7c3aed;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.hs-completed-btn:hover { background: #6d28d9; }
 </style>
 
 {{ template "standard_scripts.html" .}}
@@ -127,13 +194,23 @@
             return {
                 followUpId:   '{{ .followUpId }}',
                 userICode:    '{{ .userICode }}',
+                currentUser:  '{{ .currentUser }}',
                 formId:       '2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff',
                 submissionId: null,
                 loadError:    null,
+                canEdit:       true,
+                caseId:        null,
+                formCompleted: false,
             };
         },
         mounted() {
             document.getElementById('app').style.display = 'block';
+            // El header está fuera del mount de Vue — populamos currentUser directo via DOM
+            const navUserDiv = document.querySelector('.navbar.nav_banner .user');
+            if (navUserDiv) {
+                navUserDiv.querySelector('div:first-child').innerHTML =
+                    '<i class="fas fa-user"></i> Hola, {{ .currentUser }}';
+            }
             this.loadFollowUp();
         },
         methods: {
@@ -146,14 +223,33 @@
                         this.loadError = data.error || 'Error al cargar el seguimiento';
                         return;
                     }
-                    this.submissionId = data.followUp.form_submission_id;
+                    const fu          = data.followUp;
+                    this.submissionId = fu.form_submission_id;
+                    this.caseId       = fu.case_id;
                     this.victimInfo   = data.victimInfo;
-                    console.log('[HS] followUp:', data.followUp);
+
+                    // canEdit: false si REALIZADO y han pasado más de 5 días desde completed_at
+                    if (fu.status === 'REALIZADO' && fu.completed_at) {
+                        const diffDays = (Date.now() - new Date(fu.completed_at)) / (1000 * 60 * 60 * 24);
+                        this.canEdit = diffDays <= 5;
+                    } else {
+                        this.canEdit = true;
+                    }
+
+                    console.log('[HS] followUp:', fu);
                     console.log('[HS] victimInfo:', data.victimInfo);
+                    console.log('[HS] canEdit:', this.canEdit, '| status:', fu.status, '| completed_at:', fu.completed_at);
                 } catch (e) {
                     this.loadError = 'Error de conexión al cargar el seguimiento';
                     console.error('[HS] error:', e);
                 }
+            },
+            onFormCompleted() {
+                this.formCompleted = true;
+                setTimeout(() => this.goToCase(), 3000);
+            },
+            goToCase() {
+                window.location.href = `/salvia/casos/${this.caseId}/detalle`;
             },
         }
     });

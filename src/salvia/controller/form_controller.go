@@ -2,11 +2,13 @@
 package controller
 
 import (
+	"bitsflow/common/utils"
 	"bitsflow/salvia/service"
 	"errors"
 	"net/http"
 	"strconv"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 )
 
@@ -189,6 +191,13 @@ func (c *FormController) SaveSection(ctx *gin.Context) {
 	if body.FormID == "" || body.FormSectionID == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "formId y formSectionId son requeridos"})
 		return
+	}
+
+	// Inyectar actor desde la sesión del servidor
+	if sessionID, ok := sessions.Default(ctx).Get("userData").(string); ok && sessionID != "" {
+		if s, err := utils.GetCommonSession(sessionID); err == nil {
+			body.ActorID = s.UserICode
+		}
 	}
 
 	result, err := c.svc.SaveSection(ctx.Request.Context(), body)

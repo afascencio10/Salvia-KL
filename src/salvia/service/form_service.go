@@ -127,7 +127,7 @@ type FormService interface {
 	GetFormSubmissionStructured(ctx context.Context, formID, submissionID string) (*FormSubmissionStructured, error)
 	LoadForm(ctx context.Context, formID, submissionID string) (*LoadFormResult, error)
 	SaveSection(ctx context.Context, input SaveSectionInput) (*LoadFormResult, error)
-	OnEndFormSubmission(ctx context.Context, formID, submissionID string) error
+	OnEndFormSubmission(ctx context.Context, formID, submissionID, actorID string) error
 	TestFunction(ctx context.Context, fn, id, submissionID string) (interface{}, error)
 }
 
@@ -146,6 +146,7 @@ type FormServiceDeps struct {
 	PsychosocialSupportRepo    repository.PsychosocialSupportRepository
 	EconomicStabilizationRepo  repository.EconomicStabilizationRepository
 	BarrierV2Repo              repository.BarrierV2Repository
+	CaseTimelineEventRepo      repository.CaseTimelineEventRepository
 }
 
 type formService struct {
@@ -163,6 +164,7 @@ type formService struct {
 	psychosocialSupportRepo repository.PsychosocialSupportRepository
 	economicStabilizationRepo repository.EconomicStabilizationRepository
 	barrierV2Repo          repository.BarrierV2Repository
+	caseTimelineRepo       repository.CaseTimelineEventRepository
 }
 
 func NewFormService(deps FormServiceDeps) FormService {
@@ -181,6 +183,7 @@ func NewFormService(deps FormServiceDeps) FormService {
 		psychosocialSupportRepo:   deps.PsychosocialSupportRepo,
 		economicStabilizationRepo: deps.EconomicStabilizationRepo,
 		barrierV2Repo:             deps.BarrierV2Repo,
+		caseTimelineRepo:          deps.CaseTimelineEventRepo,
 	}
 }
 
@@ -1613,6 +1616,7 @@ type SaveSectionInput struct {
 	FormSubmissionID string                   `json:"formSubmissionId"` // vacío = crear nuevo
 	DirectAnswers    []SaveAnswerInput         `json:"directAnswers"`
 	RepeaterEntries  []SaveRepeaterEntryInput  `json:"repeaterEntries"`
+	ActorID          string                   `json:"actorId"` // general_user_i_code — inyectado por el controller desde la sesión
 }
 
 func (s *formService) SaveSection(ctx context.Context, input SaveSectionInput) (*LoadFormResult, error) {
@@ -1626,7 +1630,15 @@ func (s *formService) SaveSection(ctx context.Context, input SaveSectionInput) (
 		submissionID = fs.ID
 	}
 
-	// 2. Procesar directAnswers
+	// 2. Construir mapa de valores válidos por pregunta (single, dropdown, multiple)
+	validOptionValues, err := s.buildValidOptionValues(ctx, input.FormSectionID)
+	if err != nil {
+		return nil, fmt.Errorf("saveSection: cargar opciones válidas: %w", err)
+	}
+	input.DirectAnswers   = filterAnswers(input.DirectAnswers, validOptionValues)
+	input.RepeaterEntries = filterRepeaterAnswers(input.RepeaterEntries, validOptionValues)
+
+	// 4. Procesar directAnswers
 	existingDirect, err := s.answerRepo.FindDirectBySubmissionID(ctx, submissionID)
 	if err != nil {
 		return nil, fmt.Errorf("saveSection: leer directAnswers: %w", err)
@@ -1760,8 +1772,9 @@ func (s *formService) SaveSection(ctx context.Context, input SaveSectionInput) (
 		}
 	}
 	if allAnswered {
+		actorID := input.ActorID
 		go func() {
-			if err := s.OnEndFormSubmission(context.Background(), input.FormID, submissionID); err != nil {
+			if err := s.OnEndFormSubmission(context.Background(), input.FormID, submissionID, actorID); err != nil {
 				fmt.Printf("[OnEndFormSubmission] error: %v\n", err)
 			}
 		}()
@@ -1780,10 +1793,10 @@ const (
 
 // OnEndFormSubmission es llamado cuando todas las secciones visibles han sido respondidas.
 // Delega a la función específica según el formID.
-func (s *formService) OnEndFormSubmission(ctx context.Context, formID, submissionID string) error {
+func (s *formService) OnEndFormSubmission(ctx context.Context, formID, submissionID, actorID string) error {
 	switch formID {
 	case seguimientoFormID:
-		return s.processFollowUpSubmission(ctx, submissionID)
+		return s.processFollowUpSubmission(ctx, submissionID, actorID)
 	case barrierUpdateFormID:
 		return s.processBarrierUpdateSubmission(ctx, submissionID)
 	}
@@ -1792,14 +1805,34 @@ func (s *formService) OnEndFormSubmission(ctx context.Context, formID, submissio
 
 // processFollowUpSubmission marca el follow_up_v2 asociado como REALIZADO y crea las entidades
 // derivadas (barreras, medidas de emergencia, derivaciones) a partir de las respuestas.
-func (s *formService) processFollowUpSubmission(ctx context.Context, submissionID string) error {
+func (s *formService) processFollowUpSubmission(ctx context.Context, submissionID, actorID string) error {
 	// 1. Buscar el follow_up asociado al submission
 	fu, err := s.followUpRepo.FindByFormSubmissionID(ctx, submissionID)
 	if err != nil {
 		return fmt.Errorf("processFollowUpSubmission: buscar followUp: %w", err)
 	}
-	// Idempotencia: si ya fue procesado, no volvemos a actuar
+	// Si ya fue procesado → registrar edición en el timeline y salir
 	if fu.Status == models.FollowUpStatusRealizado {
+		if s.caseTimelineRepo == nil {
+			log.Printf("⚠️  [processFollowUpSubmission] caseTimelineRepo es nil — el evento 'Seguimiento Editado' NO fue creado para followUp=%s", fu.ID)
+			return nil
+		}
+		now := time.Now()
+		editEvent := &models.CaseTimelineEvent{
+			CaseID:      fu.CaseID,
+			FollowUpID:  fu.ID,
+			Category:    "Seguimientos",
+			Type:        "Seguimiento Editado",
+			Icon:        "calendar-days",
+			Date:        now,
+			Description: "Seguimiento editado después de su ejecución",
+			EventUserID: actorID,
+			Color:       "#63e6be",
+			CreatedAt:   now,
+		}
+		if err := s.caseTimelineRepo.Create(ctx, editEvent); err != nil {
+			log.Printf("[processFollowUpSubmission] advertencia: no se pudo crear evento 'Seguimiento Editado': %v", err)
+		}
 		return nil
 	}
 
@@ -1847,6 +1880,10 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		return out
 	}
 
+	// Contadores para la descripción del evento en el timeline
+	barrierCount   := 0
+	remisionCount  := 0
+
 	// 3. Crear BarrierV2 por cada entrada del repeater de barreras
 	barrierEntries, err := s.repeaterEntryRepo.FindBySubmissionIDAndGroupIDs(ctx, submissionID, []string{rgBarreras})
 	if err != nil {
@@ -1887,6 +1924,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 				if err := s.barrierV2Repo.Create(ctx, b); err != nil {
 					return fmt.Errorf("processFollowUpSubmission: crear barrera [%s/%s]: %w", sector, option, err)
 				}
+				barrierCount++
 			}
 		}
 	}
@@ -1907,6 +1945,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 				if err := s.psychosocialSupportRepo.Create(ctx, ps); err != nil {
 					return fmt.Errorf("processFollowUpSubmission: crear derivacion psicosocial: %w", err)
 				}
+				remisionCount++
 			case "estabilizacion":
 				log.Printf("[processFollowUp] creando derivacion -> estabilizacion")
 				ec := &models.EconomicStabilization{
@@ -1918,6 +1957,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 				if err := s.economicStabilizationRepo.Create(ctx, ec); err != nil {
 					return fmt.Errorf("processFollowUpSubmission: crear derivacion economica: %w", err)
 				}
+				remisionCount++
 			}
 		}
 	}
@@ -1936,11 +1976,139 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 			if err := s.emergencyMeasureRepo.Create(ctx, em); err != nil {
 				return fmt.Errorf("processFollowUpSubmission: crear medida emergencia [%s]: %w", medida, err)
 			}
+			remisionCount++
 		}
 	}
 
 	// 6. Marcar el follow_up como REALIZADO
-	return s.followUpRepo.UpdateStatus(ctx, fu.ID, models.FollowUpStatusRealizado)
+	if err := s.followUpRepo.UpdateStatus(ctx, fu.ID, models.FollowUpStatusRealizado); err != nil {
+		return fmt.Errorf("processFollowUpSubmission: actualizar estado followUp: %w", err)
+	}
+
+	// 7. Crear evento en el timeline del caso
+	if s.caseTimelineRepo == nil {
+		log.Printf("⚠️  [processFollowUpSubmission] caseTimelineRepo es nil — el evento de timeline NO fue creado para followUp=%s. Inyectar CaseTimelineEventRepo en FormServiceDeps (main.go)", fu.ID)
+	}
+	if s.caseTimelineRepo != nil {
+		description := fmt.Sprintf(
+			"Seguimiento ejecutado. Se identificaron %d %s y se realizaron %d %s a Equipos Salvia",
+			barrierCount,
+			pluralize(barrierCount, "barrera", "barreras"),
+			remisionCount,
+			pluralize(remisionCount, "remisión", "remisiones"),
+		)
+		now := time.Now()
+		event := &models.CaseTimelineEvent{
+			CaseID:      fu.CaseID,
+			FollowUpID:  fu.ID,
+			Category:    "Seguimientos",
+			Type:        "Seguimiento Ejecutado",
+			Icon:        "calendar-check",
+			Date:        now,
+			Description: description,
+			EventUserID: actorID,
+			Color:       "#63e6be",
+			CreatedAt:   now,
+		}
+		if err := s.caseTimelineRepo.Create(ctx, event); err != nil {
+			log.Printf("[processFollowUp] advertencia: no se pudo crear evento timeline: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// buildValidOptionValues carga las preguntas de una sección y retorna un mapa
+// questionId → set de valores válidos, solo para tipos single/dropdown/multiple.
+// Las preguntas de otros tipos no aparecen en el mapa (no se filtran).
+func (s *formService) buildValidOptionValues(ctx context.Context, sectionID string) (map[string]map[string]bool, error) {
+	questions, err := s.questionRepo.FindBySectionID(ctx, sectionID)
+	if err != nil {
+		return nil, err
+	}
+
+	optionTypes := map[string]bool{"single": true, "dropdown": true, "multiple": true}
+	var questionIDs []string
+	for _, q := range questions {
+		if optionTypes[q.QuestionTypeID] {
+			questionIDs = append(questionIDs, q.ID)
+		}
+	}
+	if len(questionIDs) == 0 {
+		return map[string]map[string]bool{}, nil
+	}
+
+	options, err := s.optionRepo.FindByQuestionIDs(ctx, questionIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	result := map[string]map[string]bool{}
+	for _, o := range options {
+		if result[o.QuestionID] == nil {
+			result[o.QuestionID] = map[string]bool{}
+		}
+		result[o.QuestionID][o.Value] = true
+	}
+	return result, nil
+}
+
+// filterAnswerValue filtra el value de una respuesta según los valores válidos.
+// Para multiple (CSV) elimina los valores inválidos. Para single/dropdown vacía si es inválido.
+// Si la pregunta no está en el mapa (no tiene opciones), devuelve el valor sin tocar.
+func filterAnswerValue(questionID, value string, validOptions map[string]map[string]bool) string {
+	valid, hasOptions := validOptions[questionID]
+	if !hasOptions {
+		return value
+	}
+	// Detectar si es multiple por si tiene comas
+	parts := strings.Split(value, ",")
+	if len(parts) <= 1 {
+		// single / dropdown
+		if valid[strings.TrimSpace(value)] {
+			return value
+		}
+		return ""
+	}
+	// multiple — filtrar cada parte
+	var kept []string
+	for _, p := range parts {
+		if t := strings.TrimSpace(p); t != "" && valid[t] {
+			kept = append(kept, t)
+		}
+	}
+	return strings.Join(kept, ",")
+}
+
+// filterAnswers aplica filterAnswerValue a un slice de SaveAnswerInput.
+func filterAnswers(answers []SaveAnswerInput, validOptions map[string]map[string]bool) []SaveAnswerInput {
+	out := make([]SaveAnswerInput, 0, len(answers))
+	for _, a := range answers {
+		a.Value = filterAnswerValue(a.QuestionID, a.Value, validOptions)
+		out = append(out, a)
+	}
+	return out
+}
+
+// filterRepeaterAnswers aplica filterAnswerValue a las answers de cada entry.
+func filterRepeaterAnswers(entries []SaveRepeaterEntryInput, validOptions map[string]map[string]bool) []SaveRepeaterEntryInput {
+	for i := range entries {
+		filtered := make([]SaveAnswerInput, 0, len(entries[i].Answers))
+		for _, a := range entries[i].Answers {
+			a.Value = filterAnswerValue(a.QuestionID, a.Value, validOptions)
+			filtered = append(filtered, a)
+		}
+		entries[i].Answers = filtered
+	}
+	return entries
+}
+
+// pluralize retorna singular o plural según el conteo.
+func pluralize(n int, singular, plural string) string {
+	if n == 1 {
+		return singular
+	}
+	return plural
 }
 
 // processBarrierUpdateSubmission ejecuta la lógica de fin de formulario para actualización de barreras.

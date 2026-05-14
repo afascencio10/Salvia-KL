@@ -115,6 +115,7 @@ func main() {
         PsychosocialSupportRepo:   psRepo,
         EconomicStabilizationRepo: esRepo,
         BarrierV2Repo:             barrierV2Repo,
+        CaseTimelineEventRepo:     caseTimelineRepo,
     })
     formSectionSvc        := service.NewFormSectionService(formSectionRepo)
     questionSvc           := service.NewQuestionService(questionRepo)

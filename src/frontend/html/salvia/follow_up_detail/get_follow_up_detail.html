@@ -233,7 +233,7 @@
 
             <!-- TAB FORMULARIO -->
             <div v-if="activeTab === 'formulario'" class="ms-tab-pane">
-                <dinamic-form v-if="formId && submissionId" :form-id="formId" :submission-id="submissionId"></dinamic-form>
+                <dinamic-form v-if="formId && submissionId" :form-id="formId" :submission-id="submissionId" :can-edit="canEdit"></dinamic-form>
                 <div v-else class="ms-empty-state-small">
                     <p>Este seguimiento no tiene un formulario asociado.</p>
                 </div>
@@ -260,6 +260,7 @@
                 originalRiskLevel: 'Alto',
                 formId:      '2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff',
                 submissionId: null,
+                canEdit:      true,
                 victimInfo: null,
                 activeBarriers: [],
                 emergencyMeasures: [],
@@ -377,6 +378,14 @@
 
                     this.victimCase.id  = data.caseInfo.id;
                     this.submissionId   = data.followUp.form_submission_id || null;
+
+                    // canEdit: false si REALIZADO y han pasado más de 5 días desde completed_at
+                    if (data.followUp.status === 'REALIZADO' && data.followUp.completed_at) {
+                        const diffDays = (Date.now() - new Date(data.followUp.completed_at)) / (1000 * 60 * 60 * 24);
+                        this.canEdit = diffDays <= 5;
+                    } else {
+                        this.canEdit = true;
+                    }
 
                     // Card víctima — viene directo del backend con todos los campos
                     this.victimInfo = data.victimInfo || null;
