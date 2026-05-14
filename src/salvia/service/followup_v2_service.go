@@ -621,7 +621,7 @@ func (s *followUpV2Service) RegisterContactAttempt(ctx context.Context, followUp
 			Date:        time.Now(),
 			Description: fmt.Sprintf("Llamada realizada sin éxito. Se intentó contactar a %s. Motivo: %s", victimName, reason),
 			EventUserID: agentID,
-			Color:       "blue",
+			Color:       "#f8a625",
 			FollowUpID:  fu.ID,
 		}
 
@@ -702,7 +702,7 @@ func (s *followUpV2Service) RescheduleFollowUp(ctx context.Context, id string, i
 		Date:        time.Now(),
 		Description: fmt.Sprintf("Se reprogamo el seguimiento para el %s", input.NuevaFecha),
 		EventUserID: agentID,
-		Color:       "blue",
+		Color:       "#f8a625",
 		FollowUpID:  fu.ID,
 	}
 
@@ -741,11 +741,11 @@ func (s *followUpV2Service) CloseCaseFollowUps(ctx context.Context, followUpID s
 		CaseID:      fu.CaseID,
 		Category:    "Seguimientos",
 		Type:        "Cierre de Caso",
-		Icon:        "fa fa-calendar",
+		Icon:        "fa fa-calendar-xmark",
 		Date:        time.Now(),
 		Description: fmt.Sprintf("Se procede con cierre de caso de %s. Motivo: No se logró contactar a la víctima", victimName),
 		EventUserID: agentID,
-		Color:       "red",
+		Color:       "#d62d20",
 		FollowUpID:  fu.ID,
 	}
 
