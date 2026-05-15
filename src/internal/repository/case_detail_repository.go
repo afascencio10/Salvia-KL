@@ -109,12 +109,23 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 		result.Form2 = &form2
 	}
 
-	// Query 4: seguimientos v2 del caso (por icode) — siempre se ejecuta
+	// Query 4: seguimientos v2 del caso (por icode) — ordenados por fecha programada
 	var followUpsV2 []models.FollowUpV2
 	r.db.WithContext(ctx).
 		Where("case_id = ?", vc.VictimCaseICode).
-		Order("sequence_number ASC").
+		Order("scheduled_date ASC, scheduled_time ASC").
 		Find(&followUpsV2)
+
+	// Cargar intentos de contacto para cada seguimiento (esquema 3×3)
+	for i := range followUpsV2 {
+		var attempts []models.FollowUpAttempt
+		r.db.WithContext(ctx).
+			Where("follow_up_id = ?", followUpsV2[i].ID).
+			Order("created_at ASC").
+			Find(&attempts)
+		followUpsV2[i].FollowUpAttempts = attempts
+	}
+
 	result.FollowUpsV2 = followUpsV2
 
 	// Query: eventos del timeline del caso

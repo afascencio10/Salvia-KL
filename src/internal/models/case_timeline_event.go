@@ -8,15 +8,66 @@ import (
 	"gorm.io/gorm"
 )
 
-// Tipos de evento para el timeline
+// ─── Categorías del timeline ─────────────────────────────────────────────────
 const (
-	TimelineEventRegistro       = "REGISTRO"
-	TimelineEventSeguimiento    = "SEGUIMIENTO_CREADO"
-	TimelineEventReasignacion   = "REASIGNACION"
-	TimelineEventReasignSeg     = "REASIGNACION_SEGUIMIENTO"
-	TimelineEventEstadoCambio   = "CAMBIO_ESTADO"
-	TimelineEventBarrera        = "BARRERA_IDENTIFICADA"
-	TimelineEventNota           = "NOTA"
+	TimelineCategoryGeneral        = "General"
+	TimelineCategoryBarreras       = "Barreras"
+	TimelineCategorySeguimientos   = "Seguimientos"
+	TimelineCategoryOficios        = "Oficios"
+	TimelineCategoryMedidas        = "Medidas"
+	TimelineCategoryPsicosocial    = "Psicosocial"
+	TimelineCategoryEstabilizacion = "Estabilización"
+)
+
+// ─── Tipos de evento (Type) ──────────────────────────────────────────────────
+const (
+	TimelineTypeCreacionCaso          = "Creación de Caso"
+	TimelineTypeIntentoSeguimiento    = "Intento de Seguimiento"
+	TimelineTypeSeguimientoPospuesto  = "Seguimiento Pospuesto"
+	TimelineTypeReasignacionCaso      = "Reasignación de Caso"
+	TimelineTypeReasignacionSeg       = "Reasignación de Seguimiento"
+	TimelineTypeSeguimientoProgramado = "Seguimiento Programado"
+	TimelineTypeSeguimientoEjecutado  = "Seguimiento Ejecutado"
+	TimelineTypeSeguimientoEditado    = "Seguimiento Editado"
+	TimelineTypeCierreCaso            = "Cierre de Caso"
+	TimelineTypeCambioEstado          = "Cambio de Estado"
+	TimelineTypeBarreraIdentificada   = "Barrera Identificada"
+	TimelineTypeNota                  = "Nota"
+)
+
+// ─── Iconos ──────────────────────────────────────────────────────────────────
+const (
+	TimelineIconRegistro     = "clipboard-list"
+	TimelineIconSeguimiento  = "calendar-check"
+	TimelineIconReasignacion = "arrows-rotate"
+	TimelineIconPospuesto    = "calendar-days"
+	TimelineIconEstado       = "shuffle"
+	TimelineIconBarrera      = "triangle-exclamation"
+	TimelineIconNota         = "note-sticky"
+	TimelineIconCierre       = "circle-xmark"
+)
+
+// ─── Colores ─────────────────────────────────────────────────────────────────
+const (
+	TimelineColorPurple = "#7c3aed"
+	TimelineColorGreen  = "#22c55e"
+	TimelineColorBlue   = "#3b82f6"
+	TimelineColorOrange = "#f97316"
+	TimelineColorGray   = "#6b7280"
+	TimelineColorTeal   = "#63e6be"
+	TimelineColorYellow = "#f8a625"
+	TimelineColorRed    = "#dc2626"
+)
+
+// ─── Constantes legacy (compatibilidad con eventos existentes en BD) ─────────
+const (
+	TimelineEventRegistro     = "REGISTRO"
+	TimelineEventSeguimiento  = "SEGUIMIENTO_CREADO"
+	TimelineEventReasignacion = "REASIGNACION"
+	TimelineEventReasignSeg   = "REASIGNACION_SEGUIMIENTO"
+	TimelineEventEstadoCambio = "CAMBIO_ESTADO"
+	TimelineEventBarrera      = "BARRERA_IDENTIFICADA"
+	TimelineEventNota         = "NOTA"
 )
 
 // CaseTimelineEvent registra un evento en la vida de un caso.
@@ -24,12 +75,12 @@ const (
 type CaseTimelineEvent struct {
 	ID          string    `gorm:"type:varchar(36);primaryKey;default:gen_random_uuid()" json:"id"`
 	CaseID      string    `gorm:"type:varchar(36);index;not null"                       json:"case_id"`
-	EventType   string    `gorm:"type:varchar(30);not null"                             json:"event_type"` // Deprecated in favor of Type?
+	EventType   string    `gorm:"type:varchar(30)"                                      json:"event_type"` // Legacy — se mantiene para compatibilidad
 	Description string    `gorm:"type:text"                                             json:"description"`
-	ActorID     string    `gorm:"type:varchar(36)"                                      json:"actor_id"` // Deprecated in favor of EventUserID?
+	ActorID     string    `gorm:"type:varchar(36)"                                      json:"actor_id"`
 	ActorName   string    `gorm:"type:varchar(128)"                                     json:"actor_name"`
-	
-	// Nuevos campos solicitados
+
+	// Campos del esquema nuevo
 	Category    string    `gorm:"type:varchar(50)"                                      json:"category"`
 	Type        string    `gorm:"type:varchar(50)"                                      json:"type"`
 	Icon        string    `gorm:"type:varchar(100)"                                     json:"icon"`

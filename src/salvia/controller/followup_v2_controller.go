@@ -8,6 +8,7 @@ import (
 	"bitsflow/salvia/service"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -472,7 +473,13 @@ func (c *FollowUpV2Controller) Reschedule(ctx *gin.Context) {
 func (c *FollowUpV2Controller) CloseCase(ctx *gin.Context) {
 	id := ctx.Param("id")
 
-	err := c.svc.CloseCaseFollowUps(ctx.Request.Context(), id)
+	var body struct {
+		Motivo string `json:"motivo"`
+	}
+	// Body es opcional, ignoramos error de binding
+	_ = ctx.ShouldBindJSON(&body)
+
+	err := c.svc.CloseCaseFollowUps(ctx.Request.Context(), id, body.Motivo)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "seguimiento no encontrado"})
@@ -503,6 +510,8 @@ func (c *FollowUpV2Controller) LoadFollowUp(ctx *gin.Context) {
 	agentID := ctx.Query("agent_id")
 	formID := ctx.Query("form_id")
 
+	log.Printf("[CTRL] LoadFollowUp → followUpId=%s agentId=%s formId=%s", id, agentID, formID)
+
 	if agentID == "" || formID == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "agent_id y form_id son requeridos"})
 		return
@@ -522,5 +531,6 @@ func (c *FollowUpV2Controller) LoadFollowUp(ctx *gin.Context) {
 		}
 		return
 	}
+	log.Printf("[CTRL] LoadFollowUp → respuesta al front: victimInfo=%+v", result.VictimInfo)
 	ctx.JSON(http.StatusOK, result)
 }

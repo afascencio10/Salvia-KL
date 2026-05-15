@@ -4,6 +4,7 @@ import (
 	"bitsflow/internal/models"
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"gorm.io/gorm"
@@ -35,6 +36,15 @@ type FollowUpRepository interface {
 	FindAgentsByTeam(ctx context.Context, team string) ([]AgentOption, error)
 	Reschedule(ctx context.Context, id string, fields map[string]interface{}) error
 	
+	// Auto-asignación de agente
+	// FindWorkloadByDates retorna la carga (PENDIENTE + REPROGRAMADO) de cada agente
+	// para el conjunto de fechas dado en una sola query. Usa UTC explícito para evitar
+	// problemas de timezone entre Go y PostgreSQL.
+	FindWorkloadByDates(ctx context.Context, team string, dates []time.Time) ([]AgentDateWorkload, error)
+	// FindGlobalWorkloadByTeam retorna el total de seguimientos pendientes/reprogramados
+	// de cada agente en el equipo sin filtro de fecha. Úsalo como tiebreaker global.
+	FindGlobalWorkloadByTeam(ctx context.Context, team string) ([]AgentWorkload, error)
+
 	// Cierre de casos
 	CloseCaseFollowUps(ctx context.Context, followUpID string) error
 
@@ -57,8 +67,16 @@ type FollowUpFilters struct {
 
 // AgentWorkload agrupa la carga de seguimientos por agente.
 type AgentWorkload struct {
-	AgentID string `json:"agent_id"`
-	Total   int64  `json:"total"`
+	AgentID string `gorm:"column:agent_id" json:"agent_id"`
+	Total   int64  `gorm:"column:total"    json:"total"`
+}
+
+// AgentDateWorkload agrupa la carga de seguimientos por agente Y fecha.
+// Usado por el algoritmo de auto-asignación para construir la matriz en una sola query.
+type AgentDateWorkload struct {
+	AgentID string `gorm:"column:agent_id"`
+	DateStr string `gorm:"column:date_str"` // formato "2006-01-02" en UTC
+	Total   int64  `gorm:"column:total"`
 }
 
 // AgentOption representa un agente disponible para filtros.
@@ -303,6 +321,49 @@ func (r *followUpRepository) Reschedule(ctx context.Context, id string, fields m
 	return nil
 }
 
+// FindWorkloadByDates retorna la carga de cada agente para un conjunto de fechas en
+// una sola query, usando AT TIME ZONE 'UTC' para garantizar comparaciones consistentes
+// sin importar la configuración de timezone del servidor PostgreSQL.
+func (r *followUpRepository) FindWorkloadByDates(ctx context.Context, team string, dates []time.Time) ([]AgentDateWorkload, error) {
+	if len(dates) == 0 {
+		return nil, nil
+	}
+	dateStrings := make([]string, len(dates))
+	for i, d := range dates {
+		dateStrings[i] = d.UTC().Format("2006-01-02")
+	}
+	var results []AgentDateWorkload
+	err := r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Select("agent_id, (scheduled_date AT TIME ZONE 'UTC')::date::text AS date_str, COUNT(*) AS total").
+		Where(
+			"team = ? AND status IN ? AND (scheduled_date AT TIME ZONE 'UTC')::date::text IN ?",
+			team,
+			[]string{models.FollowUpStatusPendiente, models.FollowUpStatusReprogramado},
+			dateStrings,
+		).
+		Group("agent_id, (scheduled_date AT TIME ZONE 'UTC')::date::text").
+		Scan(&results).Error
+	return results, err
+}
+
+// FindGlobalWorkloadByTeam retorna el conteo total de seguimientos PENDIENTE+REPROGRAMADO
+// de cada agente en el equipo, sin filtro de fecha.
+// Se usa como tiebreaker final en el algoritmo de auto-asignación.
+func (r *followUpRepository) FindGlobalWorkloadByTeam(ctx context.Context, team string) ([]AgentWorkload, error) {
+	var results []AgentWorkload
+	err := r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Select("agent_id, COUNT(*) AS total").
+		Where("team = ? AND status IN ?",
+			team,
+			[]string{models.FollowUpStatusPendiente, models.FollowUpStatusReprogramado},
+		).
+		Group("agent_id").
+		Scan(&results).Error
+	return results, err
+}
+
 // CloseCaseFollowUps busca el caseID del seguimiento indicado y cierra todos los 
 // seguimientos pendientes o reprogramados del mismo caso.
 func (r *followUpRepository) CloseCaseFollowUps(ctx context.Context, followUpID string) error {
@@ -319,24 +380,35 @@ func (r *followUpRepository) CloseCaseFollowUps(ctx context.Context, followUpID 
 }
 
 // LoadVictimInfoByCaseID obtiene la información resumida del caso para la pantalla hacer-seguimiento.
+// Lee de victim_case_form2 (donde viven los datos reales) y hace doble JOIN con victim_case_form2_enums
+// para resolver los IDs numéricos de gender_identity y sexual_orientation a texto legible.
 func (r *followUpRepository) LoadVictimInfoByCaseID(ctx context.Context, caseID string) (*VictimCaseInfo, error) {
+	log.Printf("[REPO] LoadVictimInfoByCaseID → caseID=%s", caseID)
 	var info VictimCaseInfo
 	sql := `
 		SELECT
-			COALESCE(vc.victim_case_victim_names, '')                   AS names,
-			COALESCE(vc.victim_case_victim_last_names, '')              AS last_names,
-			COALESCE(t.town_name, '')                                   AS town_name,
-			COALESCE(f1.victim_case_form1_victim_phone, '')             AS phone,
-			COALESCE(f1.victim_case_form1_victim_gender_identity, '')   AS gender_identity,
-			COALESCE(f1.victim_case_form1_victim_sexual_orientation, '') AS sexual_orientation,
-			COALESCE(f1.victim_case_form1_victim_contact_phone, '')     AS contact_phone,
-			f1.victim_case_form1_age                                    AS age
+			COALESCE(vc.victim_case_victim_names, '')                              AS names,
+			COALESCE(vc.victim_case_victim_last_names, '')                         AS last_names,
+			COALESCE(t.town_name, '')                                              AS town_name,
+			COALESCE(f2.victim_case_form2_victim_phone::text, '')                  AS phone,
+			COALESCE(gi.victim_case_form2_enums_name, '')                          AS gender_identity,
+			COALESCE(so.victim_case_form2_enums_name, '')                          AS sexual_orientation,
+			COALESCE(f2.victim_case_form2_support_contact_phone::text, '')         AS contact_phone,
+			EXTRACT(YEAR FROM AGE(NOW(), f2.victim_case_form2_birth_date))::int    AS age
 		FROM salvia.victim_case vc
-		LEFT JOIN salvia.victim_case_form1 f1 ON f1.victim_case_form1_victim_case = vc.victim_case_id
-		LEFT JOIN security.town t ON t.town_code = vc.victim_case_victim_town_code
-		WHERE vc.victim_case_id::text = ?
+		LEFT JOIN salvia.victim_case_form2 f2
+			ON f2.victim_case_form2_victim_case = vc.victim_case_id
+		LEFT JOIN security.town t
+			ON t.town_code = vc.victim_case_victim_town_code
+		LEFT JOIN salvia.victim_case_form2_enums gi
+			ON gi.victim_case_form2_enums_id = f2.victim_case_form2_gender_identity
+		LEFT JOIN salvia.victim_case_form2_enums so
+			ON so.victim_case_form2_enums_id = f2.victim_case_form2_sexual_orientation
+		WHERE vc.victim_case_i_code = ?
 		LIMIT 1`
-	return &info, r.db.WithContext(ctx).Raw(sql, caseID).Scan(&info).Error
+	err := r.db.WithContext(ctx).Raw(sql, caseID).Scan(&info).Error
+	log.Printf("[REPO] LoadVictimInfoByCaseID → resultado: err=%v info=%+v", err, info)
+	return &info, err
 }
 
 // UpdateFormSubmissionID asigna un formSubmissionId a un seguimiento.

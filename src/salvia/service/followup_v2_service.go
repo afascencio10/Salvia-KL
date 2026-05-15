@@ -4,6 +4,7 @@ package service
 import (
 	"bitsflow/internal/models"
 	"bitsflow/internal/repository"
+	salvia_config "bitsflow/salvia/config"
 	"context"
 	"errors"
 	"fmt"
@@ -88,7 +89,7 @@ type FollowUpV2Service interface {
 	GetAgentWorkload(ctx context.Context, team string, fecha string) ([]repository.AgentWorkload, error)
 	GetFilterOptions(ctx context.Context, team string) (FilterOptions, error)
 	RescheduleFollowUp(ctx context.Context, id string, input RescheduleInput) error
-	CloseCaseFollowUps(ctx context.Context, followUpID string) error
+	CloseCaseFollowUps(ctx context.Context, followUpID string, closureReason string) error
 }
 
 // RescheduleInput es el body para reagendar un seguimiento.
@@ -172,6 +173,8 @@ func (s *followUpV2Service) GetPaginatedFollowUps(ctx context.Context, page, lim
 // Valida que el seguimiento pertenezca al agente y que la fecha programada ya llegó.
 // Si no tiene formSubmissionId, crea uno y lo asigna.
 func (s *followUpV2Service) LoadFollowUp(ctx context.Context, id, agentID, formID string) (*LoadFollowUpResult, error) {
+	log.Printf("[SVC] LoadFollowUp → id=%s agentID=%s formID=%s", id, agentID, formID)
+
 	fu, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -179,6 +182,7 @@ func (s *followUpV2Service) LoadFollowUp(ctx context.Context, id, agentID, formI
 		}
 		return nil, err
 	}
+	log.Printf("[SVC] LoadFollowUp → followUp encontrado: id=%s caseID=%s status=%s agentID=%v", fu.ID, fu.CaseID, fu.Status, fu.AgentID)
 
 	if fu.AgentID == nil || *fu.AgentID != agentID {
 		return nil, ErrFollowUpNotAssigned
@@ -189,10 +193,23 @@ func (s *followUpV2Service) LoadFollowUp(ctx context.Context, id, agentID, formI
 		return nil, ErrFollowUpNotYetDue
 	}
 
+	log.Printf("[SVC] LoadFollowUp → llamando LoadVictimInfoByCaseID con caseID=%s", fu.CaseID)
 	victimInfo, err := s.repo.LoadVictimInfoByCaseID(ctx, fu.CaseID)
 	if err != nil {
+		log.Printf("[SVC] LoadFollowUp → ERROR en LoadVictimInfoByCaseID: %v", err)
 		return nil, fmt.Errorf("loadFollowUp: leer info víctima: %w", err)
 	}
+	log.Printf("[SVC] LoadFollowUp → victimInfo raw: %+v", victimInfo)
+
+	if victimInfo != nil {
+		locale := salvia_config.Locale["sp"]
+		log.Printf("[SVC] LoadFollowUp → resolviendo locale: genderKey=%q → %q | orientationKey=%q → %q",
+			victimInfo.GenderIdentity, locale[victimInfo.GenderIdentity],
+			victimInfo.SexualOrientation, locale[victimInfo.SexualOrientation])
+		victimInfo.GenderIdentity    = locale[victimInfo.GenderIdentity]
+		victimInfo.SexualOrientation = locale[victimInfo.SexualOrientation]
+	}
+	log.Printf("[SVC] LoadFollowUp → victimInfo final: %+v", victimInfo)
 
 	if fu.FormSubmissionID == nil || *fu.FormSubmissionID == "" {
 		fs := &models.FormSubmission{FormID: formID}
@@ -337,13 +354,14 @@ func (s *followUpV2Service) GetFollowUpDetail(ctx context.Context, id string, is
 	if vi, err := s.repo.LoadVictimInfoByCaseID(ctx, fu.CaseID); err != nil {
 		log.Printf("[WARN] GetFollowUpDetail: no se pudo cargar info víctima: %v", err)
 	} else {
+		locale := salvia_config.Locale["sp"]
 		victimInfo = &models.FollowUpVictimInfo{
 			Names:             vi.Names,
 			LastNames:         vi.LastNames,
 			TownName:          vi.TownName,
 			Phone:             vi.Phone,
-			GenderIdentity:    vi.GenderIdentity,
-			SexualOrientation: vi.SexualOrientation,
+			GenderIdentity:    locale[vi.GenderIdentity],
+			SexualOrientation: locale[vi.SexualOrientation],
 			ContactPhone:      vi.ContactPhone,
 			Age:               vi.Age,
 		}
@@ -615,14 +633,21 @@ func (s *followUpV2Service) RegisterContactAttempt(ctx context.Context, followUp
 
 		timelineEvent := &models.CaseTimelineEvent{
 			CaseID:      fu.CaseID,
-			Category:    "Seguimientos",
-			Type:        "Intento de Seguimiento",
-			Icon:        "fa fa-calendar",
+			Category:    models.TimelineCategorySeguimientos,
+			Type:        models.TimelineTypeIntentoSeguimiento,
+			Icon:        models.TimelineIconSeguimiento,
 			Date:        time.Now(),
 			Description: fmt.Sprintf("Llamada realizada sin éxito. Se intentó contactar a %s. Motivo: %s", victimName, reason),
 			EventUserID: agentID,
-			Color:       "#f8a625",
+			Color:       models.TimelineColorYellow,
 			FollowUpID:  fu.ID,
+		}
+
+		// Resolver nombre del agente
+		if s.agentRepo != nil && agentID != "" {
+			if agent, aErr := s.agentRepo.FindByICode(ctx, agentID); aErr == nil && agent != nil {
+				timelineEvent.ActorName = strings.TrimSpace(agent.Names + " " + agent.LastNames)
+			}
 		}
 
 		if err := s.repo.CreateTimelineEvent(ctx, timelineEvent); err != nil {
@@ -694,15 +719,25 @@ func (s *followUpV2Service) RescheduleFollowUp(ctx context.Context, id string, i
 		agentID = *fu.AgentID
 	}
 
+	// Resolver nombre del agente que reprogramó
+	actorName := ""
+	if s.agentRepo != nil && agentID != "" {
+		agent, err := s.agentRepo.FindByICode(ctx, agentID)
+		if err == nil && agent != nil {
+			actorName = strings.TrimSpace(agent.Names + " " + agent.LastNames)
+		}
+	}
+
 	timelineEvent := &models.CaseTimelineEvent{
 		CaseID:      fu.CaseID,
-		Category:    "Seguimientos",
-		Type:        "Seguimiento Pospuesto",
-		Icon:        "fa fa-calendar",
+		Category:    models.TimelineCategorySeguimientos,
+		Type:        models.TimelineTypeSeguimientoPospuesto,
+		Icon:        models.TimelineIconPospuesto,
 		Date:        time.Now(),
-		Description: fmt.Sprintf("Se reprogamo el seguimiento para el %s", input.NuevaFecha),
+		Description: fmt.Sprintf("Se reprogramó el seguimiento para el %s", input.NuevaFecha),
 		EventUserID: agentID,
-		Color:       "#f8a625",
+		ActorName:   actorName,
+		Color:       models.TimelineColorYellow,
 		FollowUpID:  fu.ID,
 	}
 
@@ -714,7 +749,7 @@ func (s *followUpV2Service) RescheduleFollowUp(ctx context.Context, id string, i
 	return nil
 }
 
-func (s *followUpV2Service) CloseCaseFollowUps(ctx context.Context, followUpID string) error {
+func (s *followUpV2Service) CloseCaseFollowUps(ctx context.Context, followUpID string, closureReason string) error {
 	// 1. Obtener el follow-up para extraer case_id y agent_id
 	fu, err := s.repo.FindByID(ctx, followUpID)
 	if err != nil {
@@ -736,17 +771,30 @@ func (s *followUpV2Service) CloseCaseFollowUps(ctx context.Context, followUpID s
 		agentID = *fu.AgentID
 	}
 
-	// 4. Crear evento de cierre en el timeline
+	// 4. Determinar motivo de cierre
+	motivo := "No se logró contactar a la víctima"
+	if strings.TrimSpace(closureReason) != "" {
+		motivo = strings.TrimSpace(closureReason)
+	}
+
+	// 5. Crear evento de cierre en el timeline
 	timelineEvent := &models.CaseTimelineEvent{
 		CaseID:      fu.CaseID,
-		Category:    "Seguimientos",
-		Type:        "Cierre de Caso",
-		Icon:        "fa fa-calendar-xmark",
+		Category:    models.TimelineCategoryGeneral,
+		Type:        models.TimelineTypeCierreCaso,
+		Icon:        models.TimelineIconCierre,
 		Date:        time.Now(),
-		Description: fmt.Sprintf("Se procede con cierre de caso de %s. Motivo: No se logró contactar a la víctima", victimName),
+		Description: fmt.Sprintf("Se procede con cierre de caso de %s. Motivo: %s", victimName, motivo),
 		EventUserID: agentID,
-		Color:       "#d62d20",
+		Color:       models.TimelineColorRed,
 		FollowUpID:  fu.ID,
+	}
+
+	// Resolver nombre del agente
+	if s.agentRepo != nil && agentID != "" {
+		if agent, aErr := s.agentRepo.FindByICode(ctx, agentID); aErr == nil && agent != nil {
+			timelineEvent.ActorName = strings.TrimSpace(agent.Names + " " + agent.LastNames)
+		}
 	}
 
 	if err := s.repo.CreateTimelineEvent(ctx, timelineEvent); err != nil {
@@ -778,12 +826,15 @@ func (s *followUpV2Service) registrarEventosCreacion(
 	caseEvent := &models.CaseTimelineEvent{
 		CaseID:      caseID,
 		EventType:   models.TimelineEventRegistro,
-		Category:    "Seguimientos",
-		Type:        "Creación de Caso",
+		Category:    models.TimelineCategoryGeneral,
+		Type:        models.TimelineTypeCreacionCaso,
+		Icon:        models.TimelineIconRegistro,
+		Color:       models.TimelineColorPurple,
 		Description: fmt.Sprintf("Caso registrado con %d seguimientos programados (riesgo %s)", len(followUps), riskLevelStr),
 		ActorID:     actorID,
 		EventUserID: actorID,
 		Date:        now,
+		CreatedAt:   now,
 	}
 	if err := s.timelineRepo.Create(ctx, caseEvent); err != nil {
 		log.Printf("[WARN] timeline: evento caso %s: %v", caseID, err)
@@ -797,12 +848,15 @@ func (s *followUpV2Service) registrarEventosCreacion(
 			CaseID:      caseID,
 			FollowUpID:  fu.ID,
 			EventType:   models.TimelineEventSeguimiento,
-			Category:    "Seguimientos",
-			Type:        "Seguimiento Programado",
+			Category:    models.TimelineCategorySeguimientos,
+			Type:        models.TimelineTypeSeguimientoProgramado,
+			Icon:        models.TimelineIconSeguimiento,
+			Color:       models.TimelineColorGreen,
 			Description: fmt.Sprintf("Seguimiento #%d programado para el %s", seq, fecha),
 			ActorID:     actorID,
 			EventUserID: actorID,
 			Date:        now,
+			CreatedAt:   now,
 		}
 		if err := s.timelineRepo.Create(ctx, fuEvent); err != nil {
 			log.Printf("[WARN] timeline: evento seguimiento #%d (caso %s): %v", seq, caseID, err)
@@ -827,38 +881,43 @@ func computeScheduledDates(offsets []int, now, today time.Time, riskLevel int) [
     return dates
 }
 
-// getDateMatrix devuelve un mapa [agentID]cantidad con la carga de seguimientos
-// pendientes/reprogramados que cada agente tiene programada para la fecha indicada.
-// Los agentes sin seguimientos en esa fecha no aparecerán en el mapa (carga = 0 implícita).
-func (s *followUpV2Service) getDateMatrix(ctx context.Context, date time.Time, team string) (map[string]int64, error) {
-    dateStr := date.Format("2006-01-02")
-    workload, err := s.repo.FindPendingByTeamGroupedByAgent(ctx, team, dateStr)
-    if err != nil {
-        return nil, fmt.Errorf("getDateMatrix: %w", err)
-    }
-    matrix := make(map[string]int64, len(workload))
-    for _, w := range workload {
-        if w.AgentID != "" {
-            matrix[w.AgentID] = w.Total
-        }
-    }
-    return matrix, nil
+// getDateMatrix hace UNA sola query a la BD para obtener la carga de todos los agentes
+// en todas las fechas dadas. Retorna map[dateStr(UTC)]map[agentID]count.
+// Usar AT TIME ZONE 'UTC' en PostgreSQL garantiza que la fecha se compare siempre en UTC,
+// independientemente de la configuración de timezone del servidor.
+func (s *followUpV2Service) getDateMatrix(ctx context.Context, dates []time.Time, team string) (map[string]map[string]int64, error) {
+	workload, err := s.repo.FindWorkloadByDates(ctx, team, dates)
+	if err != nil {
+		return nil, fmt.Errorf("getDateMatrix: %w", err)
+	}
+	matrix := make(map[string]map[string]int64)
+	for _, w := range workload {
+		if w.AgentID == "" || w.DateStr == "" {
+			continue
+		}
+		if _, ok := matrix[w.DateStr]; !ok {
+			matrix[w.DateStr] = make(map[string]int64)
+		}
+		matrix[w.DateStr][w.AgentID] = w.Total
+	}
+	return matrix, nil
 }
 
 // calcularAgente implementa el algoritmo de auto-asignación balanceada:
 //
-//  1. Obtiene todos los agentes con rol "ro" que pertenecen al mismo equipo del caso.
-//  2. Para cada fecha programada calcula la carga de cada agente y le asigna
-//     una posición por dense-rank (menor carga = posición 1).
-//  3. Calcula avg_pos(Aj) = suma_posiciones / n_fechas.
-//  4. Elige el agente con menor avg_pos.
-//     En empate: elige el de menor carga total absoluta.
+//  1. Obtiene todos los agentes con rol "ro" del mismo equipo.
+//  2. Consulta la carga de todos los agentes en todas las fechas en UNA sola query.
+//  3. Por cada fecha asigna posición dense-rank (menor carga = posición 1).
+//  4. Calcula avg_pos(Aj) = suma_posiciones / n_fechas.
+//  5. Elige el agente con menor avg_pos.
+//     Desempate 1: menor carga en las fechas específicas.
+//     Desempate 2: menor carga global en el equipo (todos sus seguimientos pendientes).
 func (s *followUpV2Service) calcularAgente(ctx context.Context, dates []time.Time, team string) (string, error) {
 	if len(dates) == 0 {
 		return "", fmt.Errorf("calcularAgente: no se recibieron fechas")
 	}
 
-	// 1. Listar agentes del mismo equipo con rol "ro" (Operador de riesgo)
+	// 1. Agentes del equipo con rol "ro"
 	agents, err := s.agentRepo.FindAllByRoleAndTeam(ctx, "ro", team)
 	if err != nil {
 		return "", fmt.Errorf("calcularAgente: obtener agentes ro del equipo %q: %w", team, err)
@@ -867,69 +926,86 @@ func (s *followUpV2Service) calcularAgente(ctx context.Context, dates []time.Tim
 		return "", fmt.Errorf("calcularAgente: no hay agentes con rol ro en el equipo %q", team)
 	}
 
-    n := len(dates)
-    agentPosSum := make(map[string]float64, len(agents))
-    agentTotalLoad := make(map[string]int64, len(agents))
-    for _, a := range agents {
-        agentPosSum[a.ICode] = 0
-        agentTotalLoad[a.ICode] = 0
-    }
+	// 2. Matriz de carga por fecha en una sola query
+	fullMatrix, err := s.getDateMatrix(ctx, dates, team)
+	if err != nil {
+		return "", err
+	}
 
-    // 2. Por cada fecha: obtener carga, calcular dense-rank y acumular posición
-    for _, date := range dates {
-        matrix, err := s.getDateMatrix(ctx, date, team)
-        if err != nil {
-            return "", err
-        }
+	// 3. Carga global por agente (tiebreaker final)
+	globalRows, err := s.repo.FindGlobalWorkloadByTeam(ctx, team)
+	if err != nil {
+		log.Printf("[WARN] calcularAgente: carga global no disponible: %v", err)
+	}
+	globalLoad := make(map[string]int64, len(agents))
+	for _, w := range globalRows {
+		globalLoad[w.AgentID] = w.Total
+	}
 
-        // Carga de cada agente en esta fecha (0 si no está en la matriz)
-        loadByAgent := make(map[string]int64, len(agents))
-        for _, a := range agents {
-            loadByAgent[a.ICode] = matrix[a.ICode]
-            agentTotalLoad[a.ICode] += matrix[a.ICode]
-        }
+	n := len(dates)
+	agentPosSum := make(map[string]float64, len(agents))
+	agentDateLoad := make(map[string]int64, len(agents))
 
-        // Valores únicos de carga para dense-rank
-        loadSet := make(map[int64]struct{}, len(agents))
-        for _, v := range loadByAgent {
-            loadSet[v] = struct{}{}
-        }
-        sortedLoads := make([]int64, 0, len(loadSet))
-        for v := range loadSet {
-            sortedLoads = append(sortedLoads, v)
-        }
-        sort.Slice(sortedLoads, func(i, j int) bool { return sortedLoads[i] < sortedLoads[j] })
+	// 4. Dense-rank por fecha
+	for _, date := range dates {
+		dateStr := date.UTC().Format("2006-01-02")
+		dayMatrix := fullMatrix[dateStr] // nil si nadie tiene carga ese día
 
-        rankOf := make(map[int64]int, len(sortedLoads))
-        for i, v := range sortedLoads {
-            rankOf[v] = i + 1
-        }
+		loadByAgent := make(map[string]int64, len(agents))
+		for _, a := range agents {
+			loadByAgent[a.ICode] = dayMatrix[a.ICode]
+			agentDateLoad[a.ICode] += dayMatrix[a.ICode]
+		}
 
-        for _, a := range agents {
-            agentPosSum[a.ICode] += float64(rankOf[loadByAgent[a.ICode]])
-        }
-    }
+		loadSet := make(map[int64]struct{}, len(agents))
+		for _, v := range loadByAgent {
+			loadSet[v] = struct{}{}
+		}
+		sortedLoads := make([]int64, 0, len(loadSet))
+		for v := range loadSet {
+			sortedLoads = append(sortedLoads, v)
+		}
+		sort.Slice(sortedLoads, func(i, j int) bool { return sortedLoads[i] < sortedLoads[j] })
 
-    // 3. Elegir agente con menor avg_pos; desempate → menor carga total absoluta
-    bestID := ""
-    bestAvg := math.MaxFloat64
-    bestLoad := int64(math.MaxInt64)
+		rankOf := make(map[int64]int, len(sortedLoads))
+		for i, v := range sortedLoads {
+			rankOf[v] = i + 1
+		}
 
-    for _, a := range agents {
-        avg := agentPosSum[a.ICode] / float64(n)
-        load := agentTotalLoad[a.ICode]
+		for _, a := range agents {
+			agentPosSum[a.ICode] += float64(rankOf[loadByAgent[a.ICode]])
+		}
 
-        isBetter := avg < bestAvg-1e-9
-        isTie := math.Abs(avg-bestAvg) < 1e-9 && load < bestLoad
-        if isBetter || isTie {
-            bestID = a.ICode
-            bestAvg = avg
-            bestLoad = load
-        }
-    }
+		log.Printf("[AutoAsignacion] Fecha %s | cargas: %v | ranks: %v", dateStr, loadByAgent, rankOf)
+	}
 
-	log.Printf("[AutoAsignacion] Agente seleccionado: %s (rol=ro, equipo=%q, avg_pos=%.3f, carga_total=%d)",
-		bestID, team, bestAvg, bestLoad)
+	// 5. Seleccionar agente con criterios en cascada
+	bestID := ""
+	bestAvg := math.MaxFloat64
+	bestDateLoad := int64(math.MaxInt64)
+	bestGlobalLoad := int64(math.MaxInt64)
 
-    return bestID, nil
+	for _, a := range agents {
+		avg := agentPosSum[a.ICode] / float64(n)
+		dLoad := agentDateLoad[a.ICode]
+		gLoad := globalLoad[a.ICode]
+
+		isBetter := avg < bestAvg-1e-9
+		isTie1 := math.Abs(avg-bestAvg) < 1e-9 && dLoad < bestDateLoad
+		isTie2 := math.Abs(avg-bestAvg) < 1e-9 && dLoad == bestDateLoad && gLoad < bestGlobalLoad
+		if isBetter || isTie1 || isTie2 {
+			bestID = a.ICode
+			bestAvg = avg
+			bestDateLoad = dLoad
+			bestGlobalLoad = gLoad
+		}
+
+		log.Printf("[AutoAsignacion] Agente %s | avg_pos=%.3f | carga_fechas=%d | carga_global=%d",
+			a.ICode, avg, dLoad, gLoad)
+	}
+
+	log.Printf("[AutoAsignacion] ✓ Seleccionado: %s (equipo=%q, avg_pos=%.3f, carga_fechas=%d, carga_global=%d)",
+		bestID, team, bestAvg, bestDateLoad, bestGlobalLoad)
+
+	return bestID, nil
 }
