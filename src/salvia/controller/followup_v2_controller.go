@@ -473,7 +473,13 @@ func (c *FollowUpV2Controller) Reschedule(ctx *gin.Context) {
 func (c *FollowUpV2Controller) CloseCase(ctx *gin.Context) {
 	id := ctx.Param("id")
 
-	err := c.svc.CloseCaseFollowUps(ctx.Request.Context(), id)
+	var body struct {
+		Motivo string `json:"motivo"`
+	}
+	// Body es opcional, ignoramos error de binding
+	_ = ctx.ShouldBindJSON(&body)
+
+	err := c.svc.CloseCaseFollowUps(ctx.Request.Context(), id, body.Motivo)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "seguimiento no encontrado"})

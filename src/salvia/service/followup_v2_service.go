@@ -89,7 +89,7 @@ type FollowUpV2Service interface {
 	GetAgentWorkload(ctx context.Context, team string, fecha string) ([]repository.AgentWorkload, error)
 	GetFilterOptions(ctx context.Context, team string) (FilterOptions, error)
 	RescheduleFollowUp(ctx context.Context, id string, input RescheduleInput) error
-	CloseCaseFollowUps(ctx context.Context, followUpID string) error
+	CloseCaseFollowUps(ctx context.Context, followUpID string, closureReason string) error
 }
 
 // RescheduleInput es el body para reagendar un seguimiento.
@@ -732,7 +732,7 @@ func (s *followUpV2Service) RescheduleFollowUp(ctx context.Context, id string, i
 	return nil
 }
 
-func (s *followUpV2Service) CloseCaseFollowUps(ctx context.Context, followUpID string) error {
+func (s *followUpV2Service) CloseCaseFollowUps(ctx context.Context, followUpID string, closureReason string) error {
 	// 1. Obtener el follow-up para extraer case_id y agent_id
 	fu, err := s.repo.FindByID(ctx, followUpID)
 	if err != nil {
@@ -754,14 +754,20 @@ func (s *followUpV2Service) CloseCaseFollowUps(ctx context.Context, followUpID s
 		agentID = *fu.AgentID
 	}
 
-	// 4. Crear evento de cierre en el timeline
+	// 4. Determinar motivo de cierre
+	motivo := "No se logró contactar a la víctima"
+	if strings.TrimSpace(closureReason) != "" {
+		motivo = strings.TrimSpace(closureReason)
+	}
+
+	// 5. Crear evento de cierre en el timeline
 	timelineEvent := &models.CaseTimelineEvent{
 		CaseID:      fu.CaseID,
 		Category:    "Seguimientos",
 		Type:        "Cierre de Caso",
 		Icon:        "fa fa-calendar-xmark",
 		Date:        time.Now(),
-		Description: fmt.Sprintf("Se procede con cierre de caso de %s. Motivo: No se logró contactar a la víctima", victimName),
+		Description: fmt.Sprintf("Se procede con cierre de caso de %s. Motivo: %s", victimName, motivo),
 		EventUserID: agentID,
 		Color:       "#d62d20",
 		FollowUpID:  fu.ID,
