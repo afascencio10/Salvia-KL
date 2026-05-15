@@ -94,7 +94,7 @@
                             <!-- Métricas y acciones -->
                             <div style="display: flex; align-items: center; gap: 1.5rem; flex-shrink: 0;">
                                 <!-- Nivel de riesgo primero -->
-                                <div class="ms-tooltip-container">
+                                <div class="ms-tooltip-container" v-if="fu.riskLevel && fu.riskLevel !== 'SIN_EVALUAR' && fu.riskLevel !== 'Sin definir'">
                                     <span class="ms-badge" :class="getBadgeClass(fu.riskLevel)"
                                         style="font-size: 0.75rem; padding: 0.375rem 0.75rem; font-weight: 600;">${
                                         fu.riskLevel }</span>
@@ -244,7 +244,7 @@
                         <!-- Métricas y acciones -->
                         <div style="display: flex; align-items: center; gap: 1.5rem; flex-shrink: 0;">
                             <!-- Nivel de riesgo primero -->
-                            <span class="ms-badge" :class="getBadgeClass(fu.riskLevel)"
+                            <span v-if="fu.riskLevel && fu.riskLevel !== 'SIN_EVALUAR' && fu.riskLevel !== 'Sin definir'" class="ms-badge" :class="getBadgeClass(fu.riskLevel)"
                                 style="font-size: 0.75rem; padding: 0.375rem 0.75rem; font-weight: 600;">${ fu.riskLevel
                                 }</span>
                             <!-- Intentos segundo -->
@@ -363,7 +363,7 @@
 
                             <!-- Métricas y acciones -->
                             <div style="display: flex; align-items: center; gap: 1.5rem; flex-shrink: 0;">
-                                <div class="ms-tooltip-container">
+                                <div class="ms-tooltip-container" v-if="fu.riskLevel && fu.riskLevel !== 'SIN_EVALUAR' && fu.riskLevel !== 'Sin definir'">
                                     <span class="ms-badge" :class="getBadgeClass(fu.riskLevel)"
                                         style="font-size: 0.75rem; padding: 0.375rem 0.75rem; font-weight: 600;">${
                                         fu.riskLevel }</span>
