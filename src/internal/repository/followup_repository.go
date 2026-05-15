@@ -4,6 +4,7 @@ import (
 	"bitsflow/internal/models"
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"gorm.io/gorm"
@@ -379,24 +380,35 @@ func (r *followUpRepository) CloseCaseFollowUps(ctx context.Context, followUpID 
 }
 
 // LoadVictimInfoByCaseID obtiene la información resumida del caso para la pantalla hacer-seguimiento.
+// Lee de victim_case_form2 (donde viven los datos reales) y hace doble JOIN con victim_case_form2_enums
+// para resolver los IDs numéricos de gender_identity y sexual_orientation a texto legible.
 func (r *followUpRepository) LoadVictimInfoByCaseID(ctx context.Context, caseID string) (*VictimCaseInfo, error) {
+	log.Printf("[REPO] LoadVictimInfoByCaseID → caseID=%s", caseID)
 	var info VictimCaseInfo
 	sql := `
 		SELECT
-			COALESCE(vc.victim_case_victim_names, '')                   AS names,
-			COALESCE(vc.victim_case_victim_last_names, '')              AS last_names,
-			COALESCE(t.town_name, '')                                   AS town_name,
-			COALESCE(f1.victim_case_form1_victim_phone, '')             AS phone,
-			COALESCE(f1.victim_case_form1_victim_gender_identity, '')   AS gender_identity,
-			COALESCE(f1.victim_case_form1_victim_sexual_orientation, '') AS sexual_orientation,
-			COALESCE(f1.victim_case_form1_victim_contact_phone, '')     AS contact_phone,
-			f1.victim_case_form1_age                                    AS age
+			COALESCE(vc.victim_case_victim_names, '')                              AS names,
+			COALESCE(vc.victim_case_victim_last_names, '')                         AS last_names,
+			COALESCE(t.town_name, '')                                              AS town_name,
+			COALESCE(f2.victim_case_form2_victim_phone::text, '')                  AS phone,
+			COALESCE(gi.victim_case_form2_enums_name, '')                          AS gender_identity,
+			COALESCE(so.victim_case_form2_enums_name, '')                          AS sexual_orientation,
+			COALESCE(f2.victim_case_form2_support_contact_phone::text, '')         AS contact_phone,
+			EXTRACT(YEAR FROM AGE(NOW(), f2.victim_case_form2_birth_date))::int    AS age
 		FROM salvia.victim_case vc
-		LEFT JOIN salvia.victim_case_form1 f1 ON f1.victim_case_form1_victim_case = vc.victim_case_id
-		LEFT JOIN security.town t ON t.town_code = vc.victim_case_victim_town_code
-		WHERE vc.victim_case_id::text = ?
+		LEFT JOIN salvia.victim_case_form2 f2
+			ON f2.victim_case_form2_victim_case = vc.victim_case_id
+		LEFT JOIN security.town t
+			ON t.town_code = vc.victim_case_victim_town_code
+		LEFT JOIN salvia.victim_case_form2_enums gi
+			ON gi.victim_case_form2_enums_id = f2.victim_case_form2_gender_identity
+		LEFT JOIN salvia.victim_case_form2_enums so
+			ON so.victim_case_form2_enums_id = f2.victim_case_form2_sexual_orientation
+		WHERE vc.victim_case_i_code = ?
 		LIMIT 1`
-	return &info, r.db.WithContext(ctx).Raw(sql, caseID).Scan(&info).Error
+	err := r.db.WithContext(ctx).Raw(sql, caseID).Scan(&info).Error
+	log.Printf("[REPO] LoadVictimInfoByCaseID → resultado: err=%v info=%+v", err, info)
+	return &info, err
 }
 
 // UpdateFormSubmissionID asigna un formSubmissionId a un seguimiento.

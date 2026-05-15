@@ -8,6 +8,7 @@ import (
 	"bitsflow/salvia/service"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -503,6 +504,8 @@ func (c *FollowUpV2Controller) LoadFollowUp(ctx *gin.Context) {
 	agentID := ctx.Query("agent_id")
 	formID := ctx.Query("form_id")
 
+	log.Printf("[CTRL] LoadFollowUp → followUpId=%s agentId=%s formId=%s", id, agentID, formID)
+
 	if agentID == "" || formID == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "agent_id y form_id son requeridos"})
 		return
@@ -522,5 +525,6 @@ func (c *FollowUpV2Controller) LoadFollowUp(ctx *gin.Context) {
 		}
 		return
 	}
+	log.Printf("[CTRL] LoadFollowUp → respuesta al front: victimInfo=%+v", result.VictimInfo)
 	ctx.JSON(http.StatusOK, result)
 }

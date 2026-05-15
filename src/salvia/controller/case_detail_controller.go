@@ -13,6 +13,7 @@ package controller
 import (
 	"bitsflow/common/db"
 	"bitsflow/common/utils"
+	"bitsflow/internal/repository"
 	"bitsflow/salvia/service"
 	security_ctrl "bitsflow/security/controllers"
 	"errors"
@@ -22,11 +23,12 @@ import (
 )
 
 type CaseDetailController struct {
-	svc service.CaseDetailService
+	svc          service.CaseDetailService
+	timelineRepo repository.CaseTimelineEventRepository
 }
 
-func NewCaseDetailController(svc service.CaseDetailService) *CaseDetailController {
-	return &CaseDetailController{svc: svc}
+func NewCaseDetailController(svc service.CaseDetailService, timelineRepo repository.CaseTimelineEventRepository) *CaseDetailController {
+	return &CaseDetailController{svc: svc, timelineRepo: timelineRepo}
 }
 
 // RegisterRoutes registra el endpoint JSON en /api/v1.
@@ -40,6 +42,7 @@ func (c *CaseDetailController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/equipo-operadores", c.GetOperadoresByTeam)
 	rg.POST("/casos/:id/seguimiento", c.CrearSeguimiento)
 	rg.POST("/casos/:id/timeline", c.AddTimelineEvent)
+	rg.GET("/casos/:id/timeline-events", c.GetTimelineEvents)
 	rg.PUT("/seguimiento/:segId/reasignar", c.ReassignFollowUp)
 }
 
@@ -181,6 +184,20 @@ func (c *CaseDetailController) AddTimelineEvent(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusCreated, gin.H{"ok": true})
+}
+
+// GetTimelineEvents retorna los eventos del timeline de un caso con el nombre del actor resuelto.
+// GET /api/v1/casos/:id/timeline-events?barrierId=xxx
+func (c *CaseDetailController) GetTimelineEvents(ctx *gin.Context) {
+	caseID   := ctx.Param("id")
+	barrierID := ctx.Query("barrierId")
+
+	events, err := c.timelineRepo.GetByCaseID(ctx.Request.Context(), caseID, barrierID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error al cargar eventos del timeline"})
+		return
+	}
+	ctx.JSON(http.StatusOK, events)
 }
 
 // ReassignFollowUp actualiza el agent_id de un seguimiento.

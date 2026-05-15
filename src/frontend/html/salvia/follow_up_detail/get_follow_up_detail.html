@@ -13,7 +13,6 @@
                 :class="['ms-tab-button', { active: activeTab === tab.id }]">
                 <i :class="tab.icono"></i>
                 ${ tab.label }
-                <span class="ms-tab-count">${ tab.count || 0 }</span>
             </button>
         </div>
 
@@ -78,58 +77,17 @@
                     </div>
                 </section>
 
-                <!-- Información General -->
+                <!-- Información del seguimiento -->
                 <section class="ms-detail-section">
-                    <h3 class="ms-detail-section-title">Información General</h3>
+                    <h3 class="ms-detail-section-title">Información del seguimiento</h3>
                     <div class="ms-info-grid">
                         <div class="ms-info-item">
                             <p class="ms-info-label">Fecha de realización</p>
-                            <p class="ms-info-value">${ followUp.date } ${ followUp.time }</p>
+                            <p class="ms-info-value">${ followUp.completedAt || '—' }</p>
                         </div>
                         <div class="ms-info-item">
-                            <p class="ms-info-label">Agente</p>
-                            <p class="ms-info-value">${ followUp.agent || '-' }</p>
-                        </div>
-                        <div class="ms-info-item">
-                            <p class="ms-info-label">Duración</p>
-                            <p class="ms-info-value">${ followUp.values.duracion || '-' }</p>
-                        </div>
-                        <div class="ms-info-item">
-                            <p class="ms-info-label">¿Se contactó a la víctima?</p>
-                            <p class="ms-info-value">${ followUp.values.contacto_exitoso || '-' }</p>
-                        </div>
-                        <div class="ms-info-item">
-                            <p class="ms-info-label">Medio de contacto</p>
-                            <p class="ms-info-value">${ followUp.values.medio_contacto || '-' }</p>
-                        </div>
-                        <div class="ms-info-item">
-                            <p class="ms-info-label">Estado de la víctima</p>
-                            <p class="ms-info-value">${ followUp.values.estado_victima || '-' }</p>
-                        </div>
-                        <div class="ms-info-item ms-info-item-wide">
-                            <p class="ms-info-label">Observaciones</p>
-                            <p class="ms-info-value ms-info-value-text">${
-                                followUp.values.gestion_realizada || '-' }</p>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Nivel de Riesgo -->
-                <section class="ms-detail-section">
-                    <h3 class="ms-detail-section-title">Nivel de Riesgo</h3>
-                    <div class="ms-risk-comparison">
-                        <div class="ms-risk-item">
-                            <p class="ms-risk-label">Antes del seguimiento</p>
-                            <span class="ms-badge" :style="getRiskStyle(originalRiskLevel)">${ originalRiskLevel
-                                }</span>
-                        </div>
-                        <div class="ms-risk-arrow">
-                            <i class="fas fa-arrow-right"></i>
-                        </div>
-                        <div class="ms-risk-item">
-                            <p class="ms-risk-label">Resultado</p>
-                            <p v-if="!followUp.values.variacion_riesgo" class="ms-risk-no-changes">Sin cambios</p>
-                            <span v-else class="ms-badge" :style="getRiskStyle('Alto')">Alto</span>
+                            <p class="ms-info-label">Agente que realizó el seguimiento</p>
+                            <p class="ms-info-value">${ followUp.agent || '—' }</p>
                         </div>
                     </div>
                 </section>
@@ -222,13 +180,6 @@
                     </div>
                 </section>
 
-                <!-- Observaciones finales -->
-                <section class="ms-detail-section">
-                    <h3 class="ms-detail-section-title">Observaciones Finales</h3>
-                    <div class="ms-observations">
-                        <p>Se remite a psicosocial. Monitorear evolución.</p>
-                    </div>
-                </section>
             </div>
 
             <!-- TAB FORMULARIO -->

@@ -4,6 +4,7 @@ package service
 import (
 	"bitsflow/internal/models"
 	"bitsflow/internal/repository"
+	salvia_config "bitsflow/salvia/config"
 	"context"
 	"errors"
 	"fmt"
@@ -172,6 +173,8 @@ func (s *followUpV2Service) GetPaginatedFollowUps(ctx context.Context, page, lim
 // Valida que el seguimiento pertenezca al agente y que la fecha programada ya llegó.
 // Si no tiene formSubmissionId, crea uno y lo asigna.
 func (s *followUpV2Service) LoadFollowUp(ctx context.Context, id, agentID, formID string) (*LoadFollowUpResult, error) {
+	log.Printf("[SVC] LoadFollowUp → id=%s agentID=%s formID=%s", id, agentID, formID)
+
 	fu, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -179,6 +182,7 @@ func (s *followUpV2Service) LoadFollowUp(ctx context.Context, id, agentID, formI
 		}
 		return nil, err
 	}
+	log.Printf("[SVC] LoadFollowUp → followUp encontrado: id=%s caseID=%s status=%s agentID=%v", fu.ID, fu.CaseID, fu.Status, fu.AgentID)
 
 	if fu.AgentID == nil || *fu.AgentID != agentID {
 		return nil, ErrFollowUpNotAssigned
@@ -189,10 +193,23 @@ func (s *followUpV2Service) LoadFollowUp(ctx context.Context, id, agentID, formI
 		return nil, ErrFollowUpNotYetDue
 	}
 
+	log.Printf("[SVC] LoadFollowUp → llamando LoadVictimInfoByCaseID con caseID=%s", fu.CaseID)
 	victimInfo, err := s.repo.LoadVictimInfoByCaseID(ctx, fu.CaseID)
 	if err != nil {
+		log.Printf("[SVC] LoadFollowUp → ERROR en LoadVictimInfoByCaseID: %v", err)
 		return nil, fmt.Errorf("loadFollowUp: leer info víctima: %w", err)
 	}
+	log.Printf("[SVC] LoadFollowUp → victimInfo raw: %+v", victimInfo)
+
+	if victimInfo != nil {
+		locale := salvia_config.Locale["sp"]
+		log.Printf("[SVC] LoadFollowUp → resolviendo locale: genderKey=%q → %q | orientationKey=%q → %q",
+			victimInfo.GenderIdentity, locale[victimInfo.GenderIdentity],
+			victimInfo.SexualOrientation, locale[victimInfo.SexualOrientation])
+		victimInfo.GenderIdentity    = locale[victimInfo.GenderIdentity]
+		victimInfo.SexualOrientation = locale[victimInfo.SexualOrientation]
+	}
+	log.Printf("[SVC] LoadFollowUp → victimInfo final: %+v", victimInfo)
 
 	if fu.FormSubmissionID == nil || *fu.FormSubmissionID == "" {
 		fs := &models.FormSubmission{FormID: formID}
@@ -337,13 +354,14 @@ func (s *followUpV2Service) GetFollowUpDetail(ctx context.Context, id string, is
 	if vi, err := s.repo.LoadVictimInfoByCaseID(ctx, fu.CaseID); err != nil {
 		log.Printf("[WARN] GetFollowUpDetail: no se pudo cargar info víctima: %v", err)
 	} else {
+		locale := salvia_config.Locale["sp"]
 		victimInfo = &models.FollowUpVictimInfo{
 			Names:             vi.Names,
 			LastNames:         vi.LastNames,
 			TownName:          vi.TownName,
 			Phone:             vi.Phone,
-			GenderIdentity:    vi.GenderIdentity,
-			SexualOrientation: vi.SexualOrientation,
+			GenderIdentity:    locale[vi.GenderIdentity],
+			SexualOrientation: locale[vi.SexualOrientation],
 			ContactPhone:      vi.ContactPhone,
 			Age:               vi.Age,
 		}

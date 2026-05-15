@@ -143,7 +143,7 @@ func main() {
     answerCtrl             := salvia_ctrl.NewAnswerController(answerSvc)
     followUpV2Ctrl         := salvia_ctrl.NewFollowUpV2Controller(followUpV2Svc)
     optionCtrl             := salvia_ctrl.NewOptionController(optionSvc)
-    caseDetailCtrl         := salvia_ctrl.NewCaseDetailController(caseDetailSvc)
+    caseDetailCtrl         := salvia_ctrl.NewCaseDetailController(caseDetailSvc, caseTimelineRepo)
     reportCtrl             := salvia_ctrl.NewReportController(reportSvc)
     entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
     entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo)
