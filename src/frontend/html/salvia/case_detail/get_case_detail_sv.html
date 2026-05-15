@@ -276,11 +276,11 @@
             style="flex-wrap:wrap;cursor:pointer"
             @click="toggleSegExpand(seg.id)">
             <div :class="['cd-seg-indicator', seg.is_completed || seg.status === 'REALIZADO' ? 'cd-si-done' : 'cd-si-pending']">
-              ${ seg.is_completed || seg.status === 'REALIZADO' ? '✓' : seg.sequence_number || (idx + 1) }
+              ${ seg.is_completed || seg.status === 'REALIZADO' ? '✓' : (idx + 1) }
             </div>
             <div class="cd-seg-info">
               <div class="cd-seg-title">
-                <p>Seguimiento #${ seg.sequence_number || (idx + 1) }</p>
+                <p>Seguimiento #${ idx + 1 }</p>
                 <span :class="['cd-seg-badge', seg.is_completed || seg.status === 'REALIZADO' ? 'cd-sb-done' : 'cd-sb-pending']">
                   ${ seg.status }
                 </span>
@@ -483,7 +483,7 @@
     <div class="ns-header">
       <div>
         <p class="ns-title">Reasignar seguimiento</p>
-        <p class="ns-subtitle" v-if="reasignarSegActual">Seguimiento #${ reasignarSegActual.sequence_number }</p>
+        <p class="ns-subtitle" v-if="reasignarSegActual">Seguimiento #${ followUpsV2.indexOf(reasignarSegActual) + 1 }</p>
       </div>
       <button class="ns-close" @click="modalReasignarSeg = false">✕</button>
     </div>
@@ -957,12 +957,9 @@ var home = Vue.createApp({
       var ag = this.agentesRO.find(function(a) { return a.icode === self.reasignarSegAgente; });
       var nombreAg = ag ? (ag.fullName || (ag.profile ? ag.profile.names + ' ' + ag.profile.lastNames : '')) : '';
 
-      // Determinar el número del seguimiento (sequence_number o posición en la lista)
-      var numSeg = seg.sequence_number;
-      if (!numSeg) {
-        var idx = self.followUpsV2.findIndex(function(s) { return s.id === seg.id; });
-        numSeg = idx >= 0 ? (idx + 1) : '?';
-      }
+      // Determinar el número del seguimiento por posición en la lista (ordenada por fecha)
+      var numSeg = self.followUpsV2.findIndex(function(s) { return s.id === seg.id; }) + 1;
+      if (numSeg <= 0) numSeg = '?';
 
       self.reasignandoSeg = true;
 
