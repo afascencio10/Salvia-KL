@@ -242,7 +242,7 @@
               <div class="cd-seg-title">
                 <p>${ b.sector || 'Sin sector' }</p>
                 <span :class="['cd-seg-badge', b.status === 'OPEN' ? 'cd-sb-pending' : 'cd-sb-done']">
-                  ${ b.status }
+                  ${ labelBarreraStatus(b.status) }
                 </span>
               </div>
               <div style="font-size:.83rem;color:#374151;margin-top:4px">${ b.description }</div>
@@ -272,7 +272,9 @@
             <p>No hay seguimientos registrados para este caso</p>
           </div>
           <div v-for="(seg, idx) in followUpsV2" :key="seg.id"
-            :class="['cd-seg-item', seg.is_completed || seg.status === 'REALIZADO' ? 'done' : 'pending']">
+            :class="['cd-seg-item', seg.is_completed || seg.status === 'REALIZADO' ? 'done' : 'pending']"
+            style="flex-wrap:wrap;cursor:pointer"
+            @click="toggleSegExpand(seg.id)">
             <div :class="['cd-seg-indicator', seg.is_completed || seg.status === 'REALIZADO' ? 'cd-si-done' : 'cd-si-pending']">
               ${ seg.is_completed || seg.status === 'REALIZADO' ? '✓' : seg.sequence_number || (idx + 1) }
             </div>
@@ -282,11 +284,17 @@
                 <span :class="['cd-seg-badge', seg.is_completed || seg.status === 'REALIZADO' ? 'cd-sb-done' : 'cd-sb-pending']">
                   ${ seg.status }
                 </span>
+                <!-- Indicador de intentos (esquema 3×3) -->
+                <span v-if="seg.attempts > 0" style="font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:4px"
+                  :style="seg.attempts >= 9 ? 'background:#fee2e2;color:#dc2626' : seg.attempts >= 3 ? 'background:#fff7ed;color:#ea580c' : 'background:#f3f4f6;color:#6b7280'">
+                  ${ seg.attempts }/9 intentos
+                </span>
               </div>
               <div class="cd-seg-meta">
                 📅 ${ formatFecha(seg.scheduled_date) }
-                <span v-if="seg.scheduled_time"> &nbsp;·&nbsp; 🕐 ${ seg.scheduled_time }</span>
+                <span v-if="seg.scheduled_time && seg.scheduled_time !== '00:00'"> &nbsp;·&nbsp; 🕐 ${ seg.scheduled_time }</span>
                 <span v-if="seg.agent_id"> &nbsp;·&nbsp; 👤 ${ nombreAgente(seg.agent_id) }</span>
+                <span v-if="seg.last_attempt_at" style="color:#9ca3af"> &nbsp;·&nbsp; Último intento: ${ formatFechaHora(seg.last_attempt_at) }</span>
               </div>
               <div v-if="seg.summary" style="font-size:.82rem;color:#6b7280;margin-top:4px">
                 ${ seg.summary }
@@ -295,31 +303,102 @@
             <!-- Botones para seguimientos EJECUTADOS -->
             <a v-if="seg.is_completed || seg.status === 'REALIZADO'"
                :href="'/salvia/seguimiento/' + seg.id"
-               style="font-size:.74rem;color:#15803d;font-weight:600;flex-shrink:0;align-self:center;text-decoration:none">
+               style="font-size:.74rem;color:#15803d;font-weight:600;flex-shrink:0;align-self:center;text-decoration:none"
+               @click.stop>
               Ver detalle →
             </a>
             <!-- Botones para seguimientos PENDIENTES -->
-            <div v-if="!seg.is_completed && seg.status !== 'REALIZADO'" class="cd-seg-actions">
-              <a v-if="(userRole === 'ro' || userRole === 'op') && seg.agent_id === userICode" :href="'/salvia/hacer-seguimiento/' + seg.id" class="btn-iniciar" style="text-decoration:none;text-align:center">▶ Iniciar</a>
+            <div v-if="!seg.is_completed && seg.status !== 'REALIZADO'" class="cd-seg-actions" @click.stop>
+              <a v-if="(userRole === 'ro' || userRole === 'op') && seg.agent_id === userICode" href="#" class="btn-iniciar" style="text-decoration:none;text-align:center" @click.prevent="iniciarSeguimiento(seg)">▶ Iniciar</a>
               <button v-else-if="userRole === 'ro' || userRole === 'op'" class="btn-iniciar" disabled style="opacity:.5;cursor:not-allowed" title="Este seguimiento está asignado a otro agente">▶ Iniciar</button>
               <button v-if="puedeReasignar"
                       class="btn-reasignar-seg"
-                      @click="reasignarSeguimiento(seg, idx)">
+                      @click.stop="reasignarSeguimiento(seg, idx)">
                 📋 Reasignar
               </button>
+            </div>
+
+            <!-- Historial de intentos expandible (esquema 3×3) -->
+            <div v-if="segExpandido === seg.id && seg.follow_up_attempts && seg.follow_up_attempts.length > 0"
+              style="width:100%;margin-top:10px;padding-top:10px;border-top:1px solid #e5e7eb" @click.stop>
+              <p style="font-size:.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin:0 0 8px">
+                Historial de intentos (${ seg.follow_up_attempts.length })
+              </p>
+              <div v-for="(att, ai) in seg.follow_up_attempts" :key="att.id"
+                style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f9fafb;border-radius:8px;margin-bottom:6px;border:1px solid #f3f4f6">
+                <div style="width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0"
+                  :style="att.was_answered ? 'background:#dcfce7;color:#15803d' : 'background:#fee2e2;color:#dc2626'">
+                  ${ ai + 1 }
+                </div>
+                <div style="flex:1;min-width:0">
+                  <p style="font-size:.78rem;font-weight:600;color:#374151;margin:0">
+                    Intento #${ ai + 1 }
+                    <span style="font-size:.68rem;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:6px"
+                      :style="att.was_answered ? 'background:#dcfce7;color:#15803d' : 'background:#fee2e2;color:#dc2626'">
+                      ${ att.was_answered ? 'Contestó' : 'No contestó' }
+                    </span>
+                  </p>
+                  <p v-if="att.reason" style="font-size:.72rem;color:#6b7280;margin:2px 0 0;font-style:italic">${ att.reason }</p>
+                </div>
+                <span style="font-size:.68rem;color:#9ca3af;white-space:nowrap">${ formatFechaHora(att.created_at) }</span>
+              </div>
             </div>
           </div>
         </template>
 
         <!-- ══ TAB: TIMELINE ══ -->
         <template v-if="tabActiva === 'timeline'">
-          <case-timeline :case-id="caseICode"></case-timeline>
+          <!-- Filtros por categoria -->
+          <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+            <button v-for="cat in tlCategorias" :key="cat.value"
+              :class="['cd-tab-btn', tlFiltro === cat.value ? 'active' : '']"
+              style="padding:6px 14px!important;font-size:.75rem!important"
+              @click="tlFiltro = cat.value; tlPagina = 0">
+              ${ cat.label } (${ tlEventosFiltrados(cat.value).length })
+            </button>
+          </div>
+
+          <div v-if="tlEventosPaginados.length === 0" class="cd-empty">
+            <div class="cd-empty-icon">📋</div>
+            <p>No hay eventos en el timeline</p>
+          </div>
+          <div class="cd-timeline">
+            <div v-for="ev in tlEventosPaginados" :key="ev.id" class="cd-tl-item">
+              <div :class="['cd-tl-dot', tlColor(ev.type || ev.event_type)]">${ tlIcon(ev.type || ev.event_type) }</div>
+              <div class="cd-tl-card">
+                <div class="cd-tl-header">
+                  <span class="cd-tl-badge">${ tlLabel(ev.type || ev.event_type) }</span>
+                  <span class="cd-tl-date">${ formatFechaHora(ev.date || ev.created_at) }</span>
+                </div>
+                <div class="cd-tl-desc">${ ev.description }</div>
+                <div v-if="ev.actor_name" class="cd-tl-agent">👤 ${ ev.actor_name }</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Paginado -->
+          <div v-if="tlTotalPaginas > 1" style="display:flex;justify-content:center;gap:6px;margin-top:16px">
+            <button class="btn-reasignar-seg" :disabled="tlPagina === 0" @click="tlPagina--">← Anterior</button>
+            <span style="font-size:.8rem;color:#6b7280;align-self:center">Pagina ${ tlPagina + 1 } de ${ tlTotalPaginas }</span>
+            <button class="btn-reasignar-seg" :disabled="tlPagina >= tlTotalPaginas - 1" @click="tlPagina++">Siguiente →</button>
+          </div>
         </template>
 
       </div>
     </div>
 
   </template>
+  <!-- Alert modal (tipo SweetAlert) -->
+  <div v-if="toast.show" class="ns-backdrop" @click.self="toast.show = false">
+    <div class="cd-alert-modal">
+      <div :class="['cd-alert-icon', toast.type === 'success' ? 'cd-alert-icon-success' : 'cd-alert-icon-error']">
+        ${ toast.type === 'success' ? '✓' : '✕' }
+      </div>
+      <p class="cd-alert-title">${ toast.type === 'success' ? '¡Operación exitosa!' : 'Error' }</p>
+      <p class="cd-alert-msg">${ toast.message }</p>
+      <button class="cd-alert-btn" :class="toast.type === 'success' ? 'cd-alert-btn-success' : 'cd-alert-btn-error'" @click="toast.show = false">Aceptar</button>
+    </div>
+  </div>
 </div>
 
 {{ template "standard_scripts.html" .}}
@@ -488,16 +567,28 @@ var home = Vue.createApp({
       townName: '',
       deptName: '',
       denunciasAnteriores: 0,
+      timelineEvents: [],
       emergencyMeasures: [],
       psychosocialSupports: [],
       economicStabilizations: [],
       barriers: [],
-      caseICode: CASE_ICODE,
+      tlFiltro: 'TODOS',
+      tlPagina: 0,
+      tlPorPagina: 5,
+      tlCategorias: [
+        { value: 'TODOS', label: 'Todos' },
+        { value: 'General', label: 'General' },
+        { value: 'Seguimientos', label: 'Seguimientos' },
+        { value: 'Barreras', label: 'Barreras' },
+        { value: 'Medidas', label: 'Medidas' },
+        { value: 'Oficios', label: 'Oficios' },
+      ],
       userRole: "{{.userRole}}",
       userTeam: "{{.userTeam}}",
       userICode: "{{.userICode}}",
       operadores: [],
       agentesRO: [],
+      todosAgentes: [],
       tabActiva: 'info',
       modalNuevoSeg: false,
       modalReasignar: false,
@@ -507,6 +598,7 @@ var home = Vue.createApp({
       reasignarSegAgente: '',
       reasignarSegActual: null,
       reasignandoSeg: false,
+      segExpandido: null,
       nuevoSeg: {
         fecha: '',
         hora: '09:00',
@@ -517,6 +609,7 @@ var home = Vue.createApp({
       guardandoSeg: false,
       nuevoSegError: '',
       fechaHoy: new Date().toISOString().substring(0, 10),
+      toast: { show: false, type: 'success', message: '' },
       tabs: [
         { id: 'info',         label: 'Info General',  icono: '👤' },
         { id: 'derivaciones', label: 'Derivaciones',  icono: '↗️' },
@@ -533,9 +626,19 @@ var home = Vue.createApp({
     this.cargarDatos();
     this.cargarOperadores();
     this.cargarAgentesRO();
+    this.cargarTodosAgentes();
   },
 
   computed: {
+    tlEventosPaginados() {
+      var filtrados = this.tlEventosFiltrados(this.tlFiltro);
+      var inicio = this.tlPagina * this.tlPorPagina;
+      return filtrados.slice(inicio, inicio + this.tlPorPagina);
+    },
+    tlTotalPaginas() {
+      var filtrados = this.tlEventosFiltrados(this.tlFiltro);
+      return Math.ceil(filtrados.length / this.tlPorPagina) || 1;
+    },
     nuevoSegValido() {
       if (!this.nuevoSeg.fecha || !this.nuevoSeg.agente) return false;
       if (this.nuevoSeg.fecha < this.fechaHoy) return false;
@@ -630,6 +733,23 @@ var home = Vue.createApp({
     logout(){
       logout("/seguridad/logout");
     },
+    showToast(type, message) {
+      this.toast = { show: true, type: type, message: message };
+    },
+    toggleSegExpand(segId) {
+      this.segExpandido = this.segExpandido === segId ? null : segId;
+    },
+    iniciarSeguimiento(seg) {
+      // Validar que la fecha programada ya haya llegado
+      var hoy = new Date().toISOString().substring(0, 10);
+      var fechaSeg = seg.scheduled_date ? seg.scheduled_date.substring(0, 10) : '';
+      if (fechaSeg && fechaSeg > hoy) {
+        this.showToast('error', 'No es posible iniciar este seguimiento. La fecha programada (' + fechaSeg + ') aún no ha llegado.');
+        return;
+      }
+      // Si la fecha ya pasó o es hoy, navegar a hacer seguimiento
+      window.location.href = '/salvia/hacer-seguimiento/' + seg.id;
+    },
     cargarDatos() {
       var self = this;
       self.cargando = true;
@@ -658,6 +778,7 @@ var home = Vue.createApp({
           self.townName = data.townName || '';
           self.deptName = data.deptName || '';
           self.denunciasAnteriores = data.denunciasAnteriores || 0;
+          self.timelineEvents = data.timelineEvents || [];
           self.emergencyMeasures = data.emergencyMeasures || [];
           self.psychosocialSupports = data.psychosocialSupports || [];
           self.economicStabilizations = data.economicStabilizations || [];
@@ -675,44 +796,15 @@ var home = Vue.createApp({
     },
     cargarOperadores() {
       var self = this;
-      // Cargar todos los operadores del equipo (op + ro filtrados por team)
-      var url = '/api/v1/equipo-operadores';
-      if (self.userTeam) {
-        url += '?team=' + encodeURIComponent(self.userTeam);
-      }
+      var url = '/api/v1/operadores';
+      if (self.userTeam) url += '?team=' + encodeURIComponent(self.userTeam);
       fetch(url)
         .then(function(res) { return res.json(); })
         .then(function(data) {
-          var lista = [];
-          if (Array.isArray(data)) lista = data;
-          else if (data && Array.isArray(data.data)) lista = data.data;
-          // Si no hay resultados con filtro de team, cargar sin filtro como fallback
-          if (lista.length === 0 && self.userTeam) {
-            fetch('/api/v1/equipo-operadores')
-              .then(function(res2) { return res2.json(); })
-              .then(function(data2) {
-                var lista2 = Array.isArray(data2) ? data2 : (data2 && Array.isArray(data2.data) ? data2.data : []);
-                var vistos = {};
-                self.operadores = lista2.filter(function(op) {
-                  if (vistos[op.icode]) return false;
-                  vistos[op.icode] = true;
-                  return true;
-                }).sort(function(a, b) {
-                  var na = (a.fullName || (a.profile ? a.profile.names + ' ' + a.profile.lastNames : '')).toLowerCase();
-                  var nb = (b.fullName || (b.profile ? b.profile.names + ' ' + b.profile.lastNames : '')).toLowerCase();
-                  return na.localeCompare(nb);
-                });
-              });
-            return;
-          }
-          var vistos = {};
-          self.operadores = lista.filter(function(op) {
-            if (vistos[op.icode]) return false;
-            vistos[op.icode] = true;
-            return true;
-          }).sort(function(a, b) {
-            var na = (a.fullName || (a.profile ? a.profile.names + ' ' + a.profile.lastNames : '')).toLowerCase();
-            var nb = (b.fullName || (b.profile ? b.profile.names + ' ' + b.profile.lastNames : '')).toLowerCase();
+          var lista = Array.isArray(data) ? data : [];
+          self.operadores = lista.sort(function(a, b) {
+            var na = (a.fullName || '').toLowerCase();
+            var nb = (b.fullName || '').toLowerCase();
             return na.localeCompare(nb);
           });
         })
@@ -720,45 +812,28 @@ var home = Vue.createApp({
     },
     cargarAgentesRO() {
       var self = this;
-      var url = '/api/v1/equipo-operadores';
-      if (self.userTeam) {
-        url += '?team=' + encodeURIComponent(self.userTeam);
-      }
+      var url = '/api/v1/agentes-ro';
+      if (self.userTeam) url += '?team=' + encodeURIComponent(self.userTeam);
       fetch(url)
         .then(function(res) { return res.json(); })
         .then(function(data) {
-          var lista = Array.isArray(data) ? data : (data && Array.isArray(data.data) ? data.data : []);
-          // Fallback si no hay resultados
-          if (lista.length === 0 && self.userTeam) {
-            fetch('/api/v1/equipo-operadores')
-              .then(function(res2) { return res2.json(); })
-              .then(function(data2) {
-                var lista2 = Array.isArray(data2) ? data2 : (data2 && Array.isArray(data2.data) ? data2.data : []);
-                var vistos = {};
-                self.agentesRO = lista2.filter(function(op) {
-                  if (vistos[op.icode]) return false;
-                  vistos[op.icode] = true;
-                  return true;
-                }).sort(function(a, b) {
-                  var na = (a.fullName || (a.profile ? a.profile.names + ' ' + a.profile.lastNames : '')).toLowerCase();
-                  var nb = (b.fullName || (b.profile ? b.profile.names + ' ' + b.profile.lastNames : '')).toLowerCase();
-                  return na.localeCompare(nb);
-                });
-              });
-            return;
-          }
-          var vistos = {};
-          self.agentesRO = lista.filter(function(op) {
-            if (vistos[op.icode]) return false;
-            vistos[op.icode] = true;
-            return true;
-          }).sort(function(a, b) {
-            var na = (a.fullName || (a.profile ? a.profile.names + ' ' + a.profile.lastNames : '')).toLowerCase();
-            var nb = (b.fullName || (b.profile ? b.profile.names + ' ' + b.profile.lastNames : '')).toLowerCase();
+          var lista = Array.isArray(data) ? data : [];
+          self.agentesRO = lista.sort(function(a, b) {
+            var na = (a.fullName || '').toLowerCase();
+            var nb = (b.fullName || '').toLowerCase();
             return na.localeCompare(nb);
           });
         })
         .catch(function(err) { console.log('Error cargando agentes RO:', err); });
+    },
+    cargarTodosAgentes() {
+      var self = this;
+      fetch('/api/v1/equipo-operadores')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          self.todosAgentes = Array.isArray(data) ? data : [];
+        })
+        .catch(function() {});
     },
     formatFecha(f) { return f ? f.substring(0, 10) : '—'; },
     formatFechaHora(f) {
@@ -769,14 +844,19 @@ var home = Vue.createApp({
       return f.substring(0, 10);
     },
     nombreAgente(agentId) {
-      // Buscar en agentes RO primero, luego en operadores
-      var ag = this.agentesRO.find(function(a) { return a.icode === agentId; });
+      // Buscar en todosAgentes (sin filtro de team) para resolver nombres siempre
+      var ag = this.todosAgentes.find(function(a) { return a.icode === agentId; });
+      if (!ag) ag = this.agentesRO.find(function(a) { return a.icode === agentId; });
       if (!ag) ag = this.operadores.find(function(a) { return a.icode === agentId; });
       if (ag) return ag.fullName || (ag.profile ? ag.profile.names + ' ' + ag.profile.lastNames : agentId);
       return agentId;
     },
     labelEstado(s) {
       var m = { 'ra':'Activo', 'is':'Con novedad', 'cd':'Cerrado', 'ex':'Vencido', 'r':'Por aprobar', 'fc':'Recontacto' };
+      return m[s] || s || '—';
+    },
+    labelBarreraStatus(s) {
+      var m = { 'OPEN':'Abierta', 'CLOSED':'Cerrada', 'FINISH':'Cerrada', 'CLOSE':'Cerrada', 'RESOLVED':'Resuelta' };
       return m[s] || s || '—';
     },
     labelRiesgo(n) {
@@ -799,6 +879,102 @@ var home = Vue.createApp({
         'pf':'Amigo de la pareja','fm':'Familiar','bs':'Jefe','bf':'Novio',
         'fd':'Familiar diferente a la pareja','ot':'Otro','na':'Ninguno','tp':'Pareja temporal'};
       return m[code] || code || '—';
+    },
+    tlColor(type) {
+      // Si el evento tiene color propio (esquema nuevo), usarlo
+      // Fallback por type/event_type para eventos legacy
+      var m = {
+        'Creación de Caso':'cd-tl-purple',
+        'Seguimiento Programado':'cd-tl-green',
+        'Seguimiento Ejecutado':'cd-tl-green',
+        'Seguimiento Editado':'cd-tl-green',
+        'Seguimiento Pospuesto':'cd-tl-orange',
+        'Intento de Seguimiento':'cd-tl-gray',
+        'Reasignación de Caso':'cd-tl-blue',
+        'Reasignación de Seguimiento':'cd-tl-orange',
+        'Cambio de Estado':'cd-tl-orange',
+        'Barrera Identificada':'cd-tl-orange',
+        'Cierre de Caso':'cd-tl-gray',
+        'Nota':'cd-tl-gray',
+        // Legacy
+        'REGISTRO':'cd-tl-purple',
+        'SEGUIMIENTO_CREADO':'cd-tl-green',
+        'REASIGNACION':'cd-tl-blue',
+        'REASIGNACION_SEGUIMIENTO':'cd-tl-orange',
+        'CAMBIO_ESTADO':'cd-tl-orange',
+        'BARRERA_IDENTIFICADA':'cd-tl-orange',
+        'NOTA':'cd-tl-gray'
+      };
+      return m[type] || 'cd-tl-gray';
+    },
+    tlIcon(type) {
+      var m = {
+        'Creación de Caso':'📋',
+        'Seguimiento Programado':'📅',
+        'Seguimiento Ejecutado':'✅',
+        'Seguimiento Editado':'✏️',
+        'Seguimiento Pospuesto':'🔄',
+        'Intento de Seguimiento':'📞',
+        'Reasignación de Caso':'🔀',
+        'Reasignación de Seguimiento':'📋',
+        'Cambio de Estado':'🔀',
+        'Barrera Identificada':'⚠️',
+        'Cierre de Caso':'🔒',
+        'Nota':'📝',
+        // Legacy
+        'REGISTRO':'📋',
+        'SEGUIMIENTO_CREADO':'📅',
+        'REASIGNACION':'🔀',
+        'REASIGNACION_SEGUIMIENTO':'📋',
+        'CAMBIO_ESTADO':'🔀',
+        'BARRERA_IDENTIFICADA':'⚠️',
+        'NOTA':'📝'
+      };
+      return m[type] || '•';
+    },
+    tlLabel(type) {
+      var m = {
+        'Creación de Caso':'Creación de Caso',
+        'Seguimiento Programado':'Seguimiento Programado',
+        'Seguimiento Ejecutado':'Seguimiento Ejecutado',
+        'Seguimiento Editado':'Seguimiento Editado',
+        'Seguimiento Pospuesto':'Seguimiento Pospuesto',
+        'Intento de Seguimiento':'Intento de Seguimiento',
+        'Reasignación de Caso':'Reasignación de Caso',
+        'Reasignación de Seguimiento':'Reasignación de Seguimiento',
+        'Cambio de Estado':'Cambio de Estado',
+        'Barrera Identificada':'Barrera Identificada',
+        'Cierre de Caso':'Cierre de Caso',
+        'Nota':'Nota',
+        // Legacy
+        'REGISTRO':'Registro del caso',
+        'SEGUIMIENTO_CREADO':'Seguimiento creado',
+        'REASIGNACION':'Reasignación caso',
+        'REASIGNACION_SEGUIMIENTO':'Reasignación seguimiento',
+        'CAMBIO_ESTADO':'Cambio de estado',
+        'BARRERA_IDENTIFICADA':'Barrera identificada',
+        'NOTA':'Nota'
+      };
+      return m[type] || type;
+    },
+    tlEventosFiltrados(filtro) {
+      if (filtro === 'TODOS') return this.timelineEvents;
+      // Filtrar por category (esquema nuevo) o mapear event_type legacy a category
+      return this.timelineEvents.filter(function(ev) {
+        // Si tiene category (esquema nuevo), filtrar por ella
+        if (ev.category) return ev.category === filtro;
+        // Fallback: mapear event_type legacy a category
+        var legacyMap = {
+          'REGISTRO': 'General',
+          'SEGUIMIENTO_CREADO': 'Seguimientos',
+          'REASIGNACION': 'General',
+          'REASIGNACION_SEGUIMIENTO': 'Seguimientos',
+          'CAMBIO_ESTADO': 'General',
+          'BARRERA_IDENTIFICADA': 'Barreras',
+          'NOTA': 'General'
+        };
+        return (legacyMap[ev.event_type] || 'General') === filtro;
+      });
     },
     badgeEstado(s) {
       var m = { 'ra':'badge-estado badge-activo', 'is':'badge-estado badge-seguimiento', 'cd':'badge-estado badge-cerrado', 'ex':'badge-estado badge-vencido' };
@@ -851,7 +1027,8 @@ var home = Vue.createApp({
         body: JSON.stringify({
           agent_id: this.nuevoSeg.agente,
           scheduled_date: scheduledDate,
-          notas: this.nuevoSeg.notas
+          notas: this.nuevoSeg.notas,
+          created_by: this.currentUser
         })
       })
         .then(function(res) {
@@ -868,6 +1045,7 @@ var home = Vue.createApp({
         .then(function() {
           self.guardandoSeg = false;
           self.modalNuevoSeg = false;
+          self.showToast('success', 'Seguimiento creado correctamente');
           self.cargarDatos();
         })
         .catch(function(err) {
@@ -881,9 +1059,13 @@ var home = Vue.createApp({
       var nombreOp = opSeleccionado ? (opSeleccionado.fullName || (opSeleccionado.profile ? opSeleccionado.profile.names + ' ' + opSeleccionado.profile.lastNames : '')) : '';
 
       self.reasignando = true;
-      var url = '/salvia/asignar_operadores/single/' + CASE_ICODE + '/' + self.reasignarOperador;
+      var url = '/api/v1/casos/' + CASE_ICODE + '/reasignar';
 
-      fetch(url, { method: 'POST' })
+      fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ operador_icode: self.reasignarOperador })
+      })
         .then(function(res) {
           if (res.ok) {
             fetch('/api/v1/casos/' + CASE_ICODE + '/timeline', {
@@ -893,11 +1075,26 @@ var home = Vue.createApp({
             });
             self.modalReasignar = false;
             self.reasignarOperador = '';
+            self.reasignando = false;
+            self.showToast('success', 'Caso reasignado correctamente a ' + nombreOp);
             self.cargarDatos();
+          } else {
+            res.json().then(function(data) {
+              self.reasignando = false;
+              self.modalReasignar = false;
+              self.showToast('error', data.error || 'Error al reasignar el caso');
+            }).catch(function() {
+              self.reasignando = false;
+              self.modalReasignar = false;
+              self.showToast('error', 'Error al reasignar el caso');
+            });
           }
-          self.reasignando = false;
         })
-        .catch(function() { self.reasignando = false; });
+        .catch(function() {
+          self.reasignando = false;
+          self.modalReasignar = false;
+          self.showToast('error', 'Error de conexión al reasignar el caso');
+        });
     },
     reasignarSeguimiento(seg, idx) {
       this.reasignarSegActual = seg;
@@ -909,6 +1106,13 @@ var home = Vue.createApp({
       var seg = this.reasignarSegActual;
       var ag = this.agentesRO.find(function(a) { return a.icode === self.reasignarSegAgente; });
       var nombreAg = ag ? (ag.fullName || (ag.profile ? ag.profile.names + ' ' + ag.profile.lastNames : '')) : '';
+
+      // Determinar el número del seguimiento (sequence_number o posición en la lista)
+      var numSeg = seg.sequence_number;
+      if (!numSeg) {
+        var idx = self.followUpsV2.findIndex(function(s) { return s.id === seg.id; });
+        numSeg = idx >= 0 ? (idx + 1) : '?';
+      }
 
       self.reasignandoSeg = true;
 
@@ -925,7 +1129,7 @@ var home = Vue.createApp({
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify({
             event_type: 'REASIGNACION_SEGUIMIENTO',
-            description: 'Seguimiento #' + (seg.sequence_number || '') + ' reasignado a ' + nombreAg,
+            description: 'Seguimiento #' + numSeg + ' reasignado a ' + nombreAg,
             actor_name: self.currentUser
           })
         });
@@ -934,15 +1138,16 @@ var home = Vue.createApp({
         self.reasignarSegActual = null;
         self.reasignarSegAgente = '';
         self.reasignandoSeg = false;
+        self.showToast('success', 'Seguimiento #' + numSeg + ' reasignado correctamente a ' + nombreAg);
         self.cargarDatos();
-      }).catch(function() { self.reasignandoSeg = false; });
+      }).catch(function() {
+        self.reasignandoSeg = false;
+        self.modalReasignarSeg = false;
+        self.showToast('error', 'Error al reasignar el seguimiento. Intente nuevamente.');
+      });
     },
   }
 });
 
-var app = home;
-</script>
-<script src="/static/js/components/case-timeline.js"></script>
-<script>
 home.mount('#app');
 </script>

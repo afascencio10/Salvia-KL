@@ -50,8 +50,9 @@ type FollowUpV2 struct {
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
 	// ── Campos virtuales (no persistidos) ────────────────────────────────────
-	AgentNames     string `gorm:"-" json:"agent_names,omitempty"`
-	AgentLastNames string `gorm:"-" json:"agent_last_names,omitempty"`
+	AgentNames       string           `gorm:"-" json:"agent_names,omitempty"`
+	AgentLastNames   string           `gorm:"-" json:"agent_last_names,omitempty"`
+	FollowUpAttempts []FollowUpAttempt `gorm:"-" json:"follow_up_attempts,omitempty"`
 }
 
 func (FollowUpV2) TableName() string { return "salvia.follow_up_v2" }

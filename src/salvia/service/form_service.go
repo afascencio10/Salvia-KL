@@ -147,6 +147,7 @@ type FormServiceDeps struct {
 	EconomicStabilizationRepo  repository.EconomicStabilizationRepository
 	BarrierV2Repo              repository.BarrierV2Repository
 	CaseTimelineEventRepo      repository.CaseTimelineEventRepository
+	AgentLightRepo             repository.AgentLightRepository
 }
 
 type formService struct {
@@ -165,6 +166,7 @@ type formService struct {
 	economicStabilizationRepo repository.EconomicStabilizationRepository
 	barrierV2Repo          repository.BarrierV2Repository
 	caseTimelineRepo       repository.CaseTimelineEventRepository
+	agentLightRepo         repository.AgentLightRepository
 }
 
 func NewFormService(deps FormServiceDeps) FormService {
@@ -184,6 +186,7 @@ func NewFormService(deps FormServiceDeps) FormService {
 		economicStabilizationRepo: deps.EconomicStabilizationRepo,
 		barrierV2Repo:             deps.BarrierV2Repo,
 		caseTimelineRepo:          deps.CaseTimelineEventRepo,
+		agentLightRepo:            deps.AgentLightRepo,
 	}
 }
 
@@ -1818,16 +1821,27 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 			return nil
 		}
 		now := time.Now()
+
+		// Resolver nombre del agente
+		actorName := actorID
+		if s.agentLightRepo != nil && actorID != "" {
+			agent, err := s.agentLightRepo.FindByICode(ctx, actorID)
+			if err == nil && agent != nil {
+				actorName = strings.TrimSpace(agent.Names + " " + agent.LastNames)
+			}
+		}
+
 		editEvent := &models.CaseTimelineEvent{
 			CaseID:      fu.CaseID,
 			FollowUpID:  fu.ID,
-			Category:    "Seguimientos",
-			Type:        "Seguimiento Editado",
-			Icon:        "calendar-days",
+			Category:    models.TimelineCategorySeguimientos,
+			Type:        models.TimelineTypeSeguimientoEditado,
+			Icon:        models.TimelineIconPospuesto,
 			Date:        now,
 			Description: "Seguimiento editado después de su ejecución",
 			EventUserID: actorID,
-			Color:       "#63e6be",
+			ActorName:   actorName,
+			Color:       models.TimelineColorTeal,
 			CreatedAt:   now,
 		}
 		if err := s.caseTimelineRepo.Create(ctx, editEvent); err != nil {
@@ -1998,16 +2012,27 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 			pluralize(remisionCount, "remisión", "remisiones"),
 		)
 		now := time.Now()
+
+		// Resolver nombre del agente que ejecutó el seguimiento
+		actorName := actorID
+		if s.agentLightRepo != nil && actorID != "" {
+			agent, err := s.agentLightRepo.FindByICode(ctx, actorID)
+			if err == nil && agent != nil {
+				actorName = strings.TrimSpace(agent.Names + " " + agent.LastNames)
+			}
+		}
+
 		event := &models.CaseTimelineEvent{
 			CaseID:      fu.CaseID,
 			FollowUpID:  fu.ID,
-			Category:    "Seguimientos",
-			Type:        "Seguimiento Ejecutado",
-			Icon:        "calendar-check",
+			Category:    models.TimelineCategorySeguimientos,
+			Type:        models.TimelineTypeSeguimientoEjecutado,
+			Icon:        models.TimelineIconSeguimiento,
 			Date:        now,
 			Description: description,
 			EventUserID: actorID,
-			Color:       "#63e6be",
+			ActorName:   actorName,
+			Color:       models.TimelineColorGreen,
 			CreatedAt:   now,
 		}
 		if err := s.caseTimelineRepo.Create(ctx, event); err != nil {

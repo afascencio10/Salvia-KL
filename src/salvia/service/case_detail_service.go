@@ -5,6 +5,7 @@ package service
 import (
 	"bitsflow/internal/models"
 	"bitsflow/internal/repository"
+	internaldb "bitsflow/internal/db"
 	"context"
 	"errors"
 	"fmt"
@@ -18,9 +19,10 @@ var ErrInvalidICode = errors.New("icode inválido")
 
 type CaseDetailService interface {
 	GetDetail(ctx context.Context, caseICode string) (*repository.CaseDetailData, error)
-	CreateFollowUp(ctx context.Context, caseICode, agentID, scheduledDate, notas string) (*models.FollowUpV2, error)
+	CreateFollowUp(ctx context.Context, caseICode, agentID, scheduledDate, notas, createdBy string) (*models.FollowUpV2, error)
 	AddTimelineEvent(ctx context.Context, caseICode, eventType, description, actorID, actorName string) error
 	ReassignFollowUp(ctx context.Context, followUpID, newAgentID string) error
+	ReasignarCaso(ctx context.Context, caseICode, newOperadorICode string) error
 	GetDB() *gorm.DB
 }
 
@@ -41,7 +43,12 @@ func (s *caseDetailService) GetDetail(ctx context.Context, caseICode string) (*r
 	if caseICode == "" {
 		return nil, ErrInvalidICode
 	}
-	detail, err := s.repo.GetByICode(ctx, caseICode)
+	var detail *repository.CaseDetailData
+	var err error
+	err = internaldb.WithRetry(func() error {
+		detail, err = s.repo.GetByICode(ctx, caseICode)
+		return err
+	})
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrCaseNotFound
@@ -51,27 +58,33 @@ func (s *caseDetailService) GetDetail(ctx context.Context, caseICode string) (*r
 	return detail, nil
 }
 
-func (s *caseDetailService) CreateFollowUp(ctx context.Context, caseICode, agentID, scheduledDate, notas string) (*models.FollowUpV2, error) {
+func (s *caseDetailService) CreateFollowUp(ctx context.Context, caseICode, agentID, scheduledDate, notas, createdBy string) (*models.FollowUpV2, error) {
 	if caseICode == "" {
 		return nil, ErrInvalidICode
 	}
 
-	fecha, err := time.Parse("2006-01-02T15:04", scheduledDate)
+	// Parsear en zona horaria de Colombia para evitar desfase de fecha
+	loc, _ := time.LoadLocation("America/Bogota")
+	fecha, err := time.ParseInLocation("2006-01-02T15:04", scheduledDate, loc)
 	if err != nil {
-		fecha, err = time.Parse("2006-01-02", scheduledDate)
+		fecha, err = time.ParseInLocation("2006-01-02", scheduledDate, loc)
 		if err != nil {
 			return nil, errors.New("formato de fecha inválido, use YYYY-MM-DD o YYYY-MM-DDTHH:MM")
 		}
 	}
 
-	// Validar que la fecha no sea del pasado
-	hoy := time.Now().Truncate(24 * time.Hour)
+	// Validar que la fecha no sea del pasado (en zona horaria de Colombia)
+	hoy := time.Now().In(loc).Truncate(24 * time.Hour)
 	if fecha.Before(hoy) {
 		return nil, errors.New("no se permiten seguimientos con fecha anterior a hoy")
 	}
 
 	// Extraer la hora como string para el campo scheduled_time
-	hora := fecha.Format("15:04")
+	// Solo guardar hora si el usuario la envió (formato con T indica que tiene hora)
+	hora := ""
+	if len(scheduledDate) > 10 {
+		hora = fecha.Format("15:04")
+	}
 
 	// Calcular sequence_number: contar los existentes + 1
 	count, err := s.repo.CountFollowUpsByCaseID(ctx, caseICode)
@@ -103,26 +116,145 @@ func (s *caseDetailService) CreateFollowUp(ctx context.Context, caseICode, agent
 		return nil, err
 	}
 
-	// Registrar evento en el timeline
+	// Obtener nombre del agente asignado para el timeline
+	var agentName string
+	s.db.Raw(`SELECT gup.general_user_profile_names || ' ' || gup.general_user_profile_last_names
+		FROM security.general_user gu
+		JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+		WHERE gu.general_user_i_code = ?`, agentID).Scan(&agentName)
+	if agentName == "" {
+		agentName = agentID
+	}
+
+	// Registrar evento en el timeline con información completa
+	descripcion := "Seguimiento #" + fmt.Sprintf("%d", nextSeq) + " creado — Asignado a: " + agentName + " — Fecha: " + fecha.Format("2006-01-02")
+	if hora != "" {
+		descripcion += " " + hora
+	}
+	actorTimeline := createdBy
+	if actorTimeline == "" {
+		actorTimeline = agentName
+	}
+	now := time.Now()
 	s.repo.CreateTimelineEvent(ctx, &models.CaseTimelineEvent{
 		CaseID:      caseICode,
 		EventType:   models.TimelineEventSeguimiento,
-		Description: "Seguimiento #" + fmt.Sprintf("%d", nextSeq) + " creado",
+		Category:    models.TimelineCategorySeguimientos,
+		Type:        models.TimelineTypeSeguimientoProgramado,
+		Icon:        models.TimelineIconSeguimiento,
+		Color:       models.TimelineColorGreen,
+		Date:        now,
+		Description: descripcion,
+		ActorName:   actorTimeline,
+		EventUserID: agentID,
+		FollowUpID:  followUp.ID,
+		CreatedAt:   now,
 	})
 
 	return followUp, nil
 }
 
 func (s *caseDetailService) AddTimelineEvent(ctx context.Context, caseICode, eventType, description, actorID, actorName string) error {
+	// Mapear event_type legacy a los campos nuevos (Category, Type, Icon, Color)
+	category := models.TimelineCategoryGeneral
+	tlType := eventType
+	icon := models.TimelineIconNota
+	color := models.TimelineColorGray
+
+	switch eventType {
+	case models.TimelineEventReasignacion:
+		category = models.TimelineCategoryGeneral
+		tlType = models.TimelineTypeReasignacionCaso
+		icon = models.TimelineIconReasignacion
+		color = models.TimelineColorBlue
+	case models.TimelineEventReasignSeg:
+		category = models.TimelineCategorySeguimientos
+		tlType = models.TimelineTypeReasignacionSeg
+		icon = models.TimelineIconReasignacion
+		color = models.TimelineColorOrange
+	case models.TimelineEventEstadoCambio:
+		category = models.TimelineCategoryGeneral
+		tlType = models.TimelineTypeCambioEstado
+		icon = models.TimelineIconEstado
+		color = models.TimelineColorOrange
+	case models.TimelineEventSeguimiento:
+		category = models.TimelineCategorySeguimientos
+		tlType = models.TimelineTypeSeguimientoProgramado
+		icon = models.TimelineIconSeguimiento
+		color = models.TimelineColorGreen
+	case models.TimelineEventBarrera:
+		category = models.TimelineCategoryBarreras
+		tlType = models.TimelineTypeBarreraIdentificada
+		icon = models.TimelineIconBarrera
+		color = models.TimelineColorOrange
+	case models.TimelineEventNota:
+		category = models.TimelineCategoryGeneral
+		tlType = models.TimelineTypeNota
+		icon = models.TimelineIconNota
+		color = models.TimelineColorGray
+	}
+
+	now := time.Now()
 	return s.repo.CreateTimelineEvent(ctx, &models.CaseTimelineEvent{
 		CaseID:      caseICode,
 		EventType:   eventType,
+		Category:    category,
+		Type:        tlType,
+		Icon:        icon,
+		Color:       color,
+		Date:        now,
 		Description: description,
 		ActorID:     actorID,
 		ActorName:   actorName,
+		EventUserID: actorID,
+		CreatedAt:   now,
 	})
 }
 
 func (s *caseDetailService) ReassignFollowUp(ctx context.Context, followUpID, newAgentID string) error {
 	return s.repo.UpdateFollowUpAgent(ctx, followUpID, newAgentID)
+}
+
+func (s *caseDetailService) ReasignarCaso(ctx context.Context, caseICode, newOperadorICode string) error {
+	return internaldb.WithRetry(func() error {
+		return s.reasignarCasoInternal(ctx, caseICode, newOperadorICode)
+	})
+}
+
+func (s *caseDetailService) reasignarCasoInternal(ctx context.Context, caseICode, newOperadorICode string) error {
+	db := s.db
+
+	// 1. Obtener el victim_case_id
+	var victimCaseID int64
+	if err := db.Raw("SELECT victim_case_id FROM salvia.victim_case WHERE victim_case_i_code = ?", caseICode).Scan(&victimCaseID).Error; err != nil {
+		return errors.New("caso no encontrado")
+	}
+	if victimCaseID == 0 {
+		return errors.New("caso no encontrado")
+	}
+
+	// 2. Obtener el case_owner_id del nuevo operador
+	var caseOwnerID int64
+	if err := db.Raw("SELECT case_owner_id FROM salvia.case_owner WHERE case_owner_general_user = ?", newOperadorICode).Scan(&caseOwnerID).Error; err != nil || caseOwnerID == 0 {
+		return errors.New("el operador no tiene registro de case_owner")
+	}
+
+	// 3. Insertar nueva relación en rel_case_owner_victim_case
+	if err := db.Exec(`INSERT INTO salvia.rel_case_owner_victim_case (case_owner_id, victim_case_id, rel_case_owner_victim_case_status, rel_case_owner_victim_case_creation_date) VALUES (?, ?, 'a', NOW())`, caseOwnerID, victimCaseID).Error; err != nil {
+		return errors.New("error al crear relación de asignación: " + err.Error())
+	}
+
+	// 4. Obtener nombre del operador para actualizar la descripción
+	var fullName string
+	db.Raw(`SELECT gup.general_user_profile_names || ' ' || gup.general_user_profile_last_names FROM security.general_user gu JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile WHERE gu.general_user_i_code = ?`, newOperadorICode).Scan(&fullName)
+
+	// 5. Actualizar victim_case_owner_description (append al historial)
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	newEntry := "(" + timestamp + ") " + fullName + " [Operador]"
+	db.Exec(`UPDATE salvia.victim_case SET victim_case_owner_description = COALESCE(victim_case_owner_description, '') || ' , ' || ? WHERE victim_case_i_code = ?`, newEntry, caseICode)
+
+	// 6. Reasignar seguimientos PENDIENTES al nuevo operador
+	db.Exec(`UPDATE salvia.follow_up_v2 SET agent_id = ? WHERE case_id = ? AND status = 'PENDIENTE'`, newOperadorICode, caseICode)
+
+	return nil
 }

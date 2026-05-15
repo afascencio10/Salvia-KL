@@ -48,10 +48,8 @@ func main() {
         log.Fatalf("Error conectando GORM: %v", err)
     }
 
-    // Asegurar que columnas requeridas existan en la BD (compatibilidad con QA/producción)
-    if err := gormDB.Exec("ALTER TABLE security.general_user ADD COLUMN IF NOT EXISTS general_user_team VARCHAR(64) DEFAULT NULL").Error; err != nil {
-        log.Printf("[WARN] No se pudo crear columna general_user_team (puede que ya exista o falten permisos): %v", err)
-    }
+    // Asegurar que usuarios sin town tengan Bogotá por defecto (evita error 500 en reasignación)
+    gormDB.Exec(`UPDATE security.general_user_profile SET general_user_profile_town = '11001000' WHERE (general_user_profile_town IS NULL OR general_user_profile_town = '') AND general_user_profile_id IN (SELECT general_user_general_user_profile FROM security.general_user WHERE general_user_status = 'e')`)
 
     // AutoMigrate por tabla — warning en lugar de fatal para tablas ya existentes
     for _, m := range []interface{}{
@@ -116,6 +114,7 @@ func main() {
         EconomicStabilizationRepo: esRepo,
         BarrierV2Repo:             barrierV2Repo,
         CaseTimelineEventRepo:     caseTimelineRepo,
+        AgentLightRepo:            agentLightRepo,
     })
     formSectionSvc        := service.NewFormSectionService(formSectionRepo)
     questionSvc           := service.NewQuestionService(questionRepo)

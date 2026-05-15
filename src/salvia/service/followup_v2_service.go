@@ -633,14 +633,21 @@ func (s *followUpV2Service) RegisterContactAttempt(ctx context.Context, followUp
 
 		timelineEvent := &models.CaseTimelineEvent{
 			CaseID:      fu.CaseID,
-			Category:    "Seguimientos",
-			Type:        "Intento de Seguimiento",
-			Icon:        "fa fa-calendar",
+			Category:    models.TimelineCategorySeguimientos,
+			Type:        models.TimelineTypeIntentoSeguimiento,
+			Icon:        models.TimelineIconSeguimiento,
 			Date:        time.Now(),
 			Description: fmt.Sprintf("Llamada realizada sin éxito. Se intentó contactar a %s. Motivo: %s", victimName, reason),
 			EventUserID: agentID,
-			Color:       "#f8a625",
+			Color:       models.TimelineColorYellow,
 			FollowUpID:  fu.ID,
+		}
+
+		// Resolver nombre del agente
+		if s.agentRepo != nil && agentID != "" {
+			if agent, aErr := s.agentRepo.FindByICode(ctx, agentID); aErr == nil && agent != nil {
+				timelineEvent.ActorName = strings.TrimSpace(agent.Names + " " + agent.LastNames)
+			}
 		}
 
 		if err := s.repo.CreateTimelineEvent(ctx, timelineEvent); err != nil {
@@ -712,15 +719,25 @@ func (s *followUpV2Service) RescheduleFollowUp(ctx context.Context, id string, i
 		agentID = *fu.AgentID
 	}
 
+	// Resolver nombre del agente que reprogramó
+	actorName := ""
+	if s.agentRepo != nil && agentID != "" {
+		agent, err := s.agentRepo.FindByICode(ctx, agentID)
+		if err == nil && agent != nil {
+			actorName = strings.TrimSpace(agent.Names + " " + agent.LastNames)
+		}
+	}
+
 	timelineEvent := &models.CaseTimelineEvent{
 		CaseID:      fu.CaseID,
-		Category:    "Seguimientos",
-		Type:        "Seguimiento Pospuesto",
-		Icon:        "fa fa-calendar",
+		Category:    models.TimelineCategorySeguimientos,
+		Type:        models.TimelineTypeSeguimientoPospuesto,
+		Icon:        models.TimelineIconPospuesto,
 		Date:        time.Now(),
-		Description: fmt.Sprintf("Se reprogamo el seguimiento para el %s", input.NuevaFecha),
+		Description: fmt.Sprintf("Se reprogramó el seguimiento para el %s", input.NuevaFecha),
 		EventUserID: agentID,
-		Color:       "#f8a625",
+		ActorName:   actorName,
+		Color:       models.TimelineColorYellow,
 		FollowUpID:  fu.ID,
 	}
 
@@ -763,14 +780,21 @@ func (s *followUpV2Service) CloseCaseFollowUps(ctx context.Context, followUpID s
 	// 5. Crear evento de cierre en el timeline
 	timelineEvent := &models.CaseTimelineEvent{
 		CaseID:      fu.CaseID,
-		Category:    "Seguimientos",
-		Type:        "Cierre de Caso",
-		Icon:        "fa fa-calendar-xmark",
+		Category:    models.TimelineCategoryGeneral,
+		Type:        models.TimelineTypeCierreCaso,
+		Icon:        models.TimelineIconCierre,
 		Date:        time.Now(),
 		Description: fmt.Sprintf("Se procede con cierre de caso de %s. Motivo: %s", victimName, motivo),
 		EventUserID: agentID,
-		Color:       "#d62d20",
+		Color:       models.TimelineColorRed,
 		FollowUpID:  fu.ID,
+	}
+
+	// Resolver nombre del agente
+	if s.agentRepo != nil && agentID != "" {
+		if agent, aErr := s.agentRepo.FindByICode(ctx, agentID); aErr == nil && agent != nil {
+			timelineEvent.ActorName = strings.TrimSpace(agent.Names + " " + agent.LastNames)
+		}
 	}
 
 	if err := s.repo.CreateTimelineEvent(ctx, timelineEvent); err != nil {
@@ -802,12 +826,15 @@ func (s *followUpV2Service) registrarEventosCreacion(
 	caseEvent := &models.CaseTimelineEvent{
 		CaseID:      caseID,
 		EventType:   models.TimelineEventRegistro,
-		Category:    "Seguimientos",
-		Type:        "Creación de Caso",
+		Category:    models.TimelineCategoryGeneral,
+		Type:        models.TimelineTypeCreacionCaso,
+		Icon:        models.TimelineIconRegistro,
+		Color:       models.TimelineColorPurple,
 		Description: fmt.Sprintf("Caso registrado con %d seguimientos programados (riesgo %s)", len(followUps), riskLevelStr),
 		ActorID:     actorID,
 		EventUserID: actorID,
 		Date:        now,
+		CreatedAt:   now,
 	}
 	if err := s.timelineRepo.Create(ctx, caseEvent); err != nil {
 		log.Printf("[WARN] timeline: evento caso %s: %v", caseID, err)
@@ -821,12 +848,15 @@ func (s *followUpV2Service) registrarEventosCreacion(
 			CaseID:      caseID,
 			FollowUpID:  fu.ID,
 			EventType:   models.TimelineEventSeguimiento,
-			Category:    "Seguimientos",
-			Type:        "Seguimiento Programado",
+			Category:    models.TimelineCategorySeguimientos,
+			Type:        models.TimelineTypeSeguimientoProgramado,
+			Icon:        models.TimelineIconSeguimiento,
+			Color:       models.TimelineColorGreen,
 			Description: fmt.Sprintf("Seguimiento #%d programado para el %s", seq, fecha),
 			ActorID:     actorID,
 			EventUserID: actorID,
 			Date:        now,
+			CreatedAt:   now,
 		}
 		if err := s.timelineRepo.Create(ctx, fuEvent); err != nil {
 			log.Printf("[WARN] timeline: evento seguimiento #%d (caso %s): %v", seq, caseID, err)
