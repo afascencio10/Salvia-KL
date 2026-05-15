@@ -348,40 +348,7 @@
 
         <!-- ══ TAB: TIMELINE ══ -->
         <template v-if="tabActiva === 'timeline'">
-          <!-- Filtros por categoria -->
-          <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-            <button v-for="cat in tlCategorias" :key="cat.value"
-              :class="['cd-tab-btn', tlFiltro === cat.value ? 'active' : '']"
-              style="padding:6px 14px!important;font-size:.75rem!important"
-              @click="tlFiltro = cat.value; tlPagina = 0">
-              ${ cat.label } (${ tlEventosFiltrados(cat.value).length })
-            </button>
-          </div>
-
-          <div v-if="tlEventosPaginados.length === 0" class="cd-empty">
-            <div class="cd-empty-icon">📋</div>
-            <p>No hay eventos en el timeline</p>
-          </div>
-          <div class="cd-timeline">
-            <div v-for="ev in tlEventosPaginados" :key="ev.id" class="cd-tl-item">
-              <div :class="['cd-tl-dot', tlColor(ev.type || ev.event_type)]">${ tlIcon(ev.type || ev.event_type) }</div>
-              <div class="cd-tl-card">
-                <div class="cd-tl-header">
-                  <span class="cd-tl-badge">${ tlLabel(ev.type || ev.event_type) }</span>
-                  <span class="cd-tl-date">${ formatFechaHora(ev.date || ev.created_at) }</span>
-                </div>
-                <div class="cd-tl-desc">${ ev.description }</div>
-                <div v-if="ev.actor_name" class="cd-tl-agent">👤 ${ ev.actor_name }</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Paginado -->
-          <div v-if="tlTotalPaginas > 1" style="display:flex;justify-content:center;gap:6px;margin-top:16px">
-            <button class="btn-reasignar-seg" :disabled="tlPagina === 0" @click="tlPagina--">← Anterior</button>
-            <span style="font-size:.8rem;color:#6b7280;align-self:center">Pagina ${ tlPagina + 1 } de ${ tlTotalPaginas }</span>
-            <button class="btn-reasignar-seg" :disabled="tlPagina >= tlTotalPaginas - 1" @click="tlPagina++">Siguiente →</button>
-          </div>
+          <case-timeline :case-id="caseICode"></case-timeline>
         </template>
 
       </div>
@@ -567,22 +534,11 @@ var home = Vue.createApp({
       townName: '',
       deptName: '',
       denunciasAnteriores: 0,
-      timelineEvents: [],
       emergencyMeasures: [],
       psychosocialSupports: [],
       economicStabilizations: [],
       barriers: [],
-      tlFiltro: 'TODOS',
-      tlPagina: 0,
-      tlPorPagina: 5,
-      tlCategorias: [
-        { value: 'TODOS', label: 'Todos' },
-        { value: 'General', label: 'General' },
-        { value: 'Seguimientos', label: 'Seguimientos' },
-        { value: 'Barreras', label: 'Barreras' },
-        { value: 'Medidas', label: 'Medidas' },
-        { value: 'Oficios', label: 'Oficios' },
-      ],
+      caseICode: CASE_ICODE,
       userRole: "{{.userRole}}",
       userTeam: "{{.userTeam}}",
       userICode: "{{.userICode}}",
@@ -630,15 +586,6 @@ var home = Vue.createApp({
   },
 
   computed: {
-    tlEventosPaginados() {
-      var filtrados = this.tlEventosFiltrados(this.tlFiltro);
-      var inicio = this.tlPagina * this.tlPorPagina;
-      return filtrados.slice(inicio, inicio + this.tlPorPagina);
-    },
-    tlTotalPaginas() {
-      var filtrados = this.tlEventosFiltrados(this.tlFiltro);
-      return Math.ceil(filtrados.length / this.tlPorPagina) || 1;
-    },
     nuevoSegValido() {
       if (!this.nuevoSeg.fecha || !this.nuevoSeg.agente) return false;
       if (this.nuevoSeg.fecha < this.fechaHoy) return false;
@@ -778,7 +725,6 @@ var home = Vue.createApp({
           self.townName = data.townName || '';
           self.deptName = data.deptName || '';
           self.denunciasAnteriores = data.denunciasAnteriores || 0;
-          self.timelineEvents = data.timelineEvents || [];
           self.emergencyMeasures = data.emergencyMeasures || [];
           self.psychosocialSupports = data.psychosocialSupports || [];
           self.economicStabilizations = data.economicStabilizations || [];
@@ -879,102 +825,6 @@ var home = Vue.createApp({
         'pf':'Amigo de la pareja','fm':'Familiar','bs':'Jefe','bf':'Novio',
         'fd':'Familiar diferente a la pareja','ot':'Otro','na':'Ninguno','tp':'Pareja temporal'};
       return m[code] || code || '—';
-    },
-    tlColor(type) {
-      // Si el evento tiene color propio (esquema nuevo), usarlo
-      // Fallback por type/event_type para eventos legacy
-      var m = {
-        'Creación de Caso':'cd-tl-purple',
-        'Seguimiento Programado':'cd-tl-green',
-        'Seguimiento Ejecutado':'cd-tl-green',
-        'Seguimiento Editado':'cd-tl-green',
-        'Seguimiento Pospuesto':'cd-tl-orange',
-        'Intento de Seguimiento':'cd-tl-gray',
-        'Reasignación de Caso':'cd-tl-blue',
-        'Reasignación de Seguimiento':'cd-tl-orange',
-        'Cambio de Estado':'cd-tl-orange',
-        'Barrera Identificada':'cd-tl-orange',
-        'Cierre de Caso':'cd-tl-gray',
-        'Nota':'cd-tl-gray',
-        // Legacy
-        'REGISTRO':'cd-tl-purple',
-        'SEGUIMIENTO_CREADO':'cd-tl-green',
-        'REASIGNACION':'cd-tl-blue',
-        'REASIGNACION_SEGUIMIENTO':'cd-tl-orange',
-        'CAMBIO_ESTADO':'cd-tl-orange',
-        'BARRERA_IDENTIFICADA':'cd-tl-orange',
-        'NOTA':'cd-tl-gray'
-      };
-      return m[type] || 'cd-tl-gray';
-    },
-    tlIcon(type) {
-      var m = {
-        'Creación de Caso':'📋',
-        'Seguimiento Programado':'📅',
-        'Seguimiento Ejecutado':'✅',
-        'Seguimiento Editado':'✏️',
-        'Seguimiento Pospuesto':'🔄',
-        'Intento de Seguimiento':'📞',
-        'Reasignación de Caso':'🔀',
-        'Reasignación de Seguimiento':'📋',
-        'Cambio de Estado':'🔀',
-        'Barrera Identificada':'⚠️',
-        'Cierre de Caso':'🔒',
-        'Nota':'📝',
-        // Legacy
-        'REGISTRO':'📋',
-        'SEGUIMIENTO_CREADO':'📅',
-        'REASIGNACION':'🔀',
-        'REASIGNACION_SEGUIMIENTO':'📋',
-        'CAMBIO_ESTADO':'🔀',
-        'BARRERA_IDENTIFICADA':'⚠️',
-        'NOTA':'📝'
-      };
-      return m[type] || '•';
-    },
-    tlLabel(type) {
-      var m = {
-        'Creación de Caso':'Creación de Caso',
-        'Seguimiento Programado':'Seguimiento Programado',
-        'Seguimiento Ejecutado':'Seguimiento Ejecutado',
-        'Seguimiento Editado':'Seguimiento Editado',
-        'Seguimiento Pospuesto':'Seguimiento Pospuesto',
-        'Intento de Seguimiento':'Intento de Seguimiento',
-        'Reasignación de Caso':'Reasignación de Caso',
-        'Reasignación de Seguimiento':'Reasignación de Seguimiento',
-        'Cambio de Estado':'Cambio de Estado',
-        'Barrera Identificada':'Barrera Identificada',
-        'Cierre de Caso':'Cierre de Caso',
-        'Nota':'Nota',
-        // Legacy
-        'REGISTRO':'Registro del caso',
-        'SEGUIMIENTO_CREADO':'Seguimiento creado',
-        'REASIGNACION':'Reasignación caso',
-        'REASIGNACION_SEGUIMIENTO':'Reasignación seguimiento',
-        'CAMBIO_ESTADO':'Cambio de estado',
-        'BARRERA_IDENTIFICADA':'Barrera identificada',
-        'NOTA':'Nota'
-      };
-      return m[type] || type;
-    },
-    tlEventosFiltrados(filtro) {
-      if (filtro === 'TODOS') return this.timelineEvents;
-      // Filtrar por category (esquema nuevo) o mapear event_type legacy a category
-      return this.timelineEvents.filter(function(ev) {
-        // Si tiene category (esquema nuevo), filtrar por ella
-        if (ev.category) return ev.category === filtro;
-        // Fallback: mapear event_type legacy a category
-        var legacyMap = {
-          'REGISTRO': 'General',
-          'SEGUIMIENTO_CREADO': 'Seguimientos',
-          'REASIGNACION': 'General',
-          'REASIGNACION_SEGUIMIENTO': 'Seguimientos',
-          'CAMBIO_ESTADO': 'General',
-          'BARRERA_IDENTIFICADA': 'Barreras',
-          'NOTA': 'General'
-        };
-        return (legacyMap[ev.event_type] || 'General') === filtro;
-      });
     },
     badgeEstado(s) {
       var m = { 'ra':'badge-estado badge-activo', 'is':'badge-estado badge-seguimiento', 'cd':'badge-estado badge-cerrado', 'ex':'badge-estado badge-vencido' };
@@ -1149,5 +999,9 @@ var home = Vue.createApp({
   }
 });
 
+var app = home;
+</script>
+<script src="/static/js/components/case-timeline.js"></script>
+<script>
 home.mount('#app');
 </script>
