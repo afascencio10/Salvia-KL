@@ -139,6 +139,7 @@ SELECT
     el.correo_remitente,
     el.asunto_respuesta,
     el.response_review_by,
+    el.reason_correction,
     el.created_at,
     el.updated_at,
     COALESCE(b.sector, '')                         AS barrier_sector,

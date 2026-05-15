@@ -48,6 +48,31 @@
                 </span>
             </div>
 
+            <!-- Razón de corrección -->
+            <div class="nf-modal-form-group" style="margin-top:16px;">
+                <label class="nf-modal-label">
+                    Razón de corrección
+                    <span v-if="modalForm.reasonCorrection === '' || modalForm.reasonCorrection === null"
+                          style="color:#6c757d;font-weight:400;font-size:0.85em;margin-left:4px;">
+                        (requerido si marca "Por corregir")
+                    </span>
+                    <span v-else style="color:#198754;font-weight:400;font-size:0.85em;margin-left:4px;">
+                        ✓ seleccionado
+                    </span>
+                </label>
+                <select v-model="modalForm.reasonCorrection" class="form-control nf-filter-input">
+                    <option value="">— Seleccione una razón —</option>
+                    <option value="Error ortográfico o gramatical">Error ortográfico o gramatical</option>
+                    <option value="Datos del destinatario incorrectos">Datos del destinatario incorrectos</option>
+                    <option value="Información incompleta">Información incompleta</option>
+                    <option value="Formato o estructura incorrectos">Formato o estructura incorrectos</option>
+                    <option value="Contenido jurídico incorrecto">Contenido jurídico incorrecto</option>
+                    <option value="Cambio de entidad destinataria">Cambio de entidad destinataria</option>
+                    <option value="Firmas o sellos faltantes">Firmas o sellos faltantes</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
+
             <div v-if="saveError" class="nf-error-state" style="margin-top:12px;">
                 <i class="fas fa-exclamation-triangle"></i> ${ saveError }
             </div>

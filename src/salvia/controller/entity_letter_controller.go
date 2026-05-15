@@ -310,6 +310,7 @@ func (c *EntityLetterController) Action(ctx *gin.Context) {
 		AsuntoRadicado   *string `json:"asuntoRadicado"`
 		CorreoEntidad    *string `json:"correoEntidad"`
 		NumeroRadicado   *string `json:"numeroRadicado"`
+		ReasonCorrection *string `json:"reasonCorrection"`
 		ResponseDate     *string `json:"responseDate"`
 		CorreoRemitente  *string `json:"correoRemitente"`
 		AsuntoRespuesta  *string `json:"asuntoRespuesta"`
@@ -329,6 +330,7 @@ func (c *EntityLetterController) Action(ctx *gin.Context) {
 		AsuntoRadicado:   body.AsuntoRadicado,
 		CorreoEntidad:    body.CorreoEntidad,
 		NumeroRadicado:   body.NumeroRadicado,
+		ReasonCorrection: body.ReasonCorrection,
 		ResponseDate:     body.ResponseDate,
 		CorreoRemitente:  body.CorreoRemitente,
 		AsuntoRespuesta:  body.AsuntoRespuesta,

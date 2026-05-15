@@ -64,6 +64,9 @@ type ActionInput struct {
 	CorreoEntidad  *string
 	NumeroRadicado *string
 
+	// Campos del modal "Revisar oficio" — acción por_corregir
+	ReasonCorrection *string
+
 	// Campos del modal "Registrar respuesta"
 	ResponseDate     *string // fecha en formato "YYYY-MM-DD" — se parsea a time.Time
 	CorreoRemitente  *string
@@ -242,6 +245,10 @@ func (s *entityLetterService) PerformAction(ctx context.Context, id string, inpu
 			return nil, fmt.Errorf("%w: acción 'por_corregir' requiere estado '%s', estado actual: '%s'",
 				ErrEntityLetterInvalidState, models.EntityLetterStateParaRevisar, letter.State)
 		}
+		if input.ReasonCorrection == nil || *input.ReasonCorrection == "" {
+			return nil, fmt.Errorf("entity_letter: el campo 'reasonCorrection' es requerido para marcar por corregir")
+		}
+		fields["reason_correction"] = *input.ReasonCorrection
 		fields["state"] = models.EntityLetterStateEnCorreccion
 
 	case "radicar":
