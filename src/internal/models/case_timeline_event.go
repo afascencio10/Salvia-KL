@@ -33,6 +33,14 @@ const (
 	TimelineTypeCambioEstado          = "Cambio de Estado"
 	TimelineTypeBarreraIdentificada   = "Barrera Identificada"
 	TimelineTypeNota                  = "Nota"
+
+	// Oficios (EntityLetter) — un Type por estado destino
+	TimelineTypeOficioParaRevisar        = "Oficio para revisar"
+	TimelineTypeOficioEnCorreccion       = "Oficio en corrección"
+	TimelineTypeOficioAprobacionJuridica = "Oficio en aprobación jurídica"
+	TimelineTypeOficioParaRadicar        = "Oficio para radicar"
+	TimelineTypeOficioRadicado           = "Oficio radicado"
+	TimelineTypeOficioRespondido         = "Oficio respondido"
 )
 
 // ─── Iconos ──────────────────────────────────────────────────────────────────
@@ -45,6 +53,13 @@ const (
 	TimelineIconBarrera      = "triangle-exclamation"
 	TimelineIconNota         = "note-sticky"
 	TimelineIconCierre       = "circle-xmark"
+
+	// Oficios
+	TimelineIconOficioRevisar    = "eye"
+	TimelineIconOficioCorreccion = "triangle-exclamation"
+	TimelineIconOficioJuridica   = "scale-balanced"
+	TimelineIconOficioRadicar    = "paper-plane"
+	TimelineIconOficioRespondido = "envelope-open"
 )
 
 // ─── Colores ─────────────────────────────────────────────────────────────────
@@ -61,13 +76,14 @@ const (
 
 // ─── Constantes legacy (compatibilidad con eventos existentes en BD) ─────────
 const (
-	TimelineEventRegistro     = "REGISTRO"
-	TimelineEventSeguimiento  = "SEGUIMIENTO_CREADO"
-	TimelineEventReasignacion = "REASIGNACION"
-	TimelineEventReasignSeg   = "REASIGNACION_SEGUIMIENTO"
-	TimelineEventEstadoCambio = "CAMBIO_ESTADO"
-	TimelineEventBarrera      = "BARRERA_IDENTIFICADA"
-	TimelineEventNota         = "NOTA"
+	TimelineEventRegistro        = "REGISTRO"
+	TimelineEventSeguimiento     = "SEGUIMIENTO_CREADO"
+	TimelineEventReasignacion    = "REASIGNACION"
+	TimelineEventReasignSeg      = "REASIGNACION_SEGUIMIENTO"
+	TimelineEventEstadoCambio    = "CAMBIO_ESTADO"
+	TimelineEventBarrera         = "BARRERA_IDENTIFICADA"
+	TimelineEventNota            = "NOTA"
+	TimelineEventOficioActualizado = "OFICIO_ACTUALIZADO"
 )
 
 // CaseTimelineEvent registra un evento en la vida de un caso.

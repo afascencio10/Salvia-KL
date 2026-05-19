@@ -145,7 +145,7 @@ func main() {
     caseDetailCtrl         := salvia_ctrl.NewCaseDetailController(caseDetailSvc, caseTimelineRepo)
     reportCtrl             := salvia_ctrl.NewReportController(reportSvc)
     entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
-    entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo)
+    entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo)
     entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
 
     // Routes
