@@ -1,0 +1,178 @@
+{{/* Template: barrera_detalle.html — Pantalla de Detalle de Barrera */}}
+<link rel="stylesheet" href="/static/css/barrera_detalle.css">
+
+<div class="container brd-container">
+
+    <!-- ─── Breadcrumb ─── -->
+    <div class="brd-breadcrumb">
+        <a href="javascript:history.back()" class="brd-back-link">
+            <i class="fas fa-arrow-left"></i>
+            ${ barrera.victimName }
+        </a>
+        <span class="brd-breadcrumb-sep">/</span>
+    </div>
+
+    <!-- ─── Header: Info de la víctima ─── -->
+    <div class="brd-header-card">
+        <div class="brd-victim-avatar">${ barrera.victimName.charAt(0).toUpperCase() }</div>
+        <div class="brd-victim-info">
+            <div class="brd-victim-name-row">
+                <span class="brd-victim-name">${ barrera.victimName }</span>
+                <span class="brd-prioridad-tag" :class="'brd-prioridad-' + slugify(barrera.priority)">
+                    ${ barrera.priority }
+                </span>
+            </div>
+            <div class="brd-victim-meta">${ barrera.age } años · ${ barrera.location }</div>
+        </div>
+    </div>
+
+    <!-- ─── Tabs ─── -->
+    <div class="brd-tabs-wrapper">
+        <button class="brd-tab" :class="{ active: activeTab === 'info' }" @click="activeTab = 'info'">
+            ⚠️ Información General
+        </button>
+        <button class="brd-tab" :class="{ active: activeTab === 'timeline' }" @click="activeTab = 'timeline'">
+            📋 Timeline
+        </button>
+    </div>
+
+    <!-- ─── Tab: Información General ─── -->
+    <div v-if="activeTab === 'info'" class="brd-tab-content-card">
+
+        <!-- Sección: Información general -->
+        <div class="brd-section-header">Información general</div>
+        <div class="brd-divider"></div>
+
+        <!-- Sub-sección: toggle de estado activo -->
+        <div class="brd-info-subsection">
+            <label class="brd-toggle-label">
+                <div class="brd-toggle-switch" :class="{ on: barrera.active }" @click="barrera.active = !barrera.active">
+                    <div class="brd-toggle-thumb"></div>
+                </div>
+                <span class="brd-toggle-text">${ barrera.active ? 'Activa' : 'Inactiva' }</span>
+            </label>
+        </div>
+        <div class="brd-divider"></div>
+
+        <!-- Sub-sección: fecha de identificación y estado -->
+        <div class="brd-info-row">
+            <span class="brd-info-label">
+                <span class="brd-info-icon">📅</span>
+                Identificada el
+                <span class="brd-info-date" v-if="barrera.identifiedAt">${ barrera.identifiedAt }</span>
+            </span>
+            <span class="brd-status-tag" :class="'brd-status-' + slugify(barrera.status)">
+                ${ barrera.status }
+            </span>
+        </div>
+        <div class="brd-divider"></div>
+
+        <!-- Sub-sección: detalle de la barrera -->
+        <div class="brd-barrier-detail-row">
+            <div class="brd-detail-field">
+                <span class="brd-detail-label">Sector</span>
+                <span class="brd-sector-tag" :class="'brd-sector-' + slugify(barrera.sector)">${ barrera.sector }</span>
+            </div>
+            <div class="brd-detail-field">
+                <span class="brd-detail-label">Entidad</span>
+                <span class="brd-detail-value">${ barrera.org }</span>
+            </div>
+            <div class="brd-detail-field brd-detail-full">
+                <span class="brd-detail-label">Descripción de la barrera</span>
+                <span class="brd-detail-value">${ barrera.description }</span>
+            </div>
+        </div>
+        <div class="brd-divider"></div>
+
+        <!-- Sección: Tareas pendientes -->
+        <div class="brd-tasks-block">
+            <div class="brd-tasks-title">Tareas pendientes</div>
+            <template v-if="barrera.pendingTasks && barrera.pendingTasks.length > 0">
+                <div v-for="task in barrera.pendingTasks" :key="task.id" class="brd-task-item">
+                    <i class="fas fa-circle brd-task-dot pending"></i>
+                    <span>${ task.label }</span>
+                </div>
+            </template>
+            <p v-else class="brd-tasks-empty">No hay tareas pendientes</p>
+        </div>
+
+        <!-- Sección: Tareas completadas -->
+        <div class="brd-tasks-block">
+            <div class="brd-tasks-title">Tareas completadas</div>
+            <template v-if="barrera.completedTasks && barrera.completedTasks.length > 0">
+                <div v-for="task in barrera.completedTasks" :key="task.id" class="brd-task-item">
+                    <i class="fas fa-check-circle brd-task-dot completed"></i>
+                    <span>${ task.label }</span>
+                </div>
+            </template>
+            <p v-else class="brd-tasks-empty">No hay tareas completadas aún</p>
+        </div>
+
+    </div>
+
+    <!-- ─── Tab: Timeline ─── -->
+    <div v-if="activeTab === 'timeline'" class="brd-tab-content-card">
+        <div class="brd-empty-timeline">
+            <i class="fas fa-history"></i>
+            <p>No hay eventos registrados en el timeline de esta barrera.</p>
+        </div>
+    </div>
+
+</div>
+
+{{ template "standard_scripts.html" .}}
+{{ template "overlay.html" .}}
+
+<script>
+    var home = Vue.createApp({
+        delimiters: ['${', '}'],
+        data() {
+            return {
+                currentUser:   {{.currentUser}},
+                currentRole:   {{.currentRole}},
+                currentUserId: {{.currentUserId}},
+                barrierICode:  {{.barrierICode}},
+
+                activeTab: 'info',
+
+                /* ── Datos de muestra (mock) ─────────────────────────────────── */
+                barrera: {
+                    id:           {{.barrierICode}},
+                    victimName:   'María González',
+                    age:          32,
+                    location:     'San Salvador, San Salvador',
+                    priority:     'Alto',
+                    sector:       'Justicia',
+                    org:          'Policía Nacional',
+                    description:  'Negación de recibir denuncia formal',
+                    status:       'Por articular',
+                    identifiedAt: '15 may. 2026',
+                    active:       true,
+                    pendingTasks:   [],
+                    completedTasks: []
+                }
+            };
+        },
+
+        mounted() {
+            document.getElementById('app').style.display = 'block';
+        },
+
+        methods: {
+            slugify(str) {
+                if (!str) return '';
+                return str.toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/\s+/g, '-')
+                    .replace(/[^a-z0-9-]/g, '');
+            },
+
+            logout() {
+                logout('/seguridad/logout');
+            }
+        }
+    });
+
+    home.mount('#app');
+</script>

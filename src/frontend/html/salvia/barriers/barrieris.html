@@ -1,0 +1,388 @@
+{{/* Template: barrieris.html — Pantalla de Mis Barreras */}}
+<link rel="stylesheet" href="/static/css/barriers.css">
+
+<div class="container mb-container">
+
+    <!-- ─── Encabezado ─── -->
+    <div class="mb-header">
+        <h2><b>Mis Barreras</b></h2>
+        <p class="mb-header-subtitle">Barreras asignadas al enlace territorial</p>
+    </div>
+
+    <!-- ─── Tabs ─── -->
+    <div class="mb-tabs-wrapper">
+        <button class="mb-tab" :class="{ active: currentTab === 'por_articular' }" @click="switchTab('por_articular')">
+            Por Articular
+            <span class="mb-tab-badge">${ porArticularCount }</span>
+        </button>
+        <button class="mb-tab" :class="{ active: currentTab === 'articuladas' }" @click="switchTab('articuladas')">
+            Articuladas
+            <span class="mb-tab-badge">${ articuladasCount }</span>
+        </button>
+    </div>
+
+    <!-- ─── Filtros ─── -->
+    <div class="mb-filters">
+        <div class="mb-filter-group">
+            <label>Número de identidad</label>
+            <input v-model="filters.identidad" type="text" class="mb-filter-input form-control" placeholder="Ej: 52.123.456">
+        </div>
+        <div class="mb-filter-group">
+            <label>Entidad</label>
+            <input v-model="filters.entidad" type="text" class="mb-filter-input form-control" placeholder="Ej: Fiscalía">
+        </div>
+    </div>
+
+    <!-- ─── Tabla de barreras ─── -->
+    <div class="mb-table-wrapper">
+
+        <div class="mb-table-header" :class="currentTab === 'articuladas' ? 'mb-grid-3' : 'mb-grid-4'">
+            <div>Caso</div>
+            <div>Barrera</div>
+            <div>Gestión Realizada</div>
+            <div v-if="currentTab !== 'articuladas'">Acción</div>
+        </div>
+
+        <template v-if="paginatedBarreras.length > 0">
+            <div
+                v-for="barrera in paginatedBarreras"
+                :key="barrera.id"
+                class="mb-row"
+                :class="currentTab === 'articuladas' ? 'mb-grid-3' : 'mb-grid-4'">
+
+                <!-- CASO -->
+                <div>
+                    <div class="mb-caso-name">${ barrera.victimName }</div>
+                    <div class="mb-caso-code">${ barrera.caseCode } · ${ barrera.docNumber }</div>
+                    <span class="mb-prioridad-tag" :class="'mb-prioridad-' + slugify(barrera.priority)">${ barrera.priority }</span>
+                    <br>
+                    <a :href="'/salvia/casos/' + barrera.caseId + '/detalle'" class="mb-link">Ver caso →</a>
+                </div>
+
+                <!-- BARRERA -->
+                <div>
+                    <div class="mb-sectors-row">
+                        <span class="mb-sector-tag" :class="'mb-sector-' + slugify(barrera.sector)">${ barrera.sector }</span>
+                        <span v-if="barrera.orgTag" class="mb-org-tag">${ barrera.orgTag }</span>
+                    </div>
+                    <div class="mb-barrera-desc">${ barrera.description }</div>
+                    <a :href="'/salvia/barreras/' + barrera.id" class="mb-link">Ver barrera →</a>
+                </div>
+
+                <!-- GESTIÓN REALIZADA -->
+                <div>
+                    <p v-if="barrera.gestion" class="mb-gestion-text">${ barrera.gestion }</p>
+                </div>
+
+                <!-- ACCIÓN (sólo en tab Por Articular) -->
+                <div v-if="currentTab !== 'articuladas'" class="mb-accion-cell">
+                    <button
+                        v-if="barrera.canManage"
+                        @click="openGestionar(barrera)"
+                        class="btn mb-btn-gestionar">
+                        Gestionar
+                    </button>
+                </div>
+
+            </div>
+        </template>
+
+        <div v-else class="mb-empty-state">
+            <i class="fas fa-inbox"></i>
+            No se encontraron barreras con los filtros seleccionados.
+        </div>
+
+    </div>
+
+    <!-- ─── Paginador ─── -->
+    <nav v-if="numPages > 1" aria-label="Paginación" class="mb-pagination-wrapper">
+        <ul class="pagination justify-content-center mt-3">
+            <li class="page-item" :class="{ disabled: currentPage === 0 }">
+                <a class="page-link" href="#" @click.prevent="goToPage(currentPage - 1)">Anterior</a>
+            </li>
+            <template v-for="(p, i) in visiblePages" :key="i">
+                <li v-if="p === '...'" class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+                <li v-else class="page-item" :class="{ active: p === currentPage }">
+                    <a class="page-link" href="#" @click.prevent="goToPage(p)">${ p + 1 }</a>
+                </li>
+            </template>
+            <li class="page-item" :class="{ disabled: currentPage === numPages - 1 }">
+                <a class="page-link" href="#" @click.prevent="goToPage(currentPage + 1)">Siguiente</a>
+            </li>
+        </ul>
+    </nav>
+
+</div>
+
+{{ template "barriers/modal_gestionar.html" . }}
+
+{{ template "standard_scripts.html" .}}
+{{ template "overlay.html" .}}
+
+<script>
+    var home = Vue.createApp({
+        delimiters: ['${', '}'],
+        data() {
+            return {
+                currentUser:   {{.currentUser}},
+                currentRole:   {{.currentRole}},
+                currentUserId: {{.currentUserId}},
+
+                currentTab: 'por_articular',
+
+                filters: {
+                    identidad: '',
+                    entidad:   ''
+                },
+
+                itemsPerPage: 5,
+                currentPage:  0,
+
+                /* ── Estado del modal ─────────────────────────────────────────── */
+                showModal:       false,
+                selectedBarrera: null,
+                isSaving:        false,
+                saveError:       null,
+                modalForm: {
+                    gestion: ''
+                },
+
+                /* ── Datos de muestra (mock) ─────────────────────────────────── */
+                barreras: [
+                    {
+                        id: 1,
+                        victimName:  'María García López',
+                        caseCode:    'SAL-001',
+                        docNumber:   '52.123.456',
+                        caseId:      '1',
+                        priority:    'Alto',
+                        sector:      'Justicia',
+                        orgTag:      'Policía Nacional',
+                        description: 'Negación de recibir denuncia formal',
+                        gestion:     null,
+                        articulada:  false,
+                        canManage:   true
+                    },
+                    {
+                        id: 2,
+                        victimName:  'Laura Martínez Ruiz',
+                        caseCode:    'SAL-002',
+                        docNumber:   '43.987.654',
+                        caseId:      '2',
+                        priority:    'Crítico',
+                        sector:      'Justicia',
+                        orgTag:      'Fiscalía General de la Nación',
+                        description: 'Proceso legal demorado sin justificación',
+                        gestion:     null,
+                        articulada:  false,
+                        canManage:   true
+                    },
+                    {
+                        id: 3,
+                        victimName:  'Laura Martínez Ruiz',
+                        caseCode:    'SAL-002',
+                        docNumber:   '43.987.654',
+                        caseId:      '2',
+                        priority:    'Crítico',
+                        sector:      'Justicia',
+                        orgTag:      'Fiscalía General de la Nación',
+                        description: 'Proceso legal demorado sin justificación',
+                        gestion:     null,
+                        articulada:  false,
+                        canManage:   true
+                    },
+                    {
+                        id: 4,
+                        victimName:  'Laura Martínez Ruiz',
+                        caseCode:    'SAL-002',
+                        docNumber:   '43.987.654',
+                        caseId:      '2',
+                        priority:    'Crítico',
+                        sector:      'Justicia',
+                        orgTag:      'Fiscalía General de la Nación',
+                        description: 'Proceso legal demorado sin justificación',
+                        gestion:     null,
+                        articulada:  false,
+                        canManage:   true
+                    },
+                    {
+                        id: 5,
+                        victimName:  'Laura Martínez Ruiz',
+                        caseCode:    'SAL-002',
+                        docNumber:   '43.987.654',
+                        caseId:      '2',
+                        priority:    'Crítico',
+                        sector:      'Justicia',
+                        orgTag:      'Fiscalía General de la Nación',
+                        description: 'Proceso legal demorado sin justificación',
+                        gestion:     null,
+                        articulada:  false,
+                        canManage:   true
+                    },
+                    {
+                        id: 6,
+                        victimName:  'Laura Martínez Ruiz',
+                        caseCode:    'SAL-002',
+                        docNumber:   '43.987.654',
+                        caseId:      '2',
+                        priority:    'Crítico',
+                        sector:      'Justicia',
+                        orgTag:      'Fiscalía General de la Nación',
+                        description: 'Proceso legal demorado sin justificación',
+                        gestion:     null,
+                        articulada:  false,
+                        canManage:   true
+                    },
+                    {
+                        id: 7,
+                        victimName:  'Laura Martínez Ruiz',
+                        caseCode:    'SAL-002',
+                        docNumber:   '43.987.654',
+                        caseId:      '2',
+                        priority:    'Crítico',
+                        sector:      'Justicia',
+                        orgTag:      'Fiscalía General de la Nación',
+                        description: 'Proceso legal demorado sin justificación',
+                        gestion:     null,
+                        articulada:  false,
+                        canManage:   true
+                    },
+                    {
+                        id: 8,
+                        victimName:  'María García López',
+                        caseCode:    'SAL-001',
+                        docNumber:   '52.123.456',
+                        caseId:      '1',
+                        priority:    'Alto',
+                        sector:      'Salud',
+                        orgTag:      'Hospital / Clínica',
+                        description: 'Demora en atención médica urgente',
+                        gestion:     'Se realizó visita presencial al hospital y se habló directamente con la directora médica. Se logró asignar cita prioritaria para la víctima.',
+                        articulada:  true,
+                        canManage:   false
+                    }
+                ]
+            };
+        },
+
+        mounted() {
+            document.getElementById('app').style.display = 'block';
+        },
+
+        computed: {
+            porArticularCount() {
+                return this.barreras.filter(b => !b.articulada).length;
+            },
+
+            articuladasCount() {
+                return this.barreras.filter(b => b.articulada).length;
+            },
+
+            filteredBarreras() {
+                return this.barreras.filter(b => {
+                    const tabOk      = this.currentTab === 'por_articular' ? !b.articulada : b.articulada;
+                    const idOk       = !this.filters.identidad || b.docNumber.includes(this.filters.identidad);
+                    const entidadOk  = !this.filters.entidad ||
+                        b.orgTag.toLowerCase().includes(this.filters.entidad.toLowerCase());
+                    return tabOk && idOk && entidadOk;
+                });
+            },
+
+            numPages() {
+                return Math.max(1, Math.ceil(this.filteredBarreras.length / this.itemsPerPage));
+            },
+
+            paginatedBarreras() {
+                const start = this.currentPage * this.itemsPerPage;
+                return this.filteredBarreras.slice(start, start + this.itemsPerPage);
+            },
+
+            visiblePages() {
+                const max    = this.numPages;
+                const cur    = this.currentPage;
+                const delta  = 2;
+                const range  = [];
+                const result = [];
+                let   last;
+
+                for (let i = 0; i < max; i++) {
+                    if (i === 0 || i === max - 1 || (i >= cur - delta && i <= cur + delta)) {
+                        range.push(i);
+                    }
+                }
+                for (let i of range) {
+                    if (last !== undefined) {
+                        if (i - last === 2) result.push(last + 1);
+                        else if (i - last > 2) result.push('...');
+                    }
+                    result.push(i);
+                    last = i;
+                }
+                return result;
+            }
+        },
+
+        methods: {
+            slugify(str) {
+                if (!str) return '';
+                return str.toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/\s+/g, '-');
+            },
+
+            switchTab(tab) {
+                this.currentTab  = tab;
+                this.currentPage = 0;
+            },
+
+            goToPage(page) {
+                if (page < 0 || page >= this.numPages) return;
+                this.currentPage = page;
+                window.scrollTo(0, 0);
+            },
+
+            openGestionar(barrera) {
+                console.log('[MisBarreras] Gestionar barrera:', barrera);
+                this.selectedBarrera    = barrera;
+                this.modalForm.gestion  = '';
+                this.saveError          = null;
+                this.showModal          = true;
+            },
+
+            closeModal() {
+                this.showModal       = false;
+                this.selectedBarrera = null;
+                this.saveError       = null;
+                this.modalForm.gestion = '';
+            },
+
+            submitGestionar() {
+                if (!this.modalForm.gestion || !this.modalForm.gestion.trim()) {
+                    this.saveError = 'La descripción de la gestión es requerida.';
+                    return;
+                }
+                console.log('[MisBarreras] Guardar gestión:', {
+                    barrera:  this.selectedBarrera,
+                    gestion:  this.modalForm.gestion
+                });
+                /* TODO: llamar al API cuando esté disponible */
+            },
+
+            logout() {
+                logout('/seguridad/logout');
+            }
+        },
+
+        watch: {
+            filters: {
+                deep: true,
+                handler() { this.currentPage = 0; }
+            }
+        }
+    });
+
+    home.mount('#app');
+</script>
