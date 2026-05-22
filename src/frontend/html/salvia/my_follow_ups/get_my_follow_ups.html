@@ -636,6 +636,7 @@
                     @form-completed="onClosureFormCompleted">
                 </dinamic-form>
             </div>
+        </div>
     </div>
 
     <!-- Modal de Éxito al Guardar Formulario -->
@@ -754,7 +755,7 @@
                     const loadingOverlay = document.getElementById('loadingOverlay');
                     if (loadingOverlay) loadingOverlay.style.display = 'flex';
                     try {
-                        const response = await fetch('/api/v1/follow-ups/my-day', { credentials: 'include' });
+                        const response = await fetch(`/api/v1/follow-ups/my-day?t=${Date.now()}`, { credentials: 'include' });
                         if (!response.ok) throw new Error('Error loading follow-ups');
                         const data = await response.json();
 
@@ -1111,17 +1112,23 @@
                 },
 
                 async onClosureFormCompleted() {
-                    const closedCaseId = this.activeClosureFollowUp ? this.activeClosureFollowUp.caseId : null;
+                    console.log('[MisSeguimientos] onClosureFormCompleted - activeClosureFollowUp:', this.activeClosureFollowUp);
+                    const closedCaseId = this.activeClosureFollowUp ? (this.activeClosureFollowUp.caseId || this.activeClosureFollowUp.case_id) : null;
+                    console.log('[MisSeguimientos] closedCaseId to filter:', closedCaseId);
                     this.closeModals();
                     
                     if (closedCaseId) {
                         // Remoción inmediata y reactiva en el frontend para evitar demoras visuales
-                        this.pendingFollowUps = this.pendingFollowUps.filter(f => f.caseId !== closedCaseId);
-                        this.completedFollowUps = this.completedFollowUps.filter(f => f.caseId !== closedCaseId);
+                        this.pendingFollowUps = this.pendingFollowUps.filter(f => (f.caseId || f.case_id) !== closedCaseId);
+                        this.completedFollowUps = this.completedFollowUps.filter(f => (f.caseId || f.case_id) !== closedCaseId);
+                        console.log('[MisSeguimientos] Arrays filtered locally. Pending:', this.pendingFollowUps.length);
                     }
                     
                     this.showSuccessModal = true;
-                    await this.loadFollowUps();
+                    // Retrasar la recarga para dar tiempo a que los cambios se propaguen en la DB y evitar problemas de concurrencia
+                    setTimeout(async () => {
+                        await this.loadFollowUps();
+                    }, 800);
                 },
 
                 // ── UI Helpers ──────────────────────────────────────────────
