@@ -100,20 +100,30 @@ app.component('case-info', {
             activeNav: 'encabezado',
         };
     },
+    mounted() {
+        console.log('[case-info] montado — caseId:', this.caseId, '| visible:', this.visible);
+    },
     watch: {
         visible: function(val) {
+            console.log('[case-info] visible cambió a:', val, '| info ya cargada:', !!this.info, '| caseId:', this.caseId);
             if (val && !this.info) this.cargar();
         }
     },
     methods: {
         async cargar() {
+            console.log('[case-info] cargar() iniciado — caseId:', this.caseId);
             this.loading = true;
             this.error = null;
             try {
-                var res = await fetch('/api/v1/casos/' + this.caseId + '/info-completa');
+                var url = '/api/v1/casos/' + this.caseId + '/info-completa';
+                console.log('[case-info] GET', url);
+                var res = await fetch(url);
+                console.log('[case-info] respuesta status:', res.status);
                 if (!res.ok) throw new Error('Error ' + res.status);
                 this.info = await res.json();
+                console.log('[case-info] info cargada:', this.info);
             } catch (e) {
+                console.error('[case-info] error en cargar():', e);
                 this.error = e.message;
             } finally {
                 this.loading = false;

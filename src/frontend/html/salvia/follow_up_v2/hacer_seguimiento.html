@@ -45,8 +45,28 @@
             </div>
         </div>
 
-        <div v-if="loadError" class="alert alert-danger">${ loadError }</div>
-        <dinamic-form v-else-if="formId && submissionId" :form-id="formId" :submission-id="submissionId" :can-edit="canEdit" @form-completed="onFormCompleted"></dinamic-form>
+        <!-- Tabs -->
+        <div class="hs-tabs mb-3">
+            <button class="hs-tab" :class="{ 'hs-tab--active': activeTab === 'caso' }" @click="activeTab = 'caso'">
+                <i class="fas fa-folder-open"></i> Información del caso
+            </button>
+            <button class="hs-tab" :class="{ 'hs-tab--active': activeTab === 'seguimiento' }" @click="activeTab = 'seguimiento'">
+                <i class="fas fa-clipboard-list"></i> Formulario de seguimiento
+            </button>
+        </div>
+
+        <!-- Tab: Información del caso -->
+        <case-info
+            :case-id="caseICode"
+            :visible="activeTab === 'caso'"
+            @close="activeTab = 'seguimiento'">
+        </case-info>
+
+        <!-- Tab: Formulario de seguimiento -->
+        <div v-show="activeTab === 'seguimiento'">
+            <div v-if="loadError" class="alert alert-danger">${ loadError }</div>
+            <dinamic-form v-else-if="formId && submissionId" :form-id="formId" :submission-id="submissionId" :can-edit="canEdit" @form-completed="onFormCompleted"></dinamic-form>
+        </div>
 
         <!-- Overlay formulario completado -->
         <div v-if="formCompleted" class="hs-completed-backdrop">
@@ -66,6 +86,32 @@
 </div>
 
 <style>
+.hs-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid #e5e7eb;
+}
+.hs-tab {
+    padding: 9px 18px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transition: color 0.15s, border-color 0.15s;
+}
+.hs-tab:hover { color: #374151; }
+.hs-tab--active {
+    color: #7c3aed;
+    border-bottom-color: #7c3aed;
+    font-weight: 600;
+}
 .hs-victim-card {
     border: 1px solid #e0e0e0;
     border-radius: 12px;
@@ -200,6 +246,8 @@
                 loadError:    null,
                 canEdit:       true,
                 caseId:        null,
+                caseICode:     null,
+                activeTab:     'seguimiento',
                 formCompleted: false,
             };
         },
@@ -224,9 +272,12 @@
                         return;
                     }
                     const fu          = data.followUp;
-                    this.submissionId = fu.form_submission_id;
-                    this.caseId       = fu.case_id;
-                    this.victimInfo   = data.victimInfo;
+                    this.submissionId  = fu.form_submission_id;
+                    this.caseId        = fu.case_id;
+                    this.caseICode     = fu.case_id;
+                    this.victimInfo    = data.victimInfo;
+                    console.log('[HS] caseId:', this.caseId, '| caseICode:', this.caseICode);
+                    console.log('[HS] followUp completo:', fu);
 
                     // canEdit: false si REALIZADO y han pasado más de 5 días desde completed_at
                     if (fu.status === 'REALIZADO' && fu.completed_at) {
@@ -255,6 +306,7 @@
     });
 </script>
 
+<script src="/static/js/components/case-info.js"></script>
 <script src="/static/js/components/dinamic-form.js"></script>
 
 <script>
