@@ -68,6 +68,7 @@ func main() {
         &models.EconomicStabilization{},
         &models.CaseTimelineEvent{},
         &models.EntityLetter{},
+        &models.CaseTask{},
     } {
         if err := gormDB.AutoMigrate(m); err != nil {
             log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -150,6 +151,16 @@ func main() {
     entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
     entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo)
     entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
+    barrierV2Svc           := service.NewBarrierV2Service(barrierV2Repo)
+    barrierV2GinCtrl       := salvia_ctrl.NewBarrierV2GinController(barrierV2Svc)
+
+    caseTaskRepo            := repository.NewCaseTaskRepository(gormDB)
+    caseTaskSvc             := service.NewCaseTaskService(service.CaseTaskServiceDeps{
+        CaseTaskRepo:     caseTaskRepo,
+        BarrierV2Repo:    barrierV2Repo,
+        CaseTimelineRepo: caseTimelineRepo,
+    })
+    caseTaskCtrl            := salvia_ctrl.NewCaseTaskController(caseTaskSvc)
 
     // Routes
     api := router.Group("/api/v1")
@@ -167,6 +178,8 @@ func main() {
     caseInfoCtrl.RegisterRoutes(api)
     reportCtrl.RegisterRoutes(api)
     entityLetterCtrl.RegisterRoutes(api)
+    barrierV2GinCtrl.RegisterRoutes(api)
+    caseTaskCtrl.RegisterRoutes(api)
     // ────────────────────────────────────────────────────────────────────────
 
     // ── Graceful shutdown ────────────────────────────────────────────────────
