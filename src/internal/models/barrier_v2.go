@@ -14,6 +14,8 @@ type BarrierV2 struct {
 	Sector      string         `gorm:"type:varchar(50);not null" json:"sector"`
 	Description string         `gorm:"type:text;not null" json:"description"`
 	Status      string         `gorm:"type:varchar(20);default:'OPEN'" json:"status"`
+	// CreatedByID almacena el iCode del agente de seguimiento que registró la barrera.
+	CreatedByID string         `gorm:"type:varchar(36);index" json:"createdById"`
 	CreatedAt   time.Time      `json:"createdAt"`
 	UpdatedAt   time.Time      `json:"updatedAt"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
@@ -22,3 +24,10 @@ type BarrierV2 struct {
 func (BarrierV2) TableName() string {
 	return "salvia.barrier_v2"
 }
+
+// Estados válidos de BarrierV2.
+const (
+	BarrierV2StatusOpen       = "OPEN"
+	BarrierV2StatusArticulada = "Articulada"
+	BarrierV2StatusManaged    = "MANAGED"
+)

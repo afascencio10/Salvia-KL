@@ -17,7 +17,7 @@ var misBarrerasModalTemplates = []string{
 
 // MisBarrerasGET renderiza la pantalla de Mis Barreras.
 // Ruta: GET /salvia/mis-barreras
-// Acceso: cualquier usuario autenticado (sin restricción de rol por ahora).
+// Roles permitidos: en (Enlace Territorial)
 func MisBarrerasGET(c *gin.Context) {
 	session := sessions.Default(c)
 	sessionIDVal := session.Get("userData")
@@ -30,6 +30,10 @@ func MisBarrerasGET(c *gin.Context) {
 	s, err := utils.GetCommonSession(sessionID)
 	if err != nil {
 		c.Redirect(http.StatusTemporaryRedirect, "/static/landing.html")
+		return
+	}
+
+	if !utils.CheckPermission(salvia_config.PermissionsByRole, "get_mis_barreras", s.CurrentRole, c) {
 		return
 	}
 
