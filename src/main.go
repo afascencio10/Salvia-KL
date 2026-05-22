@@ -130,6 +130,7 @@ func main() {
 
     // Inyectar el servicio en el controller legacy para generación automática del calendario
     salvia_legacy.FollowUpSvc = followUpV2Svc
+    salvia_legacy.CaseTimelineRepo = caseTimelineRepo
 
     // Controllers
     formCtrl               := salvia_ctrl.NewFormController(formSvc)

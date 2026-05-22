@@ -41,6 +41,8 @@ const (
 	TimelineTypeOficioParaRadicar        = "Oficio para radicar"
 	TimelineTypeOficioRadicado           = "Oficio radicado"
 	TimelineTypeOficioRespondido         = "Oficio respondido"
+
+	TimelineTypeHechosCaso = "Hechos del caso"
 )
 
 // ─── Iconos ──────────────────────────────────────────────────────────────────
@@ -53,6 +55,8 @@ const (
 	TimelineIconBarrera      = "triangle-exclamation"
 	TimelineIconNota         = "note-sticky"
 	TimelineIconCierre       = "circle-xmark"
+
+	TimelineIconHechosCaso = "file-lines"
 
 	// Oficios
 	TimelineIconOficioRevisar    = "eye"
@@ -71,7 +75,8 @@ const (
 	TimelineColorGray   = "#6b7280"
 	TimelineColorTeal   = "#63e6be"
 	TimelineColorYellow = "#f8a625"
-	TimelineColorRed    = "#dc2626"
+	TimelineColorRed      = "#dc2626"
+	TimelineColorLightRed = "#f87171"
 )
 
 // ─── Constantes legacy (compatibilidad con eventos existentes en BD) ─────────
