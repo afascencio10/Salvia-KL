@@ -95,6 +95,7 @@ func main() {
     agentLightRepo         := repository.NewAgentLightRepository(gormDB)
     caseTimelineRepo       := repository.NewCaseTimelineEventRepository(gormDB)
     caseDetailRepo         := repository.NewCaseDetailRepository(gormDB)
+    caseInfoRepo           := repository.NewCaseInfoRepository(gormDB)
     reportRepo             := repository.NewReportRepository(gormDB)
 
     // Services
@@ -126,6 +127,7 @@ func main() {
     optionSvc             := service.NewOptionService(optionRepo)
     followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo)
     caseDetailSvc         := service.NewCaseDetailService(caseDetailRepo, gormDB)
+    caseInfoSvc           := service.NewCaseInfoService(caseInfoRepo)
     reportSvc             := service.NewReportService(reportRepo)
 
     // Inyectar el servicio en el controller legacy para generación automática del calendario
@@ -143,6 +145,7 @@ func main() {
     followUpV2Ctrl         := salvia_ctrl.NewFollowUpV2Controller(followUpV2Svc)
     optionCtrl             := salvia_ctrl.NewOptionController(optionSvc)
     caseDetailCtrl         := salvia_ctrl.NewCaseDetailController(caseDetailSvc, caseTimelineRepo)
+    caseInfoCtrl           := salvia_ctrl.NewCaseInfoController(caseInfoSvc)
     reportCtrl             := salvia_ctrl.NewReportController(reportSvc)
     entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
     entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo)
@@ -161,6 +164,7 @@ func main() {
     followUpV2Ctrl.RegisterRoutes(api)
     optionCtrl.RegisterRoutes(api)
     caseDetailCtrl.RegisterRoutes(api)
+    caseInfoCtrl.RegisterRoutes(api)
     reportCtrl.RegisterRoutes(api)
     entityLetterCtrl.RegisterRoutes(api)
     // ────────────────────────────────────────────────────────────────────────
