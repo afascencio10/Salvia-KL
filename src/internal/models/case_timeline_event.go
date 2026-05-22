@@ -32,6 +32,7 @@ const (
 	TimelineTypeCierreCaso            = "Cierre de Caso"
 	TimelineTypeCambioEstado          = "Cambio de Estado"
 	TimelineTypeBarreraIdentificada   = "Barrera Identificada"
+	TimelineTypeBarreraArticulada     = "Barrera Articulada"
 	TimelineTypeNota                  = "Nota"
 
 	// Oficios (EntityLetter) — un Type por estado destino
@@ -52,7 +53,8 @@ const (
 	TimelineIconReasignacion = "arrows-rotate"
 	TimelineIconPospuesto    = "calendar-days"
 	TimelineIconEstado       = "shuffle"
-	TimelineIconBarrera      = "triangle-exclamation"
+	TimelineIconBarrera          = "triangle-exclamation"
+	TimelineIconBarreraArticulada = "circle-check"
 	TimelineIconNota         = "note-sticky"
 	TimelineIconCierre       = "circle-xmark"
 
@@ -86,8 +88,9 @@ const (
 	TimelineEventReasignacion    = "REASIGNACION"
 	TimelineEventReasignSeg      = "REASIGNACION_SEGUIMIENTO"
 	TimelineEventEstadoCambio    = "CAMBIO_ESTADO"
-	TimelineEventBarrera         = "BARRERA_IDENTIFICADA"
-	TimelineEventNota            = "NOTA"
+	TimelineEventBarrera           = "BARRERA_IDENTIFICADA"
+	TimelineEventBarreraArticulada = "BARRERA_ARTICULADA"
+	TimelineEventNota              = "NOTA"
 	TimelineEventOficioActualizado = "OFICIO_ACTUALIZADO"
 )
 

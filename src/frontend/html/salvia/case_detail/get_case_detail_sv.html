@@ -78,6 +78,7 @@
         </div>
       </div>
       <div class="cd-header-right">
+        <button class="btn-reasignar" @click="mostrarInfoCaso = true" title="Ver información completa del caso">📋 Info caso</button>
         <button v-if="puedeReasignar" class="btn-reasignar" @click="abrirModalReasignar">Reasignar</button>
         <button v-if="puedeReasignar" class="btn-nuevo-seg" :disabled="followUpsV2.length >= 8" @click="abrirModalNuevoSeg">
           ${ followUpsV2.length >= 8 ? 'Máximo alcanzado (8)' : '+ Nuevo seguimiento' }
@@ -126,6 +127,14 @@
             <div class="cd-campo">
               <div class="cd-lbl">Nombre completo</div>
               <div class="cd-val">${ caso.victimCaseVictimName + ' ' + caso.victimCaseVictimLastName || '—' }</div>
+            </div>
+            <div class="cd-campo">
+              <div class="cd-lbl">Tipo de documento</div>
+              <div class="cd-val">${ caso.victimCaseVictimDocType || '—' }</div>
+            </div>
+            <div class="cd-campo">
+              <div class="cd-lbl">Número de identificación</div>
+              <div class="cd-val">${ caso.victimCaseVictimDocNumber || '—' }</div>
             </div>
             <div class="cd-campo">
               <div class="cd-lbl">Edad</div>
@@ -355,6 +364,9 @@
     </div>
 
   </template>
+  <!-- Componente: Información completa del caso (modal) -->
+  <case-info :case-id="caseICode" :visible="mostrarInfoCaso" @close="mostrarInfoCaso = false"></case-info>
+
   <!-- Alert modal (tipo SweetAlert) -->
   <div v-if="toast.show" class="ns-backdrop" @click.self="toast.show = false">
     <div class="cd-alert-modal">
@@ -555,6 +567,7 @@ var home = Vue.createApp({
       reasignarSegActual: null,
       reasignandoSeg: false,
       segExpandido: null,
+      mostrarInfoCaso: false,
       nuevoSeg: {
         fecha: '',
         hora: '09:00',
@@ -999,6 +1012,7 @@ var home = Vue.createApp({
 var app = home;
 </script>
 <script src="/static/js/components/case-timeline.js"></script>
+<script src="/static/js/components/case-info.js"></script>
 <script>
 home.mount('#app');
 </script>

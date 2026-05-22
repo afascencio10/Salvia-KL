@@ -457,17 +457,23 @@
             </div>
 
             <div style="display: flex; gap: 1rem; width: 100%;">
-                <button @click="handleNoAnswer"
-                    style="flex: 1; background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;">
+                <button @click="handleNoAnswer" :disabled="loading"
+                    :style="`flex: 1; background: white; border: 1px solid #e5e7eb; color: ${loading ? '#9ca3af' : '#4b5563'}; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: ${loading ? 'not-allowed' : 'pointer'}; transition: all 0.2s; font-size: 0.875rem;`">
                     No contestó
                 </button>
-                <button @click="handleYesAnswer"
-                    style="flex: 1; background-color: #8b5cf6; color: white; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;">
-                    Sí contestó <i class="fas fa-check"></i>
+                <button @click="handleYesAnswer" :disabled="loading"
+                    :style="`flex: 1; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: ${loading ? 'not-allowed' : 'pointer'}; transition: all 0.2s; font-size: 0.875rem; background-color: ${loading ? '#d1d5db' : '#8b5cf6'}; color: white;`"
+                    style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <template v-if="loading">
+                        <i class="fas fa-circle-notch fa-spin"></i> Cargando...
+                    </template>
+                    <template v-else>
+                        Sí contestó <i class="fas fa-check"></i>
+                    </template>
                 </button>
             </div>
-            <button @click="closeModals"
-                style="margin-top: 1.5rem; background: none; border: none; font-size: 0.75rem; color: #9ca3af; font-weight: 600; cursor: pointer;">
+            <button @click="closeModals" :disabled="loading"
+                :style="`margin-top: 1.5rem; background: none; border: none; font-size: 0.75rem; color: #9ca3af; font-weight: 600; cursor: ${loading ? 'not-allowed' : 'pointer'};`">
                 CANCELAR
             </button>
         </div>
@@ -505,35 +511,6 @@
         </div>
     </div>
 
-    <!-- Modal Sí Contestó (Quién contestó) -->
-    <div v-if="modalSiContesto" class="ms-modal-overlay" @click.self="closeModals">
-        <div class="ms-modal-content">
-            <div
-                style="width: 4rem; height: 4rem; border-radius: 9999px; background-color: #f0fdf4; color: #16a34a; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem;">
-                <i class="fas fa-user-check"></i>
-            </div>
-            <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">Llamada exitosa</h3>
-            <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 1.5rem;">¿Quién contestó la llamada?</p>
-            <input type="text" v-model="answeredByName" placeholder="Ej: La víctima, su madre, etc."
-                style="width: 100%; padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid #e5e7eb; font-size: 0.875rem; outline: none; transition: all 0.2s; background: white; box-sizing: border-box; font-family: inherit;">
-            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                <button @click="closeModals"
-                    style="flex: 1; background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;">
-                    Cancelar
-                </button>
-                <button @click="confirmAnswered" :disabled="loading"
-                    :style="`flex: 1; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: ${loading ? 'not-allowed' : 'pointer'}; transition: all 0.2s; font-size: 0.875rem; background-color: ${loading ? '#d1d5db' : '#8b5cf6'}; color: white;`"
-                    style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                    <template v-if="loading">
-                        <i class="fas fa-circle-notch fa-spin"></i> Guardando...
-                    </template>
-                    <template v-else>
-                        Continuar <i class="fas fa-arrow-right"></i>
-                    </template>
-                </button>
-            </div>
-        </div>
-    </div>
 
     <!-- Modal Acciones -->
     <div v-if="modalAcciones" class="ms-modal-overlay" @click.self="closeModals">
@@ -853,29 +830,17 @@
                     console.log('[MisSeguimientos] modalAcciones:', this.modalAcciones);
                 },
 
-                handleYesAnswer() {
+                async handleYesAnswer() {
                     const fu = this.modalContesto;
-                    this.modalContesto = null;
-                    this.modalSiContesto = fu;
-                    this.answeredByName = '';
-                },
-                
-                async confirmAnswered() {
-                    const fu = this.modalSiContesto;
                     if (!fu || this.loading) return;
 
                     this.loading = true;
                     try {
-                        let reason = 'Sí contestó';
-                        if (this.answeredByName && this.answeredByName.trim() !== '') {
-                            reason = `Contestó: ${this.answeredByName.trim()}`;
-                        }
-
                         const response = await fetch(`/api/v1/follow-ups/${fu.id}/attempts`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                reason: reason,
+                                reason: 'Sí contestó',
                                 was_answered: true
                             })
                         });
