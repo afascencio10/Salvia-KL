@@ -29,6 +29,73 @@
     font-size: 0.875rem;
 }
 
+/* ---- Estado de carga ---- */
+.mb-loading-state {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 32px 0;
+    color: #777;
+    font-size: 0.875rem;
+}
+
+.mb-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #e0e0e0;
+    border-top-color: #5106A7;
+    border-radius: 50%;
+    animation: mb-spin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes mb-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ---- Estado de error ---- */
+.mb-error-state {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    border-radius: 8px;
+    background: #fff1f2;
+    border: 1px solid #fecdd3;
+    color: #9f1239;
+    font-size: 0.875rem;
+    margin-bottom: 16px;
+}
+
+.mb-error-state i {
+    flex-shrink: 0;
+}
+
+/* ---- Toast de éxito ---- */
+.mb-success-toast {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    border-radius: 8px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+    font-size: 0.875rem;
+    margin-bottom: 16px;
+    animation: mb-toast-in 0.25s ease;
+}
+
+.mb-success-toast i {
+    flex-shrink: 0;
+    color: #22c55e;
+}
+
+@keyframes mb-toast-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
 /* ---- Tabs ---- */
 .mb-tabs-wrapper {
     display: flex;
