@@ -456,6 +456,17 @@
                 </p>
             </div>
 
+            <!-- Selector de Fecha y Hora del Intento -->
+            <div style="margin-bottom: 1.5rem; text-align: left; width: 100%;">
+                <label style="display: block; font-size: 0.8125rem; font-weight: 700; color: #374151; margin-bottom: 0.375rem; min-height: auto;">
+                    <i class="far fa-calendar-alt"></i> Fecha y hora del intento
+                </label>
+                <input type="datetime-local" v-model="attemptDateTime"
+                    style="width: 100%; padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid #e5e7eb; font-size: 0.875rem; outline: none; transition: all 0.2s; background: white; box-sizing: border-box; font-family: inherit; color: #374151;"
+                    @focus="$event.target.style.borderColor='#8b5cf6'; $event.target.style.boxShadow='0 0 0 3px rgba(139,92,246,0.1)'"
+                    @blur="$event.target.style.borderColor='#e5e7eb'; $event.target.style.boxShadow='none'">
+            </div>
+
             <div style="display: flex; gap: 1rem; width: 100%;">
                 <button @click="handleNoAnswer" :disabled="loading"
                     :style="`flex: 1; background: white; border: 1px solid #e5e7eb; color: ${loading ? '#9ca3af' : '#4b5563'}; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: ${loading ? 'not-allowed' : 'pointer'}; transition: all 0.2s; font-size: 0.875rem;`">
@@ -490,15 +501,39 @@
                 respuesta</h3>
             <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 1.5rem;">Registra la razón del intento fallido
             </p>
-            <textarea v-model="reasonText" placeholder="Ej: El usuario tenía el teléfono apagado..." rows="4"
+            <!-- Selección de Destinatario del Intento -->
+            <div style="margin-bottom: 1.25rem; text-align: left; width: 100%;">
+                <label style="display: block; font-size: 0.8125rem; font-weight: 700; color: #374151; margin-bottom: 0.5rem; min-height: auto;">
+                    ¿A quién se intentó contactar? <span style="color: #dc2626;">*</span>
+                </label>
+                <div style="display: flex; gap: 0.5rem; width: 100%; flex-wrap: wrap;">
+                    <button type="button" @click="selectedContactTarget = 'Contacto con la víctima'"
+                        :style="`flex: 1 1 calc(33.333% - 0.5rem); text-align: center; padding: 0.5rem 0.25rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; border: 1.5px solid ${selectedContactTarget === 'Contacto con la víctima' ? '#8b5cf6' : '#e5e7eb'}; background-color: ${selectedContactTarget === 'Contacto con la víctima' ? '#f5f3ff' : 'white'}; color: ${selectedContactTarget === 'Contacto con la víctima' ? '#7c3aed' : '#4b5563'}; cursor: pointer; transition: all 0.2s;`"
+                        style="box-sizing: border-box; display: flex; align-items: center; justify-content: center; min-height: 2.75rem; line-height: 1.2;">
+                        Contacto con la víctima
+                    </button>
+                    <button type="button" @click="selectedContactTarget = 'Contacto indirecto - Familiar o persona conocida'"
+                        :style="`flex: 1 1 calc(33.333% - 0.5rem); text-align: center; padding: 0.5rem 0.25rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; border: 1.5px solid ${selectedContactTarget === 'Contacto indirecto - Familiar o persona conocida' ? '#8b5cf6' : '#e5e7eb'}; background-color: ${selectedContactTarget === 'Contacto indirecto - Familiar o persona conocida' ? '#f5f3ff' : 'white'}; color: ${selectedContactTarget === 'Contacto indirecto - Familiar o persona conocida' ? '#7c3aed' : '#4b5563'}; cursor: pointer; transition: all 0.2s;`"
+                        style="box-sizing: border-box; display: flex; align-items: center; justify-content: center; min-height: 2.75rem; line-height: 1.2;">
+                        Contacto indirecto - Familiar o persona conocida
+                    </button>
+                    <button type="button" @click="selectedContactTarget = 'Contacto Con Institución'"
+                        :style="`flex: 1 1 calc(33.333% - 0.5rem); text-align: center; padding: 0.5rem 0.25rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; border: 1.5px solid ${selectedContactTarget === 'Contacto Con Institución' ? '#8b5cf6' : '#e5e7eb'}; background-color: ${selectedContactTarget === 'Contacto Con Institución' ? '#f5f3ff' : 'white'}; color: ${selectedContactTarget === 'Contacto Con Institución' ? '#7c3aed' : '#4b5563'}; cursor: pointer; transition: all 0.2s;`"
+                        style="box-sizing: border-box; display: flex; align-items: center; justify-content: center; min-height: 2.75rem; line-height: 1.2;">
+                        Contacto Con Institución
+                    </button>
+                </div>
+            </div>
+
+            <textarea v-model="reasonText" placeholder="Ej: El usuario tenía el teléfono apagado..." rows="3"
                 style="width: 100%; padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid #e5e7eb; font-size: 0.875rem; outline: none; transition: all 0.2s; background: white; box-sizing: border-box; resize: none; font-family: inherit;"></textarea>
             <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
                 <button @click="closeModals"
                     style="flex: 1; background: white; border: 1px solid #e5e7eb; color: #4b5563; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;">
                     Cancelar
                 </button>
-                <button @click="handleSaveReason" :disabled="loading || !reasonText || reasonText.trim() === ''"
-                    :style="`flex: 1; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: ${loading || !reasonText || reasonText.trim() === '' ? 'not-allowed' : 'pointer'}; transition: all 0.2s; font-size: 0.875rem; background-color: ${loading || !reasonText || reasonText.trim() === '' ? '#d1d5db' : '#8b5cf6'}; color: ${loading || !reasonText || reasonText.trim() === '' ? '#9ca3af' : 'white'};`"
+                <button @click="handleSaveReason" :disabled="loading || !reasonText || reasonText.trim() === '' || !selectedContactTarget"
+                    :style="`flex: 1; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: none; cursor: ${loading || !reasonText || reasonText.trim() === '' || !selectedContactTarget ? 'not-allowed' : 'pointer'}; transition: all 0.2s; font-size: 0.875rem; background-color: ${loading || !reasonText || reasonText.trim() === '' || !selectedContactTarget ? '#d1d5db' : '#8b5cf6'}; color: ${loading || !reasonText || reasonText.trim() === '' || !selectedContactTarget ? '#9ca3af' : 'white'};`"
                     style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
                     <template v-if="loading">
                         <i class="fas fa-circle-notch fa-spin"></i> Guardando...
@@ -676,6 +711,8 @@
                     pendingFollowUps: [],
                     completedFollowUps: [],
                     modalContesto: null,
+                    attemptDateTime: '',
+                    selectedContactTarget: '',
                     modalRazon: null,
                     modalSiContesto: null,
                     modalAcciones: null,
@@ -810,6 +847,7 @@
                     this.modalConfirmarCierre = null;
                     this.modalCierreExitoso = false;
                     this.reasonText = '';
+                    this.selectedContactTarget = '';
                     this.closureReason = '';
                     this.answeredByName = '';
                     this.rescheduleLoading = null;
@@ -817,8 +855,14 @@
 
                 // ── Event Handlers ──────────────────────────────────────────
 
+                initAttemptDateTime() {
+                    const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+                    this.attemptDateTime = (new Date(Date.now() - tzoffset)).toISOString().slice(0, 16);
+                },
+
                 handleStartFollowUp(fu) {
                     console.log('[MisSeguimientos] handleStartFollowUp called', fu);
+                    this.initAttemptDateTime();
                     if (fu.attempts >= 3) {
                         console.log('[MisSeguimientos] Opening modalAcciones');
                         this.modalAcciones = fu;
@@ -836,12 +880,26 @@
 
                     this.loading = true;
                     try {
+                        let customCreatedAt = null;
+                        if (this.attemptDateTime) {
+                            const parts = this.attemptDateTime.split(/[-T:]/);
+                            if (parts.length >= 5) {
+                                const year = parseInt(parts[0], 10);
+                                const month = parseInt(parts[1], 10) - 1;
+                                const day = parseInt(parts[2], 10);
+                                const hours = parseInt(parts[3], 10);
+                                const minutes = parseInt(parts[4], 10);
+                                customCreatedAt = new Date(year, month, day, hours, minutes).toISOString();
+                            }
+                        }
+
                         const response = await fetch(`/api/v1/follow-ups/${fu.id}/attempts`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 reason: 'Sí contestó',
-                                was_answered: true
+                                was_answered: true,
+                                created_at: customCreatedAt
                             })
                         });
 
@@ -868,19 +926,39 @@
                     this.modalContesto = null;
                     this.modalRazon = fu;
                     this.reasonText = '';
+                    this.selectedContactTarget = '';
                 },
 
                 async handleSaveReason() {
-                    if (!this.reasonText || this.reasonText.trim() === '') return;
+                    if (!this.reasonText || this.reasonText.trim() === '' || !this.selectedContactTarget) return;
 
                     const fu = this.modalRazon;
                     this.loading = true;
 
+                    // Concatenar destinatario con motivo de intento fallido
+                    const fullReason = "se intento contactar " + this.selectedContactTarget + " " + this.reasonText.trim();
+
                     try {
+                        let customCreatedAt = null;
+                        if (this.attemptDateTime) {
+                            const parts = this.attemptDateTime.split(/[-T:]/);
+                            if (parts.length >= 5) {
+                                const year = parseInt(parts[0], 10);
+                                const month = parseInt(parts[1], 10) - 1;
+                                const day = parseInt(parts[2], 10);
+                                const hours = parseInt(parts[3], 10);
+                                const minutes = parseInt(parts[4], 10);
+                                customCreatedAt = new Date(year, month, day, hours, minutes).toISOString();
+                            }
+                        }
+
                         const response = await fetch(`/api/v1/follow-ups/${fu.id}/attempts`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ reason: this.reasonText })
+                            body: JSON.stringify({ 
+                                reason: fullReason,
+                                created_at: customCreatedAt
+                            })
                         });
 
                         if (!response.ok) {
@@ -898,10 +976,10 @@
                         const newAttempt = {
                             id: `temp-${Date.now()}`, // ID temporal hasta recargar
                             follow_up_id: fu.id,
-                            reason: this.reasonText,
+                            reason: fullReason,
                             was_answered: false,
-                            created_at: new Date().toISOString(),
-                            updated_at: new Date().toISOString()
+                            created_at: customCreatedAt || new Date().toISOString(),
+                            updated_at: customCreatedAt || new Date().toISOString()
                         };
 
                         // Agregar al inicio del array (más reciente primero)
@@ -910,6 +988,7 @@
 
                         this.modalRazon = null;
                         this.reasonText = '';
+                        this.selectedContactTarget = '';
 
                         // Show success overlay
                         const successOverlay = document.getElementById('successOverlay');
@@ -996,6 +1075,7 @@
                     this.modalAcciones = null;
                     this.modalConfirmarCierre = null;
                     this.modalCierreExitoso = false;
+                    this.initAttemptDateTime();
                     this.modalContesto = fu;
                 },
 
