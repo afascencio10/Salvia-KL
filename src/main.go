@@ -117,6 +117,7 @@ func main() {
         BarrierV2Repo:             barrierV2Repo,
         CaseTimelineEventRepo:     caseTimelineRepo,
         AgentLightRepo:            agentLightRepo,
+        CaseRepo:                  victimCaseLightRepo,
     })
     formSectionSvc        := service.NewFormSectionService(formSectionRepo)
     questionSvc           := service.NewQuestionService(questionRepo)

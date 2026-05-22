@@ -151,12 +151,13 @@ func MyFollowUpsGET(c *gin.Context) {
 	// Renderiza el template "get_my_follow_ups" definido en salvia_config.HTML_Templates
 	common_facades.RenderTemplate(c, salvia_daos.FollowUpEntityName, "salvia", "my_follow_ups/", salvia_config.HTML_Templates, "get_my_follow_ups", utils.GetFullHtmlTemplates(), utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
 		map[string]interface{}{
-			"windowTitle": "Mis Seguimientos",
-			"currentUser": s.Names + " " + s.LastNames,
-			"agentName":   s.Names + " " + s.LastNames, // Placeholder para el nombre del agente
-			"nav_rules":   salvia_config.TranslateNavigationRule(s.Lang, salvia_config.NAVIGATION_RULES["get_follow_up"]),
-			"locale":      salvia_config.Locale,
-			"lang":        s.Lang,
-			"menu":        menu,
+			"windowTitle":   "Mis Seguimientos",
+			"currentUser":   s.Names + " " + s.LastNames,
+			"currentUserId": s.UserICode,
+			"agentName":     s.Names + " " + s.LastNames, // Placeholder para el nombre del agente
+			"nav_rules":     salvia_config.TranslateNavigationRule(s.Lang, salvia_config.NAVIGATION_RULES["get_follow_up"]),
+			"locale":        salvia_config.Locale,
+			"lang":          s.Lang,
+			"menu":          menu,
 		}, utils.GetFullHtmlFuncMap())
 }

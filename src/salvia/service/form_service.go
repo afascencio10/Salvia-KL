@@ -148,6 +148,7 @@ type FormServiceDeps struct {
 	BarrierV2Repo              repository.BarrierV2Repository
 	CaseTimelineEventRepo      repository.CaseTimelineEventRepository
 	AgentLightRepo             repository.AgentLightRepository
+	CaseRepo                   repository.VictimCaseLightRepository
 }
 
 type formService struct {
@@ -167,6 +168,7 @@ type formService struct {
 	barrierV2Repo          repository.BarrierV2Repository
 	caseTimelineRepo       repository.CaseTimelineEventRepository
 	agentLightRepo         repository.AgentLightRepository
+	caseRepo               repository.VictimCaseLightRepository
 }
 
 func NewFormService(deps FormServiceDeps) FormService {
@@ -187,6 +189,7 @@ func NewFormService(deps FormServiceDeps) FormService {
 		barrierV2Repo:             deps.BarrierV2Repo,
 		caseTimelineRepo:          deps.CaseTimelineEventRepo,
 		agentLightRepo:            deps.AgentLightRepo,
+		caseRepo:                  deps.CaseRepo,
 	}
 }
 
@@ -1776,11 +1779,9 @@ func (s *formService) SaveSection(ctx context.Context, input SaveSectionInput) (
 	}
 	if allAnswered {
 		actorID := input.ActorID
-		go func() {
-			if err := s.OnEndFormSubmission(context.Background(), input.FormID, submissionID, actorID); err != nil {
-				fmt.Printf("[OnEndFormSubmission] error: %v\n", err)
-			}
-		}()
+		if err := s.OnEndFormSubmission(ctx, input.FormID, submissionID, actorID); err != nil {
+			log.Printf("[OnEndFormSubmission] error: %v\n", err)
+		}
 	}
 
 	return result, nil
@@ -1792,6 +1793,7 @@ func (s *formService) SaveSection(ctx context.Context, input SaveSectionInput) (
 const (
 	seguimientoFormID    = "2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff"
 	barrierUpdateFormID  = "4d0aeb46-5af3-4c47-a0d5-c5bfc4d549ff"
+	cierreCasoFormID     = "da8423ab-1a8c-47db-96b7-d10496df571a"
 )
 
 // OnEndFormSubmission es llamado cuando todas las secciones visibles han sido respondidas.
@@ -1802,7 +1804,117 @@ func (s *formService) OnEndFormSubmission(ctx context.Context, formID, submissio
 		return s.processFollowUpSubmission(ctx, submissionID, actorID)
 	case barrierUpdateFormID:
 		return s.processBarrierUpdateSubmission(ctx, submissionID)
+	case cierreCasoFormID:
+		return s.processCaseClosureSubmission(ctx, submissionID, actorID)
 	}
+	return nil
+}
+
+// processCaseClosureSubmission marca el seguimiento como REALIZADO y si se confirma el cierre
+// del caso, cambia el estado del caso a cerrado, cierra todos los seguimientos pendientes/reprogramados,
+// y registra el evento de cierre en el timeline del caso.
+func (s *formService) processCaseClosureSubmission(ctx context.Context, submissionID, actorID string) error {
+	// 1. Buscar el follow_up asociado al submission
+	fu, err := s.followUpRepo.FindByFormSubmissionID(ctx, submissionID)
+	if err != nil {
+		return fmt.Errorf("processCaseClosureSubmission: buscar followUp: %w", err)
+	}
+
+	// Si ya fue procesado → no re-procesar
+	if fu.Status == models.FollowUpStatusRealizado {
+		return nil
+	}
+
+	// 2. Marcar el follow_up como REALIZADO y registrar completed_at
+	if err := s.followUpRepo.UpdateStatus(ctx, fu.ID, models.FollowUpStatusRealizado); err != nil {
+		return fmt.Errorf("processCaseClosureSubmission: actualizar estado followUp: %w", err)
+	}
+
+	// 3. Leer las respuestas directas del submission
+	answers, err := s.answerRepo.FindDirectBySubmissionID(ctx, submissionID)
+	if err != nil {
+		return fmt.Errorf("processCaseClosureSubmission: leer respuestas: %w", err)
+	}
+
+	answerMap := make(map[string]string, len(answers))
+	for _, a := range answers {
+		answerMap[a.QuestionID] = a.Value
+	}
+
+	const (
+		qMotivoCierre   = "d2c6e1af-651f-43b4-8e61-aecafd07443d" // Motivo del cierre (single)
+		qCausaCierre    = "90375500-a316-4cf5-b7ec-f5c402da92c2" // Describa la causa del cierre (text)
+		qAccionesCierre = "4a7d0110-b06d-4569-9572-cd0a5e9ef2c1" // ¿Realizó acciones institucionales? (boolean)
+	)
+
+	// 4. Cambiar el estado del caso a "cd" (cerrado) en la base de datos
+	if err := s.caseRepo.UpdateStatus(ctx, fu.CaseID, "cd"); err != nil {
+		return fmt.Errorf("processCaseClosureSubmission: actualizar estado de caso: %w", err)
+	}
+
+	// 5. Cerrar los demás seguimientos pendientes/reprogramados del caso
+	if err := s.followUpRepo.CloseCaseFollowUps(ctx, fu.ID); err != nil {
+		return fmt.Errorf("processCaseClosureSubmission: cerrar seguimientos del caso: %w", err)
+	}
+
+	// 6. Crear evento en el timeline
+	if s.caseTimelineRepo != nil {
+		motivo := answerMap[qMotivoCierre]
+		motivoTraducido := motivo
+		switch motivo {
+		case "perdida_contacto":
+			motivoTraducido = "Pérdida de contacto"
+		case "solicitud_ciudadana":
+			motivoTraducido = "Solicitud expresa de la ciudadana de finalizar el proceso"
+		case "cumplimiento_plan":
+			motivoTraducido = "Cumplimiento del plan de atención"
+		case "no_corresponde":
+			motivoTraducido = "No corresponde al ámbito, población o naturaleza de la atención"
+		case "otro":
+			motivoTraducido = "Otro"
+		}
+
+		causa := answerMap[qCausaCierre]
+		accionesVal := answerMap[qAccionesCierre]
+		accionesTraducido := "No"
+		if accionesVal == "true" {
+			accionesTraducido = "Sí"
+		}
+
+		description := fmt.Sprintf(
+			"Cierre de caso registrado. Motivo: %s. Causa: %s. ¿Acciones institucionales realizadas?: %s",
+			motivoTraducido,
+			causa,
+			accionesTraducido,
+		)
+
+		now := time.Now()
+		actorName := actorID
+		if s.agentLightRepo != nil && actorID != "" {
+			agent, err := s.agentLightRepo.FindByICode(ctx, actorID)
+			if err == nil && agent != nil {
+				actorName = strings.TrimSpace(agent.Names + " " + agent.LastNames)
+			}
+		}
+
+		event := &models.CaseTimelineEvent{
+			CaseID:      fu.CaseID,
+			FollowUpID:  fu.ID,
+			Category:    models.TimelineCategoryGeneral,
+			Type:        models.TimelineTypeCierreCaso,
+			Icon:        models.TimelineIconCierre,
+			Date:        now,
+			Description: description,
+			EventUserID: actorID,
+			ActorName:   actorName,
+			Color:       models.TimelineColorRed,
+			CreatedAt:   now,
+		}
+		if err := s.caseTimelineRepo.Create(ctx, event); err != nil {
+			log.Printf("[processCaseClosureSubmission] advertencia: no se pudo crear evento timeline de cierre: %v", err)
+		}
+	}
+
 	return nil
 }
 
