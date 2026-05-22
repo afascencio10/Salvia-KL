@@ -272,8 +272,9 @@ func (c *FollowUpV2Controller) RegisterAttempt(ctx *gin.Context) {
 	followUpID := ctx.Param("id")
 
 	var body struct {
-		Reason      string `json:"reason" binding:"required"`
-		WasAnswered bool   `json:"was_answered"`
+		Reason      string  `json:"reason" binding:"required"`
+		WasAnswered bool    `json:"was_answered"`
+		CreatedAt   *string `json:"created_at"`
 	}
 
 	if err := ctx.ShouldBindJSON(&body); err != nil {
@@ -281,7 +282,18 @@ func (c *FollowUpV2Controller) RegisterAttempt(ctx *gin.Context) {
 		return
 	}
 
-	fu, err := c.svc.RegisterContactAttempt(ctx.Request.Context(), followUpID, body.Reason, body.WasAnswered)
+	var attemptTime *time.Time
+	if body.CreatedAt != nil && *body.CreatedAt != "" {
+		parsed, err := time.Parse(time.RFC3339, *body.CreatedAt)
+		if err == nil {
+			utcTime := parsed.UTC()
+			attemptTime = &utcTime
+		} else {
+			log.Printf("[CTRL] Error parsing custom attempt time %q: %v", *body.CreatedAt, err)
+		}
+	}
+
+	fu, err := c.svc.RegisterContactAttempt(ctx.Request.Context(), followUpID, body.Reason, body.WasAnswered, attemptTime)
 	if err != nil {
 		if errors.Is(err, service.ErrFollowUpNotFound) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "seguimiento no encontrado"})

@@ -79,7 +79,7 @@ type FollowUpV2Service interface {
 	// Nuevos para "Mis Seguimientos" - Retornan entidades del dominio
 	GetAgentDayFollowUps(ctx context.Context, agentID string, date time.Time) (pending []models.FollowUpV2, priority []models.FollowUpV2, completed []models.FollowUpV2, err error)
 	GetMyDayFollowUpsEnriched(ctx context.Context, agentID string, date time.Time) (*models.MyDayResponse, error)
-	RegisterContactAttempt(ctx context.Context, followUpID string, reason string, wasAnswered bool) (*models.FollowUpV2, error)
+	RegisterContactAttempt(ctx context.Context, followUpID string, reason string, wasAnswered bool, attemptTime *time.Time) (*models.FollowUpV2, error)
 
 	// Hacer seguimiento
 	LoadFollowUp(ctx context.Context, id string, agentID string, formID string) (*LoadFollowUpResult, error)
@@ -566,7 +566,7 @@ func (s *followUpV2Service) getCompletedByAgentAndDate(ctx context.Context, agen
 }
 
 // RegisterContactAttempt registra un intento de contacto (exitoso o fallido)
-func (s *followUpV2Service) RegisterContactAttempt(ctx context.Context, followUpID string, reason string, wasAnswered bool) (*models.FollowUpV2, error) {
+func (s *followUpV2Service) RegisterContactAttempt(ctx context.Context, followUpID string, reason string, wasAnswered bool, attemptTime *time.Time) (*models.FollowUpV2, error) {
 	// 1. Validar que el seguimiento existe
 	fu, err := s.repo.FindByID(ctx, followUpID)
 	if err != nil {
@@ -581,11 +581,19 @@ func (s *followUpV2Service) RegisterContactAttempt(ctx context.Context, followUp
 		return nil, fmt.Errorf("followup: se alcanzó el máximo de intentos permitidos")
 	}
 
+	// Determinar la fecha/hora del intento (local o UTC)
+	t := time.Now().UTC()
+	if attemptTime != nil {
+		t = *attemptTime
+	}
+
 	// 3. Guardar el intento en la tabla follow_up_attempts
 	attempt := &models.FollowUpAttempt{
 		FollowUpID:  followUpID,
 		Reason:      reason,
 		WasAnswered: wasAnswered,
+		CreatedAt:   t,
+		UpdatedAt:   t,
 	}
 	if err := s.attemptRepo.CreateAttempt(ctx, attempt); err != nil {
 		return nil, fmt.Errorf("followup: error guardando intento: %w", err)
@@ -599,10 +607,9 @@ func (s *followUpV2Service) RegisterContactAttempt(ctx context.Context, followUp
 
 	// 5. Actualizar únicamente el campo attempts y last_attempt_at en follow_up_v2
 	// Usamos UpdateFields para evitar problemas de tipos con strings vacíos en PostgreSQL (ej. scheduled_time)
-	now := time.Now().UTC()
 	err = s.repo.UpdateFields(ctx, followUpID, map[string]interface{}{
 		"attempts":        int(totalAttempts),
-		"last_attempt_at": now,
+		"last_attempt_at": t,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("followup: error actualizando intento en seguimiento: %w", err)
@@ -610,7 +617,7 @@ func (s *followUpV2Service) RegisterContactAttempt(ctx context.Context, followUp
 
 	// Sincronizar el objeto local para el retorno
 	fu.Attempts = int(totalAttempts)
-	fu.LastAttemptAt = &now
+	fu.LastAttemptAt = &t
 
 	log.Printf("Intento #%d registrado para seguimiento %s: %s", fu.Attempts, followUpID, reason)
 
@@ -636,7 +643,7 @@ func (s *followUpV2Service) RegisterContactAttempt(ctx context.Context, followUp
 			Category:    models.TimelineCategorySeguimientos,
 			Type:        models.TimelineTypeIntentoSeguimiento,
 			Icon:        models.TimelineIconSeguimiento,
-			Date:        time.Now(),
+			Date:        t,
 			Description: fmt.Sprintf("Llamada realizada sin éxito. Se intentó contactar a %s. Motivo: %s", victimName, reason),
 			EventUserID: agentID,
 			Color:       models.TimelineColorYellow,
