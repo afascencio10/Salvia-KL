@@ -155,6 +155,15 @@
             display: flex; flex-direction: column; gap: 16px;
         }
         .df-question { display: flex; flex-direction: column; }
+
+        /* Divisor debajo de cada pregunta de nivel superior */
+        .df-questions > .df-question {
+            border-bottom: 1px solid #f0f0f0;
+            padding-bottom: 14px;
+            margin-bottom: 20px;
+        }
+
+        /* Estilos base del label (aplica a todos, incluyendo repeater interior) */
         .df-question > label,
         .df-repeater-item label {
             display: block;
@@ -162,6 +171,27 @@
             margin-bottom: 4px; margin-top: 0;
             min-height: unset;
         }
+
+        /* Label de preguntas de nivel superior: fuente +25% + ícono */
+        .df-questions > .df-question > label {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            font-size: 17.5px;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        .df-questions > .df-question > label::before {
+            content: '';
+            display: block;
+            width: 7px; height: 7px;
+            min-width: 7px;
+            border-radius: 50%;
+            background: #7c3aed;
+            margin-top: 6px;
+            flex-shrink: 0;
+        }
+
         .df-required { color: #f87171; margin-left: 4px; }
 
         /* text / date / datetime */
