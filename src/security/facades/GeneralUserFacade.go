@@ -198,6 +198,15 @@ func GeneralUserLOGIN_POST(c *gin.Context) {
 					}
 					navByte, _ := json.Marshal(navMap)
 					navStr = string(navByte)
+
+				case "en":
+					// Agente de Mis Barreras: redirigir directamente a la pantalla de mis barreras.
+					navMap := map[string]string{
+						"login": "/salvia/mis-barreras",
+						"role":  currentRole,
+					}
+					navByte, _ := json.Marshal(navMap)
+					navStr = string(navByte)
 				}
 
 				// Se crea una sesión común con la información del usuario autenticado.
