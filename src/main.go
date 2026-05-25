@@ -151,7 +151,7 @@ func main() {
     caseInfoCtrl           := salvia_ctrl.NewCaseInfoController(caseInfoSvc)
     reportCtrl             := salvia_ctrl.NewReportController(reportSvc)
     entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
-    entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo)
+    entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo, caseTaskRepo)
     entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
     barrierV2Svc           := service.NewBarrierV2Service(barrierV2Repo)
     barrierV2GinCtrl       := salvia_ctrl.NewBarrierV2GinController(barrierV2Svc)

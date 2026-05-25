@@ -26,6 +26,7 @@ import (
 //	    barrier_id            VARCHAR(36) NOT NULL,
 //	    case_id               VARCHAR(36) NOT NULL,
 //	    state                 VARCHAR(30) NOT NULL DEFAULT 'por_proyectar',
+//	    priority              VARCHAR(30) NOT NULL DEFAULT 'normal',
 //	    agent_id              VARCHAR(36),
 //	    notification_user_id  VARCHAR(36),
 //	    review_by             VARCHAR(36),
@@ -44,6 +45,7 @@ type EntityLetter struct {
 	BarrierID          string         `gorm:"type:varchar(36);not null;column:barrier_id"          json:"barrierId"`
 	CaseID             string         `gorm:"type:varchar(36);not null;column:case_id"             json:"caseId"`
 	State              string         `gorm:"type:varchar(30);not null;default:'por_proyectar'"    json:"state"`
+	Priority           string         `gorm:"type:varchar(30);not null;default:'normal';column:priority" json:"priority"`
 	AgentID            *string        `gorm:"type:varchar(36);column:agent_id"                     json:"agentId,omitempty"`
 	NotificationUserID *string        `gorm:"type:varchar(36);column:notification_user_id"         json:"notificationUserId,omitempty"`
 	ReviewBy           *string        `gorm:"type:varchar(36);column:review_by"                    json:"reviewBy,omitempty"`

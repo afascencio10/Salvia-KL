@@ -307,6 +307,7 @@ func (c *EntityLetterController) Action(ctx *gin.Context) {
 		Nivel            *string `json:"nivel"`
 		Entidad          *string `json:"entidad"`
 		UrlKofax         *string `json:"urlKofax"`
+		Priority         *string `json:"priority"`
 		AsuntoRadicado   *string `json:"asuntoRadicado"`
 		CorreoEntidad    *string `json:"correoEntidad"`
 		NumeroRadicado   *string `json:"numeroRadicado"`
@@ -327,6 +328,7 @@ func (c *EntityLetterController) Action(ctx *gin.Context) {
 		Nivel:            body.Nivel,
 		Entidad:          body.Entidad,
 		UrlKofax:         body.UrlKofax,
+		Priority:         body.Priority,
 		AsuntoRadicado:   body.AsuntoRadicado,
 		CorreoEntidad:    body.CorreoEntidad,
 		NumeroRadicado:   body.NumeroRadicado,

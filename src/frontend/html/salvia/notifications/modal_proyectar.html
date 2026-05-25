@@ -55,6 +55,16 @@
                     placeholder="Ej: U:/Users/X/file/oficio">
             </div>
 
+            <div class="nf-modal-form-group">
+                <label class="nf-modal-label">
+                    Prioridad del oficio <span class="nf-required">*</span>
+                </label>
+                <select v-model="modalForm.prioridad" class="form-control nf-modal-input">
+                    <option value="normal">Normal</option>
+                    <option value="alta">Alta</option>
+                </select>
+            </div>
+
             <div v-if="saveError" class="nf-error-state" style="margin-top:12px;">
                 <i class="fas fa-exclamation-triangle"></i> ${ saveError }
             </div>

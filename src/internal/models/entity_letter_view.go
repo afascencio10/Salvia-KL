@@ -17,6 +17,7 @@ type EntityLetterWithRelations struct {
 	BarrierID          string    `gorm:"column:barrier_id"           json:"barrierId"`
 	CaseID             string    `gorm:"column:case_id"              json:"caseId"`
 	State              string    `gorm:"column:state"                json:"state"`
+	Priority           string    `gorm:"column:priority"             json:"priority"`
 	AgentID            *string   `gorm:"column:agent_id"             json:"agentId,omitempty"`
 	NotificationUserID *string   `gorm:"column:notification_user_id" json:"notificationUserId,omitempty"`
 	ReviewBy           *string   `gorm:"column:review_by"            json:"reviewBy,omitempty"`
