@@ -13,3 +13,6 @@ figjamInfo/
 
 node_modules
 .claude/
+.gocache/
+.gopath/
+.gocacheagent/

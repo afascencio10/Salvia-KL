@@ -8,6 +8,8 @@ import (
 	common_dao "bitsflow/common/dao"
 	"bitsflow/common/db"
 	"bitsflow/common/utils"
+	"bitsflow/internal/models"
+	"bitsflow/internal/repository"
 	salvia_config "bitsflow/salvia/config"
 	salvia_daos "bitsflow/salvia/dao"
 	"bitsflow/salvia/service"
@@ -15,10 +17,12 @@ import (
 	security_ctrl "bitsflow/security/controllers"
 	security_daos "bitsflow/security/dao"
 	"context"
+	"fmt"
 	"log"
 	"math"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -27,6 +31,9 @@ import (
 // FollowUpSvc es inyectado desde main.go para generar el calendario automáticamente
 // al crear un caso. Si es nil, la generación automática se omite silenciosamente.
 var FollowUpSvc service.FollowUpV2Service
+
+// CaseTimelineRepo es inyectado desde main.go para registrar eventos en el timeline al crear un caso.
+var CaseTimelineRepo repository.CaseTimelineEventRepository
 
 type VictimCaseRequest struct {
 	VCase salvia_daos.VictimCaseDTO `json:"victimCase"`
@@ -512,6 +519,49 @@ func SetVictimCase(dataInput string, s utils.CommonSession, dbClientConfig db.DB
 				log.Printf("[WARN] HU-027: Error generando calendario para caso %s: %v", vCaseRequest.VCase.VictimCaseICode, calErr)
 			} else {
 				log.Printf("[INFO] HU-027: Calendario generado para caso %s (risk_level=%d)", vCaseRequest.VCase.VictimCaseICode, riskLevel)
+			}
+		}()
+	}
+
+	if CaseTimelineRepo != nil {
+		go func() {
+			caseICode := vCaseRequest.VCase.VictimCaseICode
+			log.Printf("[DEBUG] timeline hechos: iniciando para caso %s", caseICode)
+
+			form2 := vCaseRequest.VCase.VictimCaseForm2
+
+			subtypeNames := make([]string, 0, len(form2.VictimCaseForm2SubtypeViolenceExperienced))
+			for _, st := range form2.VictimCaseForm2SubtypeViolenceExperienced {
+				if st.VictimCaseForm2EnumsName != "" {
+					subtypeNames = append(subtypeNames, st.VictimCaseForm2EnumsName)
+				}
+			}
+			log.Printf("[DEBUG] timeline hechos: caso %s — subtipos=%v factsDate=%s", caseICode, subtypeNames, form2.VictimCaseForm2FactsDate.Format("2006-01-02"))
+
+			var description string
+			if len(subtypeNames) > 0 {
+				description = fmt.Sprintf("%s — %s", strings.Join(subtypeNames, ", "), form2.VictimCaseForm2FactsDescription)
+			} else {
+				description = form2.VictimCaseForm2FactsDescription
+			}
+
+			now := time.Now()
+			event := &models.CaseTimelineEvent{
+				CaseID:      caseICode,
+				EventType:   models.TimelineEventRegistro,
+				Category:    models.TimelineCategoryGeneral,
+				Type:        models.TimelineTypeHechosCaso,
+				Icon:        models.TimelineIconHechosCaso,
+				Color:       models.TimelineColorLightRed,
+				Description: description,
+				EventUserID: s.UserICode,
+				Date:        form2.VictimCaseForm2FactsDate,
+				CreatedAt:   now,
+			}
+			if err := CaseTimelineRepo.Create(context.Background(), event); err != nil {
+				log.Printf("[WARN] timeline hechos: error insertando evento para caso %s: %v", caseICode, err)
+			} else {
+				log.Printf("[INFO] timeline hechos: evento creado para caso %s (subtipos=%d)", caseICode, len(subtypeNames))
 			}
 		}()
 	}

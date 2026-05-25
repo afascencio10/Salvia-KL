@@ -36,6 +36,7 @@ import (
 //	    url_kofax             TEXT,
 //	    created_at            TIMESTAMPTZ,
 //	    updated_at            TIMESTAMPTZ,
+//	    reason_correction     VARCHAR(255),
 //	    deleted_at            TIMESTAMPTZ
 //	);
 type EntityLetter struct {
@@ -58,6 +59,7 @@ type EntityLetter struct {
 	CorreoRemitente    *string        `gorm:"type:varchar(255);column:correo_remitente"            json:"correoRemitente,omitempty"`
 	AsuntoRespuesta    *string        `gorm:"type:varchar(255);column:asunto_respuesta"            json:"asuntoRespuesta,omitempty"`
 	ResponseReviewBy   *string        `gorm:"type:varchar(36);column:response_review_by"           json:"responseReviewBy,omitempty"`
+	ReasonCorrection   *string        `gorm:"type:varchar(255);column:reason_correction"           json:"reasonCorrection,omitempty"`
 	CreatedAt          time.Time      `                                                            json:"createdAt"`
 	UpdatedAt          time.Time      `                                                            json:"updatedAt"`
 	DeletedAt          gorm.DeletedAt `gorm:"index"                                                json:"deletedAt,omitempty"`

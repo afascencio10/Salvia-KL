@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"gorm.io/gorm"
@@ -63,6 +64,9 @@ type ActionInput struct {
 	AsuntoRadicado *string
 	CorreoEntidad  *string
 	NumeroRadicado *string
+
+	// Campos del modal "Revisar oficio" — acción por_corregir
+	ReasonCorrection *string
 
 	// Campos del modal "Registrar respuesta"
 	ResponseDate     *string // fecha en formato "YYYY-MM-DD" — se parsea a time.Time
@@ -134,11 +138,15 @@ type EntityLetterService interface {
 // ─── Implementación ───────────────────────────────────────────────────────────
 
 type entityLetterService struct {
-	repo repository.EntityLetterRepository
+	repo         repository.EntityLetterRepository
+	timelineRepo repository.CaseTimelineEventRepository
 }
 
-func NewEntityLetterService(repo repository.EntityLetterRepository) EntityLetterService {
-	return &entityLetterService{repo: repo}
+func NewEntityLetterService(
+	repo repository.EntityLetterRepository,
+	timelineRepo repository.CaseTimelineEventRepository,
+) EntityLetterService {
+	return &entityLetterService{repo: repo, timelineRepo: timelineRepo}
 }
 
 func (s *entityLetterService) Create(ctx context.Context, input CreateEntityLetterInput) (*models.EntityLetter, error) {
@@ -242,6 +250,10 @@ func (s *entityLetterService) PerformAction(ctx context.Context, id string, inpu
 			return nil, fmt.Errorf("%w: acción 'por_corregir' requiere estado '%s', estado actual: '%s'",
 				ErrEntityLetterInvalidState, models.EntityLetterStateParaRevisar, letter.State)
 		}
+		if input.ReasonCorrection == nil || *input.ReasonCorrection == "" {
+			return nil, fmt.Errorf("entity_letter: el campo 'reasonCorrection' es requerido para marcar por corregir")
+		}
+		fields["reason_correction"] = *input.ReasonCorrection
 		fields["state"] = models.EntityLetterStateEnCorreccion
 
 	case "radicar":
@@ -310,7 +322,107 @@ func (s *entityLetterService) PerformAction(ctx context.Context, id string, inpu
 	if err := s.repo.UpdateFields(ctx, id, fields); err != nil {
 		return nil, err
 	}
-	return s.repo.FindByID(ctx, id)
+
+	updated, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Registrar evento en el timeline (fire-and-forget: no bloquea si falla)
+	s.registrarEventoOficio(ctx, updated, input.UserID, input.ReasonCorrection)
+
+	return updated, nil
+}
+
+// registrarEventoOficio persiste un CaseTimelineEvent cada vez que un EntityLetter
+// cambia de estado. Los errores se loguean como warnings sin interrumpir el flujo.
+func (s *entityLetterService) registrarEventoOficio(
+	ctx context.Context,
+	letter *models.EntityLetter,
+	userID string,
+	reasonCorrection *string,
+) {
+	if s.timelineRepo == nil {
+		return
+	}
+
+	type stateConfig struct {
+		eventType   string
+		description string
+		icon        string
+		color       string
+	}
+
+	cfgByState := map[string]stateConfig{
+		models.EntityLetterStateParaRevisar: {
+			eventType:   models.TimelineTypeOficioParaRevisar,
+			description: "Oficio enviado a revisión",
+			icon:        models.TimelineIconOficioRevisar,
+			color:       models.TimelineColorBlue,
+		},
+		models.EntityLetterStateEnCorreccion: {
+			eventType:   models.TimelineTypeOficioEnCorreccion,
+			description: "Oficio devuelto para corrección",
+			icon:        models.TimelineIconOficioCorreccion,
+			color:       models.TimelineColorOrange,
+		},
+		models.EntityLetterStateAprobacionJuridica: {
+			eventType:   models.TimelineTypeOficioAprobacionJuridica,
+			description: "Oficio en aprobación jurídica",
+			icon:        models.TimelineIconOficioJuridica,
+			color:       models.TimelineColorPurple,
+		},
+		models.EntityLetterStateParaRadicar: {
+			eventType:   models.TimelineTypeOficioParaRadicar,
+			description: "Oficio listo para radicar",
+			icon:        models.TimelineIconOficioRadicar,
+			color:       models.TimelineColorTeal,
+		},
+		models.EntityLetterStateRadicado: {
+			eventType:   models.TimelineTypeOficioRadicado,
+			description: "Oficio radicado ante la entidad",
+			icon:        models.TimelineIconOficioRadicar,
+			color:       models.TimelineColorGreen,
+		},
+		models.EntityLetterStateRespondido: {
+			eventType:   models.TimelineTypeOficioRespondido,
+			description: "Oficio respondido por la entidad",
+			icon:        models.TimelineIconOficioRespondido,
+			color:       models.TimelineColorGreen,
+		},
+	}
+
+	cfg, ok := cfgByState[letter.State]
+	if !ok {
+		return
+	}
+
+	// Si la acción fue por_corregir e incluye razón, enriquecer la descripción
+	if letter.State == models.EntityLetterStateEnCorreccion &&
+		reasonCorrection != nil && *reasonCorrection != "" {
+		cfg.description = fmt.Sprintf("%s — Razón: %s", cfg.description, *reasonCorrection)
+	}
+
+	now := time.Now()
+	event := &models.CaseTimelineEvent{
+		CaseID:         letter.CaseID,
+		EventType:      models.TimelineEventOficioActualizado,
+		Category:       models.TimelineCategoryOficios,
+		Type:           cfg.eventType,
+		Icon:           cfg.icon,
+		Date:           now,
+		Description:    cfg.description,
+		EventUserID:    userID,
+		Color:          cfg.color,
+		EntityLetterID: letter.ID,
+		BarrierID:      letter.BarrierID,
+		CreatedAt:      now,
+	}
+
+	if err := s.timelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[WARN] entity_letter: no se pudo registrar evento en timeline (id=%s estado=%s): %v",
+			letter.ID, letter.State, err)
+	}
 }
 
 func (s *entityLetterService) Delete(ctx context.Context, id string) error {

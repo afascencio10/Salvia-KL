@@ -225,6 +225,17 @@ func StartRouter(router *gin.Engine) {
 		secRouter.GET("/notificaciones", NotificacionesGET)
 
 		/*
+			Mis Barreras
+		*/
+		secRouter.GET("/mis-barreras", MisBarrerasGET)
+
+		/*
+			Barrera Detalle — pantalla interna de una barrera
+			Nota: usa /barreras (plural) para evitar conflicto con las rutas JSON /barrera/:id
+		*/
+		secRouter.GET("/barreras/:id", BarreraDetalleGET)
+
+		/*
 			FeminicideRisk
 		*/
 		translatedEntity = salvia_config.Locale["sp"][salvia_daos.FeminicideRiskEntityName]

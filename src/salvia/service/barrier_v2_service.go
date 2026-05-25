@@ -17,6 +17,9 @@ type BarrierV2Service interface {
 	Create(ctx context.Context, b *models.BarrierV2) error
 	Update(ctx context.Context, b *models.BarrierV2) error
 	Delete(ctx context.Context, id string) error
+	// ListByCreatedByIDWithRelations devuelve las barreras creadas por el agente
+	// enriquecidas con datos de victim_case (nombres, doc, case_code).
+	ListByCreatedByIDWithRelations(ctx context.Context, createdByID string) ([]models.BarrierV2WithRelations, error)
 }
 
 type barrierV2Service struct {
@@ -59,4 +62,8 @@ func (s *barrierV2Service) Delete(ctx context.Context, id string) error {
 		return ErrBarrierV2NotFound
 	}
 	return err
+}
+
+func (s *barrierV2Service) ListByCreatedByIDWithRelations(ctx context.Context, createdByID string) ([]models.BarrierV2WithRelations, error) {
+	return s.repo.FindByCreatedByIDWithRelations(ctx, createdByID)
 }

@@ -211,7 +211,8 @@
                     fechaRespuesta:      '',
                     correoRemitente:     '',
                     asuntoRespuesta:     '',
-                    respuestaRecibidaPor: ''
+                    respuestaRecibidaPor: '',
+                    reasonCorrection:    ''
                 },
 
                 isSaving: false,
@@ -389,12 +390,13 @@
                     radicado:    null,
                     fecha:       fecha,
                     correo:      '—',
-                    entidad:        el.entidad        || null,
-                    nivel:          el.nivel          || null,
-                    urlKofax:       el.urlKofax       || null,
-                    asuntoRadicado: el.asuntoRadicado || null,
-                    correoEntidad:  el.correoEntidad  || null,
-                    numeroRadicado: el.numeroRadicado || null
+                    entidad:          el.entidad          || null,
+                    nivel:            el.nivel            || null,
+                    urlKofax:         el.urlKofax         || null,
+                    asuntoRadicado:   el.asuntoRadicado   || null,
+                    correoEntidad:    el.correoEntidad     || null,
+                    numeroRadicado:   el.numeroRadicado   || null,
+                    reasonCorrection: el.reasonCorrection || null
                 };
             },
 
@@ -436,7 +438,8 @@
                     fechaRespuesta:      '',
                     correoRemitente:     oficio.correo || '',
                     asuntoRespuesta:     '',
-                    respuestaRecibidaPor:''
+                    respuestaRecibidaPor:'',
+                    reasonCorrection:    ''
                 };
 
                 this.saveError = null;
@@ -444,10 +447,11 @@
             },
 
             closeModal() {
-                this.showModal      = false;
-                this.activeModal    = null;
-                this.selectedOficio = null;
-                this.saveError      = null;
+                this.showModal               = false;
+                this.activeModal             = null;
+                this.selectedOficio          = null;
+                this.saveError               = null;
+                this.modalForm.reasonCorrection = '';
             },
 
             submitModal(action) {
@@ -477,7 +481,13 @@
                     payload.urlKofax = this.modalForm.kofaxPath;
                 }
 
-                /* revisar / por_corregir: no requieren campos adicionales */
+                if (action === 'por_corregir') {
+                    if (!this.modalForm.reasonCorrection) {
+                        alert('El campo "Razón de corrección" es requerido para marcar el oficio por corregir.');
+                        return;
+                    }
+                    payload.reasonCorrection = this.modalForm.reasonCorrection;
+                }
 
                 if (action === 'registrar_respuesta') {
                     if (!this.modalForm.fechaRespuesta) {

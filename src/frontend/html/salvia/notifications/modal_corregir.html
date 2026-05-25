@@ -23,6 +23,19 @@
                 y presiona "Marcar como corregido" para enviarlo nuevamente a revisión.
             </p>
 
+            <!-- Razón de corrección registrada por el revisor -->
+            <div v-if="selectedOficio && selectedOficio.reasonCorrection"
+                 class="nf-modal-form-group"
+                 style="margin-top:4px;">
+                <label class="nf-modal-label">
+                    <i class="fas fa-exclamation-circle" style="color:#dc3545;margin-right:6px;"></i>
+                    Razón de corrección indicada por el revisor
+                </label>
+                <div class="nf-correction-reason-box" style="padding:12px;background:#f8d7da;border:1px solid #f5c6cb;border-radius:4px;color:#721c24;font-size:0.9em;">
+                    ${ selectedOficio.reasonCorrection }
+                </div>
+            </div>
+
             <!-- Ruta del Kofax (solo lectura) -->
             <div class="nf-modal-form-group">
                 <label class="nf-modal-label">Oficio en el Kofax</label>

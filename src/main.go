@@ -68,6 +68,7 @@ func main() {
         &models.EconomicStabilization{},
         &models.CaseTimelineEvent{},
         &models.EntityLetter{},
+        &models.CaseTask{},
     } {
         if err := gormDB.AutoMigrate(m); err != nil {
             log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -95,6 +96,7 @@ func main() {
     agentLightRepo         := repository.NewAgentLightRepository(gormDB)
     caseTimelineRepo       := repository.NewCaseTimelineEventRepository(gormDB)
     caseDetailRepo         := repository.NewCaseDetailRepository(gormDB)
+    caseInfoRepo           := repository.NewCaseInfoRepository(gormDB)
     reportRepo             := repository.NewReportRepository(gormDB)
 
     // Services
@@ -115,6 +117,7 @@ func main() {
         BarrierV2Repo:             barrierV2Repo,
         CaseTimelineEventRepo:     caseTimelineRepo,
         AgentLightRepo:            agentLightRepo,
+        CaseRepo:                  victimCaseLightRepo,
     })
     formSectionSvc        := service.NewFormSectionService(formSectionRepo)
     questionSvc           := service.NewQuestionService(questionRepo)
@@ -126,10 +129,12 @@ func main() {
     optionSvc             := service.NewOptionService(optionRepo)
     followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo)
     caseDetailSvc         := service.NewCaseDetailService(caseDetailRepo, gormDB)
+    caseInfoSvc           := service.NewCaseInfoService(caseInfoRepo)
     reportSvc             := service.NewReportService(reportRepo)
 
     // Inyectar el servicio en el controller legacy para generación automática del calendario
     salvia_legacy.FollowUpSvc = followUpV2Svc
+    salvia_legacy.CaseTimelineRepo = caseTimelineRepo
 
     // Controllers
     formCtrl               := salvia_ctrl.NewFormController(formSvc)
@@ -143,10 +148,21 @@ func main() {
     followUpV2Ctrl         := salvia_ctrl.NewFollowUpV2Controller(followUpV2Svc)
     optionCtrl             := salvia_ctrl.NewOptionController(optionSvc)
     caseDetailCtrl         := salvia_ctrl.NewCaseDetailController(caseDetailSvc, caseTimelineRepo)
+    caseInfoCtrl           := salvia_ctrl.NewCaseInfoController(caseInfoSvc)
     reportCtrl             := salvia_ctrl.NewReportController(reportSvc)
     entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
-    entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo)
+    entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo)
     entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
+    barrierV2Svc           := service.NewBarrierV2Service(barrierV2Repo)
+    barrierV2GinCtrl       := salvia_ctrl.NewBarrierV2GinController(barrierV2Svc)
+
+    caseTaskRepo            := repository.NewCaseTaskRepository(gormDB)
+    caseTaskSvc             := service.NewCaseTaskService(service.CaseTaskServiceDeps{
+        CaseTaskRepo:     caseTaskRepo,
+        BarrierV2Repo:    barrierV2Repo,
+        CaseTimelineRepo: caseTimelineRepo,
+    })
+    caseTaskCtrl            := salvia_ctrl.NewCaseTaskController(caseTaskSvc)
 
     // Routes
     api := router.Group("/api/v1")
@@ -161,8 +177,11 @@ func main() {
     followUpV2Ctrl.RegisterRoutes(api)
     optionCtrl.RegisterRoutes(api)
     caseDetailCtrl.RegisterRoutes(api)
+    caseInfoCtrl.RegisterRoutes(api)
     reportCtrl.RegisterRoutes(api)
     entityLetterCtrl.RegisterRoutes(api)
+    barrierV2GinCtrl.RegisterRoutes(api)
+    caseTaskCtrl.RegisterRoutes(api)
     // ────────────────────────────────────────────────────────────────────────
 
     // ── Graceful shutdown ────────────────────────────────────────────────────

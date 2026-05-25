@@ -1,0 +1,57 @@
+{{ define "barriers/modal_gestionar.html" }}
+{{/* Modal: Gestionar barrera
+     Se abre al presionar "Gestionar" en la tabla de Mis Barreras.
+     Permite registrar la gestión realizada con la barrera. */}}
+
+<div v-if="showModal" class="mb-modal-overlay" @click.self="closeModal">
+    <div class="mb-modal">
+
+        <!-- ─── Cabecera ─── -->
+        <div class="mb-modal-header">
+            <div class="mb-modal-header-content">
+                <h5>Gestionar barrera</h5>
+                <p v-if="selectedBarrera" class="mb-modal-subtitle">
+                    ${ selectedBarrera.sector } · ${ selectedBarrera.description }
+                </p>
+            </div>
+            <button class="mb-modal-close" @click="closeModal" aria-label="Cerrar">&times;</button>
+        </div>
+
+        <!-- ─── Cuerpo ─── -->
+        <div class="mb-modal-body">
+
+            <div class="mb-modal-form-group">
+                <label class="mb-modal-label">
+                    Describe la gestión realizada con la barrera
+                    <span class="mb-required">*</span>
+                </label>
+                <textarea
+                    v-model="modalForm.gestion"
+                    class="form-control mb-modal-textarea"
+                    rows="5"
+                    placeholder="Describe las acciones realizadas en territorio para gestionar esta barrera...">
+                </textarea>
+            </div>
+
+            <div v-if="saveError" class="mb-modal-error">
+                <i class="fas fa-exclamation-triangle"></i> ${ saveError }
+            </div>
+
+        </div>
+
+        <!-- ─── Pie ─── -->
+        <div class="mb-modal-footer">
+            <button class="btn mb-btn-modal-cancel" @click="closeModal" :disabled="isSaving">
+                Cancelar
+            </button>
+            <button class="btn mb-btn-modal-primary" @click="submitGestionar" :disabled="isSaving">
+                <span v-if="isSaving">
+                    <i class="fas fa-spinner fa-spin"></i> Guardando...
+                </span>
+                <span v-else>Guardar</span>
+            </button>
+        </div>
+
+    </div>
+</div>
+{{ end }}
