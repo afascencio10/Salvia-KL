@@ -1,7 +1,7 @@
 /**
  * dinamic-form
  * Componente reutilizable para renderizar un formulario dinámico por secciones.
- * Soporta: single, multiple, boolean, dropdown, text, date, datetime, repeater.
+ * Soporta: single, multiple, boolean, dropdown, text, date, datetime, number, repeater, info.
  * Estilos basados en el prototipo Salvia.
  * Props:
  *   - formId      (String, required): ID del formulario a cargar
@@ -321,6 +321,25 @@
         }
         .df-popup-btn:hover { background: #6d28d9; }
 
+        /* ── Info banner ── */
+        .df-info-banner {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 14px;
+            color: #1e40af;
+            line-height: 1.5;
+        }
+        .df-info-banner-icon {
+            flex-shrink: 0;
+            font-size: 16px;
+            margin-top: 1px;
+        }
+
         /* ── Read-only ── */
         .df-input:disabled, .df-textarea:disabled, .df-select:disabled {
             background: #f9fafb; color: #6b7280; cursor: default; opacity: 1;
@@ -621,8 +640,24 @@ var DF_SCHEMA = [
     },
 ];
 
+/* ─── getObjectProperty ──────────────────────────────────────────────────────
+ * Recorre un objeto anidado siguiendo un path con puntos ("a.b.c").
+ * Retorna undefined si algún segmento no existe.
+ */
+function getObjectProperty(object, path) {
+    if (path === undefined || path === null) {
+        return object;
+    }
+    const parts = path.split('.');
+    return parts.reduce((obj, key) => {
+        if (!obj) return undefined;
+        return obj[key];
+    }, object);
+}
+
 /* ─── checkVisibility ────────────────────────────────────────────────────────
  * Réplica exacta en JS de checkVisibility (Go — form_service.go).
+ * formState: objeto externo opcional para condiciones de tipo triggerStatePath.
  */
 
 function findQuestion(fs, questionId) {
@@ -648,13 +683,19 @@ function isBeforeInFlow(trigger, item) {
         (trigger.sectionOrder === item.sectionOrder && trigger.orderInSection < item.orderInSection);
 }
 
-function checkVisibility(fs, submission, entryAnswers, item) {
+function checkVisibility(fs, submission, entryAnswers, item, formState) {
     if (!item.conditions || item.conditions.length === 0) return { name: item.name, visible: true };
 
     const directAnswers = (submission && submission.directAnswers) || [];
     const applicable = [];
 
     for (const cond of item.conditions) {
+        // ── Condición por formState (triggerStatePath) ──────────────────────
+        if (cond.triggerStatePath) {
+            applicable.push(cond);
+            continue;
+        }
+        // ── Condición por pregunta (triggerQuestionId) ──────────────────────
         const trigger = findQuestion(fs, cond.triggerQuestionId);
         if (!trigger) continue;
         if (trigger.repeaterGroupId !== null) {
@@ -671,20 +712,35 @@ function checkVisibility(fs, submission, entryAnswers, item) {
 
     const failedConditions = [];
     for (const cond of applicable) {
-        const trigger = findQuestion(fs, cond.triggerQuestionId);
-        const pool    = trigger.repeaterGroupId !== null ? (entryAnswers || []) : directAnswers;
-        const answer  = pool.find(a => a.questionId === cond.triggerQuestionId) || null;
         const trigVal = cond.triggerValue ?? '';
-        let condFailed = !answer;
-        if (answer) {
+        let condFailed = false;
+
+        if (cond.triggerStatePath) {
+            // Resolver valor desde formState (igual que resolveStatePath en Go)
+            const raw = getObjectProperty(formState || {}, cond.triggerStatePath);
+            const stateVal = (raw === undefined || raw === null) ? '' : String(raw);
             switch (cond.operator.toLowerCase()) {
-                case 'equals':               condFailed = answer.value !== trigVal; break;
+                case 'equals':             condFailed = stateVal !== trigVal; break;
                 case 'includes':
-                case 'contains':             condFailed = !answer.value.includes(trigVal); break;
-                default:                     condFailed = false;
+                case 'contains':           condFailed = !stateVal.includes(trigVal); break;
+                default:                   condFailed = false;
             }
+            if (condFailed) failedConditions.push({ ...cond });
+        } else {
+            const trigger = findQuestion(fs, cond.triggerQuestionId);
+            const pool    = trigger.repeaterGroupId !== null ? (entryAnswers || []) : directAnswers;
+            const answer  = pool.find(a => a.questionId === cond.triggerQuestionId) || null;
+            condFailed = !answer;
+            if (answer) {
+                switch (cond.operator.toLowerCase()) {
+                    case 'equals':             condFailed = answer.value !== trigVal; break;
+                    case 'includes':
+                    case 'contains':           condFailed = !answer.value.includes(trigVal); break;
+                    default:                   condFailed = false;
+                }
+            }
+            if (condFailed) failedConditions.push({ ...cond, triggerQuestionName: trigger.description });
         }
-        if (condFailed) failedConditions.push({ ...cond, triggerQuestionName: trigger.description });
     }
 
     return failedConditions.length > 0
@@ -715,7 +771,7 @@ function repeaterQuestionItem(q, sectionOrder, repeaterOrder, repeaterGroupId) {
  * @param {Object|null} submission - SubmissionStructure (de formSubmission)
  * @returns {{ section, formItems }}
  */
-function buildSectionRenderData(section, submission, fs) {
+function buildSectionRenderData(section, submission, fs, formState) {
     const sectionOrder = section.order;
 
     // ── 1. Índices de respuestas ────────────────────────────────────────────
@@ -736,7 +792,7 @@ function buildSectionRenderData(section, submission, fs) {
     // ── 2. Preguntas directas ───────────────────────────────────────────────
     const questionItems = (section.questions || []).map(q => {
         const visItem  = directQuestionItem(q, sectionOrder);
-        const vis      = fs ? checkVisibility(fs, submission, null, visItem) : { visible: true };
+        const vis      = fs ? checkVisibility(fs, submission, null, visItem, formState) : { visible: true };
         return {
             type:      'question',
             order:     q.order,
@@ -749,14 +805,14 @@ function buildSectionRenderData(section, submission, fs) {
     // ── 3. Repeater groups con sus entries y respuestas ────────────────────
     const repeaterItems = (section.repeaters || []).map(r => {
         const visItem  = repeaterItem(r, sectionOrder);
-        const vis      = fs ? checkVisibility(fs, submission, null, visItem) : { visible: true };
+        const vis      = fs ? checkVisibility(fs, submission, null, visItem, formState) : { visible: true };
 
         const rawEntries = entriesByRepeaterId[r.id] || [];
         const entries = rawEntries.map(entry => ({
             entry,
             questions: (r.questions || []).map(q => {
                 const qVisItem = repeaterQuestionItem(q, sectionOrder, r.order, r.id);
-                const qVis     = fs ? checkVisibility(fs, submission, entry.answers, qVisItem) : { visible: true };
+                const qVis     = fs ? checkVisibility(fs, submission, entry.answers, qVisItem, formState) : { visible: true };
                 return {
                     question:  q,
                     answer:    (entry.answers || []).find(a => a.questionId === q.id) || null,
@@ -788,6 +844,16 @@ app.component('dinamic-form', {
         formId:       { type: String,  required: true  },
         submissionId: { type: String,  required: false, default: null },
         canEdit:      { type: Boolean, required: false, default: true },
+        formState:    { type: Object,  required: false, default: () => ({}) },
+    },
+    watch: {
+        formState: {
+            deep: true,
+            handler(newState) {
+                if (!this.currentSectionRender) return;
+                this._reevaluateVisibility(this._buildTempSubmission(), newState);
+            },
+        },
     },
     data() {
         return {
@@ -878,6 +944,7 @@ app.component('dinamic-form', {
                 section,
                 this.formSubmission,
                 this.formStructure,
+                this.formState,
             );
             this.initLocalAnswers();
         },
@@ -888,9 +955,11 @@ app.component('dinamic-form', {
             this.error   = null;
             console.log('[dinamic-form] mounted — formId:', this.formId, '| submissionId:', this.submissionId);
             try {
-                const url = this.submissionId
-                    ? `/api/v1/forms/${this.formId}/load?submissionId=${this.submissionId}`
-                    : `/api/v1/forms/${this.formId}/load`;
+                const params = new URLSearchParams();
+                if (this.submissionId) params.set('submissionId', this.submissionId);
+                const fsJson = JSON.stringify(this.formState);
+                if (fsJson && fsJson !== '{}') params.set('formState', fsJson);
+                const url = `/api/v1/forms/${this.formId}/load` + (params.toString() ? '?' + params.toString() : '');
 
                 console.log('[dinamic-form] GET', url);
                 const res = await fetch(url);
@@ -908,6 +977,7 @@ app.component('dinamic-form', {
                     this.currentSection,
                     this.formSubmission,
                     this.formStructure,
+                    this.formState,
                 );
                 this.initLocalAnswers();
 
@@ -1019,10 +1089,14 @@ app.component('dinamic-form', {
             if (!this.currentSectionRender) return;
             for (const item of this.currentSectionRender.formItems) {
                 if (item.type === 'question') {
+                    // info banners no tienen respuesta — no crear clave en localAnswers
+                    if (item.question.questionTypeId === 'info') continue;
                     map[item.question.id] = item.answer?.value ?? '';
                 } else {
                     for (const e of item.entries) {
                         for (const q of e.questions) {
+                            // info banners no tienen respuesta — no crear clave en localAnswers
+                            if (q.question.questionTypeId === 'info') continue;
                             map[this.answerKey(q.question.id, e.entry.id)] = q.answer?.value ?? '';
                         }
                     }
@@ -1071,6 +1145,9 @@ app.component('dinamic-form', {
             if (this._clearHiddenAnswers()) {
                 this._reevaluateVisibility(this._buildTempSubmission());
             }
+
+            // 5. Emitir respuestas actuales al padre
+            this._emitAnswersUpdated();
         },
 
         onToggleMultipleAnswer(questionId, optionValue, entryId = null) {
@@ -1106,23 +1183,33 @@ app.component('dinamic-form', {
             };
         },
 
+        // Emite 'answers-updated' con la sección actual y las respuestas completas del submission
+        _emitAnswersUpdated() {
+            if (!this.currentSection) return;
+            this.$emit('answers-updated', {
+                currentSectionId: this.currentSection.id,
+                answers:          this._buildTempSubmission(),
+            });
+        },
+
         // Re-evalúa isVisible de todos los items de la sección y de secciones posteriores
-        _reevaluateVisibility(tempSubmission) {
+        _reevaluateVisibility(tempSubmission, formState) {
             const fs  = this.formStructure;
             const ord = this.currentSection.order;
+            const fst = formState !== undefined ? formState : this.formState;
 
             for (const item of this.currentSectionRender.formItems) {
                 if (item.type === 'question') {
                     item.isVisible = checkVisibility(fs, tempSubmission, null,
-                        directQuestionItem(item.question, ord)).visible;
+                        directQuestionItem(item.question, ord), fst).visible;
                 } else if (item.type === 'repeater') {
                     item.isVisible = checkVisibility(fs, tempSubmission, null,
-                        repeaterItem(item.repeater, ord)).visible;
+                        repeaterItem(item.repeater, ord), fst).visible;
                     for (const entryData of item.entries) {
                         const entryAnswers = (tempSubmission.repeaterEntries.find(e => e.id === entryData.entry.id) || {}).answers || [];
                         for (const qData of entryData.questions) {
                             qData.isVisible = checkVisibility(fs, tempSubmission, entryAnswers,
-                                repeaterQuestionItem(qData.question, ord, item.repeater.order, item.repeater.id)).visible;
+                                repeaterQuestionItem(qData.question, ord, item.repeater.order, item.repeater.id), fst).visible;
                         }
                     }
                 }
@@ -1130,7 +1217,7 @@ app.component('dinamic-form', {
 
             for (const sec of fs.sections) {
                 if (sec.order > ord) {
-                    sec.isVisible = checkVisibility(fs, tempSubmission, null, sectionItem(sec)).visible;
+                    sec.isVisible = checkVisibility(fs, tempSubmission, null, sectionItem(sec), fst).visible;
                 }
             }
         },
@@ -1185,6 +1272,8 @@ app.component('dinamic-form', {
 
             for (const item of this.currentSectionRender.formItems) {
                 if (item.type === 'question') {
+                    // info banners no generan respuesta
+                    if (item.question.questionTypeId === 'info') continue;
                     const value = this.getLocalAnswer(item.question.id);
                     if (value !== '') directAnswers.push({ questionId: item.question.id, value });
 
@@ -1242,7 +1331,7 @@ app.component('dinamic-form', {
             const sectionOrder = this.currentSection.order;
             const questions = (item.repeater.questions || []).map(q => {
                 const qVisItem = repeaterQuestionItem(q, sectionOrder, item.repeater.order, item.repeater.id);
-                const qVis     = checkVisibility(this.formStructure, this.formSubmission, [], qVisItem);
+                const qVis     = checkVisibility(this.formStructure, this.formSubmission, [], qVisItem, this.formState);
                 return { question: q, answer: null, isVisible: qVis.visible };
             });
 
@@ -1250,6 +1339,8 @@ app.component('dinamic-form', {
 
             const newAnswers = { ...this.localAnswers };
             for (const q of (item.repeater.questions || [])) {
+                // info banners no tienen respuesta — no crear clave en localAnswers
+                if (q.questionTypeId === 'info') continue;
                 newAnswers[this.answerKey(q.id, tempId)] = '';
             }
             this.localAnswers = newAnswers;
@@ -1259,6 +1350,8 @@ app.component('dinamic-form', {
                 const { [item.repeater.id]: _, ...rest } = this.repeaterErrors;
                 this.repeaterErrors = rest;
             }
+
+            this._emitAnswersUpdated();
         },
 
         removeRepeaterEntry(item, entryData) {
@@ -1283,6 +1376,8 @@ app.component('dinamic-form', {
                     [item.repeater.id]: `Se deben agregar mínimo ${min} ${itemName}`,
                 };
             }
+
+            this._emitAnswersUpdated();
         },
 
         /* ── Validar sección completa antes de guardar ── */
@@ -1292,7 +1387,7 @@ app.component('dinamic-form', {
             let valid = true;
 
             for (const item of this.currentSectionRender.formItems) {
-                if (item.type === 'question' && item.isVisible && item.question.required) {
+                if (item.type === 'question' && item.isVisible && item.question.required && item.question.questionTypeId !== 'info') {
                     if (this.getLocalAnswer(item.question.id) === '') {
                         errors[this.answerKey(item.question.id)] = 'Este campo es requerido';
                         valid = false;
@@ -1307,7 +1402,7 @@ app.component('dinamic-form', {
                     }
                     for (const entryData of item.entries) {
                         for (const qData of entryData.questions) {
-                            if (qData.isVisible && qData.question.required) {
+                            if (qData.isVisible && qData.question.required && qData.question.questionTypeId !== 'info') {
                                 if (this.getLocalAnswer(qData.question.id, entryData.entry.id) === '') {
                                     errors[this.answerKey(qData.question.id, entryData.entry.id)] = 'Este campo es requerido';
                                     valid = false;
@@ -1338,6 +1433,7 @@ app.component('dinamic-form', {
                 formSubmissionId: this.formSubmission?.id ?? '',
                 directAnswers:    fresh.directAnswers,
                 repeaterEntries:  fresh.repeaterEntries,
+                formState:        this.formState,
             };
 
             console.log('[saveSection] enviando sección:', this.currentSection.name);
@@ -1489,8 +1585,14 @@ app.component('dinamic-form', {
         <div class="df-questions" v-if="currentSectionRender">
             <template v-for="item in currentSectionRender.formItems" :key="item.type === 'question' ? item.question.id : item.repeater.id">
 
+                <!-- ── Info banner ── -->
+                <div v-if="item.type === 'question' && item.isVisible && item.question.questionTypeId === 'info'" class="df-info-banner">
+                    <span class="df-info-banner-icon">ℹ️</span>
+                    <span>\${ item.question.description }</span>
+                </div>
+
                 <!-- ── Pregunta directa ── -->
-                <div v-if="item.type === 'question' && item.isVisible" class="df-question">
+                <div v-else-if="item.type === 'question' && item.isVisible" class="df-question">
                     <label>
                         \${ item.question.description }
                         <span v-if="item.question.required" class="df-required">*</span>

@@ -100,6 +100,8 @@ func main() {
     reportRepo             := repository.NewReportRepository(gormDB)
 
     // Services
+    casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
+
     formSvc := service.NewFormService(service.FormServiceDeps{
         FormRepo:           formRepo,
         FormSectionRepo:    formSectionRepo,
@@ -117,6 +119,7 @@ func main() {
         BarrierV2Repo:             barrierV2Repo,
         CaseTimelineEventRepo:     caseTimelineRepo,
         AgentLightRepo:            agentLightRepo,
+        CasoCierreService:         casoCierreSvc,
     })
     formSectionSvc        := service.NewFormSectionService(formSectionRepo)
     questionSvc           := service.NewQuestionService(questionRepo)

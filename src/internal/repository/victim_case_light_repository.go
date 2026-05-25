@@ -11,6 +11,7 @@ import (
 type VictimCaseLightRepository interface {
 	FindByID(ctx context.Context, caseId string) (*models.VictimCaseLight, error)
 	FindByICode(ctx context.Context, iCode string) (*models.VictimCaseLight, error)
+	UpdateStatus(ctx context.Context, iCode string, status string) error
 }
 
 type victimCaseLightRepository struct {
@@ -38,4 +39,11 @@ func (r *victimCaseLightRepository) FindByICode(ctx context.Context, iCode strin
 		return nil, err
 	}
 	return &vcase, nil
+}
+
+func (r *victimCaseLightRepository) UpdateStatus(ctx context.Context, iCode string, status string) error {
+	return r.db.WithContext(ctx).
+		Model(&models.VictimCaseLight{}).
+		Where("victim_case_i_code = ?", iCode).
+		Update("victim_case_status", status).Error
 }

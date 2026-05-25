@@ -278,9 +278,13 @@
                     this.victimInfo    = data.victimInfo;
                     console.log('[HS] caseId:', this.caseId, '| caseICode:', this.caseICode);
                     console.log('[HS] followUp completo:', fu);
+                    console.log('[HS] caseStatus:', data.caseStatus);
 
-                    // canEdit: false si REALIZADO y han pasado más de 5 días desde completed_at
-                    if (fu.status === 'REALIZADO' && fu.completed_at) {
+                    // canEdit: false permanente si el caso está cerrado
+                    if (data.caseStatus === 'cd') {
+                        this.canEdit = false;
+                    } else if (fu.status === 'REALIZADO' && fu.completed_at) {
+                        // canEdit: false si REALIZADO y han pasado más de 5 días desde completed_at
                         const diffDays = (Date.now() - new Date(fu.completed_at)) / (1000 * 60 * 60 * 24);
                         this.canEdit = diffDays <= 5;
                     } else {
