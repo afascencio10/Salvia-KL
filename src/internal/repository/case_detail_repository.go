@@ -6,6 +6,7 @@ import (
 	"bitsflow/internal/models"
 	"context"
 	"errors"
+	"strings"
 
 	"gorm.io/gorm"
 )
@@ -26,6 +27,18 @@ type CaseDetailData struct {
 	PsychosocialSupports   []models.PsychosocialSupport   `json:"psychosocialSupports"`
 	EconomicStabilizations []models.EconomicStabilization `json:"economicStabilizations"`
 	Barriers               []models.BarrierV2              `json:"barriers"`
+	// Campos resumen del caso (form2 enums resueltos)
+	TipoViolencia     []string `json:"tipoViolencia"`
+	SubtipoViolencia  []string `json:"subtipoViolencia"`
+	AmbitoViolencia   []string `json:"ambitoViolencia"`
+	Nacionalidad      string   `json:"nacionalidadResumen"`
+	Genero            string   `json:"generoResumen"`
+	Diversidad        string   `json:"diversidadResumen"`
+	LugarHechos       string   `json:"lugarHechos"`
+	TerritorioOcurrencia string `json:"territorioOcurrencia"`
+	EdadCalculada        *int64 `json:"edadCalculada"`
+	TipoAgresorResumen   string `json:"tipoAgresorResumen"`
+	PlanAtencion         []string `json:"planAtencion"`
 }
 
 type CaseDetailRepository interface {
@@ -107,6 +120,77 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 		Where("victim_case_form2_victim_case = ?", vc.VictimCaseId).
 		First(&form2).Error; err == nil {
 		result.Form2 = &form2
+
+		// Cargar enums relacionados al form2 (tipo violencia, subtipo, ámbito)
+		// La tabla relacional usa victim_case_form2_id (PK de form2)
+		type enumRow struct {
+			Name     string `gorm:"column:enum_name"`
+			Category string `gorm:"column:enum_category"`
+		}
+		var enums []enumRow
+		r.db.WithContext(ctx).Raw(`
+			SELECT e.victim_case_form2_enums_name AS enum_name,
+			       e.victim_case_form2_enums_category AS enum_category
+			FROM salvia.rel_victim_case_form2_enums_victim_case_form2 rel
+			JOIN salvia.victim_case_form2_enums e ON e.victim_case_form2_enums_id = rel.victim_case_form2_enums_id
+			WHERE rel.victim_case_form2_id = (
+				SELECT victim_case_form2_id FROM salvia.victim_case_form2
+				WHERE victim_case_form2_victim_case = ? LIMIT 1
+			)
+		`, vc.VictimCaseId).Scan(&enums)
+
+		for _, en := range enums {
+			cat := en.Category
+			switch {
+			case strings.Contains(cat, "subtype_violence_experienced"):
+				result.SubtipoViolencia = append(result.SubtipoViolencia, en.Name)
+			case strings.Contains(cat, "type_violence_experienced"):
+				result.TipoViolencia = append(result.TipoViolencia, en.Name)
+			case strings.Contains(cat, "scope_of_violence"):
+				result.AmbitoViolencia = append(result.AmbitoViolencia, en.Name)
+			case strings.Contains(cat, "action_plan"):
+				result.PlanAtencion = append(result.PlanAtencion, en.Name)
+			}
+		}
+
+		// Resolver género y nacionalidad (campos de selección única ya resueltos por el componente case-info)
+		// Para el resumen usamos los mismos JOINs que case_info_repository
+		type resumenRow struct {
+			Genero       string `gorm:"column:genero"`
+			Nacionalidad string `gorm:"column:nacionalidad"`
+			Edad         *int64 `gorm:"column:edad"`
+			RelAgresor   string `gorm:"column:rel_agresor"`
+		}
+		var resumen resumenRow
+		r.db.WithContext(ctx).Raw(`
+			SELECT
+				COALESCE(gi.victim_case_form2_enums_name, '') AS genero,
+				COALESCE(na.victim_case_form2_enums_name, '') AS nacionalidad,
+				EXTRACT(YEAR FROM AGE(NOW(), f2.victim_case_form2_birth_date))::int AS edad,
+				COALESCE(ra.victim_case_form2_enums_name, '') AS rel_agresor
+			FROM salvia.victim_case_form2 f2
+			LEFT JOIN salvia.victim_case_form2_enums gi ON gi.victim_case_form2_enums_id = f2.victim_case_form2_gender_identity
+			LEFT JOIN salvia.victim_case_form2_enums na ON na.victim_case_form2_enums_id = f2.victim_case_form2_nationality
+			LEFT JOIN salvia.victim_case_form2_enums ra ON ra.victim_case_form2_enums_id = f2.victim_case_form2_relationship_with_presumed_aggressor
+			WHERE f2.victim_case_form2_victim_case = ? LIMIT 1
+		`, vc.VictimCaseId).Scan(&resumen)
+		result.Genero = resumen.Genero
+		result.Nacionalidad = resumen.Nacionalidad
+		result.EdadCalculada = resumen.Edad
+		result.TipoAgresorResumen = resumen.RelAgresor
+
+		// Territorio de ocurrencia (municipio de los hechos)
+		if form2FactsTown := ""; true {
+			var factsTown string
+			r.db.WithContext(ctx).Raw(`
+				SELECT COALESCE(c.city_name, '') FROM salvia.victim_case_form2 f2
+				LEFT JOIN security.town t ON t.town_code = f2.victim_case_form2_facts_town_code
+				LEFT JOIN security.city c ON c.city_id = t.city_id
+				WHERE f2.victim_case_form2_victim_case = ? LIMIT 1
+			`, vc.VictimCaseId).Scan(&factsTown)
+			_ = form2FactsTown
+			result.TerritorioOcurrencia = factsTown
+		}
 	}
 
 	// Query 4: seguimientos v2 del caso (por icode) — ordenados por fecha programada

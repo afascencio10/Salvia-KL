@@ -43,6 +43,7 @@ func (c *CaseDetailController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/casos/:id/timeline-events", c.GetTimelineEvents)
 	rg.POST("/casos/:id/reasignar", c.ReasignarCaso)
 	rg.PUT("/seguimiento/:segId/reasignar", c.ReassignFollowUp)
+	rg.PUT("/seguimiento/:segId/editar", c.EditFollowUp)
 }
 
 // GetByID responde con el detalle completo del caso en JSON.
@@ -284,6 +285,25 @@ func (c *CaseDetailController) ReassignFollowUp(ctx *gin.Context) {
 		return
 	}
 	if err := c.svc.ReassignFollowUp(ctx.Request.Context(), segID, body.AgentID); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// EditFollowUp actualiza la fecha y hora de un seguimiento.
+// PUT /api/v1/seguimiento/:segId/editar
+func (c *CaseDetailController) EditFollowUp(ctx *gin.Context) {
+	segID := ctx.Param("segId")
+	var body struct {
+		ScheduledDate string `json:"scheduled_date" binding:"required"`
+		ActorName     string `json:"actor_name"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := c.svc.EditFollowUpDate(ctx.Request.Context(), segID, body.ScheduledDate, body.ActorName); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
