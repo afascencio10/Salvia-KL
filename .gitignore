@@ -15,4 +15,4 @@ node_modules
 .claude/
 .gocache/
 .gopath/
-.gocacheagent/
+.gocache_agent/

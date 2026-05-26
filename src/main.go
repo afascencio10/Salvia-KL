@@ -69,6 +69,9 @@ func main() {
         &models.CaseTimelineEvent{},
         &models.EntityLetter{},
         &models.CaseTask{},
+        &models.RenderModification{},
+        &models.MenTeamRemision{},
+        &models.DiscapacidadRemision{},
     } {
         if err := gormDB.AutoMigrate(m); err != nil {
             log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -81,6 +84,7 @@ func main() {
     questionRepo           := repository.NewQuestionRepository(gormDB)
     repeaterGroupRepo      := repository.NewRepeaterGroupRepository(gormDB)
     visibilityCondRepo     := repository.NewVisibilityConditionRepository(gormDB)
+    renderModificationRepo := repository.NewRenderModificationRepository(gormDB)
     formSubmissionRepo     := repository.NewFormSubmissionRepository(gormDB)
     repeaterEntryRepo      := repository.NewRepeaterEntryRepository(gormDB)
     answerRepo             := repository.NewAnswerRepository(gormDB)
@@ -93,6 +97,8 @@ func main() {
     emRepo                 := repository.NewEmergencyMeasureRepository(gormDB)
     psRepo                 := repository.NewPsychosocialSupportRepository(gormDB)
     esRepo                 := repository.NewEconomicStabilizationRepository(gormDB)
+    menTeamRemisionRepo       := repository.NewMenTeamRemisionRepository(gormDB)
+    discapacidadRemisionRepo  := repository.NewDiscapacidadRemisionRepository(gormDB)
     agentLightRepo         := repository.NewAgentLightRepository(gormDB)
     caseTimelineRepo       := repository.NewCaseTimelineEventRepository(gormDB)
     caseDetailRepo         := repository.NewCaseDetailRepository(gormDB)
@@ -100,13 +106,16 @@ func main() {
     reportRepo             := repository.NewReportRepository(gormDB)
 
     // Services
+    casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
+
     formSvc := service.NewFormService(service.FormServiceDeps{
         FormRepo:           formRepo,
         FormSectionRepo:    formSectionRepo,
         QuestionRepo:       questionRepo,
         RepeaterGroupRepo:  repeaterGroupRepo,
         OptionRepo:         optionRepo,
-        VisibilityCondRepo: visibilityCondRepo,
+        VisibilityCondRepo:     visibilityCondRepo,
+        RenderModificationRepo: renderModificationRepo,
         FormSubmissionRepo:        formSubmissionRepo,
         RepeaterEntryRepo:         repeaterEntryRepo,
         AnswerRepo:                answerRepo,
@@ -114,9 +123,12 @@ func main() {
         EmergencyMeasureRepo:      emRepo,
         PsychosocialSupportRepo:   psRepo,
         EconomicStabilizationRepo: esRepo,
+        MenTeamRemisionRepo:       menTeamRemisionRepo,
+        DiscapacidadRemisionRepo:  discapacidadRemisionRepo,
         BarrierV2Repo:             barrierV2Repo,
         CaseTimelineEventRepo:     caseTimelineRepo,
         AgentLightRepo:            agentLightRepo,
+        CasoCierreService:         casoCierreSvc,
         CaseRepo:                  victimCaseLightRepo,
     })
     formSectionSvc        := service.NewFormSectionService(formSectionRepo)
@@ -150,9 +162,6 @@ func main() {
     caseDetailCtrl         := salvia_ctrl.NewCaseDetailController(caseDetailSvc, caseTimelineRepo)
     caseInfoCtrl           := salvia_ctrl.NewCaseInfoController(caseInfoSvc)
     reportCtrl             := salvia_ctrl.NewReportController(reportSvc)
-    entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
-    entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo)
-    entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
     barrierV2Svc           := service.NewBarrierV2Service(barrierV2Repo)
     barrierV2GinCtrl       := salvia_ctrl.NewBarrierV2GinController(barrierV2Svc)
 
@@ -163,6 +172,10 @@ func main() {
         CaseTimelineRepo: caseTimelineRepo,
     })
     caseTaskCtrl            := salvia_ctrl.NewCaseTaskController(caseTaskSvc)
+
+    entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
+    entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo, caseTaskRepo)
+    entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
 
     // Routes
     api := router.Group("/api/v1")

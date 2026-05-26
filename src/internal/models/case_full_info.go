@@ -35,6 +35,8 @@ type CaseInfoVictima struct {
 	OtraNacionalidad  string `json:"otraNacionalidad"`
 	Municipio         string `json:"municipio"`
 	CorreoElectronico string `json:"correoElectronico"`
+	DireccionResidencia string `json:"direccionResidencia"`
+	AjusteRazonable   string `json:"ajusteRazonable"`
 }
 
 type CaseInfoDatosPersonales struct {
@@ -91,6 +93,7 @@ type CaseInfoHechos struct {
 	AmbitoViolencia      string `json:"ambitoViolencia"`
 	EscenarioViolencia   string `json:"escenarioViolencia"`
 	RiesgoFeminicida     string `json:"riesgoFeminicida"`
+	DireccionHechos      string `json:"direccionHechos"`
 }
 
 type CaseInfoAgresor struct {
@@ -101,6 +104,9 @@ type CaseInfoAgresor struct {
 	NumeroDocumento   string `json:"numeroDocumento"`
 	Direccion         string `json:"direccion"`
 	Telefono          string `json:"telefono"`
+	NumAgresores      string `json:"numAgresores"`
+	Proximidad        string `json:"proximidad"`
+	GeneroAgresor     string `json:"generoAgresor"`
 }
 
 type CaseInfoRiesgo struct {

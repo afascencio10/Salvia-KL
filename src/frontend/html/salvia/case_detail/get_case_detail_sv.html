@@ -115,99 +115,93 @@
         <!-- ══ TAB: INFO GENERAL ══ -->
         <template v-if="tabActiva === 'info'">
 
-          <!-- 4 métricas superiores -->
-          <div class="cd-info-summary">
-            <div class="cd-info-field">
-              <div class="cd-lbl">Nivel de riesgo</div>
-              <div class="cd-val"><span :class="badgeRiesgo(nivelRiesgo)">${ labelRiesgo(nivelRiesgo) }</span></div>
+          <!-- ─── SECCIÓN 1: RESUMEN DEL CASO (collapsible) ─── -->
+          <div class="ci-section">
+            <div :class="['ci-section-header', infoSeccion.resumen ? 'open' : '']" @click="infoSeccion.resumen = !infoSeccion.resumen">
+              <div class="ci-section-icon" style="background:#5106A7"><i class="fa fa-clipboard-list"></i></div>
+              <span class="ci-section-label">Resumen del caso</span>
+              <i class="fa fa-chevron-down ci-section-chevron"></i>
             </div>
-            <div class="cd-info-field">
-              <div class="cd-lbl">Estado del caso</div>
-              <div class="cd-val"><span :class="badgeEstado(caso.victimCaseStatus)">${ labelEstado(caso.victimCaseStatus) }</span></div>
-            </div>
-            <div class="cd-info-field">
-              <div class="cd-lbl">Denuncias anteriores</div>
-              <div class="cd-val" style="font-size:1.6rem;font-weight:700;color:#111827">${ denunciasAnteriores }</div>
-            </div>
-            <div class="cd-info-field">
-              <div class="cd-lbl">Agente responsable</div>
-              <div class="cd-val" style="color:#5106A7">${ ultimoAgente }</div>
+            <div v-if="infoSeccion.resumen" class="ci-section-body">
+
+              <!-- 4 métricas superiores -->
+              <div class="cd-info-summary">
+                <div class="cd-info-field">
+                  <div class="cd-lbl">Nivel de riesgo</div>
+                  <div class="cd-val"><span :class="badgeRiesgo(nivelRiesgo)">${ labelRiesgo(nivelRiesgo) }</span></div>
+                </div>
+                <div class="cd-info-field">
+                  <div class="cd-lbl">Estado del caso</div>
+                  <div class="cd-val"><span :class="badgeEstado(caso.victimCaseStatus)">${ labelEstado(caso.victimCaseStatus) }</span></div>
+                </div>
+                <div class="cd-info-field">
+                  <div class="cd-lbl">Denuncias anteriores</div>
+                  <div class="cd-val" style="font-size:1.6rem;font-weight:700;color:#111827">${ denunciasAnteriores }</div>
+                </div>
+                <div class="cd-info-field">
+                  <div class="cd-lbl">Agente responsable</div>
+                  <div class="cd-val" style="color:#5106A7">${ ultimoAgente }</div>
+                </div>
+              </div>
+
+              <!-- Datos de la víctima -->
+              <p class="cd-section-title">Datos de la víctima</p>
+              <div class="cd-data-grid">
+                <div class="cd-campo"><div class="cd-lbl">Nombre completo</div><div class="cd-val">${ caso.victimCaseVictimName + ' ' + caso.victimCaseVictimLastName || '—' }</div></div>
+                <div class="cd-campo"><div class="cd-lbl">Tipo de documento</div><div class="cd-val">${ caso.victimCaseVictimDocType || '—' }</div></div>
+                <div class="cd-campo"><div class="cd-lbl">Número de identificación</div><div class="cd-val">${ caso.victimCaseVictimDocNumber || '—' }</div></div>
+                <div class="cd-campo"><div class="cd-lbl">Edad</div><div class="cd-val">${ edadCalculada ? edadCalculada + ' años' : (form1 && form1.age ? form1.age + ' años' : '—') }</div></div>
+                <div class="cd-campo"><div class="cd-lbl">Tiene hijos</div><div class="cd-val">${ form1 && form1.childrenNumber && form1.childrenNumber > 0 ? 'Sí (' + form1.childrenNumber + ')' : 'No' }</div></div>
+                <div class="cd-campo"><div class="cd-lbl">Municipio</div><div class="cd-val">${ townName || caso.victimCaseTownCode || '—' }</div></div>
+                <div class="cd-campo"><div class="cd-lbl">Departamento</div><div class="cd-val">${ deptName || '—' }</div></div>
+                <div class="cd-campo"><div class="cd-lbl">Tipo de agresor</div><div class="cd-val">${ tipoAgresorResumen || (form1 && form1.relationshipWithAggressor ? labelRelAgresor(form1.relationshipWithAggressor) : '—') }</div></div>
+                <div class="cd-campo"><div class="cd-lbl">Fecha de reporte</div><div class="cd-val">${ formatFecha(caso.victimCaseCreatedAt) }</div></div>
+              </div>
+
+              <!-- Contexto del caso -->
+              <p class="cd-section-title" v-if="tipoViolencia.length || ambitoViolencia.length || nacionalidadResumen || generoResumen || territorioOcurrencia || planAtencion.length" style="margin-top:20px">Contexto del caso</p>
+              <div class="cd-data-grid" v-if="tipoViolencia.length || ambitoViolencia.length || nacionalidadResumen || generoResumen || territorioOcurrencia || planAtencion.length">
+                <div class="cd-campo" v-if="tipoViolencia.length"><div class="cd-lbl">Tipo de violencia</div><div class="cd-val">${ tipoViolencia.join(', ') }</div></div>
+                <div class="cd-campo" v-if="subtipoViolencia.length"><div class="cd-lbl">Subtipo de violencia</div><div class="cd-val">${ subtipoViolencia.join(', ') }</div></div>
+                <div class="cd-campo" v-if="ambitoViolencia.length"><div class="cd-lbl">Ámbito de violencia</div><div class="cd-val">${ ambitoViolencia.join(', ') }</div></div>
+                <div class="cd-campo" v-if="nacionalidadResumen"><div class="cd-lbl">Nacionalidad</div><div class="cd-val">${ nacionalidadResumen }</div></div>
+                <div class="cd-campo" v-if="generoResumen"><div class="cd-lbl">Género</div><div class="cd-val">${ generoResumen }</div></div>
+                <div class="cd-campo" v-if="territorioOcurrencia"><div class="cd-lbl">Territorio de ocurrencia</div><div class="cd-val">${ territorioOcurrencia }</div></div>
+                <div class="cd-campo" v-if="planAtencion.length"><div class="cd-lbl">Plan de atención</div><div class="cd-val">${ planAtencion.join(', ') }</div></div>
+                <div class="cd-campo" v-if="ajusteRazonable.length"><div class="cd-lbl">Ajuste razonable</div><div class="cd-val">${ ajusteRazonable.join(', ') }</div></div>
+              </div>
             </div>
           </div>
 
-          <!-- Datos de la víctima -->
-          <p class="cd-section-title">Datos de la víctima</p>
-          <div class="cd-data-grid">
-            <div class="cd-campo">
-              <div class="cd-lbl">Nombre completo</div>
-              <div class="cd-val">${ caso.victimCaseVictimName + ' ' + caso.victimCaseVictimLastName || '—' }</div>
+          <!-- ─── SECCIÓN 2: HECHOS DEL CASO (collapsible) ─── -->
+          <div class="ci-section" v-if="tipoViolencia.length || subtipoViolencia.length || ambitoViolencia.length">
+            <div :class="['ci-section-header', infoSeccion.hechos ? 'open' : '']" @click="infoSeccion.hechos = !infoSeccion.hechos">
+              <div class="ci-section-icon" style="background:#ef4444"><i class="fa fa-file-alt"></i></div>
+              <span class="ci-section-label">Hechos de violencia</span>
+              <i class="fa fa-chevron-down ci-section-chevron"></i>
             </div>
-            <div class="cd-campo">
-              <div class="cd-lbl">Tipo de documento</div>
-              <div class="cd-val">${ caso.victimCaseVictimDocType || '—' }</div>
-            </div>
-            <div class="cd-campo">
-              <div class="cd-lbl">Número de identificación</div>
-              <div class="cd-val">${ caso.victimCaseVictimDocNumber || '—' }</div>
-            </div>
-            <div class="cd-campo">
-              <div class="cd-lbl">Edad</div>
-              <div class="cd-val">${ edadCalculada ? edadCalculada + ' años' : (form1 && form1.age ? form1.age + ' años' : '—') }</div>
-            </div>
-            <div class="cd-campo">
-              <div class="cd-lbl">Tiene hijos</div>
-              <div class="cd-val">${ form1 && form1.childrenNumber && form1.childrenNumber > 0 ? 'Sí (' + form1.childrenNumber + ')' : 'No' }</div>
-            </div>
-            <div class="cd-campo">
-              <div class="cd-lbl">Municipio</div>
-              <div class="cd-val">${ townName || caso.victimCaseTownCode || '—' }</div>
-            </div>
-            <div class="cd-campo">
-              <div class="cd-lbl">Departamento</div>
-              <div class="cd-val">${ deptName || '—' }</div>
-            </div>
-            <div class="cd-campo">
-              <div class="cd-lbl">Tipo de agresor</div>
-              <div class="cd-val">${ tipoAgresorResumen || (form1 && form1.relationshipWithAggressor ? labelRelAgresor(form1.relationshipWithAggressor) : '—') }</div>
-            </div>
-            <div class="cd-campo">
-              <div class="cd-lbl">Fecha de reporte</div>
-              <div class="cd-val">${ formatFecha(caso.victimCaseCreatedAt) }</div>
+            <div v-if="infoSeccion.hechos" class="ci-section-body">
+              <div class="cd-data-grid">
+                <div class="cd-campo" v-if="tipoViolencia.length"><div class="cd-lbl">Tipo de violencia</div><div class="cd-val">${ tipoViolencia.join(', ') }</div></div>
+                <div class="cd-campo" v-if="subtipoViolencia.length"><div class="cd-lbl">Subtipo</div><div class="cd-val">${ subtipoViolencia.join(', ') }</div></div>
+                <div class="cd-campo" v-if="ambitoViolencia.length"><div class="cd-lbl">Ámbito</div><div class="cd-val">${ ambitoViolencia.join(', ') }</div></div>
+                <div class="cd-campo" v-if="territorioOcurrencia"><div class="cd-lbl">Lugar de los hechos</div><div class="cd-val">${ territorioOcurrencia }</div></div>
+              </div>
             </div>
           </div>
 
-          <!-- Datos adicionales del caso -->
-          <p class="cd-section-title" v-if="tipoViolencia.length || ambitoViolencia.length || nacionalidadResumen || generoResumen || territorioOcurrencia || planAtencion.length">Contexto del caso</p>
-          <div class="cd-data-grid" v-if="tipoViolencia.length || ambitoViolencia.length || nacionalidadResumen || generoResumen || territorioOcurrencia || planAtencion.length">
-            <div class="cd-campo" v-if="tipoViolencia.length">
-              <div class="cd-lbl">Tipo de violencia</div>
-              <div class="cd-val">${ tipoViolencia.join(', ') }</div>
+          <!-- ─── SECCIÓN 3: INFO COMPLETA DEL CASO (componente inline, collapsible) ─── -->
+          <div class="ci-section">
+            <div :class="['ci-section-header', infoSeccion.completa ? 'open' : '']" @click="infoSeccion.completa = !infoSeccion.completa">
+              <div class="ci-section-icon" style="background:#3b82f6"><i class="fa fa-folder-open"></i></div>
+              <span class="ci-section-label">Información completa del caso</span>
+              <i class="fa fa-chevron-down ci-section-chevron"></i>
             </div>
-            <div class="cd-campo" v-if="subtipoViolencia.length">
-              <div class="cd-lbl">Subtipo de violencia</div>
-              <div class="cd-val">${ subtipoViolencia.join(', ') }</div>
-            </div>
-            <div class="cd-campo" v-if="ambitoViolencia.length">
-              <div class="cd-lbl">Ámbito de violencia</div>
-              <div class="cd-val">${ ambitoViolencia.join(', ') }</div>
-            </div>
-            <div class="cd-campo" v-if="nacionalidadResumen">
-              <div class="cd-lbl">Nacionalidad</div>
-              <div class="cd-val">${ nacionalidadResumen }</div>
-            </div>
-            <div class="cd-campo" v-if="generoResumen">
-              <div class="cd-lbl">Género</div>
-              <div class="cd-val">${ generoResumen }</div>
-            </div>
-            <div class="cd-campo" v-if="territorioOcurrencia">
-              <div class="cd-lbl">Territorio de ocurrencia</div>
-              <div class="cd-val">${ territorioOcurrencia }</div>
-            </div>
-            <div class="cd-campo" v-if="planAtencion.length">
-              <div class="cd-lbl">Plan de atención</div>
-              <div class="cd-val">${ planAtencion.join(', ') }</div>
+            <div v-if="infoSeccion.completa" class="ci-section-body" style="padding:0">
+              <case-info :case-id="caseICode" :visible="infoSeccion.completa" mode="inline"></case-info>
             </div>
           </div>
+
         </template>
 
         <!-- ══ TAB: DERIVACIONES ══ -->
@@ -372,7 +366,7 @@
                       @click.stop="editarSeguimiento(seg)">
                 ✏️ Editar
               </button>
-              <button v-if="puedeReasignar"
+              <button v-if="puedeReasignar || ((userRole === 'ro' || userRole === 'op') && seg.agent_id === userICode)"
                       class="btn-reasignar-seg"
                       @click.stop="reasignarSeguimiento(seg, idx)">
                 📋 Reasignar
@@ -561,7 +555,7 @@
         <label class="ns-label">Seleccione el nuevo agente <span class="ns-required">*</span></label>
         <select class="ns-input" v-model="reasignarSegAgente">
           <option value="" disabled>Seleccione el agente</option>
-          <option v-for="ag in agentesRO" :key="ag.icode" :value="ag.icode">
+          <option v-for="ag in agentesParaReasignarSeg" :key="ag.icode" :value="ag.icode">
             ${ ag.fullName || (ag.profile && ag.profile.names ? ag.profile.names + ' ' + ag.profile.lastNames : ag.icode) }
           </option>
         </select>
@@ -644,6 +638,7 @@ var home = Vue.createApp({
       edadCalculada: null,
       tipoAgresorResumen: '',
       planAtencion: [],
+      ajusteRazonable: [],
       caseICode: CASE_ICODE,
       userRole: "{{.userRole}}",
       userTeam: "{{.userTeam}}",
@@ -662,6 +657,7 @@ var home = Vue.createApp({
       reasignandoSeg: false,
       segExpandido: null,
       mostrarInfoCaso: false,
+      infoSeccion: { resumen: true, hechos: false, completa: false },
       modalEditarSeg: false,
       editarSegActual: null,
       editarSeg: { fecha: '', hora: '' },
@@ -720,6 +716,15 @@ var home = Vue.createApp({
         }
       }
       return null;
+    },
+    agentesParaReasignarSeg() {
+      // Supervisor: usa agentesRO (filtrado por riesgo del caso)
+      if (this.userRole === 'sv') return this.agentesRO;
+      // Operador: usa agentes de su mismo equipo
+      if (this.userTeam) {
+        return this.todosAgentes.filter(function(ag) { return ag.team === this.userTeam; }.bind(this));
+      }
+      return this.todosAgentes;
     },
     nivelRiesgo() {
       // Prioridad: form2 (nivel graduado), luego form1 (binario)
@@ -860,6 +865,7 @@ var home = Vue.createApp({
           self.edadCalculada = data.edadCalculada || null;
           self.tipoAgresorResumen = data.tipoAgresorResumen || '';
           self.planAtencion = data.planAtencion || [];
+          self.ajusteRazonable = data.ajusteRazonable || [];
           self.cargando = false;
           // Recargar operadores ahora que tenemos form1/form2 para determinar el team
           self.cargarOperadores();
@@ -947,7 +953,8 @@ var home = Vue.createApp({
       if (n === 0 || n === null || n === undefined) return 'Sin evaluar';
       if (n === 1) return 'Bajo';
       if (n === 2) return 'Medio';
-      if (n === 3 || n === 4) return 'Alto';
+      if (n === 3) return 'Alto';
+      if (n === 4) return 'Extremo';
       return 'Extremo';
     },
     badgeRiesgo(n) {

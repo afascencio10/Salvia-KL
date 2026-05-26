@@ -34,23 +34,26 @@ type UpdateFormInput struct {
 
 type QuestionStructure struct {
 	models.Question
-	Options    []models.Option              `json:"options"`
-	Conditions []models.VisibilityCondition `json:"conditions"`
+	Options       []models.Option               `json:"options"`
+	Conditions    []models.VisibilityCondition  `json:"conditions"`
+	Modifications []models.RenderModification   `json:"modifications"`
 }
 
 type RepeaterStructure struct {
 	models.RepeaterGroup
-	Questions  []QuestionStructure          `json:"questions"`
-	Conditions []models.VisibilityCondition `json:"conditions"`
+	Questions     []QuestionStructure           `json:"questions"`
+	Conditions    []models.VisibilityCondition  `json:"conditions"`
+	Modifications []models.RenderModification   `json:"modifications"`
 }
 
 type SectionStructure struct {
 	models.FormSection
-	Questions  []QuestionStructure          `json:"questions"`
-	Repeaters  []RepeaterStructure          `json:"repeaters"`
-	Conditions []models.VisibilityCondition `json:"conditions"`
-	IsAnswered bool                         `json:"isAnswered"`
-	IsVisible  bool                         `json:"isVisible"`
+	Questions     []QuestionStructure           `json:"questions"`
+	Repeaters     []RepeaterStructure           `json:"repeaters"`
+	Conditions    []models.VisibilityCondition  `json:"conditions"`
+	Modifications []models.RenderModification   `json:"modifications"`
+	IsAnswered    bool                          `json:"isAnswered"`
+	IsVisible     bool                          `json:"isVisible"`
 }
 
 type FormStructure struct {
@@ -125,7 +128,7 @@ type FormService interface {
 	GetFormStructure(ctx context.Context, formID string) (*FormStructure, error)
 	GetFormSubmission(ctx context.Context, submissionID string) (*SubmissionStructure, error)
 	GetFormSubmissionStructured(ctx context.Context, formID, submissionID string) (*FormSubmissionStructured, error)
-	LoadForm(ctx context.Context, formID, submissionID string) (*LoadFormResult, error)
+	LoadForm(ctx context.Context, formID, submissionID string, formState map[string]interface{}) (*LoadFormResult, error)
 	SaveSection(ctx context.Context, input SaveSectionInput) (*LoadFormResult, error)
 	OnEndFormSubmission(ctx context.Context, formID, submissionID, actorID string) error
 	TestFunction(ctx context.Context, fn, id, submissionID string) (interface{}, error)
@@ -138,6 +141,7 @@ type FormServiceDeps struct {
 	RepeaterGroupRepo          repository.RepeaterGroupRepository
 	OptionRepo                 repository.OptionRepository
 	VisibilityCondRepo         repository.VisibilityConditionRepository
+	RenderModificationRepo     repository.RenderModificationRepository
 	FormSubmissionRepo         repository.FormSubmissionRepository
 	RepeaterEntryRepo          repository.RepeaterEntryRepository
 	AnswerRepo                 repository.AnswerRepository
@@ -148,6 +152,9 @@ type FormServiceDeps struct {
 	BarrierV2Repo              repository.BarrierV2Repository
 	CaseTimelineEventRepo      repository.CaseTimelineEventRepository
 	AgentLightRepo             repository.AgentLightRepository
+	MenTeamRemisionRepo        repository.MenTeamRemisionRepository
+	DiscapacidadRemisionRepo   repository.DiscapacidadRemisionRepository
+	CasoCierreService          CasoCierreService
 	CaseRepo                   repository.VictimCaseLightRepository
 }
 
@@ -157,18 +164,22 @@ type formService struct {
 	questionRepo           repository.QuestionRepository
 	repeaterGroupRepo      repository.RepeaterGroupRepository
 	optionRepo             repository.OptionRepository
-	visibilityCondRepo     repository.VisibilityConditionRepository
+	visibilityCondRepo         repository.VisibilityConditionRepository
+	renderModificationRepo     repository.RenderModificationRepository
 	submissionRepo         repository.FormSubmissionRepository
 	repeaterEntryRepo      repository.RepeaterEntryRepository
 	answerRepo             repository.AnswerRepository
 	followUpRepo           repository.FollowUpRepository
 	emergencyMeasureRepo   repository.EmergencyMeasureRepository
-	psychosocialSupportRepo repository.PsychosocialSupportRepository
-	economicStabilizationRepo repository.EconomicStabilizationRepository
-	barrierV2Repo          repository.BarrierV2Repository
-	caseTimelineRepo       repository.CaseTimelineEventRepository
-	agentLightRepo         repository.AgentLightRepository
-	caseRepo               repository.VictimCaseLightRepository
+	psychosocialSupportRepo    repository.PsychosocialSupportRepository
+	economicStabilizationRepo  repository.EconomicStabilizationRepository
+	barrierV2Repo              repository.BarrierV2Repository
+	caseTimelineRepo           repository.CaseTimelineEventRepository
+	agentLightRepo             repository.AgentLightRepository
+	menTeamRemisionRepo        repository.MenTeamRemisionRepository
+	discapacidadRemisionRepo   repository.DiscapacidadRemisionRepository
+	casoCierreService          CasoCierreService
+	caseRepo                   repository.VictimCaseLightRepository
 }
 
 func NewFormService(deps FormServiceDeps) FormService {
@@ -179,6 +190,7 @@ func NewFormService(deps FormServiceDeps) FormService {
 		repeaterGroupRepo:         deps.RepeaterGroupRepo,
 		optionRepo:                deps.OptionRepo,
 		visibilityCondRepo:        deps.VisibilityCondRepo,
+		renderModificationRepo:    deps.RenderModificationRepo,
 		submissionRepo:            deps.FormSubmissionRepo,
 		repeaterEntryRepo:         deps.RepeaterEntryRepo,
 		answerRepo:                deps.AnswerRepo,
@@ -189,6 +201,9 @@ func NewFormService(deps FormServiceDeps) FormService {
 		barrierV2Repo:             deps.BarrierV2Repo,
 		caseTimelineRepo:          deps.CaseTimelineEventRepo,
 		agentLightRepo:            deps.AgentLightRepo,
+		menTeamRemisionRepo:       deps.MenTeamRemisionRepo,
+		discapacidadRemisionRepo:  deps.DiscapacidadRemisionRepo,
+		casoCierreService:         deps.CasoCierreService,
 		caseRepo:                  deps.CaseRepo,
 	}
 }
@@ -311,6 +326,13 @@ func (s *formService) GetFormStructure(ctx context.Context, formID string) (*For
 		return nil, err
 	}
 
+	// Query 7: all render modifications (non-fatal — tabla puede no existir aún)
+	rms, err := s.renderModificationRepo.FindByTargetIDs(ctx, allTargetIDs)
+	if err != nil {
+		log.Printf("[WARN] render_modification query failed (tabla inexistente?): %v", err)
+		rms = []models.RenderModification{}
+	}
+
 	// ── Build lookup maps ──────────────────────────────────────────────────────
 
 	// options by questionID
@@ -326,17 +348,25 @@ func (s *formService) GetFormStructure(ctx context.Context, formID string) (*For
 		vcByKey[key] = append(vcByKey[key], vc)
 	}
 
+	// RMs by targetID (target_type no es necesario para indexar — el targetID ya es único por entidad)
+	rmByTargetID := map[string][]models.RenderModification{}
+	for _, rm := range rms {
+		rmByTargetID[rm.TargetID] = append(rmByTargetID[rm.TargetID], rm)
+	}
+
 	// questions by sectionID (section-level) and by repeaterGroupID
 	sectionQuestions  := map[string][]QuestionStructure{}
 	repeaterQuestions := map[string][]QuestionStructure{}
 	for _, q := range questions {
 		qs := QuestionStructure{
-			Question:   q,
-			Options:    optionsByQuestion[q.ID],
-			Conditions: vcByKey["QUESTION:"+q.ID],
+			Question:      q,
+			Options:       optionsByQuestion[q.ID],
+			Conditions:    vcByKey["QUESTION:"+q.ID],
+			Modifications: rmByTargetID[q.ID],
 		}
-		if qs.Options == nil    { qs.Options = []models.Option{} }
-		if qs.Conditions == nil { qs.Conditions = []models.VisibilityCondition{} }
+		if qs.Options == nil        { qs.Options = []models.Option{} }
+		if qs.Conditions == nil     { qs.Conditions = []models.VisibilityCondition{} }
+		if qs.Modifications == nil  { qs.Modifications = []models.RenderModification{} }
 
 		if q.RepeaterGroupID != nil {
 			repeaterQuestions[*q.RepeaterGroupID] = append(repeaterQuestions[*q.RepeaterGroupID], qs)
@@ -352,9 +382,11 @@ func (s *formService) GetFormStructure(ctx context.Context, formID string) (*For
 			RepeaterGroup: rg,
 			Questions:     repeaterQuestions[rg.ID],
 			Conditions:    vcByKey["REPEATER_GROUP:"+rg.ID],
+			Modifications: rmByTargetID[rg.ID],
 		}
-		if rs.Questions == nil  { rs.Questions = []QuestionStructure{} }
-		if rs.Conditions == nil { rs.Conditions = []models.VisibilityCondition{} }
+		if rs.Questions == nil      { rs.Questions = []QuestionStructure{} }
+		if rs.Conditions == nil     { rs.Conditions = []models.VisibilityCondition{} }
+		if rs.Modifications == nil  { rs.Modifications = []models.RenderModification{} }
 		repeatersBySection[rg.FormSectionID] = append(repeatersBySection[rg.FormSectionID], rs)
 	}
 
@@ -364,14 +396,17 @@ func (s *formService) GetFormStructure(ctx context.Context, formID string) (*For
 		qs := sectionQuestions[sec.ID]
 		rs := repeatersBySection[sec.ID]
 		cs := vcByKey["SECTION:"+sec.ID]
+		ms := rmByTargetID[sec.ID]
 		if qs == nil { qs = []QuestionStructure{} }
 		if rs == nil { rs = []RepeaterStructure{} }
 		if cs == nil { cs = []models.VisibilityCondition{} }
+		if ms == nil { ms = []models.RenderModification{} }
 		sectionStructures[i] = SectionStructure{
-			FormSection: sec,
-			Questions:   qs,
-			Repeaters:   rs,
-			Conditions:  cs,
+			FormSection:   sec,
+			Questions:     qs,
+			Repeaters:     rs,
+			Conditions:    cs,
+			Modifications: ms,
 		}
 	}
 
@@ -479,12 +514,12 @@ func (s *formService) GetFormSubmissionStructured(ctx context.Context, formID, s
 	// Construir secciones estructuradas
 	sections := make([]SectionStructured, len(fs.Sections))
 	for i, sec := range fs.Sections {
-		secVis := checkVisibility(fs, sub, nil, sectionItem(sec))
+		secVis := checkVisibility(fs, sub, nil, sectionItem(sec), nil)
 
 		// Preguntas directas con su answer y visibilidad
 		questions := make([]QuestionStructured, len(sec.Questions))
 		for j, q := range sec.Questions {
-			qVis := checkVisibility(fs, sub, nil, directQuestionItem(q, sec.Order))
+			qVis := checkVisibility(fs, sub, nil, directQuestionItem(q, sec.Order), nil)
 			qs := QuestionStructured{
 				QuestionStructure: q,
 				SubmissionVisible: qVis.Visible,
@@ -499,14 +534,14 @@ func (s *formService) GetFormSubmissionStructured(ctx context.Context, formID, s
 		// Repeaters con visibilidad, entries y preguntas por entry
 		repeaters := make([]RepeaterStructured, len(sec.Repeaters))
 		for k, r := range sec.Repeaters {
-			rVis := checkVisibility(fs, sub, nil, repeaterItem(r, sec.Order))
+			rVis := checkVisibility(fs, sub, nil, repeaterItem(r, sec.Order), nil)
 
 			rawEntries := entriesByGroup[r.ID]
 			entries := make([]RepeaterEntryStructured, len(rawEntries))
 			for l, e := range rawEntries {
 				entryQuestions := make([]RepeaterEntryQuestion, len(r.Questions))
 				for m, q := range r.Questions {
-					qVis := checkVisibility(fs, sub, e.Answers, repeaterQuestionItem(q, sec.Order, r.Order, r.ID))
+					qVis := checkVisibility(fs, sub, e.Answers, repeaterQuestionItem(q, sec.Order, r.Order, r.ID), nil)
 					eq := RepeaterEntryQuestion{
 						QuestionStructure: q,
 						SubmissionVisible: qVis.Visible,
@@ -614,22 +649,22 @@ func (s *formService) TestFunction(ctx context.Context, fn, id, submissionID str
 
 		result := map[string]interface{}{}
 		for _, sec := range fs.Sections {
-			result["section:"+sec.ID] = checkVisibility(fs, submission, nil, sectionItem(sec))
+			result["section:"+sec.ID] = checkVisibility(fs, submission, nil, sectionItem(sec), nil)
 			for _, q := range sec.Questions {
-				result["question:"+q.ID] = checkVisibility(fs, submission, nil, directQuestionItem(q, sec.Order))
+				result["question:"+q.ID] = checkVisibility(fs, submission, nil, directQuestionItem(q, sec.Order), nil)
 			}
 			for _, r := range sec.Repeaters {
-				result["repeater:"+r.ID] = checkVisibility(fs, submission, nil, repeaterItem(r, sec.Order))
+				result["repeater:"+r.ID] = checkVisibility(fs, submission, nil, repeaterItem(r, sec.Order), nil)
 				for _, q := range r.Questions {
 					entries := entriesByGroup[r.ID]
 					if len(entries) == 0 {
 						// Sin entries: evaluar sin entryAnswers
-						result["repeaterQ:"+q.ID+":noEntry"] = checkVisibility(fs, submission, nil, repeaterQuestionItem(q, sec.Order, r.Order, r.ID))
+						result["repeaterQ:"+q.ID+":noEntry"] = checkVisibility(fs, submission, nil, repeaterQuestionItem(q, sec.Order, r.Order, r.ID), nil)
 					} else {
 						// Evaluar para cada entry
 						for _, entry := range entries {
 							key := "repeaterQ:" + q.ID + ":entry" + entry.ID
-							result[key] = checkVisibility(fs, submission, entry.Answers, repeaterQuestionItem(q, sec.Order, r.Order, r.ID))
+							result[key] = checkVisibility(fs, submission, entry.Answers, repeaterQuestionItem(q, sec.Order, r.Order, r.ID), nil)
 						}
 					}
 				}
@@ -853,7 +888,7 @@ func (s *formService) TestFunction(ctx context.Context, fn, id, submissionID str
 				failed++
 				continue
 			}
-			got := isAnsweredQuestion(qwo.q, qwo.order, c.answer, fs, c.sub)
+			got := isAnsweredQuestion(qwo.q, qwo.order, c.answer, fs, c.sub, nil)
 			pass := got.IsVisible == c.wantVis && got.IsAnswered == c.wantAns
 			if pass { passed++ } else { failed++ }
 			results = append(results, result{c.desc, got, pass})
@@ -948,7 +983,7 @@ func (s *formService) TestFunction(ctx context.Context, fn, id, submissionID str
 		}
 
 		runCase := func(desc string, r RepeaterStructure, entries []RepeaterEntryStructure, sub *SubmissionStructure, wantVis, wantAns bool) testCase {
-			got  := isAnsweredRepeater(r, sectionOrder, entries, fs, sub)
+			got  := isAnsweredRepeater(r, sectionOrder, entries, fs, sub, nil)
 			pass := got.IsVisible == wantVis && got.IsAnswered == wantAns
 			return testCase{desc, wantVis, wantAns, got, pass}
 		}
@@ -1032,7 +1067,7 @@ func (s *formService) TestFunction(ctx context.Context, fn, id, submissionID str
 		}
 
 		run := func(desc string, secOrder int, sub *SubmissionStructure, wantVis, wantAns bool) testCase {
-			got  := isAnsweredSection(secByOrder[secOrder], fs, sub)
+			got  := isAnsweredSection(secByOrder[secOrder], fs, sub, nil)
 			pass := got.IsVisible == wantVis && got.IsAnswered == wantAns
 			return testCase{desc, wantVis, wantAns, got, pass}
 		}
@@ -1091,7 +1126,7 @@ func (s *formService) TestFunction(ctx context.Context, fn, id, submissionID str
 		}
 
 		run := func(desc string, subID string, wantOrder int) testCase {
-			res, e := s.LoadForm(ctx, id, subID)
+			res, e := s.LoadForm(ctx, id, subID, nil)
 			if e != nil {
 				return testCase{desc + " [ERROR: " + e.Error() + "]", wantOrder, -1, "", false}
 			}
@@ -1235,6 +1270,36 @@ func isBeforeInFlow(trigger *questionRef, item visibilityItem) bool {
 			trigger.OrderInSection < item.OrderInSection)
 }
 
+// ─── resolveStatePath ─────────────────────────────────────────────────────────
+
+// resolveStatePath resuelve un path dotted (ej. "currentCase.status", "items.0.name")
+// en un objeto anidado de interface{}. Soporta maps y arrays (índice numérico).
+// Retorna string vacío si el path no existe, el objeto es nil, o el índice está fuera de rango.
+func resolveStatePath(state map[string]interface{}, path string) string {
+	if state == nil || path == "" {
+		return ""
+	}
+	var current interface{} = state
+	for _, key := range strings.Split(path, ".") {
+		switch v := current.(type) {
+		case map[string]interface{}:
+			current = v[key]
+		case []interface{}:
+			idx, err := strconv.Atoi(key)
+			if err != nil || idx < 0 || idx >= len(v) {
+				return ""
+			}
+			current = v[idx]
+		default:
+			return ""
+		}
+		if current == nil {
+			return ""
+		}
+	}
+	return fmt.Sprintf("%v", current)
+}
+
 // ─── checkVisibility ──────────────────────────────────────────────────────────
 
 type FailedCondition struct {
@@ -1254,11 +1319,13 @@ type VisibilityResult struct {
 //   submission   → submission con directAnswers y repeaterEntries (getFormSubmission), puede ser nil
 //   entryAnswers → respuestas de la entry actual (solo cuando itemToCheck está en un repeaterGroup)
 //   item         → elemento a evaluar
+//   formState    → estado externo del padre; nil = sin condiciones de estado
 func checkVisibility(
-	fs *FormStructure,
-	submission *SubmissionStructure,
+	fs          *FormStructure,
+	submission  *SubmissionStructure,
 	entryAnswers []models.Answer,
-	item visibilityItem,
+	item        visibilityItem,
+	formState   map[string]interface{},
 ) VisibilityResult {
 	if len(item.Conditions) == 0 {
 		return VisibilityResult{Name: item.Name, Visible: true}
@@ -1271,6 +1338,13 @@ func checkVisibility(
 
 	var applicable []models.VisibilityCondition
 	for _, cond := range item.Conditions {
+		// Condición de formState — aplica siempre, sin restricción de orden en el flujo
+		if cond.TriggerStatePath != nil && *cond.TriggerStatePath != "" {
+			applicable = append(applicable, cond)
+			continue
+		}
+
+		// Condición de pregunta — lógica existente
 		trigger := findQuestion(fs, cond.TriggerQuestionID)
 		if trigger == nil {
 			continue
@@ -1301,6 +1375,31 @@ func checkVisibility(
 
 	var failed []FailedCondition
 	for _, cond := range applicable {
+		trigVal := ""
+		if cond.TriggerValue != nil {
+			trigVal = *cond.TriggerValue
+		}
+
+		// Condición de formState
+		if cond.TriggerStatePath != nil && *cond.TriggerStatePath != "" {
+			stateVal := resolveStatePath(formState, *cond.TriggerStatePath)
+			condFailed := false
+			switch strings.ToLower(cond.Operator) {
+			case "equals":
+				condFailed = stateVal != trigVal
+			case "includes", "contains":
+				condFailed = !strings.Contains(stateVal, trigVal)
+			}
+			if condFailed {
+				failed = append(failed, FailedCondition{
+					VisibilityCondition: cond,
+					TriggerQuestionName: *cond.TriggerStatePath,
+				})
+			}
+			continue
+		}
+
+		// Condición de pregunta — lógica existente
 		trigger := findQuestion(fs, cond.TriggerQuestionID)
 
 		var pool []models.Answer
@@ -1316,11 +1415,6 @@ func checkVisibility(
 				answer = &pool[i]
 				break
 			}
-		}
-
-		trigVal := ""
-		if cond.TriggerValue != nil {
-			trigVal = *cond.TriggerValue
 		}
 
 		condFailed := false
@@ -1392,9 +1486,10 @@ func isAnsweredQuestion(
 	answer       *models.Answer,
 	fs           *FormStructure,
 	sub          *SubmissionStructure,
+	formState    map[string]interface{},
 ) IsAnsweredResult {
 	// PASO 1 — evaluar visibilidad
-	vis := checkVisibility(fs, sub, nil, directQuestionItem(q, sectionOrder))
+	vis := checkVisibility(fs, sub, nil, directQuestionItem(q, sectionOrder), formState)
 
 	// PASO 2 — no visible: no necesita respuesta, se considera ok
 	if !vis.Visible {
@@ -1429,9 +1524,10 @@ func isAnsweredRepeater(
 	entries      []RepeaterEntryStructure,
 	fs           *FormStructure,
 	sub          *SubmissionStructure,
+	formState    map[string]interface{},
 ) IsAnsweredRepeaterResult {
 	// PASO 1 — visibilidad del repeater group
-	vis := checkVisibility(fs, sub, nil, repeaterItem(r, sectionOrder))
+	vis := checkVisibility(fs, sub, nil, repeaterItem(r, sectionOrder), formState)
 	if !vis.Visible {
 		return IsAnsweredRepeaterResult{IsVisible: false, IsAnswered: true}
 	}
@@ -1452,7 +1548,7 @@ func isAnsweredRepeater(
 	for _, entry := range entries {
 		for _, q := range r.Questions {
 			// 3.1 — visibilidad de la pregunta dentro del scope de esta entry
-			qVis := checkVisibility(fs, sub, entry.Answers, repeaterQuestionItem(q, sectionOrder, r.Order, r.ID))
+			qVis := checkVisibility(fs, sub, entry.Answers, repeaterQuestionItem(q, sectionOrder, r.Order, r.ID), formState)
 			if !qVis.Visible {
 				continue
 			}
@@ -1495,12 +1591,13 @@ func isAnsweredRepeater(
 //   fs  → resultado de GetFormStructure
 //   sub → resultado de GetFormSubmission, puede ser nil
 func isAnsweredSection(
-	sec SectionStructure,
-	fs  *FormStructure,
-	sub *SubmissionStructure,
+	sec       SectionStructure,
+	fs        *FormStructure,
+	sub       *SubmissionStructure,
+	formState map[string]interface{},
 ) IsAnsweredResult {
 	// PASO 1 — visibilidad de la sección
-	vis := checkVisibility(fs, sub, nil, sectionItem(sec))
+	vis := checkVisibility(fs, sub, nil, sectionItem(sec), formState)
 	if !vis.Visible {
 		return IsAnsweredResult{IsVisible: false, IsAnswered: true}
 	}
@@ -1524,7 +1621,7 @@ func isAnsweredSection(
 		if a, ok := answerByQuestion[q.ID]; ok {
 			answer = &a
 		}
-		result := isAnsweredQuestion(q, sec.Order, answer, fs, sub)
+		result := isAnsweredQuestion(q, sec.Order, answer, fs, sub, formState)
 		if !result.IsAnswered {
 			return IsAnsweredResult{IsVisible: true, IsAnswered: false}
 		}
@@ -1533,7 +1630,7 @@ func isAnsweredSection(
 	// PASO 4 — iterar repeaters
 	for _, r := range sec.Repeaters {
 		entries := entriesByGroup[r.ID]
-		result  := isAnsweredRepeater(r, sec.Order, entries, fs, sub)
+		result  := isAnsweredRepeater(r, sec.Order, entries, fs, sub, formState)
 		if !result.IsAnswered {
 			return IsAnsweredResult{IsVisible: true, IsAnswered: false}
 		}
@@ -1555,7 +1652,7 @@ type LoadFormResult struct {
 // loadForm carga la estructura del formulario, la submission si existe, y
 // determina la currentSection: primera sección visible no respondida.
 // Si todas están respondidas, currentSection = última sección visible.
-func (s *formService) LoadForm(ctx context.Context, formID, submissionID string) (*LoadFormResult, error) {
+func (s *formService) LoadForm(ctx context.Context, formID, submissionID string, formState map[string]interface{}) (*LoadFormResult, error) {
 	// 1. Cargar estructura del formulario
 	fs, err := s.GetFormStructure(ctx, formID)
 	if err != nil {
@@ -1577,7 +1674,7 @@ func (s *formService) LoadForm(ctx context.Context, formID, submissionID string)
 
 	for i := range fs.Sections {
 		sec := &fs.Sections[i]
-		result := isAnsweredSection(*sec, fs, sub)
+		result := isAnsweredSection(*sec, fs, sub, formState)
 		sec.IsAnswered = result.IsAnswered
 		sec.IsVisible  = result.IsVisible
 		if !result.IsVisible {
@@ -1622,7 +1719,8 @@ type SaveSectionInput struct {
 	FormSubmissionID string                   `json:"formSubmissionId"` // vacío = crear nuevo
 	DirectAnswers    []SaveAnswerInput         `json:"directAnswers"`
 	RepeaterEntries  []SaveRepeaterEntryInput  `json:"repeaterEntries"`
-	ActorID          string                   `json:"actorId"` // general_user_i_code — inyectado por el controller desde la sesión
+	ActorID          string                   `json:"actorId"`          // general_user_i_code — inyectado por el controller desde la sesión
+	FormState        map[string]interface{}   `json:"formState"`        // estado externo del padre para condiciones de visibilidad
 }
 
 func (s *formService) SaveSection(ctx context.Context, input SaveSectionInput) (*LoadFormResult, error) {
@@ -1764,7 +1862,7 @@ func (s *formService) SaveSection(ctx context.Context, input SaveSectionInput) (
 	}
 
 	// 5. Retornar LoadForm con el estado actualizado (isAnswered/isVisible por sección)
-	result, err := s.LoadForm(ctx, input.FormID, submissionID)
+	result, err := s.LoadForm(ctx, input.FormID, submissionID, input.FormState)
 	if err != nil {
 		return nil, err
 	}
@@ -1984,8 +2082,18 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		qBarreraJusticia   = "2bec977e-97c7-42d7-a00a-b536af8038eb" // Barreras Justicia (multiple)
 		qBarreraProteccion = "66c9fc1e-9b5e-4ad4-999f-7aeb483d84dc" // Barreras Protección (multiple)
 		// Preguntas directas del form
-		qEquipos           = "e0d38cf5-fe3f-45cb-9fd3-f5b8f7b2f7dc" // Derivaciones a equipos (multi-select)
-		qMedidasEmergencia = "1a36260c-33a4-4ebd-bffb-e387d7964b96" // Medidas de emergencia (multi-select)
+		qEquipos            = "e0d38cf5-fe3f-45cb-9fd3-f5b8f7b2f7dc" // Derivaciones a equipos (multi-select)
+		qMedidasEmergencia  = "1a36260c-33a4-4ebd-bffb-e387d7964b96" // Medidas de emergencia (multi-select)
+		qCriteriosPsico     = "71c42c4a-f640-47ad-b2c1-5d4c18480449" // Criterios de remisión — Atención Psicosocial (multiple)
+		qCriteriosHombres        = "f7edf4fc-d1cd-4591-a358-31566c806365" // Criterios de remisión — Atención Hombres (multiple)
+		qCriteriosEstabilizacion = "28accaa6-99dc-4ec4-967b-f26045ad707c" // Criterios de remisión — Estabilización (multiple)
+		qServiciosDiscapacidad   = "47b122b1-0151-4b58-a007-d4afb722c1b9" // Servicios del Equipo de Discapacidad (multiple)
+		// Sección 5 — Cierre del caso
+		qCierraCaso         = "08950a38-3db3-4dc7-852c-3b06b4b1ed72" // boolean — ¿Realiza cierre del caso?
+		qCierreMotivo       = "95fb963e-99de-4a1d-a170-8e30845d1f7d" // single  — Motivo del cierre
+		qCierreOtroMotivo   = "e259ff16-d049-41d1-b92a-b0f09ee6fa91" // text    — Otro motivo ¿cuál?
+		qCierreDescripcion  = "50ab05f3-95d9-42e4-bfed-6abfcd0a8050" // text    — Describa la causa
+		qCierreAccionesInst = "0e7b61c8-9401-4429-81ed-61c8fc97808e" // boolean — ¿Realizó acciones institucionales?
 	)
 
 	// Mapa: questionID → nombre del sector para las preguntas de barrera
@@ -2061,7 +2169,48 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		for _, equipo := range splitValues(equiposVal) {
 			switch equipo {
 			case "atencion_psico":
-				log.Printf("[processFollowUp] creando derivacion -> atencion_psico")
+				// Regla de exclusión: si también se seleccionó medidas_emergencia, solo se crea
+				// la derivación de emergencia. La remisión psicosocial se omite.
+				equiposSeleccionados := splitValues(equiposVal)
+				tieneMedidasEmergencia := false
+				for _, e := range equiposSeleccionados {
+					if e == "medidas_emergencia" {
+						tieneMedidasEmergencia = true
+						break
+					}
+				}
+				if tieneMedidasEmergencia {
+					log.Printf("[processFollowUp] atencion_psico omitida — incompatible con medidas_emergencia seleccionada al mismo tiempo")
+					break
+				}
+				// Validar criterios de remisión psicosocial antes de crear la derivación.
+				// Regla: debe estar marcado "criterio_obligatorio" Y sumar mínimo 3 puntos.
+				criteriosVal := answerMap[qCriteriosPsico]
+				criteriosSelected := splitValues(criteriosVal)
+				tieneCriterioObligatorio := false
+				for _, c := range criteriosSelected {
+					if c == "criterio_obligatorio" {
+						tieneCriterioObligatorio = true
+						break
+					}
+				}
+				puntajesPsico := map[string]int{
+					"conducta_suicida":         3,
+					"interseccionalidad":       2,
+					"sin_ruta":                 1,
+					"condiciones_territoriales": 1,
+					"sin_acceso_psico":         1,
+					"naturalizacion_vbg":       1,
+				}
+				totalPuntos := 0
+				for _, c := range criteriosSelected {
+					totalPuntos += puntajesPsico[c]
+				}
+				if !tieneCriterioObligatorio || totalPuntos < 3 {
+					log.Printf("[processFollowUp] derivacion psicosocial NO cumple criterios (obligatorio=%v, puntos=%d) — omitida", tieneCriterioObligatorio, totalPuntos)
+					break
+				}
+				log.Printf("[processFollowUp] creando derivacion -> atencion_psico (obligatorio=%v, puntos=%d)", tieneCriterioObligatorio, totalPuntos)
 				ps := &models.PsychosocialSupport{
 					CaseID:     fu.CaseID,
 					FollowUpID: fu.ID,
@@ -2071,9 +2220,65 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 				if err := s.psychosocialSupportRepo.Create(ctx, ps); err != nil {
 					return fmt.Errorf("processFollowUpSubmission: crear derivacion psicosocial: %w", err)
 				}
+				log.Printf("[processFollowUp] ✅ derivacion creada -> atencion_psico (id=%s)", ps.ID)
 				remisionCount++
+			case "atencion_hombres":
+				// Validar criterio de remisión al equipo de hombres antes de crear la derivación.
+				// Regla: debe estar marcado "criterio_hombres".
+				criteriosHombresVal := answerMap[qCriteriosHombres]
+				criteriosHombresSelected := splitValues(criteriosHombresVal)
+				tieneCriterioHombres := false
+				for _, c := range criteriosHombresSelected {
+					if c == "criterio_hombres" {
+						tieneCriterioHombres = true
+						break
+					}
+				}
+				if !tieneCriterioHombres {
+					log.Printf("[processFollowUp] derivacion atencion_hombres NO cumple criterio — omitida")
+					break
+				}
+				log.Printf("[processFollowUp] creando derivacion -> atencion_hombres")
+				mtr := &models.MenTeamRemision{
+					CaseID:     fu.CaseID,
+					FollowUpID: fu.ID,
+					Type:       "derivacion",
+					Status:     "ACTIVE",
+				}
+				if err := s.menTeamRemisionRepo.Create(ctx, mtr); err != nil {
+					return fmt.Errorf("processFollowUpSubmission: crear derivacion atencion_hombres: %w", err)
+				}
+				log.Printf("[processFollowUp] ✅ derivacion creada -> atencion_hombres (id=%s)", mtr.ID)
+				remisionCount++
+			case "discapacidad":
+				// Crear un registro por cada servicio seleccionado del Equipo de Discapacidad.
+				serviciosVal := answerMap[qServiciosDiscapacidad]
+				if serviciosVal == "" {
+					log.Printf("[processFollowUp] derivacion discapacidad sin servicios seleccionados — omitida")
+					break
+				}
+				for _, svc := range splitValues(serviciosVal) {
+					log.Printf("[processFollowUp] creando derivacion -> discapacidad servicio=%s", svc)
+					dr := &models.DiscapacidadRemision{
+						CaseID:     fu.CaseID,
+						FollowUpID: fu.ID,
+						Service:    svc,
+						Status:     "ACTIVE",
+					}
+					if err := s.discapacidadRemisionRepo.Create(ctx, dr); err != nil {
+						return fmt.Errorf("processFollowUpSubmission: crear derivacion discapacidad [%s]: %w", svc, err)
+					}
+					log.Printf("[processFollowUp] ✅ derivacion creada -> discapacidad servicio=%s (id=%s)", svc, dr.ID)
+					remisionCount++
+				}
 			case "estabilizacion":
-				log.Printf("[processFollowUp] creando derivacion -> estabilizacion")
+				// Validar que se haya seleccionado al menos 1 criterio de estabilización.
+				criteriosEstVal := answerMap[qCriteriosEstabilizacion]
+				if criteriosEstVal == "" || len(splitValues(criteriosEstVal)) == 0 {
+					log.Printf("[processFollowUp] derivacion estabilizacion sin criterios seleccionados — omitida")
+					break
+				}
+				log.Printf("[processFollowUp] creando derivacion -> estabilizacion (criterios: %s)", criteriosEstVal)
 				ec := &models.EconomicStabilization{
 					CaseID:     fu.CaseID,
 					FollowUpID: fu.ID,
@@ -2083,6 +2288,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 				if err := s.economicStabilizationRepo.Create(ctx, ec); err != nil {
 					return fmt.Errorf("processFollowUpSubmission: crear derivacion economica: %w", err)
 				}
+				log.Printf("[processFollowUp] ✅ derivacion creada -> estabilizacion (id=%s)", ec.ID)
 				remisionCount++
 			}
 		}
@@ -2102,6 +2308,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 			if err := s.emergencyMeasureRepo.Create(ctx, em); err != nil {
 				return fmt.Errorf("processFollowUpSubmission: crear medida emergencia [%s]: %w", medida, err)
 			}
+			log.Printf("[processFollowUp] ✅ medida emergencia creada tipo=%s (id=%s)", medida, em.ID)
 			remisionCount++
 		}
 	}
@@ -2150,6 +2357,24 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		if err := s.caseTimelineRepo.Create(ctx, event); err != nil {
 			log.Printf("[processFollowUp] advertencia: no se pudo crear evento timeline: %v", err)
 		}
+	}
+
+	// 8. Cierre del caso: si el profesional marcó cierre en la Sección 5, delegar al servicio modular
+	if answerMap[qCierraCaso] == "true" && s.casoCierreService != nil {
+		input := CerrarCasoInput{
+			CaseICode:               fu.CaseID,
+			Motivo:                  answerMap[qCierreMotivo],
+			OtroMotivo:              answerMap[qCierreOtroMotivo],
+			Descripcion:             answerMap[qCierreDescripcion],
+			AccionesInstitucionales: answerMap[qCierreAccionesInst] == "true",
+			ActorID:                 actorID,
+		}
+		if err := s.casoCierreService.CerrarCaso(ctx, input); err != nil {
+			// No retornamos error: el cierre fallido no debe revertir el seguimiento ya completado
+			log.Printf("[processFollowUpSubmission] advertencia: no se pudo cerrar el caso %s: %v", fu.CaseID, err)
+		}
+	} else if answerMap[qCierraCaso] == "true" && s.casoCierreService == nil {
+		log.Printf("⚠️  [processFollowUpSubmission] casoCierreService es nil — cierre del caso %s no ejecutado. Inyectar CasoCierreService en FormServiceDeps (main.go)", fu.CaseID)
 	}
 
 	return nil
@@ -2328,6 +2553,10 @@ func validateAnswer(answer models.Answer, question QuestionStructure) ValidateAn
 		if val == "" {
 			return validationError("Selecciona al menos una opción")
 		}
+
+	case "info":
+		// Los banners informativos no tienen respuesta — siempre válidos
+		return validateAnswerOK
 
 	// DEFAULT — tipo desconocido, no bloquear
 	}

@@ -4,6 +4,7 @@ package controller
 import (
 	"bitsflow/common/utils"
 	"bitsflow/salvia/service"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -166,9 +167,16 @@ func (c *FormController) Delete(ctx *gin.Context) {
 }
 
 // LoadForm carga la estructura del form, la submission si existe, y la sección actual.
-// GET /api/v1/forms/:id/load?submissionId=<optional>
+// GET /api/v1/forms/:id/load?submissionId=<optional>&formState=<optional JSON>
 func (c *FormController) LoadForm(ctx *gin.Context) {
-	result, err := c.svc.LoadForm(ctx.Request.Context(), ctx.Param("id"), ctx.Query("submissionId"))
+	var formState map[string]interface{}
+	if raw := ctx.Query("formState"); raw != "" {
+		if err := json.Unmarshal([]byte(raw), &formState); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "formState inválido: " + err.Error()})
+			return
+		}
+	}
+	result, err := c.svc.LoadForm(ctx.Request.Context(), ctx.Param("id"), ctx.Query("submissionId"), formState)
 	if err != nil {
 		if errors.Is(err, service.ErrFormNotFound) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "formulario no encontrado"})

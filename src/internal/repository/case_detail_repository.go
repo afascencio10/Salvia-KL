@@ -39,6 +39,7 @@ type CaseDetailData struct {
 	EdadCalculada        *int64 `json:"edadCalculada"`
 	TipoAgresorResumen   string `json:"tipoAgresorResumen"`
 	PlanAtencion         []string `json:"planAtencion"`
+	AjusteRazonable      []string `json:"ajusteRazonable"`
 }
 
 type CaseDetailRepository interface {
@@ -150,6 +151,8 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 				result.AmbitoViolencia = append(result.AmbitoViolencia, en.Name)
 			case strings.Contains(cat, "action_plan"):
 				result.PlanAtencion = append(result.PlanAtencion, en.Name)
+			case strings.Contains(cat, "adjustments_gbv"):
+				result.AjusteRazonable = append(result.AjusteRazonable, en.Name)
 			}
 		}
 

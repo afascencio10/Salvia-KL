@@ -61,8 +61,9 @@ type GenerateCalendarInput struct {
 
 // LoadFollowUpResult es la respuesta del endpoint hacer-seguimiento al cargar la página.
 type LoadFollowUpResult struct {
-	FollowUp   *models.FollowUpV2       `json:"followUp"`
+	FollowUp   *models.FollowUpV2         `json:"followUp"`
 	VictimInfo *repository.VictimCaseInfo `json:"victimInfo"`
+	CaseStatus string                     `json:"caseStatus"`
 }
 
 // FollowUpV2Service define el contrato de negocio para FollowUpV2.
@@ -223,7 +224,15 @@ func (s *followUpV2Service) LoadFollowUp(ctx context.Context, id, agentID, formI
 		fu.FormSubmissionID = &fs.ID
 	}
 
-	return &LoadFollowUpResult{FollowUp: fu, VictimInfo: victimInfo}, nil
+	// Obtener status del caso para que el frontend pueda bloquear edición si está cerrado
+	caseStatus := ""
+	if vc, err := s.caseRepo.FindByICode(ctx, fu.CaseID); err == nil {
+		caseStatus = vc.Status
+	} else {
+		log.Printf("[SVC] LoadFollowUp → advertencia: no se pudo obtener status del caso %s: %v", fu.CaseID, err)
+	}
+
+	return &LoadFollowUpResult{FollowUp: fu, VictimInfo: victimInfo, CaseStatus: caseStatus}, nil
 }
 
 // GetByCaseID retorna todos los seguimientos del caso ordenados por fecha ASC.
