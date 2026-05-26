@@ -704,7 +704,7 @@
                     </label>
                     <select v-model="reasignarSegAgente" style="width: 100%; padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1.5px solid #7c3aed; font-size: 0.875rem; outline: none; background: white; color: #374151; cursor: pointer; transition: all 0.2s; box-sizing: border-box; font-family: inherit;">
                         <option value="" disabled selected>Seleccione el agente</option>
-                        <option v-for="ag in todosAgentes" :key="ag.icode" :value="ag.icode">
+                        <option v-for="ag in todosAgentes.filter(a => a.icode !== currentUserId)" :key="ag.icode" :value="ag.icode">
                             ${ ag.fullName }
                         </option>
                     </select>
