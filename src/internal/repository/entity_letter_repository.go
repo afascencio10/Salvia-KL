@@ -124,6 +124,7 @@ SELECT
     el.barrier_id,
     el.case_id,
     el.state,
+    el.priority,
     el.agent_id,
     el.notification_user_id,
     el.review_by,

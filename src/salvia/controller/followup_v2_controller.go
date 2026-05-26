@@ -55,6 +55,7 @@ func (c *FollowUpV2Controller) RegisterRoutes(api *gin.RouterGroup) {
 		myDay.GET("/my-day", c.GetMyDayFollowUps)
 		myDay.POST("/:id/attempts", c.RegisterAttempt)
 		myDay.PUT("/:id/close", c.CloseCase)
+		myDay.POST("/:id/init-closure-form", c.InitClosureForm)
 	}
 	// Seguimientos Área — rutas para supervisores
 	seg := api.Group("/seguimientos")
@@ -545,4 +546,43 @@ func (c *FollowUpV2Controller) LoadFollowUp(ctx *gin.Context) {
 	}
 	log.Printf("[CTRL] LoadFollowUp → respuesta al front: victimInfo=%+v", result.VictimInfo)
 	ctx.JSON(http.StatusOK, result)
+}
+
+// InitClosureForm godoc
+//
+//	@Summary		Inicializar formulario de cierre para un seguimiento
+//	@Tags			Seguimientos
+//	@Produce		json
+//	@Param			id			path	string	true	"UUID del seguimiento"
+//	@Param			agent_id	query	string	true	"ICode del agente"
+//	@Success		200	{object}	map[string]string	"Submission ID creado"
+//	@Failure		400	{object}	map[string]string
+//	@Failure		403	{object}	map[string]string
+//	@Failure		404	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Router			/follow-ups/{id}/init-closure-form [post]
+func (c *FollowUpV2Controller) InitClosureForm(ctx *gin.Context) {
+	id := ctx.Param("id")
+	agentID := ctx.Query("agent_id")
+
+	if agentID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "agent_id es requerido"})
+		return
+	}
+
+	submissionID, err := c.svc.InitClosureForm(ctx.Request.Context(), id, agentID)
+	if err != nil {
+		if errors.Is(err, service.ErrFollowUpNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "seguimiento no encontrado"})
+			return
+		}
+		if errors.Is(err, service.ErrFollowUpNotAssigned) {
+			ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"submission_id": submissionID})
 }

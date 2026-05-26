@@ -6,6 +6,7 @@ import (
 	"bitsflow/internal/models"
 	"bitsflow/internal/repository"
 	internaldb "bitsflow/internal/db"
+	salvia_config "bitsflow/salvia/config"
 	"context"
 	"errors"
 	"fmt"
@@ -22,6 +23,7 @@ type CaseDetailService interface {
 	CreateFollowUp(ctx context.Context, caseICode, agentID, scheduledDate, notas, createdBy string) (*models.FollowUpV2, error)
 	AddTimelineEvent(ctx context.Context, caseICode, eventType, description, actorID, actorName string) error
 	ReassignFollowUp(ctx context.Context, followUpID, newAgentID string) error
+	EditFollowUpDate(ctx context.Context, followUpID, scheduledDate, actorName string) error
 	ReasignarCaso(ctx context.Context, caseICode, newOperadorICode string) error
 	GetDB() *gorm.DB
 }
@@ -55,6 +57,44 @@ func (s *caseDetailService) GetDetail(ctx context.Context, caseICode string) (*r
 		}
 		return nil, err
 	}
+
+	// Traducir enums con Locale
+	locale := salvia_config.Locale["sp"]
+	for i, v := range detail.TipoViolencia {
+		if t, ok := locale[v]; ok {
+			detail.TipoViolencia[i] = t
+		}
+	}
+	for i, v := range detail.SubtipoViolencia {
+		if t, ok := locale[v]; ok {
+			detail.SubtipoViolencia[i] = t
+		}
+	}
+	for i, v := range detail.AmbitoViolencia {
+		if t, ok := locale[v]; ok {
+			detail.AmbitoViolencia[i] = t
+		}
+	}
+	if t, ok := locale[detail.Genero]; ok {
+		detail.Genero = t
+	}
+	if t, ok := locale[detail.Nacionalidad]; ok {
+		detail.Nacionalidad = t
+	}
+	if t, ok := locale[detail.TipoAgresorResumen]; ok {
+		detail.TipoAgresorResumen = t
+	}
+	for i, v := range detail.PlanAtencion {
+		if t, ok := locale[v]; ok {
+			detail.PlanAtencion[i] = t
+		}
+	}
+	for i, v := range detail.AjusteRazonable {
+		if t, ok := locale[v]; ok {
+			detail.AjusteRazonable[i] = t
+		}
+	}
+
 	return detail, nil
 }
 
@@ -213,6 +253,69 @@ func (s *caseDetailService) AddTimelineEvent(ctx context.Context, caseICode, eve
 
 func (s *caseDetailService) ReassignFollowUp(ctx context.Context, followUpID, newAgentID string) error {
 	return s.repo.UpdateFollowUpAgent(ctx, followUpID, newAgentID)
+}
+
+func (s *caseDetailService) EditFollowUpDate(ctx context.Context, followUpID, scheduledDate, actorName string) error {
+	// Parsear en zona horaria de Colombia
+	loc, _ := time.LoadLocation("America/Bogota")
+	fecha, err := time.ParseInLocation("2006-01-02T15:04", scheduledDate, loc)
+	if err != nil {
+		fecha, err = time.ParseInLocation("2006-01-02", scheduledDate, loc)
+		if err != nil {
+			return errors.New("formato de fecha inválido")
+		}
+	}
+
+	// Validar que no sea fecha pasada
+	hoy := time.Now().In(loc).Truncate(24 * time.Hour)
+	if fecha.Before(hoy) {
+		return errors.New("no se permiten fechas anteriores a hoy")
+	}
+
+	// Extraer hora solo si se envió
+	hora := ""
+	if len(scheduledDate) > 10 {
+		hora = fecha.Format("15:04")
+	}
+
+	// Actualizar en BD
+	fields := map[string]interface{}{
+		"scheduled_date": fecha,
+	}
+	if hora != "" {
+		fields["scheduled_time"] = hora
+	} else {
+		fields["scheduled_time"] = ""
+	}
+
+	if err := s.db.Model(&models.FollowUpV2{}).Where("id = ?", followUpID).Updates(fields).Error; err != nil {
+		return err
+	}
+
+	// Obtener el case_id del seguimiento para registrar en el timeline
+	var fu models.FollowUpV2
+	if err := s.db.Where("id = ?", followUpID).First(&fu).Error; err == nil {
+		now := time.Now()
+		descripcion := "Seguimiento editado — Nueva fecha: " + fecha.Format("2006-01-02")
+		if hora != "" {
+			descripcion += " " + hora
+		}
+		s.repo.CreateTimelineEvent(ctx, &models.CaseTimelineEvent{
+			CaseID:      fu.CaseID,
+			EventType:   models.TimelineEventSeguimiento,
+			Category:    models.TimelineCategorySeguimientos,
+			Type:        models.TimelineTypeSeguimientoEditado,
+			Icon:        models.TimelineIconPospuesto,
+			Color:       models.TimelineColorBlue,
+			Date:        now,
+			Description: descripcion,
+			ActorName:   actorName,
+			FollowUpID:  followUpID,
+			CreatedAt:   now,
+		})
+	}
+
+	return nil
 }
 
 func (s *caseDetailService) ReasignarCaso(ctx context.Context, caseICode, newOperadorICode string) error {

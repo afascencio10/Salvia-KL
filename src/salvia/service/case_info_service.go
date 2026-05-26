@@ -84,6 +84,11 @@ func (s *caseInfoService) GetFullCaseInfo(ctx context.Context, caseICode string)
 	scenarioViolence := resolveEnum(raw.F2ScenarioViolence)
 	relationshipAggressor := resolveEnum(raw.F2RelationshipAggressor)
 
+	requireInterpreter := resolveEnum(raw.F2RequireInterpreter)
+	proximityAggressor := resolveEnum(raw.F2ProximityAggressor)
+	aggressorGender := resolveEnum(raw.F2AggressorGender)
+	aggressorDocType := resolveEnum(raw.F2AggressorDocType)
+
 	result := &models.CaseFullInfo{
 		Encabezado: models.CaseInfoEncabezado{
 			Funcionarios:      raw.OwnerDescription,
@@ -94,6 +99,7 @@ func (s *caseInfoService) GetFullCaseInfo(ctx context.Context, caseICode string)
 		Victima: models.CaseInfoVictima{
 			Nombres:           raw.Nombres,
 			Apellidos:         raw.Apellidos,
+			NombreIdentitario: raw.F2IdentityName,
 			Edad:              edad,
 			FechaNacimiento:   raw.F2BirthDate,
 			TipoDocumento:     raw.DocType,
@@ -102,6 +108,8 @@ func (s *caseInfoService) GetFullCaseInfo(ctx context.Context, caseICode string)
 			OtraNacionalidad:  raw.F1NationalityOther,
 			Municipio:         coalesce(raw.CityName, raw.TownCode),
 			CorreoElectronico: raw.F1Email,
+			DireccionResidencia: raw.F2ResidenceAddress,
+			AjusteRazonable:   requireInterpreter,
 		},
 		DatosPersonales: models.CaseInfoDatosPersonales{
 			CondicionMigratoria:   raw.F1ForeignerStatus,
@@ -140,15 +148,19 @@ func (s *caseInfoService) GetFullCaseInfo(ctx context.Context, caseICode string)
 			Horario:            raw.F2FactsStartTime,
 			EscenarioViolencia: coalesce(scenarioViolence, raw.F1ViolenceScene),
 			RiesgoFeminicida:   raw.F1FemicideRisk,
+			DireccionHechos:    raw.F2FactsAddress,
 		},
 		Agresor: models.CaseInfoAgresor{
 			TipoAgresor:     raw.F1Aggressor,
 			Relacion:        coalesce(relationshipAggressor, raw.F1RelationshipAggressor),
 			Nombre:          coalesce(raw.F2AggressorNames, raw.F1AggressorName),
-			TipoDocumento:   raw.F1AggressorDocType,
+			TipoDocumento:   coalesce(aggressorDocType, raw.F1AggressorDocType),
 			NumeroDocumento: coalesce(raw.F2AggressorDocNumber, raw.F1AggressorDocNumber),
 			Direccion:       coalesce(raw.F2AggressorAddress, raw.F1AggressorAddress),
 			Telefono:        coalesce(raw.F2AggressorPhone, raw.F1AggressorPhone),
+			NumAgresores:    raw.F2NumAggressors,
+			Proximidad:      proximityAggressor,
+			GeneroAgresor:   aggressorGender,
 		},
 		Riesgo: models.CaseInfoRiesgo{
 			NivelRiesgo:               raw.F2RiskLevel,

@@ -59,6 +59,7 @@ type ActionInput struct {
 	Nivel    *string
 	Entidad  *string
 	UrlKofax *string
+	Priority *string // "normal" | "alta"
 
 	// Campos del modal "Radicar oficio"
 	AsuntoRadicado *string
@@ -140,13 +141,15 @@ type EntityLetterService interface {
 type entityLetterService struct {
 	repo         repository.EntityLetterRepository
 	timelineRepo repository.CaseTimelineEventRepository
+	taskRepo     repository.CaseTaskRepository
 }
 
 func NewEntityLetterService(
 	repo repository.EntityLetterRepository,
 	timelineRepo repository.CaseTimelineEventRepository,
+	taskRepo repository.CaseTaskRepository,
 ) EntityLetterService {
-	return &entityLetterService{repo: repo, timelineRepo: timelineRepo}
+	return &entityLetterService{repo: repo, timelineRepo: timelineRepo, taskRepo: taskRepo}
 }
 
 func (s *entityLetterService) Create(ctx context.Context, input CreateEntityLetterInput) (*models.EntityLetter, error) {
@@ -225,9 +228,12 @@ func (s *entityLetterService) PerformAction(ctx context.Context, id string, inpu
 		if input.UrlKofax == nil || *input.UrlKofax == "" {
 			return nil, fmt.Errorf("entity_letter: el campo 'urlKofax' es requerido para proyectar")
 		}
-		fields["nivel"]      = *input.Nivel
-		fields["entidad"]    = *input.Entidad
-		fields["url_kofax"]  = *input.UrlKofax
+		fields["nivel"]     = *input.Nivel
+		fields["entidad"]   = *input.Entidad
+		fields["url_kofax"] = *input.UrlKofax
+		if input.Priority != nil && *input.Priority != "" {
+			fields["priority"] = *input.Priority
+		}
 		if input.UserID != "" {
 			fields["register_by"] = input.UserID
 		}
@@ -328,10 +334,84 @@ func (s *entityLetterService) PerformAction(ctx context.Context, id string, inpu
 		return nil, err
 	}
 
+	// Al proyectar o corregir: completar la CaseTask pendiente asociada al oficio (fire-and-forget)
+	if (input.Action == "proyectar" || input.Action == "corregir") && s.taskRepo != nil {
+		s.completarCaseTask(ctx, id)
+	}
+
+	// Al marcar por corregir: crear nueva CaseTask para el agente de seguimiento (fire-and-forget)
+	if input.Action == "por_corregir" && s.taskRepo != nil {
+		s.crearCaseTaskCorreccion(ctx, updated, input.ReasonCorrection)
+	}
+
 	// Registrar evento en el timeline (fire-and-forget: no bloquea si falla)
 	s.registrarEventoOficio(ctx, updated, input.UserID, input.ReasonCorrection)
 
 	return updated, nil
+}
+
+// completarCaseTask busca la CaseTask en estado "ToDo" vinculada al EntityLetter
+// y la marca como "Done" con la fecha actual. Los errores se loguean sin interrumpir el flujo.
+func (s *entityLetterService) completarCaseTask(ctx context.Context, entityLetterID string) {
+	task, err := s.taskRepo.FindTodoByEntityLetterID(ctx, entityLetterID)
+	if err != nil {
+		log.Printf("[WARN] entity_letter: no se pudo buscar CaseTask para oficio %s: %v", entityLetterID, err)
+		return
+	}
+	if task == nil {
+		return
+	}
+
+	now := time.Now()
+	updateFields := map[string]interface{}{
+		"status":       models.CaseTaskStatusDone,
+		"completed_at": now,
+	}
+	if err := s.taskRepo.UpdateFields(ctx, task.ID, updateFields); err != nil {
+		log.Printf("[WARN] entity_letter: no se pudo completar CaseTask %s (oficio %s): %v",
+			task.ID, entityLetterID, err)
+	}
+}
+
+// crearCaseTaskCorreccion crea una CaseTask de tipo "Corregir oficio" asignada al agente
+// de seguimiento del EntityLetter cuando el oficio es devuelto para corrección.
+// Los errores se loguean sin interrumpir el flujo principal.
+func (s *entityLetterService) crearCaseTaskCorreccion(ctx context.Context, letter *models.EntityLetter, reason *string) {
+	if s.taskRepo == nil {
+		return
+	}
+
+	assignedUserID := ""
+	if letter.AgentID != nil {
+		assignedUserID = *letter.AgentID
+	}
+	if assignedUserID == "" {
+		log.Printf("[WARN] entity_letter: no se puede crear CaseTask de corrección para oficio %s: agentId vacío", letter.ID)
+		return
+	}
+
+	desc := "Corregir oficio devuelto para revisión"
+	if reason != nil && *reason != "" {
+		desc = fmt.Sprintf("Corregir oficio — Razón de devolución: %s", *reason)
+	}
+
+	barrierID := letter.BarrierID
+	letterID  := letter.ID
+
+	task := &models.CaseTask{
+		Category:       models.TimelineCategoryBarreras,
+		Type:           "Corregir oficio",
+		Description:    desc,
+		Status:         models.CaseTaskStatusToDo,
+		AssignedUserID: assignedUserID,
+		CaseID:         letter.CaseID,
+		BarrierID:      &barrierID,
+		EntityLetterID: &letterID,
+	}
+
+	if err := s.taskRepo.Create(ctx, task); err != nil {
+		log.Printf("[WARN] entity_letter: no se pudo crear CaseTask de corrección para oficio %s: %v", letter.ID, err)
+	}
 }
 
 // registrarEventoOficio persiste un CaseTimelineEvent cada vez que un EntityLetter
@@ -407,7 +487,7 @@ func (s *entityLetterService) registrarEventoOficio(
 	event := &models.CaseTimelineEvent{
 		CaseID:         letter.CaseID,
 		EventType:      models.TimelineEventOficioActualizado,
-		Category:       models.TimelineCategoryOficios,
+		Category:       models.TimelineCategoryBarreras,
 		Type:           cfg.eventType,
 		Icon:           cfg.icon,
 		Date:           now,

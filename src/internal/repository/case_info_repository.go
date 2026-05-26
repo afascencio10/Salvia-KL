@@ -78,6 +78,14 @@ type CaseInfoRaw struct {
 	F2FactsDescription string `gorm:"column:f2_facts_description"`
 	F2FactsDate        string `gorm:"column:f2_facts_date"`
 	F2FactsStartTime   string `gorm:"column:f2_facts_start_time"`
+	F2FactsAddress     string `gorm:"column:f2_facts_address"`
+	F2ResidenceAddress string `gorm:"column:f2_residence_address"`
+	F2IdentityName     string `gorm:"column:f2_identity_name"`
+	F2RequireInterpreter string `gorm:"column:f2_require_interpreter"`
+	F2NumAggressors    string `gorm:"column:f2_num_aggressors"`
+	F2ProximityAggressor string `gorm:"column:f2_proximity_aggressor"`
+	F2AggressorGender  string `gorm:"column:f2_aggressor_gender"`
+	F2AggressorDocType string `gorm:"column:f2_aggressor_doc_type"`
 	F2ScenarioViolence string `gorm:"column:f2_scenario_violence"`
 	F2AggressorNames   string `gorm:"column:f2_aggressor_names"`
 	F2AggressorDocNumber string `gorm:"column:f2_aggressor_doc_number"`
@@ -175,6 +183,14 @@ func (r *caseInfoRepository) GetFullInfoByICode(ctx context.Context, caseICode s
 			COALESCE(f2.victim_case_form2_facts_description, '')              AS f2_facts_description,
 			COALESCE(TO_CHAR(f2.victim_case_form2_facts_date, 'YYYY-MM-DD'), '') AS f2_facts_date,
 			COALESCE(f2.victim_case_form2_facts_start_time::text, '')               AS f2_facts_start_time,
+			COALESCE(f2.victim_case_form2_facts_address, '')                      AS f2_facts_address,
+			COALESCE(f2.victim_case_form2_residence_address, '')                   AS f2_residence_address,
+			COALESCE(f2.victim_case_form2_identity_name, '')                       AS f2_identity_name,
+			COALESCE(ri.victim_case_form2_enums_name, '')                          AS f2_require_interpreter,
+			COALESCE(f2.victim_case_form2_num_agressors::text, '')                 AS f2_num_aggressors,
+			COALESCE(prox.victim_case_form2_enums_name, '')                        AS f2_proximity_aggressor,
+			COALESCE(agi.victim_case_form2_enums_name, '')                         AS f2_aggressor_gender,
+			COALESCE(adt.victim_case_form2_enums_name, '')                         AS f2_aggressor_doc_type,
 			COALESCE(sv.victim_case_form2_enums_name, '')                     AS f2_scenario_violence,
 			COALESCE(f2.victim_case_form2_aggressor_names, '')                AS f2_aggressor_names,
 			COALESCE(f2.victim_case_form2_aggressor_doc_number, '')           AS f2_aggressor_doc_number,
@@ -212,6 +228,14 @@ func (r *caseInfoRepository) GetFullInfoByICode(ctx context.Context, caseICode s
 			ON sv.victim_case_form2_enums_id = f2.victim_case_form2_scenario_violence
 		LEFT JOIN salvia.victim_case_form2_enums rel
 			ON rel.victim_case_form2_enums_id = f2.victim_case_form2_relationship_with_presumed_aggressor
+		LEFT JOIN salvia.victim_case_form2_enums ri
+			ON ri.victim_case_form2_enums_id = f2.victim_case_form2_require_language_interpreter
+		LEFT JOIN salvia.victim_case_form2_enums prox
+			ON prox.victim_case_form2_enums_id = f2.victim_case_form2_proximity_principal_aggressor
+		LEFT JOIN salvia.victim_case_form2_enums agi
+			ON agi.victim_case_form2_enums_id = f2.victim_case_form2_aggressor_gender_identity
+		LEFT JOIN salvia.victim_case_form2_enums adt
+			ON adt.victim_case_form2_enums_id = f2.victim_case_form2_aggressor_doc_type
 		LEFT JOIN security.town t
 			ON t.town_code = vc.victim_case_victim_town_code
 		LEFT JOIN security.city c

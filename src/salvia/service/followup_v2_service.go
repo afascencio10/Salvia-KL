@@ -91,6 +91,7 @@ type FollowUpV2Service interface {
 	GetFilterOptions(ctx context.Context, team string) (FilterOptions, error)
 	RescheduleFollowUp(ctx context.Context, id string, input RescheduleInput) error
 	CloseCaseFollowUps(ctx context.Context, followUpID string, closureReason string) error
+	InitClosureForm(ctx context.Context, followUpID string, agentID string) (string, error)
 }
 
 // RescheduleInput es el body para reagendar un seguimiento.
@@ -1024,4 +1025,43 @@ func (s *followUpV2Service) calcularAgente(ctx context.Context, dates []time.Tim
 		bestID, team, bestAvg, bestDateLoad, bestGlobalLoad)
 
 	return bestID, nil
+}
+
+func (s *followUpV2Service) InitClosureForm(ctx context.Context, followUpID string, agentID string) (string, error) {
+	log.Printf("[SVC] InitClosureForm → followUpID=%s agentID=%s", followUpID, agentID)
+
+	// 1. Obtener seguimiento
+	fu, err := s.repo.FindByID(ctx, followUpID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", ErrFollowUpNotFound
+		}
+		return "", err
+	}
+
+	// 2. Validar pertenencia al agente
+	if fu.AgentID == nil || *fu.AgentID != agentID {
+		return "", ErrFollowUpNotAssigned
+	}
+
+	// Si ya tiene un formSubmissionId y el form_id es de cierre de caso, retornarlo directamente sin crear uno nuevo
+	const closureFormID = "da8423ab-1a8c-47db-96b7-d10496df571a"
+	if fu.FormSubmissionID != nil && *fu.FormSubmissionID != "" && fu.FormID != nil && *fu.FormID == closureFormID {
+		return *fu.FormSubmissionID, nil
+	}
+
+	// 3. Crear un FormSubmission para el formulario de cierre
+	fs := &models.FormSubmission{
+		FormID: closureFormID,
+	}
+	if err := s.fsRepo.Create(ctx, fs); err != nil {
+		return "", fmt.Errorf("initClosureForm: crear form submission: %w", err)
+	}
+
+	// 4. Actualizar el follow-up con formID y formSubmissionID
+	if err := s.repo.UpdateFormIDAndSubmissionID(ctx, fu.ID, closureFormID, fs.ID); err != nil {
+		return "", fmt.Errorf("initClosureForm: actualizar followUp: %w", err)
+	}
+
+	return fs.ID, nil
 }

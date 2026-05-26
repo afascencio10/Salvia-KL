@@ -51,6 +51,7 @@ type FollowUpRepository interface {
 	// Hacer seguimiento
 	LoadVictimInfoByCaseID(ctx context.Context, caseID string) (*VictimCaseInfo, error)
 	UpdateFormSubmissionID(ctx context.Context, id string, fsID string) error
+	UpdateFormIDAndSubmissionID(ctx context.Context, id string, formID string, fsID string) error
 	FindByFormSubmissionID(ctx context.Context, formSubmissionID string) (*models.FollowUpV2, error)
 	UpdateStatus(ctx context.Context, id string, status string) error
 	CreateTimelineEvent(ctx context.Context, event *models.CaseTimelineEvent) error
@@ -190,6 +191,7 @@ func (r *followUpRepository) FindByAgentAndDate(ctx context.Context, agentID str
 			models.FollowUpStatusPendiente,
 			models.FollowUpStatusReprogramado,
 			dateOnly).
+		Where("case_id NOT IN (SELECT victim_case_i_code FROM salvia.victim_case WHERE victim_case_status = ?)", "cd").
 		Order(`
 			CASE UPPER(risk_status)
 				WHEN 'EXTREMO' THEN 1 
@@ -222,6 +224,7 @@ func (r *followUpRepository) FindRealizedTodayByAgent(ctx context.Context, agent
 			agentID,
 			models.FollowUpStatusRealizado,
 			dateOnly).
+		Where("case_id NOT IN (SELECT victim_case_i_code FROM salvia.victim_case WHERE victim_case_status = ?)", "cd").
 		Order("scheduled_time ASC").
 		Find(&items).Error
 
@@ -417,6 +420,20 @@ func (r *followUpRepository) UpdateFormSubmissionID(ctx context.Context, id stri
 		Model(&models.FollowUpV2{}).
 		Where("id = ?", id).
 		Update("form_submission_id", fsID).Error
+}
+
+// UpdateFormIDAndSubmissionID asigna formId y formSubmissionId a un seguimiento.
+func (r *followUpRepository) UpdateFormIDAndSubmissionID(ctx context.Context, id string, formID string, fsID string) error {
+	fields := map[string]interface{}{
+		"form_submission_id": fsID,
+	}
+	if formID != "" {
+		fields["form_id"] = formID
+	}
+	return r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Where("id = ?", id).
+		Updates(fields).Error
 }
 
 // FindByFormSubmissionID busca el seguimiento asociado a un formSubmissionId.

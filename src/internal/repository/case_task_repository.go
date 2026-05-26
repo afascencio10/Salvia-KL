@@ -3,6 +3,7 @@ package repository
 import (
 	"bitsflow/internal/models"
 	"context"
+	"errors"
 
 	"gorm.io/gorm"
 )
@@ -25,6 +26,10 @@ type CaseTaskRepository interface {
 
 	// FindByBarrierID devuelve todas las tareas relacionadas a una barrera.
 	FindByBarrierID(ctx context.Context, barrierID string) ([]models.CaseTask, error)
+
+	// FindTodoByEntityLetterID devuelve la primera tarea en estado "ToDo"
+	// asociada a un EntityLetter dado. Devuelve nil, nil si no existe.
+	FindTodoByEntityLetterID(ctx context.Context, entityLetterID string) (*models.CaseTask, error)
 }
 
 type caseTaskRepository struct {
@@ -64,6 +69,20 @@ func (r *caseTaskRepository) FindByBarrierID(ctx context.Context, barrierID stri
 		Order("created_at DESC").
 		Find(&items).Error
 	return items, err
+}
+
+func (r *caseTaskRepository) FindTodoByEntityLetterID(ctx context.Context, entityLetterID string) (*models.CaseTask, error) {
+	var task models.CaseTask
+	err := r.db.WithContext(ctx).
+		Where("entity_letter_id = ? AND status = ?", entityLetterID, models.CaseTaskStatusToDo).
+		First(&task).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &task, nil
 }
 
 // caseTaskWithRelationsSQL es la query base que enriquece case_task con datos

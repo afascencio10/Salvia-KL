@@ -144,19 +144,26 @@ func MyFollowUpsGET(c *gin.Context) {
 	common_facades.SetHeaderNoCache(c)
 
 	var menu map[string][]map[string]string
-	if err == nil {
+	var role string
+	var team string
+	if err == nil && s != nil {
 		menu = s.CurrentMenu
+		role = s.CurrentRole
+		team = s.Team
 	}
 
 	// Renderiza el template "get_my_follow_ups" definido en salvia_config.HTML_Templates
 	common_facades.RenderTemplate(c, salvia_daos.FollowUpEntityName, "salvia", "my_follow_ups/", salvia_config.HTML_Templates, "get_my_follow_ups", utils.GetFullHtmlTemplates(), utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
 		map[string]interface{}{
-			"windowTitle": "Mis Seguimientos",
-			"currentUser": s.Names + " " + s.LastNames,
-			"agentName":   s.Names + " " + s.LastNames, // Placeholder para el nombre del agente
-			"nav_rules":   salvia_config.TranslateNavigationRule(s.Lang, salvia_config.NAVIGATION_RULES["get_follow_up"]),
-			"locale":      salvia_config.Locale,
-			"lang":        s.Lang,
-			"menu":        menu,
+			"windowTitle":   "Mis Seguimientos",
+			"currentUser":   s.Names + " " + s.LastNames,
+			"currentUserId": s.UserICode,
+			"agentName":     s.Names + " " + s.LastNames, // Placeholder para el nombre del agente
+			"nav_rules":     salvia_config.TranslateNavigationRule(s.Lang, salvia_config.NAVIGATION_RULES["get_follow_up"]),
+			"locale":        salvia_config.Locale,
+			"lang":          s.Lang,
+			"menu":          menu,
+			"userRole":      role,
+			"userTeam":      team,
 		}, utils.GetFullHtmlFuncMap())
 }

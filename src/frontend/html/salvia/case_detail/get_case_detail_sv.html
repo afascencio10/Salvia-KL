@@ -86,6 +86,20 @@
       </div>
     </div>
 
+    <!-- ── BANNER PRÓXIMO SEGUIMIENTO ── -->
+    <div v-if="proximoSeguimiento" style="display:flex;align-items:center;gap:10px;padding:12px 20px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;margin-bottom:16px">
+      <span style="font-size:1.2rem">📅</span>
+      <div style="flex:1">
+        <p style="margin:0;font-size:.82rem;font-weight:600;color:#1e40af">Próximo seguimiento programado</p>
+        <p style="margin:2px 0 0;font-size:.78rem;color:#3b82f6">
+          ${ formatFecha(proximoSeguimiento.scheduled_date) }
+          <span v-if="proximoSeguimiento.scheduled_time && proximoSeguimiento.scheduled_time !== '00:00'"> a las ${ proximoSeguimiento.scheduled_time }</span>
+          <span v-if="proximoSeguimiento.agent_id"> · 👤 ${ nombreAgente(proximoSeguimiento.agent_id) }</span>
+        </p>
+      </div>
+      <button style="background:none;border:none;color:#93c5fd;font-size:1rem;cursor:pointer;padding:4px" @click="tabActiva = 'seguimientos'">Ver →</button>
+    </div>
+
     <!-- ── TABS ── -->
     <div class="cd-panel">
       <div class="cd-tabs">
@@ -101,66 +115,93 @@
         <!-- ══ TAB: INFO GENERAL ══ -->
         <template v-if="tabActiva === 'info'">
 
-          <!-- 4 métricas superiores -->
-          <div class="cd-info-summary">
-            <div class="cd-info-field">
-              <div class="cd-lbl">Nivel de riesgo</div>
-              <div class="cd-val"><span :class="badgeRiesgo(nivelRiesgo)">${ labelRiesgo(nivelRiesgo) }</span></div>
+          <!-- ─── SECCIÓN 1: RESUMEN DEL CASO (collapsible) ─── -->
+          <div class="ci-section">
+            <div :class="['ci-section-header', infoSeccion.resumen ? 'open' : '']" @click="infoSeccion.resumen = !infoSeccion.resumen">
+              <div class="ci-section-icon" style="background:#5106A7"><i class="fa fa-clipboard-list"></i></div>
+              <span class="ci-section-label">Resumen del caso</span>
+              <i class="fa fa-chevron-down ci-section-chevron"></i>
             </div>
-            <div class="cd-info-field">
-              <div class="cd-lbl">Estado del caso</div>
-              <div class="cd-val"><span :class="badgeEstado(caso.victimCaseStatus)">${ labelEstado(caso.victimCaseStatus) }</span></div>
-            </div>
-            <div class="cd-info-field">
-              <div class="cd-lbl">Denuncias anteriores</div>
-              <div class="cd-val" style="font-size:1.6rem;font-weight:700;color:#111827">${ denunciasAnteriores }</div>
-            </div>
-            <div class="cd-info-field">
-              <div class="cd-lbl">Agente responsable</div>
-              <div class="cd-val" style="color:#5106A7">${ ultimoAgente }</div>
+            <div v-if="infoSeccion.resumen" class="ci-section-body">
+
+              <!-- 4 métricas superiores -->
+              <div class="cd-info-summary">
+                <div class="cd-info-field">
+                  <div class="cd-lbl">Nivel de riesgo</div>
+                  <div class="cd-val"><span :class="badgeRiesgo(nivelRiesgo)">${ labelRiesgo(nivelRiesgo) }</span></div>
+                </div>
+                <div class="cd-info-field">
+                  <div class="cd-lbl">Estado del caso</div>
+                  <div class="cd-val"><span :class="badgeEstado(caso.victimCaseStatus)">${ labelEstado(caso.victimCaseStatus) }</span></div>
+                </div>
+                <div class="cd-info-field">
+                  <div class="cd-lbl">Denuncias anteriores</div>
+                  <div class="cd-val" style="font-size:1.6rem;font-weight:700;color:#111827">${ denunciasAnteriores }</div>
+                </div>
+                <div class="cd-info-field">
+                  <div class="cd-lbl">Agente responsable</div>
+                  <div class="cd-val" style="color:#5106A7">${ ultimoAgente }</div>
+                </div>
+              </div>
+
+              <!-- Datos de la víctima -->
+              <p class="cd-section-title">Datos de la víctima</p>
+              <div class="cd-data-grid">
+                <div class="cd-campo"><div class="cd-lbl">Nombre completo</div><div class="cd-val">${ caso.victimCaseVictimName + ' ' + caso.victimCaseVictimLastName || '—' }</div></div>
+                <div class="cd-campo"><div class="cd-lbl">Tipo de documento</div><div class="cd-val">${ caso.victimCaseVictimDocType || '—' }</div></div>
+                <div class="cd-campo"><div class="cd-lbl">Número de identificación</div><div class="cd-val">${ caso.victimCaseVictimDocNumber || '—' }</div></div>
+                <div class="cd-campo"><div class="cd-lbl">Edad</div><div class="cd-val">${ edadCalculada ? edadCalculada + ' años' : (form1 && form1.age ? form1.age + ' años' : '—') }</div></div>
+                <div class="cd-campo"><div class="cd-lbl">Tiene hijos</div><div class="cd-val">${ form1 && form1.childrenNumber && form1.childrenNumber > 0 ? 'Sí (' + form1.childrenNumber + ')' : 'No' }</div></div>
+                <div class="cd-campo"><div class="cd-lbl">Municipio</div><div class="cd-val">${ townName || caso.victimCaseTownCode || '—' }</div></div>
+                <div class="cd-campo"><div class="cd-lbl">Departamento</div><div class="cd-val">${ deptName || '—' }</div></div>
+                <div class="cd-campo"><div class="cd-lbl">Tipo de agresor</div><div class="cd-val">${ tipoAgresorResumen || (form1 && form1.relationshipWithAggressor ? labelRelAgresor(form1.relationshipWithAggressor) : '—') }</div></div>
+                <div class="cd-campo"><div class="cd-lbl">Fecha de reporte</div><div class="cd-val">${ formatFecha(caso.victimCaseCreatedAt) }</div></div>
+              </div>
+
+              <!-- Contexto del caso -->
+              <p class="cd-section-title" v-if="tipoViolencia.length || ambitoViolencia.length || nacionalidadResumen || generoResumen || territorioOcurrencia || planAtencion.length" style="margin-top:20px">Contexto del caso</p>
+              <div class="cd-data-grid" v-if="tipoViolencia.length || ambitoViolencia.length || nacionalidadResumen || generoResumen || territorioOcurrencia || planAtencion.length">
+                <div class="cd-campo" v-if="tipoViolencia.length"><div class="cd-lbl">Tipo de violencia</div><div class="cd-val">${ tipoViolencia.join(', ') }</div></div>
+                <div class="cd-campo" v-if="subtipoViolencia.length"><div class="cd-lbl">Subtipo de violencia</div><div class="cd-val">${ subtipoViolencia.join(', ') }</div></div>
+                <div class="cd-campo" v-if="ambitoViolencia.length"><div class="cd-lbl">Ámbito de violencia</div><div class="cd-val">${ ambitoViolencia.join(', ') }</div></div>
+                <div class="cd-campo" v-if="nacionalidadResumen"><div class="cd-lbl">Nacionalidad</div><div class="cd-val">${ nacionalidadResumen }</div></div>
+                <div class="cd-campo" v-if="generoResumen"><div class="cd-lbl">Género</div><div class="cd-val">${ generoResumen }</div></div>
+                <div class="cd-campo" v-if="territorioOcurrencia"><div class="cd-lbl">Territorio de ocurrencia</div><div class="cd-val">${ territorioOcurrencia }</div></div>
+                <div class="cd-campo" v-if="planAtencion.length"><div class="cd-lbl">Plan de atención</div><div class="cd-val">${ planAtencion.join(', ') }</div></div>
+                <div class="cd-campo" v-if="ajusteRazonable.length"><div class="cd-lbl">Ajuste razonable</div><div class="cd-val">${ ajusteRazonable.join(', ') }</div></div>
+              </div>
             </div>
           </div>
 
-          <!-- Datos de la víctima -->
-          <p class="cd-section-title">Datos de la víctima</p>
-          <div class="cd-data-grid">
-            <div class="cd-campo">
-              <div class="cd-lbl">Nombre completo</div>
-              <div class="cd-val">${ caso.victimCaseVictimName + ' ' + caso.victimCaseVictimLastName || '—' }</div>
+          <!-- ─── SECCIÓN 2: HECHOS DEL CASO (collapsible) ─── -->
+          <div class="ci-section" v-if="tipoViolencia.length || subtipoViolencia.length || ambitoViolencia.length">
+            <div :class="['ci-section-header', infoSeccion.hechos ? 'open' : '']" @click="infoSeccion.hechos = !infoSeccion.hechos">
+              <div class="ci-section-icon" style="background:#ef4444"><i class="fa fa-file-alt"></i></div>
+              <span class="ci-section-label">Hechos de violencia</span>
+              <i class="fa fa-chevron-down ci-section-chevron"></i>
             </div>
-            <div class="cd-campo">
-              <div class="cd-lbl">Tipo de documento</div>
-              <div class="cd-val">${ caso.victimCaseVictimDocType || '—' }</div>
-            </div>
-            <div class="cd-campo">
-              <div class="cd-lbl">Número de identificación</div>
-              <div class="cd-val">${ caso.victimCaseVictimDocNumber || '—' }</div>
-            </div>
-            <div class="cd-campo">
-              <div class="cd-lbl">Edad</div>
-              <div class="cd-val">${ form1 && form1.age ? form1.age + ' años' : '—' }</div>
-            </div>
-            <div class="cd-campo">
-              <div class="cd-lbl">Tiene hijos</div>
-              <div class="cd-val">${ form1 && form1.childrenNumber && form1.childrenNumber > 0 ? 'Sí (' + form1.childrenNumber + ')' : 'No' }</div>
-            </div>
-            <div class="cd-campo">
-              <div class="cd-lbl">Municipio</div>
-              <div class="cd-val">${ townName || caso.victimCaseTownCode || '—' }</div>
-            </div>
-            <div class="cd-campo">
-              <div class="cd-lbl">Departamento</div>
-              <div class="cd-val">${ deptName || '—' }</div>
-            </div>
-            <div class="cd-campo">
-              <div class="cd-lbl">Tipo de agresor</div>
-              <div class="cd-val">${ form1 && form1.relationshipWithAggressor ? labelRelAgresor(form1.relationshipWithAggressor) : '—' }</div>
-            </div>
-            <div class="cd-campo">
-              <div class="cd-lbl">Fecha de reporte</div>
-              <div class="cd-val">${ formatFecha(caso.victimCaseCreatedAt) }</div>
+            <div v-if="infoSeccion.hechos" class="ci-section-body">
+              <div class="cd-data-grid">
+                <div class="cd-campo" v-if="tipoViolencia.length"><div class="cd-lbl">Tipo de violencia</div><div class="cd-val">${ tipoViolencia.join(', ') }</div></div>
+                <div class="cd-campo" v-if="subtipoViolencia.length"><div class="cd-lbl">Subtipo</div><div class="cd-val">${ subtipoViolencia.join(', ') }</div></div>
+                <div class="cd-campo" v-if="ambitoViolencia.length"><div class="cd-lbl">Ámbito</div><div class="cd-val">${ ambitoViolencia.join(', ') }</div></div>
+                <div class="cd-campo" v-if="territorioOcurrencia"><div class="cd-lbl">Lugar de los hechos</div><div class="cd-val">${ territorioOcurrencia }</div></div>
+              </div>
             </div>
           </div>
+
+          <!-- ─── SECCIÓN 3: INFO COMPLETA DEL CASO (componente inline, collapsible) ─── -->
+          <div class="ci-section">
+            <div :class="['ci-section-header', infoSeccion.completa ? 'open' : '']" @click="infoSeccion.completa = !infoSeccion.completa">
+              <div class="ci-section-icon" style="background:#3b82f6"><i class="fa fa-folder-open"></i></div>
+              <span class="ci-section-label">Información completa del caso</span>
+              <i class="fa fa-chevron-down ci-section-chevron"></i>
+            </div>
+            <div v-if="infoSeccion.completa" class="ci-section-body" style="padding:0">
+              <case-info :case-id="caseICode" :visible="infoSeccion.completa" mode="inline"></case-info>
+            </div>
+          </div>
+
         </template>
 
         <!-- ══ TAB: DERIVACIONES ══ -->
@@ -321,6 +362,11 @@
               <a v-if="(userRole === 'ro' || userRole === 'op') && seg.agent_id === userICode" href="#" class="btn-iniciar" style="text-decoration:none;text-align:center" @click.prevent="iniciarSeguimiento(seg)">▶ Iniciar</a>
               <button v-else-if="userRole === 'ro' || userRole === 'op'" class="btn-iniciar" disabled style="opacity:.5;cursor:not-allowed" title="Este seguimiento está asignado a otro agente">▶ Iniciar</button>
               <button v-if="puedeReasignar"
+                      class="btn-reasignar-seg"
+                      @click.stop="editarSeguimiento(seg)">
+                ✏️ Editar
+              </button>
+              <button v-if="puedeReasignar || ((userRole === 'ro' || userRole === 'op') && seg.agent_id === userICode)"
                       class="btn-reasignar-seg"
                       @click.stop="reasignarSeguimiento(seg, idx)">
                 📋 Reasignar
@@ -509,7 +555,7 @@
         <label class="ns-label">Seleccione el nuevo agente <span class="ns-required">*</span></label>
         <select class="ns-input" v-model="reasignarSegAgente">
           <option value="" disabled>Seleccione el agente</option>
-          <option v-for="ag in agentesRO" :key="ag.icode" :value="ag.icode">
+          <option v-for="ag in agentesParaReasignarSeg" :key="ag.icode" :value="ag.icode">
             ${ ag.fullName || (ag.profile && ag.profile.names ? ag.profile.names + ' ' + ag.profile.lastNames : ag.icode) }
           </option>
         </select>
@@ -519,6 +565,38 @@
       <button class="ns-btn-cancel" @click="modalReasignarSeg = false">Cancelar</button>
       <button class="ns-btn-save" :disabled="!reasignarSegAgente || reasignandoSeg" @click="confirmarReasignarSeg">
         ${ reasignandoSeg ? 'Reasignando...' : 'Confirmar reasignacion' }
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: EDITAR SEGUIMIENTO ══ -->
+<div v-if="modalEditarSeg" class="ns-backdrop" @click.self="modalEditarSeg = false">
+  <div class="ns-modal">
+    <div class="ns-header">
+      <div>
+        <p class="ns-title">Editar seguimiento</p>
+        <p class="ns-subtitle" v-if="editarSegActual">Seguimiento #${ followUpsV2.indexOf(editarSegActual) + 1 }</p>
+      </div>
+      <button class="ns-close" @click="modalEditarSeg = false">✕</button>
+    </div>
+    <div class="ns-body">
+      <div class="ns-row">
+        <div class="ns-field">
+          <label class="ns-label">Fecha <span class="ns-required">*</span></label>
+          <input type="date" :class="['ns-input', editarSegTocado && editarSeg.fecha < fechaHoy ? 'ns-input-error' : '']" v-model="editarSeg.fecha" :min="fechaHoy" @blur="editarSegTocado = true" />
+          <span v-if="editarSegTocado && editarSeg.fecha && editarSeg.fecha < fechaHoy" class="ns-error-msg">No se permiten fechas anteriores a hoy</span>
+        </div>
+        <div class="ns-field">
+          <label class="ns-label">Hora</label>
+          <input type="time" class="ns-input" v-model="editarSeg.hora" />
+        </div>
+      </div>
+    </div>
+    <div class="ns-footer">
+      <button class="ns-btn-cancel" @click="modalEditarSeg = false">Cancelar</button>
+      <button class="ns-btn-save" :disabled="!editarSegValido || guardandoEditSeg" @click="confirmarEditarSeg">
+        ${ guardandoEditSeg ? 'Guardando...' : 'Guardar cambios' }
       </button>
     </div>
   </div>
@@ -550,6 +628,17 @@ var home = Vue.createApp({
       psychosocialSupports: [],
       economicStabilizations: [],
       barriers: [],
+      tipoViolencia: [],
+      subtipoViolencia: [],
+      ambitoViolencia: [],
+      nacionalidadResumen: '',
+      generoResumen: '',
+      diversidadResumen: '',
+      territorioOcurrencia: '',
+      edadCalculada: null,
+      tipoAgresorResumen: '',
+      planAtencion: [],
+      ajusteRazonable: [],
       caseICode: CASE_ICODE,
       userRole: "{{.userRole}}",
       userTeam: "{{.userTeam}}",
@@ -568,6 +657,12 @@ var home = Vue.createApp({
       reasignandoSeg: false,
       segExpandido: null,
       mostrarInfoCaso: false,
+      infoSeccion: { resumen: true, hechos: false, completa: false },
+      modalEditarSeg: false,
+      editarSegActual: null,
+      editarSeg: { fecha: '', hora: '' },
+      editarSegTocado: false,
+      guardandoEditSeg: false,
       nuevoSeg: {
         fecha: '',
         hora: '09:00',
@@ -604,21 +699,32 @@ var home = Vue.createApp({
       if (this.nuevoSeg.fecha < this.fechaHoy) return false;
       return true;
     },
+    editarSegValido() {
+      if (!this.editarSeg.fecha) return false;
+      if (this.editarSeg.fecha < this.fechaHoy) return false;
+      return true;
+    },
     puedeReasignar() {
-      if (this.userRole !== 'sv') return false;
-      if (!this.userTeam) return true; // sin team asignado = ve todo (fallback admin)
-      // Determinar si el caso es riesgo alto
-      var esRiesgoAlto = false;
-      if (this.form2 && this.form2.riskLevel) {
-        // Form2: nivel >= 3 es riesgo alto
-        esRiesgoAlto = this.form2.riskLevel >= 3;
-      } else if (this.form1) {
-        // Form1: femicideRisk "1" = riesgo alto, "0" o vacío = riesgo bajo
-        esRiesgoAlto = this.form1.femicideRisk === '1';
+      // Cualquier supervisor puede reasignar cualquier caso
+      return this.userRole === 'sv';
+    },
+    proximoSeguimiento() {
+      // Buscar el primer seguimiento PENDIENTE ordenado por fecha (ya vienen ordenados del backend)
+      for (var i = 0; i < this.followUpsV2.length; i++) {
+        if (this.followUpsV2[i].status === 'PENDIENTE' && !this.followUpsV2[i].is_completed) {
+          return this.followUpsV2[i];
+        }
       }
-      if (this.userTeam === 'Riesgo alto' && esRiesgoAlto) return true;
-      if (this.userTeam === 'Riesgo bajo' && !esRiesgoAlto) return true;
-      return false;
+      return null;
+    },
+    agentesParaReasignarSeg() {
+      // Supervisor: usa agentesRO (filtrado por riesgo del caso)
+      if (this.userRole === 'sv') return this.agentesRO;
+      // Operador: usa agentes de su mismo equipo
+      if (this.userTeam) {
+        return this.todosAgentes.filter(function(ag) { return ag.team === this.userTeam; }.bind(this));
+      }
+      return this.todosAgentes;
     },
     nivelRiesgo() {
       // Prioridad: form2 (nivel graduado), luego form1 (binario)
@@ -699,6 +805,13 @@ var home = Vue.createApp({
     toggleSegExpand(segId) {
       this.segExpandido = this.segExpandido === segId ? null : segId;
     },
+    teamSegunRiesgo() {
+      // Riesgo alto/extremo (form2 >= 3 o femicideRisk === '1') → equipo "Riesgo alto"
+      // Riesgo bajo/medio/sin evaluar → equipo "Riesgo bajo"
+      if (this.form2 && this.form2.riskLevel && this.form2.riskLevel >= 3) return 'Riesgo alto';
+      if (this.form1 && this.form1.femicideRisk === '1') return 'Riesgo alto';
+      return 'Riesgo bajo';
+    },
     iniciarSeguimiento(seg) {
       // Validar que la fecha programada ya haya llegado
       var hoy = new Date().toISOString().substring(0, 10);
@@ -742,7 +855,21 @@ var home = Vue.createApp({
           self.psychosocialSupports = data.psychosocialSupports || [];
           self.economicStabilizations = data.economicStabilizations || [];
           self.barriers = data.barriers || [];
+          self.tipoViolencia = data.tipoViolencia || [];
+          self.subtipoViolencia = data.subtipoViolencia || [];
+          self.ambitoViolencia = data.ambitoViolencia || [];
+          self.nacionalidadResumen = data.nacionalidadResumen || '';
+          self.generoResumen = data.generoResumen || '';
+          self.diversidadResumen = data.diversidadResumen || '';
+          self.territorioOcurrencia = data.territorioOcurrencia || '';
+          self.edadCalculada = data.edadCalculada || null;
+          self.tipoAgresorResumen = data.tipoAgresorResumen || '';
+          self.planAtencion = data.planAtencion || [];
+          self.ajusteRazonable = data.ajusteRazonable || [];
           self.cargando = false;
+          // Recargar operadores ahora que tenemos form1/form2 para determinar el team
+          self.cargarOperadores();
+          self.cargarAgentesRO();
         })
         .catch(function(err) {
           self.error    = err.message;
@@ -756,7 +883,9 @@ var home = Vue.createApp({
     cargarOperadores() {
       var self = this;
       var url = '/api/v1/operadores';
-      if (self.userTeam) url += '?team=' + encodeURIComponent(self.userTeam);
+      // Determinar team según nivel de riesgo del caso (no del supervisor)
+      var teamCaso = self.teamSegunRiesgo();
+      if (teamCaso) url += '?team=' + encodeURIComponent(teamCaso);
       fetch(url)
         .then(function(res) { return res.json(); })
         .then(function(data) {
@@ -772,7 +901,9 @@ var home = Vue.createApp({
     cargarAgentesRO() {
       var self = this;
       var url = '/api/v1/agentes-ro';
-      if (self.userTeam) url += '?team=' + encodeURIComponent(self.userTeam);
+      // Determinar team según nivel de riesgo del caso (no del supervisor)
+      var teamCaso = self.teamSegunRiesgo();
+      if (teamCaso) url += '?team=' + encodeURIComponent(teamCaso);
       fetch(url)
         .then(function(res) { return res.json(); })
         .then(function(data) {
@@ -822,7 +953,8 @@ var home = Vue.createApp({
       if (n === 0 || n === null || n === undefined) return 'Sin evaluar';
       if (n === 1) return 'Bajo';
       if (n === 2) return 'Medio';
-      if (n === 3 || n === 4) return 'Alto';
+      if (n === 3) return 'Alto';
+      if (n === 4) return 'Extremo';
       return 'Extremo';
     },
     badgeRiesgo(n) {
@@ -958,6 +1090,40 @@ var home = Vue.createApp({
           self.modalReasignar = false;
           self.showToast('error', 'Error de conexión al reasignar el caso');
         });
+    },
+    editarSeguimiento(seg) {
+      this.editarSegActual = seg;
+      this.editarSeg.fecha = seg.scheduled_date ? seg.scheduled_date.substring(0, 10) : '';
+      this.editarSeg.hora = (seg.scheduled_time && seg.scheduled_time !== '00:00') ? seg.scheduled_time : '';
+      this.editarSegTocado = false;
+      this.guardandoEditSeg = false;
+      this.modalEditarSeg = true;
+    },
+    confirmarEditarSeg() {
+      this.editarSegTocado = true;
+      if (!this.editarSegValido) return;
+      var self = this;
+      self.guardandoEditSeg = true;
+      var scheduledDate = this.editarSeg.fecha;
+      if (this.editarSeg.hora) {
+        scheduledDate += 'T' + this.editarSeg.hora;
+      }
+      fetch('/api/v1/seguimiento/' + self.editarSegActual.id + '/editar', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduled_date: scheduledDate, actor_name: self.currentUser })
+      }).then(function(res) {
+        if (!res.ok) return res.json().then(function(d) { throw new Error(d.error || 'Error'); });
+        return res.json();
+      }).then(function() {
+        self.modalEditarSeg = false;
+        self.guardandoEditSeg = false;
+        self.showToast('success', 'Seguimiento actualizado correctamente');
+        self.cargarDatos();
+      }).catch(function(err) {
+        self.guardandoEditSeg = false;
+        self.showToast('error', err.message || 'Error al editar el seguimiento');
+      });
     },
     reasignarSeguimiento(seg, idx) {
       this.reasignarSegActual = seg;

@@ -129,6 +129,7 @@ func main() {
         CaseTimelineEventRepo:     caseTimelineRepo,
         AgentLightRepo:            agentLightRepo,
         CasoCierreService:         casoCierreSvc,
+        CaseRepo:                  victimCaseLightRepo,
     })
     formSectionSvc        := service.NewFormSectionService(formSectionRepo)
     questionSvc           := service.NewQuestionService(questionRepo)
@@ -161,9 +162,6 @@ func main() {
     caseDetailCtrl         := salvia_ctrl.NewCaseDetailController(caseDetailSvc, caseTimelineRepo)
     caseInfoCtrl           := salvia_ctrl.NewCaseInfoController(caseInfoSvc)
     reportCtrl             := salvia_ctrl.NewReportController(reportSvc)
-    entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
-    entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo)
-    entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
     barrierV2Svc           := service.NewBarrierV2Service(barrierV2Repo)
     barrierV2GinCtrl       := salvia_ctrl.NewBarrierV2GinController(barrierV2Svc)
 
@@ -174,6 +172,10 @@ func main() {
         CaseTimelineRepo: caseTimelineRepo,
     })
     caseTaskCtrl            := salvia_ctrl.NewCaseTaskController(caseTaskSvc)
+
+    entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
+    entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo, caseTaskRepo)
+    entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
 
     // Routes
     api := router.Group("/api/v1")
