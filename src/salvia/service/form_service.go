@@ -152,6 +152,7 @@ type FormServiceDeps struct {
 	BarrierV2Repo              repository.BarrierV2Repository
 	CaseTimelineEventRepo      repository.CaseTimelineEventRepository
 	AgentLightRepo             repository.AgentLightRepository
+	MenTeamRemisionRepo        repository.MenTeamRemisionRepository
 	CasoCierreService          CasoCierreService
 }
 
@@ -168,12 +169,13 @@ type formService struct {
 	answerRepo             repository.AnswerRepository
 	followUpRepo           repository.FollowUpRepository
 	emergencyMeasureRepo   repository.EmergencyMeasureRepository
-	psychosocialSupportRepo repository.PsychosocialSupportRepository
-	economicStabilizationRepo repository.EconomicStabilizationRepository
-	barrierV2Repo          repository.BarrierV2Repository
-	caseTimelineRepo       repository.CaseTimelineEventRepository
-	agentLightRepo         repository.AgentLightRepository
-	casoCierreService      CasoCierreService
+	psychosocialSupportRepo    repository.PsychosocialSupportRepository
+	economicStabilizationRepo  repository.EconomicStabilizationRepository
+	barrierV2Repo              repository.BarrierV2Repository
+	caseTimelineRepo           repository.CaseTimelineEventRepository
+	agentLightRepo             repository.AgentLightRepository
+	menTeamRemisionRepo        repository.MenTeamRemisionRepository
+	casoCierreService          CasoCierreService
 }
 
 func NewFormService(deps FormServiceDeps) FormService {
@@ -195,6 +197,7 @@ func NewFormService(deps FormServiceDeps) FormService {
 		barrierV2Repo:             deps.BarrierV2Repo,
 		caseTimelineRepo:          deps.CaseTimelineEventRepo,
 		agentLightRepo:            deps.AgentLightRepo,
+		menTeamRemisionRepo:       deps.MenTeamRemisionRepo,
 		casoCierreService:         deps.CasoCierreService,
 	}
 }
@@ -1967,6 +1970,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		qEquipos            = "e0d38cf5-fe3f-45cb-9fd3-f5b8f7b2f7dc" // Derivaciones a equipos (multi-select)
 		qMedidasEmergencia  = "1a36260c-33a4-4ebd-bffb-e387d7964b96" // Medidas de emergencia (multi-select)
 		qCriteriosPsico     = "71c42c4a-f640-47ad-b2c1-5d4c18480449" // Criterios de remisión — Atención Psicosocial (multiple)
+		qCriteriosHombres   = "f7edf4fc-d1cd-4591-a358-31566c806365" // Criterios de remisión — Atención Hombres (multiple)
 		// Sección 5 — Cierre del caso
 		qCierraCaso         = "08950a38-3db3-4dc7-852c-3b06b4b1ed72" // boolean — ¿Realiza cierre del caso?
 		qCierreMotivo       = "95fb963e-99de-4a1d-a170-8e30845d1f7d" // single  — Motivo del cierre
@@ -2084,6 +2088,33 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 				}
 				if err := s.psychosocialSupportRepo.Create(ctx, ps); err != nil {
 					return fmt.Errorf("processFollowUpSubmission: crear derivacion psicosocial: %w", err)
+				}
+				remisionCount++
+			case "atencion_hombres":
+				// Validar criterio de remisión al equipo de hombres antes de crear la derivación.
+				// Regla: debe estar marcado "criterio_hombres".
+				criteriosHombresVal := answerMap[qCriteriosHombres]
+				criteriosHombresSelected := splitValues(criteriosHombresVal)
+				tieneCriterioHombres := false
+				for _, c := range criteriosHombresSelected {
+					if c == "criterio_hombres" {
+						tieneCriterioHombres = true
+						break
+					}
+				}
+				if !tieneCriterioHombres {
+					log.Printf("[processFollowUp] derivacion atencion_hombres NO cumple criterio — omitida")
+					break
+				}
+				log.Printf("[processFollowUp] creando derivacion -> atencion_hombres")
+				mtr := &models.MenTeamRemision{
+					CaseID:     fu.CaseID,
+					FollowUpID: fu.ID,
+					Type:       "derivacion",
+					Status:     "ACTIVE",
+				}
+				if err := s.menTeamRemisionRepo.Create(ctx, mtr); err != nil {
+					return fmt.Errorf("processFollowUpSubmission: crear derivacion atencion_hombres: %w", err)
 				}
 				remisionCount++
 			case "estabilizacion":

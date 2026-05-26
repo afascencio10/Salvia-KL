@@ -96,6 +96,7 @@ func main() {
     emRepo                 := repository.NewEmergencyMeasureRepository(gormDB)
     psRepo                 := repository.NewPsychosocialSupportRepository(gormDB)
     esRepo                 := repository.NewEconomicStabilizationRepository(gormDB)
+    menTeamRemisionRepo    := repository.NewMenTeamRemisionRepository(gormDB)
     agentLightRepo         := repository.NewAgentLightRepository(gormDB)
     caseTimelineRepo       := repository.NewCaseTimelineEventRepository(gormDB)
     caseDetailRepo         := repository.NewCaseDetailRepository(gormDB)
@@ -120,6 +121,7 @@ func main() {
         EmergencyMeasureRepo:      emRepo,
         PsychosocialSupportRepo:   psRepo,
         EconomicStabilizationRepo: esRepo,
+        MenTeamRemisionRepo:       menTeamRemisionRepo,
         BarrierV2Repo:             barrierV2Repo,
         CaseTimelineEventRepo:     caseTimelineRepo,
         AgentLightRepo:            agentLightRepo,
