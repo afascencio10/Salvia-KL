@@ -2057,6 +2057,20 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		for _, equipo := range splitValues(equiposVal) {
 			switch equipo {
 			case "atencion_psico":
+				// Regla de exclusión: si también se seleccionó medidas_emergencia, solo se crea
+				// la derivación de emergencia. La remisión psicosocial se omite.
+				equiposSeleccionados := splitValues(equiposVal)
+				tieneMedidasEmergencia := false
+				for _, e := range equiposSeleccionados {
+					if e == "medidas_emergencia" {
+						tieneMedidasEmergencia = true
+						break
+					}
+				}
+				if tieneMedidasEmergencia {
+					log.Printf("[processFollowUp] atencion_psico omitida — incompatible con medidas_emergencia seleccionada al mismo tiempo")
+					break
+				}
 				// Validar criterios de remisión psicosocial antes de crear la derivación.
 				// Regla: debe estar marcado "criterio_obligatorio" Y sumar mínimo 3 puntos.
 				criteriosVal := answerMap[qCriteriosPsico]
@@ -2094,6 +2108,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 				if err := s.psychosocialSupportRepo.Create(ctx, ps); err != nil {
 					return fmt.Errorf("processFollowUpSubmission: crear derivacion psicosocial: %w", err)
 				}
+				log.Printf("[processFollowUp] ✅ derivacion creada -> atencion_psico (id=%s)", ps.ID)
 				remisionCount++
 			case "atencion_hombres":
 				// Validar criterio de remisión al equipo de hombres antes de crear la derivación.
@@ -2121,6 +2136,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 				if err := s.menTeamRemisionRepo.Create(ctx, mtr); err != nil {
 					return fmt.Errorf("processFollowUpSubmission: crear derivacion atencion_hombres: %w", err)
 				}
+				log.Printf("[processFollowUp] ✅ derivacion creada -> atencion_hombres (id=%s)", mtr.ID)
 				remisionCount++
 			case "discapacidad":
 				// Crear un registro por cada servicio seleccionado del Equipo de Discapacidad.
@@ -2140,6 +2156,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 					if err := s.discapacidadRemisionRepo.Create(ctx, dr); err != nil {
 						return fmt.Errorf("processFollowUpSubmission: crear derivacion discapacidad [%s]: %w", svc, err)
 					}
+					log.Printf("[processFollowUp] ✅ derivacion creada -> discapacidad servicio=%s (id=%s)", svc, dr.ID)
 					remisionCount++
 				}
 			case "estabilizacion":
@@ -2159,6 +2176,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 				if err := s.economicStabilizationRepo.Create(ctx, ec); err != nil {
 					return fmt.Errorf("processFollowUpSubmission: crear derivacion economica: %w", err)
 				}
+				log.Printf("[processFollowUp] ✅ derivacion creada -> estabilizacion (id=%s)", ec.ID)
 				remisionCount++
 			}
 		}
@@ -2178,6 +2196,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 			if err := s.emergencyMeasureRepo.Create(ctx, em); err != nil {
 				return fmt.Errorf("processFollowUpSubmission: crear medida emergencia [%s]: %w", medida, err)
 			}
+			log.Printf("[processFollowUp] ✅ medida emergencia creada tipo=%s (id=%s)", medida, em.ID)
 			remisionCount++
 		}
 	}
