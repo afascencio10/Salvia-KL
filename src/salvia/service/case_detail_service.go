@@ -89,6 +89,11 @@ func (s *caseDetailService) GetDetail(ctx context.Context, caseICode string) (*r
 			detail.PlanAtencion[i] = t
 		}
 	}
+	for i, v := range detail.AjusteRazonable {
+		if t, ok := locale[v]; ok {
+			detail.AjusteRazonable[i] = t
+		}
+	}
 
 	return detail, nil
 }
