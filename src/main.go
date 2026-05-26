@@ -69,6 +69,8 @@ func main() {
         &models.CaseTimelineEvent{},
         &models.EntityLetter{},
         &models.CaseTask{},
+        &models.RenderModification{},
+        &models.MenTeamRemision{},
     } {
         if err := gormDB.AutoMigrate(m); err != nil {
             log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -81,6 +83,7 @@ func main() {
     questionRepo           := repository.NewQuestionRepository(gormDB)
     repeaterGroupRepo      := repository.NewRepeaterGroupRepository(gormDB)
     visibilityCondRepo     := repository.NewVisibilityConditionRepository(gormDB)
+    renderModificationRepo := repository.NewRenderModificationRepository(gormDB)
     formSubmissionRepo     := repository.NewFormSubmissionRepository(gormDB)
     repeaterEntryRepo      := repository.NewRepeaterEntryRepository(gormDB)
     answerRepo             := repository.NewAnswerRepository(gormDB)
@@ -108,7 +111,8 @@ func main() {
         QuestionRepo:       questionRepo,
         RepeaterGroupRepo:  repeaterGroupRepo,
         OptionRepo:         optionRepo,
-        VisibilityCondRepo: visibilityCondRepo,
+        VisibilityCondRepo:     visibilityCondRepo,
+        RenderModificationRepo: renderModificationRepo,
         FormSubmissionRepo:        formSubmissionRepo,
         RepeaterEntryRepo:         repeaterEntryRepo,
         AnswerRepo:                answerRepo,

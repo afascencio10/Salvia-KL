@@ -184,7 +184,7 @@
 
             <!-- TAB FORMULARIO -->
             <div v-if="activeTab === 'formulario'" class="ms-tab-pane">
-                <dinamic-form v-if="formId && submissionId" :form-id="formId" :submission-id="submissionId" :can-edit="canEdit"></dinamic-form>
+                <dinamic-form v-if="formId && submissionId" :form-id="formId" :submission-id="submissionId" :can-edit="canEdit" :form-state="formState" @answers-updated="onAnswersUpdated"></dinamic-form>
                 <div v-else class="ms-empty-state-small">
                     <p>Este seguimiento no tiene un formulario asociado.</p>
                 </div>
@@ -212,6 +212,9 @@
                 formId:      '2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff',
                 submissionId: null,
                 canEdit:      true,
+                formState: {
+                    psysocialRemisionState: '',
+                },
                 victimInfo: null,
                 activeBarriers: [],
                 emergencyMeasures: [],
@@ -330,8 +333,11 @@
                     this.victimCase.id  = data.caseInfo.id;
                     this.submissionId   = data.followUp.form_submission_id || null;
 
-                    // canEdit: false si REALIZADO y han pasado más de 5 días desde completed_at
-                    if (data.followUp.status === 'REALIZADO' && data.followUp.completed_at) {
+                    // canEdit: false permanente si el caso está cerrado
+                    if (data.caseInfo.status === 'cd') {
+                        this.canEdit = false;
+                    } else if (data.followUp.status === 'REALIZADO' && data.followUp.completed_at) {
+                        // canEdit: false si REALIZADO y han pasado más de 5 días desde completed_at
                         const diffDays = (Date.now() - new Date(data.followUp.completed_at)) / (1000 * 60 * 60 * 24);
                         this.canEdit = diffDays <= 5;
                     } else {
@@ -348,6 +354,29 @@
                     const loadingOverlay = document.getElementById('loadingOverlay');
                     if (loadingOverlay) loadingOverlay.style.display = 'none';
                 }
+            },
+            onAnswersUpdated(payload) {
+                const Q_PSICO = '71c42c4a-f640-47ad-b2c1-5d4c18480449';
+                const answer = (payload.answers?.directAnswers || []).find(a => a.questionId === Q_PSICO);
+                if (!answer || !answer.value) {
+                    this.formState.psysocialRemisionState = '';
+                    return;
+                }
+                const selected = answer.value.split(',').map(v => v.trim());
+                const tieneObligatorio = selected.includes('criterio_obligatorio');
+                const puntos = {
+                    conducta_suicida:          3,
+                    interseccionalidad:        2,
+                    sin_ruta:                  1,
+                    condiciones_territoriales: 1,
+                    sin_acceso_psico:          1,
+                    naturalizacion_vbg:        1,
+                };
+                const totalPuntos = selected.reduce((sum, v) => sum + (puntos[v] || 0), 0);
+                const cumple = tieneObligatorio && totalPuntos >= 3;
+                this.formState.psysocialRemisionState = cumple
+                    ? 'Remisión: SI cumple'
+                    : 'Remisión: NO cumple';
             },
             goBack() {
                 window.history.back();

@@ -9,26 +9,48 @@
 **Proveedor:** Supabase (PostgreSQL)  
 **Config file:** `src/config/db_config.json`
 
+### Pooler (aplicación + psql general)
+
 | Campo | Valor |
 |---|---|
 | Host | `aws-1-us-west-1.pooler.supabase.com` |
-| Puerto | `5432` |
+| Puerto | `5432` (transaction mode) · `6543` (session mode) |
 | Base de datos | `postgres` |
 | SSL | `require` |
 
+> **Puerto 5432 vs 6543:** usar `5432` para queries normales desde la aplicación. Usar `6543` (session mode) cuando se necesiten DDL (`CREATE TABLE`, `ALTER TABLE`) desde psql — el transaction mode del puerto 5432 no garantiza persistencia de DDL.
+
 ### Usuarios
 
-| Usuario | Password | Uso |
-|---|---|---|
-| `salvia_legacy.pwwelwfhauspznpatuqm` | `LegacySalvia2026@` | Consultas legacy / seed / migraciones |
-| `salvia_gorm.pwwelwfhauspznpatuqm` | `GormSalvia2026@` | Conexión del backend Go (GORM) |
+| Usuario | Password | Uso | Permisos en `salvia` |
+|---|---|---|---|
+| `salvia_legacy.pwwelwfhauspznpatuqm` | `LegacySalvia2026@` | Consultas legacy / seed | SELECT, INSERT, UPDATE, DELETE + CREATE en schema |
+| `salvia_gorm.pwwelwfhauspznpatuqm` | `GormSalvia2026@` | Backend Go (GORM) + AutoMigrate | Owner de todas las tablas + CREATE en schema |
+| `postgres.pwwelwfhauspznpatuqm` | `Salvia2026@` | Superusuario — solo para operaciones administrativas | Superusuario |
+
+> **AutoMigrate:** `salvia_gorm` es owner de todas las tablas del schema `salvia`. GORM AutoMigrate puede crear tablas nuevas y agregar columnas sin intervención manual. Miembro de `salvia_gorm`: también `postgres` (para poder transferir ownership).
 
 ### Conectarse con psql
 
 ```bash
+# Usuario legacy (consultas, seed)
 PGPASSWORD='LegacySalvia2026@' psql \
   -h aws-1-us-west-1.pooler.supabase.com \
   -U "salvia_legacy.pwwelwfhauspznpatuqm" \
+  -d postgres
+
+# Usuario GORM (queries + DDL sobre tablas que posee)
+PGPASSWORD='GormSalvia2026@' psql \
+  -h aws-1-us-west-1.pooler.supabase.com \
+  -p 6543 \
+  -U "salvia_gorm.pwwelwfhauspznpatuqm" \
+  -d postgres
+
+# Superusuario (operaciones administrativas, GRANT, cambio de ownership)
+PGPASSWORD='Salvia2026@' psql \
+  -h aws-1-us-west-1.pooler.supabase.com \
+  -p 6543 \
+  -U "postgres.pwwelwfhauspznpatuqm" \
   -d postgres
 ```
 
@@ -85,7 +107,8 @@ PGPASSWORD='LegacySalvia2026@' psql \
 | `form_section` | Sección dentro de un formulario dinámico con orden y título. |
 | `question` | Pregunta de una sección: tipo, texto, validaciones y orden de presentación. |
 | `option` | Opción de respuesta para preguntas de selección simple o múltiple. |
-| `visibility_condition` | Condición que controla si una pregunta se muestra según respuestas previas. |
+| `visibility_condition` | Condición que controla si una pregunta/sección/repeater se muestra según respuestas previas o estado externo (`formState`). |
+| `render_modification` | Modificación declarativa de textos visibles (labels, títulos, descripciones) según el estado externo (`formState`). Soporta `SET` (sobreescritura) y `REPLACE` (buscar y reemplazar). |
 | `repeater_group` | Grupo de preguntas repetibles dentro de un formulario dinámico. |
 | `repeater_entry` | Fila o instancia concreta de un repeater_group en un form_submission. |
 | `form_submission` | Envío de un formulario: vincula respuestas a un caso, agente y seguimiento. |

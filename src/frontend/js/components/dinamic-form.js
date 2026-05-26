@@ -655,6 +655,35 @@ function getObjectProperty(object, path) {
     }, object);
 }
 
+/* ─── applyRenderModifications ──────────────────────────────────────────────
+ * Aplica las render_modification de un campo de texto.
+ * Orden: SETs primero (reemplazan todo el texto), REPLACEs después (subcadena).
+ * Solo aplica si el valor resuelto del formState no es '' ni undefined/null.
+ */
+function applyRenderModifications(text, modifications, fieldName, formState) {
+    const applicable = (modifications || []).filter(m => m.targetField === fieldName);
+    if (!applicable.length) return text;
+
+    let result = text || '';
+
+    // 1. SET — reemplaza todo el texto
+    for (const mod of applicable.filter(m => m.modificationType === 'SET')) {
+        const raw = getObjectProperty(formState || {}, mod.statePath);
+        if (raw === undefined || raw === null || String(raw) === '') continue;
+        result = String(raw);
+    }
+
+    // 2. REPLACE — reemplaza subcadena específica (todas las ocurrencias)
+    for (const mod of applicable.filter(m => m.modificationType === 'REPLACE')) {
+        const raw = getObjectProperty(formState || {}, mod.statePath);
+        if (raw === undefined || raw === null || String(raw) === '') continue;
+        if (!mod.searchString) continue;
+        result = result.split(mod.searchString).join(String(raw));
+    }
+
+    return result;
+}
+
 /* ─── checkVisibility ────────────────────────────────────────────────────────
  * Réplica exacta en JS de checkVisibility (Go — form_service.go).
  * formState: objeto externo opcional para condiciones de tipo triggerStatePath.
@@ -916,6 +945,11 @@ app.component('dinamic-form', {
         await this.loadForm();
     },
     methods: {
+        /* ── Render modifications ── */
+        applyRenderModifications(text, modifications, fieldName, formState) {
+            return applyRenderModifications(text, modifications, fieldName, formState);
+        },
+
         /* ── Sidebar ── */
         isSectionActive(section) {
             return this.currentSection && section.id === this.currentSection.id;
@@ -1545,7 +1579,7 @@ app.component('dinamic-form', {
                     <span v-if="section.isAnswered">✓</span>
                     <span v-else>\${ section.order }</span>
                 </span>
-                <span>\${ section.name }</span>
+                <span>\${ applyRenderModifications(section.name, section.modifications, 'name', formState) }</span>
             </button>
         </div>
         <div class="df-progress-wrap">
@@ -1575,10 +1609,10 @@ app.component('dinamic-form', {
         <div class="df-section-header">
             <div class="df-section-header-row">
                 <div class="df-section-number">\${ currentSection.order }</div>
-                <h2 class="df-section-title">\${ currentSection.name }</h2>
+                <h2 class="df-section-title">\${ applyRenderModifications(currentSection.name, currentSection.modifications, 'name', formState) }</h2>
                 <span v-if="!canEdit" class="df-readonly-badge">🔒 Solo lectura</span>
             </div>
-            <p v-if="currentSection.description" class="df-section-desc">\${ currentSection.description }</p>
+            <p v-if="currentSection.description" class="df-section-desc">\${ applyRenderModifications(currentSection.description, currentSection.modifications, 'description', formState) }</p>
         </div>
 
         <!-- Items de la sección -->
@@ -1588,13 +1622,13 @@ app.component('dinamic-form', {
                 <!-- ── Info banner ── -->
                 <div v-if="item.type === 'question' && item.isVisible && item.question.questionTypeId === 'info'" class="df-info-banner">
                     <span class="df-info-banner-icon">ℹ️</span>
-                    <span>\${ item.question.description }</span>
+                    <span>\${ applyRenderModifications(item.question.description, item.question.modifications, 'description', formState) }</span>
                 </div>
 
                 <!-- ── Pregunta directa ── -->
                 <div v-else-if="item.type === 'question' && item.isVisible" class="df-question">
                     <label>
-                        \${ item.question.description }
+                        \${ applyRenderModifications(item.question.description, item.question.modifications, 'description', formState) }
                         <span v-if="item.question.required" class="df-required">*</span>
                     </label>
 
@@ -1684,7 +1718,7 @@ app.component('dinamic-form', {
                 <!-- ── Repeater group ── -->
                 <div v-else-if="item.type === 'repeater' && item.isVisible" class="df-question">
                     <label>
-                        \${ item.repeater.name }
+                        \${ applyRenderModifications(item.repeater.name, item.repeater.modifications, 'name', formState) }
                         <span v-if="item.repeater.minRepetitions > 0" class="df-required">*</span>
                     </label>
                     <div class="df-repeater">
@@ -1692,14 +1726,14 @@ app.component('dinamic-form', {
                         <!-- entries -->
                         <div v-for="entryData in item.entries" :key="entryData.entry.id" class="df-repeater-item">
                             <div class="df-repeater-item-header">
-                                <span class="df-repeater-item-title">\${ item.repeater.itemName || item.repeater.name } #\${ entryData.entry.iteration }</span>
+                                <span class="df-repeater-item-title">\${ applyRenderModifications(item.repeater.itemName || item.repeater.name, item.repeater.modifications, 'item_name', formState) } #\${ entryData.entry.iteration }</span>
                                 <button v-if="canEdit" type="button" class="df-repeater-delete" @click="removeRepeaterEntry(item, entryData)">✕ Eliminar</button>
                             </div>
 
                             <template v-for="qData in entryData.questions" :key="qData.question.id">
                                 <div v-if="qData.isVisible" class="df-question" style="gap:0">
                                     <label style="margin-bottom:4px;margin-top:0;min-height:unset">
-                                        \${ qData.question.description }
+                                        \${ applyRenderModifications(qData.question.description, qData.question.modifications, 'description', formState) }
                                         <span v-if="qData.question.required" class="df-required">*</span>
                                     </label>
 
@@ -1788,7 +1822,7 @@ app.component('dinamic-form', {
                             </template>
                         </div>
 
-                        <button v-if="canEdit" type="button" class="df-repeater-add" @click="addRepeaterEntry(item)">+ Agregar \${ item.repeater.itemName || item.repeater.name }</button>
+                        <button v-if="canEdit" type="button" class="df-repeater-add" @click="addRepeaterEntry(item)">+ Agregar \${ applyRenderModifications(item.repeater.itemName || item.repeater.name, item.repeater.modifications, 'item_name', formState) }</button>
                     </div>
                     <span v-if="repeaterErrors[item.repeater.id]" class="df-error">\${ repeaterErrors[item.repeater.id] }</span>
                 </div>

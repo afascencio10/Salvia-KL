@@ -65,7 +65,7 @@
         <!-- Tab: Formulario de seguimiento -->
         <div v-show="activeTab === 'seguimiento'">
             <div v-if="loadError" class="alert alert-danger">${ loadError }</div>
-            <dinamic-form v-else-if="formId && submissionId" :form-id="formId" :submission-id="submissionId" :can-edit="canEdit" @form-completed="onFormCompleted"></dinamic-form>
+            <dinamic-form v-else-if="formId && submissionId" :form-id="formId" :submission-id="submissionId" :can-edit="canEdit" :form-state="formState" @form-completed="onFormCompleted" @answers-updated="onAnswersUpdated"></dinamic-form>
         </div>
 
         <!-- Overlay formulario completado -->
@@ -249,6 +249,9 @@
                 caseICode:     null,
                 activeTab:     'seguimiento',
                 formCompleted: false,
+                formState: {
+                    psysocialRemisionState: '',
+                },
             };
         },
         mounted() {
@@ -298,6 +301,31 @@
                     this.loadError = 'Error de conexión al cargar el seguimiento';
                     console.error('[HS] error:', e);
                 }
+            },
+            onAnswersUpdated(payload) {
+                // Leer respuestas de "Criterios de remisión — Atención Psicosocial"
+                const Q_PSICO = '71c42c4a-f640-47ad-b2c1-5d4c18480449';
+                const answer = (payload.answers?.directAnswers || []).find(a => a.questionId === Q_PSICO);
+                if (!answer || !answer.value) {
+                    this.formState.psysocialRemisionState = '';
+                    return;
+                }
+                const selected = answer.value.split(',').map(v => v.trim());
+
+                const tieneObligatorio = selected.includes('criterio_obligatorio');
+                const puntos = {
+                    conducta_suicida:        3,
+                    interseccionalidad:      2,
+                    sin_ruta:                1,
+                    condiciones_territoriales: 1,
+                    sin_acceso_psico:        1,
+                    naturalizacion_vbg:      1,
+                };
+                const totalPuntos = selected.reduce((sum, v) => sum + (puntos[v] || 0), 0);
+                const cumple = tieneObligatorio && totalPuntos >= 3;
+                this.formState.psysocialRemisionState = cumple
+                    ? 'Remisión: SI cumple'
+                    : 'Remisión: NO cumple';
             },
             onFormCompleted() {
                 this.formCompleted = true;

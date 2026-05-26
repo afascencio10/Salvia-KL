@@ -34,23 +34,26 @@ type UpdateFormInput struct {
 
 type QuestionStructure struct {
 	models.Question
-	Options    []models.Option              `json:"options"`
-	Conditions []models.VisibilityCondition `json:"conditions"`
+	Options       []models.Option               `json:"options"`
+	Conditions    []models.VisibilityCondition  `json:"conditions"`
+	Modifications []models.RenderModification   `json:"modifications"`
 }
 
 type RepeaterStructure struct {
 	models.RepeaterGroup
-	Questions  []QuestionStructure          `json:"questions"`
-	Conditions []models.VisibilityCondition `json:"conditions"`
+	Questions     []QuestionStructure           `json:"questions"`
+	Conditions    []models.VisibilityCondition  `json:"conditions"`
+	Modifications []models.RenderModification   `json:"modifications"`
 }
 
 type SectionStructure struct {
 	models.FormSection
-	Questions  []QuestionStructure          `json:"questions"`
-	Repeaters  []RepeaterStructure          `json:"repeaters"`
-	Conditions []models.VisibilityCondition `json:"conditions"`
-	IsAnswered bool                         `json:"isAnswered"`
-	IsVisible  bool                         `json:"isVisible"`
+	Questions     []QuestionStructure           `json:"questions"`
+	Repeaters     []RepeaterStructure           `json:"repeaters"`
+	Conditions    []models.VisibilityCondition  `json:"conditions"`
+	Modifications []models.RenderModification   `json:"modifications"`
+	IsAnswered    bool                          `json:"isAnswered"`
+	IsVisible     bool                          `json:"isVisible"`
 }
 
 type FormStructure struct {
@@ -138,6 +141,7 @@ type FormServiceDeps struct {
 	RepeaterGroupRepo          repository.RepeaterGroupRepository
 	OptionRepo                 repository.OptionRepository
 	VisibilityCondRepo         repository.VisibilityConditionRepository
+	RenderModificationRepo     repository.RenderModificationRepository
 	FormSubmissionRepo         repository.FormSubmissionRepository
 	RepeaterEntryRepo          repository.RepeaterEntryRepository
 	AnswerRepo                 repository.AnswerRepository
@@ -157,7 +161,8 @@ type formService struct {
 	questionRepo           repository.QuestionRepository
 	repeaterGroupRepo      repository.RepeaterGroupRepository
 	optionRepo             repository.OptionRepository
-	visibilityCondRepo     repository.VisibilityConditionRepository
+	visibilityCondRepo         repository.VisibilityConditionRepository
+	renderModificationRepo     repository.RenderModificationRepository
 	submissionRepo         repository.FormSubmissionRepository
 	repeaterEntryRepo      repository.RepeaterEntryRepository
 	answerRepo             repository.AnswerRepository
@@ -179,6 +184,7 @@ func NewFormService(deps FormServiceDeps) FormService {
 		repeaterGroupRepo:         deps.RepeaterGroupRepo,
 		optionRepo:                deps.OptionRepo,
 		visibilityCondRepo:        deps.VisibilityCondRepo,
+		renderModificationRepo:    deps.RenderModificationRepo,
 		submissionRepo:            deps.FormSubmissionRepo,
 		repeaterEntryRepo:         deps.RepeaterEntryRepo,
 		answerRepo:                deps.AnswerRepo,
@@ -311,6 +317,13 @@ func (s *formService) GetFormStructure(ctx context.Context, formID string) (*For
 		return nil, err
 	}
 
+	// Query 7: all render modifications (non-fatal — tabla puede no existir aún)
+	rms, err := s.renderModificationRepo.FindByTargetIDs(ctx, allTargetIDs)
+	if err != nil {
+		log.Printf("[WARN] render_modification query failed (tabla inexistente?): %v", err)
+		rms = []models.RenderModification{}
+	}
+
 	// ── Build lookup maps ──────────────────────────────────────────────────────
 
 	// options by questionID
@@ -326,17 +339,25 @@ func (s *formService) GetFormStructure(ctx context.Context, formID string) (*For
 		vcByKey[key] = append(vcByKey[key], vc)
 	}
 
+	// RMs by targetID (target_type no es necesario para indexar — el targetID ya es único por entidad)
+	rmByTargetID := map[string][]models.RenderModification{}
+	for _, rm := range rms {
+		rmByTargetID[rm.TargetID] = append(rmByTargetID[rm.TargetID], rm)
+	}
+
 	// questions by sectionID (section-level) and by repeaterGroupID
 	sectionQuestions  := map[string][]QuestionStructure{}
 	repeaterQuestions := map[string][]QuestionStructure{}
 	for _, q := range questions {
 		qs := QuestionStructure{
-			Question:   q,
-			Options:    optionsByQuestion[q.ID],
-			Conditions: vcByKey["QUESTION:"+q.ID],
+			Question:      q,
+			Options:       optionsByQuestion[q.ID],
+			Conditions:    vcByKey["QUESTION:"+q.ID],
+			Modifications: rmByTargetID[q.ID],
 		}
-		if qs.Options == nil    { qs.Options = []models.Option{} }
-		if qs.Conditions == nil { qs.Conditions = []models.VisibilityCondition{} }
+		if qs.Options == nil        { qs.Options = []models.Option{} }
+		if qs.Conditions == nil     { qs.Conditions = []models.VisibilityCondition{} }
+		if qs.Modifications == nil  { qs.Modifications = []models.RenderModification{} }
 
 		if q.RepeaterGroupID != nil {
 			repeaterQuestions[*q.RepeaterGroupID] = append(repeaterQuestions[*q.RepeaterGroupID], qs)
@@ -352,9 +373,11 @@ func (s *formService) GetFormStructure(ctx context.Context, formID string) (*For
 			RepeaterGroup: rg,
 			Questions:     repeaterQuestions[rg.ID],
 			Conditions:    vcByKey["REPEATER_GROUP:"+rg.ID],
+			Modifications: rmByTargetID[rg.ID],
 		}
-		if rs.Questions == nil  { rs.Questions = []QuestionStructure{} }
-		if rs.Conditions == nil { rs.Conditions = []models.VisibilityCondition{} }
+		if rs.Questions == nil      { rs.Questions = []QuestionStructure{} }
+		if rs.Conditions == nil     { rs.Conditions = []models.VisibilityCondition{} }
+		if rs.Modifications == nil  { rs.Modifications = []models.RenderModification{} }
 		repeatersBySection[rg.FormSectionID] = append(repeatersBySection[rg.FormSectionID], rs)
 	}
 
@@ -364,14 +387,17 @@ func (s *formService) GetFormStructure(ctx context.Context, formID string) (*For
 		qs := sectionQuestions[sec.ID]
 		rs := repeatersBySection[sec.ID]
 		cs := vcByKey["SECTION:"+sec.ID]
+		ms := rmByTargetID[sec.ID]
 		if qs == nil { qs = []QuestionStructure{} }
 		if rs == nil { rs = []RepeaterStructure{} }
 		if cs == nil { cs = []models.VisibilityCondition{} }
+		if ms == nil { ms = []models.RenderModification{} }
 		sectionStructures[i] = SectionStructure{
-			FormSection: sec,
-			Questions:   qs,
-			Repeaters:   rs,
-			Conditions:  cs,
+			FormSection:   sec,
+			Questions:     qs,
+			Repeaters:     rs,
+			Conditions:    cs,
+			Modifications: ms,
 		}
 	}
 
@@ -1237,19 +1263,27 @@ func isBeforeInFlow(trigger *questionRef, item visibilityItem) bool {
 
 // ─── resolveStatePath ─────────────────────────────────────────────────────────
 
-// resolveStatePath resuelve un path dotted (ej. "currentCase.status") en un mapa
-// anidado de interface{}. Retorna string vacío si el path no existe o el objeto es nil.
+// resolveStatePath resuelve un path dotted (ej. "currentCase.status", "items.0.name")
+// en un objeto anidado de interface{}. Soporta maps y arrays (índice numérico).
+// Retorna string vacío si el path no existe, el objeto es nil, o el índice está fuera de rango.
 func resolveStatePath(state map[string]interface{}, path string) string {
 	if state == nil || path == "" {
 		return ""
 	}
 	var current interface{} = state
 	for _, key := range strings.Split(path, ".") {
-		m, ok := current.(map[string]interface{})
-		if !ok {
+		switch v := current.(type) {
+		case map[string]interface{}:
+			current = v[key]
+		case []interface{}:
+			idx, err := strconv.Atoi(key)
+			if err != nil || idx < 0 || idx >= len(v) {
+				return ""
+			}
+			current = v[idx]
+		default:
 			return ""
 		}
-		current = m[key]
 		if current == nil {
 			return ""
 		}
@@ -1930,8 +1964,9 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		qBarreraJusticia   = "2bec977e-97c7-42d7-a00a-b536af8038eb" // Barreras Justicia (multiple)
 		qBarreraProteccion = "66c9fc1e-9b5e-4ad4-999f-7aeb483d84dc" // Barreras Protección (multiple)
 		// Preguntas directas del form
-		qEquipos           = "e0d38cf5-fe3f-45cb-9fd3-f5b8f7b2f7dc" // Derivaciones a equipos (multi-select)
-		qMedidasEmergencia = "1a36260c-33a4-4ebd-bffb-e387d7964b96" // Medidas de emergencia (multi-select)
+		qEquipos            = "e0d38cf5-fe3f-45cb-9fd3-f5b8f7b2f7dc" // Derivaciones a equipos (multi-select)
+		qMedidasEmergencia  = "1a36260c-33a4-4ebd-bffb-e387d7964b96" // Medidas de emergencia (multi-select)
+		qCriteriosPsico     = "71c42c4a-f640-47ad-b2c1-5d4c18480449" // Criterios de remisión — Atención Psicosocial (multiple)
 		// Sección 5 — Cierre del caso
 		qCierraCaso         = "08950a38-3db3-4dc7-852c-3b06b4b1ed72" // boolean — ¿Realiza cierre del caso?
 		qCierreMotivo       = "95fb963e-99de-4a1d-a170-8e30845d1f7d" // single  — Motivo del cierre
@@ -2013,7 +2048,34 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		for _, equipo := range splitValues(equiposVal) {
 			switch equipo {
 			case "atencion_psico":
-				log.Printf("[processFollowUp] creando derivacion -> atencion_psico")
+				// Validar criterios de remisión psicosocial antes de crear la derivación.
+				// Regla: debe estar marcado "criterio_obligatorio" Y sumar mínimo 3 puntos.
+				criteriosVal := answerMap[qCriteriosPsico]
+				criteriosSelected := splitValues(criteriosVal)
+				tieneCriterioObligatorio := false
+				for _, c := range criteriosSelected {
+					if c == "criterio_obligatorio" {
+						tieneCriterioObligatorio = true
+						break
+					}
+				}
+				puntajesPsico := map[string]int{
+					"conducta_suicida":         3,
+					"interseccionalidad":       2,
+					"sin_ruta":                 1,
+					"condiciones_territoriales": 1,
+					"sin_acceso_psico":         1,
+					"naturalizacion_vbg":       1,
+				}
+				totalPuntos := 0
+				for _, c := range criteriosSelected {
+					totalPuntos += puntajesPsico[c]
+				}
+				if !tieneCriterioObligatorio || totalPuntos < 3 {
+					log.Printf("[processFollowUp] derivacion psicosocial NO cumple criterios (obligatorio=%v, puntos=%d) — omitida", tieneCriterioObligatorio, totalPuntos)
+					break
+				}
+				log.Printf("[processFollowUp] creando derivacion -> atencion_psico (obligatorio=%v, puntos=%d)", tieneCriterioObligatorio, totalPuntos)
 				ps := &models.PsychosocialSupport{
 					CaseID:     fu.CaseID,
 					FollowUpID: fu.ID,
