@@ -153,6 +153,7 @@ type FormServiceDeps struct {
 	CaseTimelineEventRepo      repository.CaseTimelineEventRepository
 	AgentLightRepo             repository.AgentLightRepository
 	MenTeamRemisionRepo        repository.MenTeamRemisionRepository
+	DiscapacidadRemisionRepo   repository.DiscapacidadRemisionRepository
 	CasoCierreService          CasoCierreService
 }
 
@@ -175,6 +176,7 @@ type formService struct {
 	caseTimelineRepo           repository.CaseTimelineEventRepository
 	agentLightRepo             repository.AgentLightRepository
 	menTeamRemisionRepo        repository.MenTeamRemisionRepository
+	discapacidadRemisionRepo   repository.DiscapacidadRemisionRepository
 	casoCierreService          CasoCierreService
 }
 
@@ -198,6 +200,7 @@ func NewFormService(deps FormServiceDeps) FormService {
 		caseTimelineRepo:          deps.CaseTimelineEventRepo,
 		agentLightRepo:            deps.AgentLightRepo,
 		menTeamRemisionRepo:       deps.MenTeamRemisionRepo,
+		discapacidadRemisionRepo:  deps.DiscapacidadRemisionRepo,
 		casoCierreService:         deps.CasoCierreService,
 	}
 }
@@ -1972,6 +1975,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		qCriteriosPsico     = "71c42c4a-f640-47ad-b2c1-5d4c18480449" // Criterios de remisión — Atención Psicosocial (multiple)
 		qCriteriosHombres        = "f7edf4fc-d1cd-4591-a358-31566c806365" // Criterios de remisión — Atención Hombres (multiple)
 		qCriteriosEstabilizacion = "28accaa6-99dc-4ec4-967b-f26045ad707c" // Criterios de remisión — Estabilización (multiple)
+		qServiciosDiscapacidad   = "47b122b1-0151-4b58-a007-d4afb722c1b9" // Servicios del Equipo de Discapacidad (multiple)
 		// Sección 5 — Cierre del caso
 		qCierraCaso         = "08950a38-3db3-4dc7-852c-3b06b4b1ed72" // boolean — ¿Realiza cierre del caso?
 		qCierreMotivo       = "95fb963e-99de-4a1d-a170-8e30845d1f7d" // single  — Motivo del cierre
@@ -2118,6 +2122,26 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 					return fmt.Errorf("processFollowUpSubmission: crear derivacion atencion_hombres: %w", err)
 				}
 				remisionCount++
+			case "discapacidad":
+				// Crear un registro por cada servicio seleccionado del Equipo de Discapacidad.
+				serviciosVal := answerMap[qServiciosDiscapacidad]
+				if serviciosVal == "" {
+					log.Printf("[processFollowUp] derivacion discapacidad sin servicios seleccionados — omitida")
+					break
+				}
+				for _, svc := range splitValues(serviciosVal) {
+					log.Printf("[processFollowUp] creando derivacion -> discapacidad servicio=%s", svc)
+					dr := &models.DiscapacidadRemision{
+						CaseID:     fu.CaseID,
+						FollowUpID: fu.ID,
+						Service:    svc,
+						Status:     "ACTIVE",
+					}
+					if err := s.discapacidadRemisionRepo.Create(ctx, dr); err != nil {
+						return fmt.Errorf("processFollowUpSubmission: crear derivacion discapacidad [%s]: %w", svc, err)
+					}
+					remisionCount++
+				}
 			case "estabilizacion":
 				// Validar que se haya seleccionado al menos 1 criterio de estabilización.
 				criteriosEstVal := answerMap[qCriteriosEstabilizacion]

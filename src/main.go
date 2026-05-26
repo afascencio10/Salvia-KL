@@ -71,6 +71,7 @@ func main() {
         &models.CaseTask{},
         &models.RenderModification{},
         &models.MenTeamRemision{},
+        &models.DiscapacidadRemision{},
     } {
         if err := gormDB.AutoMigrate(m); err != nil {
             log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -96,7 +97,8 @@ func main() {
     emRepo                 := repository.NewEmergencyMeasureRepository(gormDB)
     psRepo                 := repository.NewPsychosocialSupportRepository(gormDB)
     esRepo                 := repository.NewEconomicStabilizationRepository(gormDB)
-    menTeamRemisionRepo    := repository.NewMenTeamRemisionRepository(gormDB)
+    menTeamRemisionRepo       := repository.NewMenTeamRemisionRepository(gormDB)
+    discapacidadRemisionRepo  := repository.NewDiscapacidadRemisionRepository(gormDB)
     agentLightRepo         := repository.NewAgentLightRepository(gormDB)
     caseTimelineRepo       := repository.NewCaseTimelineEventRepository(gormDB)
     caseDetailRepo         := repository.NewCaseDetailRepository(gormDB)
@@ -122,6 +124,7 @@ func main() {
         PsychosocialSupportRepo:   psRepo,
         EconomicStabilizationRepo: esRepo,
         MenTeamRemisionRepo:       menTeamRemisionRepo,
+        DiscapacidadRemisionRepo:  discapacidadRemisionRepo,
         BarrierV2Repo:             barrierV2Repo,
         CaseTimelineEventRepo:     caseTimelineRepo,
         AgentLightRepo:            agentLightRepo,
