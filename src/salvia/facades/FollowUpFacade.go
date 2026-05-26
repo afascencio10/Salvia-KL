@@ -144,8 +144,12 @@ func MyFollowUpsGET(c *gin.Context) {
 	common_facades.SetHeaderNoCache(c)
 
 	var menu map[string][]map[string]string
-	if err == nil {
+	var role string
+	var team string
+	if err == nil && s != nil {
 		menu = s.CurrentMenu
+		role = s.CurrentRole
+		team = s.Team
 	}
 
 	// Renderiza el template "get_my_follow_ups" definido en salvia_config.HTML_Templates
@@ -159,5 +163,7 @@ func MyFollowUpsGET(c *gin.Context) {
 			"locale":        salvia_config.Locale,
 			"lang":          s.Lang,
 			"menu":          menu,
+			"userRole":      role,
+			"userTeam":      team,
 		}, utils.GetFullHtmlFuncMap())
 }
