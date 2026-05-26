@@ -1970,7 +1970,8 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		qEquipos            = "e0d38cf5-fe3f-45cb-9fd3-f5b8f7b2f7dc" // Derivaciones a equipos (multi-select)
 		qMedidasEmergencia  = "1a36260c-33a4-4ebd-bffb-e387d7964b96" // Medidas de emergencia (multi-select)
 		qCriteriosPsico     = "71c42c4a-f640-47ad-b2c1-5d4c18480449" // Criterios de remisión — Atención Psicosocial (multiple)
-		qCriteriosHombres   = "f7edf4fc-d1cd-4591-a358-31566c806365" // Criterios de remisión — Atención Hombres (multiple)
+		qCriteriosHombres        = "f7edf4fc-d1cd-4591-a358-31566c806365" // Criterios de remisión — Atención Hombres (multiple)
+		qCriteriosEstabilizacion = "28accaa6-99dc-4ec4-967b-f26045ad707c" // Criterios de remisión — Estabilización (multiple)
 		// Sección 5 — Cierre del caso
 		qCierraCaso         = "08950a38-3db3-4dc7-852c-3b06b4b1ed72" // boolean — ¿Realiza cierre del caso?
 		qCierreMotivo       = "95fb963e-99de-4a1d-a170-8e30845d1f7d" // single  — Motivo del cierre
@@ -2118,7 +2119,13 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 				}
 				remisionCount++
 			case "estabilizacion":
-				log.Printf("[processFollowUp] creando derivacion -> estabilizacion")
+				// Validar que se haya seleccionado al menos 1 criterio de estabilización.
+				criteriosEstVal := answerMap[qCriteriosEstabilizacion]
+				if criteriosEstVal == "" || len(splitValues(criteriosEstVal)) == 0 {
+					log.Printf("[processFollowUp] derivacion estabilizacion sin criterios seleccionados — omitida")
+					break
+				}
+				log.Printf("[processFollowUp] creando derivacion -> estabilizacion (criterios: %s)", criteriosEstVal)
 				ec := &models.EconomicStabilization{
 					CaseID:     fu.CaseID,
 					FollowUpID: fu.ID,
