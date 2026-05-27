@@ -410,6 +410,15 @@
     </div>
 
   </template>
+  <!-- Componente: Contacto de seguimiento (modal reutilizable) -->
+  <follow-up-contact-modal
+    ref="contactModal"
+    :current-user="currentUser"
+    :current-user-id="userICode"
+    :user-team="userTeam"
+    @completed="onFollowUpContactCompleted">
+  </follow-up-contact-modal>
+
   <!-- Componente: Información completa del caso (modal) -->
   <case-info :case-id="caseICode" :visible="mostrarInfoCaso" @close="mostrarInfoCaso = false"></case-info>
 
@@ -820,8 +829,21 @@ var home = Vue.createApp({
         this.showToast('error', 'No es posible iniciar este seguimiento. La fecha programada (' + fechaSeg + ') aún no ha llegado.');
         return;
       }
-      // Si la fecha ya pasó o es hoy, navegar a hacer seguimiento
-      window.location.href = '/salvia/hacer-seguimiento/' + seg.id;
+      // Abrir el componente de contacto de mi compañero
+      var fuData = {
+        id: seg.id,
+        caseId: seg.case_id,
+        caseName: this.caso ? this.caso.victimCaseVictimName : '',
+        attempts: seg.attempts || 0,
+        follow_up_attempts: seg.follow_up_attempts || []
+      };
+      this.$refs.contactModal.start(fuData);
+    },
+    onFollowUpContactCompleted: function(data) {
+      var self = this;
+      if (data.type === 'rescheduled' || data.type === 'closed') {
+        self.cargarDatos();
+      }
     },
     cargarDatos() {
       var self = this;
@@ -1179,6 +1201,7 @@ var app = home;
 </script>
 <script src="/static/js/components/case-timeline.js"></script>
 <script src="/static/js/components/case-info.js"></script>
+<script src="/static/js/components/follow-up-contact-modal.js"></script>
 <script>
 home.mount('#app');
 </script>
