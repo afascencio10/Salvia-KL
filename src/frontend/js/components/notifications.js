@@ -419,4 +419,22 @@
     });
 
     home.mount('#app');
+
+    /* ── Configuración para el componente hijo OficiosList ──────────────────
+     *
+     * Angular-like: el "componente padre" (esta pantalla) le pasa parámetros
+     * al "componente hijo" (oficios-list) antes de que éste cargue y se monte.
+     *
+     * El orden de ejecución garantiza que este objeto esté disponible cuando
+     * oficios-list.js lee window.OficiosListConfig en su función mount().
+     *
+     * Para filtrar por caso:    { caseId:    '<uuid>' }
+     * Para filtrar por barrera: { barrierId: '<uuid>' }
+     * Para filtrar por usuario: { userId:    '<icode>' }
+     * ─────────────────────────────────────────────────────────────────────── */
+    /*window.OficiosListConfig = {
+        caseId:    '019d020a-16cf-7c25-8744-5c1fd6f43a72',
+        barrierId: '34e367b4-ea59-4936-b080-5e5491a60380',
+    };*/
+
 })();
