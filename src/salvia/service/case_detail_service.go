@@ -119,6 +119,14 @@ func (s *caseDetailService) CreateFollowUp(ctx context.Context, caseICode, agent
 		return nil, errors.New("no se permiten seguimientos con fecha anterior a hoy")
 	}
 
+	// Si es hoy y tiene hora, validar que la hora no haya pasado
+	ahora := time.Now().In(loc)
+	if len(scheduledDate) > 10 && fecha.Year() == ahora.Year() && fecha.Month() == ahora.Month() && fecha.Day() == ahora.Day() {
+		if fecha.Before(ahora) {
+			return nil, errors.New("la hora programada ya pasó, seleccione una hora futura")
+		}
+	}
+
 	// Extraer la hora como string para el campo scheduled_time
 	// Solo guardar hora si el usuario la envió (formato con T indica que tiene hora)
 	hora := ""
