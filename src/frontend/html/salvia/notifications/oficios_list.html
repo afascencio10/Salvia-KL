@@ -1,0 +1,356 @@
+{{ define "notifications/oficios_list.html" }}
+{{/* Partial: oficios_list.html — Componente reutilizable de lectura de Oficios */}}
+<link rel="stylesheet" href="/static/css/oficios-list.css">
+
+<!-- ─── Template Vue del componente OficiosList ─── -->
+<script type="text/x-template" id="tpl-oficios-list">
+    <div class="ol-container">
+
+        <!-- Encabezado de sección -->
+        <div class="ol-header">
+            <h5 class="ol-title">Información del Oficio</h5>
+        </div>
+
+        <!-- Estado: cargando -->
+        <div v-if="isLoading" class="ol-loading-state">
+            <div class="ol-spinner"></div>
+            <span>Cargando oficios...</span>
+        </div>
+
+        <!-- Estado: error -->
+        <div v-if="loadError && !isLoading" class="ol-error-state">
+            <i class="fas fa-exclamation-triangle"></i>
+            ${ loadError }
+            <button class="ol-btn-retry" @click="retry()">Reintentar</button>
+        </div>
+
+        <!-- Tabla de oficios -->
+        <div v-if="!isLoading && !loadError" class="ol-table-wrapper">
+
+            <div class="ol-table-head">
+                <div>#</div>
+                <div>Estado</div>
+                <div>Entidad</div>
+                <div>Documento</div>
+                <div></div>
+            </div>
+
+            <template v-if="sortedOficios.length > 0">
+                <div
+                    v-for="(oficio, idx) in sortedOficios"
+                    :key="oficio.id"
+                    class="ol-row">
+
+                    <!-- Número -->
+                    <div class="ol-row-number">Oficio ${ idx + 1 }</div>
+
+                    <!-- Estado -->
+                    <div>
+                        <span class="ol-badge" :class="stateClass(oficio.state)">
+                            ${ statusLabel(oficio.state) }
+                        </span>
+                    </div>
+
+                    <!-- Entidad + Nivel -->
+                    <div>
+                        <div class="ol-entidad-name">${ oficio.entidad || '—' }</div>
+                        <span v-if="oficio.nivel" class="ol-badge ol-badge--nivel" :class="nivelClass(oficio.nivel)">
+                            ${ nivelLabel(oficio.nivel) }
+                        </span>
+                    </div>
+
+                    <!-- Documento -->
+                    <div>
+                        <div v-if="oficio.url_kofax" class="ol-doc-link">
+                            <i class="fas fa-file-pdf ol-doc-icon"></i>
+                            <a
+                                :href="oficio.url_kofax"
+                                target="_blank"
+                                rel="noopener"
+                                class="ol-doc-url"
+                                :title="oficio.url_kofax">
+                                ${ truncateUrl(oficio.url_kofax) }
+                            </a>
+                        </div>
+                        <div v-else class="ol-doc-empty">Sin documento</div>
+                        <div class="ol-doc-meta">
+                            <span>Radicado: ${ oficio.numero_radicado || '—' }</span>
+                            <span>Fecha: ${ formatDate(oficio.created_at) }</span>
+                        </div>
+                    </div>
+
+                    <!-- Botón Ver -->
+                    <div>
+                        <button class="ol-btn-ver" @click="openDetail(oficio)">Ver</button>
+                    </div>
+
+                </div>
+            </template>
+
+            <div v-else class="ol-empty">
+                <i class="fas fa-inbox"></i>
+                No hay oficios disponibles.
+            </div>
+
+        </div>
+
+        <!-- ════════════════════════════════════════════
+             Modal de detalle completo
+             ════════════════════════════════════════════ -->
+        <div v-if="selectedOficio" class="ol-modal-overlay" @click.self="closeDetail">
+            <div class="ol-modal">
+
+                <!-- Cabecera del modal -->
+                <div class="ol-modal-header">
+                    <div class="ol-modal-header-info">
+                        <span class="ol-modal-title">Detalle del Oficio</span>
+                        <span class="ol-modal-subtitle">${ truncateUrl(selectedOficio.url_kofax || selectedOficio.id, 55) }</span>
+                    </div>
+                    <button class="ol-modal-close" @click="closeDetail" aria-label="Cerrar">×</button>
+                </div>
+
+                <!-- Cuerpo del modal -->
+                <div class="ol-modal-body">
+
+                    <!-- ── 1. Oficio ── -->
+                    <div class="ol-msection">
+                        <div class="ol-msection-title">
+                            <i class="fas fa-file-alt"></i> Oficio
+                        </div>
+
+                        <div class="ol-mfields">
+                            <div class="ol-mfield">
+                                <span class="ol-mfield-label">ID</span>
+                                <span class="ol-mfield-value ol-mfield-mono">${ selectedOficio.id }</span>
+                            </div>
+
+                            <div class="ol-mfield">
+                                <span class="ol-mfield-label">Estado</span>
+                                <span class="ol-mfield-value">
+                                    <span class="ol-badge" :class="stateClass(selectedOficio.state)">
+                                        ${ statusLabel(selectedOficio.state) }
+                                    </span>
+                                </span>
+                            </div>
+
+                            <div class="ol-mfield">
+                                <span class="ol-mfield-label">Prioridad</span>
+                                <span class="ol-mfield-value">
+                                    <span class="ol-badge" :class="priorityClass(selectedOficio.priority)">
+                                        <i class="fas fa-flag" style="font-size:0.7rem;margin-right:3px;"></i>
+                                        ${ priorityLabel(selectedOficio.priority) }
+                                    </span>
+                                </span>
+                            </div>
+
+                            <div class="ol-mfield">
+                                <span class="ol-mfield-label">Entidad</span>
+                                <span class="ol-mfield-value">
+                                    ${ selectedOficio.entidad || '—' }
+                                    <span v-if="selectedOficio.nivel" class="ol-badge ol-badge--nivel ol-badge--nivel-sm" :class="nivelClass(selectedOficio.nivel)">
+                                        ${ nivelLabel(selectedOficio.nivel) }
+                                    </span>
+                                </span>
+                            </div>
+
+                            <div v-if="selectedOficio.correo_entidad" class="ol-mfield">
+                                <span class="ol-mfield-label">Correo entidad</span>
+                                <span class="ol-mfield-value">
+                                    <a :href="'mailto:' + selectedOficio.correo_entidad" class="ol-link">
+                                        ${ selectedOficio.correo_entidad }
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div v-if="selectedOficio.url_kofax" class="ol-mfield ol-mfield--full">
+                                <span class="ol-mfield-label">Documento</span>
+                                <span class="ol-mfield-value">
+                                    <i class="fas fa-file-pdf" style="color:#5106A7;margin-right:4px;"></i>
+                                    <a :href="selectedOficio.url_kofax" target="_blank" rel="noopener" class="ol-link" :title="selectedOficio.url_kofax">
+                                        ${ selectedOficio.url_kofax }
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div class="ol-mfield">
+                                <span class="ol-mfield-label">Creado</span>
+                                <span class="ol-mfield-value">${ formatDate(selectedOficio.created_at) }</span>
+                            </div>
+
+                            <div class="ol-mfield">
+                                <span class="ol-mfield-label">Actualizado</span>
+                                <span class="ol-mfield-value">${ formatDate(selectedOficio.updated_at) }</span>
+                            </div>
+
+                            <div v-if="selectedOficio.register_by" class="ol-mfield">
+                                <span class="ol-mfield-label">Registrado por</span>
+                                <span class="ol-mfield-value ol-mfield-mono">${ selectedOficio.register_by }</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── 2. Radicación (si hay datos) ── -->
+                    <div v-if="selectedOficio.numero_radicado || selectedOficio.asunto_radicado || selectedOficio.response_date"
+                         class="ol-msection">
+                        <div class="ol-msection-title">
+                            <i class="fas fa-stamp"></i> Radicación y Respuesta
+                        </div>
+
+                        <div class="ol-mfields">
+                            <div v-if="selectedOficio.numero_radicado" class="ol-mfield">
+                                <span class="ol-mfield-label">Número radicado</span>
+                                <span class="ol-mfield-value ol-mfield-highlight">${ selectedOficio.numero_radicado }</span>
+                            </div>
+
+                            <div v-if="selectedOficio.asunto_radicado" class="ol-mfield ol-mfield--full">
+                                <span class="ol-mfield-label">Asunto radicado</span>
+                                <span class="ol-mfield-value">${ selectedOficio.asunto_radicado }</span>
+                            </div>
+
+                            <div v-if="selectedOficio.correo_remitente" class="ol-mfield">
+                                <span class="ol-mfield-label">Correo remitente</span>
+                                <span class="ol-mfield-value">
+                                    <a :href="'mailto:' + selectedOficio.correo_remitente" class="ol-link">
+                                        ${ selectedOficio.correo_remitente }
+                                    </a>
+                                </span>
+                            </div>
+
+                            <div v-if="selectedOficio.asunto_respuesta" class="ol-mfield ol-mfield--full">
+                                <span class="ol-mfield-label">Asunto respuesta</span>
+                                <span class="ol-mfield-value">${ selectedOficio.asunto_respuesta }</span>
+                            </div>
+
+                            <div v-if="selectedOficio.response_date" class="ol-mfield">
+                                <span class="ol-mfield-label">Fecha respuesta</span>
+                                <span class="ol-mfield-value">${ formatDate(selectedOficio.response_date) }</span>
+                            </div>
+
+                            <div v-if="selectedOficio.response_review_by" class="ol-mfield">
+                                <span class="ol-mfield-label">Revisado por</span>
+                                <span class="ol-mfield-value">${ selectedOficio.response_review_by }</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── 3. Corrección (si aplica) ── -->
+                    <div v-if="selectedOficio.reason_correction" class="ol-msection ol-msection--warning">
+                        <div class="ol-msection-title">
+                            <i class="fas fa-exclamation-triangle"></i> Corrección requerida
+                        </div>
+                        <div class="ol-correction-body">
+                            ${ selectedOficio.reason_correction }
+                        </div>
+                    </div>
+
+                    <!-- ── 4. Barrera (si existe) ── -->
+                    <div v-if="selectedOficio.barrier_id && selectedOficio.barrier" class="ol-msection ol-msection--relation">
+                        <div class="ol-msection-title">
+                            <i class="fas fa-shield-alt"></i> Barrera relacionada
+                        </div>
+
+                        <div class="ol-relation-card">
+                            <div class="ol-sectors-row">
+                                <span
+                                    v-for="sector in selectedOficio.barrier.sectors"
+                                    :key="sector"
+                                    class="ol-sector-tag">
+                                    ${ sector }
+                                </span>
+                            </div>
+                            <div class="ol-relation-org">${ selectedOficio.barrier.org }</div>
+                            <div class="ol-relation-desc">${ selectedOficio.barrier.desc }</div>
+                            <a :href="'/salvia/barreras/' + selectedOficio.barrier_id" class="ol-link ol-link--arrow">
+                                Ver barrera →
+                            </a>
+                        </div>
+                    </div>
+
+                    <div v-else-if="selectedOficio.barrier_id && !selectedOficio.barrier" class="ol-msection ol-msection--relation">
+                        <div class="ol-msection-title">
+                            <i class="fas fa-shield-alt"></i> Barrera relacionada
+                        </div>
+                        <div class="ol-relation-card">
+                            <div class="ol-mfield">
+                                <span class="ol-mfield-label">ID</span>
+                                <span class="ol-mfield-value ol-mfield-mono">${ selectedOficio.barrier_id }</span>
+                            </div>
+                            <a :href="'/salvia/barreras/' + selectedOficio.barrier_id" class="ol-link ol-link--arrow">
+                                Ver barrera →
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- ── 5. Caso (si existe) ── -->
+                    <div v-if="selectedOficio.case_id && selectedOficio.case" class="ol-msection ol-msection--relation">
+                        <div class="ol-msection-title">
+                            <i class="fas fa-folder-open"></i> Caso relacionado
+                        </div>
+
+                        <div class="ol-relation-card">
+                            <div class="ol-case-name">${ selectedOficio.case.victimName }</div>
+                            <div class="ol-case-meta">
+                                <span class="ol-case-code">${ selectedOficio.case.caseCode }</span>
+                                <span class="ol-case-sep">·</span>
+                                <span class="ol-case-doc">${ selectedOficio.case.docNumber }</span>
+                            </div>
+                            <span class="ol-badge ol-badge--case-priority" :class="'ol-badge--cp-' + selectedOficio.case.priority">
+                                ${ selectedOficio.case.priority }
+                            </span>
+                            <br>
+                            <a :href="'/salvia/casos/' + selectedOficio.case_id + '/detalle'" class="ol-link ol-link--arrow">
+                                Ver caso →
+                            </a>
+                        </div>
+                    </div>
+
+                    <div v-else-if="selectedOficio.case_id && !selectedOficio.case" class="ol-msection ol-msection--relation">
+                        <div class="ol-msection-title">
+                            <i class="fas fa-folder-open"></i> Caso relacionado
+                        </div>
+                        <div class="ol-relation-card">
+                            <div class="ol-mfield">
+                                <span class="ol-mfield-label">ID</span>
+                                <span class="ol-mfield-value ol-mfield-mono">${ selectedOficio.case_id }</span>
+                            </div>
+                            <a :href="'/salvia/casos/' + selectedOficio.case_id + '/detalle'" class="ol-link ol-link--arrow">
+                                Ver caso →
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- ── Acciones ── -->
+                    <div class="ol-modal-actions">
+                        <button class="ol-btn-action" @click="downloadPDF(selectedOficio)">
+                            <i class="fas fa-download"></i> Descargar PDF
+                        </button>
+                        <button class="ol-btn-action" @click="printOficio()">
+                            <i class="fas fa-print"></i> Imprimir
+                        </button>
+                        <button class="ol-btn-action ol-btn-action--close" @click="closeDetail">
+                            Cerrar
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+</script>
+
+<!-- ─── Punto de montaje del componente ───────────────────────────────
+     Las variables Go opcionales que se pueden pasar desde cualquier facade:
+       OficiosListCaseId    → filtra por caso
+       OficiosListBarrierId → filtra por barrera
+       OficiosListUserId    → filtra por agente + notificador
+     Si no se pasan, el componente carga la lista general.
+──────────────────────────────────────────────────────────────────── -->
+<div id="oficios-list-root"
+    {{ if .OficiosListCaseId    }}data-case-id="{{ .OficiosListCaseId }}"{{ end }}
+    {{ if .OficiosListBarrierId }}data-barrier-id="{{ .OficiosListBarrierId }}"{{ end }}
+    {{ if .OficiosListUserId    }}data-user-id="{{ .OficiosListUserId }}"{{ end }}
+></div>
+
+<script src="/static/js/components/oficios-list.js"></script>
+{{ end }}
