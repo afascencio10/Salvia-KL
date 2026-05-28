@@ -80,62 +80,76 @@ casos-component  (.cc-wrapper)
         │   └── "No se encontraron casos"
         │
         └── [v-else]
-            <table.cc-table>
             │
-            ├── <thead>
-            │   └── <tr>
-            │       ├── <th> × N  [v-for visibleColumns]  (.cc-th)
-            │       │   └── column.label
-            │       └── [v-if buttons.length > 0]
-            │           <th>  (.cc-th)  "Acciones"
+            ├── <table.cc-table>
+            │   │
+            │   ├── <thead>
+            │   │   └── <tr>
+            │   │       ├── <th> × N  [v-for visibleColumns]  (.cc-th)
+            │   │       │   └── column.label
+            │   │       └── [v-if buttons.length > 0]
+            │   │           <th>  (.cc-th)  "Acciones"
+            │   │
+            │   └── <tbody>
+            │       └── <tr> × N  [v-for filteredCases]  (.cc-row)
+            │           │
+            │           ├── [col.key === 'victim_info']
+            │           │   <td>  (.cc-cell-victim)
+            │           │   ├── Name  (.cc-victim-name)
+            │           │   │   case.names + " " + case.lastNames
+            │           │   └── ICode  (.cc-victim-icode)
+            │           │       case.i_code
+            │           │
+            │           ├── [col.key === 'operator']
+            │           │   <td>  (.cc-cell)
+            │           │   ├── [case.ownerNames existe]
+            │           │   │   case.ownerNames + " " + case.ownerLastNames
+            │           │   └── [v-else]  "—"
+            │           │   // ownerNames viene de rel_case_owner_victim_case (status='a')
+            │           │   // → perfil del agente asignado
+            │           │
+            │           ├── [col.key === 'registration_date']
+            │           │   <td>  (.cc-cell)
+            │           │   └── case.creationDate  (formateada DD/MM/YYYY)
+            │           │
+            │           ├── [col.key === 'risk_level']
+            │           │   <td>  (.cc-cell)
+            │           │   └── RiskBadge  (.cc-risk-badge)
+            │           │       State: alto | medio | bajo | sin_dato
+            │           │       :class según case.riskStatus
+            │           │
+            │           ├── [col.key === 'team']
+            │           │   <td>  (.cc-cell)
+            │           │   └── case.ownerTeam || "—"
+            │           │   // ownerTeam viene de general_user_team del agente asignado
+            │           │
+            │           ├── [col.key === 'assigned_person']
+            │           │   <td>  (.cc-cell)
+            │           │   └── case.ownerNames + " " + case.ownerLastNames || "—"
+            │           │
+            │           ├── [col.key === 'next_follow_up_date']
+            │           │   <td>  (.cc-cell-follow-up)
+            │           │   ├── [case.nextFollowUpDate existe]
+            │           │   │   DateText  (.cc-follow-up-date)
+            │           │   │   case.nextFollowUpDate  (formateada DD/MM/YYYY)
+            │           │   └── [v-else]
+            │           │       NoPending  (.cc-follow-up-none)  "—"
+            │           │
+            │           └── [v-if buttons.length > 0]
+            │               <td>  (.cc-cell-actions)
+            │               └── ActionBtn × N  [v-for buttons]  (.cc-action-btn)
+            │                   btn.label
+            │                   → emitActionClicked(btn.id, case)
             │
-            └── <tbody>
-                └── <tr> × N  [v-for filteredCases]  (.cc-row)
-                    │
-                    ├── [col.key === 'victim_info']
-                    │   <td>  (.cc-cell-victim)
-                    │   ├── Name  (.cc-victim-name)
-                    │   │   case.names + " " + case.lastNames
-                    │   └── ICode  (.cc-victim-icode)
-                    │       case.i_code
-                    │
-                    ├── [col.key === 'operator']
-                    │   <td>  (.cc-cell)
-                    │   └── [case.agentNames existe]
-                    │       case.agentNames + " " + case.agentLastNames
-                    │   └── [v-else]  "—"
-                    │
-                    ├── [col.key === 'registration_date']
-                    │   <td>  (.cc-cell)
-                    │   └── case.creationDate  (formateada DD/MM/YYYY)
-                    │
-                    ├── [col.key === 'risk_level']
-                    │   <td>  (.cc-cell)
-                    │   └── RiskBadge  (.cc-risk-badge)
-                    │       State: alto | medio | bajo | sin_dato
-                    │       :class según case.riskStatus
-                    │
-                    ├── [col.key === 'team']
-                    │   <td>  (.cc-cell)
-                    │   └── case.team || "—"
-                    │
-                    ├── [col.key === 'assigned_person']
-                    │   <td>  (.cc-cell)
-                    │   └── case.agentNames + " " + case.agentLastNames || "—"
-                    │
-                    ├── [col.key === 'next_follow_up_date']
-                    │   <td>  (.cc-cell-follow-up)
-                    │   ├── [case.nextFollowUpDate existe]
-                    │   │   DateText  (.cc-follow-up-date)
-                    │   │   case.nextFollowUpDate  (formateada DD/MM/YYYY)
-                    │   └── [v-else]
-                    │       NoPending  (.cc-follow-up-none)  "—"
-                    │
-                    └── [v-if buttons.length > 0]
-                        <td>  (.cc-cell-actions)
-                        └── ActionBtn × N  [v-for buttons]  (.cc-action-btn)
-                            btn.label
-                            → emitActionClicked(btn.id, case)
+            └── PaginationBar  (.cc-pagination)
+                ├── PrevBtn  (.cc-page-btn)  "← Anterior"
+                │   :disabled si currentPage === 1
+                │   → changePage(currentPage - 1)
+                ├── PageInfo  (.cc-page-info)
+                │   "Página {currentPage} de {totalPages}"
+                └── NextBtn  (.cc-page-btn)  "Siguiente →"
+                    :disabled si currentPage === totalPages
+                    → changePage(currentPage + 1)
 ```
 
 ---
@@ -176,9 +190,9 @@ casos-component  (.cc-wrapper)
 | Key | Fuente de dato | Descripción |
 |---|---|---|
 | `victim_info` | `VictimCaseLight.names` + `lastNames` + `i_code` | Nombre completo e ID del caso |
-| `operator` | `FollowUpV2.agent_names` + `agent_last_names` | Profesional asignado al seguimiento activo |
+| `operator` | `rel_case_owner_victim_case` (status=`'a'`) → perfil del agente | Profesional actualmente asignado al caso |
 | `registration_date` | `VictimCaseLight.creationDate` | Fecha de creación del caso |
-| `risk_level` | `FollowUpV2.risk_status` | Nivel de riesgo del caso |
-| `team` | `FollowUpV2.team` | Equipo al que pertenece el caso |
-| `assigned_person` | `FollowUpV2.agent_names` + `agent_last_names` | Persona con el caso asignado |
-| `next_follow_up_date` | `FollowUpV2.scheduled_date` (status=PENDIENTE) | Fecha del próximo seguimiento sin ejecutar |
+| `risk_level` | `FollowUpV2.risk_status` | Nivel de riesgo del último seguimiento activo |
+| `team` | `AgentLight.team` (del agente asignado vía `rel_case_owner`) | Equipo del profesional asignado al caso |
+| `assigned_person` | `rel_case_owner_victim_case` (status=`'a'`) → perfil del agente | Persona con el caso asignado |
+| `next_follow_up_date` | `FollowUpV2.scheduled_date` (status=`PENDIENTE`, más próximo) | Fecha del próximo seguimiento sin ejecutar |

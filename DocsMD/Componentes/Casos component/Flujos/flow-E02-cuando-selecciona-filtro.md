@@ -32,6 +32,7 @@ PASO 2 — Actualizar estado del filtro activo
 
   activeFilter  = { key: filterKey, value: filterValue }
   searchText    = ""       // resetear búsqueda al cambiar de filtro
+  currentPage   = 1        // resetear a la primera página
   loading       = true
   loadError     = null
   cases         = []       // limpiar tabla mientras carga
@@ -39,7 +40,13 @@ PASO 2 — Actualizar estado del filtro activo
 
 PASO 3 — Consultar backend con el nuevo filtro
 
-  GET /api/v1/cases/list?filter_key={filterKey}&filter_value={filterValue}&sort={sortBy}&order={sortOrder}
+  GET /api/v1/cases/list
+    ?filter_key={filterKey}
+    &filter_value={filterValue}
+    &sort={sortBy}
+    &order={sortOrder}
+    &page=1
+    &page_size={pageSize}
 
   SI respuesta no ok (status != 2xx):
     → loading   = false
@@ -48,8 +55,9 @@ PASO 3 — Consultar backend con el nuevo filtro
     → TERMINAR ejecución
 
   SI respuesta ok:
-    → cases   = data.cases
-    → loading = false
+    → cases      = data.cases
+    → totalCases = data.total
+    → loading    = false
     → CONTINÚA PASO 4
 
 

@@ -81,7 +81,27 @@ Requerido:    Sí
 
 ---
 
+### E-06 — Cuando el usuario cambia de página
+
+📄 [Ver flujo → flow-E06-cuando-cambia-pagina.md](./Flujos/flow-E06-cuando-cambia-pagina.md)
+
+```
+Evento:       Cuando el usuario cambia de página
+Tipo:         User Interaction
+Descripción:  El usuario presiona "← Anterior" o "Siguiente →" en la
+              PaginationBar. Actualiza currentPage en el estado interno
+              y realiza una nueva consulta al backend con el mismo filtro
+              activo, ordenamiento y el nuevo número de página. Actualiza
+              la tabla con los casos de la nueva página. Scroll al inicio
+              de la tabla al cargar los nuevos resultados.
+Requerido:    Sí
+```
+
+---
+
 ### E-05 — Cuando el usuario presiona un botón de acción en una fila
+
+📄 [Ver flujo → flow-E05-cuando-presiona-boton-accion.md](./Flujos/flow-E05-cuando-presiona-boton-accion.md)
 
 ```
 Evento:       Cuando el usuario presiona un botón de acción
@@ -102,7 +122,7 @@ Requerido:    Sí
 ## Checklist de completitud
 
 - [x] ¿El ciclo de vida inicial (carga de datos) está cubierto? → E-01
-- [x] ¿Toda acción del usuario sobre la UI propia del componente está cubierta? → E-02, E-03, E-04, E-05
+- [x] ¿Toda acción del usuario sobre la UI propia del componente está cubierta? → E-02, E-03, E-04, E-05, E-06
 - [x] ¿Los eventos emitidos hacia el padre están cubiertos? → E-05
 - [x] ¿Hay lógica de backend desacoplada de la respuesta HTTP? → No
 - [x] ¿Hay scheduled tasks o webhooks? → No
@@ -119,7 +139,8 @@ Requerido:    Sí
 | E-03 | Cuando el usuario escribe en el buscador | User Interaction | No (filtrado local) |
 | E-04 | Cuando el usuario cambia el ordenamiento | User Interaction | No (ordenamiento local) |
 | E-05 | Cuando el usuario presiona un botón de acción | User Interaction | No (emite hacia padre) |
+| E-06 | Cuando el usuario cambia de página | User Interaction | No (solo lee) |
 
-**Total: 5 eventos — 1 Lifecycle, 4 User Interaction**  
+**Total: 6 eventos — 1 Lifecycle, 5 User Interaction**  
 **Ningún evento escribe en el backend desde este componente.**  
 **La acción resultante del botón presionado (E-05) es responsabilidad del componente padre que consume `casos-component`.**

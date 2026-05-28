@@ -24,7 +24,10 @@ PASO 1 — Inicializar estado interno del componente
   searchText     = ""
   sortBy         = "registration_date"        // criterio de orden por defecto
   sortOrder      = "desc"
-  cases          = []                         // lista vacía hasta recibir respuesta
+  currentPage    = 1
+  pageSize       = 20                         // registros por página
+  totalCases     = 0
+  cases          = []
   loading        = true
   loadError      = null
 
@@ -32,13 +35,15 @@ PASO 1 — Inicializar estado interno del componente
   // SI hiddenColumns vacío → visibleColumns = columns completo
 
 
-PASO 2 — Consultar backend con el filtro inicial
+PASO 2 — Consultar backend con el filtro inicial y paginación
 
-  GET /api/v1/cases/list?filter_key={activeFilter.key}&filter_value={activeFilter.value}&sort={sortBy}&order={sortOrder}
-
-  // Cada objeto de caso devuelto por el backend incluye campos de dos fuentes:
-  //   · salvia.victim_case    → id, i_code, names, lastNames, creationDate, status, docNumber
-  //   · salvia.follow_up_v2  → agentNames, agentLastNames, team, riskStatus, nextFollowUpDate
+  GET /api/v1/cases/list
+    ?filter_key={activeFilter.key}
+    &filter_value={activeFilter.value}
+    &sort={sortBy}
+    &order={sortOrder}
+    &page={currentPage}
+    &page_size={pageSize}
 
   SI respuesta no ok (status != 2xx):
     → loading   = false
@@ -47,29 +52,29 @@ PASO 2 — Consultar backend con el filtro inicial
     → TERMINAR ejecución
 
   SI respuesta ok:
-    → cases   = data.cases   // Array de objetos de caso enriquecidos
-    → loading = false
+    → cases      = data.cases        // Array de objetos de caso (página actual)
+    → totalCases = data.total        // total de casos que cumplen el filtro
+    → loading    = false
     → CONTINÚA PASO 3
 
 
-PASO 3 — Calcular filteredCases inicial (propiedad computada)
+PASO 3 — Calcular propiedades derivadas
 
-  filteredCases = cases   // sin búsqueda activa, todos los casos son visibles
-  // La propiedad computada filteredCases se recalcula automáticamente
-  // cuando cambie searchText (→ ver E-03) o sortBy / sortOrder (→ ver E-04)
+  totalPages     = Math.ceil(totalCases / pageSize)
+  filteredCases  = cases              // la búsqueda local (E-03) opera sobre esta lista
 
 
-PASO 4 — Renderizar la tabla
+PASO 4 — Renderizar tabla y controles de paginación
 
   PARA CADA caso EN filteredCases:
     Renderizar fila con visibleColumns:
 
       'victim_info'       → case.names + " " + case.lastNames  /  case.i_code
-      'operator'          → case.agentNames + " " + case.agentLastNames  (o "—" si vacío)
+      'operator'          → case.ownerNames + " " + case.ownerLastNames  (o "—" si vacío)
       'registration_date' → case.creationDate  formateada DD/MM/YYYY
       'risk_level'        → RiskBadge  usando case.riskStatus
-      'team'              → case.team  (o "—" si vacío)
-      'assigned_person'   → case.agentNames + " " + case.agentLastNames  (o "—" si vacío)
+      'team'              → case.ownerTeam  (o "—" si vacío)
+      'assigned_person'   → case.ownerNames + " " + case.ownerLastNames  (o "—" si vacío)
       'next_follow_up_date' →
           SI case.nextFollowUpDate existe: mostrar fecha formateada DD/MM/YYYY
           SI no existe: mostrar "—"
@@ -79,6 +84,11 @@ PASO 4 — Renderizar la tabla
         → Renderizar botón btn.label
         → Al presionar → emitActionClicked(btn.id, case)  (→ Ver E-05)
 
+  Renderizar PaginationBar:
+    PrevBtn  :disabled si currentPage === 1        → changePage(currentPage - 1)
+    PageInfo "Página {currentPage} de {totalPages}"
+    NextBtn  :disabled si currentPage === totalPages → changePage(currentPage + 1)
+
   → FIN EJECUCIÓN ✓
 
 
@@ -87,18 +97,55 @@ PASO 4 — Renderizar la tabla
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 INPUT: {
-  filter_key:    key del filtro activo   → query param
-  filter_value:  valor del filtro        → query param (opcional según filter_key)
-  sort:          campo de ordenamiento   → query param: 'registration_date' | 'next_follow_up'
-  order:         dirección               → query param: 'asc' | 'desc'
+  filter_key:    key del filtro activo      → query param
+  filter_value:  valor del filtro           → query param (opcional según filter_key)
+  sort:          campo de ordenamiento      → query param: 'registration_date' | 'next_follow_up'
+  order:         dirección                  → query param: 'asc' | 'desc'
+  page:          número de página           → query param (default: 1)
+  page_size:     registros por página       → query param (default: 20)
 }
 
 
-PASO 5 — Construir query base sobre salvia.victim_case
+PASO 5 — Construir query base
 
-  Consultar salvia.victim_case  →  VictimCaseLight
-  JOIN salvia.follow_up_v2 ON follow_up_v2.case_id = victim_case.victim_case_i_code
-    (LEFT JOIN para no excluir casos sin seguimientos)
+  SELECT
+    vc.victim_case_id,
+    vc.victim_case_i_code,
+    vc.victim_case_victim_names,
+    vc.victim_case_victim_last_names,
+    vc.victim_case_victim_doc_number,
+    vc.victim_case_creation_date,
+    vc.victim_case_status,
+    u.general_user_profile_names     AS owner_names,
+    u.general_user_profile_last_names AS owner_last_names,
+    u.general_user_team              AS owner_team,
+    fu.risk_status,
+    (
+      SELECT scheduled_date
+      FROM   salvia.follow_up_v2
+      WHERE  case_id = vc.victim_case_i_code
+      AND    status  = 'PENDIENTE'
+      AND    deleted_at IS NULL
+      ORDER  BY scheduled_date ASC
+      LIMIT  1
+    ) AS next_follow_up_date
+
+  FROM salvia.victim_case vc
+
+  -- Operador/dueño activo del caso
+  LEFT JOIN salvia.rel_case_owner_victim_case rel
+         ON rel.victim_case_id = vc.victim_case_id
+        AND rel.rel_case_owner_victim_case_status = 'a'
+
+  -- Perfil del agente asignado (nombres y equipo)
+  LEFT JOIN security.general_user_profile u
+         ON u.general_user_i_code = rel.case_owner_id   // ⚠️ GAP: confirmar la tabla/campo exacto
+
+  -- Último follow_up_v2 activo para el riesgo
+  LEFT JOIN salvia.follow_up_v2 fu
+         ON fu.case_id   = vc.victim_case_i_code
+        AND fu.status   != 'CERRADO'
+        AND fu.deleted_at IS NULL
 
 
 PASO 6 — Aplicar filtro según filter_key
@@ -108,49 +155,42 @@ PASO 6 — Aplicar filtro según filter_key
     CASO 'casos_nuevos':
       → WHERE NOT EXISTS (
             SELECT 1 FROM salvia.follow_up_v2
-            WHERE case_id = victim_case_i_code
-            AND   status  = 'REALIZADO'
+            WHERE  case_id   = vc.victim_case_i_code
+            AND    status    = 'REALIZADO'
+            AND    deleted_at IS NULL
         )
-      → CONTINÚA PASO 7
 
     CASO 'riesgo':
-      → WHERE follow_up_v2.risk_status = filter_value
-      → CONTINÚA PASO 7
+      → WHERE fu.risk_status = filter_value
 
     CASO 'equipo':
-      → WHERE follow_up_v2.team = filter_value
-      → CONTINÚA PASO 7
+      → WHERE u.general_user_team = filter_value
 
     CASO 'persona_asignada':
-      → WHERE follow_up_v2.agent_id = filter_value
-      → CONTINÚA PASO 7
+      → WHERE rel.case_owner_id = filter_value   // filter_value = icode del agente
 
-    DEFAULT (sin filtro o defaultFilter del padre):
+    DEFAULT:
       → Sin cláusula WHERE adicional
-      → CONTINÚA PASO 7
 
 
-PASO 7 — Resolver nextFollowUpDate por caso
-
-  Para cada caso resultante, buscar el próximo seguimiento pendiente:
-
-  SELECT scheduled_date
-  FROM   salvia.follow_up_v2
-  WHERE  case_id = victim_case_i_code
-  AND    status  = 'PENDIENTE'
-  ORDER  BY scheduled_date ASC
-  LIMIT  1
-  → nextFollowUpDate = scheduled_date del primer registro (o null si no hay)
-
-
-PASO 8 — Aplicar ordenamiento
+PASO 7 — Aplicar ordenamiento
 
   SEGÚN sort:
     CASO 'registration_date':
-      → ORDER BY victim_case.victim_case_creation_date {order}
+      → ORDER BY vc.victim_case_creation_date {order}
 
     CASO 'next_follow_up':
-      → ORDER BY nextFollowUpDate {order} NULLS LAST
+      → ORDER BY next_follow_up_date {order} NULLS LAST
+
+
+PASO 8 — Calcular total y aplicar paginación
+
+  // Ejecutar la misma query sin LIMIT/OFFSET para obtener el total
+  total = COUNT(*) de la query del PASO 5 con los filtros del PASO 6
+
+  // Aplicar paginación a la query principal
+  offset = (page - 1) * page_size
+  → LIMIT page_size OFFSET offset
 
 
 PASO 9 — Construir y retornar response
@@ -158,21 +198,24 @@ PASO 9 — Construir y retornar response
   200 {
     cases: [
       {
-        id:                 victim_case_id,
-        i_code:             victim_case_i_code,
-        names:              victim_case_victim_names,
-        lastNames:          victim_case_victim_last_names,
-        docNumber:          victim_case_victim_doc_number,
-        creationDate:       victim_case_creation_date,
-        status:             victim_case_status,
-        agentNames:         follow_up_v2.agent_names,      // campo virtual del modelo
-        agentLastNames:     follow_up_v2.agent_last_names,  // campo virtual del modelo
-        team:               follow_up_v2.team,
-        riskStatus:         follow_up_v2.risk_status,
-        nextFollowUpDate:   (calculado en PASO 7 o null)
+        id:                victim_case_id,
+        i_code:            victim_case_i_code,
+        names:             victim_case_victim_names,
+        lastNames:         victim_case_victim_last_names,
+        docNumber:         victim_case_victim_doc_number,
+        creationDate:      victim_case_creation_date,
+        status:            victim_case_status,
+        ownerNames:        owner_names,        // del agente en rel_case_owner_victim_case activo
+        ownerLastNames:    owner_last_names,
+        ownerTeam:         owner_team,
+        riskStatus:        risk_status,        // del follow_up_v2 más reciente no cerrado
+        nextFollowUpDate:  next_follow_up_date  // null si no hay pendiente
       },
       ...
-    ]
+    ],
+    total:    N,         // total de casos que cumplen el filtro (sin paginación)
+    page:     P,         // página actual
+    pageSize: PS         // registros por página
   }
 
   → FIN EJECUCIÓN ✓
@@ -185,8 +228,8 @@ PASO 9 — Construir y retornar response
 | Variable / decisión                                                                  | Paso afectado |
 |--------------------------------------------------------------------------------------|---------------|
 | Ruta exacta del endpoint backend (puede diferir de /api/v1/cases/list)              | PASO 2, 5     |
-| ¿El número de teléfono de la víctima está en victim_case o en victim_case_form1?    | PASO 5        |
-| ¿La tabla usa paginación o carga la lista completa en una sola llamada?              | PASO 2, 9     |
-| Cuándo hay múltiples FollowUpV2 por caso, ¿cuál se usa para agentNames y riskStatus?| PASO 5, 9     |
+| Tabla y campo exacto del perfil del agente: ¿security.general_user_profile?         | PASO 5        |
+| ¿El campo de teléfono de la víctima existe en victim_case o en victim_case_form1?   | PASO 5        |
+| Cuando hay múltiples follow_up_v2 no cerrados por caso, ¿cuál se usa para riskStatus? | PASO 5     |
 | Valores exactos del enum riskStatus en follow_up_v2 (¿'alto','medio','bajo'?)       | PASO 6, 9     |
-| Valores exactos del campo team en follow_up_v2 (lista cerrada o libre?)             | PASO 6        |
+| Tamaño de página por defecto: ¿20 registros es correcto?                            | PASO 1, 8     |
