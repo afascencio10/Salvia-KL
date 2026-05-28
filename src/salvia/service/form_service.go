@@ -156,6 +156,8 @@ type FormServiceDeps struct {
 	DiscapacidadRemisionRepo   repository.DiscapacidadRemisionRepository
 	CasoCierreService          CasoCierreService
 	CaseRepo                   repository.VictimCaseLightRepository
+	CaseTaskRepo               repository.CaseTaskRepository
+	EntityLetterRepo           repository.EntityLetterRepository
 }
 
 type formService struct {
@@ -180,6 +182,8 @@ type formService struct {
 	discapacidadRemisionRepo   repository.DiscapacidadRemisionRepository
 	casoCierreService          CasoCierreService
 	caseRepo                   repository.VictimCaseLightRepository
+	caseTaskRepo               repository.CaseTaskRepository
+	entityLetterRepo           repository.EntityLetterRepository
 }
 
 func NewFormService(deps FormServiceDeps) FormService {
@@ -205,6 +209,8 @@ func NewFormService(deps FormServiceDeps) FormService {
 		discapacidadRemisionRepo:  deps.DiscapacidadRemisionRepo,
 		casoCierreService:         deps.CasoCierreService,
 		caseRepo:                  deps.CaseRepo,
+		caseTaskRepo:              deps.CaseTaskRepo,
+		entityLetterRepo:          deps.EntityLetterRepo,
 	}
 }
 
@@ -344,7 +350,7 @@ func (s *formService) GetFormStructure(ctx context.Context, formID string) (*For
 	// VCs by composite key "TargetType:TargetID" — validates both fields
 	vcByKey := map[string][]models.VisibilityCondition{}
 	for _, vc := range vcs {
-		key := vc.TargetType + ":" + vc.TargetID
+		key := strings.ToUpper(vc.TargetType) + ":" + vc.TargetID
 		vcByKey[key] = append(vcByKey[key], vc)
 	}
 
@@ -1940,9 +1946,10 @@ func (s *formService) processCaseClosureSubmission(ctx context.Context, submissi
 	}
 
 	const (
-		qMotivoCierre   = "d2c6e1af-651f-43b4-8e61-aecafd07443d" // Motivo del cierre (single)
-		qCausaCierre    = "90375500-a316-4cf5-b7ec-f5c402da92c2" // Describa la causa del cierre (text)
-		qAccionesCierre = "4a7d0110-b06d-4569-9572-cd0a5e9ef2c1" // ¿Realizó acciones institucionales? (boolean)
+		qMotivoCierre       = "d2c6e1af-651f-43b4-8e61-aecafd07443d" // Motivo del cierre (single)
+		qCausaCierre        = "90375500-a316-4cf5-b7ec-f5c402da92c2" // Describa la causa del cierre (text)
+		qAccionesCierre     = "4a7d0110-b06d-4569-9572-cd0a5e9ef2c1" // ¿Realizó acciones institucionales? (boolean)
+		qRutaAtencionPrevia = "f4b162fd-adf5-4341-ab4f-162fdadf5341" // ¿Se activó la ruta de atención o se generó algún oficio previamente en este caso? (boolean)
 	)
 
 	// 4. Cambiar el estado del caso a "cd" (cerrado) en la base de datos
@@ -1953,6 +1960,41 @@ func (s *formService) processCaseClosureSubmission(ctx context.Context, submissi
 	// 5. Cerrar los demás seguimientos pendientes/reprogramados del caso
 	if err := s.followUpRepo.CloseCaseFollowUps(ctx, fu.ID); err != nil {
 		return fmt.Errorf("processCaseClosureSubmission: cerrar seguimientos del caso: %w", err)
+	}
+
+	// 5.1 Crear Oficio (EntityLetter) y Tarea (CaseTask) si cumple condición crítica de cierre
+	motivo := answerMap[qMotivoCierre]
+	rutaVal := answerMap[qRutaAtencionPrevia]
+	if motivo == "perdida_contacto" && rutaVal == "false" {
+		letter := &models.EntityLetter{
+			CaseID:     fu.CaseID,
+			State:      models.EntityLetterStatePorProyectar, // "por_proyectar"
+			Priority:   "normal",
+			AgentID:    &actorID,
+			RegisterBy: &actorID,
+		}
+		if err := s.entityLetterRepo.Create(ctx, letter); err != nil {
+			log.Printf("[WARN] No se pudo crear EntityLetter de cierre obligatorio: %v", err)
+			return fmt.Errorf("crear entity_letter: %w", err)
+		}
+
+		task := &models.CaseTask{
+			Category:       "Oficios",
+			Type:           "Escribir oficio",
+			Description:    "Debido a que no se registran acciones previas y se ha perdido el contacto, el protocolo exige la activación de la ruta de emergencia al cierre. Se generará el oficio de cierre obligatorio para proteger el estado de la usuaria.",
+			AssignedUserID: actorID,
+			Status:         models.CaseTaskStatusToDo, // "ToDo"
+			CaseID:         fu.CaseID,
+			FollowUpID:     &fu.ID,
+			EntityLetterID: &letter.ID,
+			CreatedAt:      time.Now(),
+			UpdatedAt:      time.Now(),
+		}
+		if err := s.caseTaskRepo.Create(ctx, task); err != nil {
+			log.Printf("[WARN] No se pudo crear CaseTask de cierre obligatorio: %v", err)
+		} else {
+			log.Printf("[CaseTask] Creado oficio de cierre obligatorio exitosamente para caso %s", fu.CaseID)
+		}
 	}
 
 	// 6. Crear evento en el timeline
@@ -1979,11 +2021,18 @@ func (s *formService) processCaseClosureSubmission(ctx context.Context, submissi
 			accionesTraducido = "Sí"
 		}
 
+		rutaVal := answerMap[qRutaAtencionPrevia]
+		rutaTraducida := "No"
+		if rutaVal == "true" {
+			rutaTraducida = "Sí"
+		}
+
 		description := fmt.Sprintf(
-			"Cierre de caso registrado. Motivo: %s. Causa: %s. ¿Acciones institucionales realizadas?: %s",
+			"Cierre de caso registrado. Motivo: %s. Causa: %s. ¿Acciones institucionales realizadas?: %s. ¿Ruta de atención o algún oficio previamente activo?: %s",
 			motivoTraducido,
 			causa,
 			accionesTraducido,
+			rutaTraducida,
 		)
 
 		now := time.Now()
