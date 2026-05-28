@@ -108,6 +108,16 @@ func main() {
     // Services
     casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
 
+    formSectionSvc        := service.NewFormSectionService(formSectionRepo)
+    questionSvc           := service.NewQuestionService(questionRepo)
+    repeaterGroupSvc      := service.NewRepeaterGroupService(repeaterGroupRepo)
+    visibilityCondSvc     := service.NewVisibilityConditionService(visibilityCondRepo)
+    formSubmissionSvc     := service.NewFormSubmissionService(formSubmissionRepo)
+    repeaterEntrySvc      := service.NewRepeaterEntryService(repeaterEntryRepo)
+    answerSvc             := service.NewAnswerService(answerRepo)
+    optionSvc             := service.NewOptionService(optionRepo)
+    followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo)
+
     formSvc := service.NewFormService(service.FormServiceDeps{
         FormRepo:           formRepo,
         FormSectionRepo:    formSectionRepo,
@@ -130,16 +140,8 @@ func main() {
         AgentLightRepo:            agentLightRepo,
         CasoCierreService:         casoCierreSvc,
         CaseRepo:                  victimCaseLightRepo,
+        FollowUpV2Svc:             followUpV2Svc,
     })
-    formSectionSvc        := service.NewFormSectionService(formSectionRepo)
-    questionSvc           := service.NewQuestionService(questionRepo)
-    repeaterGroupSvc      := service.NewRepeaterGroupService(repeaterGroupRepo)
-    visibilityCondSvc     := service.NewVisibilityConditionService(visibilityCondRepo)
-    formSubmissionSvc     := service.NewFormSubmissionService(formSubmissionRepo)
-    repeaterEntrySvc      := service.NewRepeaterEntryService(repeaterEntryRepo)
-    answerSvc             := service.NewAnswerService(answerRepo)
-    optionSvc             := service.NewOptionService(optionRepo)
-    followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo)
     caseDetailSvc         := service.NewCaseDetailService(caseDetailRepo, gormDB)
     caseInfoSvc           := service.NewCaseInfoService(caseInfoRepo)
     reportSvc             := service.NewReportService(reportRepo)

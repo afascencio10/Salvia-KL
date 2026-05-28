@@ -1,7 +1,45 @@
-# Registro de Caso — Inventario de Eventos
+# Registro de Caso — Index
 
 Pantalla: `set_victim_case.html`  
 Ruta: `/salvia/casos/nuevo` (o `/salvia/casos/:id/nuevo` desde contacto previo)
+
+## Archivos de esta pantalla
+
+| Archivo | Descripción |
+|---|---|
+| [`registro-caso-interface.md`](registro-caso-interface.md) | Árbol de interfaz — estructura visual y condiciones de render |
+
+### Changelogs
+
+| Archivo | Descripción |
+|---|---|
+| [`changelogMay2025.md`](changelogMay2025.md) | Cambios realizados en mayo 2025 |
+
+### Resumen de eventos
+
+| # | Evento | Tipo |
+|---|---|---|
+| 1 | Cuando carga la pantalla | Lifecycle |
+| 2 | Cuando selecciona autorizacion de datos personales | User Interaction |
+| 3 | Cuando cambia departamento de residencia (cadena 3) | User Interaction |
+| 4 | Cuando cambia ciudad de residencia (cadena 3) | User Interaction |
+| 5 | Cuando cambia municipio de residencia (cadena 3) | User Interaction |
+| 6 | Cuando cambia departamento de hechos (cadena 2) | User Interaction |
+| 7 | Cuando cambia ciudad de hechos (cadena 2) | User Interaction |
+| 8 | Cuando cambia municipio de hechos (cadena 2) | User Interaction |
+| 9 | Cuando cambia departamento de atencion (cadena 1) | User Interaction |
+| 10 | Cuando cambia ciudad de atencion (cadena 1) | User Interaction |
+| 11 | Cuando cambia municipio de atencion (cadena 1) | User Interaction |
+| 12 | Cuando cambia tipo de violencia experimentada | User Interaction |
+| 13 | Cuando cambia ambito de la violencia | User Interaction |
+| 14 | Cuando cambia proximidad con el agresor principal | User Interaction |
+| 15 | Cuando cambia relacion con el presunto agresor | User Interaction |
+| 16 | Cuando cambia cualquier pregunta comun del tamizaje | User Interaction |
+| 17 | Cuando cambia cualquier pregunta especifica del tamizaje | User Interaction |
+| 18 | [Cuando presiona boton "Guardar"](Flujos/registro-caso-flujo-guardar.md) | User Interaction |
+| 19 | Cuando presiona boton "Volver" | User Interaction |
+| 20 | Cuando presiona boton "Finalizar" | User Interaction |
+| 21 | Cuando cambian los errores de validacion | Lifecycle |
 
 ---
 
@@ -128,6 +166,8 @@ Ruta: `/salvia/casos/nuevo` (o `/salvia/casos/:id/nuevo` desde contacto previo)
 
 ---
 
+📄 [Ver flujo → registro-caso-flujo-guardar.md](Flujos/registro-caso-flujo-guardar.md)
+
 **Evento:** Cuando presiona boton "Guardar"  
 **Tipo de trigger:** User Interaction  
 **Descripcion:** El usuario hace click en el boton "Guardar" (btn-success). Ejecuta submit('save'): agrega las coordenadas GPS (latitude/longitude) al objeto victimCase. Luego hace POST a /salvia/casos (o /salvia/casos/:id si viene de contacto) enviando {victimCase: data.victimCase} como JSON. El backend (SetVictimCase) valida todos los campos, crea el usuario de la victima, inserta el caso, genera el calendario de seguimientos y calcula la ruta. Si status 200: oculta el overlay de exito y muestra finishedOverlay con las credenciales (login/pass). Si status 400: puebla this.errors con los errores campo por campo que se muestran inline. Si otro status: muestra un alert generico.  
@@ -170,30 +210,3 @@ Ruta: `/salvia/casos/nuevo` (o `/salvia/casos/:id/nuevo` desde contacto previo)
 - [ ] No hay tareas programadas (backend cron)
 - [ ] No hay webhooks (triggers externos)
 
----
-
-## Resumen
-
-| # | Evento | Tipo |
-|---|--------|------|
-| 1 | Cuando carga la pantalla | Lifecycle |
-| 2 | Cuando selecciona autorizacion de datos personales | User Interaction |
-| 3 | Cuando cambia departamento de residencia (cadena 3) | User Interaction |
-| 4 | Cuando cambia ciudad de residencia (cadena 3) | User Interaction |
-| 5 | Cuando cambia municipio de residencia (cadena 3) | User Interaction |
-| 6 | Cuando cambia departamento de hechos (cadena 2) | User Interaction |
-| 7 | Cuando cambia ciudad de hechos (cadena 2) | User Interaction |
-| 8 | Cuando cambia municipio de hechos (cadena 2) | User Interaction |
-| 9 | Cuando cambia departamento de atencion (cadena 1) | User Interaction |
-| 10 | Cuando cambia ciudad de atencion (cadena 1) | User Interaction |
-| 11 | Cuando cambia municipio de atencion (cadena 1) | User Interaction |
-| 12 | Cuando cambia tipo de violencia experimentada | User Interaction |
-| 13 | Cuando cambia ambito de la violencia | User Interaction |
-| 14 | Cuando cambia proximidad con el agresor principal | User Interaction |
-| 15 | Cuando cambia relacion con el presunto agresor | User Interaction |
-| 16 | Cuando cambia cualquier pregunta comun del tamizaje | User Interaction |
-| 17 | Cuando cambia cualquier pregunta especifica del tamizaje | User Interaction |
-| 18 | Cuando presiona boton "Guardar" | User Interaction |
-| 19 | Cuando presiona boton "Volver" | User Interaction |
-| 20 | Cuando presiona boton "Finalizar" | User Interaction |
-| 21 | Cuando cambian los errores de validacion | Lifecycle |

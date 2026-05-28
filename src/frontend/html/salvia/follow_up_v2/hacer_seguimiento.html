@@ -249,8 +249,13 @@
                 caseICode:     null,
                 activeTab:     'seguimiento',
                 formCompleted: false,
+                caseRiskLevel: 0,
                 formState: {
                     psysocialRemisionState: '',
+                    shouldReassignCase:     '',
+                    reassingText:           '',
+                    canReassignHigh:        '',
+                    canReassignLow:         '',
                 },
             };
         },
@@ -275,11 +280,13 @@
                         return;
                     }
                     const fu          = data.followUp;
-                    this.submissionId  = fu.form_submission_id;
+                    this.submissionId   = fu.form_submission_id;
                     this.caseId        = fu.case_id;
                     this.caseICode     = fu.case_id;
                     this.victimInfo    = data.victimInfo;
+                    this.caseRiskLevel = data.victimInfo?.riskLevel || 0;
                     console.log('[HS] caseId:', this.caseId, '| caseICode:', this.caseICode);
+                    console.log('[HS] caseRiskLevel:', this.caseRiskLevel);
                     console.log('[HS] followUp completo:', fu);
                     console.log('[HS] caseStatus:', data.caseStatus);
 
@@ -303,29 +310,68 @@
                 }
             },
             onAnswersUpdated(payload) {
-                // Leer respuestas de "Criterios de remisión — Atención Psicosocial"
-                const Q_PSICO = '71c42c4a-f640-47ad-b2c1-5d4c18480449';
-                const answer = (payload.answers?.directAnswers || []).find(a => a.questionId === Q_PSICO);
-                if (!answer || !answer.value) {
-                    this.formState.psysocialRemisionState = '';
-                    return;
-                }
-                const selected = answer.value.split(',').map(v => v.trim());
+                const directAnswers = payload.answers?.directAnswers || [];
+                const getVal  = id => (directAnswers.find(a => a.questionId === id)?.value || '');
+                const splitCSV = v => v ? v.split(',').map(s => s.trim()).filter(Boolean) : [];
 
-                const tieneObligatorio = selected.includes('criterio_obligatorio');
-                const puntos = {
-                    conducta_suicida:        3,
-                    interseccionalidad:      2,
-                    sin_ruta:                1,
-                    condiciones_territoriales: 1,
-                    sin_acceso_psico:        1,
-                    naturalizacion_vbg:      1,
-                };
-                const totalPuntos = selected.reduce((sum, v) => sum + (puntos[v] || 0), 0);
-                const cumple = tieneObligatorio && totalPuntos >= 3;
-                this.formState.psysocialRemisionState = cumple
-                    ? 'Remisión: SI cumple'
-                    : 'Remisión: NO cumple';
+                // ── Psicosocial remisión state ────────────────────────────────
+                const Q_PSICO = '71c42c4a-f640-47ad-b2c1-5d4c18480449';
+                const selectedPsico = splitCSV(getVal(Q_PSICO));
+                if (selectedPsico.length === 0) {
+                    this.formState.psysocialRemisionState = '';
+                } else {
+                    const tieneObligatorio = selectedPsico.includes('criterio_obligatorio');
+                    const puntos = {
+                        conducta_suicida:          3,
+                        interseccionalidad:        2,
+                        sin_ruta:                  1,
+                        condiciones_territoriales: 1,
+                        sin_acceso_psico:          1,
+                        naturalizacion_vbg:        1,
+                    };
+                    const totalPuntos = selectedPsico.reduce((sum, v) => sum + (puntos[v] || 0), 0);
+                    const cumple = tieneObligatorio && totalPuntos >= 3;
+                    this.formState.psysocialRemisionState = cumple
+                        ? 'Remisión: SI cumple'
+                        : 'Remisión: NO cumple';
+                }
+
+                // ── Reasignación de caso ──────────────────────────────────────
+                const Q_PROTECTORES = 'a0fdcf67-b05b-4d92-9c19-14753a32bbe3';
+                const Q_RIESGOS     = 'ec5bb242-6f86-4c64-8b9f-afabd5a51878';
+                const Q_EXTREMO     = '65f2d582-a39d-4c93-9519-1a20efbebb03';
+
+                const protectores = splitCSV(getVal(Q_PROTECTORES));
+                const riesgos     = splitCSV(getVal(Q_RIESGOS));
+                const extremos    = splitCSV(getVal(Q_EXTREMO));
+                const level       = this.caseRiskLevel;
+
+                // Reset
+                this.formState.shouldReassignCase = '';
+                this.formState.reassingText       = '';
+                this.formState.canReassignHigh    = '';
+                this.formState.canReassignLow     = '';
+
+                if (level >= 1 && level <= 2) {
+                    // Caso en Riesgo Bajo → posible subida a Alto
+                    if (extremos.length > 0) {
+                        // Factor extremo → reasignación automática, sin confirmación
+                        this.formState.shouldReassignCase = 'true';
+                        this.formState.reassingText       = 'Se identificó un factor de riesgo extremo. El caso será reasignado automáticamente al equipo de Riesgo Alto.';
+                    } else if (riesgos.length >= 4) {
+                        // 4 o más factores de riesgo → confirmar subida
+                        this.formState.shouldReassignCase = 'true';
+                        this.formState.reassingText       = 'El caso califica para reasignación al equipo de Riesgo Alto. Confirma para continuar.';
+                        this.formState.canReassignHigh    = 'true';
+                    }
+                } else if (level >= 3) {
+                    // Caso en Riesgo Alto → posible bajada a Bajo
+                    if (extremos.length === 0 && protectores.length >= 3) {
+                        this.formState.shouldReassignCase = 'true';
+                        this.formState.reassingText       = 'El caso califica para reasignación al equipo de Riesgo Bajo. Confirma para continuar.';
+                        this.formState.canReassignLow     = 'true';
+                    }
+                }
             },
             onFormCompleted() {
                 this.formCompleted = true;

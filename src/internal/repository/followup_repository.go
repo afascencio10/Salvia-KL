@@ -48,6 +48,10 @@ type FollowUpRepository interface {
 	// Cierre de casos
 	CloseCaseFollowUps(ctx context.Context, followUpID string) error
 
+	// Reasignación de caso
+	DeletePendingByCaseID(ctx context.Context, caseID string) error
+	UpdateAgentForPendingByCaseID(ctx context.Context, caseID string, agentID string) error
+
 	// Hacer seguimiento
 	LoadVictimInfoByCaseID(ctx context.Context, caseID string) (*VictimCaseInfo, error)
 	UpdateFormSubmissionID(ctx context.Context, id string, fsID string) error
@@ -460,4 +464,19 @@ func (r *followUpRepository) UpdateStatus(ctx context.Context, id string, status
 
 func (r *followUpRepository) CreateTimelineEvent(ctx context.Context, event *models.CaseTimelineEvent) error {
 	return r.db.WithContext(ctx).Create(event).Error
+}
+
+// DeletePendingByCaseID elimina (soft-delete) todos los seguimientos PENDIENTE de un caso.
+func (r *followUpRepository) DeletePendingByCaseID(ctx context.Context, caseID string) error {
+	return r.db.WithContext(ctx).
+		Where("case_id = ? AND status = ?", caseID, models.FollowUpStatusPendiente).
+		Delete(&models.FollowUpV2{}).Error
+}
+
+// UpdateAgentForPendingByCaseID asigna un nuevo agente a todos los seguimientos PENDIENTE de un caso.
+func (r *followUpRepository) UpdateAgentForPendingByCaseID(ctx context.Context, caseID string, agentID string) error {
+	return r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Where("case_id = ? AND status = ?", caseID, models.FollowUpStatusPendiente).
+		Update("agent_id", agentID).Error
 }

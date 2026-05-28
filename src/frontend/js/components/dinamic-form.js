@@ -1014,6 +1014,7 @@ app.component('dinamic-form', {
                     this.formState,
                 );
                 this.initLocalAnswers();
+                this._emitAnswersUpdated();
 
                 console.log('[dinamic-form] estado actualizado:');
                 console.log('  formStructure       :', this.formStructure);
@@ -1490,6 +1491,7 @@ app.component('dinamic-form', {
                 this.formStructure  = data.formStructure;
                 this.formSubmission = data.formSubmission ?? null;
                 console.log('[saveSection] formSubmission actualizado:', this.formSubmission?.id);
+                this._emitAnswersUpdated();
 
                 // Detectar formulario completado (todas las secciones visibles respondidas)
                 const allAnswered = this.formStructure.sections

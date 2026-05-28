@@ -156,6 +156,7 @@ type FormServiceDeps struct {
 	DiscapacidadRemisionRepo   repository.DiscapacidadRemisionRepository
 	CasoCierreService          CasoCierreService
 	CaseRepo                   repository.VictimCaseLightRepository
+	FollowUpV2Svc              FollowUpV2Service
 }
 
 type formService struct {
@@ -180,6 +181,7 @@ type formService struct {
 	discapacidadRemisionRepo   repository.DiscapacidadRemisionRepository
 	casoCierreService          CasoCierreService
 	caseRepo                   repository.VictimCaseLightRepository
+	followUpV2Svc              FollowUpV2Service
 }
 
 func NewFormService(deps FormServiceDeps) FormService {
@@ -205,6 +207,7 @@ func NewFormService(deps FormServiceDeps) FormService {
 		discapacidadRemisionRepo:  deps.DiscapacidadRemisionRepo,
 		casoCierreService:         deps.CasoCierreService,
 		caseRepo:                  deps.CaseRepo,
+		followUpV2Svc:             deps.FollowUpV2Svc,
 	}
 }
 
@@ -2377,7 +2380,111 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		log.Printf("⚠️  [processFollowUpSubmission] casoCierreService es nil — cierre del caso %s no ejecutado. Inyectar CasoCierreService en FormServiceDeps (main.go)", fu.CaseID)
 	}
 
+	// 9. Reasignación de caso: evalúa nivel de riesgo y reasigna calendario o agente si corresponde
+	s.reasignarCaso(ctx, fu, answerMap, actorID)
+
 	return nil
+}
+
+// reasignarCaso evalúa las respuestas del formulario de seguimiento y, si corresponde,
+// actualiza el nivel de riesgo del caso y reasigna el calendario o el agente.
+//
+// Niveles de destino:
+//   - Extremo automático (caso bajo + factor extremo seleccionado) → 4
+//   - Confirmación a alto  (caso bajo + ≥4 factores de riesgo)     → 3
+//   - Confirmación a bajo  (caso alto + ≥3 factores protectores)   → 2
+func (s *formService) reasignarCaso(ctx context.Context, fu *models.FollowUpV2, answerMap map[string]string, actorID string) {
+	const (
+		qProtectores = "a0fdcf67-b05b-4d92-9c19-14753a32bbe3" // Factores protectores (multiple)
+		qRiesgos     = "ec5bb242-6f86-4c64-8b9f-afabd5a51878" // Factores de riesgo (multiple)
+		qExtremo     = "65f2d582-a39d-4c93-9519-1a20efbebb03" // Factores de riesgo extremo (multiple)
+		qConfirmHigh = "df7a0293-e2ca-49e4-88a8-66a70519a9e5" // ¿Confirmar reasignación a riesgo alto? (boolean)
+		qConfirmLow  = "7ec8d66d-7015-470a-a596-edebe574b5c2" // ¿Confirmar reasignación a riesgo bajo? (boolean)
+	)
+
+	splitCSV := func(v string) []string {
+		if v == "" {
+			return nil
+		}
+		var out []string
+		for _, p := range strings.Split(v, ",") {
+			if t := strings.TrimSpace(p); t != "" {
+				out = append(out, t)
+			}
+		}
+		return out
+	}
+
+	protectores := splitCSV(answerMap[qProtectores])
+	riesgos     := splitCSV(answerMap[qRiesgos])
+	extremos    := splitCSV(answerMap[qExtremo])
+	confirmHigh := answerMap[qConfirmHigh] == "true"
+	confirmLow  := answerMap[qConfirmLow]  == "true"
+
+	// Leer nivel de riesgo actual del caso desde victim_case_form2
+	currentLevel, err := s.caseRepo.FindRiskLevelByICode(ctx, fu.CaseID)
+	if err != nil {
+		log.Printf("[reasignarCaso] advertencia: no se pudo leer risk_level del caso %s: %v", fu.CaseID, err)
+		return
+	}
+	log.Printf("[reasignarCaso] caseID=%s currentLevel=%d extremos=%d riesgos=%d protectores=%d confirmHigh=%v confirmLow=%v",
+		fu.CaseID, currentLevel, len(extremos), len(riesgos), len(protectores), confirmHigh, confirmLow)
+
+	// Determinar nuevo nivel
+	newLevel := 0
+	if currentLevel >= 1 && currentLevel <= 2 {
+		if len(extremos) > 0 {
+			newLevel = 4 // reasignación automática
+		} else if confirmHigh && len(riesgos) >= 4 {
+			newLevel = 3
+		}
+	} else if currentLevel >= 3 {
+		if confirmLow && len(extremos) == 0 && len(protectores) >= 3 {
+			newLevel = 2
+		}
+	}
+
+	if newLevel == 0 {
+		log.Printf("[reasignarCaso] sin reasignación necesaria para caseID=%s", fu.CaseID)
+		return
+	}
+
+	log.Printf("[reasignarCaso] iniciando reasignación caseID=%s %d→%d", fu.CaseID, currentLevel, newLevel)
+
+	// Actualizar nivel de riesgo en victim_case_form2
+	if err := s.caseRepo.UpdateRiskLevelByICode(ctx, fu.CaseID, newLevel); err != nil {
+		log.Printf("[reasignarCaso] advertencia: no se pudo actualizar risk_level caseID=%s: %v", fu.CaseID, err)
+		return
+	}
+
+	// Reasignar calendario o agente según el nuevo nivel
+	if s.followUpV2Svc == nil {
+		log.Printf("⚠️  [reasignarCaso] followUpV2Svc es nil — reasignación de calendario no ejecutada. Inyectar FollowUpV2Svc en FormServiceDeps (main.go)")
+		return
+	}
+	if err := s.followUpV2Svc.ReasignarCalendario(ctx, fu.CaseID, newLevel); err != nil {
+		log.Printf("[reasignarCaso] advertencia: ReasignarCalendario falló caseID=%s: %v", fu.CaseID, err)
+		return
+	}
+
+	// Evento de timeline "Reasignación de Caso"
+	now := time.Now()
+	event := &models.CaseTimelineEvent{
+		CaseID:      fu.CaseID,
+		FollowUpID:  fu.ID,
+		Category:    models.TimelineCategoryGeneral,
+		Type:        "Reasignación de Caso",
+		Icon:        "arrows-rotate",
+		Color:       "#f59e0b",
+		Date:        now,
+		EventUserID: actorID,
+		CreatedAt:   now,
+	}
+	if err := s.caseTimelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[reasignarCaso] advertencia: no se pudo crear evento timeline: %v", err)
+	}
+
+	log.Printf("[reasignarCaso] ✅ reasignación completada caseID=%s %d→%d", fu.CaseID, currentLevel, newLevel)
 }
 
 // buildValidOptionValues carga las preguntas de una sección y retorna un mapa

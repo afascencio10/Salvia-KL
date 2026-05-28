@@ -84,6 +84,7 @@ type FollowUpV2Service interface {
 
 	// Hacer seguimiento
 	LoadFollowUp(ctx context.Context, id string, agentID string, formID string) (*LoadFollowUpResult, error)
+	ReasignarCalendario(ctx context.Context, caseID string, newLevel int) error
 
 	// Seguimientos Área
 	GetByTeamPaginated(ctx context.Context, team string, filters repository.FollowUpFilters, page, limit int) ([]models.FollowUpV2, int64, error)
@@ -233,6 +234,73 @@ func (s *followUpV2Service) LoadFollowUp(ctx context.Context, id, agentID, formI
 	}
 
 	return &LoadFollowUpResult{FollowUp: fu, VictimInfo: victimInfo, CaseStatus: caseStatus}, nil
+}
+
+// ReasignarCalendario ejecuta la lógica de reasignación de un caso:
+//   - newLevel 3 o 4 (alto/extremo): borra PENDIENTE, genera nuevo calendario con autoasignación.
+//   - newLevel 2 (moderado/bajo destino): solo reasigna el agente en los PENDIENTE existentes.
+func (s *followUpV2Service) ReasignarCalendario(ctx context.Context, caseID string, newLevel int) error {
+	offsets, ok := riskMatrix[newLevel]
+	if !ok {
+		return fmt.Errorf("ReasignarCalendario: risk_level inválido: %d", newLevel)
+	}
+
+	now := time.Now()
+	today := now.Truncate(24 * time.Hour)
+
+	if newLevel >= 3 {
+		// ── Nivel alto/extremo: borrar PENDIENTE y generar nuevo calendario ──────
+		team := "Riesgo alto"
+		scheduledDates := computeScheduledDates(offsets, now, today, newLevel)
+
+		agentID, err := s.calcularAgente(ctx, scheduledDates, team)
+		if err != nil {
+			log.Printf("[WARN] ReasignarCalendario: calcularAgente falló (%v) — agente quedará sin asignar", err)
+			agentID = ""
+		}
+
+		if err := s.repo.DeletePendingByCaseID(ctx, caseID); err != nil {
+			return fmt.Errorf("ReasignarCalendario: borrar PENDIENTE: %w", err)
+		}
+
+		riskLevelStr := riskLevelToString(newLevel)
+		input := GenerateCalendarInput{RiskLevel: newLevel, AgentID: agentID, Team: team}
+		newFollowUps := buildFollowUps(caseID, input, riskLevelStr, offsets, now, today, 1)
+		if err := s.repo.RunInTransaction(ctx, func(tx *gorm.DB) error {
+			return s.repo.BulkCreate(ctx, tx, newFollowUps)
+		}); err != nil {
+			return fmt.Errorf("ReasignarCalendario: crear nuevos seguimientos: %w", err)
+		}
+		log.Printf("[ReasignarCalendario] ✅ caseID=%s → nivel=%d equipo=%q agente=%s seguimientos=%d",
+			caseID, newLevel, team, agentID, len(newFollowUps))
+
+	} else {
+		// ── Nivel bajo (2): solo reasignar agente en PENDIENTE existentes ────────
+		team := "Riesgo bajo"
+		pending, err := s.repo.FindPendingByCaseID(ctx, caseID)
+		if err != nil {
+			return fmt.Errorf("ReasignarCalendario: buscar PENDIENTE: %w", err)
+		}
+
+		var dates []time.Time
+		for _, fu := range pending {
+			dates = append(dates, fu.ScheduledDate)
+		}
+
+		agentID, err := s.calcularAgente(ctx, dates, team)
+		if err != nil {
+			log.Printf("[WARN] ReasignarCalendario: calcularAgente falló (%v) — agente sin cambios", err)
+			return nil
+		}
+
+		if err := s.repo.UpdateAgentForPendingByCaseID(ctx, caseID, agentID); err != nil {
+			return fmt.Errorf("ReasignarCalendario: actualizar agente: %w", err)
+		}
+		log.Printf("[ReasignarCalendario] ✅ caseID=%s → nivel=%d equipo=%q nuevo agente=%s",
+			caseID, newLevel, team, agentID)
+	}
+
+	return nil
 }
 
 // GetByCaseID retorna todos los seguimientos del caso ordenados por fecha ASC.
