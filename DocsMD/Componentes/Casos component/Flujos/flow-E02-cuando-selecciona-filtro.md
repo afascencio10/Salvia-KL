@@ -1,15 +1,21 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🟢 EVENTO: Cuando el usuario selecciona un filtro
+🟢 EVENTO: Cuando el usuario selecciona un filtro chip o dropdown
    Tipo: User Interaction
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Disparado por: clic en un chip de filtro o cambio en un dropdown de filtro
-               dentro de FilterBar → FilterChips
+Disparado por: clic en un Chip (type='chip') o cambio de valor en un
+               DropdownFilter (type='dropdown') dentro de FilterGroup.
+               Aplica a: 'casos_nuevos', 'riesgo', 'equipo'.
+
+> **Nota de alcance:** El filtro 'persona_asignada' (type='autocomplete') tiene
+> su propio flujo de dos pasos → Ver E-07 (escribe) y E-08 (selecciona).
+> El filtro 'busqueda' (type='search') también tiene su propio flujo → Ver E-03.
+> Todos los tipos de filtro siempre llaman al backend al activarse.
 
 INPUT: {
   filterKey:    key del filtro seleccionado   → interacción del usuario
-                valores: 'casos_nuevos' | 'riesgo' | 'equipo' | 'persona_asignada'
-  filterValue:  valor seleccionado            → del dropdown (vacío para chips booleanos)
+                valores: 'casos_nuevos' | 'riesgo' | 'equipo'
+  filterValue:  valor seleccionado            → del dropdown (vacío para chips y para resetear)
 }
 
 
