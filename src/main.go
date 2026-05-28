@@ -104,18 +104,20 @@ func main() {
     caseDetailRepo         := repository.NewCaseDetailRepository(gormDB)
     caseInfoRepo           := repository.NewCaseInfoRepository(gormDB)
     reportRepo             := repository.NewReportRepository(gormDB)
+    caseTaskRepo           := repository.NewCaseTaskRepository(gormDB)
+    entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
 
     // Services
     casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
 
     formSvc := service.NewFormService(service.FormServiceDeps{
-        FormRepo:           formRepo,
-        FormSectionRepo:    formSectionRepo,
-        QuestionRepo:       questionRepo,
-        RepeaterGroupRepo:  repeaterGroupRepo,
-        OptionRepo:         optionRepo,
-        VisibilityCondRepo:     visibilityCondRepo,
-        RenderModificationRepo: renderModificationRepo,
+        FormRepo:                  formRepo,
+        FormSectionRepo:           formSectionRepo,
+        QuestionRepo:              questionRepo,
+        RepeaterGroupRepo:         repeaterGroupRepo,
+        OptionRepo:                optionRepo,
+        VisibilityCondRepo:        visibilityCondRepo,
+        RenderModificationRepo:    renderModificationRepo,
         FormSubmissionRepo:        formSubmissionRepo,
         RepeaterEntryRepo:         repeaterEntryRepo,
         AnswerRepo:                answerRepo,
@@ -130,6 +132,8 @@ func main() {
         AgentLightRepo:            agentLightRepo,
         CasoCierreService:         casoCierreSvc,
         CaseRepo:                  victimCaseLightRepo,
+        CaseTaskRepo:              caseTaskRepo,
+        EntityLetterRepo:          entityLetterRepo,
     })
     formSectionSvc        := service.NewFormSectionService(formSectionRepo)
     questionSvc           := service.NewQuestionService(questionRepo)
@@ -165,7 +169,6 @@ func main() {
     barrierV2Svc           := service.NewBarrierV2Service(barrierV2Repo)
     barrierV2GinCtrl       := salvia_ctrl.NewBarrierV2GinController(barrierV2Svc)
 
-    caseTaskRepo            := repository.NewCaseTaskRepository(gormDB)
     caseTaskSvc             := service.NewCaseTaskService(service.CaseTaskServiceDeps{
         CaseTaskRepo:     caseTaskRepo,
         BarrierV2Repo:    barrierV2Repo,
@@ -173,7 +176,6 @@ func main() {
     })
     caseTaskCtrl            := salvia_ctrl.NewCaseTaskController(caseTaskSvc)
 
-    entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
     entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo, caseTaskRepo)
     entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
 
