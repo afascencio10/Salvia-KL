@@ -19,6 +19,7 @@ type VictimCase struct {
 	VictimCaseVictimDocType   string `gorm:"column:victim_case_victim_doc_type"   json:"victimCaseVictimDocType"`
 	VictimCaseTownCode     string  `gorm:"column:victim_case_victim_town_code"   json:"victimCaseTownCode"`
 	VictimCaseOwnerDesc    string  `gorm:"column:victim_case_owner_description"  json:"victimCaseOwnerDescription"`
+	VictimCaseTeam         string  `gorm:"column:victim_case_team"               json:"victimCaseTeam"`
 	VictimCaseCreatedAt    time.Time `gorm:"column:victim_case_creation_date"       json:"victimCaseCreatedAt"`
 }
 

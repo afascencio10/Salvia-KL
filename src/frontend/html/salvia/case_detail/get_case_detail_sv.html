@@ -727,11 +727,12 @@ var home = Vue.createApp({
       return null;
     },
     agentesParaReasignarSeg() {
-      // Supervisor: usa agentesRO (filtrado por riesgo del caso)
+      // Supervisor: usa agentesRO (filtrado por team del caso)
       if (this.userRole === 'sv') return this.agentesRO;
-      // Operador: usa agentes de su mismo equipo
-      if (this.userTeam) {
-        return this.todosAgentes.filter(function(ag) { return ag.team === this.userTeam; }.bind(this));
+      // Operador: usa agentes del mismo team que el caso
+      var teamCaso = this.caso && this.caso.victimCaseTeam ? this.caso.victimCaseTeam : this.userTeam;
+      if (teamCaso) {
+        return this.todosAgentes.filter(function(ag) { return ag.team === teamCaso; });
       }
       return this.todosAgentes;
     },
@@ -815,8 +816,9 @@ var home = Vue.createApp({
       this.segExpandido = this.segExpandido === segId ? null : segId;
     },
     teamSegunRiesgo() {
-      // Riesgo alto/extremo (form2 >= 3 o femicideRisk === '1') → equipo "Riesgo alto"
-      // Riesgo bajo/medio/sin evaluar → equipo "Riesgo bajo"
+      // Usar el team asignado directamente al caso
+      if (this.caso && this.caso.victimCaseTeam) return this.caso.victimCaseTeam;
+      // Fallback: determinar por nivel de riesgo si el caso no tiene team asignado
       if (this.form2 && this.form2.riskLevel && this.form2.riskLevel >= 3) return 'Riesgo alto';
       if (this.form1 && this.form1.femicideRisk === '1') return 'Riesgo alto';
       return 'Riesgo bajo';
