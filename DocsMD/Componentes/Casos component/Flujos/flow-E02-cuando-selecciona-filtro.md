@@ -1,93 +1,41 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🟢 EVENTO: Cuando el usuario selecciona un filtro chip o dropdown
-   Tipo: User Interaction
+📋 ÍNDICE — Filtros chip y dropdown (E-02)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Disparado por: clic en un Chip (type='chip') o cambio de valor en un
-               DropdownFilter (type='dropdown') dentro de FilterGroup.
-               Aplica a: 'casos_nuevos', 'riesgo', 'equipo'.
+El evento **E-02** original se dividió en tres flujos independientes,
+uno por cada control de filtro. Cada uno tiene su propia lógica de negocio
+y cláusula SQL en el backend.
 
-> **Nota de alcance:** El filtro 'persona_asignada' (type='autocomplete') tiene
-> su propio flujo de dos pasos → Ver E-07 (escribe) y E-08 (selecciona).
-> El filtro 'busqueda' (type='search') también tiene su propio flujo → Ver E-03.
-> Todos los tipos de filtro siempre llaman al backend al activarse.
+| Código | Filtro UI            | Tipo       | Flujo |
+|--------|----------------------|------------|-------|
+| **E-09** | Casos nuevos         | `chip`     | [flow-E09-cuando-filtra-casos-nuevos.md](./flow-E09-cuando-filtra-casos-nuevos.md) |
+| **E-10** | Nivel de riesgo      | `dropdown` | [flow-E10-cuando-filtra-nivel-riesgo.md](./flow-E10-cuando-filtra-nivel-riesgo.md) |
+| **E-11** | Por equipo           | `dropdown` | [flow-E11-cuando-filtra-equipo.md](./flow-E11-cuando-filtra-equipo.md) |
 
-INPUT: {
-  filterKey:    key del filtro seleccionado   → interacción del usuario
-                valores: 'casos_nuevos' | 'riesgo' | 'equipo'
-  filterValue:  valor seleccionado            → del dropdown (vacío para chips y para resetear)
-}
+---
 
+## Comportamiento común (todos los filtros E-09 / E-10 / E-11)
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  FRONTEND — casos-component.js
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Resetean `searchText`, `currentPage = 1` y limpian `cases` antes de consultar.
+2. Llaman a `GET /api/v1/cases/list` con `filter_key` y `filter_value` (si aplica).
+3. Mantienen `sortBy` y `sortOrder` vigentes.
+4. Si el usuario elige **"Todos / Todas"** (dropdown) o **desactiva el chip**, vuelven a `defaultFilter`.
 
+---
 
-PASO 1 — Verificar si el filtro ya está activo
+## Filtros con flujo propio (fuera de E-02)
 
-  SI activeFilter.key === filterKey Y activeFilter.value === filterValue:
-    → No hacer nada (mismo filtro seleccionado)
-    → TERMINAR ejecución
+| Filtro              | Tipo           | Evento |
+|---------------------|----------------|--------|
+| Persona asignada    | `autocomplete` | E-07 + E-08 |
+| Buscar documento/tel. | `search`     | E-03 |
 
-  SI NO:
-    → CONTINÚA PASO 2
+---
 
+## Handlers en `casos-component.js`
 
-PASO 2 — Actualizar estado del filtro activo
-
-  activeFilter  = { key: filterKey, value: filterValue }
-  searchText    = ""       // resetear búsqueda al cambiar de filtro
-  currentPage   = 1        // resetear a la primera página
-  loading       = true
-  loadError     = null
-  cases         = []       // limpiar tabla mientras carga
-
-
-PASO 3 — Consultar backend con el nuevo filtro
-
-  GET /api/v1/cases/list
-    ?filter_key={filterKey}
-    &filter_value={filterValue}
-    &sort={sortBy}
-    &order={sortOrder}
-    &page=1
-    &page_size={pageSize}
-
-  SI respuesta no ok (status != 2xx):
-    → loading   = false
-    → loadError = data.error || 'Error al aplicar el filtro'
-    → Mostrar ErrorState
-    → TERMINAR ejecución
-
-  SI respuesta ok:
-    → cases      = data.cases
-    → totalCases = data.total
-    → loading    = false
-    → CONTINÚA PASO 4
-
-
-PASO 4 — Recalcular filteredCases
-
-  filteredCases = cases
-  // searchText está vacío (reseteado en PASO 2), no hay filtro de búsqueda que aplicar
-
-  SI filteredCases.length === 0:
-    → Mostrar EmptyState "No se encontraron casos"
-
-  SI filteredCases.length > 0:
-    → Renderizar tabla con los nuevos casos
-
-  → FIN EJECUCIÓN ✓
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️  GAPS — Información pendiente
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-| Variable / decisión                                                              | Paso afectado |
-|----------------------------------------------------------------------------------|---------------|
-| ¿Se puede tener más de un filtro activo a la vez (multi-filtro)?                 | PASO 1, 2, 3  |
-| Al seleccionar 'casos_nuevos' chip, ¿se puede deseleccionar para volver a todos? | PASO 1        |
-| ¿El filtro por persona_asignada usa agent_id (icode) o nombre del agente?        | PASO 3        |
-| ¿Los dropdowns de riesgo/equipo cargan sus opciones del backend o son hardcoded? | Interfaz      |
+| Handler                 | Delega a |
+|-------------------------|----------|
+| `toggleChipFilter(key)` | E-09 cuando `key === 'casos_nuevos'` |
+| `setDropdownFilter(key, value)` | E-10 cuando `key === 'riesgo'` |
+| `setDropdownFilter(key, value)` | E-11 cuando `key === 'equipo'` |
