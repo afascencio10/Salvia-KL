@@ -1,0 +1,144 @@
+/* ─── Layout con sidebar ─── */
+.salvia-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 16px 32px;
+}
+
+.salvia-main {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ─── Sidebar ─── */
+.salvia-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 20px 12px;
+    margin-top: 20px;
+    margin-right: 24px;
+    position: sticky;
+    top: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.salvia-sidebar__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px 16px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.salvia-sidebar__logo {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+}
+
+.salvia-sidebar__title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #7C3AED;
+    letter-spacing: 0.02em;
+}
+
+.salvia-sidebar__nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.salvia-sidebar__nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    color: #374151;
+    text-decoration: none;
+    font-size: 0.925rem;
+    font-weight: 500;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.salvia-sidebar__nav-link i {
+    width: 18px;
+    text-align: center;
+    color: #9CA3AF;
+    font-size: 0.95rem;
+    transition: color 0.15s ease;
+}
+
+.salvia-sidebar__nav-link:hover {
+    background: #F5F3FF;
+    color: #7C3AED;
+    text-decoration: none;
+}
+
+.salvia-sidebar__nav-link:hover i {
+    color: #7C3AED;
+}
+
+.salvia-sidebar__nav-link.is-active {
+    background: #7C3AED;
+    color: #fff;
+}
+
+.salvia-sidebar__nav-link.is-active i {
+    color: #fff;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 992px) {
+    .salvia-layout {
+        flex-direction: column;
+        padding: 0 12px 24px;
+    }
+
+    .salvia-sidebar {
+        width: 100%;
+        margin-right: 0;
+        margin-top: 12px;
+        position: static;
+        padding: 12px;
+    }
+
+    .salvia-sidebar__brand {
+        padding: 0 8px 12px;
+    }
+
+    .salvia-sidebar__nav {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .salvia-sidebar__nav-link {
+        flex: 1 1 auto;
+        justify-content: center;
+        padding: 10px 12px;
+        font-size: 0.85rem;
+    }
+
+    .salvia-sidebar__nav-link span {
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 576px) {
+    .salvia-sidebar__nav {
+        flex-direction: column;
+    }
+
+    .salvia-sidebar__nav-link {
+        justify-content: flex-start;
+    }
+}

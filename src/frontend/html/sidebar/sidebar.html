@@ -1,0 +1,38 @@
+{{ define "sidebar/sidebar.html" }}
+<link rel="stylesheet" href="/static/css/sidebar.css">
+
+<aside class="salvia-sidebar" id="salviaSidebar">
+    <div class="salvia-sidebar__brand">
+        <img src="/static/img/salvia_logo_landing.png" alt="Salvia" class="salvia-sidebar__logo">
+        <span class="salvia-sidebar__title">Salvia</span>
+    </div>
+
+    <nav class="salvia-sidebar__nav" aria-label="Navegación principal">
+        <a href="/salvia/casos" class="salvia-sidebar__nav-link">
+            <i class="fas fa-home" aria-hidden="true"></i>
+            <span>Home</span>
+        </a>
+        <a href="/salvia/mis-casos" class="salvia-sidebar__nav-link">
+            <i class="fas fa-folder-open" aria-hidden="true"></i>
+            <span>Mis Casos</span>
+        </a>
+        <a href="/salvia/notificaciones" class="salvia-sidebar__nav-link">
+            <i class="fas fa-bell" aria-hidden="true"></i>
+            <span>Notificaciones Salvia</span>
+        </a>
+    </nav>
+</aside>
+
+<script>
+(function () {
+    var path = window.location.pathname.replace(/\/+$/, '') || '/';
+    document.querySelectorAll('.salvia-sidebar__nav-link').forEach(function (link) {
+        var href = (link.getAttribute('href') || '').replace(/\/+$/, '') || '/';
+        if (href === path) {
+            link.classList.add('is-active');
+            link.setAttribute('aria-current', 'page');
+        }
+    });
+})();
+</script>
+{{ end }}
