@@ -55,6 +55,7 @@ type FollowUpRepository interface {
 	// Hacer seguimiento
 	LoadVictimInfoByCaseID(ctx context.Context, caseID string) (*VictimCaseInfo, error)
 	UpdateFormSubmissionID(ctx context.Context, id string, fsID string) error
+	UpdateActiveBarrierIDs(ctx context.Context, id string, ids string) error
 	UpdateFormIDAndSubmissionID(ctx context.Context, id string, formID string, fsID string) error
 	FindByFormSubmissionID(ctx context.Context, formSubmissionID string) (*models.FollowUpV2, error)
 	UpdateStatus(ctx context.Context, id string, status string) error
@@ -424,6 +425,14 @@ func (r *followUpRepository) UpdateFormSubmissionID(ctx context.Context, id stri
 		Model(&models.FollowUpV2{}).
 		Where("id = ?", id).
 		Update("form_submission_id", fsID).Error
+}
+
+// UpdateActiveBarrierIDs persiste los IDs de barreras activas en el momento de la primera carga.
+func (r *followUpRepository) UpdateActiveBarrierIDs(ctx context.Context, id string, ids string) error {
+	return r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Where("id = ?", id).
+		Update("active_barrier_ids", ids).Error
 }
 
 // UpdateFormIDAndSubmissionID asigna formId y formSubmissionId a un seguimiento.

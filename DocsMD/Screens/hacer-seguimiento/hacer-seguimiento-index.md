@@ -13,6 +13,7 @@
 |---|---|
 | [`changelogMay2025.md`](changelogMay2025.md) | Cambios realizados en mayo 2025 |
 | [`changelogMay2026.md`](changelogMay2026.md) | Cambios realizados en mayo 2026 |
+| [`changelogJun2026.md`](changelogJun2026.md) | Cambios realizados en junio 2026 |
 
 ### Otros MDs
 
@@ -53,18 +54,19 @@ Entry point backend: `GET /salvia/hacer-seguimiento/:id` → `HacerSeguimientoFa
 ```
 Evento:       Cuando carga la pantalla
 Tipo:         Lifecycle
-Descripción:  Se ejecuta al montar el app Vue de #seguimiento-app. Llama al
-              backend con el :id de la URL para obtener los datos del
-              seguimiento (formId, submissionId, status, completed_at),
-              los datos de la víctima (victimInfo) y el estado del caso
-              (caseStatus). Calcula canEdit con la siguiente prioridad:
-              (1) si caseStatus === 'cd' (caso cerrado) → canEdit = false
-              permanente, sin importar ninguna otra condición;
-              (2) si status === 'REALIZADO' y completed_at existe →
-              canEdit = true solo si han pasado ≤ 5 días desde completed_at;
-              (3) en cualquier otro caso → canEdit = true.
-              Pasa formId, submissionId y canEdit como props a DinamicForm.
-              Si falla la carga, setea loadError para mostrar el ErrorAlert.
+Descripción:  Se ejecuta al montar el app Vue de #seguimiento-app. Lanza en
+              paralelo loadFollowUp() y loadLocations(). loadFollowUp()
+              llama al backend para obtener el seguimiento, victimInfo
+              (con riskLevel), caseStatus y activeBarriers (barreras
+              activas del caso con status != MANAGED). En la primera carga
+              el backend fija fu.active_barrier_ids con esos IDs; en cargas
+              posteriores los usa directamente. Guarda caseRiskLevel y
+              formState.currentBarriers. Calcula canEdit: (1) caseStatus
+              'cd' → false permanente; (2) REALIZADO + completed_at → true
+              solo si ≤ 5 días; (3) cualquier otro → true. loadLocations()
+              fetchea departamentos (→ formState.statesColombia) y ciudades
+              (→ allCities local) en background sin loader, para alimentar
+              los dropdowns de ubicación de la Sección 4.
 Requerido:    Sí
 ```
 
@@ -112,21 +114,23 @@ Descripción:  Goroutine disparada por dinamic-form cuando allAnswered == true.
               (1) Si el follow-up ya es REALIZADO → crea evento "Seguimiento
               Editado" en el timeline y termina (idempotente).
               (2) Construye answerMap con todas las respuestas directas.
-              (3) Procesa barreras del repeater → crea registros BarrierV2.
-              (4) Procesa derivaciones a equipos según qEquipos (multi-select):
-                - atencion_psico: valida criterio_obligatorio + ≥ 3 puntos;
-                  se omite si medidas_emergencia también fue seleccionado
-                  (regla de exclusión);
-                - atencion_hombres: valida que criterio_hombres esté marcado
-                  → crea MenTeamRemision;
-                - discapacidad: crea un DiscapacidadRemision por cada
-                  servicio seleccionado (apoyo_lsc, enfoque_discapacidad);
-                - estabilizacion: valida ≥ 1 criterio seleccionado
-                  → crea EconomicStabilization.
-              (5) Procesa medidas de emergencia → crea un EmergencyMeasure
-              por cada medida seleccionada en qMedidasEmergencia.
-              (6) Marca el follow-up como REALIZADO y crea evento en timeline.
-              (7) Si qCierraCaso == "true" → llama CasoCierreService.CerrarCaso.
+              (3) Procesa barreras (Sección 4 repeater) → crea 1 BarrierV2
+              por entry con todos los campos (sector, specific_barriers,
+              institutions, ubicación, barreras estructurales, descripción,
+              gestión). Cambio respecto a versión anterior: antes se creaba
+              1 registro por opción CSV; ahora 1 registro por entry completa.
+              (3b) Procesa Seguimiento a Barreras (Sección 3 repeater) →
+              por cada entry: relaciona con barrera por posición en
+              fu.active_barrier_ids, crea evento timeline "Seguimiento a
+              Barrera" con resumen (persiste, respuesta institucional,
+              actuaciones), y si Q6 cierra = true → actualiza
+              barrier_v2.status = MANAGED.
+              (4) Procesa derivaciones a equipos según qEquipos (multi-select).
+              (5) Procesa medidas de emergencia → 1 EmergencyMeasure por medida.
+              (6) Marca follow-up como REALIZADO y crea evento timeline.
+              (7) Si qCierraCaso == "true" → CasoCierreService.CerrarCaso.
+              (8) reasignarCaso: evalúa nivel y confirmaciones → actualiza
+              risk_level, ReasignarCalendario, evento "Reasignación de Caso".
 Requerido:    Sí
 ```
 
@@ -140,18 +144,21 @@ Requerido:    Sí
 Evento:       Cuando el formulario emite answers-updated
 Tipo:         User Interaction
 Descripción:  DinamicForm emite 'answers-updated' cada vez que el usuario
-              guarda una sección. La pantalla captura el payload (answers.directAnswers)
-              y ejecuta onAnswersUpdated() para computar el estado de remisión
-              al equipo psicosocial en tiempo real. Busca la respuesta a la
-              pregunta de Criterios de remisión — Atención Psicosocial
-              (qCriteriosPsico) y evalúa si cumple con la regla:
-              debe incluir 'criterio_obligatorio' Y sumar ≥ 3 puntos según
-              el puntaje de cada criterio. El resultado se escribe en
-              formState.psysocialRemisionState ('Remisión: SI cumple' /
-              'Remisión: NO cumple' / '') y se pasa como prop formState
-              al componente dinamic-form, que lo usa para resolver el
-              render_modification REPLACE del banner informativo de
-              remisión psicosocial.
+              guarda una sección (y también en carga inicial). La pantalla
+              ejecuta onAnswersUpdated() que delega a tres métodos privados:
+              (1) _updatePsicosocialState: evalúa criterio_obligatorio +
+              puntaje ≥ 3 → escribe formState.psysocialRemisionState.
+              (2) _updateReasignacionState: lee factores protectores, de
+              riesgo y extremos junto con caseRiskLevel → escribe
+              shouldReassignCase, reassingText, canReassignHigh y
+              canReassignLow en formState.
+              (3) _updateBarreraLocationOptions: para cada entry del repeater
+              de Sección 4 (Identificación de Barreras), filtra ciudades de
+              allCities según el departamento seleccionado (con cache por
+              índice) y fetchea municipios por ciudad solo cuando cambia
+              (con cache por índice). Escribe formState.newBarriers[i].cities
+              y formState.newBarriers[i].towns que dinamic-form usa vía
+              stateOptionsPath en Q13 y Q14.
 Requerido:    Sí
 ```
 

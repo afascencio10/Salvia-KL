@@ -7,6 +7,31 @@
  * - Dynamic closure form injection using <dinamic-form>
  * - Success alert notification
  */
+(function injectFollowUpContactModalStyles() {
+    if (document.getElementById('follow-up-contact-modal-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'follow-up-contact-modal-styles';
+    style.textContent = `
+        .ms-modal-content .df-info-banner {
+            background-color: #fffbeb !important; /* amber-50 */
+            border-color: #fde047 !important; /* amber-300 */
+            color: #92400e !important; /* amber-800 */
+        }
+        .ms-modal-content .df-info-banner-icon {
+            visibility: hidden;
+            position: relative;
+        }
+        .ms-modal-content .df-info-banner-icon::before {
+            content: "⚠️";
+            visibility: visible;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+    `;
+    document.head.appendChild(style);
+})();
+
 app.component('follow-up-contact-modal', {
     delimiters: ['${', '}'],
     props: {
@@ -26,6 +51,9 @@ app.component('follow-up-contact-modal', {
             closureFormId: 'da8423ab-1a8c-47db-96b7-d10496df571a',
             closureSubmissionId: null,
             activeClosureFollowUp: null,
+            closureFormState: {
+                warningCierreRequired: 'false'
+            },
             reasonText: '',
             loading: false,
             rescheduleLoading: null,
@@ -72,6 +100,7 @@ app.component('follow-up-contact-modal', {
             this.selectedContactTarget = '';
             this.rescheduleLoading = null;
             this.activeFollowUp = null;
+            this.closureFormState.warningCierreRequired = 'false';
         },
 
         async handleYesAnswer() {
@@ -298,6 +327,30 @@ app.component('follow-up-contact-modal', {
                 const data = await response.json();
                 this.activeClosureFollowUp = fu;
                 this.closureSubmissionId = data.submission_id;
+
+                try {
+                    const answersResponse = await fetch(`/api/v1/form-submissions/${data.submission_id}/answers`);
+                    if (answersResponse.ok) {
+                        const answers = await answersResponse.json();
+                        const Q_MOTIVO = 'd2c6e1af-651f-43b4-8e61-aecafd07443d';
+                        const Q_RUTA = 'f4b162fd-adf5-4341-ab4f-162fdadf5341';
+                        
+                        const answerMotivo = answers.find(a => a.questionId === Q_MOTIVO)?.value;
+                        const answerRuta = answers.find(a => a.questionId === Q_RUTA)?.value;
+                        
+                        if (answerMotivo === 'perdida_contacto' && answerRuta === 'false') {
+                            this.closureFormState.warningCierreRequired = 'true';
+                        } else {
+                            this.closureFormState.warningCierreRequired = 'false';
+                        }
+                    } else {
+                        this.closureFormState.warningCierreRequired = 'false';
+                    }
+                } catch (err) {
+                    console.error('Error fetching answers on load:', err);
+                    this.closureFormState.warningCierreRequired = 'false';
+                }
+
                 this.showClosureFormModal = true;
                 this.modalAcciones = null;
             } catch (error) {
@@ -322,6 +375,21 @@ app.component('follow-up-contact-modal', {
             // Notify parent that follow-up closure is finished
             this.$emit('completed', { type: 'closed', followUpId: fuId, caseId: closedCaseId });
             this.showSuccessModal = true;
+        },
+
+        onClosureAnswersUpdated(payload) {
+            const Q_MOTIVO = 'd2c6e1af-651f-43b4-8e61-aecafd07443d';
+            const Q_RUTA = 'f4b162fd-adf5-4341-ab4f-162fdadf5341';
+            
+            const directAnswers = payload.answers?.directAnswers || [];
+            const answerMotivo = directAnswers.find(a => a.questionId === Q_MOTIVO)?.value;
+            const answerRuta = directAnswers.find(a => a.questionId === Q_RUTA)?.value;
+            
+            if (answerMotivo === 'perdida_contacto' && answerRuta === 'false') {
+                this.closureFormState.warningCierreRequired = 'true';
+            } else {
+                this.closureFormState.warningCierreRequired = 'false';
+            }
         },
 
         shouldShowClosureButton(fu) {
@@ -536,6 +604,8 @@ app.component('follow-up-contact-modal', {
                             v-if="closureFormId && closureSubmissionId" 
                             :form-id="closureFormId" 
                             :submission-id="closureSubmissionId" 
+                            :form-state="closureFormState"
+                            @answers-updated="onClosureAnswersUpdated"
                             @form-completed="onClosureFormCompleted">
                         </dinamic-form>
                     </div>

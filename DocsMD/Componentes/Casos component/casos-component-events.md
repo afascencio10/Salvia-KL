@@ -51,15 +51,19 @@ Requerido:    Sí
 
 ### E-03 — Cuando el usuario escribe en el buscador
 
+📄 [Ver flujo → flow-E03-cuando-escribe-buscador.md](./Flujos/flow-E03-cuando-escribe-buscador.md)
+
 ```
 Evento:       Cuando el usuario escribe en el buscador
 Tipo:         User Interaction
-Descripción:  El usuario escribe en el campo de búsqueda por ID de caso
-              o por número de teléfono de la víctima. Filtra los casos
-              visibles en la tabla sobre los resultados ya cargados (filtrado
-              del lado del cliente). No altera el filtro activo ni el
-              ordenamiento. Si el campo queda vacío, restaura la vista
-              completa de los casos del filtro activo.
+Descripción:  El usuario escribe en el campo de búsqueda (filter.type='search')
+              para buscar casos por número de ID (victim_case_i_code) o por
+              teléfono de la víctima. Con un debounce de 400ms, resetea
+              currentPage a 1 y llama al backend combinando el filtro activo
+              vigente con el texto de búsqueda como parámetro adicional.
+              Si el campo queda vacío, hace la misma llamada sin el parámetro
+              de búsqueda para restaurar la lista completa del filtro activo.
+              No altera el filtro activo ni el ordenamiento.
 Requerido:    Sí
 ```
 
@@ -76,6 +80,44 @@ Descripción:  El usuario selecciona uno de los criterios de ordenamiento
               visible del lado del cliente, sin disparar una nueva consulta
               al backend. Si el mismo criterio ya está activo, invierte el
               orden (ascendente / descendente).
+Requerido:    Sí
+```
+
+---
+
+### E-07 — Cuando el usuario escribe en el autocomplete de persona asignada
+
+📄 [Ver flujo → flow-E07-cuando-escribe-autocomplete.md](./Flujos/flow-E07-cuando-escribe-autocomplete.md)
+
+```
+Evento:       Cuando el usuario escribe en el autocomplete de persona asignada
+Tipo:         User Interaction
+Descripción:  El usuario escribe en el input del filtro de tipo 'autocomplete'
+              (persona_asignada). Con debounce de 400ms, llama al backend para
+              buscar agentes cuyo nombre o apellido coincida con el texto
+              ingresado. Muestra los resultados como sugerencias en el
+              dropdown flotante debajo del input. Si el campo queda vacío,
+              limpia las sugerencias sin llamar al backend.
+Requerido:    Sí
+```
+
+---
+
+### E-08 — Cuando el usuario selecciona o limpia una opción del autocomplete
+
+📄 [Ver flujo → flow-E08-cuando-selecciona-autocomplete.md](./Flujos/flow-E08-cuando-selecciona-autocomplete.md)
+
+```
+Evento:       Cuando el usuario selecciona o limpia una opción del autocomplete
+Tipo:         User Interaction
+Descripción:  Se dispara en dos situaciones:
+              (A) El usuario hace clic en una sugerencia del dropdown del
+              autocomplete de persona_asignada. Establece la opción
+              seleccionada como filtro activo, cierra el dropdown y llama al
+              backend para recargar los casos filtrados por ese agente.
+              (B) El usuario presiona "✕" en el SelectedTag. Limpia la
+              selección, resetea el filtro al defaultFilter y llama al
+              backend para recargar los casos sin ese filtro.
 Requerido:    Sí
 ```
 
@@ -122,7 +164,7 @@ Requerido:    Sí
 ## Checklist de completitud
 
 - [x] ¿El ciclo de vida inicial (carga de datos) está cubierto? → E-01
-- [x] ¿Toda acción del usuario sobre la UI propia del componente está cubierta? → E-02, E-03, E-04, E-05, E-06
+- [x] ¿Toda acción del usuario sobre la UI propia del componente está cubierta? → E-02, E-03, E-04, E-05, E-06, E-07, E-08
 - [x] ¿Los eventos emitidos hacia el padre están cubiertos? → E-05
 - [x] ¿Hay lógica de backend desacoplada de la respuesta HTTP? → No
 - [x] ¿Hay scheduled tasks o webhooks? → No
@@ -135,12 +177,14 @@ Requerido:    Sí
 | # | Evento | Tipo | Persiste en backend |
 |---|---|---|---|
 | E-01 | Cuando carga el componente | Lifecycle | No (solo lee) |
-| E-02 | Cuando el usuario selecciona un filtro | User Interaction | No (solo lee) |
-| E-03 | Cuando el usuario escribe en el buscador | User Interaction | No (filtrado local) |
+| E-02 | Cuando el usuario selecciona un filtro chip o dropdown | User Interaction | No (solo lee) |
+| E-03 | Cuando el usuario escribe en el buscador | User Interaction | No (solo lee) |
 | E-04 | Cuando el usuario cambia el ordenamiento | User Interaction | No (ordenamiento local) |
 | E-05 | Cuando el usuario presiona un botón de acción | User Interaction | No (emite hacia padre) |
 | E-06 | Cuando el usuario cambia de página | User Interaction | No (solo lee) |
+| E-07 | Cuando el usuario escribe en el autocomplete de persona asignada | User Interaction | No (solo lee — busca agentes) |
+| E-08 | Cuando el usuario selecciona o limpia una opción del autocomplete | User Interaction | No (solo lee — filtra casos) |
 
-**Total: 6 eventos — 1 Lifecycle, 5 User Interaction**  
+**Total: 8 eventos — 1 Lifecycle, 7 User Interaction**  
 **Ningún evento escribe en el backend desde este componente.**  
 **La acción resultante del botón presionado (E-05) es responsabilidad del componente padre que consume `casos-component`.**

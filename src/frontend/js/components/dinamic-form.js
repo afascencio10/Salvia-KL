@@ -659,29 +659,70 @@ function getObjectProperty(object, path) {
  * Aplica las render_modification de un campo de texto.
  * Orden: SETs primero (reemplazan todo el texto), REPLACEs después (subcadena).
  * Solo aplica si el valor resuelto del formState no es '' ni undefined/null.
+ *
+ * entryIndex (opcional): índice 0-based de la entry del repeater.
+ * Si el statePath contiene '{_entryIndex}', se reemplaza por el índice antes
+ * de resolver el path. Ej: "barriers.{_entryIndex}.name" con entryIndex=1
+ * → "barriers.1.name".
+ * Si entryIndex no se pasa o el path no contiene el placeholder, se resuelve
+ * el path tal cual (comportamiento estándar).
  */
-function applyRenderModifications(text, modifications, fieldName, formState) {
+function applyRenderModifications(text, modifications, fieldName, formState, entryIndex) {
     const applicable = (modifications || []).filter(m => m.targetField === fieldName);
     if (!applicable.length) return text;
 
     let result = text || '';
 
+    const resolvePath = (statePath) => {
+        const path = (entryIndex !== undefined && entryIndex !== null)
+            ? statePath.replace('{_entryIndex}', String(entryIndex))
+            : statePath;
+        return getObjectProperty(formState || {}, path);
+    };
+
     // 1. SET — reemplaza todo el texto
     for (const mod of applicable.filter(m => m.modificationType === 'SET')) {
-        const raw = getObjectProperty(formState || {}, mod.statePath);
+        const raw = resolvePath(mod.statePath);
         if (raw === undefined || raw === null || String(raw) === '') continue;
         result = String(raw);
     }
 
     // 2. REPLACE — reemplaza subcadena específica (todas las ocurrencias)
     for (const mod of applicable.filter(m => m.modificationType === 'REPLACE')) {
-        const raw = getObjectProperty(formState || {}, mod.statePath);
+        const raw = resolvePath(mod.statePath);
         if (raw === undefined || raw === null || String(raw) === '') continue;
         if (!mod.searchString) continue;
         result = result.split(mod.searchString).join(String(raw));
     }
 
     return result;
+}
+
+/* ─── resolveQuestionOptions ─────────────────────────────────────────────────
+ * Devuelve el array de opciones a renderizar para una pregunta.
+ *
+ * Si question.stateOptionsPath está definido, es la fuente de verdad:
+ *   - Resuelve el path en formState (con soporte de {_entryIndex}).
+ *   - Valida que el resultado sea un array de objetos { label, value }.
+ *   - Si no resuelve de forma válida → devuelve [] (sin opciones).
+ * Si no está definido → devuelve question.options (comportamiento estándar).
+ *
+ * entryIndex (opcional): índice 0-based de la entry del repeater.
+ */
+function resolveQuestionOptions(question, formState, entryIndex) {
+    if (!question.stateOptionsPath) return question.options || [];
+
+    const path = (entryIndex !== undefined && entryIndex !== null)
+        ? question.stateOptionsPath.replace('{_entryIndex}', String(entryIndex))
+        : question.stateOptionsPath;
+
+    const raw = getObjectProperty(formState || {}, path);
+
+    if (!Array.isArray(raw) || raw.length === 0) return [];
+
+    // Validar que cada elemento tenga label y value
+    const valid = raw.every(o => o && typeof o === 'object' && 'label' in o && 'value' in o);
+    return valid ? raw : [];
 }
 
 /* ─── checkVisibility ────────────────────────────────────────────────────────
@@ -836,19 +877,64 @@ function buildSectionRenderData(section, submission, fs, formState) {
         const visItem  = repeaterItem(r, sectionOrder);
         const vis      = fs ? checkVisibility(fs, submission, null, visItem, formState) : { visible: true };
 
-        const rawEntries = entriesByRepeaterId[r.id] || [];
-        const entries = rawEntries.map(entry => ({
-            entry,
-            questions: (r.questions || []).map(q => {
-                const qVisItem = repeaterQuestionItem(q, sectionOrder, r.order, r.id);
-                const qVis     = fs ? checkVisibility(fs, submission, entry.answers, qVisItem, formState) : { visible: true };
-                return {
-                    question:  q,
-                    answer:    (entry.answers || []).find(a => a.questionId === q.id) || null,
-                    isVisible: qVis.visible,
-                };
-            }),
-        }));
+        let entries;
+
+        if (r.stateItems) {
+            // ── Repeater controlado por estado ──────────────────────────────
+            // El array del formState es la fuente de verdad del conteo de entries.
+            // Las entries guardadas en el submission se usan para precargar respuestas (por iteración).
+            const stateArray = getObjectProperty(formState || {}, r.stateItems);
+
+            if (!Array.isArray(stateArray) || stateArray.length === 0) {
+                entries = [];
+            } else {
+                // Índice de entries guardadas por iteración para precargar respuestas
+                const savedByIteration = {};
+                (entriesByRepeaterId[r.id] || []).forEach(e => {
+                    savedByIteration[e.iteration] = e;
+                });
+
+                entries = stateArray.map((_, idx) => {
+                    const iteration  = idx + 1;
+                    const savedEntry = savedByIteration[iteration];
+                    // ID estable para temp entries — evita resetear localAnswers al re-renderizar
+                    const entry = savedEntry || {
+                        id:              `temp-state-${r.id}-${iteration}`,
+                        repeaterGroupId: r.id,
+                        iteration,
+                        isTemp:          true,
+                        answers:         [],
+                    };
+                    return {
+                        entry,
+                        questions: (r.questions || []).map(q => {
+                            const qVisItem = repeaterQuestionItem(q, sectionOrder, r.order, r.id);
+                            const qVis     = fs ? checkVisibility(fs, submission, entry.answers, qVisItem, formState) : { visible: true };
+                            return {
+                                question:  q,
+                                answer:    (entry.answers || []).find(a => a.questionId === q.id) || null,
+                                isVisible: qVis.visible,
+                            };
+                        }),
+                    };
+                });
+            }
+        } else {
+            // ── Repeater estándar ────────────────────────────────────────────
+            const rawEntries = entriesByRepeaterId[r.id] || [];
+            entries = rawEntries.map(entry => ({
+                entry,
+                questions: (r.questions || []).map(q => {
+                    const qVisItem = repeaterQuestionItem(q, sectionOrder, r.order, r.id);
+                    const qVis     = fs ? checkVisibility(fs, submission, entry.answers, qVisItem, formState) : { visible: true };
+                    return {
+                        question:  q,
+                        answer:    (entry.answers || []).find(a => a.questionId === q.id) || null,
+                        isVisible: qVis.visible,
+                    };
+                }),
+            }));
+        }
 
         return {
             type:      'repeater',
@@ -881,6 +967,7 @@ app.component('dinamic-form', {
             handler(newState) {
                 if (!this.currentSectionRender) return;
                 this._reevaluateVisibility(this._buildTempSubmission(), newState);
+                this._clearStaleOptionAnswers(newState);
             },
         },
     },
@@ -948,6 +1035,9 @@ app.component('dinamic-form', {
         /* ── Render modifications ── */
         applyRenderModifications(text, modifications, fieldName, formState) {
             return applyRenderModifications(text, modifications, fieldName, formState);
+        },
+        resolveQuestionOptions(question, formState, entryIndex) {
+            return resolveQuestionOptions(question, formState, entryIndex);
         },
 
         /* ── Sidebar ── */
@@ -1124,20 +1214,36 @@ app.component('dinamic-form', {
             if (!this.currentSectionRender) return;
             for (const item of this.currentSectionRender.formItems) {
                 if (item.type === 'question') {
-                    // info banners no tienen respuesta — no crear clave en localAnswers
                     if (item.question.questionTypeId === 'info') continue;
-                    map[item.question.id] = item.answer?.value ?? '';
+                    const savedVal = item.answer?.value ?? '';
+                    map[item.question.id] = this._sanitizeOptionAnswer(item.question, savedVal, this.formState, undefined);
                 } else {
                     for (const e of item.entries) {
+                        const entryIndex = e.entry.iteration - 1;
                         for (const q of e.questions) {
-                            // info banners no tienen respuesta — no crear clave en localAnswers
                             if (q.question.questionTypeId === 'info') continue;
-                            map[this.answerKey(q.question.id, e.entry.id)] = q.answer?.value ?? '';
+                            const savedVal = q.answer?.value ?? '';
+                            map[this.answerKey(q.question.id, e.entry.id)] = this._sanitizeOptionAnswer(q.question, savedVal, this.formState, entryIndex);
                         }
                     }
                 }
             }
             this.localAnswers = map;
+        },
+
+        // Limpia un valor guardado que ya no existe en las opciones actuales de la pregunta.
+        // Para single/dropdown: devuelve '' si el valor no está en opciones.
+        // Para multiple: filtra del CSV solo los valores que siguen existiendo.
+        // Si la pregunta no tiene stateOptionsPath devuelve el valor sin cambios.
+        _sanitizeOptionAnswer(question, value, formState, entryIndex) {
+            if (!question.stateOptionsPath || !value) return value;
+            const opts  = resolveQuestionOptions(question, formState, entryIndex);
+            const valid = new Set(opts.map(o => o.value));
+            if (question.questionTypeId === 'multiple') {
+                const kept = value.split(',').map(v => v.trim()).filter(v => v && valid.has(v));
+                return kept.join(',');
+            }
+            return valid.has(value) ? value : '';
         },
         getLocalAnswer(questionId, entryId = null) {
             return this.localAnswers[this.answerKey(questionId, entryId)] ?? '';
@@ -1182,6 +1288,7 @@ app.component('dinamic-form', {
             }
 
             // 5. Emitir respuestas actuales al padre
+            console.log('[onAnswer] emitiendo answers-updated | questionId:', questionId, '| value:', value, '| entryId:', entryId);
             this._emitAnswersUpdated();
         },
 
@@ -1221,10 +1328,12 @@ app.component('dinamic-form', {
         // Emite 'answers-updated' con la sección actual y las respuestas completas del submission
         _emitAnswersUpdated() {
             if (!this.currentSection) return;
-            this.$emit('answers-updated', {
+            const payload = {
                 currentSectionId: this.currentSection.id,
                 answers:          this._buildTempSubmission(),
-            });
+            };
+            console.log('[_emitAnswersUpdated] emitiendo answers-updated | payload:', payload);
+            this.$emit('answers-updated', payload);
         },
 
         // Re-evalúa isVisible de todos los items de la sección y de secciones posteriores
@@ -1240,6 +1349,64 @@ app.component('dinamic-form', {
                 } else if (item.type === 'repeater') {
                     item.isVisible = checkVisibility(fs, tempSubmission, null,
                         repeaterItem(item.repeater, ord), fst).visible;
+
+                    // ── Re-sincronizar entries si el repeater está controlado por estado ──
+                    if (item.repeater.stateItems) {
+                        const stateArray = getObjectProperty(fst || {}, item.repeater.stateItems);
+                        const newCount     = Array.isArray(stateArray) ? stateArray.length : 0;
+                        const currentCount = item.entries.length;
+
+                        if (newCount !== currentCount) {
+                            // Índice de entries actuales por iteración para preservar respuestas
+                            const byIteration = {};
+                            item.entries.forEach(ed => { byIteration[ed.entry.iteration] = ed; });
+
+                            const newLocalAnswers = { ...this.localAnswers };
+
+                            // Eliminar claves de entries que ya no existen
+                            for (let i = newCount; i < currentCount; i++) {
+                                const ed = byIteration[i + 1];
+                                if (ed) {
+                                    for (const qData of ed.questions) {
+                                        delete newLocalAnswers[this.answerKey(qData.question.id, ed.entry.id)];
+                                    }
+                                }
+                            }
+
+                            // Construir nuevo array de entries
+                            const newEntries = [];
+                            for (let i = 0; i < newCount; i++) {
+                                const iteration = i + 1;
+                                const existing  = byIteration[iteration];
+                                if (existing) {
+                                    newEntries.push(existing);
+                                } else {
+                                    const newEntry = {
+                                        id:              `temp-state-${item.repeater.id}-${iteration}`,
+                                        repeaterGroupId: item.repeater.id,
+                                        iteration,
+                                        isTemp:          true,
+                                        answers:         [],
+                                    };
+                                    const questions = (item.repeater.questions || []).map(q => ({
+                                        question:  q,
+                                        answer:    null,
+                                        isVisible: true,
+                                    }));
+                                    newEntries.push({ entry: newEntry, questions });
+                                    for (const q of (item.repeater.questions || [])) {
+                                        if (q.questionTypeId !== 'info') {
+                                            newLocalAnswers[this.answerKey(q.id, newEntry.id)] = '';
+                                        }
+                                    }
+                                }
+                            }
+
+                            item.entries       = newEntries;
+                            this.localAnswers  = newLocalAnswers;
+                        }
+                    }
+
                     for (const entryData of item.entries) {
                         const entryAnswers = (tempSubmission.repeaterEntries.find(e => e.id === entryData.entry.id) || {}).answers || [];
                         for (const qData of entryData.questions) {
@@ -1255,6 +1422,34 @@ app.component('dinamic-form', {
                     sec.isVisible = checkVisibility(fs, tempSubmission, null, sectionItem(sec), fst).visible;
                 }
             }
+
+        },
+
+        // Limpia respuestas huérfanas de preguntas con stateOptionsPath.
+        // Solo debe llamarse cuando cambia formState (E-16), nunca desde onAnswer.
+        _clearStaleOptionAnswers(formState) {
+            const fst        = formState !== undefined ? formState : this.formState;
+            const newAnswers = { ...this.localAnswers };
+            let anyStale     = false;
+            for (const item of this.currentSectionRender.formItems) {
+                if (item.type === 'question') {
+                    if (!item.question.stateOptionsPath) continue;
+                    const key       = this.answerKey(item.question.id);
+                    const sanitized = this._sanitizeOptionAnswer(item.question, newAnswers[key] || '', fst, undefined);
+                    if (sanitized !== (newAnswers[key] || '')) { newAnswers[key] = sanitized; anyStale = true; }
+                } else if (item.type === 'repeater') {
+                    for (const entryData of item.entries) {
+                        const entryIndex = entryData.entry.iteration - 1;
+                        for (const qData of entryData.questions) {
+                            if (!qData.question.stateOptionsPath) continue;
+                            const key       = this.answerKey(qData.question.id, entryData.entry.id);
+                            const sanitized = this._sanitizeOptionAnswer(qData.question, newAnswers[key] || '', fst, entryIndex);
+                            if (sanitized !== (newAnswers[key] || '')) { newAnswers[key] = sanitized; anyStale = true; }
+                        }
+                    }
+                }
+            }
+            if (anyStale) this.localAnswers = newAnswers;
         },
 
         // Vacía localAnswers de los items ocultos. Retorna true si limpió algo (para cascada).
@@ -1636,7 +1831,7 @@ app.component('dinamic-form', {
 
                     <!-- single -->
                     <div v-if="item.question.questionTypeId === 'single'" class="df-btn-group">
-                        <button v-for="opt in item.question.options" :key="opt.id"
+                        <button v-for="opt in resolveQuestionOptions(item.question, formState)" :key="opt.id"
                             type="button" class="df-opt-btn"
                             :class="{ 'df-selected': getLocalAnswer(item.question.id) === opt.value }"
                             :disabled="!canEdit"
@@ -1653,7 +1848,7 @@ app.component('dinamic-form', {
                         @blur="onBlur(item.question.id)"
                     >
                         <option value="">Selecciona una opción...</option>
-                        <option v-for="opt in item.question.options" :key="opt.id" :value="opt.value">\${ opt.label }</option>
+                        <option v-for="opt in resolveQuestionOptions(item.question, formState)" :key="opt.id" :value="opt.value">\${ opt.label }</option>
                     </select>
 
                     <!-- boolean -->
@@ -1670,7 +1865,7 @@ app.component('dinamic-form', {
 
                     <!-- multiple -->
                     <div v-else-if="item.question.questionTypeId === 'multiple'" class="df-btn-group">
-                        <button v-for="opt in item.question.options" :key="opt.id"
+                        <button v-for="opt in resolveQuestionOptions(item.question, formState)" :key="opt.id"
                             type="button" class="df-opt-btn"
                             :class="{ 'df-selected': isMultipleSelected(item.question.id, opt.value) }"
                             :disabled="!canEdit"
@@ -1729,19 +1924,19 @@ app.component('dinamic-form', {
                         <div v-for="entryData in item.entries" :key="entryData.entry.id" class="df-repeater-item">
                             <div class="df-repeater-item-header">
                                 <span class="df-repeater-item-title">\${ applyRenderModifications(item.repeater.itemName || item.repeater.name, item.repeater.modifications, 'item_name', formState) } #\${ entryData.entry.iteration }</span>
-                                <button v-if="canEdit" type="button" class="df-repeater-delete" @click="removeRepeaterEntry(item, entryData)">✕ Eliminar</button>
+                                <button v-if="canEdit && !item.repeater.stateItems" type="button" class="df-repeater-delete" @click="removeRepeaterEntry(item, entryData)">✕ Eliminar</button>
                             </div>
 
                             <template v-for="qData in entryData.questions" :key="qData.question.id">
                                 <div v-if="qData.isVisible" class="df-question" style="gap:0">
                                     <label style="margin-bottom:4px;margin-top:0;min-height:unset">
-                                        \${ applyRenderModifications(qData.question.description, qData.question.modifications, 'description', formState) }
+                                        \${ applyRenderModifications(qData.question.description, qData.question.modifications, 'description', formState, entryData.entry.iteration - 1) }
                                         <span v-if="qData.question.required" class="df-required">*</span>
                                     </label>
 
                                     <!-- single -->
                                     <div v-if="qData.question.questionTypeId === 'single'" class="df-btn-group">
-                                        <button v-for="opt in qData.question.options" :key="opt.id"
+                                        <button v-for="opt in resolveQuestionOptions(qData.question, formState, entryData.entry.iteration - 1)" :key="opt.id"
                                             type="button" class="df-opt-btn"
                                             :class="{ 'df-selected': getLocalAnswer(qData.question.id, entryData.entry.id) === opt.value }"
                                             :disabled="!canEdit"
@@ -1758,7 +1953,7 @@ app.component('dinamic-form', {
                                         @blur="onBlur(qData.question.id, entryData.entry.id)"
                                     >
                                         <option value="">Selecciona una opción...</option>
-                                        <option v-for="opt in qData.question.options" :key="opt.id" :value="opt.value">\${ opt.label }</option>
+                                        <option v-for="opt in resolveQuestionOptions(qData.question, formState, entryData.entry.iteration - 1)" :key="opt.id" :value="opt.value">\${ opt.label }</option>
                                     </select>
 
                                     <!-- boolean -->
@@ -1775,7 +1970,7 @@ app.component('dinamic-form', {
 
                                     <!-- multiple -->
                                     <div v-else-if="qData.question.questionTypeId === 'multiple'" class="df-btn-group">
-                                        <button v-for="opt in qData.question.options" :key="opt.id"
+                                        <button v-for="opt in resolveQuestionOptions(qData.question, formState, entryData.entry.iteration - 1)" :key="opt.id"
                                             type="button" class="df-opt-btn"
                                             :class="{ 'df-selected': isMultipleSelected(qData.question.id, opt.value, entryData.entry.id) }"
                                             :disabled="!canEdit"
@@ -1824,7 +2019,7 @@ app.component('dinamic-form', {
                             </template>
                         </div>
 
-                        <button v-if="canEdit" type="button" class="df-repeater-add" @click="addRepeaterEntry(item)">+ Agregar \${ applyRenderModifications(item.repeater.itemName || item.repeater.name, item.repeater.modifications, 'item_name', formState) }</button>
+                        <button v-if="canEdit && !item.repeater.stateItems" type="button" class="df-repeater-add" @click="addRepeaterEntry(item)">+ Agregar \${ applyRenderModifications(item.repeater.itemName || item.repeater.name, item.repeater.modifications, 'item_name', formState) }</button>
                     </div>
                     <span v-if="repeaterErrors[item.repeater.id]" class="df-error">\${ repeaterErrors[item.repeater.id] }</span>
                 </div>

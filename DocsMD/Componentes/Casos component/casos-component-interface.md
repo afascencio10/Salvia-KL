@@ -27,51 +27,94 @@ casos-component  (.cc-wrapper)
 └── [v-else]
     │
     ├── FilterBar  (.cc-filter-bar)
+    │   │  // Extensible: agregar filtros nuevos al prop :availableFilters
+    │   │  // sin cambiar el template. Tipos soportados:
+    │   │  //   'chip' | 'dropdown' | 'search' | 'autocomplete'
+    │   │  // Cada tipo de filtro siempre llama al backend al activarse.
     │   │
-    │   ├── FilterChips  (.cc-filter-chips)
-    │   │   │
-    │   │   ├── [v-if 'casos_nuevos' IN availableFilters]
-    │   │   │   CasosNuevosChip  (.cc-chip)  "Casos nuevos"
-    │   │   │   :active si activeFilter.key === 'casos_nuevos'
-    │   │   │   → selectFilter('casos_nuevos')
-    │   │   │
-    │   │   ├── [v-if 'riesgo' IN availableFilters]
-    │   │   │   RiesgoDropdown  (.cc-dropdown)
-    │   │   │   ├── Label  "Nivel de riesgo"
-    │   │   │   └── <select>  (.cc-select)
-    │   │   │       ├── <option value="">  "Todos"
-    │   │   │       ├── <option value="alto">  "Alto"
-    │   │   │       ├── <option value="medio">  "Medio"
-    │   │   │       └── <option value="bajo">  "Bajo"
-    │   │   │       → selectFilter('riesgo', value)
-    │   │   │
-    │   │   ├── [v-if 'equipo' IN availableFilters]
-    │   │   │   EquipoDropdown  (.cc-dropdown)
-    │   │   │   ├── Label  "Equipo"
-    │   │   │   └── <select>  (.cc-select)
-    │   │   │       ├── <option value="">  "Todos"
-    │   │   │       └── <option> × N  [v-for availableTeams]
-    │   │   │       → selectFilter('equipo', value)
-    │   │   │
-    │   │   └── [v-if 'persona_asignada' IN availableFilters]
-    │   │       PersonaDropdown  (.cc-dropdown)
-    │   │       ├── Label  "Persona asignada"
-    │   │       └── <select>  (.cc-select)
-    │   │           ├── <option value="">  "Todas"
-    │   │           └── <option> × N  [v-for availableAgents]  value=agent.icode
-    │   │           → selectFilter('persona_asignada', value)
+    │   ├── FilterGroup  (.cc-filter-group)
+    │   │   └── FilterItem × N  [v-for availableFilters]
+    │   │       │
+    │   │       ├── [filter.type === 'chip']
+    │   │       │   // Botón toggle — activa/desactiva. Llama al backend (→ E-02)
+    │   │       │   // Ejemplo: "Casos nuevos"
+    │   │       │   Chip  (.cc-chip)  filter.label
+    │   │       │   :class="cc-chip--active" si activeFilter.key === filter.key
+    │   │       │   → toggleChipFilter(filter.key)   // → E-02
+    │   │       │       SI ya estaba activo → activeFilter = defaultFilter (reset) + llama backend
+    │   │       │       SI no estaba activo → activeFilter = { key: filter.key } + llama backend
+    │   │       │
+    │   │       ├── [filter.type === 'dropdown']
+    │   │       │   // Select con opciones fijas o cargadas al montar (E-01).
+    │   │       │   // Cambiar selección llama al backend (→ E-02)
+    │   │       │   // Ejemplos: "Nivel de riesgo", "Por equipo"
+    │   │       │   DropdownFilter  (.cc-filter-dropdown)
+    │   │       │   ├── Label  (.cc-filter-label)  filter.label
+    │   │       │   └── <select>  (.cc-select)
+    │   │       │       ├── <option value="">  "Todos / Todas"
+    │   │       │       └── <option> × N  [v-for filter.options]  value=opt.value
+    │   │       │           opt.label
+    │   │       │       :class="cc-select--active" si activeFilter.key === filter.key
+    │   │       │       → setDropdownFilter(filter.key, value)   // → E-02
+    │   │       │           SI value === "" → activeFilter = defaultFilter (reset) + llama backend
+    │   │       │           SI value !== "" → activeFilter = { key: filter.key, value } + llama backend
+    │   │       │
+    │   │       ├── [filter.type === 'autocomplete']
+    │   │       │   // Campo de texto con sugerencias en dropdown flotante.
+    │   │       │   // Tiene sus propios eventos: escribir busca agentes (→ E-07),
+    │   │       │   // seleccionar filtra casos (→ E-08).
+    │   │       │   // Ejemplo: "Persona asignada"
+    │   │       │   AutocompleteFilter  (.cc-autocomplete-filter)
+    │   │       │   ├── Label  (.cc-filter-label)  filter.label
+    │   │       │   │
+    │   │       │   ├── [v-if !autocompleteSelected[filter.key]]
+    │   │       │   │   // Estado: escribiendo — muestra el input
+    │   │       │   │   InputWrap  (.cc-autocomplete-input-wrap)
+    │   │       │   │   ├── <input type="text">  (.cc-autocomplete-input)
+    │   │       │   │   │   placeholder=filter.label
+    │   │       │   │   │   v-model=autocompleteText[filter.key]
+    │   │       │   │   │   → onAutocompleteInput(filter.key)  [debounce 400ms → E-07]
+    │   │       │   │   └── [v-if autocompleteLoading[filter.key]]
+    │   │       │   │       Spinner  (.cc-autocomplete-spinner)
+    │   │       │   │
+    │   │       │   ├── [v-else]
+    │   │       │   │   // Estado: seleccionado — muestra el tag con la opción elegida
+    │   │       │   │   SelectedTag  (.cc-autocomplete-tag)
+    │   │       │   │   ├── TagLabel  (.cc-tag-label)
+    │   │       │   │   │   autocompleteSelected[filter.key].label
+    │   │       │   │   └── ClearBtn  (.cc-tag-clear)  "✕"
+    │   │       │   │       → clearAutocomplete(filter.key)   // → E-08 (limpia y resetea filtro)
+    │   │       │   │
+    │   │       │   └── [v-if autocompleteSuggestions[filter.key].length > 0]
+    │   │       │       // Dropdown flotante de sugerencias (visible mientras escribe)
+    │   │       │       SuggestionsDropdown  (.cc-autocomplete-dropdown)
+    │   │       │       │   :class="cc-dropdown--loading" si autocompleteLoading[filter.key]
+    │   │       │       ├── SuggestionItem × N  [v-for autocompleteSuggestions[filter.key]]
+    │   │       │       │   (.cc-autocomplete-item)
+    │   │       │       │   opt.label   // "Nombres + Apellidos" del agente
+    │   │       │       │   → selectAutocompleteSuggestion(filter.key, opt)   // → E-08
+    │   │       │       └── [v-if autocompleteSuggestions[filter.key].length === 0
+    │   │       │                && !autocompleteLoading[filter.key]
+    │   │       │                && autocompleteText[filter.key] !== ""]
+    │   │       │           NoResults  (.cc-autocomplete-empty)  "Sin resultados"
+    │   │       │
+    │   │       └── [filter.type === 'search']
+    │   │           // Input de texto libre — busca casos por ID o teléfono.
+    │   │           // Combina con el filtro activo. Llama al backend (→ E-03) con debounce 400ms.
+    │   │           // Ejemplo: "Buscar por ID o teléfono"
+    │   │           SearchFilter  (.cc-search-filter)
+    │   │           ├── Label  (.cc-filter-label)  filter.label
+    │   │           └── <input type="text">  (.cc-search-input)
+    │   │               placeholder=filter.label
+    │   │               v-model=searchText
+    │   │               → onSearchInput()  [debounce 400ms → E-03]
     │   │
-    │   └── SearchAndSort  (.cc-search-sort)
-    │       │
-    │       ├── SearchInput  (.cc-search)
-    │       │   └── <input type="text">  placeholder="Buscar por ID o teléfono"
-    │       │       → onSearch(event)
-    │       │
-    │       └── SortSelector  (.cc-sort)
-    │           └── <select>  (.cc-select)
-    │               ├── <option value="registration_date">  "Fecha de registro"
-    │               └── <option value="next_follow_up">  "Próximo seguimiento"
-    │               → onSortChange(event)
+    │   └── SortSelector  (.cc-sort-selector)
+    │       ├── Label  (.cc-filter-label)  "Ordenar por"
+    │       └── <select>  (.cc-select)
+    │           ├── <option value="registration_date">  "Fecha de registro"
+    │           └── <option value="next_follow_up">  "Próximo seguimiento"
+    │           → onSortChange(event)   // → E-04
     │
     └── TableWrap  (.cc-table-wrap)
         │
@@ -159,10 +202,39 @@ casos-component  (.cc-wrapper)
 | Prop | Tipo | Requerido | Default | Descripción |
 |---|---|---|---|---|
 | `defaultFilter` | `Object` | Sí | — | Filtro inicial. Shape: `{ key: string, value?: string }` |
-| `availableFilters` | `Array<string>` | No | `[]` | Keys de filtros a mostrar: `'casos_nuevos'`, `'riesgo'`, `'equipo'`, `'persona_asignada'` |
+| `availableFilters` | `Array<FilterDef>` | No | `[]` | Filtros a mostrar en la FilterBar. Ver tabla de FilterDef abajo. |
 | `columns` | `Array<Object>` | Sí | — | Columnas a mostrar. Cada objeto: `{ key: string, label: string }` |
 | `hiddenColumns` | `Array<string>` | No | `[]` | Keys de columnas a ocultar aunque estén en `columns` |
 | `buttons` | `Array<Object>` | No | `[]` | Botones de acción por fila. Cada objeto: `{ id: string, label: string }` |
+
+### Shape de `FilterDef`
+
+| Campo | Tipo | Requerido | Descripción |
+|---|---|---|---|
+| `key` | `string` | Sí | Identificador único del filtro. El backend lo recibe como `filter_key`. |
+| `type` | `'chip' \| 'dropdown' \| 'search' \| 'autocomplete'` | Sí | Tipo de control a renderizar. |
+| `label` | `string` | Sí | Texto visible en la UI (label y placeholder). |
+| `options` | `Array<{ value, label }>` | Solo si `type === 'dropdown'` | Opciones del select. Puede pasarse vacío si las opciones se cargan del backend al montar (E-01). |
+
+### Comportamiento de cada tipo al interactuar
+
+| `type` | Acción del usuario | Llama al backend | Evento |
+|---|---|---|---|
+| `chip` | Click toggle activa/desactiva | Sí — recarga casos | E-02 |
+| `dropdown` | Cambia opción del select | Sí — recarga casos | E-02 |
+| `autocomplete` | Escribe en el input | Sí — busca agentes | E-07 |
+| `autocomplete` | Selecciona/limpia sugerencia | Sí — recarga casos | E-08 |
+| `search` | Escribe en el input | Sí — busca casos (debounce 400ms) | E-03 |
+
+### Filtros actualmente definidos
+
+| `key` | `type` | `label` | `options` |
+|---|---|---|---|
+| `casos_nuevos` | `chip` | `"Casos nuevos"` | — |
+| `riesgo` | `dropdown` | `"Nivel de riesgo"` | Fijas: `{ value:'alto', label:'Alto' }`, `medio`, `bajo` |
+| `equipo` | `dropdown` | `"Por equipo"` | Dinámicas — cargadas en E-01 |
+| `persona_asignada` | `autocomplete` | `"Persona asignada"` | — (se buscan on-demand al escribir → E-07) |
+| `busqueda` | `search` | `"Buscar por ID o teléfono"` | — |
 
 ---
 

@@ -256,7 +256,13 @@
                     reassingText:           '',
                     canReassignHigh:        '',
                     canReassignLow:         '',
+                    statesColombia:         [],
+                    newBarriers:            [],
+                    currentBarriers:        [],
                 },
+                allCities:        [],   // [{ label, value, departmentId }] — para filtrado local
+                _townCityCache:   {},   // { [idx]: cityId } — evita re-fetch redundante de municipios
+                _deptCityCache:   {},   // { [idx]: deptId } — evita re-filtrar ciudades sin cambio
             };
         },
         mounted() {
@@ -268,6 +274,7 @@
                     '<i class="fas fa-user"></i> Hola, {{ .currentUser }}';
             }
             this.loadFollowUp();
+            this.loadLocations();
         },
         methods: {
             async loadFollowUp() {
@@ -285,6 +292,7 @@
                     this.caseICode     = fu.case_id;
                     this.victimInfo    = data.victimInfo;
                     this.caseRiskLevel = data.victimInfo?.riskLevel || 0;
+                    this.formState.currentBarriers = data.activeBarriers || [];
                     console.log('[HS] caseId:', this.caseId, '| caseICode:', this.caseICode);
                     console.log('[HS] caseRiskLevel:', this.caseRiskLevel);
                     console.log('[HS] followUp completo:', fu);
@@ -309,34 +317,52 @@
                     console.error('[HS] error:', e);
                 }
             },
+            async loadLocations() {
+                try {
+                    const [deptRes, cityRes] = await Promise.all([
+                        fetch('/api/v1/locations/departments'),
+                        fetch('/api/v1/locations/cities'),
+                    ]);
+                    if (deptRes.ok) this.formState.statesColombia = await deptRes.json();
+                    if (cityRes.ok) this.allCities = await cityRes.json();
+                } catch (e) {
+                    console.warn('[HS] loadLocations error:', e);
+                }
+            },
             onAnswersUpdated(payload) {
                 const directAnswers = payload.answers?.directAnswers || [];
-                const getVal  = id => (directAnswers.find(a => a.questionId === id)?.value || '');
-                const splitCSV = v => v ? v.split(',').map(s => s.trim()).filter(Boolean) : [];
+                const getVal   = id => (directAnswers.find(a => a.questionId === id)?.value || '');
+                const splitCSV = v  => v ? v.split(',').map(s => s.trim()).filter(Boolean) : [];
 
-                // ── Psicosocial remisión state ────────────────────────────────
+                this._updatePsicosocialState(getVal, splitCSV);
+                this._updateReasignacionState(getVal, splitCSV);
+                this._updateBarreraLocationOptions(payload);
+            },
+            _updatePsicosocialState(getVal, splitCSV) {
                 const Q_PSICO = '71c42c4a-f640-47ad-b2c1-5d4c18480449';
-                const selectedPsico = splitCSV(getVal(Q_PSICO));
-                if (selectedPsico.length === 0) {
+                const selected = splitCSV(getVal(Q_PSICO));
+
+                if (selected.length === 0) {
                     this.formState.psysocialRemisionState = '';
-                } else {
-                    const tieneObligatorio = selectedPsico.includes('criterio_obligatorio');
-                    const puntos = {
-                        conducta_suicida:          3,
-                        interseccionalidad:        2,
-                        sin_ruta:                  1,
-                        condiciones_territoriales: 1,
-                        sin_acceso_psico:          1,
-                        naturalizacion_vbg:        1,
-                    };
-                    const totalPuntos = selectedPsico.reduce((sum, v) => sum + (puntos[v] || 0), 0);
-                    const cumple = tieneObligatorio && totalPuntos >= 3;
-                    this.formState.psysocialRemisionState = cumple
-                        ? 'Remisión: SI cumple'
-                        : 'Remisión: NO cumple';
+                    return;
                 }
 
-                // ── Reasignación de caso ──────────────────────────────────────
+                const tieneObligatorio = selected.includes('criterio_obligatorio');
+                const puntos = {
+                    conducta_suicida:          3,
+                    interseccionalidad:        2,
+                    sin_ruta:                  1,
+                    condiciones_territoriales: 1,
+                    sin_acceso_psico:          1,
+                    naturalizacion_vbg:        1,
+                };
+                const totalPuntos = selected.reduce((sum, v) => sum + (puntos[v] || 0), 0);
+                const cumple = tieneObligatorio && totalPuntos >= 3;
+                this.formState.psysocialRemisionState = cumple
+                    ? 'Remisión: SI cumple'
+                    : 'Remisión: NO cumple';
+            },
+            _updateReasignacionState(getVal, splitCSV) {
                 const Q_PROTECTORES = 'a0fdcf67-b05b-4d92-9c19-14753a32bbe3';
                 const Q_RIESGOS     = 'ec5bb242-6f86-4c64-8b9f-afabd5a51878';
                 const Q_EXTREMO     = '65f2d582-a39d-4c93-9519-1a20efbebb03';
@@ -346,32 +372,79 @@
                 const extremos    = splitCSV(getVal(Q_EXTREMO));
                 const level       = this.caseRiskLevel;
 
-                // Reset
+                console.log('[reasignacion] level=%o | protectores=%o | riesgos=%o | extremos=%o', level, protectores, riesgos, extremos);
+
                 this.formState.shouldReassignCase = '';
                 this.formState.reassingText       = '';
                 this.formState.canReassignHigh    = '';
                 this.formState.canReassignLow     = '';
 
                 if (level >= 1 && level <= 2) {
-                    // Caso en Riesgo Bajo → posible subida a Alto
                     if (extremos.length > 0) {
-                        // Factor extremo → reasignación automática, sin confirmación
                         this.formState.shouldReassignCase = 'true';
                         this.formState.reassingText       = 'Se identificó un factor de riesgo extremo. El caso será reasignado automáticamente al equipo de Riesgo Alto.';
                     } else if (riesgos.length >= 4) {
-                        // 4 o más factores de riesgo → confirmar subida
                         this.formState.shouldReassignCase = 'true';
                         this.formState.reassingText       = 'El caso califica para reasignación al equipo de Riesgo Alto. Confirma para continuar.';
                         this.formState.canReassignHigh    = 'true';
                     }
                 } else if (level >= 3) {
-                    // Caso en Riesgo Alto → posible bajada a Bajo
                     if (extremos.length === 0 && protectores.length >= 3) {
                         this.formState.shouldReassignCase = 'true';
                         this.formState.reassingText       = 'El caso califica para reasignación al equipo de Riesgo Bajo. Confirma para continuar.';
                         this.formState.canReassignLow     = 'true';
                     }
                 }
+
+                console.log('[reasignacion] resultado → shouldReassign=%o | canHigh=%o | canLow=%o', this.formState.shouldReassignCase, this.formState.canReassignHigh, this.formState.canReassignLow);
+            },
+            _updateBarreraLocationOptions(payload) {
+                const BARRIER_GROUP_ID = '5fd3ecdc-2e5f-4b31-97ef-8a994580586a';
+                const Q_DEPT = '31c7f8ba-880e-4c9a-89f0-1a6a1e43b7b9';
+                const Q_CITY = 'c6f2d54a-3c61-4ae7-b2bf-50a884031fa4';
+
+                const entries = (payload.answers?.repeaterEntries || [])
+                    .filter(e => e.repeaterGroupId === BARRIER_GROUP_ID);
+
+                console.log('[barreras-location] entries=%o | allCities cargadas=%o', entries.length, this.allCities.length);
+
+                while (this.formState.newBarriers.length < entries.length) {
+                    this.formState.newBarriers.push({ cities: [], towns: [] });
+                }
+
+                entries.forEach((entry, idx) => {
+                    const getEntryVal = qId => (entry.answers.find(a => a.questionId === qId)?.value || '');
+                    const deptId = getEntryVal(Q_DEPT);
+                    const cityId = getEntryVal(Q_CITY);
+
+                    const cachedDept = this._deptCityCache[idx] || '';
+                    if (String(deptId) !== String(cachedDept)) {
+                        this._deptCityCache[idx] = deptId;
+                        this.formState.newBarriers[idx].cities = deptId
+                            ? this.allCities
+                                .filter(c => String(c.departmentId) === String(deptId))
+                                .map(c => ({ label: c.label, value: c.value }))
+                            : [];
+                        console.log('[barreras-location] entry[%o] dept cambió → %o | ciudades filtradas: %o', idx, deptId, this.formState.newBarriers[idx].cities.length);
+                    }
+
+                    const cachedCity = this._townCityCache[idx] || '';
+                    if (String(cityId) !== String(cachedCity)) {
+                        this._townCityCache[idx] = cityId;
+                        if (cityId) {
+                            console.log('[barreras-location] entry[%o] city cambió → %o | fetcheando municipios...', idx, cityId);
+                            fetch(`/api/v1/locations/towns?city_id=${cityId}`)
+                                .then(r => r.json())
+                                .then(towns => {
+                                    this.formState.newBarriers[idx].towns = towns;
+                                    console.log('[barreras-location] entry[%o] municipios cargados: %o', idx, towns.length);
+                                })
+                                .catch(() => { this.formState.newBarriers[idx].towns = []; });
+                        } else {
+                            this.formState.newBarriers[idx].towns = [];
+                        }
+                    }
+                });
             },
             onFormCompleted() {
                 this.formCompleted = true;

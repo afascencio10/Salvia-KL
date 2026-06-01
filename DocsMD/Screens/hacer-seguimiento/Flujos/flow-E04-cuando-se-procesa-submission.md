@@ -19,6 +19,12 @@ IDs de preguntas relevantes:
   qCriteriosEstab      = "28accaa6-99dc-4ec4-967b-f26045ad707c"  // Criterios remisión estabilización
   qServiciosDiscap     = "47b122b1-0151-4b58-a007-d4afb722c1b9"  // Servicios equipo discapacidad
   qCierraCaso          = "08950a38-3db3-4dc7-852c-3b06b4b1ed72"  // ¿Realiza cierre del caso?
+  // Reasignación de caso (Sección 1 — Valoración del Riesgo)
+  qProtectores         = "a0fdcf67-b05b-4d92-9c19-14753a32bbe3"  // Factores protectores (multiple)
+  qRiesgos             = "ec5bb242-6f86-4c64-8b9f-afabd5a51878"  // Factores de riesgo (multiple)
+  qExtremo             = "65f2d582-a39d-4c93-9519-1a20efbebb03"  // Factores de riesgo extremo (multiple)
+  qConfirmHigh         = "df7a0293-e2ca-49e4-88a8-66a70519a9e5"  // ¿Confirmar reasignación a riesgo alto? (boolean, order 8)
+  qConfirmLow          = "7ec8d66d-7015-470a-a596-edebe574b5c2"  // ¿Confirmar reasignación a riesgo bajo? (boolean, order 9)
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -227,6 +233,85 @@ PASO 8 — Cierre del caso (Sección 5)
 
   SI answerMap[qCierraCaso] != "true":
     → No se cierra el caso
+
+
+PASO 9 — Reasignación de caso
+
+  → Llamar reasignarCaso(ctx, fu, answerMap, actorId)
+
+  ┌──────────────────────────────────────────────────────────────┐
+  │  SUB-FLUJO: reasignarCaso                                    │
+  └──────────────────────────────────────────────────────────────┘
+
+  S1. Leer nivel de riesgo actual del caso
+      DB.victim_case_form2.FindRiskLevelByICode({ iCode: fu.case_id })
+      → currentLevel = 1 | 2 | 3 | 4
+      SI error:
+        → Loggear advertencia → TERMINAR sub-flujo (no aborta el flujo principal)
+
+  S2. Determinar nuevo nivel según respuestas y nivel actual
+
+      SI currentLevel ∈ [1, 2] (riesgo bajo):
+        SI extremos seleccionados (qExtremo) > 0:
+          → newLevel = 4  // reasignación automática sin confirmación
+        SI qConfirmHigh == "true" Y riesgos >= 4:
+          → newLevel = 3
+        SI NINGUNA condición:
+          → newLevel = 0  // sin reasignación
+
+      SI currentLevel ∈ [3, 4] (riesgo alto):
+        SI qConfirmLow == "true" Y extremos == 0 Y protectores >= 3:
+          → newLevel = 2
+        SI NINGUNA condición:
+          → newLevel = 0  // sin reasignación
+
+      SI newLevel == 0:
+        → Loggear "sin reasignación necesaria"
+        → TERMINAR sub-flujo
+
+  S3. Actualizar nivel de riesgo en victim_case_form2
+      DB.victim_case_form2.UpdateRiskLevelByICode({ iCode: fu.case_id, newLevel })
+      SI error:
+        → Loggear advertencia → TERMINAR sub-flujo
+
+  S4. Reasignar calendario o agente según nuevo nivel
+
+      ┌─────────────────────────────────────────────────────────┐
+      │  SUB-FLUJO: ReasignarCalendario (FollowUpV2Service)     │
+      └─────────────────────────────────────────────────────────┘
+
+      SI newLevel >= 3 (alto/extremo):
+        team = "Riesgo alto"
+        → Calcular nuevas fechas según riskMatrix[newLevel]
+        → calcularAgente(ctx, fechas, team)  // Borda/dense-rank
+        → DB.follow_up_v2.DeletePendingByCaseID({ caseID })
+        → DB.follow_up_v2.BulkCreate(nuevos seguimientos)
+
+      SI newLevel == 2 (moderado destino):
+        team = "Riesgo bajo"
+        → Obtener fechas de los PENDIENTE existentes
+        → calcularAgente(ctx, fechas, team)  // Borda/dense-rank
+        → DB.follow_up_v2.UpdateAgentForPendingByCaseID({ caseID, agentID })
+        // No se borra ni regenera el calendario
+
+      SI error en ReasignarCalendario:
+        → Loggear advertencia → TERMINAR sub-flujo
+
+  S5. Registrar evento en el timeline
+      DB.case_timeline_events.Create({
+        case_id:       fu.case_id,
+        follow_up_id:  fu.id,
+        category:      "General",
+        type:          "Reasignación de Caso",
+        icon:          "arrows-rotate",
+        color:         "#f59e0b",
+        event_user_id: actorId,
+        date:          now(),
+      })
+      SI falla el insert:
+        → Loggear advertencia (no aborta — la reasignación ya ocurrió)
+
+      → FIN SUB-FLUJO
 
   → FIN EJECUCIÓN ✓
 

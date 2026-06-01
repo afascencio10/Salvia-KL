@@ -59,11 +59,18 @@ type GenerateCalendarInput struct {
 
 // ── Interfaz ──────────────────────────────────────────────────────────────────
 
+// ActiveBarrierInfo es la info mínima de una barrera para el frontend.
+type ActiveBarrierInfo struct {
+	ID          string `json:"id"`
+	BarrierName string `json:"barrierName"`
+}
+
 // LoadFollowUpResult es la respuesta del endpoint hacer-seguimiento al cargar la página.
 type LoadFollowUpResult struct {
-	FollowUp   *models.FollowUpV2         `json:"followUp"`
-	VictimInfo *repository.VictimCaseInfo `json:"victimInfo"`
-	CaseStatus string                     `json:"caseStatus"`
+	FollowUp       *models.FollowUpV2         `json:"followUp"`
+	VictimInfo     *repository.VictimCaseInfo `json:"victimInfo"`
+	CaseStatus     string                     `json:"caseStatus"`
+	ActiveBarriers []ActiveBarrierInfo        `json:"activeBarriers"`
 }
 
 // FollowUpV2Service define el contrato de negocio para FollowUpV2.
@@ -233,7 +240,67 @@ func (s *followUpV2Service) LoadFollowUp(ctx context.Context, id, agentID, formI
 		log.Printf("[SVC] LoadFollowUp → advertencia: no se pudo obtener status del caso %s: %v", fu.CaseID, err)
 	}
 
-	return &LoadFollowUpResult{FollowUp: fu, VictimInfo: victimInfo, CaseStatus: caseStatus}, nil
+	// Cargar barreras activas
+	activeBarriers := s.loadActiveBarriers(ctx, fu)
+
+	return &LoadFollowUpResult{FollowUp: fu, VictimInfo: victimInfo, CaseStatus: caseStatus, ActiveBarriers: activeBarriers}, nil
+}
+
+// loadActiveBarriers retorna las barreras activas para el follow-up.
+// Si fu.ActiveBarrierIDs ya está fijado, usa esos IDs (no re-consulta).
+// Si es la primera carga, consulta las barreras activas del caso, guarda los IDs y retorna.
+func (s *followUpV2Service) loadActiveBarriers(ctx context.Context, fu *models.FollowUpV2) []ActiveBarrierInfo {
+	var barriers []models.BarrierV2
+	var err error
+
+	if fu.ActiveBarrierIDs != nil && *fu.ActiveBarrierIDs != "" {
+		ids := strings.Split(*fu.ActiveBarrierIDs, ",")
+		barriers, err = s.barrierRepo.FindByIDs(ctx, ids)
+		if err != nil {
+			log.Printf("[SVC] loadActiveBarriers → error leyendo por IDs: %v", err)
+			return []ActiveBarrierInfo{}
+		}
+	} else {
+		barriers, err = s.barrierRepo.FindActiveByCaseID(ctx, fu.CaseID)
+		if err != nil {
+			log.Printf("[SVC] loadActiveBarriers → error consultando barreras activas: %v", err)
+			return []ActiveBarrierInfo{}
+		}
+		if len(barriers) > 0 {
+			ids := make([]string, len(barriers))
+			for i, b := range barriers {
+				ids[i] = b.ID
+			}
+			joined := strings.Join(ids, ",")
+			if err := s.repo.UpdateActiveBarrierIDs(ctx, fu.ID, joined); err != nil {
+				log.Printf("[SVC] loadActiveBarriers → advertencia: no se pudo guardar active_barrier_ids: %v", err)
+			} else {
+				fu.ActiveBarrierIDs = &joined
+			}
+		}
+	}
+
+	result := make([]ActiveBarrierInfo, len(barriers))
+	for i, b := range barriers {
+		result[i] = ActiveBarrierInfo{ID: b.ID, BarrierName: buildBarrierName(b)}
+	}
+	return result
+}
+
+// buildBarrierName construye un string identificable para el usuario: "{Sector} — {Description}".
+func buildBarrierName(b models.BarrierV2) string {
+	desc := strings.TrimSpace(b.Description)
+	if desc == "" {
+		desc = strings.TrimSpace(b.SpecificBarriers)
+	}
+	sector := strings.TrimSpace(b.Sector)
+	if sector != "" && desc != "" {
+		return sector + " — " + desc
+	}
+	if sector != "" {
+		return sector
+	}
+	return desc
 }
 
 // ReasignarCalendario ejecuta la lógica de reasignación de un caso:

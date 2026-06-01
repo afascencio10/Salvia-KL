@@ -157,6 +157,8 @@ type FormServiceDeps struct {
 	CasoCierreService          CasoCierreService
 	CaseRepo                   repository.VictimCaseLightRepository
 	FollowUpV2Svc              FollowUpV2Service
+	CaseTaskRepo               repository.CaseTaskRepository
+	EntityLetterRepo           repository.EntityLetterRepository
 }
 
 type formService struct {
@@ -182,6 +184,8 @@ type formService struct {
 	casoCierreService          CasoCierreService
 	caseRepo                   repository.VictimCaseLightRepository
 	followUpV2Svc              FollowUpV2Service
+	caseTaskRepo               repository.CaseTaskRepository
+	entityLetterRepo           repository.EntityLetterRepository
 }
 
 func NewFormService(deps FormServiceDeps) FormService {
@@ -208,6 +212,8 @@ func NewFormService(deps FormServiceDeps) FormService {
 		casoCierreService:         deps.CasoCierreService,
 		caseRepo:                  deps.CaseRepo,
 		followUpV2Svc:             deps.FollowUpV2Svc,
+		caseTaskRepo:              deps.CaseTaskRepo,
+		entityLetterRepo:          deps.EntityLetterRepo,
 	}
 }
 
@@ -347,7 +353,7 @@ func (s *formService) GetFormStructure(ctx context.Context, formID string) (*For
 	// VCs by composite key "TargetType:TargetID" — validates both fields
 	vcByKey := map[string][]models.VisibilityCondition{}
 	for _, vc := range vcs {
-		key := vc.TargetType + ":" + vc.TargetID
+		key := strings.ToUpper(vc.TargetType) + ":" + vc.TargetID
 		vcByKey[key] = append(vcByKey[key], vc)
 	}
 
@@ -1872,17 +1878,21 @@ func (s *formService) SaveSection(ctx context.Context, input SaveSectionInput) (
 
 	// 6. Si todas las secciones visibles están respondidas → onEndFormSubmission
 	allAnswered := true
+	var pendingSections []string
 	for _, sec := range result.FormStructure.Sections {
 		if sec.IsVisible && !sec.IsAnswered {
 			allAnswered = false
-			break
+			pendingSections = append(pendingSections, fmt.Sprintf("%q (order=%d)", sec.Name, sec.Order))
 		}
 	}
 	if allAnswered {
+		log.Printf("[saveSection] submissionId=%s → formulario COMPLETO, disparando OnEndFormSubmission", submissionID)
 		actorID := input.ActorID
 		if err := s.OnEndFormSubmission(ctx, input.FormID, submissionID, actorID); err != nil {
 			log.Printf("[OnEndFormSubmission] error: %v\n", err)
 		}
+	} else {
+		log.Printf("[saveSection] submissionId=%s → formulario INCOMPLETO — secciones pendientes: %v", submissionID, pendingSections)
 	}
 
 	return result, nil
@@ -1943,9 +1953,10 @@ func (s *formService) processCaseClosureSubmission(ctx context.Context, submissi
 	}
 
 	const (
-		qMotivoCierre   = "d2c6e1af-651f-43b4-8e61-aecafd07443d" // Motivo del cierre (single)
-		qCausaCierre    = "90375500-a316-4cf5-b7ec-f5c402da92c2" // Describa la causa del cierre (text)
-		qAccionesCierre = "4a7d0110-b06d-4569-9572-cd0a5e9ef2c1" // ¿Realizó acciones institucionales? (boolean)
+		qMotivoCierre       = "d2c6e1af-651f-43b4-8e61-aecafd07443d" // Motivo del cierre (single)
+		qCausaCierre        = "90375500-a316-4cf5-b7ec-f5c402da92c2" // Describa la causa del cierre (text)
+		qAccionesCierre     = "4a7d0110-b06d-4569-9572-cd0a5e9ef2c1" // ¿Realizó acciones institucionales? (boolean)
+		qRutaAtencionPrevia = "f4b162fd-adf5-4341-ab4f-162fdadf5341" // ¿Se activó la ruta de atención o se generó algún oficio previamente en este caso? (boolean)
 	)
 
 	// 4. Cambiar el estado del caso a "cd" (cerrado) en la base de datos
@@ -1956,6 +1967,41 @@ func (s *formService) processCaseClosureSubmission(ctx context.Context, submissi
 	// 5. Cerrar los demás seguimientos pendientes/reprogramados del caso
 	if err := s.followUpRepo.CloseCaseFollowUps(ctx, fu.ID); err != nil {
 		return fmt.Errorf("processCaseClosureSubmission: cerrar seguimientos del caso: %w", err)
+	}
+
+	// 5.1 Crear Oficio (EntityLetter) y Tarea (CaseTask) si cumple condición crítica de cierre
+	motivo := answerMap[qMotivoCierre]
+	rutaVal := answerMap[qRutaAtencionPrevia]
+	if motivo == "perdida_contacto" && rutaVal == "false" {
+		letter := &models.EntityLetter{
+			CaseID:     fu.CaseID,
+			State:      models.EntityLetterStatePorProyectar, // "por_proyectar"
+			Priority:   "normal",
+			AgentID:    &actorID,
+			RegisterBy: &actorID,
+		}
+		if err := s.entityLetterRepo.Create(ctx, letter); err != nil {
+			log.Printf("[WARN] No se pudo crear EntityLetter de cierre obligatorio: %v", err)
+			return fmt.Errorf("crear entity_letter: %w", err)
+		}
+
+		task := &models.CaseTask{
+			Category:       "Oficios",
+			Type:           "Escribir oficio",
+			Description:    "Debido a que no se registran acciones previas y se ha perdido el contacto, el protocolo exige la activación de la ruta de emergencia al cierre. Se generará el oficio de cierre obligatorio para proteger el estado de la usuaria.",
+			AssignedUserID: actorID,
+			Status:         models.CaseTaskStatusToDo, // "ToDo"
+			CaseID:         fu.CaseID,
+			FollowUpID:     &fu.ID,
+			EntityLetterID: &letter.ID,
+			CreatedAt:      time.Now(),
+			UpdatedAt:      time.Now(),
+		}
+		if err := s.caseTaskRepo.Create(ctx, task); err != nil {
+			log.Printf("[WARN] No se pudo crear CaseTask de cierre obligatorio: %v", err)
+		} else {
+			log.Printf("[CaseTask] Creado oficio de cierre obligatorio exitosamente para caso %s", fu.CaseID)
+		}
 	}
 
 	// 6. Crear evento en el timeline
@@ -1982,11 +2028,18 @@ func (s *formService) processCaseClosureSubmission(ctx context.Context, submissi
 			accionesTraducido = "Sí"
 		}
 
+		rutaVal := answerMap[qRutaAtencionPrevia]
+		rutaTraducida := "No"
+		if rutaVal == "true" {
+			rutaTraducida = "Sí"
+		}
+
 		description := fmt.Sprintf(
-			"Cierre de caso registrado. Motivo: %s. Causa: %s. ¿Acciones institucionales realizadas?: %s",
+			"Cierre de caso registrado. Motivo: %s. Causa: %s. ¿Acciones institucionales realizadas?: %s. ¿Ruta de atención o algún oficio previamente activo?: %s",
 			motivoTraducido,
 			causa,
 			accionesTraducido,
+			rutaTraducida,
 		)
 
 		now := time.Now()
@@ -2077,13 +2130,40 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 
 	// ── IDs de las preguntas del formulario de seguimiento ────────────────────
 	const (
+		// Repeater group de Sección 3 — Seguimiento a Barreras
+		rgSeguimientoBarreras      = "b536f16c-67b3-4370-810d-7cc8c9d5463e"
+		qSBPersiste                = "4325a514-332a-42a9-9a89-a1d249b87c71" // Q2 boolean
+		qSBRespuestaInstitucional  = "a234a906-7b02-4a43-b18d-b802d430d272" // Q3 single
+		qSBGestion                 = "c785a994-3a38-4337-bd96-67329144affa" // Q4 multiple
+		qSBActuaciones             = "c808b590-128c-43cf-af94-c191a4bc31ac" // Q5 text
+		qSBCierra                  = "7442394d-256a-45f4-a63a-ca1164e865c2" // Q6 boolean
+		qSBMotivoCierre            = "d2d3cee8-b5d3-422f-8ae0-e5a40effc983" // Q7 single
 		// Repeater group de barreras
 		rgBarreras = "5fd3ecdc-2e5f-4b31-97ef-8a994580586a"
-		// Preguntas dentro del repeater de barreras
-		qBarreraSector     = "f19378b6-55c5-4fdf-b765-7ebcc3978741" // Sector (dropdown)
-		qBarreraSalud      = "5fc1f2af-cc30-41f0-aa31-4731e5cb674c" // Barreras Salud (multiple)
-		qBarreraJusticia   = "2bec977e-97c7-42d7-a00a-b536af8038eb" // Barreras Justicia (multiple)
-		qBarreraProteccion = "66c9fc1e-9b5e-4ad4-999f-7aeb483d84dc" // Barreras Protección (multiple)
+		// Preguntas dentro del repeater de barreras — bloque sector
+		qBarreraSector          = "f19378b6-55c5-4fdf-b765-7ebcc3978741" // Q1  Sector (dropdown)
+		qBarreraSalud           = "5fc1f2af-cc30-41f0-aa31-4731e5cb674c" // Q2  Barreras Salud (multiple)
+		qInstitucionSalud       = "e88fb2bf-7196-4bea-91e6-fe78ccdedac1" // Q3  Institución Salud (multiple)
+		qOtraBarreraSalud       = "bebf6e6c-0200-4b53-886c-c01f591eaa62" // Q4  Otra barrera Salud (text)
+		qBarreraJusticia        = "2bec977e-97c7-42d7-a00a-b536af8038eb" // Q5  Barreras Justicia (multiple)
+		qInstitucionJusticia    = "4b4997fa-67a0-4479-852d-df9e7bfb2b3e" // Q6  Institución Justicia (multiple)
+		qOtraBarreraJusticia    = "96f0c507-64c1-446b-b07d-83d5ad1d7172" // Q7  Otra barrera Justicia (text)
+		qBarreraProteccion      = "66c9fc1e-9b5e-4ad4-999f-7aeb483d84dc" // Q8  Barreras Protección (multiple)
+		qInstitucionProteccion  = "78474c82-61b9-4a0c-beca-439274813c03" // Q9  Institución Protección (multiple)
+		qOtraBarreraProteccion  = "68f6bf06-a6a8-443f-9a1e-001148d4eb45" // Q10 Otra barrera Protección (text)
+		qBarreraOtraInstitucion = "a1573bc3-28f6-485e-8d8b-b3567db42ae3" // Q11 Nombre institución (text)
+		// Preguntas comunes del repeater de barreras
+		qBarreraDepartamento           = "31c7f8ba-880e-4c9a-89f0-1a6a1e43b7b9" // Q12 Departamento (dropdown)
+		qBarreraCiudad                 = "c6f2d54a-3c61-4ae7-b2bf-50a884031fa4" // Q13 Ciudad (dropdown)
+		qBarreraMunicipio              = "8225d03f-8de9-4ff0-9345-67b5e71bf02d" // Q14 Municipio (dropdown)
+		qBarreraEstructuralInstitucional = "64754fb5-04a8-43e4-ac86-d60f0a84010b" // Q15 (multiple)
+		qBarreraEstructuralEconomico   = "94dfc417-b59f-4afe-b63b-c6839a8dfecc" // Q16 (multiple)
+		qBarreraEstructuralTerritorial = "cf162686-0327-4b28-9639-e4d947272483" // Q17 (multiple)
+		qBarreraEstructuralDiferencial = "81275638-2837-4ecc-8686-675dfeab4f32" // Q18 (multiple)
+		qBarreraFecha                  = "4592d85f-8c11-4785-ad32-06aa810cc491" // Q19 date
+		qBarreraFuncionario            = "33c3961e-4252-4b02-b491-615b11d6bf56" // Q20 text
+		qBarreraDescripcion            = "d2be610f-44eb-4526-b4ec-86eaaaba08c8" // Q21 text
+		qBarreraGestion                = "572ad72a-8174-4ff3-9c56-5c8c65ac63ac" // Q22 (multiple)
 		// Preguntas directas del form
 		qEquipos            = "e0d38cf5-fe3f-45cb-9fd3-f5b8f7b2f7dc" // Derivaciones a equipos (multi-select)
 		qMedidasEmergencia  = "1a36260c-33a4-4ebd-bffb-e387d7964b96" // Medidas de emergencia (multi-select)
@@ -2099,11 +2179,21 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		qCierreAccionesInst = "0e7b61c8-9401-4429-81ed-61c8fc97808e" // boolean — ¿Realizó acciones institucionales?
 	)
 
-	// Mapa: questionID → nombre del sector para las preguntas de barrera
-	barrierQuestionSector := map[string]string{
-		qBarreraSalud:      "salud",
-		qBarreraJusticia:   "justicia",
-		qBarreraProteccion: "proteccion",
+	// Mapas sector → pregunta de barreras, instituciones y "otra barrera"
+	sectorBarrierQ := map[string]string{
+		"salud":      qBarreraSalud,
+		"justicia":   qBarreraJusticia,
+		"proteccion": qBarreraProteccion,
+	}
+	sectorInstitutionQ := map[string]string{
+		"salud":      qInstitucionSalud,
+		"justicia":   qInstitucionJusticia,
+		"proteccion": qInstitucionProteccion,
+	}
+	sectorOtherBarrierQ := map[string]string{
+		"salud":      qOtraBarreraSalud,
+		"justicia":   qOtraBarreraJusticia,
+		"proteccion": qOtraBarreraProteccion,
 	}
 
 	// ── Helper: parsea valor comma-separated y filtra vacíos ─────────────────
@@ -2118,10 +2208,10 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 	}
 
 	// Contadores para la descripción del evento en el timeline
-	barrierCount   := 0
-	remisionCount  := 0
+	barrierCount  := 0
+	remisionCount := 0
 
-	// 3. Crear BarrierV2 por cada entrada del repeater de barreras
+	// 3. Crear un BarrierV2 por cada entrada del repeater de barreras
 	barrierEntries, err := s.repeaterEntryRepo.FindBySubmissionIDAndGroupIDs(ctx, submissionID, []string{rgBarreras})
 	if err != nil {
 		return fmt.Errorf("processFollowUpSubmission: leer entradas de barreras: %w", err)
@@ -2132,36 +2222,104 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		if err != nil {
 			return fmt.Errorf("processFollowUpSubmission: leer respuestas entrada [%s]: %w", entry.ID, err)
 		}
-		// Indexar respuestas de esta entrada
 		entryMap := make(map[string]string, len(entryAnswers))
 		for _, a := range entryAnswers {
 			entryMap[a.QuestionID] = a.Value
 		}
-		// Sector explícito (dropdown); si no hay, se inferirá de la pregunta con respuesta
-		sectorExplicit := strings.TrimSpace(entryMap[qBarreraSector])
 
-		for qID, sectorFallback := range barrierQuestionSector {
-			val, ok := entryMap[qID]
-			if !ok || val == "" {
-				continue
+		sector := strings.TrimSpace(entryMap[qBarreraSector])
+
+		b := &models.BarrierV2{
+			CaseID:      fu.CaseID,
+			FollowUpID:  fu.ID,
+			CreatedByID: actorID,
+			Status:      models.BarrierV2StatusOpen,
+
+			Sector:               sector,
+			SpecificBarriers:     entryMap[sectorBarrierQ[sector]],
+			SpecificInstitutions: entryMap[sectorInstitutionQ[sector]],
+			OtherBarrierDesc:     entryMap[sectorOtherBarrierQ[sector]],
+			InstitutionName:      entryMap[qBarreraOtraInstitucion],
+
+			DepartmentID: entryMap[qBarreraDepartamento],
+			CityID:       entryMap[qBarreraCiudad],
+			TownID:       entryMap[qBarreraMunicipio],
+
+			StructuralInstitutional: entryMap[qBarreraEstructuralInstitucional],
+			StructuralEconomic:      entryMap[qBarreraEstructuralEconomico],
+			StructuralTerritorial:   entryMap[qBarreraEstructuralTerritorial],
+			StructuralDifferential:  entryMap[qBarreraEstructuralDiferencial],
+
+			BarrierDate:        entryMap[qBarreraFecha],
+			OfficialDependency: entryMap[qBarreraFuncionario],
+			Description:        entryMap[qBarreraDescripcion],
+			ManagementActions:  entryMap[qBarreraGestion],
+		}
+		log.Printf("[processFollowUp] creando barrera sector=%s entry=%s", sector, entry.ID)
+		if err := s.barrierV2Repo.Create(ctx, b); err != nil {
+			return fmt.Errorf("processFollowUpSubmission: crear barrera entry [%s]: %w", entry.ID, err)
+		}
+		barrierCount++
+	}
+
+	// 3b. Procesar Seguimiento a Barreras (Sección 3)
+	// Cada entry del repeater corresponde por posición a un ID en fu.ActiveBarrierIDs.
+	sbEntries, err := s.repeaterEntryRepo.FindBySubmissionIDAndGroupIDs(ctx, submissionID, []string{rgSeguimientoBarreras})
+	if err != nil {
+		return fmt.Errorf("processFollowUpSubmission: leer entradas seguimiento barreras: %w", err)
+	}
+	if len(sbEntries) > 0 {
+		// Obtener IDs de barreras activas del follow-up para relacionar por posición
+		var activeIDs []string
+		if fu.ActiveBarrierIDs != nil && *fu.ActiveBarrierIDs != "" {
+			for _, id := range strings.Split(*fu.ActiveBarrierIDs, ",") {
+				if t := strings.TrimSpace(id); t != "" {
+					activeIDs = append(activeIDs, t)
+				}
 			}
-			sector := sectorExplicit
-			if sector == "" {
-				sector = sectorFallback
+		}
+		for idx, entry := range sbEntries {
+			sbAnswers, err := s.answerRepo.FindByRepeaterEntryID(ctx, entry.ID)
+			if err != nil {
+				return fmt.Errorf("processFollowUpSubmission: leer respuestas seguimiento barrera [%s]: %w", entry.ID, err)
 			}
-			for _, option := range splitValues(val) {
-				log.Printf("[processFollowUp] creando barrera sector=%s descripcion=%s", sector, option)
-				b := &models.BarrierV2{
+			sbMap := make(map[string]string, len(sbAnswers))
+			for _, a := range sbAnswers {
+				sbMap[a.QuestionID] = a.Value
+			}
+
+			// Relacionar entry con barrera por posición
+			barrierID := ""
+			if idx < len(activeIDs) {
+				barrierID = activeIDs[idx]
+			}
+
+			// Si la barrera fue cerrada → actualizar status
+			if sbMap[qSBCierra] == "true" && barrierID != "" {
+				if err := s.barrierV2Repo.UpdateStatus(ctx, barrierID, models.BarrierV2StatusManaged); err != nil {
+					log.Printf("[processFollowUp] advertencia: no se pudo cerrar barrera %s: %v", barrierID, err)
+				} else {
+					log.Printf("[processFollowUp] barrera cerrada: %s", barrierID)
+				}
+			}
+
+			// Crear evento en timeline por este seguimiento de barrera
+			if s.caseTimelineRepo != nil {
+				resumen := buildBarrierFollowUpSummary(sbMap[qSBPersiste], sbMap[qSBRespuestaInstitucional], sbMap[qSBActuaciones])
+				tlEvent := &models.CaseTimelineEvent{
 					CaseID:      fu.CaseID,
 					FollowUpID:  fu.ID,
-					Sector:      sector,
-					Description: option,
-					Status:      "OPEN",
+					Category:    "Barreras",
+					Type:        "Seguimiento a Barrera",
+					Icon:        "shield-halved",
+					Color:       "#6366f1",
+					Description: resumen,
+					EventUserID: actorID,
+					Date:        time.Now(),
 				}
-				if err := s.barrierV2Repo.Create(ctx, b); err != nil {
-					return fmt.Errorf("processFollowUpSubmission: crear barrera [%s/%s]: %w", sector, option, err)
+				if err := s.caseTimelineRepo.Create(ctx, tlEvent); err != nil {
+					log.Printf("[processFollowUp] advertencia: no se pudo crear evento timeline barrera %s: %v", barrierID, err)
 				}
-				barrierCount++
 			}
 		}
 	}
@@ -2672,3 +2830,19 @@ func validateAnswer(answer models.Answer, question QuestionStructure) ValidateAn
 }
 
 // FormSection fue movido a form_section_service.go
+
+// buildBarrierFollowUpSummary genera un texto resumen del seguimiento a una barrera.
+func buildBarrierFollowUpSummary(persiste, respuestaInstitucional, actuaciones string) string {
+	persisteStr := "No persiste"
+	if persiste == "true" {
+		persisteStr = "Persiste"
+	}
+	parts := []string{persisteStr}
+	if respuestaInstitucional != "" {
+		parts = append(parts, "Respuesta institucional: "+respuestaInstitucional)
+	}
+	if actuaciones != "" {
+		parts = append(parts, actuaciones)
+	}
+	return strings.Join(parts, " · ")
+}

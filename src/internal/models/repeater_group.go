@@ -15,6 +15,7 @@ type RepeaterGroup struct {
 	Order           int            `gorm:"column:order;default:0"                                json:"order"`
 	MinRepetitions  int            `gorm:"default:0"                                             json:"minRepetitions"`
 	MaxRepetitions  *int           `                                                             json:"maxRepetitions,omitempty"`
+	StateItems      *string        `gorm:"type:varchar(255)"                                     json:"stateItems,omitempty"`
 	CreatedAt       time.Time      `                                                             json:"createdAt"`
 	UpdatedAt       time.Time      `                                                             json:"updatedAt"`
 	DeletedAt       gorm.DeletedAt `gorm:"index"                                                 json:"deletedAt,omitempty"`

@@ -51,6 +51,9 @@ func main() {
     // Asegurar que usuarios sin town tengan Bogotá por defecto (evita error 500 en reasignación)
     gormDB.Exec(`UPDATE security.general_user_profile SET general_user_profile_town = '11001000' WHERE (general_user_profile_town IS NULL OR general_user_profile_town = '') AND general_user_profile_id IN (SELECT general_user_general_user_profile FROM security.general_user WHERE general_user_status = 'e')`)
 
+    // Asegurar que la columna victim_case_team exista en victim_case (para asignación por equipo)
+    gormDB.Exec(`ALTER TABLE salvia.victim_case ADD COLUMN IF NOT EXISTS victim_case_team VARCHAR(64) DEFAULT NULL`)
+
     // AutoMigrate por tabla — warning en lugar de fatal para tablas ya existentes
     for _, m := range []interface{}{
         &models.Form{},
@@ -72,6 +75,7 @@ func main() {
         &models.RenderModification{},
         &models.MenTeamRemision{},
         &models.DiscapacidadRemision{},
+        &models.BarrierV2{},
     } {
         if err := gormDB.AutoMigrate(m); err != nil {
             log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -104,6 +108,8 @@ func main() {
     caseDetailRepo         := repository.NewCaseDetailRepository(gormDB)
     caseInfoRepo           := repository.NewCaseInfoRepository(gormDB)
     reportRepo             := repository.NewReportRepository(gormDB)
+    caseTaskRepo           := repository.NewCaseTaskRepository(gormDB)
+    entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
 
     // Services
     casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
@@ -119,13 +125,13 @@ func main() {
     followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo)
 
     formSvc := service.NewFormService(service.FormServiceDeps{
-        FormRepo:           formRepo,
-        FormSectionRepo:    formSectionRepo,
-        QuestionRepo:       questionRepo,
-        RepeaterGroupRepo:  repeaterGroupRepo,
-        OptionRepo:         optionRepo,
-        VisibilityCondRepo:     visibilityCondRepo,
-        RenderModificationRepo: renderModificationRepo,
+        FormRepo:                  formRepo,
+        FormSectionRepo:           formSectionRepo,
+        QuestionRepo:              questionRepo,
+        RepeaterGroupRepo:         repeaterGroupRepo,
+        OptionRepo:                optionRepo,
+        VisibilityCondRepo:        visibilityCondRepo,
+        RenderModificationRepo:    renderModificationRepo,
         FormSubmissionRepo:        formSubmissionRepo,
         RepeaterEntryRepo:         repeaterEntryRepo,
         AnswerRepo:                answerRepo,
@@ -141,6 +147,8 @@ func main() {
         CasoCierreService:         casoCierreSvc,
         CaseRepo:                  victimCaseLightRepo,
         FollowUpV2Svc:             followUpV2Svc,
+        CaseTaskRepo:              caseTaskRepo,
+        EntityLetterRepo:          entityLetterRepo,
     })
     caseDetailSvc         := service.NewCaseDetailService(caseDetailRepo, gormDB)
     caseInfoSvc           := service.NewCaseInfoService(caseInfoRepo)
@@ -167,7 +175,6 @@ func main() {
     barrierV2Svc           := service.NewBarrierV2Service(barrierV2Repo)
     barrierV2GinCtrl       := salvia_ctrl.NewBarrierV2GinController(barrierV2Svc)
 
-    caseTaskRepo            := repository.NewCaseTaskRepository(gormDB)
     caseTaskSvc             := service.NewCaseTaskService(service.CaseTaskServiceDeps{
         CaseTaskRepo:     caseTaskRepo,
         BarrierV2Repo:    barrierV2Repo,
@@ -175,9 +182,11 @@ func main() {
     })
     caseTaskCtrl            := salvia_ctrl.NewCaseTaskController(caseTaskSvc)
 
-    entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
     entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo, caseTaskRepo)
     entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
+
+    locationRepo := repository.NewLocationRepository(gormDB)
+    locationCtrl := salvia_ctrl.NewLocationController(locationRepo)
 
     // Routes
     api := router.Group("/api/v1")
@@ -197,6 +206,7 @@ func main() {
     entityLetterCtrl.RegisterRoutes(api)
     barrierV2GinCtrl.RegisterRoutes(api)
     caseTaskCtrl.RegisterRoutes(api)
+    locationCtrl.RegisterRoutes(api)
     // ────────────────────────────────────────────────────────────────────────
 
     // ── Graceful shutdown ────────────────────────────────────────────────────
