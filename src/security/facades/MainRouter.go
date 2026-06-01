@@ -118,4 +118,21 @@ func StartRouter(router *gin.Engine) {
 
 	}
 
+	/*
+		Admin / Migrate — endpoints de administración protegidos por X-Security-Key.
+		No requieren sesión de usuario. Solo para uso interno/producción.
+
+		POST  /api/v1/admin/migrate/users        → creación/actualización masiva de usuarios (desde Excel)
+		POST  /api/v1/admin/migrate/test-users   → crea credenciales temporales de prueba (test.login)
+		PATCH /api/v1/admin/migrate/users/:login/rol-equipo → cambia rol y equipo de un usuario
+	*/
+	adminRouter := router.Group("/api/v1/admin/migrate")
+	adminRouter.Use(adminAPIKeyMiddleware())
+	{
+		adminRouter.POST("/excel", MigrateExcelPOST)                            // recibe .xlsx y ejecuta todo
+		adminRouter.POST("/users", MigrateUsersPOST)                            // recibe JSON array
+		adminRouter.POST("/test-users", MigrateTestUsersPOST)                   // crea test.{login}
+		adminRouter.PATCH("/users/:login/rol-equipo", SetupUpdateUserRoleTeamPATCH) // cambia rol/team individual
+	}
+
 }
