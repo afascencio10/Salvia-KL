@@ -51,6 +51,9 @@ func main() {
     // Asegurar que usuarios sin town tengan Bogotá por defecto (evita error 500 en reasignación)
     gormDB.Exec(`UPDATE security.general_user_profile SET general_user_profile_town = '11001000' WHERE (general_user_profile_town IS NULL OR general_user_profile_town = '') AND general_user_profile_id IN (SELECT general_user_general_user_profile FROM security.general_user WHERE general_user_status = 'e')`)
 
+    // Asegurar que la columna victim_case_team exista en victim_case (para asignación por equipo)
+    gormDB.Exec(`ALTER TABLE salvia.victim_case ADD COLUMN IF NOT EXISTS victim_case_team VARCHAR(64) DEFAULT NULL`)
+
     // AutoMigrate por tabla — warning en lugar de fatal para tablas ya existentes
     for _, m := range []interface{}{
         &models.Form{},
