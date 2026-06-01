@@ -109,6 +109,7 @@ func main() {
     reportRepo             := repository.NewReportRepository(gormDB)
     caseTaskRepo           := repository.NewCaseTaskRepository(gormDB)
     entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
+    casesListRepo          := repository.NewCasesListRepository(gormDB)
 
     // Services
     casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
@@ -150,6 +151,8 @@ func main() {
     caseDetailSvc         := service.NewCaseDetailService(caseDetailRepo, gormDB)
     caseInfoSvc           := service.NewCaseInfoService(caseInfoRepo)
     reportSvc             := service.NewReportService(reportRepo)
+    casesListSvc          := service.NewCasesListService(casesListRepo)
+    agentsSearchSvc       := service.NewAgentsSearchService(agentLightRepo)
 
     // Inyectar el servicio en el controller legacy para generación automática del calendario
     salvia_legacy.FollowUpSvc = followUpV2Svc
@@ -181,6 +184,8 @@ func main() {
 
     entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo, caseTaskRepo)
     entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
+    casesListCtrl          := salvia_ctrl.NewCasesListController(casesListSvc)
+    agentsSearchCtrl       := salvia_ctrl.NewAgentsSearchController(agentsSearchSvc)
 
     // Routes
     api := router.Group("/api/v1")
@@ -200,6 +205,8 @@ func main() {
     entityLetterCtrl.RegisterRoutes(api)
     barrierV2GinCtrl.RegisterRoutes(api)
     caseTaskCtrl.RegisterRoutes(api)
+    casesListCtrl.RegisterRoutes(api)
+    agentsSearchCtrl.RegisterRoutes(api)
     // ────────────────────────────────────────────────────────────────────────
 
     // ── Graceful shutdown ────────────────────────────────────────────────────

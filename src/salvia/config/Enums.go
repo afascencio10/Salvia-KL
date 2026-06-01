@@ -7,6 +7,7 @@ var HTML_Templates_folder string = "frontend/salvia/html/"
 var HTML_Templates map[string]string = map[string]string{
 	"home":                     "home.html",
 	"get_my_follow_ups":        "get_my_follow_ups.html",
+	"get_my_cases":             "get_my_cases.html",
 	"get_victim_cases":         "get_victim_cases.html",
 	"get_victim_cases_ro":      "get_victim_cases_ro.html",
 	"get_victim_cases_do":      "get_victim_cases_do.html",

@@ -24,6 +24,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// casosComponentTemplates — partial del componente Vue casos-component.
+// Debe registrarse en extraTemplates para que {{ template "salvia/case_component/case_component.html" . }} resuelva.
+var casosComponentTemplates = []string{
+	"frontend/html/salvia/case_component/case_component.html",
+}
+
 // VictimCasePOST maneja la solicitud POST para crear o actualizar un caso de víctima.
 // Obtiene la sesión actual, verifica los permisos necesarios, lee el cuerpo de la solicitud,
 // y llama al controlador correspondiente para procesar el caso de víctima.
@@ -309,7 +315,8 @@ func VictimCaseGET(c *gin.Context) {
 		}
 
 		// Renderiza la plantilla HTML con todos los parámetros necesarios para mostrar el caso de víctima.
-		common_facades.RenderTemplate(c, salvia_daos.VictimContactEntityName, "salvia", "victim_case/", salvia_config.HTML_Templates, tplName, utils.GetFullHtmlTemplates(), utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
+		extraTemplates := append(utils.GetFullHtmlTemplates(), casosComponentTemplates...)
+		common_facades.RenderTemplate(c, salvia_daos.VictimContactEntityName, "salvia", "victim_case/", salvia_config.HTML_Templates, tplName, extraTemplates, utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
 			map[string]interface{}{
 				"windowTitle":               salvia_config.Locale["sp"]["get_victim_case_window_title"],
 				"currentUser":               s.Names + " " + s.LastNames,
@@ -985,4 +992,35 @@ func mergeDocumentTypes(main, other map[string]string) map[string]string {
 	}
 
 	return result
+}
+
+// MyCasesGET renderiza la pantalla "Mis casos" con el componente casos-component
+// filtrado por el agente logueado (agent_id = UserICode de sesión).
+func MyCasesGET(c *gin.Context) {
+	session := sessions.Default(c)
+	var sessionID string = session.Get("userData").(string)
+	s, _ := utils.GetCommonSession(sessionID)
+
+	if !utils.CheckPermission(salvia_config.PermissionsByRole, "get_my_cases", s.CurrentRole, c) {
+		return
+	}
+
+	common_facades.SetHeaderNoCache(c)
+
+	var menu map[string][]map[string]string
+	if s != nil {
+		menu = s.CurrentMenu
+	}
+
+	extraTemplates := append(utils.GetFullHtmlTemplates(), casosComponentTemplates...)
+	common_facades.RenderTemplate(c, salvia_daos.VictimCaseEntityName, "salvia", "my_cases/", salvia_config.HTML_Templates, "get_my_cases", extraTemplates, utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
+		map[string]interface{}{
+			"windowTitle":   "Mis casos",
+			"currentUser":   s.Names + " " + s.LastNames,
+			"currentUserId": s.UserICode,
+			"nav_rules":     salvia_config.TranslateNavigationRule(s.Lang, salvia_config.NAVIGATION_RULES["get_victim_case"]),
+			"locale":        salvia_config.Locale,
+			"lang":          s.Lang,
+			"menu":          menu,
+		}, utils.GetFullHtmlFuncMap())
 }
