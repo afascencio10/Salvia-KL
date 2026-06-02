@@ -22,6 +22,7 @@ type CaseDetailData struct {
 	TownName    string `json:"townName"`
 	DeptName    string `json:"deptName"`
 	DenunciasAnteriores int `json:"denunciasAnteriores"`
+	AgentName           string `json:"agentName"`
 	TimelineEvents []models.CaseTimelineEvent `json:"timelineEvents"`
 	EmergencyMeasures      []models.EmergencyMeasure      `json:"emergencyMeasures"`
 	PsychosocialSupports   []models.PsychosocialSupport   `json:"psychosocialSupports"`
@@ -72,6 +73,18 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 		return nil, err
 	}
 	result.Case = vc
+
+	// Resolver nombre del agente asignado (agent_id en victim_case)
+	if vc.AgentId != nil && *vc.AgentId != "" {
+		var agentName string
+		r.db.WithContext(ctx).Raw(`
+			SELECT COALESCE(gup.general_user_profile_names, '') || ' ' || COALESCE(gup.general_user_profile_last_names, '')
+			FROM security.general_user gu
+			JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+			WHERE gu.general_user_i_code = ?
+		`, *vc.AgentId).Scan(&agentName)
+		result.AgentName = strings.TrimSpace(agentName)
+	}
 
 	// Resolver nombre del municipio y departamento
 	// Cadena: victim_case.town_code → town.city_id → city.city_name + city.department_id → department.department_name

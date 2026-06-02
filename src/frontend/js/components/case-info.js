@@ -74,7 +74,8 @@ var CI_SECTIONS = [
 /* ─── Contenido de secciones (compartido entre modal e inline) ─── */
 var CI_SECTIONS_TPL = `
     <div v-if="sec.id==='encabezado'" class="ci-grid">
-        <div class="ci-field" v-if="val(info.encabezado.funcionarios)"><span class="ci-label">Funcionarios</span><span class="ci-value">\${ info.encabezado.funcionarios }</span></div>
+        <div class="ci-field" v-if="val(info.encabezado.agenteAsignado)"><span class="ci-label">Agente asignado</span><span class="ci-value" style="color:#5106A7;font-weight:600">\${ info.encabezado.agenteAsignado }</span></div>
+        <div class="ci-field" v-if="val(info.encabezado.funcionarios)"><span class="ci-label">Historial funcionarios</span><span class="ci-value">\${ info.encabezado.funcionarios }</span></div>
         <div class="ci-field" v-if="val(info.encabezado.fechaCreacion)"><span class="ci-label">Fecha creación</span><span class="ci-value">\${ info.encabezado.fechaCreacion }</span></div>
         <div class="ci-field" v-if="val(info.encabezado.fechaModificacion)"><span class="ci-label">Última modificación</span><span class="ci-value">\${ info.encabezado.fechaModificacion }</span></div>
         <div class="ci-field" v-if="val(info.encabezado.estado)"><span class="ci-label">Estado</span><span class="ci-value">\${ info.encabezado.estado }</span></div>
@@ -119,7 +120,11 @@ var CI_SECTIONS_TPL = `
         <div class="ci-field" v-if="val(info.ubicacion.municipio)"><span class="ci-label">Municipio</span><span class="ci-value">\${ info.ubicacion.municipio }</span></div>
     </div>
     <div v-if="sec.id==='hechos'" class="ci-grid">
-        <div class="ci-field" v-if="val(info.hechos.descripcion)"><span class="ci-label">Descripción</span><span class="ci-value">\${ info.hechos.descripcion }</span></div>
+        <div class="ci-field" v-if="val(info.hechos.descripcion)" style="grid-column:1/-1">
+            <span class="ci-label">Descripción</span>
+            <span class="ci-value" :style="{ display:'-webkit-box', '-webkit-line-clamp': hechosExpandido ? 'unset' : '4', '-webkit-box-orient':'vertical', overflow: hechosExpandido ? 'visible' : 'hidden' }">\${ info.hechos.descripcion }</span>
+            <button v-if="info.hechos.descripcion && info.hechos.descripcion.length > 200" @click="hechosExpandido = !hechosExpandido" style="background:none;border:none;color:#5106A7;font-size:.75rem;cursor:pointer;padding:4px 0;font-weight:600">\${ hechosExpandido ? '▲ Ver menos' : '▼ Ver más' }</button>
+        </div>
         <div class="ci-field" v-if="val(info.hechos.fechaHechos)"><span class="ci-label">Fecha hechos</span><span class="ci-value">\${ info.hechos.fechaHechos }</span></div>
         <div class="ci-field" v-if="val(info.hechos.horario)"><span class="ci-label">Horario</span><span class="ci-value">\${ info.hechos.horario }</span></div>
         <div class="ci-field" v-if="val(info.hechos.escenarioViolencia)"><span class="ci-label">Escenario</span><span class="ci-value">\${ info.hechos.escenarioViolencia }</span></div>
@@ -180,6 +185,7 @@ app.component('case-info', {
             sections: CI_SECTIONS,
             openSections: { encabezado: true, victima: true, etnicos: true, contacto: true, ubicacion: true, hechos: true, agresor: true, riesgo: true },
             activeNav: 'encabezado',
+            hechosExpandido: false,
         };
     },
     watch: {

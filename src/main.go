@@ -54,6 +54,9 @@ func main() {
     // Asegurar que la columna victim_case_team exista en victim_case (para asignación por equipo)
     gormDB.Exec(`ALTER TABLE salvia.victim_case ADD COLUMN IF NOT EXISTS victim_case_team VARCHAR(64) DEFAULT NULL`)
 
+    // Asegurar que la columna agent_id exista en victim_case (para asignación directa de operador)
+    gormDB.Exec(`ALTER TABLE salvia.victim_case ADD COLUMN IF NOT EXISTS agent_id VARCHAR(64) DEFAULT NULL`)
+
     // AutoMigrate por tabla — warning en lugar de fatal para tablas ya existentes
     for _, m := range []interface{}{
         &models.Form{},
@@ -215,6 +218,10 @@ func main() {
     locationCtrl.RegisterRoutes(api)
     casesListCtrl.RegisterRoutes(api)
     agentsSearchCtrl.RegisterRoutes(api)
+
+    // Admin: endpoints de migración (protegidos por X-Security-Key)
+    migrateCtrl := salvia_ctrl.NewMigrateController(gormDB)
+    migrateCtrl.RegisterRoutes(api)
     // ────────────────────────────────────────────────────────────────────────
 
     // ── Graceful shutdown ────────────────────────────────────────────────────

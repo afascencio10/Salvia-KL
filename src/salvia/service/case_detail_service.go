@@ -335,7 +335,7 @@ func (s *caseDetailService) ReasignarCaso(ctx context.Context, caseICode, newOpe
 func (s *caseDetailService) reasignarCasoInternal(ctx context.Context, caseICode, newOperadorICode string) error {
 	db := s.db
 
-	// 1. Obtener el victim_case_id
+	// 1. Verificar que el caso existe
 	var victimCaseID int64
 	if err := db.Raw("SELECT victim_case_id FROM salvia.victim_case WHERE victim_case_i_code = ?", caseICode).Scan(&victimCaseID).Error; err != nil {
 		return errors.New("caso no encontrado")
@@ -344,18 +344,18 @@ func (s *caseDetailService) reasignarCasoInternal(ctx context.Context, caseICode
 		return errors.New("caso no encontrado")
 	}
 
-	// 2. Obtener el case_owner_id del nuevo operador
-	var caseOwnerID int64
-	if err := db.Raw("SELECT case_owner_id FROM salvia.case_owner WHERE case_owner_general_user = ?", newOperadorICode).Scan(&caseOwnerID).Error; err != nil || caseOwnerID == 0 {
-		return errors.New("el operador no tiene registro de case_owner")
+	// 2. Obtener el team del nuevo operador
+	var newTeam string
+	db.Raw(`SELECT COALESCE(general_user_team, '') FROM security.general_user WHERE general_user_i_code = ?`, newOperadorICode).Scan(&newTeam)
+
+	// 3. Actualizar agent_id y victim_case_team directamente en victim_case
+	if newTeam != "" {
+		db.Exec(`UPDATE salvia.victim_case SET agent_id = ?, victim_case_team = ? WHERE victim_case_i_code = ?`, newOperadorICode, newTeam, caseICode)
+	} else {
+		db.Exec(`UPDATE salvia.victim_case SET agent_id = ? WHERE victim_case_i_code = ?`, newOperadorICode, caseICode)
 	}
 
-	// 3. Insertar nueva relación en rel_case_owner_victim_case
-	if err := db.Exec(`INSERT INTO salvia.rel_case_owner_victim_case (case_owner_id, victim_case_id, rel_case_owner_victim_case_status, rel_case_owner_victim_case_creation_date) VALUES (?, ?, 'a', NOW())`, caseOwnerID, victimCaseID).Error; err != nil {
-		return errors.New("error al crear relación de asignación: " + err.Error())
-	}
-
-	// 4. Obtener nombre del operador para actualizar la descripción
+	// 4. Obtener nombre del operador para el historial
 	var fullName string
 	db.Raw(`SELECT gup.general_user_profile_names || ' ' || gup.general_user_profile_last_names FROM security.general_user gu JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile WHERE gu.general_user_i_code = ?`, newOperadorICode).Scan(&fullName)
 

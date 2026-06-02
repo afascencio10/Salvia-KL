@@ -162,12 +162,12 @@
               <p class="cd-section-title" v-if="tipoViolencia.length || ambitoViolencia.length || nacionalidadResumen || generoResumen || territorioOcurrencia || planAtencion.length" style="margin-top:20px">Contexto del caso</p>
               <div class="cd-data-grid" v-if="tipoViolencia.length || ambitoViolencia.length || nacionalidadResumen || generoResumen || territorioOcurrencia || planAtencion.length">
                 <div class="cd-campo" v-if="tipoViolencia.length"><div class="cd-lbl">Tipo de violencia</div><div class="cd-val">${ tipoViolencia.join(', ') }</div></div>
-                <div class="cd-campo" v-if="subtipoViolencia.length"><div class="cd-lbl">Subtipo de violencia</div><div class="cd-val">${ subtipoViolencia.join(', ') }</div></div>
+                <div class="cd-campo" v-if="subtipoViolencia.length"><div class="cd-lbl">Subtipo de violencia</div><div class="cd-val"><ul v-if="subtipoViolencia.length > 1" style="margin:0;padding-left:16px;list-style:disc"><li v-for="s in subtipoViolencia" :key="s">${ s }</li></ul><span v-else>${ subtipoViolencia[0] }</span></div></div>
                 <div class="cd-campo" v-if="ambitoViolencia.length"><div class="cd-lbl">Ámbito de violencia</div><div class="cd-val">${ ambitoViolencia.join(', ') }</div></div>
                 <div class="cd-campo" v-if="nacionalidadResumen"><div class="cd-lbl">Nacionalidad</div><div class="cd-val">${ nacionalidadResumen }</div></div>
                 <div class="cd-campo" v-if="generoResumen"><div class="cd-lbl">Género</div><div class="cd-val">${ generoResumen }</div></div>
                 <div class="cd-campo" v-if="territorioOcurrencia"><div class="cd-lbl">Territorio de ocurrencia</div><div class="cd-val">${ territorioOcurrencia }</div></div>
-                <div class="cd-campo" v-if="planAtencion.length"><div class="cd-lbl">Plan de atención</div><div class="cd-val">${ planAtencion.join(', ') }</div></div>
+                <div class="cd-campo" v-if="planAtencion.length"><div class="cd-lbl">Plan de atención</div><div class="cd-val"><ul v-if="planAtencion.length > 1" style="margin:0;padding-left:16px;list-style:disc"><li v-for="p in planAtencion" :key="p">${ p }</li></ul><span v-else>${ planAtencion[0] }</span></div></div>
                 <div class="cd-campo" v-if="ajusteRazonable.length"><div class="cd-lbl">Ajuste razonable</div><div class="cd-val">${ ajusteRazonable.join(', ') }</div></div>
               </div>
             </div>
@@ -186,6 +186,17 @@
                 <div class="cd-campo" v-if="subtipoViolencia.length"><div class="cd-lbl">Subtipo</div><div class="cd-val">${ subtipoViolencia.join(', ') }</div></div>
                 <div class="cd-campo" v-if="ambitoViolencia.length"><div class="cd-lbl">Ámbito</div><div class="cd-val">${ ambitoViolencia.join(', ') }</div></div>
                 <div class="cd-campo" v-if="territorioOcurrencia"><div class="cd-lbl">Lugar de los hechos</div><div class="cd-val">${ territorioOcurrencia }</div></div>
+              </div>
+              <!-- Nuevos hechos reportados en seguimientos -->
+              <div v-if="hechosReportados.length" style="margin-top:16px;border-top:1px solid #e5e7eb;padding-top:14px">
+                <p style="font-size:.78rem;font-weight:600;color:#6b7280;margin:0 0 10px;text-transform:uppercase">Hechos reportados en seguimientos</p>
+                <div v-for="(h, idx) in hechosReportados" :key="h.id" style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-bottom:8px">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                    <span style="font-size:.75rem;font-weight:600;color:#dc2626"><i class="fa fa-file-lines"></i> Hecho #${ idx + 1 }</span>
+                    <span style="font-size:.7rem;color:#9ca3af">${ h.date ? h.date.substring(0,10) : '' }</span>
+                  </div>
+                  <p style="font-size:.82rem;color:#374151;margin:0">${ h.description || 'Sin descripción' }</p>
+                </div>
               </div>
             </div>
           </div>
@@ -648,6 +659,7 @@ var home = Vue.createApp({
       tipoAgresorResumen: '',
       planAtencion: [],
       ajusteRazonable: [],
+      hechosTimeline: [],
       caseICode: CASE_ICODE,
       userRole: "{{.userRole}}",
       userTeam: "{{.userTeam}}",
@@ -751,14 +763,15 @@ var home = Vue.createApp({
       return 0; // Sin evaluar
     },
     ultimoAgente() {
+      // Prioridad: usar el nombre resuelto del agent_id
+      if (this.caso && this.caso.agentName) return this.caso.agentName;
+      // Fallback: parsear victimCaseOwnerDescription (legacy)
       var desc = this.caso ? this.caso.victimCaseOwnerDescription : '';
       if (!desc) return '—';
-      // El formato es: "(fecha) Nombre [Rol] , [Rol] , (fecha) Nombre [Rol] , ..."
       var partes = desc.split(' , (');
       if (partes.length === 0) return desc;
       var ultima = partes[partes.length - 1];
       if (!ultima.startsWith('(')) ultima = '(' + ultima;
-      // Extraer: "(2026-04-13 17:04:29) María Fernanda Quintero [Operador]"
       var match = ultima.match(/\(([^)]+)\)\s*(.+?)\s*\[([^\]]+)\]/);
       if (match) {
         var fecha = match[1].substring(0, 10);
@@ -767,6 +780,9 @@ var home = Vue.createApp({
         return nombre + ' [' + rol + '] · ' + fecha;
       }
       return ultima;
+    },
+    hechosReportados() {
+      return this.hechosTimeline || [];
     },
     derivaciones() {
       var sectores = {
@@ -867,6 +883,7 @@ var home = Vue.createApp({
         })
         .then(function(data) {
           self.caso     = data.Case;
+          self.caso.agentName = data.agentName || '';
           self.followUp = data.FollowUp;
           self.form1    = data.Form1;
           self.form2    = data.Form2;
@@ -890,6 +907,7 @@ var home = Vue.createApp({
           self.tipoAgresorResumen = data.tipoAgresorResumen || '';
           self.planAtencion = data.planAtencion || [];
           self.ajusteRazonable = data.ajusteRazonable || [];
+          self.hechosTimeline = (data.timelineEvents || []).filter(function(e) { return e.type === 'Hechos del caso'; });
           self.cargando = false;
           // Recargar operadores ahora que tenemos form1/form2 para determinar el team
           self.cargarOperadores();
