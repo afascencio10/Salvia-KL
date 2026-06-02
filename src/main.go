@@ -54,6 +54,9 @@ func main() {
     // Asegurar que la columna victim_case_team exista en victim_case (para asignación por equipo)
     gormDB.Exec(`ALTER TABLE salvia.victim_case ADD COLUMN IF NOT EXISTS victim_case_team VARCHAR(64) DEFAULT NULL`)
 
+    // Asegurar que la columna agent_id exista en victim_case (para asignación directa de operador)
+    gormDB.Exec(`ALTER TABLE salvia.victim_case ADD COLUMN IF NOT EXISTS agent_id VARCHAR(64) DEFAULT NULL`)
+
     // AutoMigrate por tabla — warning en lugar de fatal para tablas ya existentes
     for _, m := range []interface{}{
         &models.Form{},
@@ -75,6 +78,7 @@ func main() {
         &models.RenderModification{},
         &models.MenTeamRemision{},
         &models.DiscapacidadRemision{},
+        &models.BarrierV2{},
     } {
         if err := gormDB.AutoMigrate(m); err != nil {
             log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -109,9 +113,20 @@ func main() {
     reportRepo             := repository.NewReportRepository(gormDB)
     caseTaskRepo           := repository.NewCaseTaskRepository(gormDB)
     entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
+    casesListRepo          := repository.NewCasesListRepository(gormDB)
 
     // Services
     casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
+
+    formSectionSvc        := service.NewFormSectionService(formSectionRepo)
+    questionSvc           := service.NewQuestionService(questionRepo)
+    repeaterGroupSvc      := service.NewRepeaterGroupService(repeaterGroupRepo)
+    visibilityCondSvc     := service.NewVisibilityConditionService(visibilityCondRepo)
+    formSubmissionSvc     := service.NewFormSubmissionService(formSubmissionRepo)
+    repeaterEntrySvc      := service.NewRepeaterEntryService(repeaterEntryRepo)
+    answerSvc             := service.NewAnswerService(answerRepo)
+    optionSvc             := service.NewOptionService(optionRepo)
+    followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo)
 
     formSvc := service.NewFormService(service.FormServiceDeps{
         FormRepo:                  formRepo,
@@ -135,25 +150,20 @@ func main() {
         AgentLightRepo:            agentLightRepo,
         CasoCierreService:         casoCierreSvc,
         CaseRepo:                  victimCaseLightRepo,
+        FollowUpV2Svc:             followUpV2Svc,
         CaseTaskRepo:              caseTaskRepo,
         EntityLetterRepo:          entityLetterRepo,
     })
-    formSectionSvc        := service.NewFormSectionService(formSectionRepo)
-    questionSvc           := service.NewQuestionService(questionRepo)
-    repeaterGroupSvc      := service.NewRepeaterGroupService(repeaterGroupRepo)
-    visibilityCondSvc     := service.NewVisibilityConditionService(visibilityCondRepo)
-    formSubmissionSvc     := service.NewFormSubmissionService(formSubmissionRepo)
-    repeaterEntrySvc      := service.NewRepeaterEntryService(repeaterEntryRepo)
-    answerSvc             := service.NewAnswerService(answerRepo)
-    optionSvc             := service.NewOptionService(optionRepo)
-    followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo)
     caseDetailSvc         := service.NewCaseDetailService(caseDetailRepo, gormDB)
     caseInfoSvc           := service.NewCaseInfoService(caseInfoRepo)
     reportSvc             := service.NewReportService(reportRepo)
+    casesListSvc          := service.NewCasesListService(casesListRepo)
+    agentsSearchSvc       := service.NewAgentsSearchService(agentLightRepo)
 
     // Inyectar el servicio en el controller legacy para generación automática del calendario
     salvia_legacy.FollowUpSvc = followUpV2Svc
     salvia_legacy.CaseTimelineRepo = caseTimelineRepo
+    salvia_legacy.VictimCaseLightRepo = victimCaseLightRepo
 
     // Controllers
     formCtrl               := salvia_ctrl.NewFormController(formSvc)
@@ -181,6 +191,11 @@ func main() {
 
     entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo, caseTaskRepo)
     entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
+    casesListCtrl          := salvia_ctrl.NewCasesListController(casesListSvc)
+    agentsSearchCtrl       := salvia_ctrl.NewAgentsSearchController(agentsSearchSvc)
+
+    locationRepo := repository.NewLocationRepository(gormDB)
+    locationCtrl := salvia_ctrl.NewLocationController(locationRepo)
 
     // Routes
     api := router.Group("/api/v1")
@@ -200,6 +215,13 @@ func main() {
     entityLetterCtrl.RegisterRoutes(api)
     barrierV2GinCtrl.RegisterRoutes(api)
     caseTaskCtrl.RegisterRoutes(api)
+    locationCtrl.RegisterRoutes(api)
+    casesListCtrl.RegisterRoutes(api)
+    agentsSearchCtrl.RegisterRoutes(api)
+
+    // Admin: endpoints de migración (protegidos por X-Security-Key)
+    migrateCtrl := salvia_ctrl.NewMigrateController(gormDB)
+    migrateCtrl.RegisterRoutes(api)
     // ────────────────────────────────────────────────────────────────────────
 
     // ── Graceful shutdown ────────────────────────────────────────────────────

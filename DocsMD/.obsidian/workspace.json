@@ -1,0 +1,218 @@
+{
+  "main": {
+    "id": "342aaed93124c3cd",
+    "type": "split",
+    "children": [
+      {
+        "id": "e39a195b7cf4ac28",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "7b9d1557ef85bc35",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Screens/hacer-seguimiento/Flujos/flow-E04-cuando-se-procesa-submission.md",
+                "mode": "preview",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "flow-E04-cuando-se-procesa-submission"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "3b260aee0954299e",
+    "type": "split",
+    "children": [
+      {
+        "id": "fd3f0c7920a43f1d",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "a44792647d4d2e49",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "e8e603e25ec38f7d",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "a49f9c9be087fef5",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 244.50043487548828
+  },
+  "right": {
+    "id": "379ea87ccec303a5",
+    "type": "split",
+    "children": [
+      {
+        "id": "ff09c1d4431a8997",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "1f63e4be4ee195ec",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Screens/hacer-seguimiento/Flujos/flow-E01-cuando-carga-pantalla.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for flow-E01-cuando-carga-pantalla"
+            }
+          },
+          {
+            "id": "93d59aa800c26e8b",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Screens/hacer-seguimiento/Flujos/flow-E01-cuando-carga-pantalla.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from flow-E01-cuando-carga-pantalla"
+            }
+          },
+          {
+            "id": "63b68f2a70813a8d",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "146c0ea3a98d3ec2",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "c6b10d05d3f5f514",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Screens/hacer-seguimiento/Flujos/flow-E01-cuando-carga-pantalla.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of flow-E01-cuando-carga-pantalla"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "7b9d1557ef85bc35",
+  "lastOpenFiles": [
+    "Componentes/Casos component/Flujos/flow-E11-cuando-filtra-equipo.md",
+    "Componentes/Casos component/Flujos/flow-E10-cuando-filtra-nivel-riesgo.md",
+    "Componentes/Casos component/Flujos/flow-E09-cuando-filtra-casos-nuevos.md",
+    "Screens/hacer-seguimiento/Flujos/flow-E05-cuando-se-actualizan-respuestas.md",
+    "Screens/hacer-seguimiento/Flujos/flow-E04-cuando-se-procesa-submission.md",
+    "Screens/hacer-seguimiento/Flujos/flow-E01-cuando-carga-pantalla.md",
+    "Screens/hacer-seguimiento/changelogJun2026.md",
+    "Screens/hacer-seguimiento/form-barreras-repeater.md",
+    "Screens/hacer-seguimiento/form-seguimiento-barreras-repeater.md",
+    "Screens/hacer-seguimiento/form-seguimiento-data.md",
+    "Screens/hacer-seguimiento/hacer-seguimiento-index.md",
+    "Screens/hacer-seguimiento/interfaz.md",
+    "Screens/Registro de Caso/Flujos/registro-caso-flujo-guardar.md",
+    "General/proyecto-description.md",
+    "Componentes/Casos component/Flujos/flow-E08-cuando-selecciona-autocomplete.md",
+    "Componentes/Casos component/Flujos/flow-E07-cuando-escribe-autocomplete.md",
+    "Otros/temp/follow-up-contact-modal-guide.md",
+    "Componentes/Oficios component/Oficios Usage.md",
+    "Componentes/Oficios component",
+    "Componentes/Casos component/Flujos/flow-E06-cuando-cambia-pagina.md",
+    "Componentes/Casos component/Flujos/flow-E05-cuando-presiona-boton-accion.md",
+    "Componentes/Casos component/Flujos/flow-E04-cuando-cambia-ordenamiento.md",
+    "Componentes/Casos component/Flujos/flow-E03-cuando-escribe-buscador.md",
+    "Componentes/Casos component/Flujos/flow-E02-cuando-selecciona-filtro.md",
+    "Componentes/Casos component/Flujos/flow-E01-cuando-carga-componente.md",
+    "Componentes/Casos component/casos-component-interface.md",
+    "Componentes/Casos component/casos-component-events.md",
+    "Componentes/Casos component/Flujos",
+    "Componentes/Casos component"
+  ]
+}

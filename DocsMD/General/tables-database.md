@@ -131,6 +131,8 @@ PGPASSWORD='Salvia2026@' psql \
 | `emergency_measure` | Medida de emergencia adoptada para proteger a la víctima: autoridad, vigencia y estado. |
 | `psychosocial_support` | Apoyo psicosocial brindado a la víctima: tipo, institución, fechas y estado. |
 | `economic_stabilization` | Proceso de estabilización económica de la víctima: beneficio, institución y estado. |
+| `men_team_remision` | Remisión al equipo de Atención Hombres generada al completar un seguimiento. |
+| `discapacidad_remision` | Remisión al equipo de Discapacidad; un registro por servicio seleccionado (`apoyo_lsc`, `enfoque_discapacidad`). |
 
 ### Alertas
 

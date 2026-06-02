@@ -92,6 +92,7 @@ func (s *caseInfoService) GetFullCaseInfo(ctx context.Context, caseICode string)
 	result := &models.CaseFullInfo{
 		Encabezado: models.CaseInfoEncabezado{
 			Funcionarios:      raw.OwnerDescription,
+			AgenteAsignado:    raw.AgentName,
 			FechaCreacion:     raw.CreationDate,
 			FechaModificacion: raw.UpdateDate,
 			Estado:            raw.Status,

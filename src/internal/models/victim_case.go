@@ -21,6 +21,7 @@ type VictimCase struct {
 	VictimCaseOwnerDesc    string  `gorm:"column:victim_case_owner_description"  json:"victimCaseOwnerDescription"`
 	VictimCaseTeam         string  `gorm:"column:victim_case_team"               json:"victimCaseTeam"`
 	VictimCaseCreatedAt    time.Time `gorm:"column:victim_case_creation_date"       json:"victimCaseCreatedAt"`
+	AgentId                *string `gorm:"column:agent_id"                       json:"agentId"`
 }
 
 func (VictimCase) TableName() string { return "salvia.victim_case" }

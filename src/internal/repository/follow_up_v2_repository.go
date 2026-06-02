@@ -18,12 +18,16 @@ type VictimCaseInfo struct {
 	SexualOrientation string `json:"SexualOrientation"`
 	ContactPhone      string `json:"ContactPhone"`
 	Age               *int64 `json:"Age"`
+	RiskLevel         int    `json:"riskLevel"`
 }
 
 type FollowUpV2Repository interface {
 	Repository[models.FollowUpV2]
 	FindByCaseID(ctx context.Context, caseID string) ([]models.FollowUpV2, error)
 	FindPending(ctx context.Context) ([]models.FollowUpV2, error)
+	FindPendingByCaseID(ctx context.Context, caseID string) ([]models.FollowUpV2, error)
+	DeletePendingByCaseID(ctx context.Context, caseID string) error
+	UpdateAgentForPendingByCaseID(ctx context.Context, caseID string, agentID string) error
 	LoadVictimInfoByCaseID(ctx context.Context, caseID string) (*VictimCaseInfo, error)
 	UpdateFormSubmissionID(ctx context.Context, id string, fsID string) error
 }
@@ -62,7 +66,8 @@ func (r *followUpV2Repository) LoadVictimInfoByCaseID(ctx context.Context, caseI
 			COALESCE(gi.victim_case_form2_enums_name, '')                       AS gender_identity,
 			COALESCE(so.victim_case_form2_enums_name, '')                       AS sexual_orientation,
 			COALESCE(f2.victim_case_form2_support_contact_phone::text, '')      AS contact_phone,
-			EXTRACT(YEAR FROM AGE(NOW(), f2.victim_case_form2_birth_date))::int AS age
+			EXTRACT(YEAR FROM AGE(NOW(), f2.victim_case_form2_birth_date))::int AS age,
+			COALESCE(f2.victim_case_form2_risk_level, 0)                        AS risk_level
 		FROM salvia.victim_case vc
 		LEFT JOIN salvia.victim_case_form2 f2
 			ON f2.victim_case_form2_victim_case = vc.victim_case_id
@@ -79,8 +84,30 @@ func (r *followUpV2Repository) LoadVictimInfoByCaseID(ctx context.Context, caseI
 	return &info, err
 }
 
+func (r *followUpV2Repository) FindPendingByCaseID(ctx context.Context, caseID string) ([]models.FollowUpV2, error) {
+	var items []models.FollowUpV2
+	err := r.db.WithContext(ctx).
+		Where("case_id = ? AND status = ?", caseID, models.FollowUpStatusPendiente).
+		Find(&items).Error
+	return items, err
+}
+
+func (r *followUpV2Repository) DeletePendingByCaseID(ctx context.Context, caseID string) error {
+	return r.db.WithContext(ctx).
+		Where("case_id = ? AND status = ?", caseID, models.FollowUpStatusPendiente).
+		Delete(&models.FollowUpV2{}).Error
+}
+
+func (r *followUpV2Repository) UpdateAgentForPendingByCaseID(ctx context.Context, caseID string, agentID string) error {
+	return r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Where("case_id = ? AND status = ?", caseID, models.FollowUpStatusPendiente).
+		Update("agent_id", agentID).Error
+}
+
 func (r *followUpV2Repository) UpdateFormSubmissionID(ctx context.Context, id string, fsID string) error {
 	return r.db.WithContext(ctx).Model(&models.FollowUpV2{}).
 		Where("id = ?", id).
 		Update("form_submission_id", fsID).Error
 }
+

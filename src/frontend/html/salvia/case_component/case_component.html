@@ -1,0 +1,273 @@
+{{ define "salvia/case_component/case_component.html" }}
+{{/* Partial: case_component.html — Componente reutilizable de tabla de casos */}}
+<link rel="stylesheet" href="/static/css/casos-component.css">
+
+<!-- ─── Template Vue del componente casos-component ─── -->
+<script type="text/x-template" id="tpl-casos-component">
+<div class="cc-wrapper">
+
+    <!-- ════════ LOADING ════════ -->
+    <div v-if="loading" class="cc-loading">
+        <div class="cc-loading-spinner"></div>
+        <span>Cargando casos...</span>
+    </div>
+
+    <!-- ════════ ERROR ════════ -->
+    <div v-else-if="loadError" class="cc-error">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>${ loadError }</span>
+    </div>
+
+    <!-- ════════ CONTENIDO ════════ -->
+    <template v-else>
+
+        <!-- ── FILTER BAR ── -->
+        <div class="cc-filter-bar">
+
+            <!-- Grupo de filtros dinámicos -->
+            <div class="cc-filter-group">
+                <template v-for="filter in filtersForBar" :key="filter.key">
+
+                    <!-- Chip -->
+                    <template v-if="filter.type === 'chip'">
+                        <button
+                            class="cc-chip"
+                            :class="{ 'cc-chip--active': activeChipKey === filter.key }"
+                            @click="toggleChipFilter(filter.key)"
+                        >
+                            ${ filter.label }
+                        </button>
+                    </template>
+
+                    <!-- Dropdown -->
+                    <template v-else-if="filter.type === 'dropdown'">
+                        <div class="cc-filter-dropdown">
+                            <label class="cc-filter-label">${ filter.label }</label>
+                            <select
+                                class="cc-select"
+                                :class="{ 'cc-select--active': activeDropdown && activeDropdown.key === filter.key }"
+                                :value="dropdownSelectValue(filter.key)"
+                                @change="setDropdownFilter(filter.key, $event.target.value)"
+                            >
+                                <option value="">Todos / Todas</option>
+                                <option
+                                    v-for="opt in filter.options"
+                                    :key="opt.value"
+                                    :value="opt.value"
+                                >
+                                    ${ opt.label }
+                                </option>
+                            </select>
+                        </div>
+                    </template>
+
+                    <!-- Autocomplete -->
+                    <template v-else-if="filter.type === 'autocomplete'">
+                        <div class="cc-autocomplete-filter" :data-autocomplete-key="filter.key">
+                            <label class="cc-filter-label">${ filter.label }</label>
+
+                            <!-- Estado: escribiendo -->
+                            <div v-if="!autocompleteSelected[filter.key]" class="cc-autocomplete-input-wrap">
+                                <input
+                                    type="text"
+                                    class="cc-autocomplete-input"
+                                    :class="{ 'cc-autocomplete-input--error': autocompleteError[filter.key] }"
+                                    :placeholder="filter.label"
+                                    v-model="autocompleteText[filter.key]"
+                                    @input="onAutocompleteInput(filter.key)"
+                                    autocomplete="off"
+                                />
+                                <div v-if="autocompleteLoading[filter.key]" class="cc-autocomplete-spinner"></div>
+                            </div>
+
+                            <!-- Estado: opción seleccionada -->
+                            <div v-else class="cc-autocomplete-tag">
+                                <span class="cc-tag-label">${ autocompleteSelected[filter.key].label }</span>
+                                <button class="cc-tag-clear" @click="clearAutocomplete(filter.key)" type="button">✕</button>
+                            </div>
+
+                            <!-- Dropdown flotante de sugerencias -->
+                            <div
+                                v-if="autocompleteShowDropdown(filter.key)"
+                                class="cc-autocomplete-dropdown"
+                                :class="{ 'cc-dropdown--loading': autocompleteLoading[filter.key] }"
+                            >
+                                <div
+                                    v-for="opt in autocompleteSuggestions[filter.key]"
+                                    :key="opt.value"
+                                    class="cc-autocomplete-item"
+                                    @click="selectAutocompleteSuggestion(filter.key, opt)"
+                                >
+                                    ${ opt.label }
+                                </div>
+                                <div
+                                    v-if="autocompleteShowNoResults(filter.key)"
+                                    class="cc-autocomplete-empty"
+                                >
+                                    Sin resultados
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Search -->
+                    <template v-else-if="filter.type === 'search'">
+                        <div class="cc-search-filter">
+                            <label class="cc-filter-label">${ filter.label }</label>
+                            <input
+                                type="text"
+                                class="cc-search-input"
+                                :placeholder="filter.label"
+                                v-model="searchText"
+                                @input="onSearchInput()"
+                                autocomplete="off"
+                            />
+                        </div>
+                    </template>
+
+                </template>
+            </div>
+            <!-- /filter-group -->
+
+            <!-- Sort selector -->
+            <div class="cc-sort-selector">
+                <label class="cc-filter-label">Ordenar por</label>
+                <select class="cc-select" :value="sortBy" @change="onSortChange($event)">
+                    <option value="registration_date">Fecha de registro</option>
+                    <option value="next_follow_up">Próximo seguimiento</option>
+                </select>
+            </div>
+
+        </div>
+        <!-- /FILTER BAR -->
+
+        <!-- ── TABLE WRAP ── -->
+        <div class="cc-table-wrap">
+
+            <!-- Estado vacío -->
+            <div v-if="filteredCases.length === 0" class="cc-empty">
+                <i class="fas fa-inbox"></i>
+                <span>No se encontraron casos</span>
+            </div>
+
+            <!-- Tabla + paginación -->
+            <template v-else>
+                <table class="cc-table">
+                    <thead>
+                        <tr>
+                            <th
+                                v-for="col in visibleColumns"
+                                :key="col.key"
+                                class="cc-th"
+                            >
+                                ${ col.label }
+                            </th>
+                            <th v-if="buttons.length > 0" class="cc-th">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            v-for="caseObj in filteredCases"
+                            :key="caseObj.id"
+                            class="cc-row"
+                        >
+                            <template v-for="col in visibleColumns" :key="col.key">
+
+                                <!-- victim_info -->
+                                <td v-if="col.key === 'victim_info'" class="cc-cell-victim">
+                                    <div class="cc-victim-name">${ caseObj.names } ${ caseObj.lastNames }</div>
+                                    <div class="cc-victim-meta">
+                                        <span>Doc: ${ caseObj.docNumber || '—' }</span>
+                                        <span class="cc-victim-meta-sep">·</span>
+                                        <span>Tel: ${ caseObj.victimPhone || '—' }</span>
+                                    </div>
+                                </td>
+
+                                <!-- operator -->
+                                <td v-else-if="col.key === 'operator'" class="cc-cell">
+                                    ${ ownerFullName(caseObj) }
+                                </td>
+
+                                <!-- registration_date -->
+                                <td v-else-if="col.key === 'registration_date'" class="cc-cell">
+                                    ${ formatDate(caseObj.creationDate) }
+                                </td>
+
+                                <!-- risk_level -->
+                                <td v-else-if="col.key === 'risk_level'" class="cc-cell">
+                                    <span :class="riskBadgeClass(caseObj.riskStatus)">${ riskBadgeLabel(caseObj.riskStatus) }</span>
+                                </td>
+
+                                <!-- team -->
+                                <td v-else-if="col.key === 'team'" class="cc-cell">
+                                    ${ caseObj.caseTeam || '—' }
+                                </td>
+
+                                <!-- assigned_person -->
+                                <td v-else-if="col.key === 'assigned_person'" class="cc-cell">
+                                    ${ ownerFullName(caseObj) }
+                                </td>
+
+                                <!-- next_follow_up_date -->
+                                <td v-else-if="col.key === 'next_follow_up_date'" class="cc-cell-follow-up">
+                                    <span v-if="caseObj.nextFollowUpDate" class="cc-follow-up-date">
+                                        ${ formatDate(caseObj.nextFollowUpDate) }
+                                    </span>
+                                    <span v-else class="cc-follow-up-none">—</span>
+                                </td>
+
+                                <!-- columna desconocida -->
+                                <td v-else class="cc-cell">—</td>
+
+                            </template>
+
+                            <!-- Columna de acciones -->
+                            <td v-if="buttons.length > 0" class="cc-cell-actions">
+                                <button
+                                    v-for="btn in buttons"
+                                    :key="btn.id"
+                                    class="cc-action-btn"
+                                    type="button"
+                                    @click="emitActionClicked(btn.id, caseObj)"
+                                >
+                                    ${ btn.label }
+                                </button>
+                            </td>
+
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Paginación -->
+                <div class="cc-pagination">
+                    <button
+                        class="cc-page-btn"
+                        type="button"
+                        :disabled="currentPage === 1"
+                        @click="changePage(currentPage - 1)"
+                    >
+                        ← Anterior
+                    </button>
+                    <span class="cc-page-info">Página ${ currentPage } de ${ totalPages }</span>
+                    <button
+                        class="cc-page-btn"
+                        type="button"
+                        :disabled="currentPage === totalPages"
+                        @click="changePage(currentPage + 1)"
+                    >
+                        Siguiente →
+                    </button>
+                </div>
+
+            </template>
+            <!-- /tabla -->
+
+        </div>
+        <!-- /TABLE WRAP -->
+
+    </template>
+    <!-- /CONTENIDO -->
+
+</div>
+</script>
+{{ end }}

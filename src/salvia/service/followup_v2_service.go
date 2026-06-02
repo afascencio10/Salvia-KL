@@ -59,11 +59,18 @@ type GenerateCalendarInput struct {
 
 // ── Interfaz ──────────────────────────────────────────────────────────────────
 
+// ActiveBarrierInfo es la info mínima de una barrera para el frontend.
+type ActiveBarrierInfo struct {
+	ID          string `json:"id"`
+	BarrierName string `json:"barrierName"`
+}
+
 // LoadFollowUpResult es la respuesta del endpoint hacer-seguimiento al cargar la página.
 type LoadFollowUpResult struct {
-	FollowUp   *models.FollowUpV2         `json:"followUp"`
-	VictimInfo *repository.VictimCaseInfo `json:"victimInfo"`
-	CaseStatus string                     `json:"caseStatus"`
+	FollowUp       *models.FollowUpV2         `json:"followUp"`
+	VictimInfo     *repository.VictimCaseInfo `json:"victimInfo"`
+	CaseStatus     string                     `json:"caseStatus"`
+	ActiveBarriers []ActiveBarrierInfo        `json:"activeBarriers"`
 }
 
 // FollowUpV2Service define el contrato de negocio para FollowUpV2.
@@ -84,6 +91,7 @@ type FollowUpV2Service interface {
 
 	// Hacer seguimiento
 	LoadFollowUp(ctx context.Context, id string, agentID string, formID string) (*LoadFollowUpResult, error)
+	ReasignarCalendario(ctx context.Context, caseID string, newLevel int) error
 
 	// Seguimientos Área
 	GetByTeamPaginated(ctx context.Context, team string, filters repository.FollowUpFilters, page, limit int) ([]models.FollowUpV2, int64, error)
@@ -232,7 +240,134 @@ func (s *followUpV2Service) LoadFollowUp(ctx context.Context, id, agentID, formI
 		log.Printf("[SVC] LoadFollowUp → advertencia: no se pudo obtener status del caso %s: %v", fu.CaseID, err)
 	}
 
-	return &LoadFollowUpResult{FollowUp: fu, VictimInfo: victimInfo, CaseStatus: caseStatus}, nil
+	// Cargar barreras activas
+	activeBarriers := s.loadActiveBarriers(ctx, fu)
+
+	return &LoadFollowUpResult{FollowUp: fu, VictimInfo: victimInfo, CaseStatus: caseStatus, ActiveBarriers: activeBarriers}, nil
+}
+
+// loadActiveBarriers retorna las barreras activas para el follow-up.
+// Si fu.ActiveBarrierIDs ya está fijado, usa esos IDs (no re-consulta).
+// Si es la primera carga, consulta las barreras activas del caso, guarda los IDs y retorna.
+func (s *followUpV2Service) loadActiveBarriers(ctx context.Context, fu *models.FollowUpV2) []ActiveBarrierInfo {
+	var barriers []models.BarrierV2
+	var err error
+
+	if fu.ActiveBarrierIDs != nil && *fu.ActiveBarrierIDs != "" {
+		ids := strings.Split(*fu.ActiveBarrierIDs, ",")
+		barriers, err = s.barrierRepo.FindByIDs(ctx, ids)
+		if err != nil {
+			log.Printf("[SVC] loadActiveBarriers → error leyendo por IDs: %v", err)
+			return []ActiveBarrierInfo{}
+		}
+	} else {
+		barriers, err = s.barrierRepo.FindActiveByCaseID(ctx, fu.CaseID)
+		if err != nil {
+			log.Printf("[SVC] loadActiveBarriers → error consultando barreras activas: %v", err)
+			return []ActiveBarrierInfo{}
+		}
+		if len(barriers) > 0 {
+			ids := make([]string, len(barriers))
+			for i, b := range barriers {
+				ids[i] = b.ID
+			}
+			joined := strings.Join(ids, ",")
+			if err := s.repo.UpdateActiveBarrierIDs(ctx, fu.ID, joined); err != nil {
+				log.Printf("[SVC] loadActiveBarriers → advertencia: no se pudo guardar active_barrier_ids: %v", err)
+			} else {
+				fu.ActiveBarrierIDs = &joined
+			}
+		}
+	}
+
+	result := make([]ActiveBarrierInfo, len(barriers))
+	for i, b := range barriers {
+		result[i] = ActiveBarrierInfo{ID: b.ID, BarrierName: buildBarrierName(b)}
+	}
+	return result
+}
+
+// buildBarrierName construye un string identificable para el usuario: "{Sector} — {Description}".
+func buildBarrierName(b models.BarrierV2) string {
+	desc := strings.TrimSpace(b.Description)
+	if desc == "" {
+		desc = strings.TrimSpace(b.SpecificBarriers)
+	}
+	sector := strings.TrimSpace(b.Sector)
+	if sector != "" && desc != "" {
+		return sector + " — " + desc
+	}
+	if sector != "" {
+		return sector
+	}
+	return desc
+}
+
+// ReasignarCalendario ejecuta la lógica de reasignación de un caso:
+//   - newLevel 3 o 4 (alto/extremo): borra PENDIENTE, genera nuevo calendario con autoasignación.
+//   - newLevel 2 (moderado/bajo destino): solo reasigna el agente en los PENDIENTE existentes.
+func (s *followUpV2Service) ReasignarCalendario(ctx context.Context, caseID string, newLevel int) error {
+	offsets, ok := riskMatrix[newLevel]
+	if !ok {
+		return fmt.Errorf("ReasignarCalendario: risk_level inválido: %d", newLevel)
+	}
+
+	now := time.Now()
+	today := now.Truncate(24 * time.Hour)
+
+	if newLevel >= 3 {
+		// ── Nivel alto/extremo: borrar PENDIENTE y generar nuevo calendario ──────
+		team := "Riesgo alto"
+		scheduledDates := computeScheduledDates(offsets, now, today, newLevel)
+
+		agentID, err := s.calcularAgente(ctx, scheduledDates, team)
+		if err != nil {
+			log.Printf("[WARN] ReasignarCalendario: calcularAgente falló (%v) — agente quedará sin asignar", err)
+			agentID = ""
+		}
+
+		if err := s.repo.DeletePendingByCaseID(ctx, caseID); err != nil {
+			return fmt.Errorf("ReasignarCalendario: borrar PENDIENTE: %w", err)
+		}
+
+		riskLevelStr := riskLevelToString(newLevel)
+		input := GenerateCalendarInput{RiskLevel: newLevel, AgentID: agentID, Team: team}
+		newFollowUps := buildFollowUps(caseID, input, riskLevelStr, offsets, now, today, 1)
+		if err := s.repo.RunInTransaction(ctx, func(tx *gorm.DB) error {
+			return s.repo.BulkCreate(ctx, tx, newFollowUps)
+		}); err != nil {
+			return fmt.Errorf("ReasignarCalendario: crear nuevos seguimientos: %w", err)
+		}
+		log.Printf("[ReasignarCalendario] ✅ caseID=%s → nivel=%d equipo=%q agente=%s seguimientos=%d",
+			caseID, newLevel, team, agentID, len(newFollowUps))
+
+	} else {
+		// ── Nivel bajo (2): solo reasignar agente en PENDIENTE existentes ────────
+		team := "Riesgo bajo"
+		pending, err := s.repo.FindPendingByCaseID(ctx, caseID)
+		if err != nil {
+			return fmt.Errorf("ReasignarCalendario: buscar PENDIENTE: %w", err)
+		}
+
+		var dates []time.Time
+		for _, fu := range pending {
+			dates = append(dates, fu.ScheduledDate)
+		}
+
+		agentID, err := s.calcularAgente(ctx, dates, team)
+		if err != nil {
+			log.Printf("[WARN] ReasignarCalendario: calcularAgente falló (%v) — agente sin cambios", err)
+			return nil
+		}
+
+		if err := s.repo.UpdateAgentForPendingByCaseID(ctx, caseID, agentID); err != nil {
+			return fmt.Errorf("ReasignarCalendario: actualizar agente: %w", err)
+		}
+		log.Printf("[ReasignarCalendario] ✅ caseID=%s → nivel=%d equipo=%q nuevo agente=%s",
+			caseID, newLevel, team, agentID)
+	}
+
+	return nil
 }
 
 // GetByCaseID retorna todos los seguimientos del caso ordenados por fecha ASC.

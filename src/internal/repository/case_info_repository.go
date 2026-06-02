@@ -19,6 +19,8 @@ type CaseInfoRaw struct {
 	Status            string `gorm:"column:status"`
 	TownCode          string `gorm:"column:town_code"`
 	OwnerDescription  string `gorm:"column:owner_description"`
+	AgentId           string `gorm:"column:agent_id"`
+	AgentName         string `gorm:"column:agent_name"`
 	CreationDate      string `gorm:"column:creation_date"`
 	UpdateDate        string `gorm:"column:update_date"`
 
@@ -124,6 +126,8 @@ func (r *caseInfoRepository) GetFullInfoByICode(ctx context.Context, caseICode s
 			COALESCE(vc.victim_case_status, '')                AS status,
 			COALESCE(vc.victim_case_victim_town_code, '')      AS town_code,
 			COALESCE(vc.victim_case_owner_description, '')     AS owner_description,
+			COALESCE(vc.agent_id, '')                          AS agent_id,
+			COALESCE((SELECT gup2.general_user_profile_names || ' ' || gup2.general_user_profile_last_names FROM security.general_user gu2 JOIN security.general_user_profile gup2 ON gup2.general_user_profile_id = gu2.general_user_general_user_profile WHERE gu2.general_user_i_code = vc.agent_id LIMIT 1), '') AS agent_name,
 			TO_CHAR(vc.victim_case_creation_date, 'YYYY-MM-DD HH24:MI:SS') AS creation_date,
 			TO_CHAR(vc.victim_case_update_date, 'YYYY-MM-DD HH24:MI:SS')   AS update_date,
 

@@ -11,6 +11,21 @@ INPUT: {
   actorId:       i_code del usuario        → propagado desde el form component
 }
 
+IDs de preguntas relevantes:
+  qEquipos             = "e0d38cf5-fe3f-45cb-9fd3-f5b8f7b2f7dc"  // ¿Cuáles equipos? (multi-select)
+  qMedidasEmergencia   = "1a36260c-33a4-4ebd-bffb-e387d7964b96"  // Medidas de emergencia (multi-select)
+  qCriteriosPsico      = "71c42c4a-f640-47ad-b2c1-5d4c18480449"  // Criterios remisión psicosocial
+  qCriteriosHombres    = "f7edf4fc-d1cd-4591-a358-31566c806365"  // Criterios remisión hombres
+  qCriteriosEstab      = "28accaa6-99dc-4ec4-967b-f26045ad707c"  // Criterios remisión estabilización
+  qServiciosDiscap     = "47b122b1-0151-4b58-a007-d4afb722c1b9"  // Servicios equipo discapacidad
+  qCierraCaso          = "08950a38-3db3-4dc7-852c-3b06b4b1ed72"  // ¿Realiza cierre del caso?
+  // Reasignación de caso (Sección 1 — Valoración del Riesgo)
+  qProtectores         = "a0fdcf67-b05b-4d92-9c19-14753a32bbe3"  // Factores protectores (multiple)
+  qRiesgos             = "ec5bb242-6f86-4c64-8b9f-afabd5a51878"  // Factores de riesgo (multiple)
+  qExtremo             = "65f2d582-a39d-4c93-9519-1a20efbebb03"  // Factores de riesgo extremo (multiple)
+  qConfirmHigh         = "df7a0293-e2ca-49e4-88a8-66a70519a9e5"  // ¿Confirmar reasignación a riesgo alto? (boolean, order 8)
+  qConfirmLow          = "7ec8d66d-7015-470a-a596-edebe574b5c2"  // ¿Confirmar reasignación a riesgo bajo? (boolean, order 9)
+
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   BACKEND — processFollowUpSubmission
@@ -19,11 +34,16 @@ INPUT: {
 
 PASO 1 — Cargar el FollowUpV2
 
-  DB.follow_ups.FindByFormSubmissionID({ submissionId })
+  DB.follow_up_v2.FindByFormSubmissionID({ submissionId })
 
   SI no existe:
-    → Loggear error
+    → Retornar error
     → TERMINAR ejecución
+
+  SI fu.status == "REALIZADO":
+    → Resolver nombre del actor (agentLightRepo.FindByICode)
+    → DB.case_timeline_events.Create({ type: "Seguimiento Editado", icon: "pospuesto", color: "teal" })
+    → TERMINAR ejecución  // idempotente — no reprocesa
 
 
 PASO 2 — Construir answerMap
@@ -32,53 +52,145 @@ PASO 2 — Construir answerMap
   → answerMap = { [questionId]: value }   // mapa plano de todas las respuestas directas
 
 
-PASO 3 — Marcar el follow-up como REALIZADO
+PASO 3 — Procesar barreras (BarrierV2)
 
-  DB.follow_ups.Update({
-    id:           fu.id,
-    status:       "REALIZADO",
-    completed_at: now(),
-  })
+  DB.repeater_entries.FindBySubmissionIDAndGroupIDs({ submissionId, groupId: rgBarreras })
+  → Por cada entry:
+      Leer answers de la entry → entryMap
+      sectorExplicit = entryMap[qBarreraSector]  // dropdown de sector
+      Por cada pregunta de barreras (salud / justicia / proteccion):
+        SI valor no vacío:
+          sector = sectorExplicit || sectorFallback
+          Por cada opción del CSV:
+            → DB.barrier_v2.Create({ case_id, follow_up_id, sector, description, status: "OPEN" })
+            → barrierCount++
 
 
-PASO 4 — Registrar evento de timeline
+PASO 4 — Procesar derivaciones a equipos
+
+  equiposVal = answerMap[qEquipos]
+
+  SI equiposVal está vacío → saltar este paso
+
+  Por cada equipo en splitCSV(equiposVal):
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │ CASO: "atencion_psico"                                       │
+  └─────────────────────────────────────────────────────────────┘
+
+    REGLA DE EXCLUSIÓN:
+    SI equiposVal contiene "medidas_emergencia":
+      → Log: "atencion_psico omitida — incompatible con medidas_emergencia"
+      → OMITIR (break)
+
+    VALIDAR CRITERIOS:
+    criteriosVal = answerMap[qCriteriosPsico]
+    tieneCriterioObligatorio = criteriosVal contiene "criterio_obligatorio"
+
+    Puntaje por criterio:
+      conducta_suicida=3, interseccionalidad=2, sin_ruta=1,
+      condiciones_territoriales=1, sin_acceso_psico=1, naturalizacion_vbg=1
+
+    totalPuntos = suma de puntos de los criterios seleccionados
+
+    SI NOT tieneCriterioObligatorio OR totalPuntos < 3:
+      → Log: "derivacion psicosocial NO cumple criterios (obligatorio=X, puntos=N)"
+      → OMITIR (break)
+
+    → DB.psychosocial_support.Create({ case_id, follow_up_id, type: "derivacion", status: "ACTIVE" })
+    → Log: "✅ derivacion creada -> atencion_psico (id=...)"
+    → remisionCount++
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │ CASO: "atencion_hombres"                                     │
+  └─────────────────────────────────────────────────────────────┘
+
+    criteriosHombresVal = answerMap[qCriteriosHombres]
+
+    SI criteriosHombresVal NO contiene "criterio_hombres":
+      → Log: "derivacion atencion_hombres NO cumple criterio — omitida"
+      → OMITIR (break)
+
+    → DB.men_team_remision.Create({ case_id, follow_up_id, type: "derivacion", status: "ACTIVE" })
+    → Log: "✅ derivacion creada -> atencion_hombres (id=...)"
+    → remisionCount++
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │ CASO: "discapacidad"                                         │
+  └─────────────────────────────────────────────────────────────┘
+
+    serviciosVal = answerMap[qServiciosDiscap]
+
+    SI serviciosVal está vacío:
+      → Log: "derivacion discapacidad sin servicios seleccionados — omitida"
+      → OMITIR (break)
+
+    Por cada servicio en splitCSV(serviciosVal):
+      → DB.discapacidad_remision.Create({ case_id, follow_up_id, service, status: "ACTIVE" })
+      → Log: "✅ derivacion creada -> discapacidad servicio=X (id=...)"
+      → remisionCount++
+
+    Servicios posibles: apoyo_lsc | enfoque_discapacidad
+    Se crea 1 registro por servicio seleccionado.
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │ CASO: "estabilizacion"                                       │
+  └─────────────────────────────────────────────────────────────┘
+
+    criteriosEstVal = answerMap[qCriteriosEstab]
+
+    SI criteriosEstVal está vacío:
+      → Log: "derivacion estabilizacion sin criterios seleccionados — omitida"
+      → OMITIR (break)
+
+    → DB.economic_stabilization.Create({ case_id, follow_up_id, type: "derivacion", status: "ACTIVE" })
+    → Log: "✅ derivacion creada -> estabilizacion (id=...)"
+    → remisionCount++
+
+
+PASO 5 — Procesar medidas de emergencia
+
+  medidasVal = answerMap[qMedidasEmergencia]
+
+  SI medidasVal está vacío → saltar este paso
+
+  Por cada medida en splitCSV(medidasVal):
+    → DB.emergency_measure.Create({ case_id, follow_up_id, type: medida, status: "ACTIVE" })
+    → Log: "✅ medida emergencia creada tipo=X (id=...)"
+    → remisionCount++
+
+  Valores posibles: alojamiento | transporte | alimentacion | vestuario | apoyo_psico | otras_me
+
+
+PASO 6 — Marcar follow-up como REALIZADO
+
+  DB.follow_up_v2.UpdateStatus({ id: fu.id, status: "REALIZADO" })
+
+
+PASO 7 — Registrar evento en el timeline
+
+  Resolver nombre del actor (agentLightRepo.FindByICode)
+
+  description = "Seguimiento ejecutado. Se identificaron N barreras y se realizaron M remisiones a Equipos Salvia"
 
   DB.case_timeline_events.Create({
     case_id:       fu.case_id,
-    category:      "General",
-    type:          "Seguimiento Realizado",
-    icon:          "clipboard-check",
-    color:         "green",
-    description:   "Seguimiento completado por el profesional",
+    category:      "Seguimientos",
+    type:          "Seguimiento Ejecutado",
+    icon:          "calendar-check",
+    color:         "#22c55e",
+    description:   description,
     event_user_id: actorId,
+    actor_name:    actorName,
+    follow_up_id:  fu.id,
     date:          now(),
   })
 
-
-PASO 5 — Generar intentos del calendario de seguimiento
-
-  SI el follow-up aún no tiene intentos generados:
-    → Crear los registros de FollowUpAttempt en DB según la configuración
-      del calendario (fechas programadas de contacto)
+  SI falla el insert:
+    → Loggear advertencia (no aborta — el seguimiento ya fue marcado REALIZADO)
 
 
-PASO 6 — Procesar barreras (BarrierV2)
-
-  A partir de las respuestas de la sección de barreras en answerMap:
-  → Crear o actualizar registros BarrierV2 asociados al caso
-
-
-PASO 7 — Procesar medidas complementarias
-
-  Según las respuestas en answerMap:
-  → EmergencyMeasure:        crear/actualizar si aplica
-  → PsychosocialSupport:     crear/actualizar si aplica
-  → EconomicStabilization:   crear/actualizar si aplica
-
-
-PASO 8 — Cierre del caso (si el profesional marcó cierre en Sección 5)
-
-  qCierraCaso = "08950a38-3db3-4dc7-852c-3b06b4b1ed72"
+PASO 8 — Cierre del caso (Sección 5)
 
   SI answerMap[qCierraCaso] == "true":
 
@@ -101,17 +213,14 @@ PASO 8 — Cierre del caso (si el profesional marcó cierre en Sección 5)
             → TERMINAR sub-flujo (idempotente)
 
       S2. DB.victim_cases.UpdateStatus({ iCode: fu.case_id, status: "cd" })
-          → victim_case_status = "cd"
 
       S3. DB.case_timeline_events.Create({
-            case_id:       fu.case_id,
-            category:      "General",
-            type:          "Cierre de Caso",
-            icon:          "circle-xmark",
-            color:         "red",
-            description:   buildCierreDescription(Motivo, OtroMotivo, Descripcion),
-            event_user_id: actorId,
-            date:          now(),
+            case_id:  fu.case_id,
+            category: "General",
+            type:     "Cierre de Caso",
+            icon:     "circle-xmark",
+            color:    "red",
+            date:     now(),
           })
           SI falla el insert:
             → Loggear advertencia (el cierre ya ocurrió — no se revierte)
@@ -120,10 +229,102 @@ PASO 8 — Cierre del caso (si el profesional marcó cierre en Sección 5)
 
     SI CerrarCaso retorna error:
       → Loggear advertencia
-      → Continúar (no aborta el resto del procesamiento)
+      → Continuar (no aborta el flujo principal)
 
   SI answerMap[qCierraCaso] != "true":
     → No se cierra el caso
+
+
+PASO 9 — Reasignación de caso
+
+  → Llamar reasignarCaso(ctx, fu, answerMap, actorId)
+
+  ┌──────────────────────────────────────────────────────────────┐
+  │  SUB-FLUJO: reasignarCaso                                    │
+  └──────────────────────────────────────────────────────────────┘
+
+  S1. Leer nivel de riesgo actual del caso
+      DB.victim_case_form2.FindRiskLevelByICode({ iCode: fu.case_id })
+      → currentLevel = 1 | 2 | 3 | 4
+      SI error:
+        → Loggear advertencia → TERMINAR sub-flujo (no aborta el flujo principal)
+
+  S2. Leer y filtrar respuestas de factores
+      protectores = splitCSV(answerMap[qProtectores]).filter(v != "ninguno")
+      riesgos     = splitCSV(answerMap[qRiesgos]).filter(v != "ninguno")
+      extremos    = splitCSV(answerMap[qExtremo]).filter(v != "ninguno")
+      // "ninguno" se excluye antes de contar — no activa ninguna lógica
+
+  S3. Determinar nuevo nivel según respuestas y nivel actual
+
+      SI currentLevel ∈ [1, 2] (riesgo bajo):
+        SI len(extremos) > 0:
+          → newLevel = 4  // reasignación automática sin confirmación
+        SI qConfirmHigh == "true" Y len(riesgos) >= 4:
+          → newLevel = 3
+        SI NINGUNA condición:
+          → newLevel = 0  // sin reasignación
+
+      SI currentLevel ∈ [3, 4] (riesgo alto):
+        SI qConfirmLow == "true" Y len(extremos) == 0 Y len(protectores) >= 3:
+          → newLevel = 2
+        SI NINGUNA condición:
+          → newLevel = 0  // sin reasignación
+
+      SI newLevel == 0:
+        → Loggear decisión con detalle (extremos, riesgos, protectores, confirms)
+        → TERMINAR sub-flujo
+
+  S4. Actualizar nivel de riesgo en victim_case_form2
+      DB.victim_case_form2.UpdateRiskLevelByICode({ iCode: fu.case_id, newLevel })
+      SI error:
+        → Loggear advertencia → TERMINAR sub-flujo
+
+  S5. Reasignar calendario o agente según nuevo nivel
+
+      ┌─────────────────────────────────────────────────────────┐
+      │  SUB-FLUJO: ReasignarCalendario (FollowUpV2Service)     │
+      └─────────────────────────────────────────────────────────┘
+
+      SI newLevel >= 3 (alto/extremo):
+        team = "Riesgo alto"
+        → Calcular nuevas fechas según riskMatrix[newLevel]
+        → calcularAgente(ctx, fechas, team)  // Borda/dense-rank
+        → DB.follow_up_v2.DeletePendingByCaseID({ caseID })
+        → DB.follow_up_v2.BulkCreate(nuevos seguimientos)
+
+      SI newLevel == 2 (moderado destino):
+        team = "Riesgo bajo"
+        → Obtener fechas de los PENDIENTE existentes
+        → calcularAgente(ctx, fechas, team)  // Borda/dense-rank
+        → DB.follow_up_v2.UpdateAgentForPendingByCaseID({ caseID, agentID })
+        // No se borra ni regenera el calendario
+
+      SI error en ReasignarCalendario:
+        → Loggear advertencia → TERMINAR sub-flujo
+
+  S6. Actualizar equipo y agente en victim_case
+      team = "Riesgo alto" si newLevel >= 3, "Riesgo bajo" si newLevel == 2
+      newAgentID = primer follow_up_v2 PENDIENTE del caso → AgentID
+      DB.victim_case.UpdateTeamAndAgent({ iCode: fu.case_id, team, agentID: newAgentID })
+      SI error:
+        → Loggear advertencia (no aborta — la reasignación ya ocurrió)
+
+  S7. Registrar evento en el timeline
+      DB.case_timeline_events.Create({
+        case_id:       fu.case_id,
+        follow_up_id:  fu.id,
+        category:      "General",
+        type:          "Reasignación de Caso",
+        icon:          "arrows-rotate",
+        color:         "#f59e0b",
+        event_user_id: actorId,
+        date:          now(),
+      })
+      SI falla el insert:
+        → Loggear advertencia (no aborta — la reasignación ya ocurrió)
+
+      → FIN SUB-FLUJO reasignarCaso
 
   → FIN EJECUCIÓN ✓
 
@@ -132,9 +333,9 @@ PASO 8 — Cierre del caso (si el profesional marcó cierre en Sección 5)
 ⚠️  GAPS — Información pendiente
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-| Variable / decisión                                                              | Paso afectado |
-|----------------------------------------------------------------------------------|---------------|
-| Lógica interna exacta de generación de intentos del calendario                   | PASO 5        |
-| Criterios para crear/actualizar vs. ignorar BarrierV2 según answerMap            | PASO 6        |
-| Criterios para EmergencyMeasure, PsychosocialSupport, EconomicStabilization      | PASO 7        |
-| Qué pasa si el goroutine falla a mitad de ejecución (no hay rollback)            | General       |
+| Variable / decisión                                                                        | Paso afectado |
+|--------------------------------------------------------------------------------------------|---------------|
+| No hay rollback si el goroutine falla a mitad de ejecución (ej. falla al crear timeline)   | General       |
+| La lógica de puntaje de criterios psicosociales está duplicada en frontend y backend       | PASO 4        |
+| Agregar un criterio nuevo a qCriteriosPsico requiere cambio en código (no solo en BD)      | PASO 4        |
+| salvia_dignidad aparece como opción en qEquipos pero no tiene lógica en el switch          | PASO 4        |

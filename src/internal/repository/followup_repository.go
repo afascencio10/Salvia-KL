@@ -48,9 +48,14 @@ type FollowUpRepository interface {
 	// Cierre de casos
 	CloseCaseFollowUps(ctx context.Context, followUpID string) error
 
+	// Reasignación de caso
+	DeletePendingByCaseID(ctx context.Context, caseID string) error
+	UpdateAgentForPendingByCaseID(ctx context.Context, caseID string, agentID string) error
+
 	// Hacer seguimiento
 	LoadVictimInfoByCaseID(ctx context.Context, caseID string) (*VictimCaseInfo, error)
 	UpdateFormSubmissionID(ctx context.Context, id string, fsID string) error
+	UpdateActiveBarrierIDs(ctx context.Context, id string, ids string) error
 	UpdateFormIDAndSubmissionID(ctx context.Context, id string, formID string, fsID string) error
 	FindByFormSubmissionID(ctx context.Context, formSubmissionID string) (*models.FollowUpV2, error)
 	UpdateStatus(ctx context.Context, id string, status string) error
@@ -397,7 +402,8 @@ func (r *followUpRepository) LoadVictimInfoByCaseID(ctx context.Context, caseID 
 			COALESCE(gi.victim_case_form2_enums_name, '')                          AS gender_identity,
 			COALESCE(so.victim_case_form2_enums_name, '')                          AS sexual_orientation,
 			COALESCE(f2.victim_case_form2_support_contact_phone::text, '')         AS contact_phone,
-			EXTRACT(YEAR FROM AGE(NOW(), f2.victim_case_form2_birth_date))::int    AS age
+			EXTRACT(YEAR FROM AGE(NOW(), f2.victim_case_form2_birth_date))::int    AS age,
+			COALESCE(f2.victim_case_form2_risk_level, 0)                           AS "RiskLevel"
 		FROM salvia.victim_case vc
 		LEFT JOIN salvia.victim_case_form2 f2
 			ON f2.victim_case_form2_victim_case = vc.victim_case_id
@@ -410,7 +416,7 @@ func (r *followUpRepository) LoadVictimInfoByCaseID(ctx context.Context, caseID 
 		WHERE vc.victim_case_i_code = ?
 		LIMIT 1`
 	err := r.db.WithContext(ctx).Raw(sql, caseID).Scan(&info).Error
-	log.Printf("[REPO] LoadVictimInfoByCaseID → resultado: err=%v info=%+v", err, info)
+	log.Printf("[REPO] LoadVictimInfoByCaseID → resultado: err=%v | RiskLevel=%d | info=%+v", err, info.RiskLevel, info)
 	return &info, err
 }
 
@@ -420,6 +426,14 @@ func (r *followUpRepository) UpdateFormSubmissionID(ctx context.Context, id stri
 		Model(&models.FollowUpV2{}).
 		Where("id = ?", id).
 		Update("form_submission_id", fsID).Error
+}
+
+// UpdateActiveBarrierIDs persiste los IDs de barreras activas en el momento de la primera carga.
+func (r *followUpRepository) UpdateActiveBarrierIDs(ctx context.Context, id string, ids string) error {
+	return r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Where("id = ?", id).
+		Update("active_barrier_ids", ids).Error
 }
 
 // UpdateFormIDAndSubmissionID asigna formId y formSubmissionId a un seguimiento.
@@ -460,4 +474,19 @@ func (r *followUpRepository) UpdateStatus(ctx context.Context, id string, status
 
 func (r *followUpRepository) CreateTimelineEvent(ctx context.Context, event *models.CaseTimelineEvent) error {
 	return r.db.WithContext(ctx).Create(event).Error
+}
+
+// DeletePendingByCaseID elimina (soft-delete) todos los seguimientos PENDIENTE de un caso.
+func (r *followUpRepository) DeletePendingByCaseID(ctx context.Context, caseID string) error {
+	return r.db.WithContext(ctx).
+		Where("case_id = ? AND status = ?", caseID, models.FollowUpStatusPendiente).
+		Delete(&models.FollowUpV2{}).Error
+}
+
+// UpdateAgentForPendingByCaseID asigna un nuevo agente a todos los seguimientos PENDIENTE de un caso.
+func (r *followUpRepository) UpdateAgentForPendingByCaseID(ctx context.Context, caseID string, agentID string) error {
+	return r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Where("case_id = ? AND status = ?", caseID, models.FollowUpStatusPendiente).
+		Update("agent_id", agentID).Error
 }

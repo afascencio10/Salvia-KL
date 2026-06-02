@@ -12,9 +12,10 @@ type Question struct {
 	FormID          string         `gorm:"type:varchar(36);not null;index"                       json:"formId"`
 	FormSectionID   string         `gorm:"type:varchar(36);not null;index"                       json:"formSectionId"`
 	RepeaterGroupID *string        `gorm:"type:varchar(36);index"                                json:"repeaterGroupId,omitempty"`
-	QuestionTypeID  string         `gorm:"column:question_type;type:varchar(50);not null"        json:"questionTypeId"`
-	Description     string         `gorm:"type:text;not null"                                    json:"description"`
-	Required        bool           `gorm:"column:required;default:false"                         json:"required"`
+	QuestionTypeID    string         `gorm:"column:question_type;type:varchar(50);not null"        json:"questionTypeId"`
+	Description       string         `gorm:"type:text;not null"                                    json:"description"`
+	Required          bool           `gorm:"column:required;default:false"                         json:"required"`
+	StateOptionsPath  *string        `gorm:"type:varchar(255)"                                     json:"stateOptionsPath,omitempty"`
 	Order           int            `gorm:"column:order;default:0"                                json:"order"`
 	CreatedAt       time.Time      `                                                             json:"createdAt"`
 	UpdatedAt       time.Time      `                                                             json:"updatedAt"`

@@ -69,11 +69,16 @@ PASO 4 — Renderizar tabla y controles de paginación
   PARA CADA caso EN filteredCases:
     Renderizar fila con visibleColumns:
 
-      'victim_info'       → case.names + " " + case.lastNames  /  case.i_code
+      'victim_info'       → case.names + " " + case.lastNames
+                              Doc: case.docNumber  ·  Tel: case.victimPhone
+                              // docNumber ← victim_case.victim_case_victim_doc_number
+                              // victimPhone ← victim_case_form2_victim_phone, fallback victim_contact_form1_phone
       'operator'          → case.ownerNames + " " + case.ownerLastNames  (o "—" si vacío)
       'registration_date' → case.creationDate  formateada DD/MM/YYYY
       'risk_level'        → RiskBadge  usando case.riskStatus
-      'team'              → case.ownerTeam  (o "—" si vacío)
+                              // victim_case_form2.victim_case_form2_risk_level (1-4)
+                              // 1=bajo, 2=moderado, 3=alto, 4=extremo
+      'team'              → case.caseTeam  (victim_case_team; o "—" si vacío)
       'assigned_person'   → case.ownerNames + " " + case.ownerLastNames  (o "—" si vacío)
       'next_follow_up_date' →
           SI case.nextFollowUpDate existe: mostrar fecha formateada DD/MM/YYYY
@@ -114,12 +119,27 @@ PASO 5 — Construir query base
     vc.victim_case_victim_names,
     vc.victim_case_victim_last_names,
     vc.victim_case_victim_doc_number,
+    COALESCE(
+        NULLIF(vf2.victim_case_form2_victim_phone::text, ''),
+        (SELECT vcf1.victim_contact_form1_phone::text
+         FROM salvia.victim_contact_form1 vcf1
+         WHERE vcf1.victim_contact_form1_victim_contact = vc.victim_case_victim_contact
+         LIMIT 1),
+        ''
+    )                                  AS victim_phone,
     vc.victim_case_creation_date,
     vc.victim_case_status,
-    u.general_user_profile_names     AS owner_names,
-    u.general_user_profile_last_names AS owner_last_names,
-    u.general_user_team              AS owner_team,
-    fu.risk_status,
+    vc.agent_id,                                        // nuevo campo en victim_case
+    gup.general_user_profile_names     AS owner_names,
+    gup.general_user_profile_last_names AS owner_last_names,
+    gu.general_user_team               AS owner_team,
+    COALESCE(vc.victim_case_team, '')  AS case_team,
+    CASE vf2.victim_case_form2_risk_level
+        WHEN 1 THEN 'bajo'
+        WHEN 2 THEN 'moderado'
+        WHEN 3 THEN 'alto'
+        WHEN 4 THEN 'extremo'
+    END                              AS risk_status,
     (
       SELECT scheduled_date
       FROM   salvia.follow_up_v2
@@ -132,20 +152,15 @@ PASO 5 — Construir query base
 
   FROM salvia.victim_case vc
 
-  -- Operador/dueño activo del caso
-  LEFT JOIN salvia.rel_case_owner_victim_case rel
-         ON rel.victim_case_id = vc.victim_case_id
-        AND rel.rel_case_owner_victim_case_status = 'a'
-
   -- Perfil del agente asignado (nombres y equipo)
-  LEFT JOIN security.general_user_profile u
-         ON u.general_user_i_code = rel.case_owner_id   // ⚠️ GAP: confirmar la tabla/campo exacto
+  LEFT JOIN security.general_user gu
+         ON gu.general_user_i_code = vc.agent_id
+  LEFT JOIN security.general_user_profile gup
+         ON gup.general_user_profile_id = gu.general_user_general_user_profile
 
-  -- Último follow_up_v2 activo para el riesgo
-  LEFT JOIN salvia.follow_up_v2 fu
-         ON fu.case_id   = vc.victim_case_i_code
-        AND fu.status   != 'CERRADO'
-        AND fu.deleted_at IS NULL
+  -- Nivel de riesgo del tamizaje (formulario 2 del caso)
+  LEFT JOIN salvia.victim_case_form2 vf2
+         ON vf2.victim_case_form2_victim_case = vc.victim_case_id
 
 
 PASO 6 — Aplicar filtro según filter_key
@@ -153,21 +168,21 @@ PASO 6 — Aplicar filtro según filter_key
   SEGÚN filter_key:
 
     CASO 'casos_nuevos':
-      → WHERE NOT EXISTS (
-            SELECT 1 FROM salvia.follow_up_v2
-            WHERE  case_id   = vc.victim_case_i_code
-            AND    status    = 'REALIZADO'
-            AND    deleted_at IS NULL
-        )
+      → WHERE (vc.victim_case_creation_date AT TIME ZONE '{tz}')::date
+            = (NOW() AT TIME ZONE '{tz}')::date
+      // Casos creados hoy — Ver flow-E09
 
     CASO 'riesgo':
-      → WHERE fu.risk_status = filter_value
+      → WHERE vf2.victim_case_form2_risk_level = {nivel}
+      // filter_value: 'bajo'→1, 'moderado'→2, 'alto'→3, 'extremo'→4 — Ver flow-E10
 
     CASO 'equipo':
-      → WHERE u.general_user_team = filter_value
+      → WHERE vc.victim_case_team = filter_value
+      // Equipo del caso, no del agente — Ver flow-E11
 
     CASO 'persona_asignada':
-      → WHERE rel.case_owner_id = filter_value   // filter_value = icode del agente
+      → WHERE vc.agent_id = filter_value         // filter_value = icode del agente
+      // No requiere JOIN con rel_case_owner_victim_case; el agente está en victim_case.agent_id
 
     DEFAULT:
       → Sin cláusula WHERE adicional
@@ -203,12 +218,14 @@ PASO 9 — Construir y retornar response
         names:             victim_case_victim_names,
         lastNames:         victim_case_victim_last_names,
         docNumber:         victim_case_victim_doc_number,
+        victimPhone:       victim_phone,       // form2 al crear caso; fallback contact form1
         creationDate:      victim_case_creation_date,
         status:            victim_case_status,
-        ownerNames:        owner_names,        // del agente en rel_case_owner_victim_case activo
+        ownerNames:        owner_names,        // del agente en victim_case.agent_id → general_user_profile
         ownerLastNames:    owner_last_names,
-        ownerTeam:         owner_team,
-        riskStatus:        risk_status,        // del follow_up_v2 más reciente no cerrado
+        ownerTeam:         owner_team,         // equipo del agente (general_user)
+        caseTeam:          case_team,          // victim_case.victim_case_team
+        riskStatus:        risk_status,        // victim_case_form2_risk_level: 1=bajo, 2=moderado, 3=alto, 4=extremo
         nextFollowUpDate:  next_follow_up_date  // null si no hay pendiente
       },
       ...
@@ -225,11 +242,17 @@ PASO 9 — Construir y retornar response
 ⚠️  GAPS — Información pendiente
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-| Variable / decisión                                                                  | Paso afectado |
-|--------------------------------------------------------------------------------------|---------------|
-| Ruta exacta del endpoint backend (puede diferir de /api/v1/cases/list)              | PASO 2, 5     |
-| Tabla y campo exacto del perfil del agente: ¿security.general_user_profile?         | PASO 5        |
-| ¿El campo de teléfono de la víctima existe en victim_case o en victim_case_form1?   | PASO 5        |
-| Cuando hay múltiples follow_up_v2 no cerrados por caso, ¿cuál se usa para riskStatus? | PASO 5     |
-| Valores exactos del enum riskStatus en follow_up_v2 (¿'alto','medio','bajo'?)       | PASO 6, 9     |
-| Tamaño de página por defecto: ¿20 registros es correcto?                            | PASO 1, 8     |
+| Variable / decisión                                                                                         | Paso afectado |
+|-------------------------------------------------------------------------------------------------------------|---------------|
+| Ruta exacta del endpoint backend (puede diferir de /api/v1/cases/list)                                     | PASO 2, 5     |
+| Nombre exacto de la columna en BD: ¿agent_id? Confirmar con migración o DDL de salvia.victim_case          | PASO 5, 6     |
+| Tabla y campo exacto del perfil del agente: ¿security.general_user_profile.general_user_i_code?            | PASO 5        |
+| ¿El campo de teléfono de la víctima existe en victim_case o en victim_case_form1?                          | PASO 5        |
+| Cuando hay múltiples follow_up_v2 no cerrados por caso, ¿cuál se usa para riskStatus?                      | PASO 5        |
+| Valores exactos del enum riskStatus en follow_up_v2 (¿'alto','medio','bajo'?)                              | PASO 6, 9     |
+| Tamaño de página por defecto: ¿20 registros es correcto?                                                   | PASO 1, 8     |
+| ¿El campo agent_id en victim_case puede ser NULL? Si es NULL, el caso no tiene agente asignado             | PASO 5, 6     |
+
+> 📌 DECISIÓN DE DISEÑO: El filtro 'persona_asignada' ya no usa salvia.rel_case_owner_victim_case.
+> El JOIN con esa tabla se eliminó de la query base. El agente asignado se resuelve directamente
+> desde victim_case.agent_id → security.general_user_profile.

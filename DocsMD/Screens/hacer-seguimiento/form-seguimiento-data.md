@@ -12,9 +12,10 @@
 |---|---|---|---|
 | 1 | `525203d6` | Valoración del Riesgo | Siempre visible |
 | 2 | `0b7ff496` | Rutas Diferenciales | Siempre visible |
-| 3 | `235f44f5` | Identificación de Barreras | Visible solo si Q7 de Valoración del Riesgo = `true` |
-| 4 | `2a2347fd` | Seguimiento de Caso | Siempre visible |
-| 5 | `3e03f685` | Cierre del caso | Siempre visible |
+| 3 | `81e75efd` | Seguimiento a Barreras | Visible solo si hay barreras activas (`trigger_state_path` pendiente) |
+| 4 | `235f44f5` | Identificación de Barreras | Visible solo si Q14 de Valoración del Riesgo = `true` |
+| 5 | `2a2347fd` | Seguimiento de Caso | Siempre visible |
+| 6 | `3e03f685` | Cierre del caso | Siempre visible |
 
 ---
 
@@ -25,24 +26,35 @@
 | Order | ID | Tipo | Req | Pregunta | Notas |
 |---|---|---|---|---|---|
 | 1 | `f8b69cd8` | `single` | ✅ | Respondiente del seguimiento | 3 opciones |
-| 2 | `f8453544` | `text` | ❌ | Registre si se han presentado nuevos hechos de violencia desde el último seguimiento (Tiempo/Modo/Lugar) | |
-| 3 | `a0fdcf67` | `multiple` | ❌ | Factores protectores presentes en el caso | 6 opciones. Alert si ≥3 seleccionados |
-| 4 | `ec5bb242` | `multiple` | ❌ | Factores de riesgo presentes en el caso | 9 opciones. Alert si ≥4 seleccionados |
-| 5 | `9cec4dcf` | `boolean` | ✅ | ¿Las acciones desplegadas han tenido efecto protector tangible en la percepción de seguridad de la mujer? | |
-| 6 | `65f2d582` | `multiple` | ❌ | Factores de riesgo extremo. Si identifica uno o más, remita al equipo de riesgo. | 8 opciones. Alert si cualquiera seleccionado |
-| 7 | `2eede1a4` | `boolean` | ❌ | ¿Desde la atención anterior se han identificado barreras institucionales que hayan contribuido a mantener o incrementar el riesgo? | Dispara visibilidad de sección Identificación de Barreras |
-| 8 | `c2b02516` | `text` | ✅ | Describa de manera analítica cómo la integración de los factores protectores y riesgos presentes permite determinar la situación actual de riesgo | |
+| 2 | `(nuevo)` | `boolean` | ✅ | ¿Se registraron nuevos hechos de violencia? | Dispara visibilidad de Q3 y Q4 |
+| 3 | `f8453544` | `text` | ✅ | Registre si se han presentado nuevos hechos de violencia desde el último seguimiento (Tiempo/Modo/Lugar) | VC: Q2 = `true` |
+| 4 | `(nuevo)` | `date` | ✅ | Fecha en que ocurrieron los hechos | VC: Q2 = `true` |
+| 5 | `a0fdcf67` | `multiple` | ❌ | Factores protectores presentes en el caso | 7 opciones (incluye Ninguno). Alert si ≥3 seleccionados |
+| 6 | `ec5bb242` | `multiple` | ❌ | Factores de riesgo presentes en el caso | 10 opciones (incluye Ninguno). Alert si ≥4 seleccionados |
+| 7 | `9cec4dcf` | `boolean` | ✅ | ¿Las acciones desplegadas han tenido efecto protector tangible en la percepción de seguridad de la mujer? | |
+| 8 | `65f2d582` | `multiple` | ❌ | Factores de riesgo extremo. Si identifica uno o más, remita al equipo de riesgo. | 9 opciones (incluye Ninguno). Alert si cualquiera seleccionado |
+| 9 | `504cdad6` | `info` | ❌ | Reasignación: | VC: `formState.shouldReassignCase` = `true` |
+| 10 | `df7a0293` | `boolean` | ✅ | ¿Confirmar reasignación del caso a riesgo alto? | VC: `formState.canReassignHigh` = `true` |
+| 11 | `7ec8d66d` | `boolean` | ✅ | ¿Confirmar reasignación del caso a riesgo bajo? | VC: `formState.canReassignLow` = `true` |
+| 12 | `(nuevo)` | `info` | ❌ | Si quieres agregar otro factor protector, factor de riesgo o factor de riesgo extremo ponlo en la pregunta de abajo | |
+| 13 | `c2b02516` | `text` | ✅ | Describa de manera analítica cómo la integración de los factores protectores y riesgos presentes permite determinar la situación actual de riesgo | |
+| 14 | `2eede1a4` | `boolean` | ❌ | ¿Desde la atención anterior se han identificado barreras institucionales que hayan contribuido a mantener o incrementar el riesgo? | Dispara visibilidad de Sección Identificación de Barreras |
 
 ### Visibility Conditions — Valoración del Riesgo
-- **Sección Identificación de Barreras** → visible cuando Q7 (`2eede1a4`) = `true` | `EQUALS`
+- **Q3** → visible cuando Q2 = `true` | `EQUALS`
+- **Q4** → visible cuando Q2 = `true` | `EQUALS`
+- **Q9** (info Reasignación) → visible cuando `formState.shouldReassignCase` = `true`
+- **Q10** → visible cuando `formState.canReassignHigh` = `true`
+- **Q11** → visible cuando `formState.canReassignLow` = `true`
+- **Sección Identificación de Barreras** → visible cuando Q14 (`2eede1a4`) = `true` | `EQUALS`
 
 ### Metadata de alertas
 | Pregunta | Condición | Mensaje |
 |---|---|---|
-| Q3 — Factores protectores | `min_3_selected` | Sugerencia: con 3 o más factores protectores y ningún riesgo extremo, considere remitir a seguimiento general |
-| Q4 — Factores de riesgo | `min_4_selected` | Sugerencia: con 4 o más factores de riesgo, considere remitir al equipo de riesgo |
-| Q6 — Riesgo extremo | `any_selected` | Al finalizar el seguimiento realice remisión al equipo de Riesgo |
-| Q7 — Barreras | `hint_on_true` | Registre estas en el módulo de barreras |
+| Q5 — Factores protectores | `min_3_selected` | Sugerencia: con 3 o más factores protectores y ningún riesgo extremo, considere remitir a seguimiento general |
+| Q6 — Factores de riesgo | `min_4_selected` | Sugerencia: con 4 o más factores de riesgo, considere remitir al equipo de riesgo |
+| Q8 — Riesgo extremo | `any_selected` | Al finalizar el seguimiento realice remisión al equipo de Riesgo |
+| Q14 — Barreras | `hint_on_true` | Registre estas en el módulo de barreras |
 
 ---
 
@@ -76,32 +88,77 @@ Patrón repetido: `boolean` de sector → `multiple` de instituciones (condicion
 
 ---
 
-## Sección 3 — Identificación de Barreras
+## Sección 3 — Seguimiento a Barreras
+
+**ID:** `81e75efd-a885-4fd7-af84-48c03238da67`
+**Visibilidad:** Solo visible si hay barreras activas registradas en el caso (`trigger_state_path` pendiente de definir)
+**Tipo:** Contiene un `repeater_group`
+
+> Ver estructura detallada en: `form-seguimiento-barreras-repeater.md`
+
+### Repeater Group
+| Campo | Valor |
+|---|---|
+| ID | `b536f16c-67b3-4370-810d-7cc8c9d5463e` |
+| Nombre | Seguimiento a Barreras Activas |
+| item_name | Barrera |
+| add_button_label | Siguiente Barrera |
+
+### Preguntas (dentro del repeater)
+
+| Order | Tipo | Req | Pregunta | Condición |
+|---|---|---|---|---|
+| 1 | `info` | ❌ | Seguimiento a Barrera | — |
+| 2 | `boolean` | ✅ | ¿Persiste la barrera? | — |
+| 3 | `single` | ✅ | ¿Hubo respuesta institucional? | — (3 opts) |
+| 4 | `multiple` | ✅ | Gestión de la barrera | — (6 opts) |
+| 5 | `text` | ✅ | Actuaciones realizadas y descripción de la gestión realizada con relación a las barreras | — |
+| 6 | `boolean` | ✅ | ¿Se realiza cierre de la barrera? | — |
+| 7 | `single` | ✅ | Motivo del cierre | Q6 = `true` \| `EQUALS` (6 opts) |
+
+---
+
+## Sección 4 — Identificación de Barreras
 
 **ID:** `235f44f5-106d-4b86-8b5d-e087d04fd0d9`
-**Visibilidad:** Solo visible cuando Q7 de Valoración del Riesgo = `true`
+**Visibilidad:** Solo visible cuando Q14 de Valoración del Riesgo = `true`
 **Tipo:** Contiene un `repeater_group`
+
+> Ver estructura detallada en: `form-barreras-repeater.md`
 
 ### Repeater Group
 | Campo | Valor |
 |---|---|
 | ID | `5fd3ecdc-2e5f-4b31-97ef-8a994580586a` |
 | Nombre | Barreras identificadas |
+| item_name | Barrera |
 | min_repetitions | 1 |
-| max_repetitions | — (sin límite) |
 
-### Preguntas (dentro del repeater)
+### Preguntas (dentro del repeater) — resumen
 
-| Order | ID | Tipo | Req | Pregunta |
-|---|---|---|---|---|
-| 1 | `f19378b6` | `dropdown` | ✅ | Sector de la barrera |
-| 2 | `5fc1f2af` | `multiple` | ❌ | Barreras identificadas en Salud |
-| 3 | `2bec977e` | `multiple` | ❌ | Barreras identificadas en Justicia |
-| 4 | `66c9fc1e` | `multiple` | ❌ | Barreras identificadas en Protección |
+| Order | Tipo | Req | Pregunta |
+|---|---|---|---|
+| 1 | `dropdown` | ✅ | Sector de la barrera (Salud / Justicia / Protección / Otras instituciones / Barrera Transversal) |
+| 2–4 | `multiple` + `multiple` + `text` | ❌ | Bloque Salud: barreras (12), institución (7), otra barrera |
+| 5–7 | `multiple` + `multiple` + `text` | ❌ | Bloque Justicia: barreras (18), institución (14), otra barrera |
+| 8–10 | `multiple` + `multiple` + `text` | ❌ | Bloque Protección: barreras (13), institución (10), otra barrera |
+| 11 | `text` | ❌ | Nombre institución (visible solo si sector = Otras instituciones) |
+| 12 | `text` | ✅ | ¿La barrera se presentó en otra institución interna/externa? |
+| 13 | `dropdown` | ✅ | Departamento donde se presentó la barrera |
+| 14 | `dropdown` | ✅ | Ciudad donde se presentó la barrera |
+| 15 | `dropdown` | ✅ | Municipio donde se presentó la barrera |
+| 16 | `multiple` | ❌ | Barreras institucionales y de talento humano (5 opts) |
+| 17 | `multiple` | ❌ | Barreras económicas y socioeconómicas (2 opts) |
+| 18 | `multiple` | ❌ | Barreras territoriales y geográficas (1 opt) |
+| 19 | `multiple` | ❌ | Barreras por ausencia de enfoque diferencial (12 opts) |
+| 20 | `date` | ✅ | Fecha en la que se presentó la barrera (aproximada) |
+| 21 | `text` | ✅ | Funcionario/a o dependencia donde se presentó la barrera |
+| 22 | `text` | ✅ | Descripción de la barrera |
+| 23 | `multiple` | ✅ | Gestión de la barrera (6 opts) |
 
 ---
 
-## Sección 4 — Seguimiento de Caso
+## Sección 5 — Seguimiento de Caso
 
 **ID:** `2a2347fd-19d2-408c-a5de-02e854418479`
 
@@ -112,7 +169,7 @@ Patrón repetido: `boolean` de sector → `multiple` de instituciones (condicion
 | 3 | `e0d38cf5` | `multiple` | ✅ | ¿Cuáles equipos? | Q2 = `true` \| `EQUALS` (5 opts) |
 | 4 | `1a36260c` | `multiple` | ❌ | ¿Cuáles medidas de emergencia? | Q3 CONTAINS `medidas_emergencia` (6 opts) |
 | 5 | `71c42c4a` | `multiple` | ❌ | Criterios de remisión — Atención Psicosocial | Q3 CONTAINS `atencion_psico` (7 opts) |
-| 6 | `f7edf4fc` | `text` | ❌ | Criterios de remisión — Atención Hombres | Q3 CONTAINS `atencion_hombres` |
+| 6 | `f7edf4fc` | `multiple` | ❌ | Criterios de remisión — Atención Hombres | Q3 CONTAINS `atencion_hombres` |
 | 7 | `47b122b1` | `multiple` | ❌ | Criterios de remisión — Salvia Dignidad | Q3 CONTAINS `salvia_dignidad` (2 opts) |
 | 8 | `28accaa6` | `multiple` | ❌ | Criterios de remisión — Estabilización | Q3 CONTAINS `estabilizacion` (3 opts) |
 | 9 | `1bdc8b52` | `text` | ✅ | Describa los elementos que evidencia para realizar la remisión | Q2 = `true` \| `EQUALS` |
@@ -128,7 +185,7 @@ Patrón repetido: `boolean` de sector → `multiple` de instituciones (condicion
 
 ---
 
-## Sección 5 — Cierre del caso
+## Sección 6 — Cierre del caso
 
 **ID:** `3e03f685-0a41-4070-8ca7-1bc5f1e6b699`
 
@@ -155,9 +212,10 @@ Patrón repetido: `boolean` de sector → `multiple` de instituciones (condicion
 
 | Sección | Preguntas | Visibility Conditions | Repeater |
 |---|---|---|---|
-| Valoración del Riesgo | 8 | 1 (sobre sección) | No |
+| Valoración del Riesgo | 14 | 5 | No |
 | Rutas Diferenciales | 19 | 8 | No |
-| Identificación de Barreras | 4 | — | Sí (min 1) |
+| Seguimiento a Barreras | 7 (en repeater) | 1 + 1 sección | Sí |
+| Identificación de Barreras | 23 (en repeater) | 10 + 1 sección | Sí (min 1) |
 | Seguimiento de Caso | 9 | 6 | No |
 | Cierre del caso | 5 | 4 | No |
-| **Total** | **45** | **19** | |
+| **Total** | **77** | | |

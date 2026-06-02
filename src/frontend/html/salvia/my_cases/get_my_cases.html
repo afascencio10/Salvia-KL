@@ -1,0 +1,85 @@
+<div class="salvia-layout">
+    {{ template "sidebar/sidebar.html" . }}
+    <main class="salvia-main">
+<div class="container">
+    <div class="welcome-section">
+        <h2><b>Mis casos</b></h2>
+        <p class="text-muted mb-0">Casos asignados a ${ currentUser }</p>
+    </div>
+
+    {{ template "salvia/case_component/case_component.html" . }}
+
+    <div class="mt-4 mb-4">
+        <casos-component
+            :agent-id="currentUserId"
+            :default-filter="casosDefaultFilter"
+            :available-filters="casosAvailableFilters"
+            :columns="casosColumns"
+            :buttons="casosButtons"
+            @action-clicked="onCasoActionClicked"
+        ></casos-component>
+    </div>
+</div>
+    </main>
+</div>
+
+{{ template "standard_scripts.html" . }}
+{{ template "overlay.html" . }}
+
+<script>
+    var home = Vue.createApp({
+        delimiters: ['${', '}'],
+        data: function() {
+            return {
+                windowTitle: {{.windowTitle}},
+                currentUser: "{{.currentUser}}",
+                currentUserId: "{{.currentUserId}}",
+                menu: {{.menu}},
+
+                casosDefaultFilter: { key: 'persona_asignada', value: "{{.currentUserId}}" },
+                casosAvailableFilters: [
+                    { key: 'casos_nuevos', type: 'chip',     label: 'Casos nuevos', options: [] },
+                    { key: 'riesgo',       type: 'dropdown', label: 'Nivel de riesgo', options: [
+                        { value: 'bajo',     label: 'Bajo'     },
+                        { value: 'moderado', label: 'Moderado' },
+                        { value: 'alto',     label: 'Alto'     },
+                        { value: 'extremo',  label: 'Extremo'  },
+                    ]},
+                    { key: 'busqueda',     type: 'search',   label: 'Buscar por documento o teléfono' },
+                ],
+                casosColumns: [
+                    { key: 'victim_info',         label: 'Víctima'             },
+                    { key: 'registration_date',   label: 'Fecha de registro'   },
+                    { key: 'risk_level',          label: 'Nivel de riesgo'     },
+                    { key: 'team',                label: 'Equipo'              },
+                    { key: 'next_follow_up_date', label: 'Próximo seguimiento' },
+                ],
+                casosButtons: [
+                    { id: 'detalle', label: 'Ver detalle' },
+                ],
+            };
+        },
+        mounted: function() {
+            document.title = {{.windowTitle}};
+            document.getElementById('app').style.display = 'block';
+        },
+        methods: {
+            onCasoActionClicked: function(payload) {
+                if (payload.buttonId === 'detalle') {
+                    location.assign('/salvia/casos/' + payload.case.i_code + '/detalle');
+                }
+            },
+        },
+    });
+
+    var app = home;
+
+    var _tplCasos = document.getElementById('tpl-casos-component');
+    window.__casosComponentTpl = _tplCasos ? _tplCasos.innerHTML : '';
+</script>
+
+<script src="/static/js/components/casos-component.js"></script>
+
+<script>
+    home.mount("#app");
+</script>

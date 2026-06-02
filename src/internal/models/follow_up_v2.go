@@ -42,8 +42,11 @@ type FollowUpV2 struct {
 	ReassignmentReason *string    `gorm:"type:text"          json:"reassignment_reason,omitempty"`
 
 	// ── Flags y resumen ──────────────────────────────────────────────────────
-	IsPriority bool    `gorm:"default:false" json:"is_priority"`
-	Summary    *string `gorm:"type:text"     json:"summary,omitempty"`
+	IsPriority       bool    `gorm:"default:false"      json:"is_priority"`
+	Summary          *string `gorm:"type:text"          json:"summary,omitempty"`
+	// IDs de barreras activas al momento de cargar el seguimiento por primera vez.
+	// Comma-separated UUIDs: "id1,id2,id3". Se fija en E-01 y no cambia después.
+	ActiveBarrierIDs *string `gorm:"type:text"          json:"active_barrier_ids,omitempty"`
 
 	// ── Auditoría ────────────────────────────────────────────────────────────
 	CreatedAt time.Time      `json:"created_at"`

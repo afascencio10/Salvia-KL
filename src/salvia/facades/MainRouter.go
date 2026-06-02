@@ -201,6 +201,11 @@ func StartRouter(router *gin.Engine) {
 		secRouter.GET("/mis-seguimientos", MyFollowUpsGET)
 
 		/*
+			Mis Casos
+		*/
+		secRouter.GET("/mis-casos", MyCasesGET)
+
+		/*
 			Feminicide
 		*/
 		translatedEntity = salvia_config.Locale["sp"][salvia_daos.FeminicideEntityName]

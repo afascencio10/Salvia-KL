@@ -11,6 +11,9 @@ type BarrierV2Repository interface {
 	Repository[models.BarrierV2]
 	FindByCaseID(ctx context.Context, caseID string) ([]models.BarrierV2, error)
 	FindByFollowUpID(ctx context.Context, followUpID string) ([]models.BarrierV2, error)
+	FindActiveByCaseID(ctx context.Context, caseID string) ([]models.BarrierV2, error)
+	FindByIDs(ctx context.Context, ids []string) ([]models.BarrierV2, error)
+	UpdateStatus(ctx context.Context, id string, status string) error
 	// FindByCreatedByIDWithRelations devuelve barreras del agente enriquecidas
 	// con datos de victim_case (nombres, documento, i_code).
 	FindByCreatedByIDWithRelations(ctx context.Context, createdByID string) ([]models.BarrierV2WithRelations, error)
@@ -36,6 +39,28 @@ func (r *barrierV2Repository) FindByCaseID(ctx context.Context, caseID string) (
 func (r *barrierV2Repository) FindByFollowUpID(ctx context.Context, followUpID string) ([]models.BarrierV2, error) {
 	var items []models.BarrierV2
 	return items, r.db.WithContext(ctx).Where("follow_up_id = ?", followUpID).Find(&items).Error
+}
+
+func (r *barrierV2Repository) FindActiveByCaseID(ctx context.Context, caseID string) ([]models.BarrierV2, error) {
+	var items []models.BarrierV2
+	return items, r.db.WithContext(ctx).
+		Where("case_id = ? AND status != ? AND deleted_at IS NULL", caseID, models.BarrierV2StatusManaged).
+		Find(&items).Error
+}
+
+func (r *barrierV2Repository) FindByIDs(ctx context.Context, ids []string) ([]models.BarrierV2, error) {
+	var items []models.BarrierV2
+	if len(ids) == 0 {
+		return items, nil
+	}
+	return items, r.db.WithContext(ctx).Where("id IN ?", ids).Find(&items).Error
+}
+
+func (r *barrierV2Repository) UpdateStatus(ctx context.Context, id string, status string) error {
+	return r.db.WithContext(ctx).
+		Model(&models.BarrierV2{}).
+		Where("id = ?", id).
+		Update("status", status).Error
 }
 
 // barrierWithRelationsSQL es la query base que enriquece barrier_v2 con datos

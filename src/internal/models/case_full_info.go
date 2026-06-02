@@ -18,6 +18,7 @@ type CaseFullInfo struct {
 
 type CaseInfoEncabezado struct {
 	Funcionarios      string `json:"funcionarios"`
+	AgenteAsignado    string `json:"agenteAsignado"`
 	FechaCreacion     string `json:"fechaCreacion"`
 	FechaModificacion string `json:"fechaModificacion"`
 	Estado            string `json:"estado"`
