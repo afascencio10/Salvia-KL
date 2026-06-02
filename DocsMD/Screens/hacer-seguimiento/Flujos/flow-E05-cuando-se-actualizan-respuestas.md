@@ -69,10 +69,10 @@ Función: `onAnswersUpdated(payload)` en `hacer_seguimiento.html`
 
 ### Bloque 2 — Estado de reasignación de caso (`_updateReasignacionState`)
 
-**5.** Leer factores:
-- `protectores = splitCSV(getVal(Q_PROTECTORES))`
-- `riesgos     = splitCSV(getVal(Q_RIESGOS))`
-- `extremos    = splitCSV(getVal(Q_EXTREMO))`
+**5.** Leer y filtrar factores (excluir `"ninguno"` antes de contar):
+- `protectores = splitCSV(getVal(Q_PROTECTORES)).filter(v => v !== 'ninguno')`
+- `riesgos     = splitCSV(getVal(Q_RIESGOS)).filter(v => v !== 'ninguno')`
+- `extremos    = splitCSV(getVal(Q_EXTREMO)).filter(v => v !== 'ninguno')`
 - `level       = this.caseRiskLevel`
 
 **6.** Reset de todos los valores de reasignación:

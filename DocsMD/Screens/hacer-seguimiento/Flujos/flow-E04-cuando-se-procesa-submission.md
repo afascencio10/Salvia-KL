@@ -249,32 +249,38 @@ PASO 9 — Reasignación de caso
       SI error:
         → Loggear advertencia → TERMINAR sub-flujo (no aborta el flujo principal)
 
-  S2. Determinar nuevo nivel según respuestas y nivel actual
+  S2. Leer y filtrar respuestas de factores
+      protectores = splitCSV(answerMap[qProtectores]).filter(v != "ninguno")
+      riesgos     = splitCSV(answerMap[qRiesgos]).filter(v != "ninguno")
+      extremos    = splitCSV(answerMap[qExtremo]).filter(v != "ninguno")
+      // "ninguno" se excluye antes de contar — no activa ninguna lógica
+
+  S3. Determinar nuevo nivel según respuestas y nivel actual
 
       SI currentLevel ∈ [1, 2] (riesgo bajo):
-        SI extremos seleccionados (qExtremo) > 0:
+        SI len(extremos) > 0:
           → newLevel = 4  // reasignación automática sin confirmación
-        SI qConfirmHigh == "true" Y riesgos >= 4:
+        SI qConfirmHigh == "true" Y len(riesgos) >= 4:
           → newLevel = 3
         SI NINGUNA condición:
           → newLevel = 0  // sin reasignación
 
       SI currentLevel ∈ [3, 4] (riesgo alto):
-        SI qConfirmLow == "true" Y extremos == 0 Y protectores >= 3:
+        SI qConfirmLow == "true" Y len(extremos) == 0 Y len(protectores) >= 3:
           → newLevel = 2
         SI NINGUNA condición:
           → newLevel = 0  // sin reasignación
 
       SI newLevel == 0:
-        → Loggear "sin reasignación necesaria"
+        → Loggear decisión con detalle (extremos, riesgos, protectores, confirms)
         → TERMINAR sub-flujo
 
-  S3. Actualizar nivel de riesgo en victim_case_form2
+  S4. Actualizar nivel de riesgo en victim_case_form2
       DB.victim_case_form2.UpdateRiskLevelByICode({ iCode: fu.case_id, newLevel })
       SI error:
         → Loggear advertencia → TERMINAR sub-flujo
 
-  S4. Reasignar calendario o agente según nuevo nivel
+  S5. Reasignar calendario o agente según nuevo nivel
 
       ┌─────────────────────────────────────────────────────────┐
       │  SUB-FLUJO: ReasignarCalendario (FollowUpV2Service)     │
@@ -297,7 +303,14 @@ PASO 9 — Reasignación de caso
       SI error en ReasignarCalendario:
         → Loggear advertencia → TERMINAR sub-flujo
 
-  S5. Registrar evento en el timeline
+  S6. Actualizar equipo y agente en victim_case
+      team = "Riesgo alto" si newLevel >= 3, "Riesgo bajo" si newLevel == 2
+      newAgentID = primer follow_up_v2 PENDIENTE del caso → AgentID
+      DB.victim_case.UpdateTeamAndAgent({ iCode: fu.case_id, team, agentID: newAgentID })
+      SI error:
+        → Loggear advertencia (no aborta — la reasignación ya ocurrió)
+
+  S7. Registrar evento en el timeline
       DB.case_timeline_events.Create({
         case_id:       fu.case_id,
         follow_up_id:  fu.id,
@@ -311,7 +324,7 @@ PASO 9 — Reasignación de caso
       SI falla el insert:
         → Loggear advertencia (no aborta — la reasignación ya ocurrió)
 
-      → FIN SUB-FLUJO
+      → FIN SUB-FLUJO reasignarCaso
 
   → FIN EJECUCIÓN ✓
 

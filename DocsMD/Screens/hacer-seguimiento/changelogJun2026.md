@@ -2,6 +2,25 @@
 
 ---
 
+## 2026-06-01 — Correcciones y mejoras al flujo de reasignación
+
+**Bug fix: `riskLevel` siempre llegaba como 0 al frontend.** La query `LoadVictimInfoByCaseID` en `followup_repository.go` no incluía `victim_case_form2_risk_level` en el SELECT. Se agregó `COALESCE(f2.victim_case_form2_risk_level, 0) AS "RiskLevel"`.
+
+**Reasignación actualiza `victim_case`.** Después de `ReasignarCalendario`, se actualiza `victim_case_team` y `agent_id` en la tabla `victim_case` con el equipo destino y el agente recién asignado (leído del primer PENDIENTE).
+
+**Filtro "ninguno" en factores de riesgo.** Las preguntas de factores protectores, de riesgo y de riesgo extremo tienen una opción `ninguno` que ahora se excluye antes de correr la lógica de reasignación, tanto en frontend (`_updateReasignacionState`) como en backend (`reasignarCaso`).
+
+### Archivos modificados
+
+| Archivo | Cambio |
+|---|---|
+| `src/internal/repository/followup_repository.go` | Agrega `risk_level` al SELECT de `LoadVictimInfoByCaseID` |
+| `src/internal/repository/victim_case_light_repository.go` | Nuevo método `UpdateTeamAndAgent` |
+| `src/salvia/service/form_service.go` | `reasignarCaso`: filtro "ninguno", llamada a `UpdateTeamAndAgent` post-reasignación |
+| `src/frontend/html/salvia/follow_up_v2/hacer_seguimiento.html` | `_updateReasignacionState`: filtro "ninguno" antes de contar factores |
+
+---
+
 ## 2026-06-01 — Registrar Barreras y Seguimiento a Barreras
 
 Implementación completa del flujo de identificación y seguimiento de barreras institucionales desde el formulario de seguimiento.

@@ -367,9 +367,10 @@
                 const Q_RIESGOS     = 'ec5bb242-6f86-4c64-8b9f-afabd5a51878';
                 const Q_EXTREMO     = '65f2d582-a39d-4c93-9519-1a20efbebb03';
 
-                const protectores = splitCSV(getVal(Q_PROTECTORES));
-                const riesgos     = splitCSV(getVal(Q_RIESGOS));
-                const extremos    = splitCSV(getVal(Q_EXTREMO));
+                const sinNinguno  = arr => arr.filter(v => v !== 'ninguno');
+                const protectores = sinNinguno(splitCSV(getVal(Q_PROTECTORES)));
+                const riesgos     = sinNinguno(splitCSV(getVal(Q_RIESGOS)));
+                const extremos    = sinNinguno(splitCSV(getVal(Q_EXTREMO)));
                 const level       = this.caseRiskLevel;
 
                 console.log('[reasignacion] level=%o | protectores=%o | riesgos=%o | extremos=%o', level, protectores, riesgos, extremos);

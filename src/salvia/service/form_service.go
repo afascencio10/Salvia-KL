@@ -2171,6 +2171,10 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		qCriteriosHombres        = "f7edf4fc-d1cd-4591-a358-31566c806365" // Criterios de remisión — Atención Hombres (multiple)
 		qCriteriosEstabilizacion = "28accaa6-99dc-4ec4-967b-f26045ad707c" // Criterios de remisión — Estabilización (multiple)
 		qServiciosDiscapacidad   = "47b122b1-0151-4b58-a007-d4afb722c1b9" // Servicios del Equipo de Discapacidad (multiple)
+		// Sección 1 — Valoración del Riesgo: nuevos hechos de violencia
+		qNuevosHechosViolencia = "69ccecbe-8fd5-44a4-901a-17084ea7134d" // Q2 boolean — ¿Se registraron nuevos hechos?
+		qDescripcionHechos     = "f8453544-2a8c-461d-9986-302ee4719492" // Q3 text   — Descripción (visible si Q2=true)
+		qFechaHechos           = "7373aeab-b6d8-44e4-b1ce-4d40196f17bc" // Q4 date   — Fecha en que ocurrieron
 		// Sección 5 — Cierre del caso
 		qCierraCaso         = "08950a38-3db3-4dc7-852c-3b06b4b1ed72" // boolean — ¿Realiza cierre del caso?
 		qCierreMotivo       = "95fb963e-99de-4a1d-a170-8e30845d1f7d" // single  — Motivo del cierre
@@ -2528,7 +2532,38 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		}
 	}
 
-	// 8. Cierre del caso: si el profesional marcó cierre en la Sección 5, delegar al servicio modular
+	// 7b. Crear evento de nuevos hechos de violencia (si se reportaron en Sección 1)
+	if answerMap[qNuevosHechosViolencia] == "true" && s.caseTimelineRepo != nil {
+		descripcion := strings.TrimSpace(answerMap[qDescripcionHechos])
+		fechaStr := strings.TrimSpace(answerMap[qFechaHechos])
+
+		fechaHechos := time.Now()
+		if fechaStr != "" {
+			if t, err := time.Parse("2006-01-02", fechaStr); err == nil {
+				fechaHechos = t
+			}
+		}
+
+		hechoEvent := &models.CaseTimelineEvent{
+			CaseID:      fu.CaseID,
+			FollowUpID:  fu.ID,
+			Category:    models.TimelineCategoryGeneral,
+			Type:        models.TimelineTypeHechosCaso,
+			Icon:        models.TimelineIconHechosCaso,
+			Color:       "#f87171",
+			Description: descripcion,
+			EventUserID: actorID,
+			Date:        fechaHechos,
+			CreatedAt:   time.Now(),
+		}
+		if err := s.caseTimelineRepo.Create(ctx, hechoEvent); err != nil {
+			log.Printf("[processFollowUp] advertencia: no se pudo crear evento nuevos hechos: %v", err)
+		} else {
+			log.Printf("[processFollowUp] ✅ evento 'Nuevos hechos de violencia' creado → fecha=%s", fechaStr)
+		}
+	}
+
+	// 8. Cierre del caso: si el profesional marcó ciorre en la Sección 5, delegar al servicio modular
 	if answerMap[qCierraCaso] == "true" && s.casoCierreService != nil {
 		input := CerrarCasoInput{
 			CaseICode:               fu.CaseID,
@@ -2581,9 +2616,18 @@ func (s *formService) reasignarCaso(ctx context.Context, fu *models.FollowUpV2, 
 		return out
 	}
 
-	protectores := splitCSV(answerMap[qProtectores])
-	riesgos     := splitCSV(answerMap[qRiesgos])
-	extremos    := splitCSV(answerMap[qExtremo])
+	sinNinguno := func(vals []string) []string {
+		out := vals[:0]
+		for _, v := range vals {
+			if v != "ninguno" {
+				out = append(out, v)
+			}
+		}
+		return out
+	}
+	protectores := sinNinguno(splitCSV(answerMap[qProtectores]))
+	riesgos     := sinNinguno(splitCSV(answerMap[qRiesgos]))
+	extremos    := sinNinguno(splitCSV(answerMap[qExtremo]))
 	confirmHigh := answerMap[qConfirmHigh] == "true"
 	confirmLow  := answerMap[qConfirmLow]  == "true"
 
@@ -2598,20 +2642,31 @@ func (s *formService) reasignarCaso(ctx context.Context, fu *models.FollowUpV2, 
 
 	// Determinar nuevo nivel
 	newLevel := 0
+	var razon string
 	if currentLevel >= 1 && currentLevel <= 2 {
 		if len(extremos) > 0 {
-			newLevel = 4 // reasignación automática
+			newLevel = 4
+			razon = "caso bajo + factor extremo → automático nivel 4"
 		} else if confirmHigh && len(riesgos) >= 4 {
 			newLevel = 3
+			razon = fmt.Sprintf("caso bajo + %d riesgos + confirmHigh → nivel 3", len(riesgos))
+		} else {
+			razon = fmt.Sprintf("caso bajo — sin condición: extremos=%d riesgos=%d confirmHigh=%v", len(extremos), len(riesgos), confirmHigh)
 		}
 	} else if currentLevel >= 3 {
 		if confirmLow && len(extremos) == 0 && len(protectores) >= 3 {
 			newLevel = 2
+			razon = fmt.Sprintf("caso alto + %d protectores + sin extremo + confirmLow → nivel 2", len(protectores))
+		} else {
+			razon = fmt.Sprintf("caso alto — sin condición: extremos=%d protectores=%d confirmLow=%v", len(extremos), len(protectores), confirmLow)
 		}
+	} else {
+		razon = fmt.Sprintf("nivel fuera de rango: %d", currentLevel)
 	}
 
+	log.Printf("[reasignarCaso] decisión: newLevel=%d | %s", newLevel, razon)
+
 	if newLevel == 0 {
-		log.Printf("[reasignarCaso] sin reasignación necesaria para caseID=%s", fu.CaseID)
 		return
 	}
 

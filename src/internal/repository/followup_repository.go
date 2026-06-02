@@ -402,7 +402,8 @@ func (r *followUpRepository) LoadVictimInfoByCaseID(ctx context.Context, caseID 
 			COALESCE(gi.victim_case_form2_enums_name, '')                          AS gender_identity,
 			COALESCE(so.victim_case_form2_enums_name, '')                          AS sexual_orientation,
 			COALESCE(f2.victim_case_form2_support_contact_phone::text, '')         AS contact_phone,
-			EXTRACT(YEAR FROM AGE(NOW(), f2.victim_case_form2_birth_date))::int    AS age
+			EXTRACT(YEAR FROM AGE(NOW(), f2.victim_case_form2_birth_date))::int    AS age,
+			COALESCE(f2.victim_case_form2_risk_level, 0)                           AS "RiskLevel"
 		FROM salvia.victim_case vc
 		LEFT JOIN salvia.victim_case_form2 f2
 			ON f2.victim_case_form2_victim_case = vc.victim_case_id
@@ -415,7 +416,7 @@ func (r *followUpRepository) LoadVictimInfoByCaseID(ctx context.Context, caseID 
 		WHERE vc.victim_case_i_code = ?
 		LIMIT 1`
 	err := r.db.WithContext(ctx).Raw(sql, caseID).Scan(&info).Error
-	log.Printf("[REPO] LoadVictimInfoByCaseID → resultado: err=%v info=%+v", err, info)
+	log.Printf("[REPO] LoadVictimInfoByCaseID → resultado: err=%v | RiskLevel=%d | info=%+v", err, info.RiskLevel, info)
 	return &info, err
 }
 

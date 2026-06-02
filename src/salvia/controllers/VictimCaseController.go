@@ -35,6 +35,9 @@ var FollowUpSvc service.FollowUpV2Service
 // CaseTimelineRepo es inyectado desde main.go para registrar eventos en el timeline al crear un caso.
 var CaseTimelineRepo repository.CaseTimelineEventRepository
 
+// VictimCaseLightRepo es inyectado desde main.go para actualizar team/agent en victim_case al crear un caso.
+var VictimCaseLightRepo repository.VictimCaseLightRepository
+
 type VictimCaseRequest struct {
 	VCase salvia_daos.VictimCaseDTO `json:"victimCase"`
 }
@@ -514,11 +517,25 @@ func SetVictimCase(dataInput string, s utils.CommonSession, dbClientConfig db.DB
 				AgentID:   "",             // Se asignará "SIN_ASIGNAR" por defecto en el servicio
 				Team:      "",             // Se define por nivel de riesgo en el servicio
 			}
-			_, calErr := FollowUpSvc.GenerateOrRecalculate(context.Background(), vCaseRequest.VCase.VictimCaseICode, calendarInput)
+			followUps, calErr := FollowUpSvc.GenerateOrRecalculate(context.Background(), vCaseRequest.VCase.VictimCaseICode, calendarInput)
 			if calErr != nil {
 				log.Printf("[WARN] HU-027: Error generando calendario para caso %s: %v", vCaseRequest.VCase.VictimCaseICode, calErr)
 			} else {
 				log.Printf("[INFO] HU-027: Calendario generado para caso %s (risk_level=%d)", vCaseRequest.VCase.VictimCaseICode, riskLevel)
+
+				// Actualizar team y agent en victim_case
+				if VictimCaseLightRepo != nil && len(followUps) > 0 {
+					team := followUps[0].Team
+					agentID := ""
+					if followUps[0].AgentID != nil {
+						agentID = *followUps[0].AgentID
+					}
+					if err := VictimCaseLightRepo.UpdateTeamAndAgent(context.Background(), vCaseRequest.VCase.VictimCaseICode, team, agentID); err != nil {
+						log.Printf("[WARN] HU-027: No se pudo actualizar team/agent en victim_case %s: %v", vCaseRequest.VCase.VictimCaseICode, err)
+					} else {
+						log.Printf("[INFO] HU-027: victim_case actualizado → team=%q agentID=%s", team, agentID)
+					}
+				}
 			}
 		}()
 	}
