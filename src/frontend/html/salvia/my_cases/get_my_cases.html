@@ -36,7 +36,8 @@
                 currentUserId: "{{.currentUserId}}",
                 menu: {{.menu}},
 
-                casosDefaultFilter: { key: 'persona_asignada', value: "{{.currentUserId}}" },
+                //casosDefaultFilter: { key: 'persona_asignada', value: "{{.currentUserId}}" },
+                casosDefaultFilter: {},
                 casosAvailableFilters: [
                     { key: 'casos_nuevos', type: 'chip',     label: 'Casos nuevos', options: [] },
                     { key: 'riesgo',       type: 'dropdown', label: 'Nivel de riesgo', options: [
@@ -45,6 +46,13 @@
                         { value: 'alto',     label: 'Alto'     },
                         { value: 'extremo',  label: 'Extremo'  },
                     ]},
+                    { key: 'seguimientos_ejecutados', type: 'dropdown', label: 'Seguimientos ejecutados', options: (function() {
+                        var opts = [];
+                        for (var i = 0; i <= 10; i++) {
+                            opts.push({ value: String(i), label: String(i) });
+                        }
+                        return opts;
+                    })() },
                     { key: 'busqueda',     type: 'search',   label: 'Buscar por documento o teléfono' },
                 ],
                 casosColumns: [
@@ -53,6 +61,7 @@
                     { key: 'risk_level',          label: 'Nivel de riesgo'     },
                     { key: 'team',                label: 'Equipo'              },
                     { key: 'next_follow_up_date', label: 'Próximo seguimiento' },
+                    { key: 'completed_follow_ups', label: 'Seguimientos ejecutados' },
                 ],
                 casosButtons: [
                     { id: 'detalle', label: 'Ver detalle' },

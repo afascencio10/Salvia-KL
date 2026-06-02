@@ -45,7 +45,7 @@
                             <label class="cc-filter-label">${ filter.label }</label>
                             <select
                                 class="cc-select"
-                                :class="{ 'cc-select--active': activeDropdown && activeDropdown.key === filter.key }"
+                                :class="{ 'cc-select--active': !!activeDropdowns[filter.key] }"
                                 :value="dropdownSelectValue(filter.key)"
                                 @change="setDropdownFilter(filter.key, $event.target.value)"
                             >
@@ -214,6 +214,11 @@
                                         ${ formatDate(caseObj.nextFollowUpDate) }
                                     </span>
                                     <span v-else class="cc-follow-up-none">—</span>
+                                </td>
+
+                                <!-- completed_follow_ups -->
+                                <td v-else-if="col.key === 'completed_follow_ups'" class="cc-cell cc-cell-completed-follow-ups">
+                                    ${ completedFollowUpsDisplay(caseObj) }
                                 </td>
 
                                 <!-- columna desconocida -->

@@ -15,9 +15,10 @@
  *
  * Eventos internos implementados por archivo:
  *   E-01  mounted         — carga inicial de casos
- *   E-09  toggleChipFilter — filtro chip casos nuevos (hoy, America/Bogota)
- *   E-10  setDropdownFilter — filtro dropdown nivel de riesgo (1-4, fijo en UI)
- *   E-11  setDropdownFilter — filtro dropdown por equipo (victim_case_team; no combina con agentId)
+ *   E-09  toggleChipFilter — filtro chip casos nuevos (hoy −5 días, America/Bogota)
+ *   E-10  setDropdownFilter — filtro dropdown nivel de riesgo (combinable)
+ *   E-11  setDropdownFilter — filtro dropdown por equipo (no combina con agentId)
+ *   E-12  setDropdownFilter — filtro dropdown seguimientos ejecutados 0–10 (combinable)
  *   E-03  onSearchInput   — búsqueda con debounce
  *   E-04  onSortChange    — cambio de ordenamiento
  *   E-05  emitActionClicked
@@ -51,7 +52,7 @@
             // --- Estado principal ---
             activeFilter:    null,
             activeChipKey:   null,
-            activeDropdown:  null, // { key, value } — riesgo, equipo; combinable con agentId/chip
+            activeDropdowns:   {}, // { riesgo: 'alto', seguimientos_ejecutados: '2', ... } — combinables
             searchText:    '',
             sortBy:        'registration_date',
             sortOrder:     'desc',
@@ -144,7 +145,8 @@
 
         normalizeDefaultActiveFilter: function() {
             var df = Object.assign({}, this.defaultFilter);
-            if (!df.key || df.key === 'casos_nuevos' || df.key === 'riesgo' || df.key === 'equipo') {
+            if (!df.key || df.key === 'casos_nuevos' || df.key === 'riesgo' || df.key === 'equipo' ||
+                df.key === 'seguimientos_ejecutados') {
                 return { key: '' };
             }
             if (df.key === 'persona_asignada' && !df.value) {
@@ -229,7 +231,8 @@
             } else if (self.activeFilter && self.activeFilter.key &&
                        self.activeFilter.key !== 'casos_nuevos' &&
                        self.activeFilter.key !== 'riesgo' &&
-                       self.activeFilter.key !== 'equipo') {
+                       self.activeFilter.key !== 'equipo' &&
+                       self.activeFilter.key !== 'seguimientos_ejecutados') {
                 params.set('filter_key', self.activeFilter.key);
                 if (self.activeFilter.value) {
                     params.set('filter_value', self.activeFilter.value);
@@ -240,13 +243,17 @@
                 params.set('chip_filter', 'casos_nuevos');
             }
 
-            if (self.activeDropdown && self.activeDropdown.key && self.activeDropdown.value) {
-                var skipEquipoWithAgent = self.agentId && self.activeDropdown.key === 'equipo';
-                if (!skipEquipoWithAgent) {
-                    params.set('dropdown_filter_key', self.activeDropdown.key);
-                    params.set('dropdown_filter_value', self.activeDropdown.value);
+            var dropdownParamKeys = ['riesgo', 'equipo', 'seguimientos_ejecutados'];
+            dropdownParamKeys.forEach(function(dk) {
+                var val = self.activeDropdowns[dk];
+                if (!val) {
+                    return;
                 }
-            }
+                if (self.agentId && dk === 'equipo') {
+                    return;
+                }
+                params.set('filter_' + dk, val);
+            });
 
             var search = (self.searchText || '').trim();
             if (search) {
@@ -322,15 +329,18 @@
         },
 
         dropdownSelectValue: function(filterKey) {
-            if (this.activeDropdown && this.activeDropdown.key === filterKey) {
-                return this.activeDropdown.value;
-            }
-            return '';
+            return this.activeDropdowns[filterKey] || '';
         },
 
         ownerFullName: function(caseObj) {
             if (!caseObj.ownerNames) return '—';
             return (caseObj.ownerNames + ' ' + (caseObj.ownerLastNames || '')).trim();
+        },
+
+        completedFollowUpsDisplay: function(caseObj) {
+            var n = caseObj.completedFollowUpsCount;
+            if (n === undefined || n === null) return '0';
+            return String(n);
         },
 
         autocompleteMinLength: function() {
@@ -387,19 +397,17 @@
 
             value = value || '';
 
-            if (this.activeDropdown &&
-                this.activeDropdown.key === key &&
-                this.activeDropdown.value === value) {
+            if ((this.activeDropdowns[key] || '') === value) {
                 return;
             }
 
+            var next = Object.assign({}, this.activeDropdowns);
             if (value === '') {
-                if (this.activeDropdown && this.activeDropdown.key === key) {
-                    this.activeDropdown = null;
-                }
+                delete next[key];
             } else {
-                this.activeDropdown = { key: key, value: value };
+                next[key] = value;
             }
+            this.activeDropdowns = next;
 
             this.searchText = '';
             this.currentPage = 1;
