@@ -6,7 +6,7 @@
 INPUT: {
   defaultFilter:   filtro inicial   → prop :defaultFilter del padre
                                       shape: { key: string, value?: string }
-                                      keys válidos: 'casos_nuevos' | 'riesgo' | 'equipo' | 'persona_asignada'
+                                      keys válidos: 'casos_nuevos' | 'riesgo' | 'equipo' | 'seguimientos_ejecutados' | 'persona_asignada'
   columns:         columnas         → prop :columns (Array<{ key, label }>) del padre
   hiddenColumns:   columnas ocultas → prop :hiddenColumns (Array<string>) del padre (opcional)
   buttons:         botones de fila  → prop :buttons (Array<{ id, label }>) del padre
@@ -83,6 +83,11 @@ PASO 4 — Renderizar tabla y controles de paginación
       'next_follow_up_date' →
           SI case.nextFollowUpDate existe: mostrar fecha formateada DD/MM/YYYY
           SI no existe: mostrar "—"
+      'completed_follow_ups' →
+          case.completedFollowUpsCount   // entero >= 0
+          // Conteo de filas en salvia.follow_up_v2 del caso con status = 'REALIZADO'
+          SI count === 0: mostrar "0"
+          SI count > 0: mostrar el número como texto (sin decimales)
 
     Renderizar columna de acciones:
       PARA CADA btn EN buttons:
@@ -148,7 +153,14 @@ PASO 5 — Construir query base
       AND    deleted_at IS NULL
       ORDER  BY scheduled_date ASC
       LIMIT  1
-    ) AS next_follow_up_date
+    ) AS next_follow_up_date,
+    (
+      SELECT COUNT(*)::int
+      FROM   salvia.follow_up_v2 fu
+      WHERE  fu.case_id = vc.victim_case_i_code
+      AND    fu.status  = 'REALIZADO'
+      AND    fu.deleted_at IS NULL
+    ) AS completed_follow_ups_count
 
   FROM salvia.victim_case vc
 
@@ -169,8 +181,9 @@ PASO 6 — Aplicar filtro según filter_key
 
     CASO 'casos_nuevos':
       → WHERE (vc.victim_case_creation_date AT TIME ZONE '{tz}')::date
-            = (NOW() AT TIME ZONE '{tz}')::date
-      // Casos creados hoy — Ver flow-E09
+            BETWEEN (NOW() AT TIME ZONE '{tz}')::date - INTERVAL '5 days'
+                AND (NOW() AT TIME ZONE '{tz}')::date
+      // Casos creados hoy y hasta 5 días antes — Ver flow-E09
 
     CASO 'riesgo':
       → WHERE vf2.victim_case_form2_risk_level = {nivel}
@@ -226,7 +239,8 @@ PASO 9 — Construir y retornar response
         ownerTeam:         owner_team,         // equipo del agente (general_user)
         caseTeam:          case_team,          // victim_case.victim_case_team
         riskStatus:        risk_status,        // victim_case_form2_risk_level: 1=bajo, 2=moderado, 3=alto, 4=extremo
-        nextFollowUpDate:  next_follow_up_date  // null si no hay pendiente
+        nextFollowUpDate:       next_follow_up_date       // null si no hay pendiente
+        completedFollowUpsCount: completed_follow_ups_count  // seguimientos con status REALIZADO
       },
       ...
     ],
@@ -249,6 +263,9 @@ PASO 9 — Construir y retornar response
 | Tabla y campo exacto del perfil del agente: ¿security.general_user_profile.general_user_i_code?            | PASO 5        |
 | ¿El campo de teléfono de la víctima existe en victim_case o en victim_case_form1?                          | PASO 5        |
 | Cuando hay múltiples follow_up_v2 no cerrados por caso, ¿cuál se usa para riskStatus?                      | PASO 5        |
+| ¿Se cuentan seguimientos REALIZADO con soft-delete (deleted_at)? → Sí, excluir con deleted_at IS NULL     | PASO 5        |
+| Key de columna en UI del padre: ¿`completed_follow_ups`? Label: "Seguimientos ejecutados"                 | PASO 4        |
+| Rango máximo del dropdown E-12 (¿0–10 fijo o dinámico según máximo en BD?)                                | E-12          |
 | Valores exactos del enum riskStatus en follow_up_v2 (¿'alto','medio','bajo'?)                              | PASO 6, 9     |
 | Tamaño de página por defecto: ¿20 registros es correcto?                                                   | PASO 1, 8     |
 | ¿El campo agent_id en victim_case puede ser NULL? Si es NULL, el caso no tiene agente asignado             | PASO 5, 6     |

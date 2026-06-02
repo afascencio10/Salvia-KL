@@ -12,8 +12,11 @@ type CasesListInput struct {
 	FilterKey           string
 	FilterValue         string
 	ChipFilter          string
-	DropdownFilterKey   string
-	DropdownFilterValue string
+	DropdownFilterKey              string
+	DropdownFilterValue            string
+	FilterRiesgo                   string
+	FilterEquipo                   string
+	FilterSeguimientosEjecutados   string
 	Search      string
 	Sort        string
 	Order       string
@@ -67,8 +70,11 @@ func (s *casesListService) List(ctx context.Context, input CasesListInput) (Case
 		FilterKey:           input.FilterKey,
 		FilterValue:         input.FilterValue,
 		ChipFilter:          input.ChipFilter,
-		DropdownFilterKey:   input.DropdownFilterKey,
-		DropdownFilterValue: input.DropdownFilterValue,
+		DropdownFilterKey:              input.DropdownFilterKey,
+		DropdownFilterValue:            input.DropdownFilterValue,
+		FilterRiesgo:                   input.FilterRiesgo,
+		FilterEquipo:                   input.FilterEquipo,
+		FilterSeguimientosEjecutados:   input.FilterSeguimientosEjecutados,
 		Search:              strings.TrimSpace(input.Search),
 		Sort:        sort,
 		Order:       order,

@@ -4,6 +4,7 @@ import (
 	"bitsflow/internal/models"
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,12 +15,16 @@ import (
 const casesListTimezone = "America/Bogota"
 
 // CasesListFilters parámetros de consulta para el listado de casos del componente casos-component.
+// Los filtros chip y dropdown son aditivos (combinables entre sí).
 type CasesListFilters struct {
 	FilterKey           string
 	FilterValue         string
 	ChipFilter          string // Filtro chip aditivo (p. ej. casos_nuevos) combinable con FilterKey
-	DropdownFilterKey   string // Filtro dropdown aditivo (p. ej. riesgo, equipo)
+	DropdownFilterKey   string // Legacy: un solo dropdown (filter_* preferido)
 	DropdownFilterValue string
+	FilterRiesgo                 string // filter_riesgo (E-10)
+	FilterEquipo                 string // filter_equipo (E-11)
+	FilterSeguimientosEjecutados string // filter_seguimientos_ejecutados (E-12)
 	Search      string
 	Sort        string
 	Order       string
@@ -62,7 +67,8 @@ type caseListRow struct {
 	OwnerTeam        string     `gorm:"column:owner_team"`
 	CaseTeam         string     `gorm:"column:case_team"`
 	RiskStatus       *string    `gorm:"column:risk_status"`
-	NextFollowUpDate *time.Time `gorm:"column:next_follow_up_date"`
+	NextFollowUpDate          *time.Time `gorm:"column:next_follow_up_date"`
+	CompletedFollowUpsCount int        `gorm:"column:completed_follow_ups_count"`
 }
 
 // riskStatusSelect mapea victim_case_form2_risk_level (1-4) al slug usado por el frontend.
@@ -124,8 +130,18 @@ const casesListSelectCols = `
           AND deleted_at IS NULL
         ORDER BY scheduled_date ASC
         LIMIT 1
-    ) AS next_follow_up_date
+    ) AS next_follow_up_date,
+    (` + completedFollowUpsCountSubquery + `) AS completed_follow_ups_count
 `
+
+// completedFollowUpsCountSubquery conteo de follow_up_v2 REALIZADO por caso (E-01, E-12).
+const completedFollowUpsCountSubquery = `(
+    SELECT COUNT(*)::int
+    FROM salvia.follow_up_v2 fu
+    WHERE fu.case_id = vc.victim_case_i_code
+      AND fu.status = 'REALIZADO'
+      AND fu.deleted_at IS NULL
+)`
 
 func (r *casesListRepository) List(ctx context.Context, filters CasesListFilters) (CasesListResult, error) {
 	page := filters.Page
@@ -173,7 +189,8 @@ func (r *casesListRepository) List(ctx context.Context, filters CasesListFilters
 			OwnerTeam:        row.OwnerTeam,
 			CaseTeam:         row.CaseTeam,
 			RiskStatus:       row.RiskStatus,
-			NextFollowUpDate: row.NextFollowUpDate,
+			NextFollowUpDate:        row.NextFollowUpDate,
+			CompletedFollowUpsCount: row.CompletedFollowUpsCount,
 		}
 	}
 
@@ -185,7 +202,8 @@ func (r *casesListRepository) List(ctx context.Context, filters CasesListFilters
 	}, nil
 }
 
-const casosNuevosTodayClause = `(vc.victim_case_creation_date AT TIME ZONE '` + casesListTimezone + `')::date = (NOW() AT TIME ZONE '` + casesListTimezone + `')::date`
+// E-09: casos creados hoy y hasta 5 días calendario antes (zona Bogotá).
+const casosNuevosRangeClause = `(vc.victim_case_creation_date AT TIME ZONE '` + casesListTimezone + `')::date BETWEEN (NOW() AT TIME ZONE '` + casesListTimezone + `')::date - INTERVAL '5 days' AND (NOW() AT TIME ZONE '` + casesListTimezone + `')::date`
 
 func buildCasesListWhere(filters CasesListFilters) (string, []interface{}) {
 	clauses := []string{"1=1"}
@@ -193,7 +211,7 @@ func buildCasesListWhere(filters CasesListFilters) (string, []interface{}) {
 
 	casosNuevosActive := filters.ChipFilter == "casos_nuevos" || filters.FilterKey == "casos_nuevos"
 	if casosNuevosActive {
-		clauses = append(clauses, casosNuevosTodayClause)
+		clauses = append(clauses, casosNuevosRangeClause)
 	}
 
 	if riskValue := casesListRiskFilterValue(filters); riskValue != "" {
@@ -209,13 +227,23 @@ func buildCasesListWhere(filters CasesListFilters) (string, []interface{}) {
 		args = append(args, teamValue)
 	}
 
+	// E-12: igualdad exacta con el conteo de seguimientos REALIZADO
+	if segValue := casesListSeguimientosFilterValue(filters); segValue != "" {
+		if n, ok := seguimientosCountFromFilterValue(segValue); ok {
+			clauses = append(clauses, completedFollowUpsCountSubquery+" = ?")
+			args = append(args, n)
+		}
+	}
+
 	switch filters.FilterKey {
 	case "casos_nuevos":
 		// Ya aplicado arriba (chip o filter_key legacy)
 	case "riesgo":
-		// Ya aplicado arriba (dropdown o filter_key legacy)
+		// Ya aplicado arriba
 	case "equipo":
-		// Ya aplicado arriba (dropdown o filter_key legacy)
+		// Ya aplicado arriba
+	case "seguimientos_ejecutados":
+		// Ya aplicado arriba
 	case "persona_asignada":
 		if filters.FilterValue != "" {
 			clauses = append(clauses, "vc.agent_id = ?")
@@ -256,8 +284,11 @@ func buildCasesListOrder(filters CasesListFilters) string {
 	}
 }
 
-// casesListTeamFilterValue obtiene el valor del filtro equipo desde dropdown aditivo o filter_key legacy.
+// casesListTeamFilterValue obtiene el valor del filtro equipo (combinable salvo Mis casos).
 func casesListTeamFilterValue(filters CasesListFilters) string {
+	if filters.FilterEquipo != "" {
+		return filters.FilterEquipo
+	}
 	if filters.DropdownFilterKey == "equipo" && filters.DropdownFilterValue != "" {
 		return filters.DropdownFilterValue
 	}
@@ -272,8 +303,11 @@ func casesListHasAgentScope(filters CasesListFilters) bool {
 	return filters.FilterKey == "persona_asignada" && filters.FilterValue != ""
 }
 
-// casesListRiskFilterValue obtiene el valor del filtro riesgo desde dropdown aditivo o filter_key legacy.
+// casesListRiskFilterValue obtiene el valor del filtro riesgo (combinable con otros dropdowns).
 func casesListRiskFilterValue(filters CasesListFilters) string {
+	if filters.FilterRiesgo != "" {
+		return filters.FilterRiesgo
+	}
 	if filters.DropdownFilterKey == "riesgo" && filters.DropdownFilterValue != "" {
 		return filters.DropdownFilterValue
 	}
@@ -281,6 +315,29 @@ func casesListRiskFilterValue(filters CasesListFilters) string {
 		return filters.FilterValue
 	}
 	return ""
+}
+
+// casesListSeguimientosFilterValue obtiene el valor del filtro E-12 (0–10).
+func casesListSeguimientosFilterValue(filters CasesListFilters) string {
+	if filters.FilterSeguimientosEjecutados != "" {
+		return filters.FilterSeguimientosEjecutados
+	}
+	if filters.DropdownFilterKey == "seguimientos_ejecutados" && filters.DropdownFilterValue != "" {
+		return filters.DropdownFilterValue
+	}
+	if filters.FilterKey == "seguimientos_ejecutados" && filters.FilterValue != "" {
+		return filters.FilterValue
+	}
+	return ""
+}
+
+// seguimientosCountFromFilterValue valida el entero 0–10 del dropdown E-12.
+func seguimientosCountFromFilterValue(value string) (int, bool) {
+	n, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil || n < 0 || n > 10 {
+		return 0, false
+	}
+	return n, true
 }
 
 // riskLevelFromFilterValue traduce el valor del filtro UI al entero 1-4 de victim_case_form2_risk_level.
