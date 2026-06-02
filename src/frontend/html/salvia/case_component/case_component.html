@@ -132,9 +132,11 @@
             <!-- Sort selector -->
             <div class="cc-sort-selector">
                 <label class="cc-filter-label">Ordenar por</label>
-                <select class="cc-select" :value="sortBy" @change="onSortChange($event)">
-                    <option value="registration_date">Fecha de registro</option>
-                    <option value="next_follow_up">Próximo seguimiento</option>
+                <select class="cc-select cc-select--active" :value="sortOption" @change="onSortChange($event)">
+                    <option value="registration_date_desc">Fecha de registro DESC</option>
+                    <option value="registration_date_asc">Fecha de registro ASC</option>
+                    <option value="next_follow_up_desc">Próximo seguimiento DESC</option>
+                    <option value="next_follow_up_asc">Próximo seguimiento ASC</option>
                 </select>
             </div>
 

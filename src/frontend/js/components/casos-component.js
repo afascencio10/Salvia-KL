@@ -103,6 +103,10 @@
                 return f.key !== 'equipo';
             });
         },
+
+        sortOption: function() {
+            return this.sortBy + '_' + this.sortOrder;
+        },
     },
 
     mounted: function() {
@@ -185,24 +189,27 @@
         // HELPERS DE ORDENAMIENTO
         // ----------------------------------------------------------------
 
-        defaultSortOrder: function(sortField) {
-            // Próximo seguimiento: asc → fechas más cercanas a hoy primero (NULLS LAST en backend)
-            // Fecha de registro: desc → casos más recientes primero
-            return sortField === 'next_follow_up' ? 'asc' : 'desc';
+        parseSortOption: function(sortOption) {
+            var valid = {
+                registration_date_desc: { sortBy: 'registration_date', sortOrder: 'desc' },
+                registration_date_asc:  { sortBy: 'registration_date', sortOrder: 'asc' },
+                next_follow_up_desc:    { sortBy: 'next_follow_up',    sortOrder: 'desc' },
+                next_follow_up_asc:     { sortBy: 'next_follow_up',    sortOrder: 'asc' },
+            };
+            return valid[sortOption] || null;
         },
 
-        applySortChange: function(newSortBy) {
-            if (newSortBy !== 'registration_date' && newSortBy !== 'next_follow_up') {
+        applySortChange: function(sortOption) {
+            var parsed = this.parseSortOption(sortOption);
+            if (!parsed) {
+                return;
+            }
+            if (parsed.sortBy === this.sortBy && parsed.sortOrder === this.sortOrder) {
                 return;
             }
 
-            if (newSortBy === this.sortBy) {
-                this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
-            } else {
-                this.sortBy = newSortBy;
-                this.sortOrder = this.defaultSortOrder(newSortBy);
-            }
-
+            this.sortBy = parsed.sortBy;
+            this.sortOrder = parsed.sortOrder;
             this.currentPage = 1;
             this.cases = [];
             this.fetchCases({ errorMessage: 'Error al ordenar los casos' });
@@ -437,8 +444,7 @@
         // ----------------------------------------------------------------
 
         onSortChange: function(event) {
-            var newSortBy = event.target.value;
-            this.applySortChange(newSortBy);
+            this.applySortChange(event.target.value);
         },
 
         // ----------------------------------------------------------------

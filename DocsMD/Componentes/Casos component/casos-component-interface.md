@@ -111,10 +111,12 @@ casos-component  (.cc-wrapper)
     │   │
     │   └── SortSelector  (.cc-sort-selector)
     │       ├── Label  (.cc-filter-label)  "Ordenar por"
-    │       └── <select>  (.cc-select)
-    │           ├── <option value="registration_date">  "Fecha de registro"
-    │           └── <option value="next_follow_up">  "Próximo seguimiento"
-    │           → onSortChange(event)   // → E-04
+    │       └── <select>  (.cc-select)  :value="sortOption"
+    │           ├── <option value="registration_date_desc">  "Fecha de registro DESC"
+    │           ├── <option value="registration_date_asc">   "Fecha de registro ASC"
+    │           ├── <option value="next_follow_up_desc">   "Próximo seguimiento DESC"
+    │           └── <option value="next_follow_up_asc">    "Próximo seguimiento ASC"
+    │           → onSortChange(event)   // → E-04 (recarga backend)
     │
     └── TableWrap  (.cc-table-wrap)
         │
@@ -178,6 +180,11 @@ casos-component  (.cc-wrapper)
             │           │   └── [v-else]
             │           │       NoPending  (.cc-follow-up-none)  "—"
             │           │
+            │           ├── [col.key === 'completed_follow_ups']
+            │           │   <td>  (.cc-cell)
+            │           │   └── case.completedFollowUpsCount  (entero; "0" si es 0)
+            │           │   // COUNT follow_up_v2 WHERE status = 'REALIZADO'
+            │           │
             │           └── [v-if buttons.length > 0]
             │               <td>  (.cc-cell-actions)
             │               └── ActionBtn × N  [v-for buttons]  (.cc-action-btn)
@@ -233,6 +240,7 @@ casos-component  (.cc-wrapper)
 | `casos_nuevos` | `chip` | `"Casos nuevos"` | — |
 | `riesgo` | `dropdown` | `"Nivel de riesgo"` | Fijas: `{ value:'alto', label:'Alto' }`, `medio`, `bajo` |
 | `equipo` | `dropdown` | `"Por equipo"` | Dinámicas — cargadas en E-01 |
+| `seguimientos_ejecutados` | `dropdown` | `"Seguimientos ejecutados"` | Fijas: `{ value:'0', label:'0' }` … `{ value:'10', label:'10' }` (→ E-12) |
 | `persona_asignada` | `autocomplete` | `"Persona asignada"` | — (se buscan on-demand al escribir → E-07) |
 | `busqueda` | `search` | `"Buscar por ID o teléfono"` | — |
 
@@ -268,3 +276,4 @@ casos-component  (.cc-wrapper)
 | `team` | `AgentLight.team` (del agente asignado vía `rel_case_owner`) | Equipo del profesional asignado al caso |
 | `assigned_person` | `rel_case_owner_victim_case` (status=`'a'`) → perfil del agente | Persona con el caso asignado |
 | `next_follow_up_date` | `FollowUpV2.scheduled_date` (status=`PENDIENTE`, más próximo) | Fecha del próximo seguimiento sin ejecutar |
+| `completed_follow_ups` | `COUNT(follow_up_v2)` donde `status = 'REALIZADO'` y `case_id = victim_case_i_code` | Número de seguimientos ya realizados del caso |
