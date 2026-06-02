@@ -1017,6 +1017,7 @@ func MyCasesGET(c *gin.Context) {
 		map[string]interface{}{
 			"windowTitle":   "Mis casos",
 			"currentUser":   s.Names + " " + s.LastNames,
+			"currentRole":   s.CurrentRole,
 			"currentUserId": s.UserICode,
 			"nav_rules":     salvia_config.TranslateNavigationRule(s.Lang, salvia_config.NAVIGATION_RULES["get_victim_case"]),
 			"locale":        salvia_config.Locale,

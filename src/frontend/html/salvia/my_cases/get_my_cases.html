@@ -9,7 +9,12 @@
 
     {{ template "salvia/case_component/case_component.html" . }}
 
-    <div class="mt-4 mb-4">
+    <div v-if="roleLoadError" class="mc-error-state">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>${ roleLoadError }</span>
+    </div>
+
+    <div v-else class="mt-4 mb-4">
         <casos-component
             :agent-id="currentUserId"
             :default-filter="casosDefaultFilter"
@@ -33,8 +38,10 @@
             return {
                 windowTitle: {{.windowTitle}},
                 currentUser: "{{.currentUser}}",
+                currentRole: "{{.currentRole}}",
                 currentUserId: "{{.currentUserId}}",
                 menu: {{.menu}},
+                roleLoadError: null,
 
                 //casosDefaultFilter: { key: 'persona_asignada', value: "{{.currentUserId}}" },
                 casosDefaultFilter: {},
@@ -70,6 +77,10 @@
         },
         mounted: function() {
             document.title = {{.windowTitle}};
+            var validRoles = ['op', 'ro'];
+            if (validRoles.indexOf(this.currentRole) === -1) {
+                this.roleLoadError = 'Rol no autorizado para acceder a esta pantalla.';
+            }
             document.getElementById('app').style.display = 'block';
         },
         methods: {
