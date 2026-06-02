@@ -14,6 +14,7 @@ type VictimCaseLightRepository interface {
 	UpdateStatus(ctx context.Context, caseID string, status string) error
 	FindRiskLevelByICode(ctx context.Context, iCode string) (int, error)
 	UpdateRiskLevelByICode(ctx context.Context, iCode string, newLevel int) error
+	UpdateTeamAndAgent(ctx context.Context, iCode string, team string, agentID string) error
 }
 
 type victimCaseLightRepository struct {
@@ -67,4 +68,14 @@ func (r *victimCaseLightRepository) UpdateRiskLevelByICode(ctx context.Context, 
 		Table("salvia.victim_case_form2").
 		Where("victim_case_form2_victim_case = (SELECT victim_case_id FROM salvia.victim_case WHERE victim_case_i_code = ?)", iCode).
 		Update("victim_case_form2_risk_level", newLevel).Error
+}
+
+func (r *victimCaseLightRepository) UpdateTeamAndAgent(ctx context.Context, iCode string, team string, agentID string) error {
+	return r.db.WithContext(ctx).
+		Table("salvia.victim_case").
+		Where("victim_case_i_code = ?", iCode).
+		Updates(map[string]interface{}{
+			"victim_case_team": team,
+			"agent_id":         agentID,
+		}).Error
 }

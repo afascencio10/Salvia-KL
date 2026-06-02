@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Screens/hacer-seguimiento/Flujos/flow-E01-cuando-carga-pantalla.md",
+                "file": "Screens/hacer-seguimiento/Flujos/flow-E04-cuando-se-procesa-submission.md",
                 "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "flow-E01-cuando-carga-pantalla"
+              "title": "flow-E04-cuando-se-procesa-submission"
             }
           }
         ]
@@ -185,8 +185,10 @@
   },
   "active": "7b9d1557ef85bc35",
   "lastOpenFiles": [
-    "Screens/hacer-seguimiento/changelogJun2026.md",
+    "Screens/hacer-seguimiento/Flujos/flow-E05-cuando-se-actualizan-respuestas.md",
     "Screens/hacer-seguimiento/Flujos/flow-E04-cuando-se-procesa-submission.md",
+    "Screens/hacer-seguimiento/Flujos/flow-E01-cuando-carga-pantalla.md",
+    "Screens/hacer-seguimiento/changelogJun2026.md",
     "Screens/hacer-seguimiento/form-barreras-repeater.md",
     "Screens/hacer-seguimiento/form-seguimiento-barreras-repeater.md",
     "Screens/hacer-seguimiento/form-seguimiento-data.md",
@@ -196,7 +198,6 @@
     "General/proyecto-description.md",
     "Componentes/Casos component/Flujos/flow-E08-cuando-selecciona-autocomplete.md",
     "Componentes/Casos component/Flujos/flow-E07-cuando-escribe-autocomplete.md",
-    "Screens/hacer-seguimiento/Flujos/flow-E01-cuando-carga-pantalla.md",
     "Otros/temp/follow-up-contact-modal-guide.md",
     "Componentes/Oficios component/Oficios Usage.md",
     "Componentes/Oficios component",
@@ -212,7 +213,6 @@
     "Componentes/Casos component",
     "Screens/hacer-seguimiento/changelogMay2026.md",
     "Otros/simular-caso.md",
-    "General/tables-database.md",
-    "Screens/Registro de Caso/changelogMay2025.md"
+    "General/tables-database.md"
   ]
 }

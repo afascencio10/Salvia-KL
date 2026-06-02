@@ -2268,6 +2268,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 	if err != nil {
 		return fmt.Errorf("processFollowUpSubmission: leer entradas seguimiento barreras: %w", err)
 	}
+	log.Printf("[processFollowUp] seguimiento barreras: %d entries encontradas", len(sbEntries))
 	if len(sbEntries) > 0 {
 		// Obtener IDs de barreras activas del follow-up para relacionar por posición
 		var activeIDs []string
@@ -2278,6 +2279,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 				}
 			}
 		}
+		log.Printf("[processFollowUp] active_barrier_ids disponibles: %d → %v", len(activeIDs), activeIDs)
 		for idx, entry := range sbEntries {
 			sbAnswers, err := s.answerRepo.FindByRepeaterEntryID(ctx, entry.ID)
 			if err != nil {
@@ -2294,18 +2296,22 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 				barrierID = activeIDs[idx]
 			}
 
+			log.Printf("[processFollowUp] seguimiento barrera [%d] → barrierID=%s | persiste=%s | cierra=%s | respInstitucional=%s",
+				idx, barrierID, sbMap[qSBPersiste], sbMap[qSBCierra], sbMap[qSBRespuestaInstitucional])
+
 			// Si la barrera fue cerrada → actualizar status
 			if sbMap[qSBCierra] == "true" && barrierID != "" {
 				if err := s.barrierV2Repo.UpdateStatus(ctx, barrierID, models.BarrierV2StatusManaged); err != nil {
-					log.Printf("[processFollowUp] advertencia: no se pudo cerrar barrera %s: %v", barrierID, err)
+					log.Printf("[processFollowUp] ❌ no se pudo cerrar barrera %s: %v", barrierID, err)
 				} else {
-					log.Printf("[processFollowUp] barrera cerrada: %s", barrierID)
+					log.Printf("[processFollowUp] ✅ barrera cerrada → id=%s", barrierID)
 				}
 			}
 
 			// Crear evento en timeline por este seguimiento de barrera
 			if s.caseTimelineRepo != nil {
 				resumen := buildBarrierFollowUpSummary(sbMap[qSBPersiste], sbMap[qSBRespuestaInstitucional], sbMap[qSBActuaciones])
+				log.Printf("[processFollowUp] creando evento timeline barrera [%d] → resumen=%q", idx, resumen)
 				tlEvent := &models.CaseTimelineEvent{
 					CaseID:      fu.CaseID,
 					FollowUpID:  fu.ID,
@@ -2318,7 +2324,9 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 					Date:        time.Now(),
 				}
 				if err := s.caseTimelineRepo.Create(ctx, tlEvent); err != nil {
-					log.Printf("[processFollowUp] advertencia: no se pudo crear evento timeline barrera %s: %v", barrierID, err)
+					log.Printf("[processFollowUp] ❌ evento timeline barrera %s: %v", barrierID, err)
+				} else {
+					log.Printf("[processFollowUp] ✅ evento timeline creado → barrera [%d] id=%s", idx, barrierID)
 				}
 			}
 		}
@@ -2623,6 +2631,24 @@ func (s *formService) reasignarCaso(ctx context.Context, fu *models.FollowUpV2, 
 	if err := s.followUpV2Svc.ReasignarCalendario(ctx, fu.CaseID, newLevel); err != nil {
 		log.Printf("[reasignarCaso] advertencia: ReasignarCalendario falló caseID=%s: %v", fu.CaseID, err)
 		return
+	}
+
+	// Actualizar equipo y agente en victim_case
+	team := "Riesgo bajo"
+	if newLevel >= 3 {
+		team = "Riesgo alto"
+	}
+	// Leer el agente del primer follow-up PENDIENTE recién asignado
+	newAgentID := ""
+	if pendientes, err := s.followUpRepo.FindPendingByCaseID(ctx, fu.CaseID); err == nil && len(pendientes) > 0 {
+		if pendientes[0].AgentID != nil {
+			newAgentID = *pendientes[0].AgentID
+		}
+	}
+	if err := s.caseRepo.UpdateTeamAndAgent(ctx, fu.CaseID, team, newAgentID); err != nil {
+		log.Printf("[reasignarCaso] advertencia: no se pudo actualizar team/agent en victim_case: %v", err)
+	} else {
+		log.Printf("[reasignarCaso] ✅ victim_case actualizado → team=%q agentID=%s", team, newAgentID)
 	}
 
 	// Evento de timeline "Reasignación de Caso"

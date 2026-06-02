@@ -677,7 +677,9 @@ function applyRenderModifications(text, modifications, fieldName, formState, ent
         const path = (entryIndex !== undefined && entryIndex !== null)
             ? statePath.replace('{_entryIndex}', String(entryIndex))
             : statePath;
-        return getObjectProperty(formState || {}, path);
+        const resolved = getObjectProperty(formState || {}, path);
+        console.log('[applyRenderModifications:resolvePath]', { statePath, entryIndex, resolvedPath: path, resolved });
+        return resolved;
     };
 
     // 1. SET — reemplaza todo el texto
@@ -1033,8 +1035,19 @@ app.component('dinamic-form', {
     },
     methods: {
         /* ── Render modifications ── */
-        applyRenderModifications(text, modifications, fieldName, formState) {
-            return applyRenderModifications(text, modifications, fieldName, formState);
+        applyRenderModifications(text, modifications, fieldName, formState, entryIndex) {
+            const applicable = (modifications || []).filter(m => m.targetField === fieldName);
+            if (applicable.length && text && text.includes && text.includes('Barrera') || (applicable.length && entryIndex !== undefined)) {
+                console.log('[applyRenderModifications]', {
+                    fieldName,
+                    text,
+                    entryIndex,
+                    statePaths: applicable.map(m => m.statePath),
+                    formStateKeys: Object.keys(formState || {}),
+                    currentBarriers: (formState || {}).currentBarriers,
+                });
+            }
+            return applyRenderModifications(text, modifications, fieldName, formState, entryIndex);
         },
         resolveQuestionOptions(question, formState, entryIndex) {
             return resolveQuestionOptions(question, formState, entryIndex);
@@ -1928,7 +1941,13 @@ app.component('dinamic-form', {
                             </div>
 
                             <template v-for="qData in entryData.questions" :key="qData.question.id">
-                                <div v-if="qData.isVisible" class="df-question" style="gap:0">
+                                <!-- info banner dentro de repeater -->
+                                <div v-if="qData.isVisible && qData.question.questionTypeId === 'info'" class="df-info-banner">
+                                    <span class="df-info-banner-icon">ℹ️</span>
+                                    <span>\${ applyRenderModifications(qData.question.description, qData.question.modifications, 'description', formState, entryData.entry.iteration - 1) }</span>
+                                </div>
+
+                                <div v-else-if="qData.isVisible" class="df-question" style="gap:0">
                                     <label style="margin-bottom:4px;margin-top:0;min-height:unset">
                                         \${ applyRenderModifications(qData.question.description, qData.question.modifications, 'description', formState, entryData.entry.iteration - 1) }
                                         <span v-if="qData.question.required" class="df-required">*</span>
