@@ -21,7 +21,9 @@ func NewCasesListController(svc service.CasesListService) *CasesListController {
 
 // RegisterRoutes registra la ruta del listado de casos.
 //
-//	GET /api/v1/cases/list?filter_key=&filter_value=&chip_filter=&dropdown_filter_key=&dropdown_filter_value=&search=&sort=&order=&page=&page_size=
+//	GET /api/v1/cases/list?filter_key=&filter_value=&chip_filter=
+//	    &filter_riesgo=&filter_equipo=&filter_seguimientos_ejecutados=
+//	    &dropdown_filter_key=&dropdown_filter_value=&search=&sort=&order=&page=&page_size=
 func (c *CasesListController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/cases/list", c.List)
 }
@@ -35,8 +37,11 @@ func (c *CasesListController) List(ctx *gin.Context) {
 		FilterKey:           ctx.Query("filter_key"),
 		FilterValue:         ctx.Query("filter_value"),
 		ChipFilter:          ctx.Query("chip_filter"),
-		DropdownFilterKey:   ctx.Query("dropdown_filter_key"),
-		DropdownFilterValue: ctx.Query("dropdown_filter_value"),
+		DropdownFilterKey:            ctx.Query("dropdown_filter_key"),
+		DropdownFilterValue:          ctx.Query("dropdown_filter_value"),
+		FilterRiesgo:                 ctx.Query("filter_riesgo"),
+		FilterEquipo:                 ctx.Query("filter_equipo"),
+		FilterSeguimientosEjecutados: ctx.Query("filter_seguimientos_ejecutados"),
 		Search:              ctx.Query("search"),
 		Sort:        ctx.DefaultQuery("sort", "registration_date"),
 		Order:       ctx.DefaultQuery("order", "desc"),
