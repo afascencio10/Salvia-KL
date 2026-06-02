@@ -1,11 +1,15 @@
-
+<div class="salvia-layout">
+    {{ template "sidebar/sidebar.html" . }}
+    <main class="salvia-main">
 <div class="container">
     <div class="welcome-section">
         <h2><b>Casos Salvia</b></h2>
         <div style="display:flex; gap:8px; align-items:center;">
             <a href="/salvia/casos/nuevo"><button class="btn btn-primary">Crear Nuevo caso <i class="fas fa-plus-circle"></i></button></a>
-            <!-- TODO: botón temporal - remover cuando se integre en el flujo real -->
-            <a href="/salvia/mis-seguimientos"><button class="btn btn-warning">Mis Seguimientos <i class="fas fa-tasks"></i></button></a>
+            <!-- TODO: botón temporal - remover cuando se integre en el flujo real 
+            <a href="/salvia/mis-seguimientos"><button class="btn btn-warning">Mis Seguimientos <i class="fas fa-tasks"></i></button></a>-->
+            <!-- TODO: botón temporal - mis casos -->
+            <a href="/salvia/mis-casos"><button class="btn btn-info">Mis Casos <i class="fas fa-folder-open"></i></button></a>
         </div>
     </div>
     
@@ -196,6 +200,8 @@
             
         </div>        
     </div>
+</div>
+    </main>
 </div>
 
       {{ template "standard_scripts.html" .}}

@@ -1,6 +1,9 @@
 {{/* Template: notificaciones.html — Pantalla de Notificaciones Salvia (EntityLetter) */}}
 <link rel="stylesheet" href="/static/css/notificaciones.css">
 
+<div class="salvia-layout">
+    {{ template "sidebar/sidebar.html" . }}
+    <main class="salvia-main">
 <div class="container nf-container">
 
     <!-- ─── Encabezado ─── -->
@@ -163,6 +166,8 @@
         </ul>
     </nav>
 
+</div>
+    </main>
 </div>
 
 <!-- ─── Modales (uno por estado) ─── -->

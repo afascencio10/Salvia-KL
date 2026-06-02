@@ -37,6 +37,15 @@ func CheckAndGetSession(c *gin.Context, permission string) *SessionContext {
 	return &SessionContext{Session: *s, Menu: s.CurrentMenu}
 }
 
+var sidebarTemplates = []string{
+	"frontend/html/sidebar/sidebar.html",
+}
+
+// AppendSidebarTemplates agrega el partial del sidebar a la lista de templates extra.
+func AppendSidebarTemplates(templates []string) []string {
+	return append(templates, sidebarTemplates...)
+}
+
 // BaseTemplateVars construye el mapa base de variables que toda pantalla necesita.
 func BaseTemplateVars(sc *SessionContext, lang string) map[string]interface{} {
 	return map[string]interface{}{

@@ -1,110 +1,103 @@
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🟢 EVENTO: Cuando el usuario escribe en el buscador
-   Tipo: User Interaction
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Disparado por: input en el SearchFilter (type='search') dentro de FilterGroup
-               Se activa en cada cambio del campo — con debounce de 400ms
-
-INPUT: {
-  searchText:   texto escrito por el usuario   → v-model del <input type="text">
-}
-
-> **Nota:** La búsqueda llama al backend porque el componente usa paginación.
-> No es posible buscar entre registros que no están en la página actual.
-> El searchText actúa en paralelo al filtro activo: ambos se envían juntos.
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  FRONTEND — casos-component.js
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-
-PASO 1 — Actualizar estado y resetear paginación
-
-  searchText  = searchText.trim()
-  currentPage = 1        // siempre volver a la primera página al buscar
-  loading     = true
-  cases       = []
-
-
-PASO 2 — Verificar si el campo quedó vacío
-
-  SI searchText === "":
-    → Llamar al backend igual (PASO 3) para restaurar la lista completa
-      del filtro activo (sin parámetro de búsqueda)
-    → CONTINÚA PASO 3
-
-  SI searchText !== "":
-    → CONTINÚA PASO 3
-
-
-PASO 3 — Consultar backend combinando filtro activo + texto de búsqueda
-
-  GET /api/v1/cases/list
-    ?filter_key={activeFilter.key}
-    &filter_value={activeFilter.value}
-    &search={searchText}               // vacío si el usuario borró el campo
-    &sort={sortBy}
-    &order={sortOrder}
-    &page=1
-    &page_size={pageSize}
-
-  SI respuesta no ok (status != 2xx):
-    → loading   = false
-    → loadError = data.error || 'Error al buscar casos'
-    → TERMINAR ejecución
-
-  SI respuesta ok:
-    → cases      = data.cases
-    → totalCases = data.total
-    → loading    = false
-    → CONTINÚA PASO 4
-
-
-PASO 4 — Actualizar vista
-
-  filteredCases = cases
-
-  SI filteredCases.length === 0:
-    → Mostrar EmptyState "No se encontraron casos"
-
-  SI filteredCases.length > 0:
-    → Renderizar tabla con filteredCases
-    → Renderizar PaginationBar actualizado
-
-  → FIN EJECUCIÓN ✓
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  BACKEND — GET /api/v1/cases/list  (parámetro search)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-El endpoint ya existente recibe el parámetro adicional `search`.
-
-SI search != "":
-  → Agregar cláusula WHERE a la query base del PASO 5 de E-01:
-
-    AND (
-      vc.victim_case_i_code ILIKE '%' || search || '%'
-      OR
-      [campo_telefono] ILIKE '%' || search || '%'   // ⚠️ GAP: campo exacto del teléfono
-    )
-
-SI search == "" o no viene:
-  → No agregar cláusula adicional (comportamiento normal del filtro activo)
-
-El resto del flujo (ordenamiento, paginación, construcción de response)
-es idéntico al PASO 7, 8 y 9 de E-01.
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️  GAPS — Información pendiente
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-| Variable / decisión                                                                  | Paso afectado |
-|--------------------------------------------------------------------------------------|---------------|
-| Campo exacto del teléfono de la víctima y en qué tabla vive                          | PASO 3 (backend) |
-| ¿El debounce de 400ms es correcto o se prefiere otro valor?                          | PASO 1        |
-| ¿La búsqueda usa ILIKE (parcial) o solo coincidencia exacta por i_code?              | PASO 3 (backend) |
-| ¿Se puede combinar búsqueda Y filtro activo al mismo tiempo (actualmente sí)?        | PASO 3        |
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🟢 EVENTO: Cuando el usuario escribe en el buscador
+   Tipo: User Interaction
+   Código: E-03
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Disparado por: input en el SearchFilter (type='search') dentro de FilterGroup
+               Se activa en cada cambio del campo — con debounce de 400ms
+
+INPUT: {
+  searchText:   texto escrito por el usuario   → v-model del <input type="text">
+}
+
+> **Nota:** La búsqueda llama al backend porque el componente usa paginación server-side.
+> El parámetro `search` se combina en paralelo con chip, dropdowns, persona asignada y agentId.
+
+> **Campos buscados en BD:**
+> - **Documento:** `victim_case.victim_case_victim_doc_number` — ILIKE parcial
+> - **Teléfono:** misma fuente que la columna Víctima (E-01):
+>   1. `victim_case_form2.victim_case_form2_victim_phone` (teléfono copiado al crear el caso)
+>   2. Fallback: `victim_contact_form1.victim_contact_form1_phone` vía FK `victim_case_victim_contact`
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  FRONTEND — casos-component.js
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+PASO 1 — Actualizar estado y resetear paginación (debounce 400ms)
+
+  searchText  = searchText.trim()
+  currentPage = 1
+  cases       = []
+
+
+PASO 2 — Consultar backend (con o sin texto)
+
+  GET /api/v1/cases/list
+    ?filter_key=persona_asignada          // si agentId o autocomplete activo
+    &filter_value={...}
+    &chip_filter=casos_nuevos             // si chip activo (E-09)
+    &dropdown_filter_key=riesgo|equipo    // si dropdown activo (E-10/E-11)
+    &dropdown_filter_value={...}
+    &search={searchText}                  // omitido o vacío → sin filtro de búsqueda
+    &sort={sortBy}
+    &order={sortOrder}
+    &page=1
+    &page_size={pageSize}
+
+  SI searchText === "":
+    → Restaura la lista del filtro activo sin cláusula search
+
+  SI respuesta no ok:
+    → loadError = data.error || 'Error al buscar casos'
+
+  SI respuesta ok:
+    → cases, totalCases; loading = false
+
+
+PASO 3 — Actualizar vista
+
+  filteredCases = cases
+  → Tabla o EmptyState "No se encontraron casos"
+
+  → FIN EJECUCIÓN ✓
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  BACKEND — GET /api/v1/cases/list  (parámetro search)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SI search != "":
+
+    AND (
+      vc.victim_case_victim_doc_number ILIKE '%' || search || '%'
+      OR vf2.victim_case_form2_victim_phone::text ILIKE '%' || search || '%'
+      OR EXISTS (
+        SELECT 1
+        FROM   salvia.victim_contact_form1 vcf1
+        WHERE  vcf1.victim_contact_form1_victim_contact = vc.victim_case_victim_contact
+        AND    vcf1.victim_contact_form1_phone::text ILIKE '%' || search || '%'
+      )
+    )
+
+  // vf2 ya está en el JOIN base de E-01
+  // victim_case_victim_contact es FK al contacto, no el número de teléfono
+
+SI search == "" o no viene:
+  → Sin cláusula adicional
+
+El resto (ordenamiento, paginación, response) es idéntico a E-01.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅  Decisiones aplicadas (E-03 implementado)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+| Decisión | Resolución |
+|----------|------------|
+| Debounce | 400ms |
+| Combinación con otros filtros | Sí — parámetro `search` aditivo |
+| Teléfono sin contacto vinculado | Se busca en `victim_case_form2_victim_phone` aunque falte form1 |
+

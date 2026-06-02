@@ -185,6 +185,9 @@
   },
   "active": "7b9d1557ef85bc35",
   "lastOpenFiles": [
+    "Componentes/Casos component/Flujos/flow-E11-cuando-filtra-equipo.md",
+    "Componentes/Casos component/Flujos/flow-E10-cuando-filtra-nivel-riesgo.md",
+    "Componentes/Casos component/Flujos/flow-E09-cuando-filtra-casos-nuevos.md",
     "Screens/hacer-seguimiento/Flujos/flow-E05-cuando-se-actualizan-respuestas.md",
     "Screens/hacer-seguimiento/Flujos/flow-E04-cuando-se-procesa-submission.md",
     "Screens/hacer-seguimiento/Flujos/flow-E01-cuando-carga-pantalla.md",
@@ -210,9 +213,6 @@
     "Componentes/Casos component/casos-component-interface.md",
     "Componentes/Casos component/casos-component-events.md",
     "Componentes/Casos component/Flujos",
-    "Componentes/Casos component",
-    "Screens/hacer-seguimiento/changelogMay2026.md",
-    "Otros/simular-caso.md",
-    "General/tables-database.md"
+    "Componentes/Casos component"
   ]
 }
