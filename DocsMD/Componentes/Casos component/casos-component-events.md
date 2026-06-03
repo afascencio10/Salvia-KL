@@ -43,6 +43,7 @@ E-02 se dividió en tres flujos independientes:
 | **E-09** | Casos nuevos (chip) | [flow-E09](./Flujos/flow-E09-cuando-filtra-casos-nuevos.md) |
 | **E-10** | Nivel de riesgo (dropdown) | [flow-E10](./Flujos/flow-E10-cuando-filtra-nivel-riesgo.md) |
 | **E-11** | Por equipo (dropdown) | [flow-E11](./Flujos/flow-E11-cuando-filtra-equipo.md) |
+| **E-12** | Seguimientos ejecutados (dropdown) | [flow-E12](./Flujos/flow-E12-cuando-filtra-seguimientos-ejecutados.md) |
 
 ---
 
@@ -53,9 +54,9 @@ E-02 se dividió en tres flujos independientes:
 ```
 Evento:       Cuando filtra por casos nuevos
 Tipo:         User Interaction
-Descripción:  Toggle del chip "Casos nuevos". Filtra casos creados en el día
-              de hoy (victim_case_creation_date). Llama al backend con
-              filter_key=casos_nuevos.
+Descripción:  Toggle del chip "Casos nuevos". Filtra casos creados desde hoy
+              hasta 5 días calendario antes (victim_case_creation_date,
+              zona America/Bogota). Llama al backend con chip_filter=casos_nuevos.
 Requerido:    Sí
 ```
 
@@ -91,6 +92,24 @@ Requerido:    Sí
 
 ---
 
+### E-12 — Cuando filtra por número de seguimientos ejecutados
+
+📄 [Ver flujo → flow-E12-cuando-filtra-seguimientos-ejecutados.md](./Flujos/flow-E12-cuando-filtra-seguimientos-ejecutados.md)
+
+```
+Evento:       Cuando filtra por número de seguimientos ejecutados
+Tipo:         User Interaction
+Descripción:  Cambio en el dropdown numérico "Seguimientos ejecutados".
+              Filtra casos cuyo conteo de follow_up_v2 con status REALIZADO
+              coincide exactamente con el valor seleccionado (misma métrica
+              que la columna completed_follow_ups en E-01).
+              Llama al backend con dropdown_filter_key=seguimientos_ejecutados
+              y dropdown_filter_value.
+Requerido:    Sí
+```
+
+---
+
 ### E-03 — Cuando el usuario escribe en el buscador
 
 📄 [Ver flujo → flow-E03-cuando-escribe-buscador.md](./Flujos/flow-E03-cuando-escribe-buscador.md)
@@ -113,15 +132,16 @@ Requerido:    Sí
 
 ### E-04 — Cuando el usuario cambia el ordenamiento
 
+📄 [Ver flujo → flow-E04-cuando-cambia-ordenamiento.md](./Flujos/flow-E04-cuando-cambia-ordenamiento.md)
+
 ```
 Evento:       Cuando el usuario cambia el ordenamiento
 Tipo:         User Interaction
-Descripción:  El usuario selecciona uno de los criterios de ordenamiento
-              disponibles: por fecha del primer seguimiento sin ejecutar,
-              o por fecha de registro. Reordena la lista de casos actualmente
-              visible del lado del cliente, sin disparar una nueva consulta
-              al backend. Si el mismo criterio ya está activo, invierte el
-              orden (ascendente / descendente).
+Descripción:  El usuario elige una de cuatro opciones explícitas en el
+              select: fecha de registro o próximo seguimiento, cada una en
+              ASC o DESC. Por defecto (E-01): Fecha de registro DESC.
+              Resetea a página 1 y recarga casos desde el backend con
+              sort y order; mantiene filtros activos.
 Requerido:    Sí
 ```
 
@@ -206,7 +226,7 @@ Requerido:    Sí
 ## Checklist de completitud
 
 - [x] ¿El ciclo de vida inicial (carga de datos) está cubierto? → E-01
-- [x] ¿Toda acción del usuario sobre la UI propia del componente está cubierta? → E-09, E-10, E-11, E-03, E-04, E-05, E-06, E-07, E-08
+- [x] ¿Toda acción del usuario sobre la UI propia del componente está cubierta? → E-09, E-10, E-11, E-12, E-03, E-04, E-05, E-06, E-07, E-08
 - [x] ¿Los eventos emitidos hacia el padre están cubiertos? → E-05
 - [x] ¿Hay lógica de backend desacoplada de la respuesta HTTP? → No
 - [x] ¿Hay scheduled tasks o webhooks? → No
@@ -223,13 +243,14 @@ Requerido:    Sí
 | E-09 | Cuando filtra por casos nuevos | User Interaction | No (solo lee) |
 | E-10 | Cuando filtra por nivel de riesgo | User Interaction | No (solo lee) |
 | E-11 | Cuando filtra por equipo | User Interaction | No (solo lee) |
+| E-12 | Cuando filtra por seguimientos ejecutados | User Interaction | No (solo lee) |
 | E-03 | Cuando el usuario escribe en el buscador | User Interaction | No (solo lee) |
-| E-04 | Cuando el usuario cambia el ordenamiento | User Interaction | No (ordenamiento local) |
+| E-04 | Cuando el usuario cambia el ordenamiento | User Interaction | No (solo lee, ORDER BY en servidor) |
 | E-05 | Cuando el usuario presiona un botón de acción | User Interaction | No (emite hacia padre) |
 | E-06 | Cuando el usuario cambia de página | User Interaction | No (solo lee) |
 | E-07 | Cuando el usuario escribe en el autocomplete de persona asignada | User Interaction | No (solo lee — busca agentes) |
 | E-08 | Cuando el usuario selecciona o limpia una opción del autocomplete | User Interaction | No (solo lee — filtra casos) |
 
-**Total: 11 eventos — 1 Lifecycle, 9 User Interaction, 1 Índice**  
+**Total: 12 eventos — 1 Lifecycle, 10 User Interaction, 1 Índice**  
 **Ningún evento escribe en el backend desde este componente.**  
 **La acción resultante del botón presionado (E-05) es responsabilidad del componente padre que consume `casos-component`.**

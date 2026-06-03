@@ -8,8 +8,9 @@ Disparado por: clic en el Chip **"Casos nuevos"** (`filter.type === 'chip'`,
                `filter.key === 'casos_nuevos'`) dentro de FilterGroup.
                Handler: `toggleChipFilter('casos_nuevos')`
 
-> **Definición de negocio:** "Casos nuevos" = casos **creados en el día de hoy**,
-> según `salvia.victim_case.victim_case_creation_date`.
+> **Definición de negocio:** "Casos nuevos" = casos **creados desde hoy hasta
+> 5 días calendario antes** (ventana de 6 días inclusive: hoy + 5 días previos),
+> según `salvia.victim_case.victim_case_creation_date` en zona `America/Bogota`.
 > Ya no usa la lógica legacy de "sin seguimiento REALIZADO".
 
 INPUT: {
@@ -92,9 +93,10 @@ PASO 5 — Agregar cláusula WHERE sobre la query base de E-01
   CASO chip_filter = 'casos_nuevos' (o filter_key legacy = 'casos_nuevos'):
 
     WHERE (vc.victim_case_creation_date AT TIME ZONE 'America/Bogota')::date
-        = (NOW() AT TIME ZONE 'America/Bogota')::date
+        BETWEEN (NOW() AT TIME ZONE 'America/Bogota')::date - INTERVAL '5 days'
+            AND (NOW() AT TIME ZONE 'America/Bogota')::date
 
-  // Solo casos registrados hoy en hora de Bogotá
+  // Casos registrados entre hoy y 5 días atrás (inclusive) en hora de Bogotá
   // Se combina con AND al resto de filtros (persona_asignada, search, etc.)
 
 
@@ -109,6 +111,7 @@ PASO 6 — Respuesta
 
 | Decisión | Resolución |
 |----------|------------|
-| Zona horaria "hoy" | `America/Bogota` |
+| Zona horaria del rango | `America/Bogota` |
+| Ventana de fechas | Hoy inclusive − 5 días calendario (6 días en total) |
 | Combinación con `agentId` | `chip_filter=casos_nuevos` + `filter_key=persona_asignada` en paralelo |
 | Estado activo del chip | `activeChipKey` + clase `cc-chip--active`; segundo clic desactiva |

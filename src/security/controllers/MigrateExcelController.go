@@ -43,17 +43,17 @@ const (
 
 // MigrateExcelResult resume el resultado de la migración desde Excel.
 type MigrateExcelResult struct {
-	Sheet            string               `json:"sheet"`
-	TotalRows        int                  `json:"total_rows"`
-	ValidRows        int                  `json:"valid_rows"`
-	SkippedRows      int                  `json:"skipped_rows"`
-	CreatedCount     int                  `json:"created_count"`
-	UpdatedCount     int                  `json:"updated_count"`
-	FailedCount      int                  `json:"failed_count"`
-	Created          []string             `json:"created"`
-	Updated          []string             `json:"updated"`
-	Failed           []MigrateSkippedItem `json:"failed"`
-	ParsedButSkipped []MigrateSkippedItem `json:"parsed_but_skipped"`
+	HojaCalculo       string               `json:"hoja_calculo"`
+	TotalFilas        int                  `json:"total_filas"`
+	FilasValidas      int                  `json:"filas_validas"`
+	FilasOmitidas     int                  `json:"filas_omitidas"`
+	CreadosCount      int                  `json:"creados_count"`
+	ActualizadosCount int                  `json:"actualizados_count"`
+	FallidosCount     int                  `json:"fallidos_count"`
+	Creados           []string             `json:"creados"`
+	Actualizados      []string             `json:"actualizados"`
+	Fallidos          []MigrateSkippedItem `json:"fallidos"`
+	ParsedButSkipped  []MigrateSkippedItem `json:"parsed_but_skipped"`
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -177,13 +177,13 @@ func MigrateFromExcel(fileBytes []byte, dbClientConfig db.DBClientConfig, dbServ
 
 	// 4. Ejecutar migración
 	result := MigrateExcelResult{
-		Sheet:            excelSheetName,
-		TotalRows:        len(rows) - 1,
-		ValidRows:        len(users),
-		SkippedRows:      len(parsedSkipped),
-		Created:          []string{},
-		Updated:          []string{},
-		Failed:           []MigrateSkippedItem{},
+		HojaCalculo:      excelSheetName,
+		TotalFilas:       len(rows) - 1,
+		FilasValidas:     len(users),
+		FilasOmitidas:    len(parsedSkipped),
+		Creados:          []string{},
+		Actualizados:     []string{},
+		Fallidos:         []MigrateSkippedItem{},
 		ParsedButSkipped: parsedSkipped,
 	}
 
@@ -211,12 +211,12 @@ func MigrateFromExcel(fileBytes []byte, dbClientConfig db.DBClientConfig, dbServ
 
 			if isErrorResponse(res) {
 				fmt.Printf("❌ error actualizando: %s\n", res)
-				result.Failed = append(result.Failed, MigrateSkippedItem{Login: u.Login, Reason: res})
-				result.FailedCount++
+				result.Fallidos = append(result.Fallidos, MigrateSkippedItem{Login: u.Login, Reason: res})
+				result.FallidosCount++
 			} else {
 				fmt.Println("✅ actualizado")
-				result.Updated = append(result.Updated, u.Login)
-				result.UpdatedCount++
+				result.Actualizados = append(result.Actualizados, u.Login)
+				result.ActualizadosCount++
 			}
 		} else {
 			// CREAR — usuario nuevo
@@ -228,17 +228,17 @@ func MigrateFromExcel(fileBytes []byte, dbClientConfig db.DBClientConfig, dbServ
 
 			if isErrorResponse(res) {
 				fmt.Printf("❌ error creando: %s\n", res)
-				result.Failed = append(result.Failed, MigrateSkippedItem{Login: u.Login, Reason: res})
-				result.FailedCount++
+				result.Fallidos = append(result.Fallidos, MigrateSkippedItem{Login: u.Login, Reason: res})
+				result.FallidosCount++
 			} else {
 				fmt.Println("✅ creado")
-				result.Created = append(result.Created, u.Login)
-				result.CreatedCount++
+				result.Creados = append(result.Creados, u.Login)
+				result.CreadosCount++
 			}
 		}
 	}
 	fmt.Printf("[migrate-excel] Terminado: %d creados, %d actualizados, %d fallidos\n",
-		result.CreatedCount, result.UpdatedCount, result.FailedCount)
+		result.CreadosCount, result.ActualizadosCount, result.FallidosCount)
 
 	out, _ := json.Marshal(result)
 	return http.StatusOK, string(out)
@@ -277,7 +277,8 @@ func splitName(fullName, fallback string) (string, string) {
 // generateLogin genera un login a partir del nombre completo.
 // Formato: "primer_nombre.primer_apellido" en minúsculas sin tildes.
 // Ejemplo: "Isabel Agatón Santander" → "isabel.agaton"
-//          "Ana María Mojica Quiroz" → "ana.mojica"
+//
+//	"Ana María Mojica Quiroz" → "ana.mojica"
 func generateLogin(fullName string) string {
 	parts := strings.Fields(fullName)
 	if len(parts) == 0 {

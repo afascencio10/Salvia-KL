@@ -9,7 +9,12 @@
 
     {{ template "salvia/case_component/case_component.html" . }}
 
-    <div class="mt-4 mb-4">
+    <div v-if="roleLoadError" class="mc-error-state">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>${ roleLoadError }</span>
+    </div>
+
+    <div v-else class="mt-4 mb-4">
         <casos-component
             :agent-id="currentUserId"
             :default-filter="casosDefaultFilter"
@@ -33,10 +38,13 @@
             return {
                 windowTitle: {{.windowTitle}},
                 currentUser: "{{.currentUser}}",
+                currentRole: "{{.currentRole}}",
                 currentUserId: "{{.currentUserId}}",
                 menu: {{.menu}},
+                roleLoadError: null,
 
-                casosDefaultFilter: { key: 'persona_asignada', value: "{{.currentUserId}}" },
+                //casosDefaultFilter: { key: 'persona_asignada', value: "{{.currentUserId}}" },
+                casosDefaultFilter: {},
                 casosAvailableFilters: [
                     { key: 'casos_nuevos', type: 'chip',     label: 'Casos nuevos', options: [] },
                     { key: 'riesgo',       type: 'dropdown', label: 'Nivel de riesgo', options: [
@@ -45,6 +53,13 @@
                         { value: 'alto',     label: 'Alto'     },
                         { value: 'extremo',  label: 'Extremo'  },
                     ]},
+                    { key: 'seguimientos_ejecutados', type: 'dropdown', label: 'Seguimientos ejecutados', options: (function() {
+                        var opts = [];
+                        for (var i = 0; i <= 10; i++) {
+                            opts.push({ value: String(i), label: String(i) });
+                        }
+                        return opts;
+                    })() },
                     { key: 'busqueda',     type: 'search',   label: 'Buscar por documento o teléfono' },
                 ],
                 casosColumns: [
@@ -53,6 +68,7 @@
                     { key: 'risk_level',          label: 'Nivel de riesgo'     },
                     { key: 'team',                label: 'Equipo'              },
                     { key: 'next_follow_up_date', label: 'Próximo seguimiento' },
+                    { key: 'completed_follow_ups', label: 'Seguimientos ejecutados' },
                 ],
                 casosButtons: [
                     { id: 'detalle', label: 'Ver detalle' },
@@ -61,6 +77,10 @@
         },
         mounted: function() {
             document.title = {{.windowTitle}};
+            var validRoles = ['op', 'ro'];
+            if (validRoles.indexOf(this.currentRole) === -1) {
+                this.roleLoadError = 'Rol no autorizado para acceder a esta pantalla.';
+            }
             document.getElementById('app').style.display = 'block';
         },
         methods: {

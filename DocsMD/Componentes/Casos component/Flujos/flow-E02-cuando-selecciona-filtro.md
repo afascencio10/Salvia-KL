@@ -11,10 +11,11 @@ y cláusula SQL en el backend.
 | **E-09** | Casos nuevos         | `chip`     | [flow-E09-cuando-filtra-casos-nuevos.md](./flow-E09-cuando-filtra-casos-nuevos.md) |
 | **E-10** | Nivel de riesgo      | `dropdown` | [flow-E10-cuando-filtra-nivel-riesgo.md](./flow-E10-cuando-filtra-nivel-riesgo.md) |
 | **E-11** | Por equipo           | `dropdown` | [flow-E11-cuando-filtra-equipo.md](./flow-E11-cuando-filtra-equipo.md) |
+| **E-12** | Seguimientos ejecutados | `dropdown` | [flow-E12-cuando-filtra-seguimientos-ejecutados.md](./flow-E12-cuando-filtra-seguimientos-ejecutados.md) |
 
 ---
 
-## Comportamiento común (todos los filtros E-09 / E-10 / E-11)
+## Comportamiento común (todos los filtros E-09 / E-10 / E-11 / E-12)
 
 1. Resetean `searchText`, `currentPage = 1` y limpian `cases` antes de consultar.
 2. Llaman a `GET /api/v1/cases/list` con `filter_key` y `filter_value` (si aplica).
@@ -39,3 +40,4 @@ y cláusula SQL en el backend.
 | `toggleChipFilter(key)` | E-09 cuando `key === 'casos_nuevos'` |
 | `setDropdownFilter(key, value)` | E-10 cuando `key === 'riesgo'` |
 | `setDropdownFilter(key, value)` | E-11 cuando `key === 'equipo'` |
+| `setDropdownFilter(key, value)` | E-12 cuando `key === 'seguimientos_ejecutados'` |

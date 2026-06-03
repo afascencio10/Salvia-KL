@@ -17,5 +17,6 @@ type CaseListItem struct {
 	OwnerTeam        string     `json:"ownerTeam"`
 	CaseTeam         string     `json:"caseTeam"` // victim_case.victim_case_team (E-11)
 	RiskStatus       *string    `json:"riskStatus"`
-	NextFollowUpDate *time.Time `json:"nextFollowUpDate"`
+	NextFollowUpDate        *time.Time `json:"nextFollowUpDate"`
+	CompletedFollowUpsCount int        `json:"completedFollowUpsCount"`
 }
