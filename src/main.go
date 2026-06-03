@@ -19,6 +19,7 @@ import (
     "os/signal"
     "syscall"
     "time"
+    _ "time/tzdata" // Embebe zonas horarias para que funcione en contenedores sin tzdata
 
     "github.com/gin-gonic/gin"
 )
