@@ -242,6 +242,11 @@
                                     ${ completedFollowUpsDisplay(caseObj) }
                                 </td>
 
+                                <!-- case_status -->
+                                <td v-else-if="col.key === 'case_status'" class="cc-cell">
+                                    <span :class="caseStatusBadgeClass(caseObj.status)">${ caseStatusLabel(caseObj.status) }</span>
+                                </td>
+
                                 <!-- columna desconocida -->
                                 <td v-else class="cc-cell">—</td>
 

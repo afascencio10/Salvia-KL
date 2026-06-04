@@ -19,6 +19,7 @@
  *   E-10  setDropdownFilter — filtro dropdown nivel de riesgo (combinable)
  *   E-11  setDropdownFilter — filtro dropdown por equipo (no combina con agentId)
  *   E-12  setDropdownFilter — filtro dropdown seguimientos ejecutados 0–10 (combinable)
+ *   E-13  setDropdownFilter — filtro dropdown estado del caso (combinable)
  *   E-03  onSearchInput   — búsqueda con debounce
  *   E-04  onSortChange    — cambio de ordenamiento
  *   E-05  emitActionClicked
@@ -278,7 +279,7 @@
         normalizeDefaultActiveFilter: function() {
             var df = Object.assign({}, this.defaultFilter);
             if (!df.key || df.key === 'casos_nuevos' || df.key === 'riesgo' || df.key === 'equipo' ||
-                df.key === 'seguimientos_ejecutados') {
+                df.key === 'seguimientos_ejecutados' || df.key === 'estado_caso') {
                 return { key: '' };
             }
             if (df.key === 'persona_asignada' && !df.value) {
@@ -367,7 +368,8 @@
                        self.activeFilter.key !== 'casos_nuevos' &&
                        self.activeFilter.key !== 'riesgo' &&
                        self.activeFilter.key !== 'equipo' &&
-                       self.activeFilter.key !== 'seguimientos_ejecutados') {
+                       self.activeFilter.key !== 'seguimientos_ejecutados' &&
+                       self.activeFilter.key !== 'estado_caso') {
                 params.set('filter_key', self.activeFilter.key);
                 if (self.activeFilter.value) {
                     params.set('filter_value', self.activeFilter.value);
@@ -378,7 +380,7 @@
                 params.set('chip_filter', 'casos_nuevos');
             }
 
-            var dropdownParamKeys = ['riesgo', 'equipo', 'seguimientos_ejecutados'];
+            var dropdownParamKeys = ['riesgo', 'equipo', 'seguimientos_ejecutados', 'estado_caso'];
             dropdownParamKeys.forEach(function(dk) {
                 var val = self.activeDropdowns[dk];
                 if (!val) {
@@ -478,6 +480,24 @@
             var n = caseObj.completedFollowUpsCount;
             if (n === undefined || n === null) return '0';
             return String(n);
+        },
+
+        caseStatusLabel: function(code) {
+            var map = {
+                ra: 'Activo',
+                is: 'Con novedad',
+                cd: 'Cerrado',
+                ex: 'Vencido',
+                r:  'Por aprobar',
+                fc: 'Recontacto',
+            };
+            return map[code] || 'Desconocido';
+        },
+
+        caseStatusBadgeClass: function(code) {
+            var known = { ra: true, is: true, cd: true, ex: true, r: true, fc: true };
+            var slug = known[code] ? code : 'desconocido';
+            return 'cc-case-status-badge cc-case-status-' + slug;
         },
 
         autocompleteMinLength: function() {

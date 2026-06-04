@@ -6,7 +6,7 @@
 INPUT: {
   defaultFilter:   filtro inicial   → prop :defaultFilter del padre
                                       shape: { key: string, value?: string }
-                                      keys válidos: 'casos_nuevos' | 'riesgo' | 'equipo' | 'seguimientos_ejecutados' | 'persona_asignada'
+                                      keys válidos: 'casos_nuevos' | 'riesgo' | 'equipo' | 'seguimientos_ejecutados' | 'estado_caso' | 'persona_asignada'
   columns:         columnas         → prop :columns (Array<{ key, label }>) del padre
   hiddenColumns:   columnas ocultas → prop :hiddenColumns (Array<string>) del padre (opcional)
   buttons:         botones de fila  → prop :buttons (Array<{ id, label }>) del padre
@@ -38,8 +38,12 @@ PASO 1 — Inicializar estado interno del componente
 PASO 2 — Consultar backend con el filtro inicial y paginación
 
   GET /api/v1/cases/list
-    ?filter_key={activeFilter.key}
+    ?filter_key={activeFilter.key}          // p. ej. persona_asignada si prop agentId
     &filter_value={activeFilter.value}
+    &chip_filter=...                        // si chip activo (E-09)
+    &filter_riesgo=...                     // dropdowns activos (E-10, E-11, E-12, E-13)
+    &filter_estado_caso=...
+    &search=...
     &sort={sortBy}
     &order={sortOrder}
     &page={currentPage}
@@ -88,6 +92,12 @@ PASO 4 — Renderizar tabla y controles de paginación
           // Conteo de filas en salvia.follow_up_v2 del caso con status = 'REALIZADO'
           SI count === 0: mostrar "0"
           SI count > 0: mostrar el número como texto (sin decimales)
+      'case_status' →
+          caseStatusLabel(case.status)   // victim_case.victim_case_status (código)
+          // Mapeo de códigos → etiquetas (misma tabla que get_case_detail_sv labelEstado):
+          //   ra → Activo   | is → Con novedad | cd → Cerrado
+          //   ex → Vencido  | r  → Por aprobar | fc → Recontacto
+          SI status vacío o código sin mapear: mostrar "—" (o código crudo — ver GAPS)
 
     Renderizar columna de acciones:
       PARA CADA btn EN buttons:
@@ -193,6 +203,10 @@ PASO 6 — Aplicar filtro según filter_key
       → WHERE vc.victim_case_team = filter_value
       // Equipo del caso, no del agente — Ver flow-E11
 
+    CASO 'estado_caso' (dropdown aditivo filter_estado_caso):
+      → WHERE vc.victim_case_status = {código}
+      // Códigos: ra | is | cd | ex | r | fc — Ver flow-E13
+
     CASO 'persona_asignada':
       → WHERE vc.agent_id = filter_value         // filter_value = icode del agente
       // No requiere JOIN con rel_case_owner_victim_case; el agente está en victim_case.agent_id
@@ -233,7 +247,7 @@ PASO 9 — Construir y retornar response
         docNumber:         victim_case_victim_doc_number,
         victimPhone:       victim_phone,       // form2 al crear caso; fallback contact form1
         creationDate:      victim_case_creation_date,
-        status:            victim_case_status,
+        status:            victim_case_status, // código 2 chars; UI traduce con caseStatusLabel (columna case_status)
         ownerNames:        owner_names,        // del agente en victim_case.agent_id → general_user_profile
         ownerLastNames:    owner_last_names,
         ownerTeam:         owner_team,         // equipo del agente (general_user)
@@ -266,6 +280,10 @@ PASO 9 — Construir y retornar response
 | ¿Se cuentan seguimientos REALIZADO con soft-delete (deleted_at)? → Sí, excluir con deleted_at IS NULL     | PASO 5        |
 | Key de columna en UI del padre: ¿`completed_follow_ups`? Label: "Seguimientos ejecutados"                 | PASO 4        |
 | Rango máximo del dropdown E-12 (¿0–10 fijo o dinámico según máximo en BD?)                                | E-12          |
+| Key de columna estado: ¿`case_status`? Label: "Estado del caso"                                          | PASO 4        |
+| ¿Badge de color por estado (como get_case_detail_sv badgeEstado) o solo texto?                           | PASO 4        |
+| Códigos de estado fuera del mapa labelEstado (¿mostrar "—" o el código?)                                  | PASO 4, E-13  |
+| ¿Incluir más códigos en el filtro además de ra/is/cd/ex/r/fc? (p. ej. vacío, legacy)                      | E-13          |
 | Valores exactos del enum riskStatus en follow_up_v2 (¿'alto','medio','bajo'?)                              | PASO 6, 9     |
 | Tamaño de página por defecto: ¿20 registros es correcto?                                                   | PASO 1, 8     |
 | ¿El campo agent_id en victim_case puede ser NULL? Si es NULL, el caso no tiene agente asignado             | PASO 5, 6     |

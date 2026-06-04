@@ -641,6 +641,71 @@
 }
 
 /* ====================================================================
+   BADGE ESTADO DEL CASO (victim_case_status — 6 códigos + desconocido)
+   ==================================================================== */
+
+.cc-case-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.5;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+
+/* ra — Activo */
+.cc-case-status-ra {
+    background: #dbeafe;
+    color: #1d4ed8;
+    border-color: #93c5fd;
+}
+
+/* is — Con novedad */
+.cc-case-status-is {
+    background: #ede9fe;
+    color: #5106a7;
+    border-color: #c4b5fd;
+}
+
+/* cd — Cerrado */
+.cc-case-status-cd {
+    background: #f3f4f6;
+    color: #6b7280;
+    border-color: #d1d5db;
+}
+
+/* ex — Vencido */
+.cc-case-status-ex {
+    background: #fee2e2;
+    color: #dc2626;
+    border-color: #fca5a5;
+}
+
+/* r — Por aprobar */
+.cc-case-status-r {
+    background: #fef3c7;
+    color: #b45309;
+    border-color: #fcd34d;
+}
+
+/* fc — Recontacto */
+.cc-case-status-fc {
+    background: #d1fae5;
+    color: #047857;
+    border-color: #6ee7b7;
+}
+
+/* Código fuera del mapa o vacío */
+.cc-case-status-desconocido {
+    background: #f3f4f6;
+    color: #9ca3af;
+    border-color: #e5e7eb;
+}
+
+/* ====================================================================
    PAGINACIÓN
    ==================================================================== */
 

@@ -44,6 +44,7 @@ E-02 se dividió en tres flujos independientes:
 | **E-10** | Nivel de riesgo (dropdown) | [flow-E10](./Flujos/flow-E10-cuando-filtra-nivel-riesgo.md) |
 | **E-11** | Por equipo (dropdown) | [flow-E11](./Flujos/flow-E11-cuando-filtra-equipo.md) |
 | **E-12** | Seguimientos ejecutados (dropdown) | [flow-E12](./Flujos/flow-E12-cuando-filtra-seguimientos-ejecutados.md) |
+| **E-13** | Estado del caso (dropdown) | [flow-E13](./Flujos/flow-E13-cuando-filtra-estado-caso.md) |
 
 ---
 
@@ -105,6 +106,23 @@ Descripción:  Cambio en el dropdown numérico "Seguimientos ejecutados".
               que la columna completed_follow_ups en E-01).
               Llama al backend con dropdown_filter_key=seguimientos_ejecutados
               y dropdown_filter_value.
+Requerido:    Sí
+```
+
+---
+
+### E-13 — Cuando filtra por estado del caso
+
+📄 [Ver flujo → flow-E13-cuando-filtra-estado-caso.md](./Flujos/flow-E13-cuando-filtra-estado-caso.md)
+
+```
+Evento:       Cuando filtra por estado del caso
+Tipo:         User Interaction
+Descripción:  Cambio en el dropdown "Estado del caso". Filtra por
+              victim_case.victim_case_status (códigos ra/is/cd/ex/r/fc).
+              Opciones quemadas en el padre; etiquetas según labelEstado
+              de get_case_detail_sv. Combinable con otros filtros.
+              Llama al backend con filter_estado_caso={código}.
 Requerido:    Sí
 ```
 
@@ -226,7 +244,7 @@ Requerido:    Sí
 ## Checklist de completitud
 
 - [x] ¿El ciclo de vida inicial (carga de datos) está cubierto? → E-01
-- [x] ¿Toda acción del usuario sobre la UI propia del componente está cubierta? → E-09, E-10, E-11, E-12, E-03, E-04, E-05, E-06, E-07, E-08
+- [x] ¿Toda acción del usuario sobre la UI propia del componente está cubierta? → E-09, E-10, E-11, E-12, E-13, E-03, E-04, E-05, E-06, E-07, E-08
 - [x] ¿Los eventos emitidos hacia el padre están cubiertos? → E-05
 - [x] ¿Hay lógica de backend desacoplada de la respuesta HTTP? → No
 - [x] ¿Hay scheduled tasks o webhooks? → No
@@ -244,6 +262,7 @@ Requerido:    Sí
 | E-10 | Cuando filtra por nivel de riesgo | User Interaction | No (solo lee) |
 | E-11 | Cuando filtra por equipo | User Interaction | No (solo lee) |
 | E-12 | Cuando filtra por seguimientos ejecutados | User Interaction | No (solo lee) |
+| E-13 | Cuando filtra por estado del caso | User Interaction | No (solo lee) |
 | E-03 | Cuando el usuario escribe en el buscador | User Interaction | No (solo lee) |
 | E-04 | Cuando el usuario cambia el ordenamiento | User Interaction | No (solo lee, ORDER BY en servidor) |
 | E-05 | Cuando el usuario presiona un botón de acción | User Interaction | No (emite hacia padre) |
@@ -251,6 +270,6 @@ Requerido:    Sí
 | E-07 | Cuando el usuario escribe en el autocomplete de persona asignada | User Interaction | No (solo lee — busca agentes) |
 | E-08 | Cuando el usuario selecciona o limpia una opción del autocomplete | User Interaction | No (solo lee — filtra casos) |
 
-**Total: 12 eventos — 1 Lifecycle, 10 User Interaction, 1 Índice**  
+**Total: 13 eventos — 1 Lifecycle, 11 User Interaction, 1 Índice**  
 **Ningún evento escribe en el backend desde este componente.**  
 **La acción resultante del botón presionado (E-05) es responsabilidad del componente padre que consume `casos-component`.**

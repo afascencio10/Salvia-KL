@@ -25,6 +25,7 @@ type CasesListFilters struct {
 	FilterRiesgo                 string // filter_riesgo (E-10)
 	FilterEquipo                 string // filter_equipo (E-11)
 	FilterSeguimientosEjecutados string // filter_seguimientos_ejecutados (E-12)
+	FilterEstadoCaso             string // filter_estado_caso (E-13)
 	Search      string
 	Sort        string
 	Order       string
@@ -235,6 +236,14 @@ func buildCasesListWhere(filters CasesListFilters) (string, []interface{}) {
 		}
 	}
 
+	// E-13: estado del caso (código victim_case_status)
+	if estadoCode := casesListEstadoCasoFilterValue(filters); estadoCode != "" {
+		if isValidCaseStatusCode(estadoCode) {
+			clauses = append(clauses, "vc.victim_case_status = ?")
+			args = append(args, estadoCode)
+		}
+	}
+
 	switch filters.FilterKey {
 	case "casos_nuevos":
 		// Ya aplicado arriba (chip o filter_key legacy)
@@ -244,6 +253,8 @@ func buildCasesListWhere(filters CasesListFilters) (string, []interface{}) {
 		// Ya aplicado arriba
 	case "seguimientos_ejecutados":
 		// Ya aplicado arriba
+	case "estado_caso":
+		// Ya aplicado arriba (E-13)
 	case "persona_asignada":
 		if filters.FilterValue != "" {
 			clauses = append(clauses, "vc.agent_id = ?")
@@ -326,6 +337,29 @@ func casesListSeguimientosFilterValue(filters CasesListFilters) string {
 		return filters.DropdownFilterValue
 	}
 	if filters.FilterKey == "seguimientos_ejecutados" && filters.FilterValue != "" {
+		return filters.FilterValue
+	}
+	return ""
+}
+
+// validCaseStatusCodes códigos victim_case_status permitidos en filtro E-13.
+var validCaseStatusCodes = map[string]bool{
+	"ra": true, "is": true, "cd": true, "ex": true, "r": true, "fc": true,
+}
+
+func isValidCaseStatusCode(code string) bool {
+	return validCaseStatusCodes[strings.TrimSpace(code)]
+}
+
+// casesListEstadoCasoFilterValue obtiene el código de estado del filtro E-13.
+func casesListEstadoCasoFilterValue(filters CasesListFilters) string {
+	if filters.FilterEstadoCaso != "" {
+		return filters.FilterEstadoCaso
+	}
+	if filters.DropdownFilterKey == "estado_caso" && filters.DropdownFilterValue != "" {
+		return filters.DropdownFilterValue
+	}
+	if filters.FilterKey == "estado_caso" && filters.FilterValue != "" {
 		return filters.FilterValue
 	}
 	return ""

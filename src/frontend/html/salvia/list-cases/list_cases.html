@@ -49,6 +49,14 @@
                         { value: 'alto',     label: 'Alto'     },
                         { value: 'extremo',  label: 'Extremo'  },
                     ]},
+                    { key: 'estado_caso', type: 'dropdown', label: 'Estado del caso', options: [
+                        { value: 'ra', label: 'Activo' },
+                        { value: 'is', label: 'Con novedad' },
+                        { value: 'cd', label: 'Cerrado' },
+                        { value: 'ex', label: 'Vencido' },
+                        { value: 'r',  label: 'Por aprobar' },
+                        { value: 'fc', label: 'Recontacto' },
+                    ]},
                     { key: 'equipo', type: 'dropdown', label: 'Por equipo', options: [
                         { value: 'Riesgo bajo', label: 'Riesgo bajo' },
                         { value: 'Riesgo alto', label: 'Riesgo alto' },
@@ -66,6 +74,7 @@
                 ],
                 casosColumns: [
                     { key: 'victim_info',          label: 'Víctima'               },
+                    { key: 'case_status',          label: 'Estado Caso'           },
                     { key: 'registration_date',    label: 'Fecha de registro'     },
                     { key: 'risk_level',           label: 'Nivel de riesgo'       },
                     { key: 'team',                 label: 'Equipo'                },
@@ -91,6 +100,9 @@
                 if (payload.buttonId === 'detalle') {
                     location.assign('/salvia/casos/' + payload.case.i_code + '/detalle');
                 }
+            },
+            logout(){
+                logout("/seguridad/logout");
             },
         },
     });
