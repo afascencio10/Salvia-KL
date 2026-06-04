@@ -994,6 +994,37 @@ func mergeDocumentTypes(main, other map[string]string) map[string]string {
 	return result
 }
 
+// ListCasesGET renderiza la pantalla "Lista de casos" con el componente casos-component
+// sin filtro por agente (carga todos los casos).
+func ListCasesGET(c *gin.Context) {
+	session := sessions.Default(c)
+	var sessionID string = session.Get("userData").(string)
+	s, _ := utils.GetCommonSession(sessionID)
+
+	if !utils.CheckPermission(salvia_config.PermissionsByRole, "get_list_cases", s.CurrentRole, c) {
+		return
+	}
+
+	common_facades.SetHeaderNoCache(c)
+
+	var menu map[string][]map[string]string
+	if s != nil {
+		menu = s.CurrentMenu
+	}
+
+	extraTemplates := AppendSidebarTemplates(append(utils.GetFullHtmlTemplates(), casosComponentTemplates...))
+	common_facades.RenderTemplate(c, salvia_daos.VictimCaseEntityName, "salvia", "list-cases/", salvia_config.HTML_Templates, "list_cases", extraTemplates, utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
+		map[string]interface{}{
+			"windowTitle": "Lista de casos",
+			"currentUser": s.Names + " " + s.LastNames,
+			"currentRole": s.CurrentRole,
+			"nav_rules":   salvia_config.TranslateNavigationRule(s.Lang, salvia_config.NAVIGATION_RULES["get_victim_case"]),
+			"locale":      salvia_config.Locale,
+			"lang":        s.Lang,
+			"menu":        menu,
+		}, utils.GetFullHtmlFuncMap())
+}
+
 // MyCasesGET renderiza la pantalla "Mis casos" con el componente casos-component
 // filtrado por el agente logueado (agent_id = UserICode de sesión).
 func MyCasesGET(c *gin.Context) {

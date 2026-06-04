@@ -1,0 +1,108 @@
+<div class="salvia-layout">
+    {{ template "sidebar/sidebar.html" . }}
+    <main class="salvia-main">
+<div class="container">
+    <div class="welcome-section">
+        <h2><b>Lista de casos</b></h2>
+    </div>
+
+    {{ template "salvia/case_component/case_component.html" . }}
+
+    <div v-if="roleLoadError" class="mc-error-state">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>${ roleLoadError }</span>
+    </div>
+
+    <div v-else class="mt-4 mb-4">
+        <casos-component
+            :default-filter="casosDefaultFilter"
+            :available-filters="casosAvailableFilters"
+            :columns="casosColumns"
+            :buttons="casosButtons"
+            @action-clicked="onCasoActionClicked"
+        ></casos-component>
+    </div>
+</div>
+    </main>
+</div>
+
+{{ template "standard_scripts.html" . }}
+{{ template "overlay.html" . }}
+
+<script>
+    var home = Vue.createApp({
+        delimiters: ['${', '}'],
+        data: function() {
+            return {
+                windowTitle: {{.windowTitle}},
+                currentUser: "{{.currentUser}}",
+                currentRole: "{{.currentRole}}",
+                menu: {{.menu}},
+                roleLoadError: null,
+
+                casosDefaultFilter: {},
+                casosAvailableFilters: [
+                    { key: 'casos_nuevos', type: 'chip', label: 'Casos nuevos', options: [] },
+                    { key: 'riesgo', type: 'dropdown', label: 'Nivel de riesgo', options: [
+                        { value: 'bajo',     label: 'Bajo'     },
+                        { value: 'moderado', label: 'Moderado' },
+                        { value: 'alto',     label: 'Alto'     },
+                        { value: 'extremo',  label: 'Extremo'  },
+                    ]},
+                    { key: 'equipo', type: 'dropdown', label: 'Por equipo', options: [
+                        { value: 'Riesgo bajo', label: 'Riesgo bajo' },
+                        { value: 'Riesgo alto', label: 'Riesgo alto' },
+                        { value: 'Hombres',     label: 'Hombres'     },
+                    ]},
+                    { key: 'seguimientos_ejecutados', type: 'dropdown', label: 'Seguimientos ejecutados', options: (function() {
+                        var opts = [];
+                        for (var i = 0; i <= 10; i++) {
+                            opts.push({ value: String(i), label: String(i) });
+                        }
+                        return opts;
+                    })() },
+                    { key: 'persona_asignada', type: 'autocomplete', label: 'Persona asignada' },
+                    { key: 'busqueda', type: 'search', label: 'Buscar por documento o teléfono' },
+                ],
+                casosColumns: [
+                    { key: 'victim_info',          label: 'Víctima'               },
+                    { key: 'registration_date',    label: 'Fecha de registro'     },
+                    { key: 'risk_level',           label: 'Nivel de riesgo'       },
+                    { key: 'team',                 label: 'Equipo'                },
+                    { key: 'assigned_person',      label: 'Persona asignada'      },
+                    { key: 'next_follow_up_date',  label: 'Próximo seguimiento'   },
+                    { key: 'completed_follow_ups', label: 'Seguimientos ejecutados' },
+                ],
+                casosButtons: [
+                    { id: 'detalle', label: 'Ver detalle' },
+                ],
+            };
+        },
+        mounted: function() {
+            document.title = {{.windowTitle}};
+            if (this.currentRole !== 'sv') {
+                this.roleLoadError = 'No tienes permiso para ver esta página.';
+                alert('No tienes permiso para ver esta página.');
+            }
+            document.getElementById('app').style.display = 'block';
+        },
+        methods: {
+            onCasoActionClicked: function(payload) {
+                if (payload.buttonId === 'detalle') {
+                    location.assign('/salvia/casos/' + payload.case.i_code + '/detalle');
+                }
+            },
+        },
+    });
+
+    var app = home;
+
+    var _tplCasos = document.getElementById('tpl-casos-component');
+    window.__casosComponentTpl = _tplCasos ? _tplCasos.innerHTML : '';
+</script>
+
+<script src="/static/js/components/casos-component.js"></script>
+
+<script>
+    home.mount("#app");
+</script>

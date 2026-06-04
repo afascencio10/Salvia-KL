@@ -107,6 +107,10 @@
         sortOption: function() {
             return this.sortBy + '_' + this.sortOrder;
         },
+
+        totalCasesFormatted: function() {
+            return this.totalCases.toLocaleString('es-CO');
+        },
     },
 
     mounted: function() {
@@ -132,6 +136,12 @@
         this._onDocumentClick = this.handleDocumentClick.bind(this);
         document.addEventListener('click', this._onDocumentClick);
 
+        var self = this;
+        this._onWindowResize = function() {
+            self.updateTableScrollWidth();
+        };
+        window.addEventListener('resize', this._onWindowResize);
+
         this.fetchCases();
     },
 
@@ -139,9 +149,127 @@
         if (this._onDocumentClick) {
             document.removeEventListener('click', this._onDocumentClick);
         }
+        if (this._onWindowResize) {
+            window.removeEventListener('resize', this._onWindowResize);
+        }
+        if (this._tableResizeObserver) {
+            this._tableResizeObserver.disconnect();
+            this._tableResizeObserver = null;
+        }
     },
 
     methods: {
+
+        // ----------------------------------------------------------------
+        // TOOLTIP CSS (chip Casos nuevos — E-09; evita Bootstrap/Popper)
+        // ----------------------------------------------------------------
+
+        chipTooltipText: function(filter) {
+            if (!filter || filter.key !== 'casos_nuevos') {
+                return '';
+            }
+            return 'Muestra los casos más recientes: creados hoy y en los 5 días calendario anteriores (hora Colombia).';
+        },
+
+        // ----------------------------------------------------------------
+        // SCROLL HORIZONTAL SINCRONIZADO (barra superior + inferior)
+        // ----------------------------------------------------------------
+
+        scheduleTableScrollSync: function() {
+            var self = this;
+            this.$nextTick(function() {
+                self.updateTableScrollWidth();
+                self.observeTableScroll();
+            });
+        },
+
+        updateTableScrollWidth: function() {
+            var main = this.$refs.tableScrollMain;
+            var top = this.$refs.tableScrollTop;
+            var inner = this.$refs.tableScrollTopInner;
+            if (!main || !top || !inner) {
+                return;
+            }
+
+            var table = main.querySelector('.cc-table');
+            if (!table) {
+                top.classList.add('cc-table-scroll--hidden');
+                return;
+            }
+
+            var scrollWidth = table.scrollWidth;
+            inner.style.width = scrollWidth + 'px';
+            inner.style.height = '1px';
+
+            var needsScroll = scrollWidth > main.clientWidth + 1;
+            var rowCount = this.cases ? this.cases.length : 0;
+            var showTopScroll = needsScroll && rowCount >= 5;
+
+            if (showTopScroll) {
+                top.classList.remove('cc-table-scroll--hidden');
+                top.scrollLeft = main.scrollLeft;
+            } else {
+                top.classList.add('cc-table-scroll--hidden');
+                top.scrollLeft = 0;
+                if (!needsScroll) {
+                    main.scrollLeft = 0;
+                }
+            }
+        },
+
+        onTableScrollMain: function() {
+            if (this._scrollSyncing) {
+                return;
+            }
+            var top = this.$refs.tableScrollTop;
+            var main = this.$refs.tableScrollMain;
+            if (!top || !main || top.classList.contains('cc-table-scroll--hidden')) {
+                return;
+            }
+            this._scrollSyncing = true;
+            top.scrollLeft = main.scrollLeft;
+            this._scrollSyncing = false;
+        },
+
+        onTableScrollTop: function() {
+            if (this._scrollSyncing) {
+                return;
+            }
+            var top = this.$refs.tableScrollTop;
+            var main = this.$refs.tableScrollMain;
+            if (!top || !main) {
+                return;
+            }
+            this._scrollSyncing = true;
+            main.scrollLeft = top.scrollLeft;
+            this._scrollSyncing = false;
+        },
+
+        observeTableScroll: function() {
+            var self = this;
+            var main = this.$refs.tableScrollMain;
+            if (!main) {
+                return;
+            }
+
+            var table = main.querySelector('.cc-table');
+            if (!table) {
+                return;
+            }
+
+            if (this._tableResizeObserver) {
+                this._tableResizeObserver.disconnect();
+            }
+
+            if (typeof ResizeObserver === 'undefined') {
+                return;
+            }
+
+            this._tableResizeObserver = new ResizeObserver(function() {
+                self.updateTableScrollWidth();
+            });
+            this._tableResizeObserver.observe(table);
+        },
 
         // ----------------------------------------------------------------
         // HELPERS DE FILTRO
@@ -288,12 +416,14 @@
                         }
                     }
                     self.loading = false;
+                    self.scheduleTableScrollSync();
                 })
                 .catch(function() {
                     self.loadError = options.errorMessage || 'Error al cargar los casos';
                     self.cases = [];
                     self.totalCases = 0;
                     self.loading = false;
+                    self.scheduleTableScrollSync();
                 });
         },
 

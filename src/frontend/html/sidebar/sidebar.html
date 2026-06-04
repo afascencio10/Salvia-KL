@@ -12,6 +12,12 @@
             <i class="fas fa-home" aria-hidden="true"></i>
             <span>Home</span>
         </a>
+        {{ if eq .currentRole "sv" }}
+        <a href="/salvia/lista-casos" class="salvia-sidebar__nav-link">
+            <i class="fas fa-list" aria-hidden="true"></i>
+            <span>Lista Casos</span>
+        </a>
+        {{ end }}
         <a href="/salvia/mis-casos" class="salvia-sidebar__nav-link">
             <i class="fas fa-folder-open" aria-hidden="true"></i>
             <span>Mis Casos</span>

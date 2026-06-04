@@ -242,7 +242,8 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	"get_seguimiento_formulario":      {"op": true},
 	"get_mis_seguimientos_dia":        {"op": true},
 	// Carga de la pantalla HTML: mismos roles que get_notificaciones; uso real solo op/ro (validación en frontend).
-	"get_my_cases": {"op": true, "an": true, "no": true, "sv": true, "ad": true, "ro": true, "et": true},
+	"get_my_cases":  {"op": true, "an": true, "no": true, "sv": true, "ad": true, "ro": true, "et": true},
+	"get_list_cases": {"op": true, "an": true, "no": true, "sv": true, "ad": true, "ro": true, "et": true},
 	"get_seguimientos_area":           {"ad": true, "sv": true},
 	"get_hacer_seguimiento":           {"ro": true, "op": true, "ad": true},
 	"generate_calendario_seguimiento": {"ad": true, "sv": true, "op": true},
