@@ -52,3 +52,14 @@ func GetGeneralUserByLogin(login string, user *GeneralUserDTO, connData *db.Conn
 	}
 	return GetGeneralUser(by, user, connData, clientConfig, serverConfig)
 }
+
+// GetGeneralUserByProfileId obtiene el usuario asociado a un perfil dado su ID.
+// Retorna error si no existe ningún general_user vinculado al perfil.
+func GetGeneralUserByProfileId(profileId uint64, user *GeneralUserDTO, connData *db.ConnData, clientConfig *db.DBClientConfig, serverConfig *db.DBServerConfig) error {
+	by := common_controllers.By{
+		Operator:   common_dao.SQL_AND,
+		AttrsName:  []string{"GeneralUserGeneralUserProfile"},
+		AttrsValue: []interface{}{profileId},
+	}
+	return GetGeneralUser(by, user, connData, clientConfig, serverConfig)
+}

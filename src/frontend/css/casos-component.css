@@ -6,6 +6,8 @@
 /* ---- Contenedor principal ---- */
 .cc-wrapper {
     font-family: 'Nunito Sans', sans-serif;
+    max-width: 100%;
+    min-width: 0;
 }
 
 /* ====================================================================
@@ -141,6 +143,58 @@
 .cc-chip--active:hover {
     background: #3d0482;
     border-color: #3d0482;
+}
+
+/* Tooltip del chip "Casos nuevos" (sin Bootstrap — Popper 2 rompe BS4) */
+.cc-chip--has-tooltip {
+    position: relative;
+}
+
+.cc-chip--has-tooltip::after {
+    content: attr(data-cc-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 300;
+    min-width: 220px;
+    max-width: 280px;
+    padding: 8px 12px;
+    background: #1f2937;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.4;
+    text-align: center;
+    border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    white-space: normal;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+.cc-chip--has-tooltip::before {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 2px);
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #1f2937;
+    z-index: 301;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+.cc-chip--has-tooltip:hover::after,
+.cc-chip--has-tooltip:hover::before,
+.cc-chip--has-tooltip:focus-visible::after,
+.cc-chip--has-tooltip:focus-visible::before {
+    opacity: 1;
+    visibility: visible;
 }
 
 /* ---- Dropdown filter ---- */
@@ -364,6 +418,52 @@
     border-radius: 12px;
     overflow: hidden;
     background: #fff;
+    max-width: 100%;
+}
+
+/* Scroll horizontal sincronizado (arriba + abajo de la tabla) */
+.cc-table-scroll-group {
+    max-width: 100%;
+}
+
+.cc-table-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+    scrollbar-width: thin;
+    scrollbar-color: #c4b5fd #f9f7fc;
+}
+
+.cc-table-scroll-top {
+    border-bottom: 1px solid #f0ecf8;
+    background: #faf8fd;
+}
+
+.cc-table-scroll-top.cc-table-scroll--hidden {
+    display: none;
+}
+
+.cc-table-scroll-spacer {
+    height: 1px;
+    pointer-events: none;
+}
+
+.cc-table-scroll::-webkit-scrollbar {
+    height: 8px;
+}
+
+.cc-table-scroll::-webkit-scrollbar-track {
+    background: #f9f7fc;
+}
+
+.cc-table-scroll::-webkit-scrollbar-thumb {
+    background: #c4b5fd;
+    border-radius: 4px;
+}
+
+.cc-table-scroll::-webkit-scrollbar-thumb:hover {
+    background: #a78bfa;
 }
 
 .cc-empty {
@@ -384,6 +484,7 @@
 
 .cc-table {
     width: 100%;
+    min-width: max-content;
     border-collapse: collapse;
     font-size: 0.84rem;
 }
@@ -540,6 +641,71 @@
 }
 
 /* ====================================================================
+   BADGE ESTADO DEL CASO (victim_case_status — 6 códigos + desconocido)
+   ==================================================================== */
+
+.cc-case-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.5;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+
+/* ra — Activo */
+.cc-case-status-ra {
+    background: #dbeafe;
+    color: #1d4ed8;
+    border-color: #93c5fd;
+}
+
+/* is — Con novedad */
+.cc-case-status-is {
+    background: #ede9fe;
+    color: #5106a7;
+    border-color: #c4b5fd;
+}
+
+/* cd — Cerrado */
+.cc-case-status-cd {
+    background: #f3f4f6;
+    color: #6b7280;
+    border-color: #d1d5db;
+}
+
+/* ex — Vencido */
+.cc-case-status-ex {
+    background: #fee2e2;
+    color: #dc2626;
+    border-color: #fca5a5;
+}
+
+/* r — Por aprobar */
+.cc-case-status-r {
+    background: #fef3c7;
+    color: #b45309;
+    border-color: #fcd34d;
+}
+
+/* fc — Recontacto */
+.cc-case-status-fc {
+    background: #d1fae5;
+    color: #047857;
+    border-color: #6ee7b7;
+}
+
+/* Código fuera del mapa o vacío */
+.cc-case-status-desconocido {
+    background: #f3f4f6;
+    color: #9ca3af;
+    border-color: #e5e7eb;
+}
+
+/* ====================================================================
    PAGINACIÓN
    ==================================================================== */
 
@@ -580,10 +746,24 @@
     cursor: not-allowed;
 }
 
+.cc-pagination-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    text-align: center;
+}
+
 .cc-page-info {
     font-size: 0.82rem;
     color: #888;
     font-weight: 600;
+}
+
+.cc-total-records {
+    font-size: 0.78rem;
+    color: #6b7280;
+    font-weight: 500;
 }
 
 /* ====================================================================
@@ -611,14 +791,6 @@
 
     .cc-autocomplete-filter {
         min-width: 0;
-    }
-
-    .cc-table-wrap {
-        overflow-x: auto;
-    }
-
-    .cc-table {
-        min-width: 600px;
     }
 
     .cc-pagination {

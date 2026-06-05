@@ -19,6 +19,7 @@
  *   E-10  setDropdownFilter — filtro dropdown nivel de riesgo (combinable)
  *   E-11  setDropdownFilter — filtro dropdown por equipo (no combina con agentId)
  *   E-12  setDropdownFilter — filtro dropdown seguimientos ejecutados 0–10 (combinable)
+ *   E-13  setDropdownFilter — filtro dropdown estado del caso (combinable)
  *   E-03  onSearchInput   — búsqueda con debounce
  *   E-04  onSortChange    — cambio de ordenamiento
  *   E-05  emitActionClicked
@@ -107,6 +108,10 @@
         sortOption: function() {
             return this.sortBy + '_' + this.sortOrder;
         },
+
+        totalCasesFormatted: function() {
+            return this.totalCases.toLocaleString('es-CO');
+        },
     },
 
     mounted: function() {
@@ -132,6 +137,12 @@
         this._onDocumentClick = this.handleDocumentClick.bind(this);
         document.addEventListener('click', this._onDocumentClick);
 
+        var self = this;
+        this._onWindowResize = function() {
+            self.updateTableScrollWidth();
+        };
+        window.addEventListener('resize', this._onWindowResize);
+
         this.fetchCases();
     },
 
@@ -139,9 +150,127 @@
         if (this._onDocumentClick) {
             document.removeEventListener('click', this._onDocumentClick);
         }
+        if (this._onWindowResize) {
+            window.removeEventListener('resize', this._onWindowResize);
+        }
+        if (this._tableResizeObserver) {
+            this._tableResizeObserver.disconnect();
+            this._tableResizeObserver = null;
+        }
     },
 
     methods: {
+
+        // ----------------------------------------------------------------
+        // TOOLTIP CSS (chip Casos nuevos — E-09; evita Bootstrap/Popper)
+        // ----------------------------------------------------------------
+
+        chipTooltipText: function(filter) {
+            if (!filter || filter.key !== 'casos_nuevos') {
+                return '';
+            }
+            return 'Muestra los casos más recientes: creados hoy y en los 5 días calendario anteriores (hora Colombia).';
+        },
+
+        // ----------------------------------------------------------------
+        // SCROLL HORIZONTAL SINCRONIZADO (barra superior + inferior)
+        // ----------------------------------------------------------------
+
+        scheduleTableScrollSync: function() {
+            var self = this;
+            this.$nextTick(function() {
+                self.updateTableScrollWidth();
+                self.observeTableScroll();
+            });
+        },
+
+        updateTableScrollWidth: function() {
+            var main = this.$refs.tableScrollMain;
+            var top = this.$refs.tableScrollTop;
+            var inner = this.$refs.tableScrollTopInner;
+            if (!main || !top || !inner) {
+                return;
+            }
+
+            var table = main.querySelector('.cc-table');
+            if (!table) {
+                top.classList.add('cc-table-scroll--hidden');
+                return;
+            }
+
+            var scrollWidth = table.scrollWidth;
+            inner.style.width = scrollWidth + 'px';
+            inner.style.height = '1px';
+
+            var needsScroll = scrollWidth > main.clientWidth + 1;
+            var rowCount = this.cases ? this.cases.length : 0;
+            var showTopScroll = needsScroll && rowCount >= 5;
+
+            if (showTopScroll) {
+                top.classList.remove('cc-table-scroll--hidden');
+                top.scrollLeft = main.scrollLeft;
+            } else {
+                top.classList.add('cc-table-scroll--hidden');
+                top.scrollLeft = 0;
+                if (!needsScroll) {
+                    main.scrollLeft = 0;
+                }
+            }
+        },
+
+        onTableScrollMain: function() {
+            if (this._scrollSyncing) {
+                return;
+            }
+            var top = this.$refs.tableScrollTop;
+            var main = this.$refs.tableScrollMain;
+            if (!top || !main || top.classList.contains('cc-table-scroll--hidden')) {
+                return;
+            }
+            this._scrollSyncing = true;
+            top.scrollLeft = main.scrollLeft;
+            this._scrollSyncing = false;
+        },
+
+        onTableScrollTop: function() {
+            if (this._scrollSyncing) {
+                return;
+            }
+            var top = this.$refs.tableScrollTop;
+            var main = this.$refs.tableScrollMain;
+            if (!top || !main) {
+                return;
+            }
+            this._scrollSyncing = true;
+            main.scrollLeft = top.scrollLeft;
+            this._scrollSyncing = false;
+        },
+
+        observeTableScroll: function() {
+            var self = this;
+            var main = this.$refs.tableScrollMain;
+            if (!main) {
+                return;
+            }
+
+            var table = main.querySelector('.cc-table');
+            if (!table) {
+                return;
+            }
+
+            if (this._tableResizeObserver) {
+                this._tableResizeObserver.disconnect();
+            }
+
+            if (typeof ResizeObserver === 'undefined') {
+                return;
+            }
+
+            this._tableResizeObserver = new ResizeObserver(function() {
+                self.updateTableScrollWidth();
+            });
+            this._tableResizeObserver.observe(table);
+        },
 
         // ----------------------------------------------------------------
         // HELPERS DE FILTRO
@@ -150,7 +279,7 @@
         normalizeDefaultActiveFilter: function() {
             var df = Object.assign({}, this.defaultFilter);
             if (!df.key || df.key === 'casos_nuevos' || df.key === 'riesgo' || df.key === 'equipo' ||
-                df.key === 'seguimientos_ejecutados') {
+                df.key === 'seguimientos_ejecutados' || df.key === 'estado_caso') {
                 return { key: '' };
             }
             if (df.key === 'persona_asignada' && !df.value) {
@@ -239,7 +368,8 @@
                        self.activeFilter.key !== 'casos_nuevos' &&
                        self.activeFilter.key !== 'riesgo' &&
                        self.activeFilter.key !== 'equipo' &&
-                       self.activeFilter.key !== 'seguimientos_ejecutados') {
+                       self.activeFilter.key !== 'seguimientos_ejecutados' &&
+                       self.activeFilter.key !== 'estado_caso') {
                 params.set('filter_key', self.activeFilter.key);
                 if (self.activeFilter.value) {
                     params.set('filter_value', self.activeFilter.value);
@@ -250,7 +380,7 @@
                 params.set('chip_filter', 'casos_nuevos');
             }
 
-            var dropdownParamKeys = ['riesgo', 'equipo', 'seguimientos_ejecutados'];
+            var dropdownParamKeys = ['riesgo', 'equipo', 'seguimientos_ejecutados', 'estado_caso'];
             dropdownParamKeys.forEach(function(dk) {
                 var val = self.activeDropdowns[dk];
                 if (!val) {
@@ -288,12 +418,14 @@
                         }
                     }
                     self.loading = false;
+                    self.scheduleTableScrollSync();
                 })
                 .catch(function() {
                     self.loadError = options.errorMessage || 'Error al cargar los casos';
                     self.cases = [];
                     self.totalCases = 0;
                     self.loading = false;
+                    self.scheduleTableScrollSync();
                 });
         },
 
@@ -348,6 +480,24 @@
             var n = caseObj.completedFollowUpsCount;
             if (n === undefined || n === null) return '0';
             return String(n);
+        },
+
+        caseStatusLabel: function(code) {
+            var map = {
+                ra: 'Activo',
+                is: 'Con novedad',
+                cd: 'Cerrado',
+                ex: 'Vencido',
+                r:  'Por aprobar',
+                fc: 'Recontacto',
+            };
+            return map[code] || 'Desconocido';
+        },
+
+        caseStatusBadgeClass: function(code) {
+            var known = { ra: true, is: true, cd: true, ex: true, r: true, fc: true };
+            var slug = known[code] ? code : 'desconocido';
+            return 'cc-case-status-badge cc-case-status-' + slug;
         },
 
         autocompleteMinLength: function() {

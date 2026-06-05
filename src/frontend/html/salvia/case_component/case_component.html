@@ -32,7 +32,12 @@
                     <template v-if="filter.type === 'chip'">
                         <button
                             class="cc-chip"
-                            :class="{ 'cc-chip--active': activeChipKey === filter.key }"
+                            :class="{
+                                'cc-chip--active': activeChipKey === filter.key,
+                                'cc-chip--has-tooltip': !!chipTooltipText(filter)
+                            }"
+                            :data-cc-tooltip="chipTooltipText(filter)"
+                            :aria-label="chipTooltipText(filter) || filter.label"
                             @click="toggleChipFilter(filter.key)"
                         >
                             ${ filter.label }
@@ -154,6 +159,20 @@
 
             <!-- Tabla + paginación -->
             <template v-else>
+                <div class="cc-table-scroll-group">
+                <div
+                    class="cc-table-scroll cc-table-scroll-top"
+                    ref="tableScrollTop"
+                    @scroll="onTableScrollTop"
+                    aria-hidden="true"
+                >
+                    <div class="cc-table-scroll-spacer" ref="tableScrollTopInner"></div>
+                </div>
+                <div
+                    class="cc-table-scroll cc-table-scroll-main"
+                    ref="tableScrollMain"
+                    @scroll="onTableScrollMain"
+                >
                 <table class="cc-table">
                     <thead>
                         <tr>
@@ -223,6 +242,11 @@
                                     ${ completedFollowUpsDisplay(caseObj) }
                                 </td>
 
+                                <!-- case_status -->
+                                <td v-else-if="col.key === 'case_status'" class="cc-cell">
+                                    <span :class="caseStatusBadgeClass(caseObj.status)">${ caseStatusLabel(caseObj.status) }</span>
+                                </td>
+
                                 <!-- columna desconocida -->
                                 <td v-else class="cc-cell">—</td>
 
@@ -244,6 +268,8 @@
                         </tr>
                     </tbody>
                 </table>
+                </div>
+                </div>
 
                 <!-- Paginación -->
                 <div class="cc-pagination">
@@ -255,7 +281,10 @@
                     >
                         ← Anterior
                     </button>
-                    <span class="cc-page-info">Página ${ currentPage } de ${ totalPages }</span>
+                    <div class="cc-pagination-meta">
+                        <span class="cc-page-info">Página ${ currentPage } de ${ totalPages }</span>
+                        <span class="cc-total-records">Total de registros: ${ totalCasesFormatted }</span>
+                    </div>
                     <button
                         class="cc-page-btn"
                         type="button"

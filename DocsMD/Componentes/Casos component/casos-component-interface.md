@@ -185,6 +185,11 @@ casos-component  (.cc-wrapper)
             │           │   └── case.completedFollowUpsCount  (entero; "0" si es 0)
             │           │   // COUNT follow_up_v2 WHERE status = 'REALIZADO'
             │           │
+            │           ├── [col.key === 'case_status']
+            │           │   <td>  (.cc-cell)
+            │           │   └── caseStatusLabel(case.status)
+            │           │   // victim_case_status: ra→Activo, is→Con novedad, cd→Cerrado, …
+            │           │
             │           └── [v-if buttons.length > 0]
             │               <td>  (.cc-cell-actions)
             │               └── ActionBtn × N  [v-for buttons]  (.cc-action-btn)
@@ -241,6 +246,7 @@ casos-component  (.cc-wrapper)
 | `riesgo` | `dropdown` | `"Nivel de riesgo"` | Fijas: `{ value:'alto', label:'Alto' }`, `medio`, `bajo` |
 | `equipo` | `dropdown` | `"Por equipo"` | Dinámicas — cargadas en E-01 |
 | `seguimientos_ejecutados` | `dropdown` | `"Seguimientos ejecutados"` | Fijas: `{ value:'0', label:'0' }` … `{ value:'10', label:'10' }` (→ E-12) |
+| `estado_caso` | `dropdown` | `"Estado del caso"` | Fijas: `ra` Activo, `is` Con novedad, `cd` Cerrado, `ex` Vencido, `r` Por aprobar, `fc` Recontacto (→ E-13) |
 | `persona_asignada` | `autocomplete` | `"Persona asignada"` | — (se buscan on-demand al escribir → E-07) |
 | `busqueda` | `search` | `"Buscar por ID o teléfono"` | — |
 
@@ -277,3 +283,4 @@ casos-component  (.cc-wrapper)
 | `assigned_person` | `rel_case_owner_victim_case` (status=`'a'`) → perfil del agente | Persona con el caso asignado |
 | `next_follow_up_date` | `FollowUpV2.scheduled_date` (status=`PENDIENTE`, más próximo) | Fecha del próximo seguimiento sin ejecutar |
 | `completed_follow_ups` | `COUNT(follow_up_v2)` donde `status = 'REALIZADO'` y `case_id = victim_case_i_code` | Número de seguimientos ya realizados del caso |
+| `case_status` | `victim_case.victim_case_status` (código) → etiqueta vía `caseStatusLabel` | Estado del caso (Activo, Cerrado, etc.) |

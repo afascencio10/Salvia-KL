@@ -3,8 +3,7 @@
     <main class="salvia-main">
 <div class="container">
     <div class="welcome-section">
-        <h2><b>Mis casos</b></h2>
-        <p class="text-muted mb-0">Casos asignados a ${ currentUser }</p>
+        <h2><b>Lista de casos</b></h2>
     </div>
 
     {{ template "salvia/case_component/case_component.html" . }}
@@ -16,7 +15,6 @@
 
     <div v-else class="mt-4 mb-4">
         <casos-component
-            :agent-id="currentUserId"
             :default-filter="casosDefaultFilter"
             :available-filters="casosAvailableFilters"
             :columns="casosColumns"
@@ -39,15 +37,13 @@
                 windowTitle: {{.windowTitle}},
                 currentUser: "{{.currentUser}}",
                 currentRole: "{{.currentRole}}",
-                currentUserId: "{{.currentUserId}}",
                 menu: {{.menu}},
                 roleLoadError: null,
 
-                //casosDefaultFilter: { key: 'persona_asignada', value: "{{.currentUserId}}" },
                 casosDefaultFilter: {},
                 casosAvailableFilters: [
-                    { key: 'casos_nuevos', type: 'chip',     label: 'Casos nuevos', options: [] },
-                    { key: 'riesgo',       type: 'dropdown', label: 'Nivel de riesgo', options: [
+                    { key: 'casos_nuevos', type: 'chip', label: 'Casos nuevos', options: [] },
+                    { key: 'riesgo', type: 'dropdown', label: 'Nivel de riesgo', options: [
                         { value: 'bajo',     label: 'Bajo'     },
                         { value: 'moderado', label: 'Moderado' },
                         { value: 'alto',     label: 'Alto'     },
@@ -61,6 +57,11 @@
                         { value: 'r',  label: 'Por aprobar' },
                         { value: 'fc', label: 'Recontacto' },
                     ]},
+                    { key: 'equipo', type: 'dropdown', label: 'Por equipo', options: [
+                        { value: 'Riesgo bajo', label: 'Riesgo bajo' },
+                        { value: 'Riesgo alto', label: 'Riesgo alto' },
+                        { value: 'Hombres',     label: 'Hombres'     },
+                    ]},
                     { key: 'seguimientos_ejecutados', type: 'dropdown', label: 'Seguimientos ejecutados', options: (function() {
                         var opts = [];
                         for (var i = 0; i <= 10; i++) {
@@ -68,15 +69,17 @@
                         }
                         return opts;
                     })() },
-                    { key: 'busqueda',     type: 'search',   label: 'Buscar por documento o teléfono' },
+                    { key: 'persona_asignada', type: 'autocomplete', label: 'Persona asignada' },
+                    { key: 'busqueda', type: 'search', label: 'Buscar por documento o teléfono' },
                 ],
                 casosColumns: [
-                    { key: 'victim_info',         label: 'Víctima'             },
-                    { key: 'case_status',         label: 'Estado del caso'     },
-                    { key: 'registration_date',   label: 'Fecha de registro'   },
-                    { key: 'risk_level',          label: 'Nivel de riesgo'     },
-                    { key: 'team',                label: 'Equipo'              },
-                    { key: 'next_follow_up_date', label: 'Próximo seguimiento' },
+                    { key: 'victim_info',          label: 'Víctima'               },
+                    { key: 'case_status',          label: 'Estado Caso'           },
+                    { key: 'registration_date',    label: 'Fecha de registro'     },
+                    { key: 'risk_level',           label: 'Nivel de riesgo'       },
+                    { key: 'team',                 label: 'Equipo'                },
+                    { key: 'assigned_person',      label: 'Persona asignada'      },
+                    { key: 'next_follow_up_date',  label: 'Próximo seguimiento'   },
                     { key: 'completed_follow_ups', label: 'Seguimientos ejecutados' },
                 ],
                 casosButtons: [
@@ -86,9 +89,9 @@
         },
         mounted: function() {
             document.title = {{.windowTitle}};
-            var validRoles = ['op', 'ro'];
-            if (validRoles.indexOf(this.currentRole) === -1) {
-                this.roleLoadError = 'Rol no autorizado para acceder a esta pantalla.';
+            if (this.currentRole !== 'sv') {
+                this.roleLoadError = 'No tienes permiso para ver esta página.';
+                alert('No tienes permiso para ver esta página.');
             }
             document.getElementById('app').style.display = 'block';
         },

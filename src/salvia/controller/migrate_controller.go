@@ -343,10 +343,24 @@ func (c *MigrateController) MigrateFromExcel(ctx *gin.Context) {
 		if strings.Contains(normalized, "se hizo") && strings.Contains(normalized, "seguimiento") {
 			num := extractNumber(normalized)
 			if num == 0 {
-				// Sin número = seguimiento 1
+				// Sin número = seguimiento 1 (solo si no contiene dígito alguno)
 				num = 1
 			}
 			seHizoColMap[num] = idx
+			log.Printf("[MIGRATE-EXCEL]   seHizo #%d → columna %d (%s)", num, idx, header[idx])
+		}
+	}
+	// Fallback: si no encontró por "se hizo", buscar por "hizo" solamente
+	if len(seHizoColMap) == 0 {
+		for normalized, idx := range colIndex {
+			if strings.Contains(normalized, "hizo") && strings.Contains(normalized, "seguimiento") {
+				num := extractNumber(normalized)
+				if num == 0 {
+					num = 1
+				}
+				seHizoColMap[num] = idx
+				log.Printf("[MIGRATE-EXCEL]   seHizo(fallback) #%d → columna %d (%s)", num, idx, header[idx])
+			}
 		}
 	}
 
@@ -416,7 +430,7 @@ func (c *MigrateController) MigrateFromExcel(ctx *gin.Context) {
 			continue
 		}
 
-		// Buscar agente por login del Excel (columna "Login")
+		// Buscar agente por login del Excel (columna "Login") — solo si existe la columna y tiene valor
 		var agentID string
 		if colLogin >= 0 {
 			loginValue := getCellValue(row, colLogin)
@@ -424,18 +438,8 @@ func (c *MigrateController) MigrateFromExcel(ctx *gin.Context) {
 				agentID = c.findAgentByName(loginValue)
 			}
 		}
-
-		// Si no se encontró por login, usar el owner actual del caso como fallback
-		if agentID == "" {
-			c.db.Raw(`
-				SELECT co.case_owner_general_user
-				FROM salvia.rel_case_owner_victim_case rcov
-				JOIN salvia.case_owner co ON co.case_owner_id = rcov.case_owner_id
-				WHERE rcov.victim_case_id = ?
-				ORDER BY rcov.rel_case_owner_victim_case_creation_date DESC
-				LIMIT 1
-			`, caso.VictimCaseId).Scan(&agentID)
-		}
+		// Si no hay login o no se encontró, NO asignar a nadie (dejar vacío)
+		// Ya no se usa el fallback del owner
 
 		// Si encontramos agente por login, actualizar victim_case.agent_id y victim_case_team
 		team := caso.VictimCaseTeam
@@ -444,7 +448,7 @@ func (c *MigrateController) MigrateFromExcel(ctx *gin.Context) {
 			if agentTeam != "" {
 				c.db.Exec(`UPDATE salvia.victim_case SET agent_id = ?, victim_case_team = ? WHERE victim_case_i_code = ?`,
 					agentID, agentTeam, caso.VictimCaseICode)
-				team = agentTeam // usar el team del agente para los seguimientos
+				team = agentTeam
 			} else {
 				c.db.Exec(`UPDATE salvia.victim_case SET agent_id = ? WHERE victim_case_i_code = ?`,
 					agentID, caso.VictimCaseICode)
