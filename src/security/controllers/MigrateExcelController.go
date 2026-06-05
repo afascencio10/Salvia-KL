@@ -3,6 +3,8 @@
 package security_ctrl
 
 import (
+	common_controllers "bitsflow/common/controllers"
+	common_dao "bitsflow/common/dao"
 	"bitsflow/common/db"
 	security_daos "bitsflow/security/dao"
 	"bytes"
@@ -63,16 +65,19 @@ type MigrateExcelResult struct {
 // MigrateFromExcel recibe el contenido de un archivo .xlsx como []byte,
 // lo parsea, aplica la lógica de negocio y crea o actualiza los usuarios.
 //
+// Clave de identificación: Doc. Número (cédula). El campo Login BD del Excel se usa
+// solo para generar un login al crear un usuario nuevo; no es la clave de búsqueda.
+//
+// Lógica por fila:
+//  1. Si Doc. Número está vacío → skip (no se puede identificar al usuario).
+//  2. Si NO existe perfil con esa cédula en BD → CREAR usuario nuevo.
+//  3. Si existe perfil:
+//     a. Tiene general_user vinculado (credenciales) → actualizar rol + equipo.
+//     b. Sin general_user → crear credenciales temporales (test.{login}) y luego actualizar rol + equipo.
+//
 // Regla de roles:
 //   - RolKreivo == "sv"  → ["sv"]  (Supervisor)
 //   - cualquier otro     → ["ro"]  (Operador)
-//
-// Normalización de equipos:
-//   - "Riesgo Alto" / "Riesgo Bajo" → "Riesgo alto" / "Riesgo bajo"
-//   - "Hombres"     → "Hombres"
-//   - vacío / otro  → "" (sin equipo)
-//
-// Filas ignoradas: login vacío o igual a "Crear"
 func MigrateFromExcel(fileBytes []byte, dbClientConfig db.DBClientConfig, dbServerConfig db.DBServerConfig) (int, string) {
 
 	// 1. Abrir Excel desde bytes en memoria
@@ -150,9 +155,14 @@ func MigrateFromExcel(fileBytes []byte, dbClientConfig db.DBClientConfig, dbServ
 			docType = "CC"
 		}
 
-		// Rol: sv → ["sv"], cualquier otro → ["ro"]
+		// Rol: usar el valor del Excel tal cual; si está vacío, defaultea a "ro"
 		rolKreivo := strings.TrimSpace(cellAt(row, colRolKreivo))
-		roleCodes := resolveRoleCodes([]string{rolKreivo})
+		var roleCodes []string
+		if rolKreivo != "" {
+			roleCodes = []string{rolKreivo}
+		} else {
+			roleCodes = []string{"ro"}
+		}
 
 		// Equipo
 		teamRaw := strings.TrimSpace(cellAt(row, colEquipo))
@@ -189,39 +199,43 @@ func MigrateFromExcel(fileBytes []byte, dbClientConfig db.DBClientConfig, dbServ
 
 	total := len(users)
 	for idx, u := range users {
-		fmt.Printf("[migrate-excel] %d/%d → %s ", idx+1, total, u.Login)
+		fmt.Printf("[migrate-excel] %d/%d → cédula:%s login:%s ", idx+1, total, u.DocNumber, u.Login)
 
-		// ¿El usuario ya existe en la BD?
-		// GetGeneralUserByLogin NO libera la conexión internamente → liberamos explícitamente
-		var existing security_daos.GeneralUserDTO
-		var connCheck db.ConnData
-		userExists := security_daos.GetGeneralUserByLogin(u.Login, &existing, &connCheck, &dbClientConfig, &dbServerConfig) == nil
-		db.ReleaseConnection(&connCheck) // ← liberación explícita y única
+		// Sin cédula real no podemos identificar al usuario → skip.
+		if u.DocNumber == "" || strings.HasPrefix(u.DocNumber, "AUTO_") {
+			fmt.Println("⏭ sin cédula válida")
+			result.Fallidos = append(result.Fallidos, MigrateSkippedItem{Login: u.Login, Reason: "sin Doc. Número — fila omitida"})
+			result.FallidosCount++
+			continue
+		}
 
-		if userExists {
-			// ACTUALIZAR — solo cambia rol y team
-			// SetupUpdateUserRoleTeam maneja su propia conexión internamente (defer release)
-			// → NO llamar db.ReleaseConnection después
-			updateBody, _ := json.Marshal(SetupUpdateRoleTeamRequest{
-				RoleCodes: u.RoleCodes,
-				Team:      u.Team,
-			})
-			var connUpdate db.ConnData
-			_, res := SetupUpdateUserRoleTeam(u.Login, string(updateBody), &connUpdate, dbClientConfig, dbServerConfig)
+		// ── PASO 1: buscar perfil por cédula ────────────────────────────────
+		var existingProfile security_daos.GeneralUserProfileDTO
+		var connProfile db.ConnData
+		profileFound := security_daos.GetGeneralUserProfile(
+			common_controllers.By{
+				Operator:   common_dao.SQL_AND,
+				AttrsName:  []string{"GeneralUserProfileDocNumber"},
+				AttrsValue: []interface{}{u.DocNumber},
+			},
+			&existingProfile, &connProfile, &dbClientConfig, &dbServerConfig,
+		) == nil
+		db.ReleaseConnection(&connProfile)
 
-			if isErrorResponse(res) {
-				fmt.Printf("❌ error actualizando: %s\n", res)
-				result.Fallidos = append(result.Fallidos, MigrateSkippedItem{Login: u.Login, Reason: res})
+		if !profileFound {
+			// ── CASO A: usuario nuevo ────────────────────────────────────────
+			// Verificar que el login no esté en uso por otro usuario con distinta cédula
+			var loginCheck security_daos.GeneralUserDTO
+			var connLoginCheck db.ConnData
+			loginExists := security_daos.GetGeneralUserByLogin(u.Login, &loginCheck, &connLoginCheck, &dbClientConfig, &dbServerConfig) == nil
+			db.ReleaseConnection(&connLoginCheck)
+			if loginExists {
+				fmt.Printf("⏭ login '%s' ya está en uso por otro usuario\n", u.Login)
+				result.Fallidos = append(result.Fallidos, MigrateSkippedItem{Login: u.Login, Reason: "login ya está en uso por otro usuario con distinta cédula"})
 				result.FallidosCount++
-			} else {
-				fmt.Println("✅ actualizado")
-				result.Actualizados = append(result.Actualizados, u.Login)
-				result.ActualizadosCount++
+				continue
 			}
-		} else {
-			// CREAR — usuario nuevo
-			// SetupCreateUser maneja su propia conexión internamente (defer release)
-			// → NO llamar db.ReleaseConnection después
+
 			createBody, _ := json.Marshal(u)
 			var connCreate db.ConnData
 			_, res := SetupCreateUser(string(createBody), &connCreate, dbClientConfig, dbServerConfig)
@@ -235,6 +249,103 @@ func MigrateFromExcel(fileBytes []byte, dbClientConfig db.DBClientConfig, dbServ
 				result.Creados = append(result.Creados, u.Login)
 				result.CreadosCount++
 			}
+			continue
+		}
+
+		// ── PASO 2: perfil existe — buscar general_user vinculado ───────────
+		var existingUser security_daos.GeneralUserDTO
+		var connUser db.ConnData
+		userFound := security_daos.GetGeneralUserByProfileId(existingProfile.GeneralUserProfileId, &existingUser, &connUser, &dbClientConfig, &dbServerConfig) == nil
+		db.ReleaseConnection(&connUser)
+
+		if userFound && existingUser.GeneralUserLogin != "" {
+			// ── CASO B: tiene credenciales → solo actualizar rol y equipo ────
+			updateBody, _ := json.Marshal(SetupUpdateRoleTeamRequest{
+				RoleCodes: u.RoleCodes,
+				Team:      u.Team,
+			})
+			var connUpdate db.ConnData
+			_, res := SetupUpdateUserRoleTeam(existingUser.GeneralUserLogin, string(updateBody), &connUpdate, dbClientConfig, dbServerConfig)
+
+			if isErrorResponse(res) {
+				fmt.Printf("error actualizando: %s\n", res)
+				result.Fallidos = append(result.Fallidos, MigrateSkippedItem{Login: existingUser.GeneralUserLogin, Reason: res})
+				result.FallidosCount++
+			} else {
+				fmt.Printf("actualizado (login:%s)\n", existingUser.GeneralUserLogin)
+				result.Actualizados = append(result.Actualizados, existingUser.GeneralUserLogin)
+				result.ActualizadosCount++
+			}
+			continue
+		}
+
+		// ── CASO C: tiene perfil pero sin credenciales → crear test.{login} ─
+		// Generar login a partir del nombre en el perfil (fuente más confiable que el Excel).
+		profileFullName := strings.TrimSpace(existingProfile.GeneralUserProfileNames + " " + existingProfile.GeneralUserProfileLastNames)
+		baseLogin := generateLogin(profileFullName)
+		if baseLogin == "" || baseLogin == "usuario" {
+			baseLogin = u.Login // fallback al login generado del Excel
+		}
+		testLogin := "test." + baseLogin
+
+		testEmail := testLogin + "@salvia-temp.com"
+
+		testUserReq := SetupCreateUserRequest{
+			Login:     baseLogin,
+			Password:  u.Password,
+			Team:      u.Team,
+			RoleCodes: u.RoleCodes,
+			Names:     existingProfile.GeneralUserProfileNames,
+			LastNames: existingProfile.GeneralUserProfileLastNames,
+			DocType:   existingProfile.GeneralUserProfileDocType,
+			DocNumber: u.DocNumber,
+			Gender:    existingProfile.GeneralUserProfileGender,
+			Language:  "sp",
+			TownCode:  "11001000",
+			Phone:     "0000000000",
+			Email:     testEmail,
+		}
+		if testUserReq.DocType == "" {
+			testUserReq.DocType = "CC"
+		}
+		if testUserReq.Gender == "" {
+			testUserReq.Gender = "ma"
+		}
+		if testUserReq.Names == "" {
+			testUserReq.Names = u.Login
+		}
+		if testUserReq.LastNames == "" {
+			testUserReq.LastNames = u.Login
+		}
+
+		testBatchBody, _ := json.Marshal(MigrateTestRequest{Users: []SetupCreateUserRequest{testUserReq}})
+		var connTest db.ConnData
+		_, testRes := MigrateTestUsers(string(testBatchBody), &connTest, dbClientConfig, dbServerConfig)
+		db.ReleaseConnection(&connTest)
+
+		if isErrorResponse(testRes) {
+			fmt.Printf("error creando credenciales temporales: %s\n", testRes)
+			result.Fallidos = append(result.Fallidos, MigrateSkippedItem{Login: testLogin, Reason: "error al crear credenciales temporales: " + testRes})
+			result.FallidosCount++
+			continue
+		}
+
+		// Actualizar rol y equipo del usuario de prueba recién creado.
+		updateBody, _ := json.Marshal(SetupUpdateRoleTeamRequest{
+			RoleCodes: u.RoleCodes,
+			Team:      u.Team,
+		})
+		var connUpdate db.ConnData
+		_, res := SetupUpdateUserRoleTeam(testLogin, string(updateBody), &connUpdate, dbClientConfig, dbServerConfig)
+
+		if isErrorResponse(res) {
+			fmt.Printf("credenciales creadas pero error actualizando rol: %s\n", res)
+			result.Fallidos = append(result.Fallidos, MigrateSkippedItem{Login: testLogin, Reason: "credenciales creadas, error en rol/equipo: " + res})
+			result.FallidosCount++
+		} else {
+			fmt.Printf("credenciales temporales creadas y actualizadas (login:%s)\n", testLogin)
+			result.Actualizados = append(result.Actualizados, testLogin)
+			result.ActualizadosCount++
 		}
 	}
 	fmt.Printf("[migrate-excel] Terminado: %d creados, %d actualizados, %d fallidos\n",

@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -445,16 +446,12 @@ func MigrateBatchUsers(dataInput string, connData *db.ConnData, dbClientConfig d
 
 	total := len(req.Users)
 	for idx, u := range req.Users {
-		fmt.Printf("[migrate-users] %d/%d → %s ", idx+1, total, u.Login)
+		fmt.Printf("[migrate-users] %d/%d → cédula:%s login:%s ", idx+1, total, u.DocNumber, u.Login)
 
-		if u.Login == "" {
-			fmt.Println("⏭ login vacío")
-			result.Skipped = append(result.Skipped, MigrateSkippedItem{Login: "(sin login)", Reason: "login vacío — omitido"})
-			result.SkippedCount++
-			continue
+		// Rol: usar el valor del request tal cual; si está vacío, defaultea a "ro"
+		if len(u.RoleCodes) == 0 || (len(u.RoleCodes) == 1 && u.RoleCodes[0] == "") {
+			u.RoleCodes = []string{"ro"}
 		}
-
-		u.RoleCodes = resolveRoleCodes(u.RoleCodes)
 
 		if !isValidTeam(u.Team) {
 			fmt.Printf("⏭ team inválido: %s\n", u.Team)
@@ -463,32 +460,53 @@ func MigrateBatchUsers(dataInput string, connData *db.ConnData, dbClientConfig d
 			continue
 		}
 
-		// Verificar existencia — liberación explícita (GetGeneralUserByLogin no auto-libera)
-		var existingUser security_daos.GeneralUserDTO
-		var connCheck db.ConnData
-		userExists := security_daos.GetGeneralUserByLogin(u.Login, &existingUser, &connCheck, &dbClientConfig, &dbServerConfig) == nil
-		db.ReleaseConnection(&connCheck)
+		// Sin cédula no podemos identificar al usuario → skip.
+		if u.DocNumber == "" {
+			fmt.Println("⏭ sin cédula válida")
+			result.Skipped = append(result.Skipped, MigrateSkippedItem{Login: u.Login, Reason: "sin docNumber — omitido"})
+			result.SkippedCount++
+			continue
+		}
 
-		if userExists {
-			// ACTUALIZAR — SetupUpdateUserRoleTeam maneja su conexión internamente
-			updateBody, _ := json.Marshal(SetupUpdateRoleTeamRequest{
-				RoleCodes: u.RoleCodes,
-				Team:      u.Team,
-			})
-			var connUpdate db.ConnData
-			_, res := SetupUpdateUserRoleTeam(u.Login, string(updateBody), &connUpdate, dbClientConfig, dbServerConfig)
+		// ── PASO 1: buscar perfil por cédula ────────────────────────────────
+		var existingProfile security_daos.GeneralUserProfileDTO
+		var connProfile db.ConnData
+		profileFound := security_daos.GetGeneralUserProfile(
+			common_controllers.By{
+				Operator:   common_dao.SQL_AND,
+				AttrsName:  []string{"GeneralUserProfileDocNumber"},
+				AttrsValue: []interface{}{u.DocNumber},
+			},
+			&existingProfile, &connProfile, &dbClientConfig, &dbServerConfig,
+		) == nil
+		db.ReleaseConnection(&connProfile)
 
-			if isErrorResponse(res) {
-				fmt.Printf("❌ %s\n", res)
-				result.Skipped = append(result.Skipped, MigrateSkippedItem{Login: u.Login, Reason: "error al actualizar: " + res})
-				result.SkippedCount++
-			} else {
-				fmt.Println("✅ actualizado")
-				result.Updated = append(result.Updated, u.Login)
-				result.UpdatedCount++
+		if !profileFound {
+			// ── CASO A: usuario nuevo ────────────────────────────────────────
+			// Si no viene login, generarlo del nombre. Si tampoco hay nombre, skip.
+			if u.Login == "" {
+				fullName := strings.TrimSpace(u.Names + " " + u.LastNames)
+				if fullName == "" {
+					fmt.Println("⏭ usuario nuevo sin login ni nombre")
+					result.Skipped = append(result.Skipped, MigrateSkippedItem{Login: "(sin login)", Reason: "usuario no existe en BD y no hay login ni nombre para generarlo"})
+					result.SkippedCount++
+					continue
+				}
+				u.Login = generateLogin(fullName)
 			}
-		} else {
-			// CREAR — SetupCreateUser maneja su conexión internamente
+
+			// Verificar que el login no esté en uso por otro usuario
+			var loginCheck security_daos.GeneralUserDTO
+			var connLoginCheck db.ConnData
+			loginExists := security_daos.GetGeneralUserByLogin(u.Login, &loginCheck, &connLoginCheck, &dbClientConfig, &dbServerConfig) == nil
+			db.ReleaseConnection(&connLoginCheck)
+			if loginExists {
+				fmt.Printf("⏭ login '%s' ya está en uso por otro usuario\n", u.Login)
+				result.Skipped = append(result.Skipped, MigrateSkippedItem{Login: u.Login, Reason: "login ya está en uso por otro usuario con distinta cédula"})
+				result.SkippedCount++
+				continue
+			}
+
 			createBody, _ := json.Marshal(u)
 			var connCreate db.ConnData
 			_, res := SetupCreateUser(string(createBody), &connCreate, dbClientConfig, dbServerConfig)
@@ -502,6 +520,94 @@ func MigrateBatchUsers(dataInput string, connData *db.ConnData, dbClientConfig d
 				result.Created = append(result.Created, u.Login)
 				result.CreatedCount++
 			}
+			continue
+		}
+
+		// ── PASO 2: perfil existe — buscar general_user vinculado ───────────
+		var existingUser security_daos.GeneralUserDTO
+		var connUser db.ConnData
+		userFound := security_daos.GetGeneralUserByProfileId(existingProfile.GeneralUserProfileId, &existingUser, &connUser, &dbClientConfig, &dbServerConfig) == nil
+		db.ReleaseConnection(&connUser)
+
+		if userFound && existingUser.GeneralUserLogin != "" {
+			// ── CASO B: tiene credenciales → solo actualizar rol y equipo ────
+			updateBody, _ := json.Marshal(SetupUpdateRoleTeamRequest{
+				RoleCodes: u.RoleCodes,
+				Team:      u.Team,
+			})
+			var connUpdate db.ConnData
+			_, res := SetupUpdateUserRoleTeam(existingUser.GeneralUserLogin, string(updateBody), &connUpdate, dbClientConfig, dbServerConfig)
+
+			if isErrorResponse(res) {
+				fmt.Printf("❌ %s\n", res)
+				result.Skipped = append(result.Skipped, MigrateSkippedItem{Login: existingUser.GeneralUserLogin, Reason: "error al actualizar: " + res})
+				result.SkippedCount++
+			} else {
+				fmt.Printf("✅ actualizado (login:%s)\n", existingUser.GeneralUserLogin)
+				result.Updated = append(result.Updated, existingUser.GeneralUserLogin)
+				result.UpdatedCount++
+			}
+			continue
+		}
+
+		// ── CASO C: tiene perfil pero sin credenciales → crear test.{login} ─
+		profileFullName := fmt.Sprintf("%s %s", existingProfile.GeneralUserProfileNames, existingProfile.GeneralUserProfileLastNames)
+		testUserReq := SetupCreateUserRequest{
+			Login:     u.Login,
+			Password:  u.Password,
+			Team:      u.Team,
+			RoleCodes: u.RoleCodes,
+			Names:     existingProfile.GeneralUserProfileNames,
+			LastNames: existingProfile.GeneralUserProfileLastNames,
+			DocType:   existingProfile.GeneralUserProfileDocType,
+			DocNumber: u.DocNumber,
+			Gender:    existingProfile.GeneralUserProfileGender,
+			Language:  "sp",
+			TownCode:  "11001000",
+			Phone:     "0000000000",
+			Email:     u.Login + "@salvia-temp.com",
+		}
+		if testUserReq.DocType == "" {
+			testUserReq.DocType = "CC"
+		}
+		if testUserReq.Gender == "" {
+			testUserReq.Gender = "ma"
+		}
+		if testUserReq.Names == "" {
+			testUserReq.Names = u.Login
+		}
+		if testUserReq.LastNames == "" {
+			testUserReq.LastNames = u.Login
+		}
+		_ = profileFullName
+
+		testBatchBody, _ := json.Marshal(MigrateTestRequest{Users: []SetupCreateUserRequest{testUserReq}})
+		var connTest db.ConnData
+		_, testRes := MigrateTestUsers(string(testBatchBody), &connTest, dbClientConfig, dbServerConfig)
+		db.ReleaseConnection(&connTest)
+
+		if isErrorResponse(testRes) {
+			fmt.Printf("❌ error creando credenciales temporales: %s\n", testRes)
+			result.Skipped = append(result.Skipped, MigrateSkippedItem{Login: "test." + u.Login, Reason: "error al crear credenciales temporales: " + testRes})
+			result.SkippedCount++
+			continue
+		}
+
+		updateBody, _ := json.Marshal(SetupUpdateRoleTeamRequest{
+			RoleCodes: u.RoleCodes,
+			Team:      u.Team,
+		})
+		var connUpdate db.ConnData
+		_, res := SetupUpdateUserRoleTeam("test."+u.Login, string(updateBody), &connUpdate, dbClientConfig, dbServerConfig)
+
+		if isErrorResponse(res) {
+			fmt.Printf("❌ credenciales creadas pero error actualizando rol: %s\n", res)
+			result.Skipped = append(result.Skipped, MigrateSkippedItem{Login: "test." + u.Login, Reason: "credenciales creadas, error en rol/equipo: " + res})
+			result.SkippedCount++
+		} else {
+			fmt.Printf("✅ credenciales temporales creadas y actualizadas (login:test.%s)\n", u.Login)
+			result.Updated = append(result.Updated, "test."+u.Login)
+			result.UpdatedCount++
 		}
 	}
 
@@ -646,5 +752,5 @@ func resolveRoleCodes(codes []string) []string {
 
 // isErrorResponse detecta si la respuesta JSON contiene un campo "error".
 func isErrorResponse(res string) bool {
-	return len(res) > 0 && res[0] == '{' && len(res) > 9 && res[2:9] == `"error"`
+	return len(res) > 0 && res[0] == '{' && len(res) > 8 && res[1:8] == `"error"`
 }
