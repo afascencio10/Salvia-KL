@@ -117,7 +117,7 @@
         });
         bindEvents();
         markActiveLinks();
-        setCollapsed(false);
+        setCollapsed(true);
     }
 
     window.initSalviaSidebar = initSalviaSidebar;
