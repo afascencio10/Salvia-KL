@@ -1513,7 +1513,7 @@
               }else{
                 this.data.victimCase.livingLatitude = home.config.globalProperties.latitude;
                 this.data.victimCase.livingLongitude = home.config.globalProperties.longitude;
-                //this.data.victimCase.docNumber = this.data.victimCase.docNumber.replace(/\s+/g, '');
+                this.data.victimCase.docNumber = (this.data.victimCase.docNumber || '').replace(/[^a-zA-Z0-9]/g, '');
                 
                 newEntity("{{.salviaFormPath}}", {victimCase:this.data.victimCase}, (function(status, response) {
                   document.getElementById('successOverlay').style.display = 'none';
@@ -1752,6 +1752,11 @@
             }
           },
           watch: {//Soporte para el lector de pantallas para que lea los errores
+            'data.victimCase.docNumber'(val) {
+              if (val == null) return;
+              const cleaned = String(val).replace(/[^a-zA-Z0-9]/g, '');
+              if (cleaned !== val) this.data.victimCase.docNumber = cleaned;
+            },
             errors: {
               handler(newErrors) {
                 if (!newErrors) return;
