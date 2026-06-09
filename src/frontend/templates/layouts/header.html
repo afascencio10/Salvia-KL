@@ -21,6 +21,7 @@
 	<!-- CSS -->
     <link href="/static/css/styles.css" rel="stylesheet">
     <link href="/static/css/case_detail.css" rel="stylesheet">
+    <link href="/static/css/sidebar.css" rel="stylesheet">
 
 
 
@@ -30,7 +31,15 @@
 
     <section class="header-gov"><img src="/static/images/header_govco.png" loading="lazy" width="99" alt=""></section>
     <nav class="navbar nav_banner">
-        <div v-if="currentUser" class="user"><div><i class="fas fa-user"></i> Hola, ${currentUser}</div> <div><a href="#" v-on:click="logout()"><i class="fas fa-sign-out-alt"></i>Cerrar sesión</a></div></div>
+        <div v-if="currentUser" class="user">
+            <div><i class="fas fa-user"></i> Hola, ${currentUser}</div>
+            <div><a href="#" v-on:click="logout()"><i class="fas fa-sign-out-alt"></i>Cerrar sesión</a></div>
+        </div>
         <img src="/static/img/salvia_banner_desktop.jpg" class="main_banner" alt="Ministerio de la igualdad">
     </nav>
+
+    {{ if .currentUser }}
+    {{ template "sidebar/sidebar.html" . }}
+    <script src="/static/js/salvia-sidebar.js"></script>
+    {{ end }}
   {{ end }}

@@ -1,40 +1,117 @@
-/* ─── Layout con sidebar ─── */
-.salvia-layout {
-    display: flex;
-    align-items: flex-start;
-    gap: 0;
-    /*max-width: 1400px;*/
-    margin: 0 10px;
-    padding: 0 16px 32px;
+/* ─── Header sticky para anclar el sidebar debajo al hacer scroll ─── */
+
+/* ─── Rail: contenedor fijo donde alternan botón Menú y sidebar ─── */
+.salvia-sidebar-rail {
+    position: absolute;
+    top: var(--salvia-header-offset, 160px);
+    left: 0;
+    bottom: 0;
+    width: 272px;
+    padding: 16px;
+    box-sizing: border-box;
+    z-index: 1050;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
+body.salvia-sidebar-collapsed .salvia-sidebar-rail {
+    width: auto;
+    bottom: auto;
+    overflow: visible;
+}
+
+/* ─── Botón Menú compacto (solo ícono, visible cuando el sidebar está cerrado) ─── */
+.salvia-sidebar-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fff;
+    color: #7C3AED;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.salvia-sidebar-toggle:hover,
+.salvia-sidebar-toggle:focus {
+    background: #F5F3FF;
+    box-shadow: 0 2px 8px rgba(124, 58, 237, 0.15);
+    outline: none;
+}
+
+.salvia-sidebar-toggle i {
+    font-size: 1.1rem;
+}
+
+body.salvia-sidebar-collapsed .salvia-sidebar-toggle {
+    display: inline-flex;
+}
+
+body.salvia-sidebar-collapsed .salvia-sidebar--drawer {
+    display: none;
+}
+
+/* ─── Contenido principal ─── */
 .salvia-main {
     flex: 1;
     min-width: 0;
+    margin: 0 10px;
+    margin-left: 272px;
+    padding: 0 16px 32px;
+    transition: margin-left 0.25s ease;
 }
 
-/* ─── Sidebar ─── */
-.salvia-sidebar {
-    width: 240px;
-    flex-shrink: 0;
+body.salvia-sidebar-collapsed .salvia-main {
+    margin-left: 72px;
+}
+
+/* ─── Backdrop (solo móvil) ─── */
+.salvia-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 24, 39, 0.45);
+    z-index: 1040;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+
+/* ─── Sidebar panel ─── */
+.salvia-sidebar--drawer {
+    width: 100%;
     background: #fff;
     border: 1px solid #e5e7eb;
     border-radius: 16px;
-    padding: 20px 12px;
-    margin-top: 20px;
-    margin-right: 24px;
-    position: sticky;
-    top: 16px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    max-height: calc(100vh - var(--salvia-header-offset, 160px) - 32px);
+}
+
+.salvia-sidebar__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 16px 16px;
+    border-bottom: 1px solid #f3f4f6;
+    flex-shrink: 0;
 }
 
 .salvia-sidebar__brand {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 0 12px 16px;
-    margin-bottom: 8px;
-    border-bottom: 1px solid #f3f4f6;
+    padding: 0;
+    margin: 0;
+    border-bottom: none;
 }
 
 .salvia-sidebar__logo {
@@ -50,10 +127,33 @@
     letter-spacing: 0.02em;
 }
 
+.salvia-sidebar__close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 8px;
+    background: #f3f4f6;
+    color: #374151;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.salvia-sidebar__close:hover,
+.salvia-sidebar__close:focus {
+    background: #e5e7eb;
+    color: #111827;
+    outline: none;
+}
+
 .salvia-sidebar__nav {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    padding: 16px 12px 24px;
 }
 
 .salvia-sidebar__nav-link {
@@ -98,47 +198,41 @@
 
 /* ─── Responsive ─── */
 @media (max-width: 992px) {
-    .salvia-layout {
-        flex-direction: column;
-        padding: 0 12px 24px;
+    .salvia-sidebar-rail {
+        top: var(--salvia-header-offset, 160px);
+        width: 280px;
+        max-width: 85vw;
+        padding: 0;
     }
 
-    .salvia-sidebar {
-        width: 100%;
-        margin-right: 0;
-        margin-top: 12px;
-        position: static;
-        padding: 12px;
+    body.salvia-sidebar-collapsed .salvia-sidebar-rail {
+        padding: 16px 0 0 16px;
     }
 
-    .salvia-sidebar__brand {
-        padding: 0 8px 12px;
+    .salvia-sidebar--drawer {
+        border-radius: 0;
+        border-left: none;
+        border-top: none;
+        border-bottom: none;
+        max-height: 100%;
+        height: 100%;
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
     }
 
-    .salvia-sidebar__nav {
-        flex-direction: row;
-        flex-wrap: wrap;
-        gap: 8px;
+    .salvia-main,
+    body.salvia-sidebar-collapsed .salvia-main {
+        margin-left: 10px;
     }
 
-    .salvia-sidebar__nav-link {
-        flex: 1 1 auto;
-        justify-content: center;
-        padding: 10px 12px;
-        font-size: 0.85rem;
-    }
-
-    .salvia-sidebar__nav-link span {
-        white-space: nowrap;
+    body:not(.salvia-sidebar-collapsed) .salvia-sidebar-backdrop {
+        display: block;
+        opacity: 1;
+        pointer-events: auto;
     }
 }
 
 @media (max-width: 576px) {
-    .salvia-sidebar__nav {
-        flex-direction: column;
-    }
-
-    .salvia-sidebar__nav-link {
-        justify-content: flex-start;
+    .salvia-main {
+        padding: 0 12px 24px;
     }
 }

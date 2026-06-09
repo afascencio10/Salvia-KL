@@ -84,6 +84,8 @@ func InitRouter() *gin.Engine {
 		return nil
 	})
 
+	tmplFiles = append(tmplFiles, "frontend/html/sidebar/sidebar.html")
+
 	tmpl := template.Must(template.ParseFS(utils.FrontendAssets, tmplFiles...))
 
 	router.SetHTMLTemplate(tmpl)
@@ -193,13 +195,13 @@ func RenderTemplate(c *gin.Context, entity string, module string, htmlFolder str
 	}
 
 	if code == http.StatusOK {
-		c.HTML(
-			code,
-			viewTemplate,
-			gin.H{
-				"content": template.HTML(b.String()),
-			},
-		)
+		viewData := gin.H{
+			"content": template.HTML(b.String()),
+		}
+		for k, v := range templateFields {
+			viewData[k] = v
+		}
+		c.HTML(code, viewTemplate, viewData)
 	} else {
 		c.HTML(
 			code,

@@ -46,7 +46,7 @@ func NotificacionesGET(c *gin.Context) {
 		return
 	}
 
-	extraTemplates := AppendSidebarTemplates(append(utils.GetFullHtmlTemplates(), notifModalTemplates...))
+	extraTemplates := append(utils.GetFullHtmlTemplates(), notifModalTemplates...)
 
 	common_facades.RenderTemplate(
 		c,
