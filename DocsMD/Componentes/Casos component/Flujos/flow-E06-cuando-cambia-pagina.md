@@ -32,9 +32,10 @@ PASO 1 — Validar que la página solicitada es alcanzable
 
 PASO 2 — Actualizar estado
 
-  currentPage = newPage
-  loading     = true
-  cases       = []       // limpiar filas mientras carga nueva página
+  currentPage    = newPage
+  loading        = true
+  cases          = []       // limpiar filas mientras carga nueva página
+  selectedCases  = []       // limpiar selección de reasignación (→ E-14); oculta botón "Reasignar Casos"
 
 
 PASO 3 — Consultar backend con la nueva página

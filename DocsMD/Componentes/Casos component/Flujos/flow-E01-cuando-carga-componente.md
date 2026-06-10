@@ -10,6 +10,7 @@ INPUT: {
   columns:         columnas         → prop :columns (Array<{ key, label }>) del padre
   hiddenColumns:   columnas ocultas → prop :hiddenColumns (Array<string>) del padre (opcional)
   buttons:         botones de fila  → prop :buttons (Array<{ id, label }>) del padre
+  reasignacion:    modo reasignación → prop :reasignacion (Boolean) del padre (opcional, default false)
 }
 
 
@@ -30,9 +31,11 @@ PASO 1 — Inicializar estado interno del componente
   cases          = []
   loading        = true
   loadError      = null
+  selectedCases  = []                         // solo usado si reasignacion === true (→ E-14, E-15)
 
   visibleColumns = columns.filter(col => !hiddenColumns.includes(col.key))
   // SI hiddenColumns vacío → visibleColumns = columns completo
+  // SI reasignacion === true → la tabla incluirá columna de checkbox como primera columna
 
 
 PASO 2 — Consultar backend con el filtro inicial y paginación
