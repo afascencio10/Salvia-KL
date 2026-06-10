@@ -10,8 +10,8 @@ import (
 
 type AgentLightRepository interface {
 	FindByICode(ctx context.Context, iCode string) (*models.AgentLight, error)
-	// FindAllByRoleAndTeam retorna los agentes cuyo rol coincide con roleCode
-	// y cuyo equipo (general_user_team) coincide con team.
+	// FindAllByRoleAndTeam retorna los agentes activos (general_user_status = 'e')
+	// cuyo rol coincide con roleCode y cuyo equipo (general_user_team) coincide con team.
 	// Usado por el algoritmo de auto-asignación para acotar el pool de candidatos
 	// al mismo equipo que recibirá los nuevos seguimientos.
 	FindAllByRoleAndTeam(ctx context.Context, roleCode, team string) ([]models.AgentLight, error)
@@ -42,7 +42,7 @@ func (r *agentLightRepository) FindByICode(ctx context.Context, iCode string) (*
 	return &agent, nil
 }
 
-// FindAllByRoleAndTeam retorna los agentes que tienen asignado roleCode como rol
+// FindAllByRoleAndTeam retorna los agentes activos que tienen asignado roleCode como rol
 // y cuyo campo general_user_team coincide con team.
 //
 // Usa LEFT JOIN con general_user_profile para incluir agentes que aún no tienen
@@ -61,7 +61,7 @@ func (r *agentLightRepository) FindAllByRoleAndTeam(ctx context.Context, roleCod
 		Joins("LEFT JOIN security.general_user_profile ON security.general_user_profile.general_user_profile_id = security.general_user.general_user_general_user_profile").
 		Joins("JOIN security.rel_role_general_user ON security.rel_role_general_user.general_user_id = security.general_user.general_user_id").
 		Joins("JOIN security.role ON security.role.role_id = security.rel_role_general_user.role_id").
-		Where("security.role.role_code = ? AND security.general_user.general_user_team = ?", roleCode, team).
+		Where("security.role.role_code = ? AND security.general_user.general_user_team = ? AND security.general_user.general_user_status = ?", roleCode, team, "e").
 		Find(&agents).Error
 	return agents, err
 }

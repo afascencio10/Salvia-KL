@@ -1,6 +1,6 @@
 # `casos-component` — Interfaz del Componente
 
-Tabla reutilizable para visualizar y filtrar casos de víctimas. Acepta props para configurar columnas visibles, filtros disponibles, filtro inicial y botones de acción por fila. Emite un evento hacia el padre cuando el usuario presiona un botón de acción.
+Tabla reutilizable para visualizar y filtrar casos de víctimas. Acepta props para configurar columnas visibles, filtros disponibles, filtro inicial, botones de acción por fila y modo de reasignación masiva. Emite eventos hacia el padre cuando el usuario presiona un botón de acción en una fila o cuando solicita reasignar los casos seleccionados.
 
 ## Archivos relevantes
 
@@ -120,6 +120,11 @@ casos-component  (.cc-wrapper)
     │
     └── TableWrap  (.cc-table-wrap)
         │
+        ├── [v-if reasignacion && selectedCases.length > 0]
+        │   TableToolbar  (.cc-table-toolbar)
+        │   └── ReassignBtn  (.cc-reassign-btn)  "Reasignar Casos"
+        │       → emitReasignarCasos()   // → E-15
+        │
         ├── [v-if filteredCases.length === 0]
         │   EmptyState  (.cc-empty)
         │   └── "No se encontraron casos"
@@ -130,6 +135,11 @@ casos-component  (.cc-wrapper)
             │   │
             │   ├── <thead>
             │   │   └── <tr>
+            │   │       ├── [v-if reasignacion]
+            │   │       │   <th>  (.cc-th.cc-th-select)
+            │   │       │   └── SelectAllCheckbox  (.cc-select-all-checkbox)  "Todos"
+            │   │       │       → toggleSelectAllCurrentPage()   // → E-14
+            │   │       │   // Columna de checkbox — solo visible si :reasignacion === true
             │   │       ├── <th> × N  [v-for visibleColumns]  (.cc-th)
             │   │       │   └── column.label
             │   │       └── [v-if buttons.length > 0]
@@ -137,6 +147,12 @@ casos-component  (.cc-wrapper)
             │   │
             │   └── <tbody>
             │       └── <tr> × N  [v-for filteredCases]  (.cc-row)
+            │           │
+            │           ├── [v-if reasignacion]
+            │           │   <td>  (.cc-cell-select)
+            │           │   └── <input type="checkbox">  (.cc-case-checkbox)
+            │           │       :checked si case está en selectedCases
+            │           │       → toggleCaseSelection(case)   // → E-14
             │           │
             │           ├── [col.key === 'victim_info']
             │           │   <td>  (.cc-cell-victim)
@@ -218,6 +234,19 @@ casos-component  (.cc-wrapper)
 | `columns` | `Array<Object>` | Sí | — | Columnas a mostrar. Cada objeto: `{ key: string, label: string }` |
 | `hiddenColumns` | `Array<string>` | No | `[]` | Keys de columnas a ocultar aunque estén en `columns` |
 | `buttons` | `Array<Object>` | No | `[]` | Botones de acción por fila. Cada objeto: `{ id: string, label: string }` |
+| `reasignacion` | `Boolean` | No | `false` | Activa el modo de reasignación masiva. Si es `true`, muestra una columna de checkbox en la tabla y permite seleccionar uno o varios casos para reasignarlos. |
+
+### Modo reasignación (`reasignacion === true`)
+
+| Elemento | Comportamiento |
+|---|---|
+| Columna de checkbox | Primera columna de la tabla. Checkbox "Todos" en el encabezado y un checkbox por fila. |
+| Alcance de selección | Solo casos de la página actual (`filteredCases`). Al cambiar página o recargar, se limpia la selección. |
+| Regla de equipo | Solo se pueden seleccionar casos con el mismo `caseTeam`. Si se intenta mezclar equipos, se muestra alerta flotante sobre la tabla (`.cc-table-alert`) y se rechaza la selección (→ E-14). |
+| Estado interno `selectedCases` | Array de objetos caso seleccionados. Inicializado vacío en E-01. |
+| Botón "Reasignar Casos" | Visible solo si `selectedCases.length > 0`. Ubicado en la parte superior derecha, encima de la tabla (`.cc-table-toolbar`). |
+| Emisión al padre | Al presionar el botón emite `reasignar-casos` con los casos seleccionados (→ E-15). El padre abre `reasignar-casos-modal` (ver [reasignar-casos-modal-interface.md](./reasignar-casos-modal-interface.md)). |
+| Cambio de página / recarga | Al cambiar de página (E-06) o recargar casos por filtro u ordenamiento, se limpia `selectedCases` y se oculta el botón. |
 
 ### Shape de `FilterDef`
 
@@ -257,6 +286,7 @@ casos-component  (.cc-wrapper)
 | Evento | Cuándo se dispara | Payload |
 |---|---|---|
 | `action-clicked` | Usuario presiona un botón de acción en una fila | `{ buttonId: string, case: Object }` |
+| `reasignar-casos` | Usuario presiona "Reasignar Casos" con al menos un caso seleccionado (`reasignacion === true`) | `{ cases: Array<Object> }` — objetos completos de los casos en `selectedCases` |
 
 ---
 

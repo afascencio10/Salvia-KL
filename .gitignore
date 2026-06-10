@@ -16,3 +16,5 @@ node_modules
 .gocache/
 .gopath/
 .gocache_agent/
+.chrome_debug_profile/
+.gomodcache_agent/

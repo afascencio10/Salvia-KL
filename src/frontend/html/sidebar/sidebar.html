@@ -1,44 +1,51 @@
 {{ define "sidebar/sidebar.html" }}
-<link rel="stylesheet" href="/static/css/sidebar.css">
+<div class="salvia-sidebar-backdrop" id="salviaSidebarBackdrop" hidden aria-hidden="true"></div>
 
-<aside class="salvia-sidebar" id="salviaSidebar">
-    <div class="salvia-sidebar__brand">
-        <img src="/static/img/salvia_logo_landing.png" alt="Salvia" class="salvia-sidebar__logo">
-        <span class="salvia-sidebar__title">Salvia</span>
-    </div>
+<div class="salvia-sidebar-rail" id="salviaSidebarRail">
+    <button
+        type="button"
+        id="salviaSidebarToggle"
+        class="salvia-sidebar-toggle"
+        aria-label="Abrir menú de navegación"
+        aria-expanded="false"
+        aria-controls="salviaSidebar"
+    >
+        <i class="fas fa-bars" aria-hidden="true"></i>
+    </button>
 
-    <nav class="salvia-sidebar__nav" aria-label="Navegación principal">
-        <a href="/salvia/casos" class="salvia-sidebar__nav-link">
-            <i class="fas fa-home" aria-hidden="true"></i>
-            <span>Registro Casos</span>
-        </a>
-        {{ if eq .currentRole "sv" }}
-        <a href="/salvia/lista-casos" class="salvia-sidebar__nav-link">
-            <i class="fas fa-list" aria-hidden="true"></i>
-            <span>Lista Casos</span>
-        </a>
-        {{ end }}
-        <a href="/salvia/mis-casos" class="salvia-sidebar__nav-link">
-            <i class="fas fa-folder-open" aria-hidden="true"></i>
-            <span>Mis Casos</span>
-        </a>
-        <!--<a href="/salvia/notificaciones" class="salvia-sidebar__nav-link">
-            <i class="fas fa-bell" aria-hidden="true"></i>
-            <span>Notificaciones Salvia</span>
-        </a>-->
-    </nav>
-</aside>
+    <aside class="salvia-sidebar salvia-sidebar--drawer" id="salviaSidebar" aria-hidden="false" aria-label="Menú de navegación Salvia">
+        <div class="salvia-sidebar__header">
+            <div class="salvia-sidebar__brand">
+                <img src="/static/img/salvia_logo_landing.png" alt="Salvia" class="salvia-sidebar__logo">
+                <span class="salvia-sidebar__title">Salvia</span>
+            </div>
+            <button type="button" class="salvia-sidebar__close" id="salviaSidebarClose" aria-label="Cerrar menú de navegación">
+                <i class="fas fa-times" aria-hidden="true"></i>
+            </button>
+        </div>
 
-<script>
-(function () {
-    var path = window.location.pathname.replace(/\/+$/, '') || '/';
-    document.querySelectorAll('.salvia-sidebar__nav-link').forEach(function (link) {
-        var href = (link.getAttribute('href') || '').replace(/\/+$/, '') || '/';
-        if (href === path) {
-            link.classList.add('is-active');
-            link.setAttribute('aria-current', 'page');
-        }
-    });
-})();
-</script>
+        <nav class="salvia-sidebar__nav" aria-label="Navegación principal">
+            <a href="/salvia/casos" class="salvia-sidebar__nav-link">
+                <i class="fas fa-home" aria-hidden="true"></i>
+                <span>Registro Casos</span>
+            </a>
+            {{ if eq .currentRole "sv" }}
+            <a href="/salvia/lista-casos" class="salvia-sidebar__nav-link">
+                <i class="fas fa-list" aria-hidden="true"></i>
+                <span>Lista Casos</span>
+            </a>
+            {{ end }}
+            {{ if ne .currentRole "sv" }}
+            <a href="/salvia/mis-casos" class="salvia-sidebar__nav-link">
+                <i class="fas fa-folder-open" aria-hidden="true"></i>
+                <span>Mis Casos</span>
+            </a>
+            {{ end }}
+            <!--<a href="/salvia/notificaciones" class="salvia-sidebar__nav-link">
+                <i class="fas fa-bell" aria-hidden="true"></i>
+                <span>Notificaciones Salvia</span>
+            </a>-->
+        </nav>
+    </aside>
+</div>
 {{ end }}

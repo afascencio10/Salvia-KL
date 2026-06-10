@@ -84,17 +84,18 @@ type CaseInfoUbicacion struct {
 }
 
 type CaseInfoHechos struct {
-	Descripcion          string `json:"descripcion"`
-	Ocurrencia           string `json:"ocurrencia"`
-	Horario              string `json:"horario"`
-	DiaSemana            string `json:"diaSemana"`
-	FechaHechos          string `json:"fechaHechos"`
+	Descripcion          string   `json:"descripcion"`
+	Ocurrencia           string   `json:"ocurrencia"`
+	Horario              string   `json:"horario"`
+	DiaSemana            string   `json:"diaSemana"`
+	FechaHechos          string   `json:"fechaHechos"`
 	ViolenciaExperimentada string `json:"violenciaExperimentada"`
-	OtroTipoViolencia    string `json:"otroTipoViolencia"`
-	AmbitoViolencia      string `json:"ambitoViolencia"`
-	EscenarioViolencia   string `json:"escenarioViolencia"`
-	RiesgoFeminicida     string `json:"riesgoFeminicida"`
-	DireccionHechos      string `json:"direccionHechos"`
+	OtroTipoViolencia    string   `json:"otroTipoViolencia"`
+	AmbitoViolencia      string   `json:"ambitoViolencia"`
+	EscenarioViolencia   string   `json:"escenarioViolencia"`
+	RiesgoFeminicida     string   `json:"riesgoFeminicida"`
+	DireccionHechos      string   `json:"direccionHechos"`
+	PlanAtencion         []string `json:"planAtencion"`
 }
 
 type CaseInfoAgresor struct {

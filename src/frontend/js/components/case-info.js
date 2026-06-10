@@ -125,11 +125,17 @@ var CI_SECTIONS_TPL = `
             <span class="ci-value" :style="{ display:'-webkit-box', '-webkit-line-clamp': hechosExpandido ? 'unset' : '4', '-webkit-box-orient':'vertical', overflow: hechosExpandido ? 'visible' : 'hidden' }">\${ info.hechos.descripcion }</span>
             <button v-if="info.hechos.descripcion && info.hechos.descripcion.length > 200" @click="hechosExpandido = !hechosExpandido" style="background:none;border:none;color:#5106A7;font-size:.75rem;cursor:pointer;padding:4px 0;font-weight:600">\${ hechosExpandido ? '▲ Ver menos' : '▼ Ver más' }</button>
         </div>
-        <div class="ci-field" v-if="val(info.hechos.fechaHechos)"><span class="ci-label">Fecha hechos</span><span class="ci-value">\${ info.hechos.fechaHechos }</span></div>
+        <div class="ci-field" v-if="val(info.hechos.ocurrencia)"><span class="ci-label">Ocurrencia de los hechos</span><span class="ci-value">\${ info.hechos.ocurrencia }</span></div>
         <div class="ci-field" v-if="val(info.hechos.horario)"><span class="ci-label">Horario</span><span class="ci-value">\${ info.hechos.horario }</span></div>
-        <div class="ci-field" v-if="val(info.hechos.escenarioViolencia)"><span class="ci-label">Escenario</span><span class="ci-value">\${ info.hechos.escenarioViolencia }</span></div>
+        <div class="ci-field" v-if="val(info.hechos.diaSemana)"><span class="ci-label">Día de la semana</span><span class="ci-value">\${ info.hechos.diaSemana }</span></div>
+        <div class="ci-field" v-if="val(info.hechos.fechaHechos)"><span class="ci-label">Fecha hechos</span><span class="ci-value">\${ info.hechos.fechaHechos }</span></div>
+        <div class="ci-field" v-if="val(info.hechos.violenciaExperimentada)"><span class="ci-label">Violencia experimentada</span><span class="ci-value">\${ info.hechos.violenciaExperimentada }</span></div>
+        <div class="ci-field" v-if="val(info.hechos.otroTipoViolencia)"><span class="ci-label">Otro tipo de violencia</span><span class="ci-value">\${ info.hechos.otroTipoViolencia }</span></div>
+        <div class="ci-field" v-if="val(info.hechos.ambitoViolencia)"><span class="ci-label">Ámbito de la violencia</span><span class="ci-value">\${ info.hechos.ambitoViolencia }</span></div>
+        <div class="ci-field" v-if="val(info.hechos.escenarioViolencia)"><span class="ci-label">Escenario de violencia</span><span class="ci-value">\${ info.hechos.escenarioViolencia }</span></div>
         <div class="ci-field" v-if="val(info.hechos.direccionHechos)"><span class="ci-label">Dirección de los hechos</span><span class="ci-value">\${ info.hechos.direccionHechos }</span></div>
         <div class="ci-field" v-if="val(info.hechos.riesgoFeminicida)"><span class="ci-label">Riesgo feminicida</span><span class="ci-value">\${ siNo(info.hechos.riesgoFeminicida) }</span></div>
+        <div class="ci-field" v-if="info.hechos.planAtencion && info.hechos.planAtencion.length"><span class="ci-label">Plan de atención</span><span class="ci-value"><ul v-if="info.hechos.planAtencion.length > 1" style="margin:0;padding-left:16px;list-style:disc"><li v-for="p in info.hechos.planAtencion" :key="p">\${ p }</li></ul><span v-else>\${ info.hechos.planAtencion[0] }</span></span></div>
     </div>
     <div v-if="sec.id==='agresor'" class="ci-grid">
         <div class="ci-field" v-if="val(info.agresor.tipoAgresor)"><span class="ci-label">Tipo agresor</span><span class="ci-value">\${ info.agresor.tipoAgresor }</span></div>

@@ -315,7 +315,7 @@ func VictimCaseGET(c *gin.Context) {
 		}
 
 		// Renderiza la plantilla HTML con todos los parámetros necesarios para mostrar el caso de víctima.
-		extraTemplates := AppendSidebarTemplates(append(utils.GetFullHtmlTemplates(), casosComponentTemplates...))
+		extraTemplates := append(utils.GetFullHtmlTemplates(), casosComponentTemplates...)
 		common_facades.RenderTemplate(c, salvia_daos.VictimContactEntityName, "salvia", "victim_case/", salvia_config.HTML_Templates, tplName, extraTemplates, utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
 			map[string]interface{}{
 				"windowTitle":               salvia_config.Locale["sp"]["get_victim_case_window_title"],
@@ -1012,7 +1012,7 @@ func ListCasesGET(c *gin.Context) {
 		menu = s.CurrentMenu
 	}
 
-	extraTemplates := AppendSidebarTemplates(append(utils.GetFullHtmlTemplates(), casosComponentTemplates...))
+	extraTemplates := append(utils.GetFullHtmlTemplates(), casosComponentTemplates...)
 	common_facades.RenderTemplate(c, salvia_daos.VictimCaseEntityName, "salvia", "list-cases/", salvia_config.HTML_Templates, "list_cases", extraTemplates, utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
 		map[string]interface{}{
 			"windowTitle": "Lista de casos",
@@ -1043,7 +1043,7 @@ func MyCasesGET(c *gin.Context) {
 		menu = s.CurrentMenu
 	}
 
-	extraTemplates := AppendSidebarTemplates(append(utils.GetFullHtmlTemplates(), casosComponentTemplates...))
+	extraTemplates := append(utils.GetFullHtmlTemplates(), casosComponentTemplates...)
 	common_facades.RenderTemplate(c, salvia_daos.VictimCaseEntityName, "salvia", "my_cases/", salvia_config.HTML_Templates, "get_my_cases", extraTemplates, utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
 		map[string]interface{}{
 			"windowTitle":   "Mis casos",

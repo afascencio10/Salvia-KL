@@ -4,7 +4,7 @@ Componente: `CasosComponent`
 Archivo fuente: `src/frontend/components/casos-component.js` *(pendiente de crear)*  
 Usado por: Pantallas que necesitan visualizar y filtrar listas de casos
 
-> **Nota de alcance:** Este componente es reutilizable. Recibe props para configurar columnas visibles, filtros disponibles, filtro inicial y botones de acción por fila. Toda la interacción hacia afuera ocurre a través de un único evento emitido cuando el usuario presiona un botón de acción. La lógica de filtrado, búsqueda y ordenamiento es interna al componente.
+> **Nota de alcance:** Este componente es reutilizable. Recibe props para configurar columnas visibles, filtros disponibles, filtro inicial, botones de acción por fila y modo de reasignación. La interacción hacia afuera ocurre a través de dos eventos emitidos: `action-clicked` (botón de acción en una fila) y `reasignar-casos` (reasignación masiva de casos seleccionados). La lógica de filtrado, búsqueda, ordenamiento y selección de casos es interna al componente.
 
 ---
 
@@ -26,7 +26,8 @@ Descripción:  Se ejecuta al montar el componente. Lee el prop :defaultFilter
               por defecto (fecha de registro desc). Renderiza la tabla con
               las columnas definidas en :columns, ocultando las que indica
               :hiddenColumns, y pinta los botones de acción definidos en
-              :buttons en cada fila.
+              :buttons en cada fila. Si :reasignacion es true, inicializa
+              selectedCases = [] y prepara la columna de checkbox.
 Requerido:    Sí
 ```
 
@@ -241,11 +242,51 @@ Requerido:    Sí
 
 ---
 
+### E-14 — Cuando el usuario selecciona o deselecciona un caso para reasignación
+
+📄 [Ver flujo → flow-E14-cuando-selecciona-caso-reasignacion.md](./Flujos/flow-E14-cuando-selecciona-caso-reasignacion.md)
+
+```
+Evento:       Cuando el usuario selecciona o deselecciona un caso para reasignación
+Tipo:         User Interaction
+Descripción:  Solo aplica si el prop :reasignacion es true. El usuario marca o
+              desmarca el checkbox de una fila o el checkbox "Todos" del
+              encabezado. Solo puede seleccionar casos de la página actual y
+              todos deben compartir el mismo caseTeam; si intenta mezclar
+              equipos, muestra alerta flotante sobre la tabla y rechaza la
+              selección. Actualiza
+              selectedCases y muestra u oculta el botón "Reasignar Casos".
+              No emite eventos hacia el padre.
+Requerido:    Condicional (solo si :reasignacion === true)
+```
+
+---
+
+### E-15 — Cuando el usuario presiona "Reasignar Casos"
+
+📄 [Ver flujo → flow-E15-cuando-presiona-reasignar-casos.md](./Flujos/flow-E15-cuando-presiona-reasignar-casos.md)
+
+Modal asociado: [reasignar-casos-modal-interface.md](./reasignar-casos-modal-interface.md) · [reasignar-casos-modal-events.md](./reasignar-casos-modal-events.md)
+
+```
+Evento:       Cuando el usuario presiona "Reasignar Casos"
+Tipo:         User Interaction
+Descripción:  Solo aplica si el prop :reasignacion es true y hay al menos un
+              caso en selectedCases. El usuario presiona el botón "Reasignar
+              Casos" ubicado encima de la tabla. El componente emite el evento
+              'reasignar-casos' hacia el padre con el array de casos
+              seleccionados. El padre abre reasignar-casos-modal (M-01).
+              El componente no realiza la reasignación ni llama al backend.
+Requerido:    Condicional (solo si :reasignacion === true)
+```
+
+---
+
 ## Checklist de completitud
 
 - [x] ¿El ciclo de vida inicial (carga de datos) está cubierto? → E-01
-- [x] ¿Toda acción del usuario sobre la UI propia del componente está cubierta? → E-09, E-10, E-11, E-12, E-13, E-03, E-04, E-05, E-06, E-07, E-08
-- [x] ¿Los eventos emitidos hacia el padre están cubiertos? → E-05
+- [x] ¿Toda acción del usuario sobre la UI propia del componente está cubierta? → E-09, E-10, E-11, E-12, E-13, E-03, E-04, E-05, E-06, E-07, E-08, E-14, E-15
+- [x] ¿Los eventos emitidos hacia el padre están cubiertos? → E-05, E-15
 - [x] ¿Hay lógica de backend desacoplada de la respuesta HTTP? → No
 - [x] ¿Hay scheduled tasks o webhooks? → No
 - [x] ¿Hay sockets o notificaciones en tiempo real? → No
@@ -269,7 +310,9 @@ Requerido:    Sí
 | E-06 | Cuando el usuario cambia de página | User Interaction | No (solo lee) |
 | E-07 | Cuando el usuario escribe en el autocomplete de persona asignada | User Interaction | No (solo lee — busca agentes) |
 | E-08 | Cuando el usuario selecciona o limpia una opción del autocomplete | User Interaction | No (solo lee — filtra casos) |
+| E-14 | Cuando el usuario selecciona o deselecciona un caso para reasignación | User Interaction | No (estado interno) |
+| E-15 | Cuando el usuario presiona "Reasignar Casos" | User Interaction | No (emite hacia padre) |
 
-**Total: 13 eventos — 1 Lifecycle, 11 User Interaction, 1 Índice**  
+**Total: 15 eventos — 1 Lifecycle, 13 User Interaction, 1 Índice**  
 **Ningún evento escribe en el backend desde este componente.**  
-**La acción resultante del botón presionado (E-05) es responsabilidad del componente padre que consume `casos-component`.**
+**Las acciones resultantes de E-05 y E-15 son responsabilidad del componente padre que consume `casos-component`.**

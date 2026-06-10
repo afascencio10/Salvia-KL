@@ -80,7 +80,7 @@
       <div class="cd-header-right">
         <button class="btn-reasignar" @click="mostrarInfoCaso = true" title="Ver información completa del caso">📋 Info caso</button>
         <button v-if="puedeReasignar" class="btn-reasignar" @click="abrirModalReasignar">Reasignar</button>
-        <button v-if="puedeReasignar" class="btn-nuevo-seg" :disabled="followUpsV2.length >= 8" @click="abrirModalNuevoSeg">
+        <button v-if="puedeReasignar || userRole === 'ro'" class="btn-nuevo-seg" :disabled="followUpsV2.length >= 8" @click="abrirModalNuevoSeg">
           ${ followUpsV2.length >= 8 ? 'Máximo alcanzado (8)' : '+ Nuevo seguimiento' }
         </button>
       </div>
@@ -186,6 +186,7 @@
                 <div class="cd-campo" v-if="subtipoViolencia.length"><div class="cd-lbl">Subtipo</div><div class="cd-val">${ subtipoViolencia.join(', ') }</div></div>
                 <div class="cd-campo" v-if="ambitoViolencia.length"><div class="cd-lbl">Ámbito</div><div class="cd-val">${ ambitoViolencia.join(', ') }</div></div>
                 <div class="cd-campo" v-if="territorioOcurrencia"><div class="cd-lbl">Lugar de los hechos</div><div class="cd-val">${ territorioOcurrencia }</div></div>
+                <div class="cd-campo" v-if="planAtencion.length"><div class="cd-lbl">Plan de atención</div><div class="cd-val"><ul v-if="planAtencion.length > 1" style="margin:0;padding-left:16px;list-style:disc"><li v-for="p in planAtencion" :key="p">${ p }</li></ul><span v-else>${ planAtencion[0] }</span></div></div>
               </div>
               <!-- Nuevos hechos reportados en seguimientos -->
               <div v-if="hechosReportados.length" style="margin-top:16px;border-top:1px solid #e5e7eb;padding-top:14px">
@@ -372,7 +373,7 @@
             <div v-if="!seg.is_completed && seg.status !== 'REALIZADO'" class="cd-seg-actions" @click.stop>
               <a v-if="(userRole === 'ro' || userRole === 'op') && seg.agent_id === userICode" href="#" class="btn-iniciar" style="text-decoration:none;text-align:center" @click.prevent="iniciarSeguimiento(seg)">▶ Iniciar</a>
               <button v-else-if="userRole === 'ro' || userRole === 'op'" class="btn-iniciar" disabled style="opacity:.5;cursor:not-allowed" title="Este seguimiento está asignado a otro agente">▶ Iniciar</button>
-              <button v-if="puedeReasignar"
+              <button v-if="puedeReasignar || (userRole === 'ro' && caso && caso.agentId === userICode)"
                       class="btn-reasignar-seg"
                       @click.stop="editarSeguimiento(seg)">
                 ✏️ Editar
@@ -492,13 +493,16 @@
       <!-- Agente responsable -->
       <div class="ns-field">
         <label class="ns-label">Agente responsable <span class="ns-required">*</span></label>
-        <select :class="['ns-input', segTocado && !nuevoSeg.agente ? 'ns-input-error' : '']" v-model="nuevoSeg.agente" @change="segTocado = true">
+        <!-- Supervisor: dropdown con lista de agentes -->
+        <select v-if="userRole === 'sv'" :class="['ns-input', segTocado && !nuevoSeg.agente ? 'ns-input-error' : '']" v-model="nuevoSeg.agente" @change="segTocado = true">
           <option value="" disabled>Seleccione el agente</option>
           <option v-for="ag in agentesRO" :key="ag.icode" :value="ag.icode">
             ${ ag.fullName || (ag.profile && ag.profile.names ? ag.profile.names + ' ' + ag.profile.lastNames : ag.icode) }
           </option>
         </select>
-        <span v-if="segTocado && !nuevoSeg.agente" class="ns-error-msg">Debe seleccionar un agente</span>
+        <!-- Operador RO: fijo a sí mismo, no editable -->
+        <input v-else type="text" class="ns-input" :value="currentUser" disabled style="background:#f3f4f6;cursor:not-allowed" />
+        <span v-if="segTocado && !nuevoSeg.agente && userRole === 'sv'" class="ns-error-msg">Debe seleccionar un agente</span>
       </div>
 
       <!-- Notas -->
@@ -716,7 +720,8 @@ var home = Vue.createApp({
 
   computed: {
     nuevoSegValido() {
-      if (!this.nuevoSeg.fecha || !this.nuevoSeg.agente) return false;
+      if (!this.nuevoSeg.fecha) return false;
+      if (this.userRole === 'sv' && !this.nuevoSeg.agente) return false;
       if (this.nuevoSeg.fecha < this.fechaHoy) return false;
       return true;
     },
@@ -1027,9 +1032,11 @@ var home = Vue.createApp({
     },
     abrirModalNuevoSeg() {
       if (this.followUpsV2.length >= 8) return;
-      // Preseleccionar el agente del último seguimiento si existe
+      // Si es RO, asignar a sí mismo. Si es SV, preseleccionar el agente del último seguimiento
       var agenteDefault = '';
-      if (this.followUpsV2.length > 0) {
+      if (this.userRole === 'ro') {
+        agenteDefault = this.userICode;
+      } else if (this.followUpsV2.length > 0) {
         var ultimo = this.followUpsV2[this.followUpsV2.length - 1];
         if (ultimo.agent_id) agenteDefault = ultimo.agent_id;
       }
