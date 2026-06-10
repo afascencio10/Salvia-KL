@@ -5,9 +5,11 @@ package service
 import (
 	"bitsflow/internal/models"
 	"bitsflow/internal/repository"
+	common_config "bitsflow/common/config"
 	salvia_config "bitsflow/salvia/config"
 	"context"
 	"fmt"
+	"strings"
 )
 
 type CaseInfoService interface {
@@ -103,9 +105,9 @@ func (s *caseInfoService) GetFullCaseInfo(ctx context.Context, caseICode string)
 			NombreIdentitario: raw.F2IdentityName,
 			Edad:              edad,
 			FechaNacimiento:   raw.F2BirthDate,
-			TipoDocumento:     raw.DocType,
+			TipoDocumento:     resolveForm1Code(raw.DocType, common_config.DOCUMENT_TYPE),
 			NumeroDocumento:   raw.DocNumber,
-			Nacionalidad:      raw.F1Nationality,
+			Nacionalidad:      resolveForm1Code(raw.F1Nationality, salvia_config.VICTIM_CASE_VICTIM_NATIONALITY),
 			OtraNacionalidad:  raw.F1NationalityOther,
 			Municipio:         coalesce(raw.CityName, raw.TownCode),
 			CorreoElectronico: raw.F1Email,
@@ -113,9 +115,9 @@ func (s *caseInfoService) GetFullCaseInfo(ctx context.Context, caseICode string)
 			AjusteRazonable:   requireInterpreter,
 		},
 		DatosPersonales: models.CaseInfoDatosPersonales{
-			CondicionMigratoria:   raw.F1ForeignerStatus,
+			CondicionMigratoria:   resolveForm1Code(raw.F1ForeignerStatus, salvia_config.VICTIM_CASE_VICTIM_FOREIGNER_IMMIGRATION_STATUS),
 			Telefono:              raw.F2Phone,
-			Genero:                raw.F1Gender,
+			Genero:                resolveForm1Code(raw.F1Gender, salvia_config.VICTIM_CASE_VICTIM_GENDER),
 			IdentidadGenero:       genderIdentity,
 			OtraIdentidadGenero:   raw.F1GenderIdentityOther,
 			OrientacionSexual:     sexualOrientation,
@@ -123,17 +125,17 @@ func (s *caseInfoService) GetFullCaseInfo(ctx context.Context, caseICode string)
 		},
 		Etnicos: models.CaseInfoEtnicos{
 			GrupoEtnico:      ethnicAffiliation,
-			Afrodescendiente: coalesce(raw.F1IfAfro),
-			Indigena:         coalesce(indigenousPeople, raw.F1IfIndigenous),
+			Afrodescendiente: resolveForm1Code(coalesce(raw.F1IfAfro), nil),
+			Indigena:         coalesce(indigenousPeople, resolveForm1Code(raw.F1IfIndigenous, nil)),
 			LenguaIndigena:   raw.F1IfIndigenousTongue,
-			Campesino:        coalesce(campesino, raw.F1IfPeasant),
-			VictimaConflicto: raw.F1IfArmedConflict,
+			Campesino:        coalesce(campesino, resolveForm1Code(raw.F1IfPeasant, nil)),
+			VictimaConflicto: resolveForm1Code(raw.F1IfArmedConflict, nil),
 		},
 		Contacto: models.CaseInfoContacto{
 			NombreContacto:   raw.F2ContactNames,
 			TelefonoContacto: raw.F2ContactPhone,
 			Parentesco:       contactKinship,
-			PersonasCargo:    raw.F1Dependents,
+			PersonasCargo:    resolveForm1Code(raw.F1Dependents, salvia_config.VICTIM_CASE_VICTIM_DEPENDENTS),
 			NumeroHijos:      raw.F1ChildrenNumber,
 			EstadoCivil:      maritalStatus,
 			Discapacidad:     disability,
@@ -144,44 +146,98 @@ func (s *caseInfoService) GetFullCaseInfo(ctx context.Context, caseICode string)
 			Municipio:    raw.TownName,
 		},
 		Hechos: models.CaseInfoHechos{
-			Descripcion:        raw.F2FactsDescription,
-			FechaHechos:        raw.F2FactsDate,
-			Horario:            raw.F2FactsStartTime,
-			EscenarioViolencia: coalesce(scenarioViolence, raw.F1ViolenceScene),
-			RiesgoFeminicida:   raw.F1FemicideRisk,
-			DireccionHechos:    raw.F2FactsAddress,
+			Descripcion:           coalesce(raw.F2FactsDescription, raw.F1FactsDescription),
+			Ocurrencia:            resolveForm1Code(raw.F1FactsOccurrence, salvia_config.OCCURRENCE),
+			Horario:               coalesce(raw.F2FactsStartTime, formatTimeRange(raw.F1FactsStartTime, raw.F1FactsEndTime)),
+			DiaSemana:             resolveForm1Code(raw.F1FactsWeekday, salvia_config.WEEK_DAY),
+			FechaHechos:           coalesce(raw.F2FactsDate, raw.F1FactsDate),
+			ViolenciaExperimentada: resolveForm1Code(raw.F1ViolenceExperienced, salvia_config.VIOLENCE_EXPERIENCED),
+			OtroTipoViolencia:     raw.F1ViolenceExperiencedOther,
+			AmbitoViolencia:       resolveForm1Code(raw.F1ViolenceScope, salvia_config.VIOLENCE_SCOPE),
+			EscenarioViolencia:    coalesce(scenarioViolence, resolveForm1Code(raw.F1ViolenceScene, salvia_config.VIOLENCE_SCENES["sp"])),
+			RiesgoFeminicida:      resolveForm1Code(raw.F1FemicideRisk, nil),
+			DireccionHechos:       raw.F2FactsAddress,
 		},
 		Agresor: models.CaseInfoAgresor{
-			TipoAgresor:     raw.F1Aggressor,
-			Relacion:        coalesce(relationshipAggressor, raw.F1RelationshipAggressor),
+			TipoAgresor:     resolveForm1Code(raw.F1Aggressor, salvia_config.AGGRESSOR),
+			Relacion:        coalesce(relationshipAggressor, resolveForm1Code(raw.F1RelationshipAggressor, salvia_config.RELATIONSHIP_WITH_AGGRESSOR)),
 			Nombre:          coalesce(raw.F2AggressorNames, raw.F1AggressorName),
-			TipoDocumento:   coalesce(aggressorDocType, raw.F1AggressorDocType),
+			TipoDocumento:   coalesce(aggressorDocType, resolveForm1Code(raw.F1AggressorDocType, common_config.DOCUMENT_TYPE)),
 			NumeroDocumento: coalesce(raw.F2AggressorDocNumber, raw.F1AggressorDocNumber),
 			Direccion:       coalesce(raw.F2AggressorAddress, raw.F1AggressorAddress),
 			Telefono:        coalesce(raw.F2AggressorPhone, raw.F1AggressorPhone),
-			NumAgresores:    raw.F2NumAggressors,
+			NumAgresores:    resolveEnum(raw.F2NumAggressors),
 			Proximidad:      proximityAggressor,
 			GeneroAgresor:   aggressorGender,
 		},
 		Riesgo: models.CaseInfoRiesgo{
 			NivelRiesgo:               raw.F2RiskLevel,
 			NivelRiesgoTexto:          nivelTexto,
-			AmenazasMuerte:            raw.F1DeathThreats,
-			AgresorTieneArmas:         raw.F1AggressorHasWeapons,
-			ViolenciaPrevia:           raw.F1ViolenceBefore,
-			ViolenciaFisicaIncremento: raw.F1PhysicalIncreased,
-			SeparacionUltimoAnio:      raw.F1SeparatedLastYear,
-			AmenazoConArma:            raw.F1ThreatenedWeapon,
-			AmenazoHijos:              raw.F1ThreatenedChildren,
-			CelosoViolento:            raw.F1JealousViolent,
-			CreeCapazMatar:            raw.F1CapableKilling,
-			RiesgoInminente:           raw.F1ImminentRisk,
-			DenunciaPrevia:            raw.F1PreviouslyReported,
+			AmenazasMuerte:            resolveForm1Code(raw.F1DeathThreats, nil),
+			AgresorTieneArmas:         resolveForm1Code(raw.F1AggressorHasWeapons, nil),
+			ViolenciaPrevia:           resolveForm1Code(raw.F1ViolenceBefore, nil),
+			ViolenciaFisicaIncremento: resolveForm1Code(raw.F1PhysicalIncreased, nil),
+			SeparacionUltimoAnio:      resolveForm1Code(raw.F1SeparatedLastYear, nil),
+			AmenazoConArma:            resolveForm1Code(raw.F1ThreatenedWeapon, nil),
+			AmenazoHijos:              resolveForm1Code(raw.F1ThreatenedChildren, nil),
+			CelosoViolento:            resolveForm1Code(raw.F1JealousViolent, nil),
+			CreeCapazMatar:            resolveForm1Code(raw.F1CapableKilling, nil),
+			RiesgoInminente:           resolveForm1Code(raw.F1ImminentRisk, nil),
+			DenunciaPrevia:            resolveForm1Code(raw.F1PreviouslyReported, nil),
 			SiDenuncioAntes:           raw.F1IfPreviouslyReported,
 		},
 	}
 
+	// Cargar plan de atención (enums multi-select)
+	planAtencion, _ := s.repo.GetPlanAtencionByICode(ctx, caseICode)
+	if len(planAtencion) > 0 {
+		for i, p := range planAtencion {
+			planAtencion[i] = resolveEnum(p)
+		}
+		result.Hechos.PlanAtencion = planAtencion
+	}
+
 	return result, nil
+}
+
+// resolveForm1Code traduce un código corto de form1 usando los mapas legacy.
+func resolveForm1Code(code string, m map[string]string) string {
+	if code == "" {
+		return ""
+	}
+	if m != nil {
+		if translated, ok := m[code]; ok {
+			return translated
+		}
+	}
+	// Intentar sí/no genérico
+	switch code {
+	case "y", "1", "true", "Si", "si":
+		return "Sí"
+	case "n", "0", "false", "No", "no":
+		return "No"
+	}
+	return code
+}
+
+// formatTimeRange forma un rango de horas "HH:MM - HH:MM" si ambas existen.
+func formatTimeRange(start, end string) string {
+	start = strings.TrimSpace(start)
+	end = strings.TrimSpace(end)
+	if start == "" && end == "" {
+		return ""
+	}
+	// Truncar a HH:MM si viene HH:MM:SS
+	if len(start) > 5 {
+		start = start[:5]
+	}
+	if len(end) > 5 {
+		end = end[:5]
+	}
+	if start != "" && end != "" {
+		return start + " - " + end
+	}
+	return coalesce(start, end)
 }
 
 // coalesce retorna el primer string no vacío.

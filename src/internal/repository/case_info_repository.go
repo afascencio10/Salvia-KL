@@ -62,6 +62,17 @@ type CaseInfoRaw struct {
 	F1IfPeasant              string `gorm:"column:f1_if_peasant"`
 	F1IfArmedConflict        string `gorm:"column:f1_if_armed_conflict"`
 
+	// form1 — hechos
+	F1FactsOccurrence        string `gorm:"column:f1_facts_occurrence"`
+	F1FactsStartTime         string `gorm:"column:f1_facts_start_time"`
+	F1FactsEndTime           string `gorm:"column:f1_facts_end_time"`
+	F1FactsWeekday           string `gorm:"column:f1_facts_weekday"`
+	F1FactsDate              string `gorm:"column:f1_facts_date"`
+	F1FactsDescription       string `gorm:"column:f1_facts_description"`
+	F1ViolenceExperienced    string `gorm:"column:f1_violence_experienced"`
+	F1ViolenceExperiencedOther string `gorm:"column:f1_violence_experienced_other"`
+	F1ViolenceScope          string `gorm:"column:f1_violence_scope"`
+
 	// form2 (prioridad)
 	F2RiskLevel        *int   `gorm:"column:f2_risk_level"`
 	F2Age              *int64 `gorm:"column:f2_age"`
@@ -104,6 +115,7 @@ type CaseInfoRaw struct {
 // CaseInfoRepository define el acceso a datos para la información completa del caso.
 type CaseInfoRepository interface {
 	GetFullInfoByICode(ctx context.Context, caseICode string) (*CaseInfoRaw, error)
+	GetPlanAtencionByICode(ctx context.Context, caseICode string) ([]string, error)
 }
 
 type caseInfoRepository struct {
@@ -169,6 +181,17 @@ func (r *caseInfoRepository) GetFullInfoByICode(ctx context.Context, caseICode s
 			COALESCE(f1.victim_case_form1_victim_if_peasant, '')              AS f1_if_peasant,
 			COALESCE(f1.victim_case_form1_victim_if_armed_conflict, '')       AS f1_if_armed_conflict,
 
+			-- form1 hechos
+			COALESCE(f1.victim_case_form1_facts_occurrence, '')               AS f1_facts_occurrence,
+			COALESCE(f1.victim_case_form1_facts_start_time::text, '')         AS f1_facts_start_time,
+			COALESCE(f1.victim_case_form1_facts_end_time::text, '')           AS f1_facts_end_time,
+			COALESCE(f1.victim_case_form1_facts_weekday::text, '')            AS f1_facts_weekday,
+			COALESCE(TO_CHAR(f1.victim_case_form1_facts_date, 'DD/MM/YYYY'), '') AS f1_facts_date,
+			COALESCE(f1.victim_case_form1_facts_description, '')              AS f1_facts_description,
+			COALESCE(f1.victim_case_form1_victim_violence_experienced, '')    AS f1_violence_experienced,
+			COALESCE(f1.victim_case_form1_victim_violence_experienced_other, '') AS f1_violence_experienced_other,
+			COALESCE(f1.victim_case_form1_victim_violence_scope, '')          AS f1_violence_scope,
+
 			-- form2 (prioridad)
 			f2.victim_case_form2_risk_level                                   AS f2_risk_level,
 			EXTRACT(YEAR FROM AGE(NOW(), f2.victim_case_form2_birth_date))::int AS f2_age,
@@ -191,7 +214,7 @@ func (r *caseInfoRepository) GetFullInfoByICode(ctx context.Context, caseICode s
 			COALESCE(f2.victim_case_form2_residence_address, '')                   AS f2_residence_address,
 			COALESCE(f2.victim_case_form2_identity_name, '')                       AS f2_identity_name,
 			COALESCE(ri.victim_case_form2_enums_name, '')                          AS f2_require_interpreter,
-			COALESCE(f2.victim_case_form2_num_agressors::text, '')                 AS f2_num_aggressors,
+			COALESCE(nag.victim_case_form2_enums_name, '')                         AS f2_num_aggressors,
 			COALESCE(prox.victim_case_form2_enums_name, '')                        AS f2_proximity_aggressor,
 			COALESCE(agi.victim_case_form2_enums_name, '')                         AS f2_aggressor_gender,
 			COALESCE(adt.victim_case_form2_enums_name, '')                         AS f2_aggressor_doc_type,
@@ -234,6 +257,8 @@ func (r *caseInfoRepository) GetFullInfoByICode(ctx context.Context, caseICode s
 			ON rel.victim_case_form2_enums_id = f2.victim_case_form2_relationship_with_presumed_aggressor
 		LEFT JOIN salvia.victim_case_form2_enums ri
 			ON ri.victim_case_form2_enums_id = f2.victim_case_form2_require_language_interpreter
+		LEFT JOIN salvia.victim_case_form2_enums nag
+			ON nag.victim_case_form2_enums_id = f2.victim_case_form2_num_agressors
 		LEFT JOIN salvia.victim_case_form2_enums prox
 			ON prox.victim_case_form2_enums_id = f2.victim_case_form2_proximity_principal_aggressor
 		LEFT JOIN salvia.victim_case_form2_enums agi
@@ -254,4 +279,31 @@ func (r *caseInfoRepository) GetFullInfoByICode(ctx context.Context, caseICode s
 		return nil, err
 	}
 	return &raw, nil
+}
+
+func (r *caseInfoRepository) GetPlanAtencionByICode(ctx context.Context, caseICode string) ([]string, error) {
+	type enumRow struct {
+		Name string `gorm:"column:enum_name"`
+	}
+	var enums []enumRow
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT e.victim_case_form2_enums_name AS enum_name
+		FROM salvia.rel_victim_case_form2_enums_victim_case_form2 rel
+		JOIN salvia.victim_case_form2_enums e ON e.victim_case_form2_enums_id = rel.victim_case_form2_enums_id
+		WHERE rel.victim_case_form2_id = (
+			SELECT victim_case_form2_id FROM salvia.victim_case_form2
+			WHERE victim_case_form2_victim_case = (
+				SELECT victim_case_id FROM salvia.victim_case WHERE victim_case_i_code = ? LIMIT 1
+			) LIMIT 1
+		)
+		AND e.victim_case_form2_enums_category LIKE '%action_plan%'
+	`, caseICode).Scan(&enums).Error
+	if err != nil {
+		return nil, err
+	}
+	var result []string
+	for _, e := range enums {
+		result = append(result, e.Name)
+	}
+	return result, nil
 }

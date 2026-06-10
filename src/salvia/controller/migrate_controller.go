@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/xuri/excelize/v2"
@@ -499,6 +500,37 @@ func (c *MigrateController) MigrateFromExcel(ctx *gin.Context) {
 					break // no hay columna para este, es el pendiente
 				}
 			}
+		}
+
+		// Caso especial: "Seguimientos al día" → crear 1 solo seguimiento con fecha de hoy
+		if numAlerta == 0 && strings.Contains(alertaTexto, "al d") {
+			// Verificar si ya existe algún seguimiento para este caso
+			var existCount int64
+			c.db.Raw(`SELECT COUNT(*) FROM salvia.follow_up_v2 WHERE case_id = ?`, caso.VictimCaseICode).Scan(&existCount)
+
+			if existCount == 0 {
+				loc, _ := time.LoadLocation("America/Bogota")
+				hoy := time.Now().In(loc).Format("2006-01-02")
+				var newID string
+				c.db.Raw(`
+					INSERT INTO salvia.follow_up_v2 (
+						id, case_id, agent_id, status, team, risk_status,
+						scheduled_date, scheduled_time, sequence_number,
+						attempts, is_priority, created_at, updated_at
+					) VALUES (
+						gen_random_uuid(), ?, ?, 'PENDIENTE', ?, ?,
+						(?::date + interval '12 hours'), '', 1,
+						0, false, NOW(), NOW()
+					) RETURNING id
+				`, caso.VictimCaseICode, agentID, team, riskStatus, hoy).Scan(&newID)
+				if newID != "" {
+					totalCreados++
+					resultados = append(resultados, resultRow{Fila: fila, Cedula: cedula, Caso: caso.VictimCaseICode, Creados: 1})
+				}
+			} else {
+				resultados = append(resultados, resultRow{Fila: fila, Cedula: cedula, Caso: caso.VictimCaseICode, Creados: 0})
+			}
+			continue
 		}
 
 		// Solo crear seguimientos PENDIENTES (desde realPendiente en adelante)
