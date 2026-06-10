@@ -35,7 +35,7 @@
                 <span>Lista Casos</span>
             </a>
             {{ end }}
-            {{ if ne .currentRole "sv" }}
+            {{ if eq .currentRole "ro" }}
             <a href="/salvia/mis-casos" class="salvia-sidebar__nav-link">
                 <i class="fas fa-folder-open" aria-hidden="true"></i>
                 <span>Mis Casos</span>

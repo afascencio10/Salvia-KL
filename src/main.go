@@ -115,6 +115,7 @@ func main() {
     caseTaskRepo           := repository.NewCaseTaskRepository(gormDB)
     entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
     casesListRepo          := repository.NewCasesListRepository(gormDB)
+    casesReassignRepo      := repository.NewCasesReassignRepository(gormDB)
 
     // Services
     casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
@@ -159,6 +160,7 @@ func main() {
     caseInfoSvc           := service.NewCaseInfoService(caseInfoRepo)
     reportSvc             := service.NewReportService(reportRepo)
     casesListSvc          := service.NewCasesListService(casesListRepo)
+    casesReassignSvc      := service.NewCasesReassignService(casesReassignRepo, caseTimelineRepo, gormDB)
     agentsSearchSvc       := service.NewAgentsSearchService(agentLightRepo)
 
     // Inyectar el servicio en el controller legacy para generación automática del calendario
@@ -193,6 +195,7 @@ func main() {
     entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo, caseTaskRepo)
     entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
     casesListCtrl          := salvia_ctrl.NewCasesListController(casesListSvc)
+    casesReassignCtrl      := salvia_ctrl.NewCasesReassignController(casesReassignSvc)
     agentsSearchCtrl       := salvia_ctrl.NewAgentsSearchController(agentsSearchSvc)
 
     locationRepo := repository.NewLocationRepository(gormDB)
@@ -218,6 +221,7 @@ func main() {
     caseTaskCtrl.RegisterRoutes(api)
     locationCtrl.RegisterRoutes(api)
     casesListCtrl.RegisterRoutes(api)
+    casesReassignCtrl.RegisterRoutes(api)
     agentsSearchCtrl.RegisterRoutes(api)
 
     // Admin: endpoints de migración (protegidos por X-Security-Key)

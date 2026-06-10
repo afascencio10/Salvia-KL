@@ -30,6 +30,11 @@ var casosComponentTemplates = []string{
 	"frontend/html/salvia/case_component/case_component.html",
 }
 
+// listCasesTemplates — partials exclusivos de la pantalla Lista de casos.
+var listCasesTemplates = []string{
+	"frontend/html/salvia/list-cases/reasignar_casos_modal.html",
+}
+
 // VictimCasePOST maneja la solicitud POST para crear o actualizar un caso de víctima.
 // Obtiene la sesión actual, verifica los permisos necesarios, lee el cuerpo de la solicitud,
 // y llama al controlador correspondiente para procesar el caso de víctima.
@@ -1013,6 +1018,7 @@ func ListCasesGET(c *gin.Context) {
 	}
 
 	extraTemplates := append(utils.GetFullHtmlTemplates(), casosComponentTemplates...)
+	extraTemplates = append(extraTemplates, listCasesTemplates...)
 	common_facades.RenderTemplate(c, salvia_daos.VictimCaseEntityName, "salvia", "list-cases/", salvia_config.HTML_Templates, "list_cases", extraTemplates, utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
 		map[string]interface{}{
 			"windowTitle": "Lista de casos",

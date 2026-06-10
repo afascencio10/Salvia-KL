@@ -1,0 +1,142 @@
+{{ define "salvia/list-cases/reasignar_casos_modal.html" }}
+<link rel="stylesheet" href="/static/css/reasignar-casos-modal.css">
+
+<script type="text/x-template" id="tpl-reasignar-casos-modal">
+<div v-if="visible" class="rcm-backdrop" @click.self="onBackdropClick">
+    <div class="rcm-dialog" role="dialog" aria-modal="true" aria-labelledby="rcm-title">
+        <div class="rcm-header">
+            <h3 id="rcm-title" class="rcm-title">Reasignar casos</h3>
+            <button type="button" class="rcm-close" aria-label="Cerrar" :disabled="saving" @click="close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="rcm-body">
+            <div v-if="resolvedTeam" class="rcm-team-banner">
+                <i class="fas fa-users"></i>
+                <span>Equipo: <strong>${ resolvedTeam }</strong></span>
+            </div>
+
+            <section class="rcm-cases-section">
+                <h4 class="rcm-section-title">Casos seleccionados (${ cases.length })</h4>
+                <div class="rcm-cases-list">
+                    <div
+                        v-for="caseObj in cases"
+                        :key="caseObj.i_code || caseObj.id"
+                        class="rcm-case-row"
+                    >
+                        <div class="rcm-case-victim">
+                            <span class="rcm-case-victim-name">${ victimFullName(caseObj) }</span>
+                            <span class="rcm-case-doc">Doc: ${ caseObj.docNumber || '—' }</span>
+                        </div>
+                        <div class="rcm-case-meta">
+                            <span :class="riskBadgeClass(caseObj.riskStatus)" class="rcm-case-risk">
+                                ${ riskLabel(caseObj.riskStatus) }
+                            </span>
+                            <span class="rcm-case-owner">
+                                <i class="fas fa-user"></i>
+                                ${ ownerFullName(caseObj) }
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="rcm-agent-section">
+                <label class="rcm-label" for="rcm-agent-select">Nueva persona asignada</label>
+
+                <div v-if="loadingAgents" class="rcm-agents-loading">
+                    <div class="rcm-spinner"></div>
+                    <span>Cargando agentes...</span>
+                </div>
+
+                <div v-else-if="agentsError && !agents.length" class="rcm-agents-error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>${ agentsError }</span>
+                </div>
+
+                <select
+                    v-else
+                    id="rcm-agent-select"
+                    class="rcm-select"
+                    v-model="selectedAgentIcode"
+                    :disabled="!agents.length || saving"
+                    @change="onAgentChange"
+                >
+                    <option value="">Seleccione un agente</option>
+                    <option
+                        v-for="agent in agents"
+                        :key="agent.icode"
+                        :value="agent.icode"
+                    >
+                        ${ agent.fullName }
+                    </option>
+                </select>
+
+                <p v-if="!loadingAgents && agents.length === 0 && !agentsError" class="rcm-agents-empty">
+                    No hay agentes disponibles para este equipo.
+                </p>
+            </section>
+
+            <div v-if="saveError" class="rcm-save-error">
+                <i class="fas fa-exclamation-circle"></i>
+                <span>${ saveError }</span>
+            </div>
+
+            <div class="rcm-warning">
+                <div class="rcm-warning-icon" aria-hidden="true">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <p class="rcm-warning-text">
+                    Los cambios son irreversibles. El caso y sus seguimientos pendientes
+                    quedarán asignados a la nueva persona seleccionada.
+                </p>
+            </div>
+        </div>
+
+        <div class="rcm-footer">
+            <button type="button" class="rcm-btn rcm-btn--secondary" :disabled="saving" @click="close">
+                Cancelar
+            </button>
+            <button
+                type="button"
+                class="rcm-btn rcm-btn--primary"
+                :disabled="!canConfirmReassign"
+                @click="confirmReassign"
+            >
+                ${ saving ? 'Guardando...' : 'Reasignar' }
+            </button>
+        </div>
+    </div>
+
+    <!-- Confirmación de reasignación (M-05) — sobre el modal -->
+    <div
+        v-if="confirmVisible"
+        class="rcm-confirm-overlay"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="rcm-confirm-title"
+    >
+        <div class="rcm-confirm-dialog">
+            <div class="rcm-confirm-icon" aria-hidden="true">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h4 id="rcm-confirm-title" class="rcm-confirm-title">¿Confirmar reasignación?</h4>
+            <p class="rcm-confirm-message">
+                Se reasignarán <strong>${ cases.length }</strong> caso(s) a
+                <strong>${ selectedAgent ? selectedAgent.fullName : '' }</strong>.
+            </p>
+            <p class="rcm-confirm-note">Los cambios son irreversibles.</p>
+            <div class="rcm-confirm-actions">
+                <button type="button" class="rcm-btn rcm-btn--secondary" @click="cancelConfirm">
+                    Cancelar
+                </button>
+                <button type="button" class="rcm-btn rcm-btn--primary" @click="acceptConfirm">
+                    Sí, reasignar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+</script>
+{{ end }}

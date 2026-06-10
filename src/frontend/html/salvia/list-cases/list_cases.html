@@ -5,6 +5,7 @@
     </div>
 
     {{ template "salvia/case_component/case_component.html" . }}
+    {{ template "salvia/list-cases/reasignar_casos_modal.html" . }}
 
     <div v-if="roleLoadError" class="mc-error-state">
         <i class="fas fa-exclamation-triangle"></i>
@@ -13,12 +14,21 @@
 
     <div v-else class="mt-4 mb-4">
         <casos-component
+            ref="casosComponent"
             :default-filter="casosDefaultFilter"
             :available-filters="casosAvailableFilters"
             :columns="casosColumns"
             :buttons="casosButtons"
+            :reasignacion="true"
             @action-clicked="onCasoActionClicked"
+            @reasignar-casos="onReasignarCasos"
         ></casos-component>
+
+        <reasignar-casos-modal
+            ref="reasignarModal"
+            @closed="onReasignarModalClosed"
+            @reassigned="onReasignarCompletado"
+        ></reasignar-casos-modal>
     </div>
 </div>
 </main>
@@ -98,6 +108,19 @@
                     location.assign('/salvia/casos/' + payload.case.i_code + '/detalle');
                 }
             },
+            onReasignarCasos: function(payload) {
+                if (this.$refs.reasignarModal) {
+                    this.$refs.reasignarModal.open(payload.cases);
+                }
+            },
+            onReasignarModalClosed: function() {
+                // Sin reasignación: la selección en la tabla se conserva
+            },
+            onReasignarCompletado: function() {
+                if (this.$refs.casosComponent && this.$refs.casosComponent.reload) {
+                    this.$refs.casosComponent.reload();
+                }
+            },
             logout(){
                 logout("/seguridad/logout");
             },
@@ -108,9 +131,13 @@
 
     var _tplCasos = document.getElementById('tpl-casos-component');
     window.__casosComponentTpl = _tplCasos ? _tplCasos.innerHTML : '';
+
+    var _tplRcm = document.getElementById('tpl-reasignar-casos-modal');
+    window.__reasignarCasosModalTpl = _tplRcm ? _tplRcm.innerHTML : '';
 </script>
 
 <script src="/static/js/components/casos-component.js"></script>
+<script src="/static/js/components/reasignar-casos-modal.js"></script>
 
 <script>
     home.mount("#app");
