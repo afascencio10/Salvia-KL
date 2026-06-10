@@ -43,7 +43,7 @@ func InitRouter() *gin.Engine {
 	store := cookie.NewStore([]byte("secret"))
 
 	store.Options(sessions.Options{
-		MaxAge:   14400,
+		MaxAge:   28800,
 		HttpOnly: false,
 		Secure:   true,
 		SameSite: http.SameSiteDefaultMode,
