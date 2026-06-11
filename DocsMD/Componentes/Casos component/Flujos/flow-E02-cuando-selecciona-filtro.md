@@ -13,10 +13,11 @@ y cláusula SQL en el backend.
 | **E-11** | Por equipo           | `dropdown` | [flow-E11-cuando-filtra-equipo.md](./flow-E11-cuando-filtra-equipo.md) |
 | **E-12** | Seguimientos ejecutados | `dropdown` | [flow-E12-cuando-filtra-seguimientos-ejecutados.md](./flow-E12-cuando-filtra-seguimientos-ejecutados.md) |
 | **E-13** | Estado del caso        | `dropdown` | [flow-E13-cuando-filtra-estado-caso.md](./flow-E13-cuando-filtra-estado-caso.md) |
+| **E-16** | Barreras activas       | `dropdown` | [flow-E16-cuando-filtra-barreras-activas.md](./flow-E16-cuando-filtra-barreras-activas.md) |
 
 ---
 
-## Comportamiento común (todos los filtros E-09 / E-10 / E-11 / E-12 / E-13)
+## Comportamiento común (todos los filtros E-09 / E-10 / E-11 / E-12 / E-13 / E-16)
 
 1. Resetean `searchText`, `currentPage = 1` y limpian `cases` antes de consultar.
 2. Llaman a `GET /api/v1/cases/list` con `filter_key` y `filter_value` (si aplica).
@@ -43,3 +44,4 @@ y cláusula SQL en el backend.
 | `setDropdownFilter(key, value)` | E-11 cuando `key === 'equipo'` |
 | `setDropdownFilter(key, value)` | E-12 cuando `key === 'seguimientos_ejecutados'` |
 | `setDropdownFilter(key, value)` | E-13 cuando `key === 'estado_caso'` |
+| `setDropdownFilter(key, value)` | E-16 cuando `key === 'barreras_activas'` |

@@ -206,6 +206,17 @@ casos-component  (.cc-wrapper)
             │           │   └── caseStatusLabel(case.status)
             │           │   // victim_case_status: ra→Activo, is→Con novedad, cd→Cerrado, …
             │           │
+            │           ├── [col.key === 'barriers']
+            │           │   <td>  (.cc-cell-barriers)
+            │           │   ├── [case.openBarriers.length > 0]
+            │           │   │   BarrierText  (.cc-barriers-text)
+            │           │   │   formatOpenBarriers(case.openBarriers)
+            │           │   │   // Ejemplo: "Abierta → Sector: Salud, Protección"
+            │           │   │   // Solo barreras con status OPEN (E-01). Sectores únicos,
+            │           │   │   // etiquetas legibles vía barrierSectorLabel().
+            │           │   └── [v-else]
+            │           │       // Sin barreras OPEN → celda vacía (sin "—")
+            │           │
             │           └── [v-if buttons.length > 0]
             │               <td>  (.cc-cell-actions)
             │               └── ActionBtn × N  [v-for buttons]  (.cc-action-btn)
@@ -276,8 +287,30 @@ casos-component  (.cc-wrapper)
 | `equipo` | `dropdown` | `"Por equipo"` | Dinámicas — cargadas en E-01 |
 | `seguimientos_ejecutados` | `dropdown` | `"Seguimientos ejecutados"` | Fijas: `{ value:'0', label:'0' }` … `{ value:'10', label:'10' }` (→ E-12) |
 | `estado_caso` | `dropdown` | `"Estado del caso"` | Fijas: `ra` Activo, `is` Con novedad, `cd` Cerrado, `ex` Vencido, `r` Por aprobar, `fc` Recontacto (→ E-13) |
+| `barreras_activas` | `dropdown` | `"Barreras activas"` | Fija: `{ value:'OPEN', label:'Abierta' }` (→ E-16) |
 | `persona_asignada` | `autocomplete` | `"Persona asignada"` | — (se buscan on-demand al escribir → E-07) |
 | `busqueda` | `search` | `"Buscar por ID o teléfono"` | — |
+
+---
+
+## Formato de la columna `barriers`
+
+| Condición | Texto en celda |
+|---|---|
+| Sin barreras con `status = 'OPEN'` | *(vacío — no mostrar "—")* |
+| Una o más barreras OPEN | `Abierta → Sector: {sectores}` |
+
+Sectores agregados sin repetir, traducidos desde `barrier_v2.sector`:
+
+| Código BD | Etiqueta UI |
+|---|---|
+| `salud` | Salud |
+| `justicia` | Justicia |
+| `proteccion` | Protección |
+| `otras_instituciones` | Otras instituciones |
+| `barrera_transversal` | Barrera Transversal |
+
+Ejemplo: caso con dos barreras OPEN (salud + proteccion) → `Abierta → Sector: Salud, Protección`
 
 ---
 
@@ -314,3 +347,4 @@ casos-component  (.cc-wrapper)
 | `next_follow_up_date` | `FollowUpV2.scheduled_date` (status=`PENDIENTE`, más próximo) | Fecha del próximo seguimiento sin ejecutar |
 | `completed_follow_ups` | `COUNT(follow_up_v2)` donde `status = 'REALIZADO'` y `case_id = victim_case_i_code` | Número de seguimientos ya realizados del caso |
 | `case_status` | `victim_case.victim_case_status` (código) → etiqueta vía `caseStatusLabel` | Estado del caso (Activo, Cerrado, etc.) |
+| `barriers` | `salvia.barrier_v2` (`status = 'OPEN'`, `case_id = victim_case_i_code`) → sectores únicos vía `formatOpenBarriers` | Barreras abiertas del caso y sector de cada una. Celda vacía si no hay barreras OPEN. |

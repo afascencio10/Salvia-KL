@@ -18,6 +18,7 @@ type CasesListInput struct {
 	FilterEquipo                   string
 	FilterSeguimientosEjecutados   string
 	FilterEstadoCaso               string
+	FilterBarrerasActivas          string
 	Search      string
 	Sort        string
 	Order       string
@@ -77,6 +78,7 @@ func (s *casesListService) List(ctx context.Context, input CasesListInput) (Case
 		FilterEquipo:                   input.FilterEquipo,
 		FilterSeguimientosEjecutados:   input.FilterSeguimientosEjecutados,
 		FilterEstadoCaso:               input.FilterEstadoCaso,
+		FilterBarrerasActivas:          input.FilterBarrerasActivas,
 		Search:              strings.TrimSpace(input.Search),
 		Sort:        sort,
 		Order:       order,

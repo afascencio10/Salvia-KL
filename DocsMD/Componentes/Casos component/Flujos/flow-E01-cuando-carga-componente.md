@@ -6,7 +6,7 @@
 INPUT: {
   defaultFilter:   filtro inicial   → prop :defaultFilter del padre
                                       shape: { key: string, value?: string }
-                                      keys válidos: 'casos_nuevos' | 'riesgo' | 'equipo' | 'seguimientos_ejecutados' | 'estado_caso' | 'persona_asignada'
+                                      keys válidos: 'casos_nuevos' | 'riesgo' | 'equipo' | 'seguimientos_ejecutados' | 'estado_caso' | 'barreras_activas' | 'persona_asignada'
   columns:         columnas         → prop :columns (Array<{ key, label }>) del padre
   hiddenColumns:   columnas ocultas → prop :hiddenColumns (Array<string>) del padre (opcional)
   buttons:         botones de fila  → prop :buttons (Array<{ id, label }>) del padre
@@ -44,8 +44,9 @@ PASO 2 — Consultar backend con el filtro inicial y paginación
     ?filter_key={activeFilter.key}          // p. ej. persona_asignada si prop agentId
     &filter_value={activeFilter.value}
     &chip_filter=...                        // si chip activo (E-09)
-    &filter_riesgo=...                     // dropdowns activos (E-10, E-11, E-12, E-13)
+    &filter_riesgo=...                     // dropdowns activos (E-10, E-11, E-12, E-13, E-16)
     &filter_estado_caso=...
+    &filter_barreras_activas=...           // si dropdown E-16 activo (valor OPEN)
     &search=...
     &sort={sortBy}
     &order={sortOrder}
@@ -101,6 +102,15 @@ PASO 4 — Renderizar tabla y controles de paginación
           //   ra → Activo   | is → Con novedad | cd → Cerrado
           //   ex → Vencido  | r  → Por aprobar | fc → Recontacto
           SI status vacío o código sin mapear: mostrar "—" (o código crudo — ver GAPS)
+      'barriers' →
+          SI case.openBarriers.length === 0: celda vacía (sin texto)
+          SI case.openBarriers.length > 0:
+            formatOpenBarriers(case.openBarriers)
+            // Texto: "Abierta → Sector: {sectores únicos separados por coma}"
+            // Ejemplo con barreras OPEN en salud y proteccion:
+            //   "Abierta → Sector: Salud, Protección"
+            // openBarriers ← salvia.barrier_v2 WHERE status = 'OPEN' AND case_id = i_code
+            // Un caso puede tener varias barreras OPEN (distintos sectores o repetidos)
 
     Renderizar columna de acciones:
       PARA CADA btn EN buttons:
@@ -173,7 +183,24 @@ PASO 5 — Construir query base
       WHERE  fu.case_id = vc.victim_case_i_code
       AND    fu.status  = 'REALIZADO'
       AND    fu.deleted_at IS NULL
-    ) AS completed_follow_ups_count
+    ) AS completed_follow_ups_count,
+    (
+      SELECT COALESCE(
+        json_agg(
+          json_build_object(
+            'id',     b.id,
+            'status', b.status,
+            'sector', b.sector
+          )
+          ORDER BY b.created_at ASC
+        ),
+        '[]'::json
+      )
+      FROM   salvia.barrier_v2 b
+      WHERE  b.case_id   = vc.victim_case_i_code
+      AND    b.status    = 'OPEN'              // models.BarrierV2StatusOpen
+      AND    b.deleted_at IS NULL
+    ) AS open_barriers_json
 
   FROM salvia.victim_case vc
 
@@ -209,6 +236,16 @@ PASO 6 — Aplicar filtro según filter_key
     CASO 'estado_caso' (dropdown aditivo filter_estado_caso):
       → WHERE vc.victim_case_status = {código}
       // Códigos: ra | is | cd | ex | r | fc — Ver flow-E13
+
+    CASO 'barreras_activas' (dropdown aditivo filter_barreras_activas):
+      → WHERE EXISTS (
+          SELECT 1
+          FROM   salvia.barrier_v2 b
+          WHERE  b.case_id   = vc.victim_case_i_code
+          AND    b.status    = 'OPEN'
+          AND    b.deleted_at IS NULL
+        )
+      // filter_barreras_activas = 'OPEN' — Ver flow-E16
 
     CASO 'persona_asignada':
       → WHERE vc.agent_id = filter_value         // filter_value = icode del agente
@@ -258,6 +295,9 @@ PASO 9 — Construir y retornar response
         riskStatus:        risk_status,        // victim_case_form2_risk_level: 1=bajo, 2=moderado, 3=alto, 4=extremo
         nextFollowUpDate:       next_follow_up_date       // null si no hay pendiente
         completedFollowUpsCount: completed_follow_ups_count  // seguimientos con status REALIZADO
+        openBarriers: [
+          { id, status, sector }, ...   // solo status OPEN; array vacío si ninguna
+        ]                                 // parseado desde open_barriers_json
       },
       ...
     ],
@@ -290,6 +330,10 @@ PASO 9 — Construir y retornar response
 | Valores exactos del enum riskStatus en follow_up_v2 (¿'alto','medio','bajo'?)                              | PASO 6, 9     |
 | Tamaño de página por defecto: ¿20 registros es correcto?                                                   | PASO 1, 8     |
 | ¿El campo agent_id en victim_case puede ser NULL? Si es NULL, el caso no tiene agente asignado             | PASO 5, 6     |
+| Key de columna barreras: ¿`barriers`? Label: "Barreras". ¿Celda vacía sin OPEN o mostrar "—"?            | PASO 4        |
+| Mapeo sector BD → etiqueta UI (salud→Salud, proteccion→Protección, … form-barreras-repeater Q1)          | PASO 4, 9     |
+| ¿Incluir barreras OPEN en respuesta aunque la columna `barriers` no esté en :columns? (propuesta: sí)     | PASO 5, 9     |
+| Relación barrier_v2.case_id: ¿victim_case_i_code o victim_case_id? Confirmar con datos reales               | PASO 5        |
 
 > 📌 DECISIÓN DE DISEÑO: El filtro 'persona_asignada' ya no usa salvia.rel_case_owner_victim_case.
 > El JOIN con esa tabla se eliminó de la query base. El agente asignado se resuelve directamente

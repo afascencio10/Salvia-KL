@@ -307,6 +307,13 @@
                                     <span :class="caseStatusBadgeClass(caseObj.status)">${ caseStatusLabel(caseObj.status) }</span>
                                 </td>
 
+                                <!-- barriers -->
+                                <td v-else-if="col.key === 'barriers'" class="cc-cell cc-cell-barriers">
+                                    <span v-if="formatOpenBarriers(caseObj)" class="cc-barriers-text">
+                                        ${ formatOpenBarriers(caseObj) }
+                                    </span>
+                                </td>
+
                                 <!-- columna desconocida -->
                                 <td v-else class="cc-cell">—</td>
 
