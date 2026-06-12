@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Screens/hacer-seguimiento/Flujos/flow-E04-cuando-se-procesa-submission.md",
+                "file": "General/tables-database.md",
                 "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "flow-E04-cuando-se-procesa-submission"
+              "title": "tables-database"
             }
           }
         ]
@@ -78,7 +78,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 244.50043487548828
+    "width": 259.5004348754883
   },
   "right": {
     "id": "379ea87ccec303a5",
@@ -185,33 +185,37 @@
   },
   "active": "7b9d1557ef85bc35",
   "lastOpenFiles": [
+    "Componentes/Casos component/reasignar-casos-modal-interface.md",
+    "Componentes/Casos component/reasignar-casos-modal-events.md",
+    "Componentes/Casos component/Flujos/flow-M05-cuando-confirma-reasignacion.md",
+    "Componentes/Casos component/Flujos/flow-M04-cuando-cancela-modal.md",
+    "Componentes/Casos component/Flujos/flow-M03-cuando-selecciona-agente.md",
+    "Componentes/Casos component/Flujos/flow-M02-cuando-carga-agentes-por-equipo.md",
+    "Componentes/Casos component/Flujos/flow-M01-cuando-abre-modal-reasignacion.md",
+    "Componentes/Casos component/Flujos/flow-E15-cuando-presiona-reasignar-casos.md",
+    "Componentes/Casos component/Flujos/flow-E14-cuando-selecciona-caso-reasignacion.md",
+    "Screens/Registro de Caso/Flujos/registro-caso-flujo-guardar.md",
+    "General/tables-database.md",
+    "Screens/hacer-seguimiento/form-seguimiento-barreras-repeater.md",
+    "Screens/hacer-seguimiento/form-seguimiento-data.md",
+    "fix_form_schema.sql",
+    "backup_forms_column_inserts.sql",
+    "check_form_schema.sql",
+    "backup_forms_20260603_095452.sql",
+    "Screens/hacer-seguimiento/Flujos/flow-E04-cuando-se-procesa-submission.md",
     "Componentes/Casos component/Flujos/flow-E11-cuando-filtra-equipo.md",
     "Componentes/Casos component/Flujos/flow-E10-cuando-filtra-nivel-riesgo.md",
     "Componentes/Casos component/Flujos/flow-E09-cuando-filtra-casos-nuevos.md",
     "Screens/hacer-seguimiento/Flujos/flow-E05-cuando-se-actualizan-respuestas.md",
-    "Screens/hacer-seguimiento/Flujos/flow-E04-cuando-se-procesa-submission.md",
     "Screens/hacer-seguimiento/Flujos/flow-E01-cuando-carga-pantalla.md",
     "Screens/hacer-seguimiento/changelogJun2026.md",
     "Screens/hacer-seguimiento/form-barreras-repeater.md",
-    "Screens/hacer-seguimiento/form-seguimiento-barreras-repeater.md",
-    "Screens/hacer-seguimiento/form-seguimiento-data.md",
     "Screens/hacer-seguimiento/hacer-seguimiento-index.md",
     "Screens/hacer-seguimiento/interfaz.md",
-    "Screens/Registro de Caso/Flujos/registro-caso-flujo-guardar.md",
     "General/proyecto-description.md",
     "Componentes/Casos component/Flujos/flow-E08-cuando-selecciona-autocomplete.md",
     "Componentes/Casos component/Flujos/flow-E07-cuando-escribe-autocomplete.md",
-    "Otros/temp/follow-up-contact-modal-guide.md",
-    "Componentes/Oficios component/Oficios Usage.md",
     "Componentes/Oficios component",
-    "Componentes/Casos component/Flujos/flow-E06-cuando-cambia-pagina.md",
-    "Componentes/Casos component/Flujos/flow-E05-cuando-presiona-boton-accion.md",
-    "Componentes/Casos component/Flujos/flow-E04-cuando-cambia-ordenamiento.md",
-    "Componentes/Casos component/Flujos/flow-E03-cuando-escribe-buscador.md",
-    "Componentes/Casos component/Flujos/flow-E02-cuando-selecciona-filtro.md",
-    "Componentes/Casos component/Flujos/flow-E01-cuando-carga-componente.md",
-    "Componentes/Casos component/casos-component-interface.md",
-    "Componentes/Casos component/casos-component-events.md",
     "Componentes/Casos component/Flujos",
     "Componentes/Casos component"
   ]

@@ -197,6 +197,9 @@ func main() {
     casesListCtrl          := salvia_ctrl.NewCasesListController(casesListSvc)
     casesReassignCtrl      := salvia_ctrl.NewCasesReassignController(casesReassignSvc)
     agentsSearchCtrl       := salvia_ctrl.NewAgentsSearchController(agentsSearchSvc)
+    followUpV2Repo         := repository.NewFollowUpV2Repository(gormDB)
+    assignCaseSvc          := service.NewAssignCaseService(victimCaseLightRepo, agentLightRepo, followUpV2Repo)
+    assignCaseCtrl         := salvia_ctrl.NewAssignCaseController(assignCaseSvc)
 
     locationRepo := repository.NewLocationRepository(gormDB)
     locationCtrl := salvia_ctrl.NewLocationController(locationRepo)
@@ -223,6 +226,7 @@ func main() {
     casesListCtrl.RegisterRoutes(api)
     casesReassignCtrl.RegisterRoutes(api)
     agentsSearchCtrl.RegisterRoutes(api)
+    assignCaseCtrl.RegisterRoutes(api)
 
     // Admin: endpoints de migración (protegidos por X-Security-Key)
     migrateCtrl := salvia_ctrl.NewMigrateController(gormDB)

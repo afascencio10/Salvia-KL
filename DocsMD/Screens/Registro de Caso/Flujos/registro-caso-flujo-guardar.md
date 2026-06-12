@@ -511,8 +511,27 @@ PASO 18 — Commit de la transaccion
     S6. Manejar resultado
         SI error:
           → Log warning: "Error generando calendario para caso {iCode}"
+          → victim_case_team y agent_id quedan NULL en victim_case
+          → CONTINUA (el caso ya fue creado exitosamente)
+
         SI exito:
           → Log info: "Calendario generado para caso {iCode} (risk_level={n})"
+
+    S7. Actualizar team y agent_id en victim_case
+        SI VictimCaseLightRepo != nil Y len(followUps) > 0:
+          team    = followUps[0].Team      // origen: primer follow_up_v2 generado
+          agentID = followUps[0].AgentID   // origen: resultado de calcularAgente (puede ser "" si no habia agentes)
+
+          VictimCaseLightRepo.UpdateTeamAndAgent(caseICode, team, agentID)
+          UPDATE salvia.victim_case
+            SET victim_case_team = team,
+                agent_id         = agentID
+            WHERE victim_case_i_code = caseICode
+
+          SI error:
+            → Log warning: "No se pudo actualizar team/agent en victim_case {iCode}"
+          SI exito:
+            → Log info: "victim_case actualizado → team={team} agentID={agentID}"
 
   SI FollowUpSvc == nil:
     → No generar calendario (servicio no inicializado)
