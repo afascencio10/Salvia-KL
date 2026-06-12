@@ -26,6 +26,7 @@ type CasesListFilters struct {
 	FilterEquipo                 string // filter_equipo (E-11)
 	FilterSeguimientosEjecutados string // filter_seguimientos_ejecutados (E-12)
 	FilterEstadoCaso             string // filter_estado_caso (E-13)
+	FilterBarrerasActivas        string // filter_barreras_activas (E-16)
 	Search      string
 	Sort        string
 	Order       string
@@ -174,24 +175,38 @@ func (r *casesListRepository) List(ctx context.Context, filters CasesListFilters
 		return CasesListResult{}, err
 	}
 
+	caseICodes := make([]string, len(rows))
+	for i, row := range rows {
+		caseICodes[i] = row.ICode
+	}
+	openBarriersByCase, err := r.loadOpenBarriersByCaseIDs(ctx, caseICodes)
+	if err != nil {
+		return CasesListResult{}, err
+	}
+
 	items := make([]models.CaseListItem, len(rows))
 	for i, row := range rows {
+		barriers := openBarriersByCase[row.ICode]
+		if barriers == nil {
+			barriers = []models.OpenBarrierItem{}
+		}
 		items[i] = models.CaseListItem{
-			ID:               row.ID,
-			ICode:            row.ICode,
-			Names:            row.Names,
-			LastNames:        row.LastNames,
-			DocNumber:        row.DocNumber,
-			VictimPhone:      row.VictimPhone,
-			CreationDate:     row.CreationDate,
-			Status:           row.Status,
-			OwnerNames:       row.OwnerNames,
-			OwnerLastNames:   row.OwnerLastNames,
-			OwnerTeam:        row.OwnerTeam,
-			CaseTeam:         row.CaseTeam,
-			RiskStatus:       row.RiskStatus,
+			ID:                      row.ID,
+			ICode:                   row.ICode,
+			Names:                   row.Names,
+			LastNames:               row.LastNames,
+			DocNumber:               row.DocNumber,
+			VictimPhone:             row.VictimPhone,
+			CreationDate:            row.CreationDate,
+			Status:                  row.Status,
+			OwnerNames:              row.OwnerNames,
+			OwnerLastNames:          row.OwnerLastNames,
+			OwnerTeam:               row.OwnerTeam,
+			CaseTeam:                row.CaseTeam,
+			RiskStatus:              row.RiskStatus,
 			NextFollowUpDate:        row.NextFollowUpDate,
 			CompletedFollowUpsCount: row.CompletedFollowUpsCount,
+			OpenBarriers:            barriers,
 		}
 	}
 
@@ -201,6 +216,32 @@ func (r *casesListRepository) List(ctx context.Context, filters CasesListFilters
 		Page:     page,
 		PageSize: pageSize,
 	}, nil
+}
+
+// loadOpenBarriersByCaseIDs carga barreras OPEN por victim_case_i_code (E-01).
+func (r *casesListRepository) loadOpenBarriersByCaseIDs(ctx context.Context, caseICodes []string) (map[string][]models.OpenBarrierItem, error) {
+	result := make(map[string][]models.OpenBarrierItem)
+	if len(caseICodes) == 0 {
+		return result, nil
+	}
+
+	var barriers []models.BarrierV2
+	err := r.db.WithContext(ctx).
+		Where("case_id IN ? AND status = ? AND deleted_at IS NULL", caseICodes, models.BarrierV2StatusOpen).
+		Order("created_at ASC").
+		Find(&barriers).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, b := range barriers {
+		result[b.CaseID] = append(result[b.CaseID], models.OpenBarrierItem{
+			ID:     b.ID,
+			Status: b.Status,
+			Sector: b.Sector,
+		})
+	}
+	return result, nil
 }
 
 // E-09: casos creados hoy y hasta 5 días calendario antes (zona Bogotá).
@@ -244,6 +285,14 @@ func buildCasesListWhere(filters CasesListFilters) (string, []interface{}) {
 		}
 	}
 
+	// E-16: casos con al menos una barrera en el status indicado (p. ej. OPEN)
+	if barrerasStatus := casesListBarrerasActivasFilterValue(filters); barrerasStatus != "" {
+		if status, ok := barrierV2StatusFromFilterValue(barrerasStatus); ok {
+			clauses = append(clauses, barriersByStatusExistClause)
+			args = append(args, status)
+		}
+	}
+
 	switch filters.FilterKey {
 	case "casos_nuevos":
 		// Ya aplicado arriba (chip o filter_key legacy)
@@ -255,6 +304,8 @@ func buildCasesListWhere(filters CasesListFilters) (string, []interface{}) {
 		// Ya aplicado arriba
 	case "estado_caso":
 		// Ya aplicado arriba (E-13)
+	case "barreras_activas":
+		// Ya aplicado arriba (E-16)
 	case "persona_asignada":
 		if filters.FilterValue != "" {
 			clauses = append(clauses, "vc.agent_id = ?")
@@ -360,6 +411,43 @@ func casesListEstadoCasoFilterValue(filters CasesListFilters) string {
 		return filters.DropdownFilterValue
 	}
 	if filters.FilterKey == "estado_caso" && filters.FilterValue != "" {
+		return filters.FilterValue
+	}
+	return ""
+}
+
+// barriersByStatusExistClause filtra casos con barrera_v2 en el status dado (E-16).
+const barriersByStatusExistClause = `EXISTS (
+    SELECT 1
+    FROM salvia.barrier_v2 b
+    WHERE b.case_id = vc.victim_case_i_code
+      AND b.status = ?
+      AND b.deleted_at IS NULL
+)`
+
+// validBarrierV2FilterStatuses valores UI permitidos en filter_barreras_activas → status BD.
+// Ampliar al agregar opciones al dropdown.
+var validBarrierV2FilterStatuses = map[string]string{
+	models.BarrierV2StatusOpen: models.BarrierV2StatusOpen,
+}
+
+func barrierV2StatusFromFilterValue(value string) (string, bool) {
+	code := strings.TrimSpace(value)
+	if status, ok := validBarrierV2FilterStatuses[code]; ok {
+		return status, true
+	}
+	return "", false
+}
+
+// casesListBarrerasActivasFilterValue obtiene el valor del filtro E-16.
+func casesListBarrerasActivasFilterValue(filters CasesListFilters) string {
+	if filters.FilterBarrerasActivas != "" {
+		return filters.FilterBarrerasActivas
+	}
+	if filters.DropdownFilterKey == "barreras_activas" && filters.DropdownFilterValue != "" {
+		return filters.DropdownFilterValue
+	}
+	if filters.FilterKey == "barreras_activas" && filters.FilterValue != "" {
 		return filters.FilterValue
 	}
 	return ""

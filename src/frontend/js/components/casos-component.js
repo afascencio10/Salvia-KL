@@ -16,12 +16,13 @@
  *   reasignar-casos   { cases }                          — E-15 (pendiente en padre)
  *
  * Eventos internos implementados por archivo:
- *   E-01  mounted         — carga inicial de casos
+ *   E-01  mounted         — carga inicial de casos (incluye openBarriers desde barrier_v2)
  *   E-09  toggleChipFilter — filtro chip casos nuevos (hoy −5 días, America/Bogota)
  *   E-10  setDropdownFilter — filtro dropdown nivel de riesgo (combinable)
  *   E-11  setDropdownFilter — filtro dropdown por equipo (no combina con agentId)
  *   E-12  setDropdownFilter — filtro dropdown seguimientos ejecutados 0–10 (combinable)
  *   E-13  setDropdownFilter — filtro dropdown estado del caso (combinable)
+ *   E-16  setDropdownFilter — filtro dropdown barreras activas (combinable)
  *   E-03  onSearchInput   — búsqueda con debounce
  *   E-04  onSortChange    — cambio de ordenamiento
  *   E-05  emitActionClicked
@@ -340,7 +341,7 @@
         normalizeDefaultActiveFilter: function() {
             var df = Object.assign({}, this.defaultFilter);
             if (!df.key || df.key === 'casos_nuevos' || df.key === 'riesgo' || df.key === 'equipo' ||
-                df.key === 'seguimientos_ejecutados' || df.key === 'estado_caso') {
+                df.key === 'seguimientos_ejecutados' || df.key === 'estado_caso' || df.key === 'barreras_activas') {
                 return { key: '' };
             }
             if (df.key === 'persona_asignada' && !df.value) {
@@ -586,7 +587,8 @@
                        self.activeFilter.key !== 'riesgo' &&
                        self.activeFilter.key !== 'equipo' &&
                        self.activeFilter.key !== 'seguimientos_ejecutados' &&
-                       self.activeFilter.key !== 'estado_caso') {
+                       self.activeFilter.key !== 'estado_caso' &&
+                       self.activeFilter.key !== 'barreras_activas') {
                 params.set('filter_key', self.activeFilter.key);
                 if (self.activeFilter.value) {
                     params.set('filter_value', self.activeFilter.value);
@@ -597,7 +599,7 @@
                 params.set('chip_filter', 'casos_nuevos');
             }
 
-            var dropdownParamKeys = ['riesgo', 'equipo', 'seguimientos_ejecutados', 'estado_caso'];
+            var dropdownParamKeys = ['riesgo', 'equipo', 'seguimientos_ejecutados', 'estado_caso', 'barreras_activas'];
             dropdownParamKeys.forEach(function(dk) {
                 var val = self.activeDropdowns[dk];
                 if (!val) {
@@ -715,6 +717,39 @@
             var known = { ra: true, is: true, cd: true, ex: true, r: true, fc: true };
             var slug = known[code] ? code : 'desconocido';
             return 'cc-case-status-badge cc-case-status-' + slug;
+        },
+
+        barrierSectorLabel: function(code) {
+            var map = {
+                salud: 'Salud',
+                justicia: 'Justicia',
+                proteccion: 'Protección',
+                otras_instituciones: 'Otras instituciones',
+                barrera_transversal: 'Barrera Transversal',
+            };
+            if (!code) {
+                return '';
+            }
+            return map[String(code).toLowerCase()] || code;
+        },
+
+        formatOpenBarriers: function(caseObj) {
+            var barriers = (caseObj && caseObj.openBarriers) ? caseObj.openBarriers : [];
+            if (!barriers.length) {
+                return '';
+            }
+            var sectors = [];
+            var self = this;
+            barriers.forEach(function(b) {
+                var label = self.barrierSectorLabel(b.sector);
+                if (label && sectors.indexOf(label) === -1) {
+                    sectors.push(label);
+                }
+            });
+            if (!sectors.length) {
+                return 'Abierta';
+            }
+            return 'Abierta → Sector: ' + sectors.join(', ');
         },
 
         autocompleteMinLength: function() {

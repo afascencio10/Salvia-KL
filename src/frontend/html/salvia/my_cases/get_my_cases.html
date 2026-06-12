@@ -66,6 +66,9 @@
                         return opts;
                     })() },
                     { key: 'busqueda',     type: 'search',   label: 'Buscar por documento o teléfono' },
+                    { key: 'barreras_activas', type: 'dropdown', label: 'Barreras', options: [
+                        { value: 'OPEN', label: 'Abierta' },
+                    ]},
                 ],
                 casosColumns: [
                     { key: 'victim_info',         label: 'Víctima'             },
@@ -75,6 +78,7 @@
                     { key: 'team',                label: 'Equipo'              },
                     { key: 'next_follow_up_date', label: 'Próximo seguimiento' },
                     { key: 'completed_follow_ups', label: 'Seguimientos ejecutados' },
+                    { key: 'barriers',             label: 'Barreras'              },
                 ],
                 casosButtons: [
                     { id: 'detalle', label: 'Ver detalle' },

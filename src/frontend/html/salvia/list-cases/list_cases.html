@@ -78,6 +78,9 @@
                     })() },
                     { key: 'persona_asignada', type: 'autocomplete', label: 'Persona asignada' },
                     { key: 'busqueda', type: 'search', label: 'Buscar por documento o teléfono' },
+                    { key: 'barreras_activas', type: 'dropdown', label: 'Barreras', options: [
+                        { value: 'OPEN', label: 'Abierta' },
+                    ]},
                 ],
                 casosColumns: [
                     { key: 'victim_info',          label: 'Víctima'               },
@@ -86,6 +89,7 @@
                     { key: 'risk_level',           label: 'Nivel de riesgo'       },
                     { key: 'team',                 label: 'Equipo'                },
                     { key: 'assigned_person',      label: 'Persona asignada'      },
+                    { key: 'barriers',             label: 'Barreras'              },
                     { key: 'next_follow_up_date',  label: 'Próximo seguimiento'   },
                     { key: 'completed_follow_ups', label: 'Seguimientos ejecutados' },
                 ],
