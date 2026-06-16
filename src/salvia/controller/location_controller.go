@@ -19,9 +19,10 @@ func NewLocationController(repo repository.LocationRepository) *LocationControll
 
 // RegisterRoutes registra las rutas en el grupo /api/v1.
 //
-//	GET /api/v1/locations/departments         → lista de departamentos { label, value }
-//	GET /api/v1/locations/cities              → lista de ciudades { label, value, departmentId }
-//	GET /api/v1/locations/towns?city_id=<id>  → municipios de una ciudad { label, value }
+//	GET /api/v1/locations/departments                    → lista de departamentos { label, value }
+//	GET /api/v1/locations/cities                         → lista de ciudades { label, value, departmentId }
+//	GET /api/v1/locations/cities?department_id=<id>      → ciudades filtradas por departamento
+//	GET /api/v1/locations/towns?city_id=<id>             → municipios de una ciudad { label, value }
 func (c *LocationController) RegisterRoutes(rg *gin.RouterGroup) {
 	loc := rg.Group("/locations")
 	loc.GET("/departments", c.GetDepartments)
@@ -39,7 +40,17 @@ func (c *LocationController) GetDepartments(ctx *gin.Context) {
 }
 
 func (c *LocationController) GetCities(ctx *gin.Context) {
-	cities, err := c.repo.GetCities(ctx.Request.Context())
+	var departmentID *uint64
+	if depStr := ctx.Query("department_id"); depStr != "" {
+		id, err := strconv.ParseUint(depStr, 10, 64)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "department_id debe ser un número entero"})
+			return
+		}
+		departmentID = &id
+	}
+
+	cities, err := c.repo.GetCities(ctx.Request.Context(), departmentID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error al cargar ciudades"})
 		return

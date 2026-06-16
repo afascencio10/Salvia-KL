@@ -17,6 +17,14 @@ type CityLight struct {
 
 func (CityLight) TableName() string { return "security.city" }
 
+// CityICodeLight proyecta city_i_code y city_name para resolver ciudades en directorios.
+type CityICodeLight struct {
+	CityICode string `gorm:"column:city_i_code"`
+	CityName  string `gorm:"column:city_name"`
+}
+
+func (CityICodeLight) TableName() string { return "security.city" }
+
 // LocationOption es el formato { label, value } que consume stateOptionsPath en dinamic-form.
 type LocationOption struct {
 	Label string `json:"label"`

@@ -80,6 +80,7 @@ func main() {
         &models.MenTeamRemision{},
         &models.DiscapacidadRemision{},
         &models.BarrierV2{},
+        &models.Directory{},
     } {
         if err := gormDB.AutoMigrate(m); err != nil {
             log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -204,6 +205,10 @@ func main() {
     locationRepo := repository.NewLocationRepository(gormDB)
     locationCtrl := salvia_ctrl.NewLocationController(locationRepo)
 
+    directoryRepo := repository.NewDirectoryRepository(gormDB)
+    directorySvc := service.NewDirectoryService(directoryRepo, locationRepo)
+    directoryCtrl := salvia_ctrl.NewDirectoryController(directorySvc)
+
     // Routes
     api := router.Group("/api/v1")
     formCtrl.RegisterRoutes(api)
@@ -223,6 +228,7 @@ func main() {
     barrierV2GinCtrl.RegisterRoutes(api)
     caseTaskCtrl.RegisterRoutes(api)
     locationCtrl.RegisterRoutes(api)
+    directoryCtrl.RegisterRoutes(api)
     casesListCtrl.RegisterRoutes(api)
     casesReassignCtrl.RegisterRoutes(api)
     agentsSearchCtrl.RegisterRoutes(api)
