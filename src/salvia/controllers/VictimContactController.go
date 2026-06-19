@@ -416,7 +416,7 @@ func InvalidateVictimContactByICode(dataInput string, id string, connData *db.Co
 // GetVictimContactsWithoutVictimCase obtiene una lista de registros de VictimContact que no están asociados a ningún caso.
 // Recibe como parámetros el módulo actual y la información de conexión y configuraciones de la base de datos.
 // Retorna un código HTTP y un mensaje en formato JSON con la lista de registros o un mensaje de error.
-func GetVictimContactsWithoutVictimCase(page int, status string, connData *db.ConnData, dbClientConfig db.DBClientConfig, dbServerConfig db.DBServerConfig) (int, string, int) {
+func GetVictimContactsWithoutVictimCase(page int, status string, filters salvia_daos.VictimContactListFilters, connData *db.ConnData, dbClientConfig db.DBClientConfig, dbServerConfig db.DBServerConfig) (int, string, int) {
 	var resData string = ""
 	var resCode int = http.StatusInternalServerError
 	var count int
@@ -426,7 +426,7 @@ func GetVictimContactsWithoutVictimCase(page int, status string, connData *db.Co
 		defer db.ReleaseConnection(connData)
 	}
 	// Consulta los registros sin caso asociado.
-	contacts, count, err := salvia_daos.GetVictimContactsWithoutVictimCase(page, status, connData, &dbClientConfig, &dbServerConfig)
+	contacts, count, err := salvia_daos.GetVictimContactsWithoutVictimCase(page, status, filters, connData, &dbClientConfig, &dbServerConfig)
 
 	if err != nil {
 		// Retorna error interno en caso de fallo.
