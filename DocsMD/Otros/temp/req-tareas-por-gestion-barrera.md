@@ -57,8 +57,8 @@ PASO 3 — Procesar barreras (Sección 4 repeater)
     3.3 — [NUEVO] Crear tareas y oficios por gestión de la barrera:
 
             SI gestion_values está vacío:
-              → No crear nada
-              → CONTINÚA al siguiente entry
+              → No crear tareas ni oficios
+              → CONTINÚA al siguiente entry (la barrera ya fue creada en 3.2)
 
             SI NO:
               → Parsear CSV → lista de gestion_values seleccionados
@@ -164,7 +164,11 @@ PASO 3 — Procesar barreras (Sección 4 repeater)
 
 ---
 
-## Preguntas para validar antes de implementar
+## Decisiones confirmadas
 
-1. ¿El `agent_id` del `entity_letter` y el `assigned_user_id` de la `case_task` deben ser siempre `actorId` (el agente que hizo el seguimiento)? ¿O hay algún caso donde se asigna a otro usuario?
-2. ¿Si `gestion_values` está vacío no se crea nada, o igual se crea la barrera sin tareas?
+| Decisión | Respuesta |
+|---|---|
+| ¿A quién se asigna la tarea y el oficio? | Siempre al `actorId` — el agente que completó el seguimiento |
+| ¿Se crea la barrera aunque gestión esté vacío? | Sí — la barrera (`barrier_v2`) siempre se crea. Las tareas y oficios son opcionales según lo que se seleccione en gestión |
+
+> ✅ No hay GAPs pendientes. Listo para implementar.
