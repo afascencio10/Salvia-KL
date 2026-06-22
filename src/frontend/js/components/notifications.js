@@ -145,7 +145,7 @@
             /* ── Carga inicial ──────────────────────────────────────────────────── */
 
             loadOficios() {
-                const VALID_ROLES = ['op', 'an'];
+                const VALID_ROLES = ['op','ro', 'an'];
                 if (!VALID_ROLES.includes(this.currentRole)) {
                     this.loadError = 'Rol no autorizado para acceder a esta pantalla.';
                     return;
@@ -155,7 +155,7 @@
                 this.loadError = null;
 
                 let url = '/api/v1/entity-letters?limit=100&page=0';
-                if (this.currentRole === 'op') {
+                if (this.currentRole === 'op' || this.currentRole === 'ro') {
                     url += '&agentId=' + encodeURIComponent(this.currentUserId);
                 } else if (this.currentRole === 'an') {
                     url += '&notificationUserId=' + encodeURIComponent(this.currentUserId);
@@ -183,7 +183,7 @@
             },
 
             canManageForRole(state) {
-                if (this.currentRole === 'op') {
+                if (this.currentRole === 'op' || this.currentRole === 'ro') {
                     return ['por_proyectar', 'en_correccion'].includes(state);
                 }
                 if (this.currentRole === 'an') {

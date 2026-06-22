@@ -77,7 +77,7 @@
                 <!-- CASO -->
                 <div>
                     <div class="nf-caso-name">${ oficio.victimName }</div>
-                    <div class="nf-caso-code">${ oficio.caseCode } · ${ oficio.docNumber }</div>
+                    <div class="nf-caso-code">${ oficio.docNumber }</div>
                     <span class="nf-prioridad-tag" :class="'nf-prioridad-' + slugify(oficio.priority)">${ oficio.priority }</span>
                     <br>
                     <a :href="'/salvia/casos/' + oficio.caseId + '/detalle'" class="nf-link">Ver caso →</a>
@@ -96,7 +96,7 @@
                     </div>
                     <div class="nf-barrera-org">${ oficio.barrierOrg }</div>
                     <div class="nf-barrera-desc">${ oficio.barrierDesc }</div>
-                    <a href="#" class="nf-link">Ver barrera →</a>
+                    <a :href="'/salvia/barreras/' + oficio.barrierId" class="nf-link">Ver barrera →</a>
                 </div>
 
                 <!-- INFORMACIÓN DEL OFICIO -->

@@ -193,7 +193,7 @@ func main() {
     })
     caseTaskCtrl            := salvia_ctrl.NewCaseTaskController(caseTaskSvc)
 
-    entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo, caseTaskRepo)
+    entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo, caseTaskRepo, barrierV2Repo)
     entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
     casesListCtrl          := salvia_ctrl.NewCasesListController(casesListSvc)
     casesReassignCtrl      := salvia_ctrl.NewCasesReassignController(casesReassignSvc)
