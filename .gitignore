@@ -21,3 +21,4 @@ node_modules
 
 # Scripts y datos de migración (uso local)
 migrarCasos/
+*.exe

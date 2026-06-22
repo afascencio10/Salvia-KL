@@ -13,8 +13,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 )
+
+// VictimContactListFilters filtros opcionales para listar contactos sin caso asociado.
+type VictimContactListFilters struct {
+	Names     string
+	LastNames string
+	Phone     string
+}
 
 var (
 	// Nombres y esquemas de la entidad VictimContact
@@ -79,6 +88,8 @@ type VictimContactPgDB struct {
 	VictimContactLastNames         sql.NullString
 	VictimContactLatitude          sql.NullFloat64
 	VictimContactLongitude         sql.NullFloat64
+	VictimContactForm2VictimColPhone   sql.NullInt64
+	VictimContactForm2FactsDescription sql.NullString
 }
 
 // MarshalJSON implementa la interfaz json.Marshaler para formatear las fechas con un formato específico.
@@ -300,18 +311,56 @@ func GetVictimContacts(by common_controllers.By, connData *db.ConnData, clientCo
 //
 // Retorna:
 //   - un slice de VictimContactDTO y un posible error durante la operación.
-func GetVictimContactsWithoutVictimCase(page int, status string, connData *db.ConnData, clientConfig *db.DBClientConfig, serverConfig *db.DBServerConfig) ([]VictimContactDTO, int, error) {
-	// Se define el controlador de persistencia y las variables necesarias.
+func buildVictimContactsWithoutCaseWhere(victimContactPath, victimCasePath string, status string, filters VictimContactListFilters) (string, []interface{}) {
+	victimContactForm2Path := VictimContactForm2DBScheme + "." + VictimContactForm2DBName
+
+	where := ` WHERE ` + victimCasePath + `.` + VictimCaseFieldDefinitions["VictimCaseVictimContact"].DBName + ` IS NULL` +
+		` AND ` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactStatus"].DBName + ` = $1`
+
+	args := []interface{}{status}
+	argIndex := 2
+
+	if strings.TrimSpace(filters.Names) != "" {
+		where += ` AND ` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactNames"].DBName + ` ILIKE $` + strconv.Itoa(argIndex)
+		args = append(args, "%"+strings.TrimSpace(filters.Names)+"%")
+		argIndex++
+	}
+
+	if strings.TrimSpace(filters.LastNames) != "" {
+		where += ` AND ` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactLastNames"].DBName + ` ILIKE $` + strconv.Itoa(argIndex)
+		args = append(args, "%"+strings.TrimSpace(filters.LastNames)+"%")
+		argIndex++
+	}
+
+	if strings.TrimSpace(filters.Phone) != "" {
+		where += ` AND EXISTS (
+			SELECT 1 FROM ` + victimContactForm2Path + ` vcf2
+			WHERE vcf2.` + VictimContactForm2FieldDefinitions["VictimContactForm2VictimContact"].DBName + ` = ` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactId"].DBName + `
+			AND vcf2.` + VictimContactForm2FieldDefinitions["VictimContactForm2VictimColPhone"].DBName + `::text ILIKE $` + strconv.Itoa(argIndex) + `
+		)`
+		args = append(args, "%"+strings.TrimSpace(filters.Phone)+"%")
+	}
+
+	return where, args
+}
+
+func victimContactForm2ListSubquery(victimContactPath, form2FieldDBName string) string {
+	victimContactForm2Path := VictimContactForm2DBScheme + "." + VictimContactForm2DBName
+	return `(SELECT vcf2.` + form2FieldDBName +
+		` FROM ` + victimContactForm2Path + ` vcf2 WHERE vcf2.` + VictimContactForm2FieldDefinitions["VictimContactForm2VictimContact"].DBName +
+		` = ` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactId"].DBName +
+		` ORDER BY vcf2.` + VictimContactForm2FieldDefinitions["VictimContactForm2CreationDate"].DBName + ` DESC LIMIT 1)`
+}
+
+func GetVictimContactsWithoutVictimCase(page int, status string, filters VictimContactListFilters, connData *db.ConnData, clientConfig *db.DBClientConfig, serverConfig *db.DBServerConfig) ([]VictimContactDTO, int, error) {
 	var count int
 
 	var persistenceCtrl common_controllers.PersistenceController = common_controllers.PersistenceController{}
 	var victimContactPath string = VictimContactDBScheme + "." + VictimContactDBName
-	// Se asume que VictimCaseDBScheme y VictimCaseDBName y VictimCaseFieldDefinitions están definidos en otro lugar del proyecto.
 	var victimCasePath string = VictimCaseDBScheme + "." + VictimCaseDBName
 
 	var victimContacts []VictimContactDTO
 
-	// Se establece la conexión a la base de datos.
 	persistenceCtrl.Setup(connData, clientConfig, serverConfig)
 
 	if persistenceCtrl.Error != nil {
@@ -319,28 +368,27 @@ func GetVictimContactsWithoutVictimCase(page int, status string, connData *db.Co
 		return nil, count, persistenceCtrl.Error
 	}
 
-	// Definición de campos a seleccionar.
 	var victimContactFieldsSlice []string = []string{"VictimContactICode", "VictimContactCreationDate", "VictimContactStatus", "VictimContactNames", "VictimContactLastNames", "VictimContactLatitude", "VictimContactLongitude"}
 	var victimContactFieldsAliasSlice []string = []string{}
 
-	// Se construye la parte de la consulta que define los campos a seleccionar.
 	var victimContactFieldsStr = common_dao.GetSQL(common_dao.SQL_SELECT_FIELDS_ONLY, victimContactFieldsSlice, victimContactFieldsAliasSlice, VictimContactDBName, []string{}, []string{}, []string{}, common_dao.SQL_AND, VictimContactDBScheme, VictimContactFieldDefinitions, true)
+	form2PhoneField := victimContactForm2ListSubquery(victimContactPath, VictimContactForm2FieldDefinitions["VictimContactForm2VictimColPhone"].DBName)
+	form2FactsField := victimContactForm2ListSubquery(victimContactPath, VictimContactForm2FieldDefinitions["VictimContactForm2FactsDescription"].DBName)
 
-	// Se construye la consulta SQL con LEFT JOIN para identificar registros sin caso asociado.
-	var query string = `SELECT ` + victimContactFieldsStr +
+	whereClause, queryArgs := buildVictimContactsWithoutCaseWhere(victimContactPath, victimCasePath, status, filters)
+
+	var query string = `SELECT ` + victimContactFieldsStr + `, ` + form2PhoneField + `, ` + form2FactsField +
 		` FROM ` + victimContactPath +
 		` LEFT JOIN ` + victimCasePath + ` ON (` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactId"].DBName + ` = ` + victimCasePath + `.` + VictimCaseFieldDefinitions["VictimCaseVictimContact"].DBName + `)` +
-		` WHERE ` + victimCasePath + `.` + VictimCaseFieldDefinitions["VictimCaseVictimContact"].DBName + ` IS NULL  AND ` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactStatus"].DBName + ` = $1` +
-		` ORDER BY ` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactCreationDate"].DBName + ` ASC  ` +
+		whereClause +
+		` ORDER BY ` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactCreationDate"].DBName + ` DESC  ` +
 		common_dao.GetOffsetQuery(page)
 
-	// Se ejecuta la consulta.
-	persistenceCtrl.Query(context.Background(), query, status)
+	persistenceCtrl.Query(context.Background(), query, queryArgs...)
 
-	// Se itera sobre los resultados y se almacena cada registro en el slice.
 	for persistenceCtrl.Next() {
 		var victimContactPG VictimContactPgDB = VictimContactPgDB{}
-		persistenceCtrl.ScanRow(&victimContactPG.VictimContactICode, &victimContactPG.VictimContactCreationDate, &victimContactPG.VictimContactStatus, &victimContactPG.VictimContactNames, &victimContactPG.VictimContactLastNames, &victimContactPG.VictimContactLatitude, &victimContactPG.VictimContactLongitude)
+		persistenceCtrl.ScanRow(&victimContactPG.VictimContactICode, &victimContactPG.VictimContactCreationDate, &victimContactPG.VictimContactStatus, &victimContactPG.VictimContactNames, &victimContactPG.VictimContactLastNames, &victimContactPG.VictimContactLatitude, &victimContactPG.VictimContactLongitude, &victimContactPG.VictimContactForm2VictimColPhone, &victimContactPG.VictimContactForm2FactsDescription)
 		victimContacts = append(victimContacts, victimContactPG.ToDTO())
 	}
 
@@ -350,14 +398,13 @@ func GetVictimContactsWithoutVictimCase(page int, status string, connData *db.Co
 		return nil, count, persistenceCtrl.Error
 	}
 
-	// Se hace el conteo de elementos totales para la primera consulta
 	if page == 0 {
 		var countQuery string = `SELECT COUNT(*) ` +
 			` FROM ` + victimContactPath +
 			` LEFT JOIN ` + victimCasePath + ` ON (` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactId"].DBName + ` = ` + victimCasePath + `.` + VictimCaseFieldDefinitions["VictimCaseVictimContact"].DBName + `)` +
-			` WHERE ` + victimCasePath + `.` + VictimCaseFieldDefinitions["VictimCaseVictimContact"].DBName + ` IS NULL AND ` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactStatus"].DBName + ` = $1`
+			whereClause
 
-		persistenceCtrl.QueryRow(context.Background(), countQuery, status)
+		persistenceCtrl.QueryRow(context.Background(), countQuery, queryArgs...)
 		persistenceCtrl.Scan(&count)
 	}
 
@@ -527,6 +574,12 @@ func (obj *VictimContactPgDB) ToDTO() VictimContactDTO {
 	}
 	if obj.VictimContactLongitude.Valid {
 		dto.VictimContactLongitude = obj.VictimContactLongitude.Float64
+	}
+	if obj.VictimContactForm2VictimColPhone.Valid {
+		dto.VictimContactForm2.VictimContactForm2VictimColPhone = uint64(obj.VictimContactForm2VictimColPhone.Int64)
+	}
+	if obj.VictimContactForm2FactsDescription.Valid {
+		dto.VictimContactForm2.VictimContactForm2FactsDescription = obj.VictimContactForm2FactsDescription.String
 	}
 	return dto
 }

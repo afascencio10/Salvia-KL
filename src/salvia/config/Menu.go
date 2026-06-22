@@ -491,6 +491,12 @@ var MenuTools map[string]map[string]map[string][]map[string]string = map[string]
 					"action":      "",
 					"customClass": "fas fa-eye icoacciones",
 				},
+				{
+					"label":       Locale["sp"]["menu_tool_new_victim_case"],
+					"path":        "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["VictimCase"],
+					"action":      Locale["sp"]["new"],
+					"customClass": "fas fa-plus-circle",
+				},
 			},
 			"menu_tool_get_victim_cases": {
 				{
