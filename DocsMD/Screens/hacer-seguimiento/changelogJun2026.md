@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-06-23 — Tareas y oficios por gestión de barrera (E-04)
+
+Al completar el formulario de seguimiento, el backend ahora crea registros automáticos por cada opción seleccionada en "Gestión de la barrera" (Q23) dentro del repeater de Sección 4.
+
+**Comportamiento por opción:**
+- `orientacion_llamada` → No genera ningún registro
+- `gestion_llamada`, `alerta_barreras` → Crea solo una `case_task` (category: "Barrera", status: "ToDo")
+- `activacion_ruta_interinstitucional`, `articulacion_institucional`, `escalamiento_organismo_control` → Crea un `entity_letter` (state: "por_proyectar") y una `case_task` vinculada al oficio
+
+La tarea y el oficio siempre se asignan al agente que completó el seguimiento (`actorId`). La barrera (`barrier_v2`) se crea siempre aunque gestión esté vacía. Los errores al crear tareas u oficios son no bloqueantes (WARN en log).
+
+**Estilos en form de barreras:** Las preguntas dentro del repeater de Sección 4 ahora tienen los mismos estilos visuales que las preguntas de nivel superior (punto morado, fuente grande, separador).
+
+### Archivos modificados
+
+| Archivo | Cambio |
+|---|---|
+| `src/salvia/service/form_service.go` | PASO 3.2 nuevo — crea `entity_letter` y `case_task` por cada opción de gestión seleccionada |
+| `src/frontend/js/components/dinamic-form.js` | Estilos CSS extendidos a `.df-repeater-item .df-question`; se eliminaron inline styles que los sobreescribían |
+
+---
+
 ## 2026-06-01 — Correcciones y mejoras al flujo de reasignación
 
 **Bug fix: `riskLevel` siempre llegaba como 0 al frontend.** La query `LoadVictimInfoByCaseID` en `followup_repository.go` no incluía `victim_case_form2_risk_level` en el SELECT. Se agregó `COALESCE(f2.victim_case_form2_risk_level, 0) AS "RiskLevel"`.

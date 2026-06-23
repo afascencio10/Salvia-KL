@@ -54,16 +54,70 @@ PASO 2 — Construir answerMap
 
 PASO 3 — Procesar barreras (BarrierV2)
 
+  IDs adicionales relevantes en este paso:
+    qBarreraGestion = "572ad72a-8174-4ff3-9c56-5c8c65ac63ac"  // Q23 — gestión de la barrera (multiple, CSV)
+
+  Opciones de gestión y su comportamiento:
+    "orientacion_llamada"                → No genera ningún registro (se omite)
+    "gestion_llamada"                    → Solo case_task
+    "alerta_barreras"                    → Solo case_task
+    "activacion_ruta_interinstitucional" → entity_letter + case_task vinculada
+    "articulacion_institucional"         → entity_letter + case_task vinculada
+    "escalamiento_organismo_control"     → entity_letter + case_task vinculada
+
   DB.repeater_entries.FindBySubmissionIDAndGroupIDs({ submissionId, groupId: rgBarreras })
   → Por cada entry:
-      Leer answers de la entry → entryMap
-      sectorExplicit = entryMap[qBarreraSector]  // dropdown de sector
-      Por cada pregunta de barreras (salud / justicia / proteccion):
-        SI valor no vacío:
-          sector = sectorExplicit || sectorFallback
-          Por cada opción del CSV:
-            → DB.barrier_v2.Create({ case_id, follow_up_id, sector, description, status: "OPEN" })
-            → barrierCount++
+
+      3.1 Leer answers de la entry → entryMap
+          sectorExplicit = entryMap[qBarreraSector]  // dropdown de sector
+          Por cada pregunta de barreras (salud / justicia / proteccion):
+            SI valor no vacío:
+              sector = sectorExplicit || sectorFallback
+              Por cada opción del CSV:
+                → DB.barrier_v2.Create({ case_id, follow_up_id, sector, description, status: "OPEN" })
+                → barrierCount++
+                → newBarrierID = barrier_v2.id
+
+      3.2 Crear tareas y oficios por gestión de barrera (Q23)
+
+          gestionRaw = entryMap[qBarreraGestion]  // CSV de opciones seleccionadas
+
+          SI gestionRaw está vacío:
+            → No crear tareas ni oficios
+            → CONTINÚA al siguiente entry (la barrera ya fue creada en 3.1)
+
+          SI NO:
+            Por cada gVal en splitCSV(gestionRaw):
+
+              SI gVal == "orientacion_llamada":
+                → OMITIR (no genera ningún registro)
+                → CONTINÚA
+
+              SI gVal ∈ { "activacion_ruta_interinstitucional", "articulacion_institucional", "escalamiento_organismo_control" }:
+                → DB.entity_letter.Create({
+                      barrier_id: newBarrierID,
+                      case_id:    fu.case_id,
+                      state:      "por_proyectar",
+                      agent_id:   actorId,
+                  })
+                → newLetterID = entity_letter.id
+                SI falla el insert:
+                  → Loggear advertencia (no aborta — WARN)
+                  → newLetterID = nil
+
+              → DB.case_task.Create({
+                    category:         "Barrera",
+                    type:             gVal,
+                    description:      label[gVal],
+                    assigned_user_id: actorId,
+                    status:           "ToDo",
+                    case_id:          fu.case_id,
+                    follow_up_id:     fu.id,
+                    barrier_id:       newBarrierID,
+                    entity_letter_id: newLetterID  // nil si no aplica oficio
+                })
+                SI falla el insert:
+                  → Loggear advertencia (no aborta — WARN)
 
 
 PASO 4 — Procesar derivaciones a equipos
