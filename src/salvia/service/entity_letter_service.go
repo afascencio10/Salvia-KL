@@ -56,10 +56,17 @@ type ActionInput struct {
 	UserID string  // ID del usuario que ejecuta la acción
 
 	// Campos del modal "Proyectar oficio"
-	Nivel    *string
-	Entidad  *string
-	UrlKofax *string
-	Priority *string // "normal" | "alta"
+	Nivel             *string
+	Entidad           *string
+	UrlKofax          *string
+	Priority          *string // "normal" | "alta"
+	EntityBranchID    *int64
+	EntityName        *string // nombre legible: entity_branch.name o texto libre "otra entidad"
+	DepartmentID      *string
+	CityID            *string
+	TownID            *string
+	OfficialDependency *string
+	Subject           *string
 
 	// Campos del modal "Radicar oficio"
 	AsuntoRadicado *string
@@ -219,18 +226,37 @@ func (s *entityLetterService) PerformAction(ctx context.Context, id string, inpu
 			return nil, fmt.Errorf("%w: acción 'proyectar' requiere estado '%s', estado actual: '%s'",
 				ErrEntityLetterInvalidState, models.EntityLetterStatePorProyectar, letter.State)
 		}
-		if input.Nivel == nil || *input.Nivel == "" {
-			return nil, fmt.Errorf("entity_letter: el campo 'nivel' es requerido para proyectar")
+		if input.DepartmentID == nil || *input.DepartmentID == "" {
+			return nil, fmt.Errorf("entity_letter: el campo 'departmentId' es requerido para proyectar")
 		}
-		if input.Entidad == nil || *input.Entidad == "" {
-			return nil, fmt.Errorf("entity_letter: el campo 'entidad' es requerido para proyectar")
+		if input.CityID == nil || *input.CityID == "" {
+			return nil, fmt.Errorf("entity_letter: el campo 'cityId' es requerido para proyectar")
+		}
+		if input.TownID == nil || *input.TownID == "" {
+			return nil, fmt.Errorf("entity_letter: el campo 'townId' es requerido para proyectar")
+		}
+		if input.EntityName == nil || *input.EntityName == "" {
+			return nil, fmt.Errorf("entity_letter: el campo 'entityName' es requerido para proyectar")
+		}
+		if input.OfficialDependency == nil || *input.OfficialDependency == "" {
+			return nil, fmt.Errorf("entity_letter: el campo 'officialDependency' es requerido para proyectar")
+		}
+		if input.Subject == nil || *input.Subject == "" {
+			return nil, fmt.Errorf("entity_letter: el campo 'subject' es requerido para proyectar")
 		}
 		if input.UrlKofax == nil || *input.UrlKofax == "" {
 			return nil, fmt.Errorf("entity_letter: el campo 'urlKofax' es requerido para proyectar")
 		}
-		fields["nivel"]     = *input.Nivel
-		fields["entidad"]   = *input.Entidad
-		fields["url_kofax"] = *input.UrlKofax
+		fields["department_id"]       = *input.DepartmentID
+		fields["city_id"]             = *input.CityID
+		fields["town_id"]             = *input.TownID
+		fields["entidad"]             = *input.EntityName
+		fields["official_dependency"] = *input.OfficialDependency
+		fields["subject"]             = *input.Subject
+		fields["url_kofax"]           = *input.UrlKofax
+		if input.EntityBranchID != nil {
+			fields["entity_branch_id"] = *input.EntityBranchID
+		}
 		if input.Priority != nil && *input.Priority != "" {
 			fields["priority"] = *input.Priority
 		}
@@ -238,6 +264,9 @@ func (s *entityLetterService) PerformAction(ctx context.Context, id string, inpu
 			fields["register_by"] = input.UserID
 		}
 		fields["state"] = models.EntityLetterStateParaRevisar
+		log.Printf("[DEBUG] proyectar: id=%s dept=%s city=%s town=%s entity=%q dep=%q subj=%q",
+			id, *input.DepartmentID, *input.CityID, *input.TownID,
+			*input.EntityName, *input.OfficialDependency, *input.Subject)
 
 	case "revisar":
 		// para_revisar → aprobacion_juridica

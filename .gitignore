@@ -22,3 +22,12 @@ node_modules
 # Scripts y datos de migración (uso local)
 migrarCasos/
 *.exe
+
+# Binario compilado
+src/bitsflow
+
+# Archivos temporales de documentación
+DocsMD/Otros/temp/
+
+# Estado del workspace de Obsidian (uso local)
+DocsMD/.obsidian/

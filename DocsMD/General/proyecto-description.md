@@ -10,6 +10,30 @@ El sistema también gestiona casos de **feminicidio** y **riesgo de feminicidio*
 
 **Tecnologías:** Go (Gin) en el backend, Vue 3 (cargado vía `vue3-sfc-loader` dentro de templates Go), PostgreSQL en Supabase. Flutter para la aplicación móvil.
 
+## Servidor local (puerto 9090)
+
+Los archivos del frontend (JS, HTML, CSS) se embeben en el binario con `//go:embed` en tiempo de compilación. Go cachea el binario compilado y **no detecta cambios en archivos embebidos** a menos que se fuerce la recompilación.
+
+**Iniciar (con recompilación forzada para ver cambios de frontend):**
+```bash
+# Matar proceso anterior (go run + binario compilado)
+kill $(lsof -ti :9090) 2>/dev/null; pkill -f "go run" 2>/dev/null
+
+# Arrancar forzando rebuild completo
+cd SOG_SALVIA/src && PORT=9090 go run -a . >> /tmp/salvia_server.log 2>&1 &
+
+# Esperar a que el puerto esté listo
+until lsof -i :9090 | grep -q LISTEN; do sleep 2; done && echo "Listo"
+```
+
+**Iniciar normal (sin cambios de frontend):**
+```bash
+kill $(lsof -ti :9090) 2>/dev/null; pkill -f "go run" 2>/dev/null
+cd SOG_SALVIA/src && PORT=9090 go run . >> /tmp/salvia_server.log 2>&1 &
+```
+
+> `pkill -f "go run"` solo mata el proceso `go run`, **no el binario `bitsflow`** que éste lanza. Usar siempre `kill $(lsof -ti :9090)` para matar el proceso que realmente ocupa el puerto.
+
 **Roles:** Supervisor (`sv`), Operador (`op`), Operador de Riesgo (`ro`), Administrador (`ad`), Operador de Feminicidio (`fo`), Operadores Territoriales (`no`, `do`), Entidad (`et`), Usuario externo (`us`).
 
 ---

@@ -2298,6 +2298,15 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 					label = gVal
 				}
 
+				institution := b.InstitutionName
+				if institution == "" {
+					institution = b.SpecificInstitutions
+				}
+				label = label + " (Barreras)"
+				if sector != "" || institution != "" {
+					label = fmt.Sprintf("%s | Sector: %s | Institución: %s", label, sector, institution)
+				}
+
 				barrierID := b.ID
 				followUpID := fu.ID
 				var entityLetterID *string
@@ -2319,9 +2328,16 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 					}
 				}
 
+				taskType := gVal
+				if gestionConOficio[gVal] {
+					taskType = "proyectar_oficio"
+				} else if gVal == "alerta_barreras" {
+					taskType = "comite_caso"
+				}
+
 				task := &models.CaseTask{
-					Category:       "Barrera",
-					Type:           gVal,
+					Category:       "Barreras",
+					Type:           taskType,
 					Description:    label,
 					AssignedUserID: actorID,
 					Status:         models.CaseTaskStatusToDo,

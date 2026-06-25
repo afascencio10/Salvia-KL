@@ -54,6 +54,12 @@ type EntityLetter struct {
 	Entidad            *string        `gorm:"type:varchar(255);column:entidad"                     json:"entidad,omitempty"`
 	Nivel              *string        `gorm:"type:varchar(50);column:nivel"                        json:"nivel,omitempty"`
 	UrlKofax           *string        `gorm:"type:text;column:url_kofax"                           json:"urlKofax,omitempty"`
+	EntityBranchID     *int64         `gorm:"type:integer;column:entity_branch_id"                 json:"entityBranchId,omitempty"`
+	DepartmentID       *string        `gorm:"type:varchar(20);column:department_id"                json:"departmentId,omitempty"`
+	CityID             *string        `gorm:"type:varchar(20);column:city_id"                      json:"cityId,omitempty"`
+	TownID             *string        `gorm:"type:varchar(20);column:town_id"                      json:"townId,omitempty"`
+	OfficialDependency *string        `gorm:"type:text;column:official_dependency"                 json:"officialDependency,omitempty"`
+	Subject            *string        `gorm:"type:varchar(255);column:subject"                     json:"subject,omitempty"`
 	AsuntoRadicado     *string        `gorm:"type:varchar(255);column:asunto_radicado"             json:"asuntoRadicado,omitempty"`
 	CorreoEntidad      *string        `gorm:"type:varchar(255);column:correo_entidad"              json:"correoEntidad,omitempty"`
 	NumeroRadicado     *string        `gorm:"type:varchar(100);column:numero_radicado"             json:"numeroRadicado,omitempty"`

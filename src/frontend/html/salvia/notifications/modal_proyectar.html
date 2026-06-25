@@ -1,7 +1,7 @@
 {{ define "notifications/modal_proyectar.html" }}
 {{/* Modal: Proyectar oficio — estado por_proyectar
      Rol habilitado: Agente Seguimiento
-     El agente redacta el oficio, selecciona el área/entidad y sube el documento al Kofax. */}}
+     El agente selecciona la entidad por municipio y sube el documento al Kofax. */}}
 
 <div v-if="showModal && activeModal === 'proyectar'" class="nf-modal-overlay" @click.self="closeModal">
     <div class="nf-modal">
@@ -21,29 +21,94 @@
                 Escribe el oficio y súbelo con las instrucciones del área de notificaciones.
             </p>
 
+            <!-- Departamento -->
             <div class="nf-modal-form-group">
                 <label class="nf-modal-label">
-                    Nivel <span class="nf-required">*</span>
+                    Departamento <span class="nf-required">*</span>
                 </label>
-                <select v-model="modalForm.nivel" class="form-control nf-modal-input">
-                    <option value="">Selecciona el nivel...</option>
-                    <option value="municipal">Municipal</option>
-                    <option value="departamental">Departamental</option>
-                    <option value="nacional">Nacional</option>
+                <select v-model="modalForm.departmentId" class="form-control nf-modal-input"
+                    @change="onDepartmentChange">
+                    <option value="">Selecciona el departamento...</option>
+                    <option v-for="d in allDepartments" :key="d.value" :value="d.value">${ d.label }</option>
                 </select>
             </div>
 
+            <!-- Ciudad -->
+            <div class="nf-modal-form-group">
+                <label class="nf-modal-label">
+                    Ciudad <span class="nf-required">*</span>
+                </label>
+                <select v-model="modalForm.cityId" class="form-control nf-modal-input"
+                    :disabled="!modalForm.departmentId"
+                    @change="onCityChange">
+                    <option value="">Selecciona la ciudad...</option>
+                    <option v-for="c in modalForm.cities" :key="c.value" :value="c.value">${ c.label }</option>
+                </select>
+            </div>
+
+            <!-- Municipio -->
+            <div class="nf-modal-form-group">
+                <label class="nf-modal-label">
+                    Municipio <span class="nf-required">*</span>
+                </label>
+                <select v-model="modalForm.townId" class="form-control nf-modal-input"
+                    :disabled="!modalForm.cityId"
+                    @change="onTownChange">
+                    <option value="">Selecciona el municipio...</option>
+                    <option v-for="t in modalForm.towns" :key="t.value" :value="t.value">${ t.label }</option>
+                </select>
+            </div>
+
+            <!-- Entidad -->
             <div class="nf-modal-form-group">
                 <label class="nf-modal-label">
                     Entidad <span class="nf-required">*</span>
                 </label>
-                <input
-                    v-model="modalForm.entidad"
-                    type="text"
-                    class="form-control nf-modal-input"
-                    placeholder="Ej: El Defensor del Pueblo">
+                <select v-model="modalForm.entityBranchId" class="form-control nf-modal-input"
+                    :disabled="!modalForm.townId">
+                    <option value="">Selecciona la entidad...</option>
+                    <option v-for="e in modalForm.entityBranches" :key="e.id" :value="e.id">${ e.name }</option>
+                    <option value="otra">Otra entidad</option>
+                </select>
             </div>
 
+            <!-- Nombre libre si "Otra entidad" -->
+            <div v-if="modalForm.entityBranchId === 'otra'" class="nf-modal-form-group">
+                <label class="nf-modal-label">
+                    Nombre de la entidad <span class="nf-required">*</span>
+                </label>
+                <input
+                    v-model="modalForm.entityName"
+                    type="text"
+                    class="form-control nf-modal-input"
+                    placeholder="Ej: Defensoría del Pueblo Seccional">
+            </div>
+
+            <!-- Funcionario -->
+            <div class="nf-modal-form-group">
+                <label class="nf-modal-label">
+                    Funcionario <span class="nf-required">*</span>
+                </label>
+                <input
+                    v-model="modalForm.officialDependency"
+                    type="text"
+                    class="form-control nf-modal-input"
+                    placeholder="Ej: Director de atención al ciudadano">
+            </div>
+
+            <!-- Asunto -->
+            <div class="nf-modal-form-group">
+                <label class="nf-modal-label">
+                    Asunto <span class="nf-required">*</span>
+                </label>
+                <input
+                    v-model="modalForm.subject"
+                    type="text"
+                    class="form-control nf-modal-input"
+                    placeholder="Ej: Solicitud de atención prioritaria">
+            </div>
+
+            <!-- Ruta Kofax -->
             <div class="nf-modal-form-group">
                 <label class="nf-modal-label">
                     Ruta del oficio en el Kofax <span class="nf-required">*</span>
@@ -55,6 +120,7 @@
                     placeholder="Ej: U:/Users/X/file/oficio">
             </div>
 
+            <!-- Prioridad -->
             <div class="nf-modal-form-group">
                 <label class="nf-modal-label">
                     Prioridad del oficio <span class="nf-required">*</span>

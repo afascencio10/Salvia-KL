@@ -302,20 +302,29 @@ func (c *EntityLetterController) Action(ctx *gin.Context) {
 	id := ctx.Param("id")
 
 	var body struct {
-		Action           string  `json:"action"            binding:"required"`
-		UserID           string  `json:"userId"`
-		Nivel            *string `json:"nivel"`
-		Entidad          *string `json:"entidad"`
-		UrlKofax         *string `json:"urlKofax"`
-		Priority         *string `json:"priority"`
-		AsuntoRadicado   *string `json:"asuntoRadicado"`
-		CorreoEntidad    *string `json:"correoEntidad"`
-		NumeroRadicado   *string `json:"numeroRadicado"`
-		ReasonCorrection *string `json:"reasonCorrection"`
-		ResponseDate     *string `json:"responseDate"`
-		CorreoRemitente  *string `json:"correoRemitente"`
-		AsuntoRespuesta  *string `json:"asuntoRespuesta"`
-		ResponseReviewBy *string `json:"responseReviewBy"`
+		Action             string  `json:"action"              binding:"required"`
+		UserID             string  `json:"userId"`
+		Nivel              *string `json:"nivel"`
+		Entidad            *string `json:"entidad"`
+		UrlKofax           *string `json:"urlKofax"`
+		Priority           *string `json:"priority"`
+		// Campos nuevos del modal proyectar v2
+		EntityBranchID     *int64  `json:"entityBranchId"`
+		EntityName         *string `json:"entityName"`
+		DepartmentID       *string `json:"departmentId"`
+		CityID             *string `json:"cityId"`
+		TownID             *string `json:"townId"`
+		OfficialDependency *string `json:"officialDependency"`
+		Subject            *string `json:"subject"`
+		// Campos radicar / revisar / respuesta
+		AsuntoRadicado     *string `json:"asuntoRadicado"`
+		CorreoEntidad      *string `json:"correoEntidad"`
+		NumeroRadicado     *string `json:"numeroRadicado"`
+		ReasonCorrection   *string `json:"reasonCorrection"`
+		ResponseDate       *string `json:"responseDate"`
+		CorreoRemitente    *string `json:"correoRemitente"`
+		AsuntoRespuesta    *string `json:"asuntoRespuesta"`
+		ResponseReviewBy   *string `json:"responseReviewBy"`
 	}
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -323,20 +332,27 @@ func (c *EntityLetterController) Action(ctx *gin.Context) {
 	}
 
 	letter, err := c.svc.PerformAction(ctx.Request.Context(), id, service.ActionInput{
-		Action:           body.Action,
-		UserID:           body.UserID,
-		Nivel:            body.Nivel,
-		Entidad:          body.Entidad,
-		UrlKofax:         body.UrlKofax,
-		Priority:         body.Priority,
-		AsuntoRadicado:   body.AsuntoRadicado,
-		CorreoEntidad:    body.CorreoEntidad,
-		NumeroRadicado:   body.NumeroRadicado,
-		ReasonCorrection: body.ReasonCorrection,
-		ResponseDate:     body.ResponseDate,
-		CorreoRemitente:  body.CorreoRemitente,
-		AsuntoRespuesta:  body.AsuntoRespuesta,
-		ResponseReviewBy: body.ResponseReviewBy,
+		Action:             body.Action,
+		UserID:             body.UserID,
+		Nivel:              body.Nivel,
+		Entidad:            body.Entidad,
+		UrlKofax:           body.UrlKofax,
+		Priority:           body.Priority,
+		EntityBranchID:     body.EntityBranchID,
+		EntityName:         body.EntityName,
+		DepartmentID:       body.DepartmentID,
+		CityID:             body.CityID,
+		TownID:             body.TownID,
+		OfficialDependency: body.OfficialDependency,
+		Subject:            body.Subject,
+		AsuntoRadicado:     body.AsuntoRadicado,
+		CorreoEntidad:      body.CorreoEntidad,
+		NumeroRadicado:     body.NumeroRadicado,
+		ReasonCorrection:   body.ReasonCorrection,
+		ResponseDate:       body.ResponseDate,
+		CorreoRemitente:    body.CorreoRemitente,
+		AsuntoRespuesta:    body.AsuntoRespuesta,
+		ResponseReviewBy:   body.ResponseReviewBy,
 	})
 	if err != nil {
 		switch {

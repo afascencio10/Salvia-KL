@@ -37,11 +37,26 @@
                 activeModal:    null,
                 selectedOficio: null,
 
+                // Locaciones cargadas al montar (E05 background)
+                allDepartments: [],
+                allCities:      [],
+
                 modalForm: {
-                    nivel:                '',
+                    // Campos del modal proyectar v2
+                    departmentId:         '',
+                    cityId:               '',
+                    townId:               '',
+                    entityBranchId:       '',
+                    entityName:           '',
+                    officialDependency:   '',
+                    subject:              '',
+                    cities:               [],
+                    towns:                [],
+                    entityBranches:       [],
+                    // Campos comunes
                     kofaxPath:            '',
                     prioridad:            'normal',
-                    entidad:              '',
+                    // Campos otros modales
                     asunto:               '',
                     correoEntidad:        '',
                     numeroRadicado:       '',
@@ -86,6 +101,7 @@
         mounted() {
             document.getElementById('app').style.display = 'block';
             this.loadOficios();
+            this.loadLocations();
         },
 
         computed: {
@@ -142,10 +158,36 @@
 
         methods: {
 
+            /* ── Locaciones (carga en background al montar) ─────────────────────── */
+
+            loadLocations() {
+                var self = this;
+                Promise.all([
+                    new Promise(function (resolve) {
+                        getData('/api/v1/locations/departments', function (status, response) {
+                            if (status === 200) {
+                                var items = Array.isArray(response) ? response : (response && response.items ? response.items : []);
+                                self.allDepartments = items;
+                            }
+                            resolve();
+                        }, true);
+                    }),
+                    new Promise(function (resolve) {
+                        getData('/api/v1/locations/cities', function (status, response) {
+                            if (status === 200) {
+                                var items = Array.isArray(response) ? response : (response && response.items ? response.items : []);
+                                self.allCities = items;
+                            }
+                            resolve();
+                        }, true);
+                    })
+                ]);
+            },
+
             /* ── Carga inicial ──────────────────────────────────────────────────── */
 
             loadOficios() {
-                const VALID_ROLES = ['op', 'an'];
+                const VALID_ROLES = ['op', 'an', 'ro'];
                 if (!VALID_ROLES.includes(this.currentRole)) {
                     this.loadError = 'Rol no autorizado para acceder a esta pantalla.';
                     return;
@@ -155,7 +197,7 @@
                 this.loadError = null;
 
                 let url = '/api/v1/entity-letters?limit=100&page=0';
-                if (this.currentRole === 'op') {
+                if (this.currentRole === 'op' || this.currentRole === 'ro') {
                     url += '&agentId=' + encodeURIComponent(this.currentUserId);
                 } else if (this.currentRole === 'an') {
                     url += '&notificationUserId=' + encodeURIComponent(this.currentUserId);
@@ -183,7 +225,7 @@
             },
 
             canManageForRole(state) {
-                if (this.currentRole === 'op') {
+                if (this.currentRole === 'op' || this.currentRole === 'ro') {
                     return ['por_proyectar', 'en_correccion'].includes(state);
                 }
                 if (this.currentRole === 'an') {
@@ -223,13 +265,16 @@
                     radicado:        null,
                     fecha:           fecha,
                     correo:          '—',
-                    entidad:         el.entidad          || null,
-                    nivel:           el.nivel            || null,
-                    urlKofax:        el.urlKofax         || null,
-                    asuntoRadicado:  el.asuntoRadicado   || null,
-                    correoEntidad:   el.correoEntidad    || null,
-                    numeroRadicado:  el.numeroRadicado   || null,
-                    reasonCorrection: el.reasonCorrection || null
+                    entidad:              el.entidad             || null,
+                    nivel:                el.nivel               || null,
+                    urlKofax:             el.urlKofax            || null,
+                    asuntoRadicado:       el.asuntoRadicado      || null,
+                    correoEntidad:        el.correoEntidad       || null,
+                    numeroRadicado:       el.numeroRadicado      || null,
+                    reasonCorrection:     el.reasonCorrection    || null,
+                    officialDependency:   el.officialDependency  || null,
+                    subject:              el.subject             || null,
+                    townName:             el.townName            || null
                 };
             },
 
@@ -261,16 +306,27 @@
             /* ── Modal de gestión ───────────────────────────────────────────────── */
 
             openGestionarModal(oficio) {
-                console.log('[Notificaciones] Gestionar oficio:', oficio);
+                console.log('[NF] openGestionarModal id=' + oficio.id + ' status=' + oficio.status);
 
                 this.selectedOficio = oficio;
                 this.activeModal    = this.modalByStatus[oficio.status] || null;
 
                 this.modalForm = {
-                    nivel:                oficio.nivel             || '',
+                    // Proyectar v2 — siempre vacío (por_proyectar nunca regresa a ese estado)
+                    departmentId:         '',
+                    cityId:               '',
+                    townId:               '',
+                    entityBranchId:       '',
+                    entityName:           '',
+                    officialDependency:   '',
+                    subject:              '',
+                    cities:               [],
+                    towns:                [],
+                    entityBranches:       [],
+                    // Campos comunes
                     kofaxPath:            oficio.urlKofax          || '',
                     prioridad:            oficio.letterPriority    || 'normal',
-                    entidad:              oficio.entidad           || oficio.barrierOrg || '',
+                    // Otros modales
                     asunto:               oficio.asuntoRadicado    || oficio.title || '',
                     correoEntidad:        oficio.correoEntidad     || oficio.correo || '',
                     numeroRadicado:       oficio.numeroRadicado    || '',
@@ -286,10 +342,10 @@
             },
 
             closeModal() {
-                this.showModal                  = false;
-                this.activeModal                = null;
-                this.selectedOficio             = null;
-                this.saveError                  = null;
+                this.showModal          = false;
+                this.activeModal        = null;
+                this.selectedOficio     = null;
+                this.saveError          = null;
                 this.modalForm.reasonCorrection = '';
             },
 
@@ -302,22 +358,56 @@
                 };
 
                 if (action === 'proyectar') {
-                    if (!this.modalForm.nivel) {
-                        alert('El campo "Nivel" es requerido.');
+                    if (!this.modalForm.departmentId) {
+                        alert('El campo "Departamento" es requerido.');
                         return;
                     }
-                    if (!this.modalForm.entidad) {
+                    if (!this.modalForm.cityId) {
+                        alert('El campo "Ciudad" es requerido.');
+                        return;
+                    }
+                    if (!this.modalForm.townId) {
+                        alert('El campo "Municipio" es requerido.');
+                        return;
+                    }
+                    if (!this.modalForm.entityBranchId) {
                         alert('El campo "Entidad" es requerido.');
+                        return;
+                    }
+                    var entityName = '';
+                    if (this.modalForm.entityBranchId === 'otra') {
+                        if (!this.modalForm.entityName) {
+                            alert('El campo "Nombre de la entidad" es requerido.');
+                            return;
+                        }
+                        entityName = this.modalForm.entityName;
+                    } else {
+                        var selected = this.modalForm.entityBranches.find(function (e) {
+                            return e.id === this.modalForm.entityBranchId;
+                        }.bind(this));
+                        entityName = selected ? selected.name : '';
+                    }
+                    if (!this.modalForm.officialDependency) {
+                        alert('El campo "Funcionario" es requerido.');
+                        return;
+                    }
+                    if (!this.modalForm.subject) {
+                        alert('El campo "Asunto" es requerido.');
                         return;
                     }
                     if (!this.modalForm.kofaxPath) {
                         alert('El campo "Ruta del oficio en el Kofax" es requerido.');
                         return;
                     }
-                    payload.nivel    = this.modalForm.nivel;
-                    payload.entidad  = this.modalForm.entidad;
-                    payload.urlKofax = this.modalForm.kofaxPath;
-                    payload.priority = this.modalForm.prioridad || 'normal';
+                    payload.departmentId       = this.modalForm.departmentId;
+                    payload.cityId             = this.modalForm.cityId;
+                    payload.townId             = this.modalForm.townId;
+                    payload.entityBranchId     = this.modalForm.entityBranchId !== 'otra' ? this.modalForm.entityBranchId : null;
+                    payload.entityName         = entityName;
+                    payload.officialDependency = this.modalForm.officialDependency;
+                    payload.subject            = this.modalForm.subject;
+                    payload.urlKofax           = this.modalForm.kofaxPath;
+                    payload.priority           = this.modalForm.prioridad || 'normal';
                 }
 
                 if (action === 'por_corregir') {
@@ -373,6 +463,7 @@
                 this.saveError = null;
 
                 const url = '/api/v1/entity-letters/' + this.selectedOficio.id + '/action';
+                console.log('[NF] submitModal url=' + url + ' payload=' + JSON.stringify(payload));
 
                 updateEntity(url, payload, (function (status, response) {
                     this.isSaving = false;
@@ -403,6 +494,63 @@
                             : 'No se pudo guardar el oficio. Intenta de nuevo.';
                     }
                 }).bind(this));
+            },
+
+            /* ── E08: Cuando selecciona departamento en modal proyectar ─────────── */
+
+            onDepartmentChange() {
+                var deptId = this.modalForm.departmentId;
+                console.log('[NF] onDepartmentChange deptId=' + deptId + ' allCities=' + this.allCities.length);
+                var filtered = deptId
+                    ? this.allCities.filter(function (c) { return String(c.departmentId) === String(deptId); })
+                    : [];
+                console.log('[NF] cities filtered=' + filtered.length);
+                this.modalForm.cities        = filtered;
+                this.modalForm.cityId        = '';
+                this.modalForm.townId        = '';
+                this.modalForm.entityBranchId = '';
+                this.modalForm.entityName    = '';
+                this.modalForm.towns         = [];
+                this.modalForm.entityBranches = [];
+            },
+
+            /* ── E09: Cuando selecciona ciudad en modal proyectar ───────────────── */
+
+            onCityChange() {
+                var cityId = this.modalForm.cityId;
+                this.modalForm.townId         = '';
+                this.modalForm.entityBranchId = '';
+                this.modalForm.entityName     = '';
+                this.modalForm.towns          = [];
+                this.modalForm.entityBranches = [];
+
+                if (!cityId) return;
+
+                var self = this;
+                getData('/api/v1/locations/towns?city_id=' + encodeURIComponent(cityId), function (status, response) {
+                    if (status === 200) {
+                        self.modalForm.towns = Array.isArray(response) ? response : (response && response.items ? response.items : []);
+                    }
+                }, true);
+            },
+
+            /* ── E10: Cuando selecciona municipio en modal proyectar ────────────── */
+
+            onTownChange() {
+                var townId = this.modalForm.townId;
+                this.modalForm.entityBranchId = '';
+                this.modalForm.entityName     = '';
+                this.modalForm.entityBranches = [];
+
+                if (!townId) return;
+
+                var self = this;
+                getData('/api/v1/entity-branches?town_code=' + encodeURIComponent(townId), function (status, response) {
+                    if (status === 200) {
+                        self.modalForm.entityBranches = Array.isArray(response) ? response : [];
+                        console.log('[NF] entityBranches town_code=' + townId + ' count=' + self.modalForm.entityBranches.length + ' first=' + JSON.stringify(self.modalForm.entityBranches[0]));
+                    }
+                }, true);
             },
 
             logout() {

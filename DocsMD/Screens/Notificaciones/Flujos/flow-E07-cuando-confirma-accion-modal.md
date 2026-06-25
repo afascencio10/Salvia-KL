@@ -36,17 +36,29 @@ PASO 2 — Construir payload base
 
   SI action === 'proyectar':
     Validar formulario:
-      • nivel:      required
-      • entidad:    required
-      • kofaxPath:  required
+      • departmentId:      required
+      • cityId:            required
+      • townId:            required
+      • entityBranchId:    required (integer PK de entity_branch, o 'otra')
+      • entityName:        required si entityBranchId === 'otra'
+      • officialDependency: required
+      • subject:           required
+      • kofaxPath:         required
     SI validación con errores:
       → alert() con el campo faltante
       → TERMINAR ejecución
     SI validación ok:
-      → payload.nivel    = modalForm.nivel
-      → payload.entidad  = modalForm.entidad
-      → payload.urlKofax = modalForm.kofaxPath
-      → payload.priority = modalForm.prioridad || 'normal'
+      → payload.departmentId       = modalForm.departmentId
+      → payload.cityId             = modalForm.cityId
+      → payload.townId             = modalForm.townId
+      → payload.entityBranchId     = modalForm.entityBranchId !== 'otra'
+                                       ? modalForm.entityBranchId   // integer (PK FK a entity_branch)
+                                       : null
+      → payload.entityName         = nombre legible de la sede o texto libre si 'otra'
+      → payload.officialDependency = modalForm.officialDependency
+      → payload.subject            = modalForm.subject
+      → payload.urlKofax           = modalForm.kofaxPath
+      → payload.priority           = modalForm.prioridad || 'normal'
 
   SI action === 'por_corregir':
     Validar formulario:
@@ -97,13 +109,28 @@ PASO 3 — Activar estado de guardado
 
 PASO 4 — Enviar acción al API
 
-PATCH /api/v1/entity-letters/{selectedOficio.id}/action
+PUT /api/v1/entity-letters/{selectedOficio.id}/action
 
 // payload:
 {
   "action":  acción ejecutada           → determinada en Sub-flujo
   "userId":  currentUserId              → sesión
   ...campos adicionales según acción
+}
+
+// Payload completo para action === 'proyectar':
+{
+  "action":             "proyectar",
+  "userId":             string (UUID del usuario),
+  "departmentId":       string,
+  "cityId":             string,
+  "townId":             string (DIVIPOLA town_code, ej. "11001000"),
+  "entityBranchId":     integer | null  (PK de salvia.entity_branch; null si eligió "otra"),
+  "entityName":         string  (nombre legible de la sede o texto libre),
+  "officialDependency": string,
+  "subject":            string,
+  "urlKofax":           string,
+  "priority":           "normal" | "alta"
 }
 
 → resultado: objeto entity_letter actualizado o error
@@ -139,7 +166,6 @@ SI otro status:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 | Variable / decisión                                          | Paso afectado |
 |--------------------------------------------------------------|---------------|
-| ¿Qué campos exactos devuelve el PATCH en la respuesta?       | PASO 5        |
 | Las validaciones usan alert() — ¿se migrarán a errores       | Sub-flujo     |
 | inline para ser consistentes con el resto del sistema?       |               |
 | El modal 'aprobar' llama action='radicar' igual que          | PASO 2        |
