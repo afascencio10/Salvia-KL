@@ -4,29 +4,46 @@
     <a href="/seguridad/usuarios/nuevo"><button class="btn btn-primary">Crear Nuevo usuario <i
           class="fas fa-plus-circle"></i> </button></a>
   </div>
-  
-  <ul class="nav">
-        
-    <li class="nav-item" v-on:click="goToTab('all')">
-        <a href="#" class="nav-link"><i class="fa fa-circle circulo_activos"></i>Todos</a>
-    </li>
-    <li class="nav-item" v-on:click="goToTab('active')">
-        <a href="#" class="nav-link"><i class="fa fa-circle circulo_activos"></i>Activos</a>
-    </li>
-    <li class="nav-item" v-on:click="goToTab('disabled')">
-        <a href="#" class="nav-link"><i class="fa fa-circle circulo_desactivado"></i>Desactivados</a>
-    </li>
-    
-    <li class="nav-item ml-auto vistas" role="presentation"> 
-      <button v-on:click="loadPlainFiles()" class="btn btn-primary"><i class="fa fa-file-archive" data-toggle="tooltip" data-placement="top"
-              title="Cargue de archivos"></i></button>
-    </li>
-    
-
-</ul>
 
   <div class="tab-content" id="myTabContent">
     
+    <!-- Filtros de búsqueda -->
+    <div style="margin-bottom:20px">
+      <div style="display:flex;gap:16px;align-items:flex-end">
+        <div style="flex:1">
+          <label style="font-size:.78rem;font-weight:600;color:#5106A7;margin-bottom:4px;display:block">Nombre / Apellido</label>
+          <input type="text" v-model="filtroNombre" placeholder="Buscar por nombres" style="width:100%;padding:8px 14px;border:1px solid #d1d5db;border-radius:20px;font-size:.84rem;outline:none" />
+        </div>
+        <div style="flex:1">
+          <label style="font-size:.78rem;font-weight:600;color:#5106A7;margin-bottom:4px;display:block">Documento de identidad</label>
+          <input type="text" v-model="filtroDocumento" placeholder="Buscar por documento" style="width:100%;padding:8px 14px;border:1px solid #d1d5db;border-radius:20px;font-size:.84rem;outline:none" />
+        </div>
+        <div style="flex:1">
+          <label style="font-size:.78rem;font-weight:600;color:#5106A7;margin-bottom:4px;display:block">Nombre de usuario</label>
+          <input type="text" v-model="filtroUsuario" placeholder="Buscar por usuario" style="width:100%;padding:8px 14px;border:1px solid #d1d5db;border-radius:20px;font-size:.84rem;outline:none" />
+        </div>
+        <div>
+          <button @click="filtroNombre='';filtroDocumento='';filtroUsuario=''" style="background:#5106A7;color:#fff;border:none;padding:10px 20px;border-radius:20px;font-size:.84rem;font-weight:500;cursor:pointer;white-space:nowrap">Limpiar filtros</button>
+        </div>
+      </div>
+    </div>
+
+    <ul class="nav" style="margin-bottom:12px">
+      <li class="nav-item" v-on:click="goToTab('all')">
+          <a href="#" class="nav-link"><i class="fa fa-circle circulo_activos"></i>Todos</a>
+      </li>
+      <li class="nav-item" v-on:click="goToTab('active')">
+          <a href="#" class="nav-link"><i class="fa fa-circle circulo_activos"></i>Activos</a>
+      </li>
+      <li class="nav-item" v-on:click="goToTab('disabled')">
+          <a href="#" class="nav-link"><i class="fa fa-circle circulo_desactivado"></i>Desactivados</a>
+      </li>
+      <li class="nav-item ml-auto vistas" role="presentation"> 
+        <button v-on:click="loadPlainFiles()" class="btn btn-primary"><i class="fa fa-file-archive" data-toggle="tooltip" data-placement="top"
+                title="Cargue de archivos"></i></button>
+      </li>
+    </ul>
+
     <div class="table-responsive">
       <table class="table">
         <thead>
@@ -43,7 +60,7 @@
           </tr>
         </thead>
         <tbody>
-          <template v-for="user in res">
+          <template v-for="user in usuariosFiltrados">
             <tr class="">
               <td>${user.profile.names}</td>
               <td>${user.profile.lastNames}</td>
@@ -76,6 +93,9 @@
           </template>
         </tbody>
       </table>
+      <div v-if="usuariosFiltrados.length === 0 && (filtroNombre || filtroDocumento || filtroUsuario)" style="text-align:center;padding:30px 0;color:#6b7280;font-size:.9rem">
+        No se encontraron registros con los criterios de búsqueda
+      </div>
       
       <nav  v-if="numPages>1" aria-label="Paginación">
         <ul class="pagination justify-content-center">
@@ -119,6 +139,9 @@
           currentPage: 0,
           currentTab: "all", 
           currentFilter: "all", //todos
+          filtroNombre: '',
+          filtroDocumento: '',
+          filtroUsuario: '',
         }
       },
       created: function () {
@@ -141,6 +164,28 @@
       
       },
       computed: {
+        usuariosFiltrados() {
+          var nombre = this.filtroNombre.toLowerCase().trim();
+          var doc = this.filtroDocumento.trim();
+          var usuario = this.filtroUsuario.toLowerCase().trim();
+          if (!nombre && !doc && !usuario) return this.res;
+          return this.res.filter(function(user) {
+            var matchNombre = true;
+            var matchDoc = true;
+            var matchUsuario = true;
+            if (nombre) {
+              var fullName = ((user.profile.names || '') + ' ' + (user.profile.lastNames || '')).toLowerCase();
+              matchNombre = fullName.indexOf(nombre) !== -1;
+            }
+            if (doc) {
+              matchDoc = (user.profile.docNumber || '').indexOf(doc) !== -1;
+            }
+            if (usuario) {
+              matchUsuario = (user.login || '').toLowerCase().indexOf(usuario) !== -1;
+            }
+            return matchNombre && matchDoc && matchUsuario;
+          });
+        },
         visiblePages() {
           const pages = []
           const max = this.numPages

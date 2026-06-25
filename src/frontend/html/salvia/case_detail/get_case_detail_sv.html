@@ -1,4 +1,4 @@
-﻿<div class="container" style="background:#f3f4f6;min-height:100vh;padding:24px 16px;">
+<div class="container" style="background:#f3f4f6;min-height:100vh;padding:24px 16px;">
 
   <!-- Breadcrumb -->
   <div class="cd-breadcrumb">
@@ -713,8 +713,6 @@ var home = Vue.createApp({
     document.title = {{.windowTitle}};
     document.getElementById('app').style.display = 'block';
     this.cargarDatos();
-    this.cargarOperadores();
-    this.cargarAgentesRO();
     this.cargarTodosAgentes();
   },
 
@@ -839,10 +837,7 @@ var home = Vue.createApp({
     teamSegunRiesgo() {
       // Usar el team asignado directamente al caso
       if (this.caso && this.caso.victimCaseTeam) return this.caso.victimCaseTeam;
-      // Fallback: determinar por nivel de riesgo si el caso no tiene team asignado
-      if (this.form2 && this.form2.riskLevel && this.form2.riskLevel >= 3) return 'Riesgo alto';
-      if (this.form1 && this.form1.femicideRisk === '1') return 'Riesgo alto';
-      return 'Riesgo bajo';
+      return '';
     },
     iniciarSeguimiento(seg) {
       // Validar que la fecha programada ya haya llegado
@@ -1229,6 +1224,7 @@ var app = home;
 <script src="/static/js/components/case-timeline.js"></script>
 <script src="/static/js/components/case-info.js"></script>
 <script src="/static/js/components/follow-up-contact-modal.js"></script>
+<script src="/static/js/components/dinamic-form.js"></script>
 <script>
 home.mount('#app');
 </script>

@@ -6,23 +6,8 @@
 <script type="text/x-template" id="tpl-casos-component">
 <div class="cc-wrapper">
 
-    <!-- ════════ LOADING ════════ -->
-    <div v-if="loading" class="cc-loading">
-        <div class="cc-loading-spinner"></div>
-        <span>Cargando casos...</span>
-    </div>
-
-    <!-- ════════ ERROR ════════ -->
-    <div v-else-if="loadError" class="cc-error">
-        <i class="fas fa-exclamation-triangle"></i>
-        <span>${ loadError }</span>
-    </div>
-
-    <!-- ════════ CONTENIDO ════════ -->
-    <template v-else>
-
-        <!-- ── FILTER BAR ── -->
-        <div class="cc-filter-bar">
+    <!-- ── FILTER BAR (siempre visible) ── -->
+    <div class="cc-filter-bar">
 
             <!-- Grupo de filtros dinámicos -->
             <div class="cc-filter-group">
@@ -151,6 +136,58 @@
         <!-- ── TABLE WRAP ── -->
         <div class="cc-table-wrap">
 
+            <!-- Loading solo sobre la tabla -->
+            <div v-if="loading" class="cc-table-loading">
+                <div class="cc-loading-spinner"></div>
+                <span>Cargando casos...</span>
+            </div>
+
+            <!-- Error solo en el área de la tabla -->
+            <div v-else-if="loadError" class="cc-error">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>${ loadError }</span>
+            </div>
+
+            <template v-else>
+
+            <!-- Alerta informativa sobre la tabla (E-14) -->
+            <div
+                v-if="tableAlert.visible"
+                class="cc-table-alert-overlay"
+                role="alert"
+                aria-live="polite"
+            >
+                <div class="cc-table-alert">
+                    <div class="cc-table-alert-icon" aria-hidden="true">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="cc-table-alert-body">
+                        <span class="cc-table-alert-title">Selección no permitida</span>
+                        <p class="cc-table-alert-message">${ tableAlert.message }</p>
+                    </div>
+                    <button
+                        type="button"
+                        class="cc-table-alert-close"
+                        aria-label="Cerrar alerta"
+                        @click="hideTableAlert"
+                    >
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Toolbar reasignación (E-14 / E-15) -->
+            <div v-if="reasignacion && selectedCases.length > 0" class="cc-table-toolbar">
+                <span class="cc-selection-count">${ selectedCases.length } caso(s) seleccionado(s)</span>
+                <button
+                    class="cc-reassign-btn"
+                    type="button"
+                    @click="emitReasignarCasos"
+                >
+                    Reasignar Casos
+                </button>
+            </div>
+
             <!-- Estado vacío -->
             <div v-if="filteredCases.length === 0" class="cc-empty">
                 <i class="fas fa-inbox"></i>
@@ -176,6 +213,19 @@
                 <table class="cc-table">
                     <thead>
                         <tr>
+                            <th v-if="reasignacion" class="cc-th cc-th-select">
+                                <label class="cc-select-all-label">
+                                    <input
+                                        type="checkbox"
+                                        class="cc-case-checkbox cc-select-all-checkbox"
+                                        :checked="isAllCurrentPageSelected"
+                                        :indeterminate.prop="isSomeCurrentPageSelected"
+                                        aria-label="Seleccionar todos los casos de la página"
+                                        @change="toggleSelectAllCurrentPage($event)"
+                                    />
+                                    <span class="cc-select-all-text"></span>
+                                </label>
+                            </th>
                             <th
                                 v-for="col in visibleColumns"
                                 :key="col.key"
@@ -192,6 +242,16 @@
                             :key="caseObj.id"
                             class="cc-row"
                         >
+                            <td v-if="reasignacion" class="cc-cell-select">
+                                <input
+                                    type="checkbox"
+                                    class="cc-case-checkbox"
+                                    :checked="isCaseSelected(caseObj)"
+                                    :aria-label="'Seleccionar caso ' + (caseObj.i_code || caseObj.id)"
+                                    @change="toggleCaseSelection(caseObj, $event)"
+                                />
+                            </td>
+
                             <template v-for="col in visibleColumns" :key="col.key">
 
                                 <!-- victim_info -->
@@ -211,7 +271,7 @@
 
                                 <!-- registration_date -->
                                 <td v-else-if="col.key === 'registration_date'" class="cc-cell">
-                                    ${ formatDate(caseObj.creationDate) }
+                                    ${ formatDateUTC(caseObj.creationDate) }
                                 </td>
 
                                 <!-- risk_level -->
@@ -245,6 +305,13 @@
                                 <!-- case_status -->
                                 <td v-else-if="col.key === 'case_status'" class="cc-cell">
                                     <span :class="caseStatusBadgeClass(caseObj.status)">${ caseStatusLabel(caseObj.status) }</span>
+                                </td>
+
+                                <!-- barriers -->
+                                <td v-else-if="col.key === 'barriers'" class="cc-cell cc-cell-barriers">
+                                    <span v-if="formatOpenBarriers(caseObj)" class="cc-barriers-text">
+                                        ${ formatOpenBarriers(caseObj) }
+                                    </span>
                                 </td>
 
                                 <!-- columna desconocida -->
@@ -300,9 +367,6 @@
 
         </div>
         <!-- /TABLE WRAP -->
-
-    </template>
-    <!-- /CONTENIDO -->
 
 </div>
 </script>

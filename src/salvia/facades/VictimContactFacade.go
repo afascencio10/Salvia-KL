@@ -166,12 +166,18 @@ func VictimContactGET(c *gin.Context) {
 			tplName = "get_victim_contacts"
 		}
 
+		listFilters := salvia_daos.VictimContactListFilters{
+			Names:     c.Query("names"),
+			LastNames: c.Query("lastNames"),
+			Phone:     c.Query("phone"),
+		}
+
 		// Llamada al controlador para obtener la lista de contactos sin caso asociado.
 		switch filter {
 		case "", "fcv":
-			code, victimContactRes, count = salvia_ctrl.GetVictimContactsWithoutVictimCase(page, "v", &db.ConnData{}, dbClientConfig, dbServerConfig)
+			code, victimContactRes, count = salvia_ctrl.GetVictimContactsWithoutVictimCase(page, "v", listFilters, &db.ConnData{}, dbClientConfig, dbServerConfig)
 		case "fci":
-			code, victimContactRes, count = salvia_ctrl.GetVictimContactsWithoutVictimCase(page, "i", &db.ConnData{}, dbClientConfig, dbServerConfig)
+			code, victimContactRes, count = salvia_ctrl.GetVictimContactsWithoutVictimCase(page, "i", listFilters, &db.ConnData{}, dbClientConfig, dbServerConfig)
 		}
 	}
 

@@ -9,10 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"time"
 	"math"
+	"sort"
 	"strings"
-    "sort"
+	"time"
+
 	"gorm.io/gorm"
 )
 
@@ -35,9 +36,9 @@ var ErrFollowUpNotYetDue = errors.New("followup: la fecha programada aún no ha 
 // Los demás niveles tienen 4 seguimientos.
 var riskMatrix = map[int][]int{
 	4: {0, 1, 2, 3, 15, 30}, // Extremo — 6 seguimientos (S1=+4h/hoy, S2=+1d, S3=+2d, S4=+3d, S5=+15d, S6=+30d)
-	3: {1, 3, 15, 30},   // Alto    — 4 seguimientos
-	2: {2, 15, 30, 45},  // Moderado — 4 seguimientos
-	1: {5, 15, 30, 60},  // Bajo    — 4 seguimientos
+	3: {1, 3, 15, 30},       // Alto    — 4 seguimientos
+	2: {2, 15, 30, 45},      // Moderado — 4 seguimientos
+	1: {5, 15, 30, 60},      // Bajo    — 4 seguimientos
 }
 
 // maxFollowUps retorna la cantidad máxima de seguimientos para un nivel de riesgo.
@@ -216,7 +217,7 @@ func (s *followUpV2Service) LoadFollowUp(ctx context.Context, id, agentID, formI
 		log.Printf("[SVC] LoadFollowUp → resolviendo locale: genderKey=%q → %q | orientationKey=%q → %q",
 			victimInfo.GenderIdentity, locale[victimInfo.GenderIdentity],
 			victimInfo.SexualOrientation, locale[victimInfo.SexualOrientation])
-		victimInfo.GenderIdentity    = locale[victimInfo.GenderIdentity]
+		victimInfo.GenderIdentity = locale[victimInfo.GenderIdentity]
 		victimInfo.SexualOrientation = locale[victimInfo.SexualOrientation]
 	}
 	log.Printf("[SVC] LoadFollowUp → victimInfo final: %+v", victimInfo)
@@ -420,16 +421,16 @@ func (s *followUpV2Service) GenerateOrRecalculate(ctx context.Context, caseID st
 	if len(completed) == 0 && len(pending) == 0 {
 
 		// [Auto-asignación] Elige el agente con rol "ro" del mismo equipo que tenga
-        // el menor promedio de posición de carga en las fechas a generar.
-        // Descomentar cuando el evento esté listo para activarse.
-        //
-        scheduledDates := computeScheduledDates(offsets, now, today, input.RiskLevel)
-        assignedAgentID, autoErr := s.calcularAgente(ctx, scheduledDates, input.Team)
-        if autoErr != nil {
-            log.Printf("[WARN] AutoAsignacion: %v — se usará el agentID del input", autoErr)
-        } else {
-            input.AgentID = assignedAgentID
-        }
+		// el menor promedio de posición de carga en las fechas a generar.
+		// Descomentar cuando el evento esté listo para activarse.
+		//
+		scheduledDates := computeScheduledDates(offsets, now, today, input.RiskLevel)
+		assignedAgentID, autoErr := s.calcularAgente(ctx, scheduledDates, input.Team)
+		if autoErr != nil {
+			log.Printf("[WARN] AutoAsignacion: %v — se usará el agentID del input", autoErr)
+		} else {
+			input.AgentID = assignedAgentID
+		}
 		// ───────────────────────────────────────────────────────────────────────
 
 		newFollowUps := buildFollowUps(caseID, input, riskLevelStr, offsets, now, today, 1)
@@ -622,12 +623,12 @@ func (s *followUpV2Service) GetMyDayFollowUpsEnriched(ctx context.Context, agent
 				riskStatus = *fu.RiskStatus
 			}
 			resp := models.MyDayFollowUpResponse{
-				ID:             fu.ID,
-				CaseID:         fu.CaseID,
-				RiskStatus:     riskStatus,
-				ScheduledTime:  fu.ScheduledTime,
-				Attempts:       fu.Attempts,
-				IsPriority:     fu.ScheduledTime != "" && fu.ScheduledTime != "00:00:00", // Nueva regla
+				ID:                 fu.ID,
+				CaseID:             fu.CaseID,
+				RiskStatus:         riskStatus,
+				ScheduledTime:      fu.ScheduledTime,
+				Attempts:           fu.Attempts,
+				IsPriority:         fu.ScheduledTime != "" && fu.ScheduledTime != "00:00:00", // Nueva regla
 				Status:             fu.Status,
 				SequenceNumber:     fu.SequenceNumber,
 				LastAttemptAt:      fu.LastAttemptAt,
@@ -721,8 +722,8 @@ func (s *followUpV2Service) RegisterContactAttempt(ctx context.Context, followUp
 		return nil, fmt.Errorf("followup: error buscando seguimiento: %w", err)
 	}
 
-	// 2. Validar que no haya excedido el máximo de intentos (9) si no contestó
-	if !wasAnswered && fu.Attempts >= 9 {
+	// 2. Validar que no haya excedido el máximo de intentos (50) si no contestó
+	if !wasAnswered && fu.Attempts >= 50 {
 		return nil, fmt.Errorf("followup: se alcanzó el máximo de intentos permitidos")
 	}
 
@@ -1021,16 +1022,16 @@ func (s *followUpV2Service) registrarEventosCreacion(
 // computeScheduledDates calcula las fechas absolutas que tendrán los seguimientos
 // dado el slice de offsets de la riskMatrix, la referencia de tiempo y el nivel de riesgo.
 func computeScheduledDates(offsets []int, now, today time.Time, riskLevel int) []time.Time {
-    dates := make([]time.Time, len(offsets))
-    for i, days := range offsets {
-        if days == 0 && riskLevel == 4 {
-            // Extremo S1: +4 h desde ahora
-            dates[i] = now.Add(4 * time.Hour)
-        } else {
-            dates[i] = today.AddDate(0, 0, days)
-        }
-    }
-    return dates
+	dates := make([]time.Time, len(offsets))
+	for i, days := range offsets {
+		if days == 0 && riskLevel == 4 {
+			// Extremo S1: +4 h desde ahora
+			dates[i] = now.Add(4 * time.Hour)
+		} else {
+			dates[i] = today.AddDate(0, 0, days)
+		}
+	}
+	return dates
 }
 
 // getDateMatrix hace UNA sola query a la BD para obtener la carga de todos los agentes

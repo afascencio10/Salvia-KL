@@ -1,0 +1,88 @@
+name: Deploy to Windows Server (Production)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: [self-hosted, windows, prd]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Write DB Config
+        shell: powershell
+        run: |
+          # Crear el directorio de configuración si no existe
+          $configDir = "src/config"
+          if (!(Test-Path $configDir)) {
+              New-Item -Path $configDir -ItemType Directory -Force
+          }
+          
+          # Escribir la configuración de base de datos desde los secretos de GitHub
+          $dbConfig = @"
+          ${{ secrets.DB_CONFIG_PRD }}
+          "@
+          $dbConfig | Out-File -FilePath "src/config/db_config.json" -Encoding utf8 -Force
+          Write-Host "db_config.json generado desde GitHub Secrets para Producción."
+
+      - name: Build
+        shell: powershell
+        run: |
+          cd src
+          go build -o ../salvia.exe main.go
+
+      - name: Deploy Local
+        shell: powershell
+        run: |
+          # Evitar que errores de comandos externos detengan el script
+          $ErrorActionPreference = 'Continue'
+
+          # 1. Detener el servicio SalviaApp si está corriendo
+          Write-Host "Deteniendo el servicio SalviaApp..."
+          Stop-Service -Name SalviaApp -Force 2>&1 | Out-Null
+          
+          # Detener procesos huérfanos residuales (por seguridad)
+          taskkill /F /IM salvia.exe /T 2>&1 | Out-Null
+          
+          # Esperar que se liberen los archivos
+          Start-Sleep -Seconds 3
+          
+          # 2. Asegurar que la ruta base existe
+          $basePath = "C:\salvia"
+          if (!(Test-Path $basePath)) { 
+              New-Item -Path $basePath -ItemType Directory -Force
+          }
+          
+          # 3. BACKUP: Si ya existe un salvia.exe, renombrarlo con fecha y hora
+          $exePath = Join-Path $basePath "salvia.exe"
+          if (Test-Path $exePath) {
+              $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+              $backupName = "salvia_$timestamp.exe"
+              $backupPath = Join-Path $basePath $backupName
+              Write-Host "Creando backup: $backupName"
+              Move-Item -Path $exePath -Destination $backupPath -Force
+          }
+
+          # 4. Copiar el nuevo binario
+          Copy-Item "salvia.exe" -Destination $exePath -Force
+          Write-Host "salvia.exe copiado a $exePath"
+
+          # 5. Copiar salvia.bat solo si existe en el repo
+          if (Test-Path "salvia.bat") {
+              Copy-Item "salvia.bat" -Destination (Join-Path $basePath "salvia.bat") -Force
+              Write-Host "salvia.bat copiado."
+          }
+
+          # 6. Iniciar el servicio SalviaApp
+          Write-Host "Iniciando el servicio SalviaApp..."
+          Start-Service -Name SalviaApp
+          
+          # Comprobar el estado del servicio
+          Get-Service -Name SalviaApp
+          
+          Write-Host "Deploy Producción completado exitosamente."
+          exit 0

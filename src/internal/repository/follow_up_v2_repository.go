@@ -4,6 +4,7 @@ import (
 	"bitsflow/internal/models"
 	"context"
 	"log"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -30,6 +31,7 @@ type FollowUpV2Repository interface {
 	UpdateAgentForPendingByCaseID(ctx context.Context, caseID string, agentID string) error
 	LoadVictimInfoByCaseID(ctx context.Context, caseID string) (*VictimCaseInfo, error)
 	UpdateFormSubmissionID(ctx context.Context, id string, fsID string) error
+	ExistsForCaseOnDate(ctx context.Context, caseID string, date time.Time) (bool, error)
 }
 
 type followUpV2Repository struct {
@@ -109,5 +111,16 @@ func (r *followUpV2Repository) UpdateFormSubmissionID(ctx context.Context, id st
 	return r.db.WithContext(ctx).Model(&models.FollowUpV2{}).
 		Where("id = ?", id).
 		Update("form_submission_id", fsID).Error
+}
+
+// ExistsForCaseOnDate devuelve true si ya existe un seguimiento (no eliminado) para el
+// caso en el mismo día calendario que date, independientemente de la hora.
+func (r *followUpV2Repository) ExistsForCaseOnDate(ctx context.Context, caseID string, date time.Time) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Where("case_id = ? AND DATE(scheduled_date) = DATE(?)", caseID, date).
+		Count(&count).Error
+	return count > 0, err
 }
 

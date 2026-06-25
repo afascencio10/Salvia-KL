@@ -18,3 +18,7 @@ node_modules
 .gocache_agent/
 .chrome_debug_profile/
 .gomodcache_agent/
+
+# Scripts y datos de migración (uso local)
+migrarCasos/
+*.exe

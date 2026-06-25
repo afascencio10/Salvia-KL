@@ -57,7 +57,7 @@ func loadStoredSessions() {
 
 func cleanOutdatedSessions() {
 	for _, s := range commonSessions {
-		if time.Since(s.UpdateTime) > 10*time.Hour {
+		if time.Since(s.UpdateTime) > 8*24*time.Hour {
 			//No se guarda para poder limpiar todo y guardar una vez al final
 			RemoveCommonSession(s.SessionID, false)
 		}

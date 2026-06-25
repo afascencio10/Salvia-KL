@@ -7,11 +7,27 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: self-hosted
+    runs-on: [self-hosted, windows, qa]
     timeout-minutes: 20
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Write DB Config
+        shell: powershell
+        run: |
+          # Crear el directorio de configuración si no existe
+          $configDir = "src/config"
+          if (!(Test-Path $configDir)) {
+              New-Item -Path $configDir -ItemType Directory -Force
+          }
+          
+          # Escribir la configuración de base de datos desde los secretos de GitHub
+          $dbConfig = @"
+          ${{ secrets.DB_CONFIG_QA }}
+          "@
+          $dbConfig | Out-File -FilePath "src/config/db_config.json" -Encoding utf8 -Force
+          Write-Host "db_config.json generado desde GitHub Secrets para DEV/QA."
 
       - name: Build
         shell: powershell
@@ -25,34 +41,20 @@ jobs:
           # Evitar que errores de comandos externos detengan el script
           $ErrorActionPreference = 'Continue'
 
-          # 1. Matar por nombre de proceso (todas las instancias)
+          # 1. Detener el servicio SalviaApp si está corriendo
+          Write-Host "Deteniendo el servicio SalviaApp..."
+          Stop-Service -Name SalviaApp -Force 2>&1 | Out-Null
+          
+          # Detener procesos huérfanos residuales (por seguridad)
           taskkill /F /IM salvia.exe /T 2>&1 | Out-Null
-          if ($LASTEXITCODE -ne 0) {
-              Write-Host "No se encontro proceso salvia.exe por nombre, continuando..."
-          } else {
-              Write-Host "Proceso salvia.exe detenido por nombre."
-          }
-
-          # 1b. Solo matar si hay algo en estado LISTENING en :443 (ignora TIME_WAIT)
-          $netstatLine = netstat -ano | findstr "LISTENING" | findstr ":443 " | Select-Object -First 1
-          if ($netstatLine) {
-              $portPid = ($netstatLine.Trim() -split '\s+')[-1]
-              if ($portPid -and $portPid -match '^\d+$' -and $portPid -ne '0') {
-                  Write-Host "Puerto 443 LISTENING por PID $portPid, intentando matar..."
-                  taskkill /F /PID $portPid 2>&1 | Out-Null
-                  Write-Host "Kill PID $portPid ejecutado (exit: $LASTEXITCODE)"
-              }
-          } else {
-              Write-Host "Puerto 443 libre (no hay LISTENING)."
-          }
-
-          # Esperar para que el OS libere el puerto completamente
+          
+          # Esperar que se liberen los archivos
           Start-Sleep -Seconds 3
           
           # 2. Asegurar que la ruta base existe
           $basePath = "C:\salvia"
           if (!(Test-Path $basePath)) { 
-              New-Item -Path $basePath -ItemType Directory 
+              New-Item -Path $basePath -ItemType Directory -Force
           }
           
           # 3. BACKUP: Si ya existe un salvia.exe, renombrarlo con fecha y hora
@@ -64,66 +66,23 @@ jobs:
               Write-Host "Creando backup: $backupName"
               Move-Item -Path $exePath -Destination $backupPath -Force
           }
-          
-          # 4. Asegurar que la carpeta de certificados existe
-          $certsPath = Join-Path $basePath "certs"
-          if (!(Test-Path $certsPath)) { 
-              New-Item -Path $certsPath -ItemType Directory 
-          }
 
-          # 5. Copiar el nuevo binario (siempre debe existir tras el build)
+          # 4. Copiar el nuevo binario
           Copy-Item "salvia.exe" -Destination $exePath -Force
           Write-Host "salvia.exe copiado a $exePath"
 
-          # 6. Copiar salvia.bat solo si existe en el repo
+          # 5. Copiar salvia.bat solo si existe en el repo
           if (Test-Path "salvia.bat") {
               Copy-Item "salvia.bat" -Destination (Join-Path $basePath "salvia.bat") -Force
               Write-Host "salvia.bat copiado."
-          } else {
-              Write-Host "salvia.bat no esta en el repo, se conserva el del servidor."
           }
 
-          # 7. Copiar certificados solo si existen en el repo
-          if (Test-Path "src/certs") {
-              $certFiles = Get-ChildItem "src/certs" -ErrorAction SilentlyContinue
-              if ($certFiles) {
-                  Copy-Item "src/certs/*" -Destination $certsPath -Recurse -Force
-                  Write-Host "Certificados copiados."
-              } else {
-                  Write-Host "src/certs esta vacio, se conservan los certs del servidor."
-              }
-          } else {
-              Write-Host "src/certs no esta en el repo, se conservan los certs del servidor."
-          }
-
-          Write-Host "Deploy Local completado exitosamente."
-          exit 0
-
-      - name: Summary
-        run: |
-          echo "Despliegue finalizado en C:\salvia. El proceso previo ha sido detenido si estaba en ejecucion."
-          echo "Iniciando nueva ventana de consola..."
-
-      - name: Start Application
-        shell: powershell
-        run: |
-          $ErrorActionPreference = 'Continue'
-
-          # Cerrar consolas viejas del bat (la que queda con "Presione una tecla")
-          Get-WmiObject Win32_Process -Filter "Name='cmd.exe'" | Where-Object {
-              $_.CommandLine -like "*salvia.bat*"
-          } | ForEach-Object {
-              Write-Host "Cerrando consola vieja (PID $($_.ProcessId))..."
-              Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
-          }
-
-          Start-Sleep -Seconds 2
-
-          # Iniciar nueva instancia
-          # Es CRITICO limpiar RUNNER_TRACKING_ID para que GitHub Actions no mate el proceso hijo al terminar el Job
-          $env:RUNNER_TRACKING_ID = ""
+          # 6. Iniciar el servicio SalviaApp
+          Write-Host "Iniciando el servicio SalviaApp..."
+          Start-Service -Name SalviaApp
           
-          Start-Process cmd.exe -ArgumentList "/k C:\salvia\salvia.bat" -WorkingDirectory "C:\salvia" -WindowStyle Normal
-          Write-Host "Proceso iniciado."
+          # Comprobar el estado del servicio
+          Get-Service -Name SalviaApp
+          
+          Write-Host "Deploy DEV/QA completado exitosamente."
           exit 0
-

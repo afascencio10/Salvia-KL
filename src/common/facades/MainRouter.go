@@ -43,7 +43,7 @@ func InitRouter() *gin.Engine {
 	store := cookie.NewStore([]byte("secret"))
 
 	store.Options(sessions.Options{
-		MaxAge:   28800,
+		MaxAge:   691200,
 		HttpOnly: false,
 		Secure:   true,
 		SameSite: http.SameSiteDefaultMode,
@@ -51,7 +51,7 @@ func InitRouter() *gin.Engine {
 	})
 	// Middleware para restringir la cantidad de threads concurrentes
 	router.Use(limitMiddleware())
-	
+
 	if os.Getenv("PORT") == "" {
 		// Middleware para redirigir HTTP a HTTPS solo en local
 		router.Use(ForceHTTPS())
@@ -132,7 +132,7 @@ func StartRouter() {
 	if port != "" {
 		err := router.Run(":" + port)
 		if err != nil {
-			println("Error iniciando servidor en puerto " + port + ": ", err.Error())
+			println("Error iniciando servidor en puerto "+port+": ", err.Error())
 		}
 	} else {
 		err := router.RunTLS(":443", "certs/salvia.crt", "certs/salvia.key")

@@ -60,15 +60,15 @@ PGPASSWORD='Salvia2026@' psql \
 
 ### Casos y víctimas
 
-| Tabla | Descripción |
-|---|---|
-| `victim_contact` | Datos de contacto de la víctima: identidad, documento, dirección, teléfono y género. |
-| `victim_case` | Caso de violencia basado en género asociado a una víctima contacto. |
-| `victim_case_form1` | Formulario 1 del caso: datos completos de víctima, hechos y agresor (legacy). |
-| `victim_case_form2` | Formulario 2 del caso: datos ampliados con score y nivel de riesgo calculado. |
-| `victim_contact_form1` | Formulario 1 del contacto: datos iniciales de la víctima reportados por un tercero. |
-| `victim_contact_form2` | Formulario de reporte de tercero: datos del reportante, tipo de reporte y mejor horario. |
-| `victim_case_form2_enums` | Catálogo de opciones compartidas por formularios del caso, contacto y feminicidio. |
+| Tabla                     | Descripción                                                                              |
+| ------------------------- | ---------------------------------------------------------------------------------------- |
+| `victim_contact`          | Datos de contacto de la víctima: identidad, documento, dirección, teléfono y género.     |
+| `victim_case`             | Caso de violencia basado en género asociado a una víctima contacto.                      |
+| `victim_case_form1`       | Formulario 1 del caso: datos completos de víctima, hechos y agresor (legacy).            |
+| `victim_case_form2`       | Formulario 2 del caso: datos ampliados con score y nivel de riesgo calculado.            |
+| `victim_contact_form1`    | Formulario 1 del contacto: datos iniciales de la víctima reportados por un tercero.      |
+| `victim_contact_form2`    | Formulario de reporte de tercero: datos del reportante, tipo de reporte y mejor horario. |
+| `victim_case_form2_enums` | Catálogo de opciones compartidas por formularios del caso, contacto y feminicidio.       |
 
 ### Organización institucional
 
@@ -78,6 +78,7 @@ PGPASSWORD='Salvia2026@' psql \
 | `entity_branch` | Sede o sucursal de una entidad con dirección, municipio y coordenadas geográficas. |
 | `attention_line` | Línea de atención asociada a un profesional responsable de casos. |
 | `case_owner` | Profesional responsable de casos, vinculado a una entidad y línea de atención. |
+| `directories` | Catálogo de entidades de contacto por ciudad para la app Flutter (fiscalías, comisarías, urgencias, líneas de emergencia). |
 
 ### Seguimiento
 

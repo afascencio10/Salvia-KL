@@ -16,9 +16,30 @@ import (
 	"bitsflow/salvia/service"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
+
+// agentRoleCodesDefault — roles al listar agentes por equipo (M-02 reasignar-casos-modal).
+// Para incluir operadores 'op', agregar "op" a este slice o pasar ?role=op en la query.
+var agentRoleCodesDefault = []string{"ro"}
+
+// teamVariantsForQuery normaliza equipos con variantes de capitalización en BD.
+func teamVariantsForQuery(team string) []string {
+	team = strings.TrimSpace(team)
+	if team == "" {
+		return nil
+	}
+	switch strings.ToLower(team) {
+	case "riesgo alto":
+		return []string{"Riesgo alto", "Riesgo Alto"}
+	case "riesgo bajo":
+		return []string{"Riesgo bajo", "Riesgo Bajo"}
+	default:
+		return []string{team}
+	}
+}
 
 type CaseDetailController struct {
 	svc          service.CaseDetailService
@@ -154,9 +175,14 @@ func (c *CaseDetailController) GetAgentesRO(ctx *gin.Context) {
 	ctx.JSON(200, results)
 }
 
-// GetOperadoresByTeam devuelve operadores (op + ro) filtrados por team.
+// GetOperadoresByTeam devuelve agentes activos filtrados por team.
+// Query opcional: ?team=...&role=ro (&role=op para habilitar operadores en el futuro).
 func (c *CaseDetailController) GetOperadoresByTeam(ctx *gin.Context) {
 	team := ctx.Query("team")
+	roleCodes := ctx.QueryArray("role")
+	if len(roleCodes) == 0 {
+		roleCodes = agentRoleCodesDefault
+	}
 
 	type OperadorResult struct {
 		ICode     string `json:"icode" gorm:"column:general_user_i_code"`
@@ -177,13 +203,14 @@ func (c *CaseDetailController) GetOperadoresByTeam(ctx *gin.Context) {
 		JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
 		JOIN security.rel_role_general_user rr ON rr.general_user_id = gu.general_user_id
 		JOIN security.role r ON r.role_id = rr.role_id
-		WHERE r.role_code = 'ro'
+		WHERE r.role_code IN ?
 		  AND gu.general_user_status = 'e'
 	`
-	args := []interface{}{}
+	args := []interface{}{roleCodes}
 	if team != "" {
-		query += " AND gu.general_user_team = ?"
-		args = append(args, team)
+		teamVariants := teamVariantsForQuery(team)
+		query += " AND gu.general_user_team IN ?"
+		args = append(args, teamVariants)
 	}
 	query += " ORDER BY full_name ASC"
 

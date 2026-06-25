@@ -258,6 +258,9 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"no": true,
 		"fo": true,
 	},
+
+	// ── Dashboard KPIs (Salvia_KPIs_v1) ──────────────────────────────────────
+	"get_kpis": {"sv": true, "ad": true},
 }
 
 // Menús del sistema. Se filtra por el tipo de menú (ie/ default) y luego por la sección principal repesentada por el locale.
@@ -490,6 +493,12 @@ var MenuTools map[string]map[string]map[string][]map[string]string = map[string]
 					"path":        "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["VictimContact"],
 					"action":      "",
 					"customClass": "fas fa-eye icoacciones",
+				},
+				{
+					"label":       Locale["sp"]["menu_tool_new_victim_case"],
+					"path":        "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["VictimCase"],
+					"action":      Locale["sp"]["new"],
+					"customClass": "fas fa-plus-circle",
 				},
 			},
 			"menu_tool_get_victim_cases": {

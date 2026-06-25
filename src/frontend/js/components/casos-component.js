@@ -9,23 +9,27 @@
  *   :columns          Array<{ key, label }>              — columnas visibles
  *   :hiddenColumns    Array<string>                      — keys de columnas a ocultar
  *   :buttons          Array<{ id, label }>               — botones de acción por fila
+ *   :reasignacion     boolean                            — modo reasignación masiva
  *
  * Emite:
  *   action-clicked    { buttonId, case }                 — botón de fila presionado
+ *   reasignar-casos   { cases }                          — E-15 (pendiente en padre)
  *
  * Eventos internos implementados por archivo:
- *   E-01  mounted         — carga inicial de casos
+ *   E-01  mounted         — carga inicial de casos (incluye openBarriers desde barrier_v2)
  *   E-09  toggleChipFilter — filtro chip casos nuevos (hoy −5 días, America/Bogota)
  *   E-10  setDropdownFilter — filtro dropdown nivel de riesgo (combinable)
  *   E-11  setDropdownFilter — filtro dropdown por equipo (no combina con agentId)
  *   E-12  setDropdownFilter — filtro dropdown seguimientos ejecutados 0–10 (combinable)
  *   E-13  setDropdownFilter — filtro dropdown estado del caso (combinable)
+ *   E-16  setDropdownFilter — filtro dropdown barreras activas (combinable)
  *   E-03  onSearchInput   — búsqueda con debounce
  *   E-04  onSortChange    — cambio de ordenamiento
  *   E-05  emitActionClicked
  *   E-06  changePage
  *   E-07  onAutocompleteInput
  *   E-08  selectAutocompleteSuggestion / clearAutocomplete
+ *   E-14  toggleCaseSelection / toggleSelectAllCurrentPage
  */
 (function() {
     var vueApp = (typeof app !== 'undefined') ? app : (typeof home !== 'undefined' ? home : null);
@@ -44,9 +48,10 @@
         columns:          { type: Array,   required: true },
         hiddenColumns:    { type: Array,   default: function() { return []; } },
         buttons:          { type: Array,   default: function() { return []; } },
+        reasignacion:     { type: Boolean, default: false },
     },
 
-    emits: ['action-clicked'],
+    emits: ['action-clicked', 'reasignar-casos'],
 
     data: function() {
         return {
@@ -63,6 +68,11 @@
             cases:         [],
             loading:       true,
             loadError:     null,
+            selectedCases: [],
+            tableAlert: {
+                visible: false,
+                message: '',
+            },
 
             // --- Estado autocomplete (indexado por filter.key) ---
             autocompleteText:        {},
@@ -75,6 +85,7 @@
             // --- Timers internos para debounce ---
             _autocompleteTimers: {},
             _searchTimer:        null,
+            _tableAlertTimer:    null,
             _onDocumentClick:    null,
         };
     },
@@ -111,6 +122,53 @@
 
         totalCasesFormatted: function() {
             return this.totalCases.toLocaleString('es-CO');
+        },
+
+        selectedTeam: function() {
+            if (!this.selectedCases.length) {
+                return null;
+            }
+            return this.getCaseTeam(this.selectedCases[0]);
+        },
+
+        currentPageSelectableCases: function() {
+            if (!this.reasignacion) {
+                return [];
+            }
+            var team = this.selectedTeam;
+            if (!team) {
+                return this.filteredCases.slice();
+            }
+            var self = this;
+            return this.filteredCases.filter(function(c) {
+                return self.getCaseTeam(c) === team;
+            });
+        },
+
+        isAllCurrentPageSelected: function() {
+            var selectable = this.currentPageSelectableCases;
+            if (!selectable.length) {
+                return false;
+            }
+            var self = this;
+            return selectable.every(function(c) {
+                return self.isCaseSelected(c);
+            });
+        },
+
+        isSomeCurrentPageSelected: function() {
+            var self = this;
+            return this.filteredCases.some(function(c) {
+                return self.isCaseSelected(c);
+            }) && !this.isAllCurrentPageSelected;
+        },
+    },
+
+    watch: {
+        reasignacion: function(val) {
+            if (!val) {
+                this.clearSelectedCases();
+            }
         },
     },
 
@@ -156,6 +214,10 @@
         if (this._tableResizeObserver) {
             this._tableResizeObserver.disconnect();
             this._tableResizeObserver = null;
+        }
+        if (this._tableAlertTimer) {
+            clearTimeout(this._tableAlertTimer);
+            this._tableAlertTimer = null;
         }
     },
 
@@ -279,7 +341,7 @@
         normalizeDefaultActiveFilter: function() {
             var df = Object.assign({}, this.defaultFilter);
             if (!df.key || df.key === 'casos_nuevos' || df.key === 'riesgo' || df.key === 'equipo' ||
-                df.key === 'seguimientos_ejecutados' || df.key === 'estado_caso') {
+                df.key === 'seguimientos_ejecutados' || df.key === 'estado_caso' || df.key === 'barreras_activas') {
                 return { key: '' };
             }
             if (df.key === 'persona_asignada' && !df.value) {
@@ -348,9 +410,165 @@
         // E-01 — Carga inicial y recarga de casos desde el backend
         // ----------------------------------------------------------------
 
+        clearSelectedCases: function() {
+            this.selectedCases = [];
+        },
+
+        getCaseTeam: function(caseObj) {
+            return (caseObj && caseObj.caseTeam) ? String(caseObj.caseTeam).trim() : '';
+        },
+
+        getCaseSelectionKey: function(caseObj) {
+            if (!caseObj) {
+                return '';
+            }
+            return caseObj.i_code || String(caseObj.id || '');
+        },
+
+        isCaseSelected: function(caseObj) {
+            var key = this.getCaseSelectionKey(caseObj);
+            return this.selectedCases.some(function(c) {
+                return this.getCaseSelectionKey(c) === key;
+            }.bind(this));
+        },
+
+        hideTableAlert: function() {
+            if (this._tableAlertTimer) {
+                clearTimeout(this._tableAlertTimer);
+                this._tableAlertTimer = null;
+            }
+            this.tableAlert.visible = false;
+            this.tableAlert.message = '';
+        },
+
+        showTableAlert: function(message) {
+            var self = this;
+            if (self._tableAlertTimer) {
+                clearTimeout(self._tableAlertTimer);
+            }
+            self.tableAlert.message = message;
+            self.tableAlert.visible = true;
+            self._tableAlertTimer = setTimeout(function() {
+                self.hideTableAlert();
+            }, 4500);
+        },
+
+        showTeamMismatchToast: function() {
+            this.showTableAlert('Solo puedes seleccionar casos de un mismo equipo.');
+        },
+
+        canSelectCase: function(caseObj) {
+            var team = this.getCaseTeam(caseObj);
+            if (!team) {
+                return false;
+            }
+            if (!this.selectedCases.length) {
+                return true;
+            }
+            return team === this.selectedTeam;
+        },
+
+        toggleCaseSelection: function(caseObj, event) {
+            if (!this.reasignacion) {
+                return;
+            }
+
+            var checked = event.target.checked;
+            var key = this.getCaseSelectionKey(caseObj);
+
+            if (checked) {
+                if (!this.getCaseTeam(caseObj)) {
+                    event.target.checked = false;
+                    return;
+                }
+                if (!this.canSelectCase(caseObj)) {
+                    event.target.checked = false;
+                    this.showTeamMismatchToast();
+                    return;
+                }
+                if (!this.isCaseSelected(caseObj)) {
+                    this.selectedCases = this.selectedCases.concat([caseObj]);
+                }
+                return;
+            }
+
+            this.selectedCases = this.selectedCases.filter(function(c) {
+                return this.getCaseSelectionKey(c) !== key;
+            }.bind(this));
+        },
+
+        toggleSelectAllCurrentPage: function(event) {
+            if (!this.reasignacion) {
+                return;
+            }
+
+            var checked = event.target.checked;
+            var pageCases = this.filteredCases;
+
+            if (!checked) {
+                var pageKeys = {};
+                pageCases.forEach(function(c) {
+                    pageKeys[this.getCaseSelectionKey(c)] = true;
+                }.bind(this));
+                this.selectedCases = this.selectedCases.filter(function(c) {
+                    return !pageKeys[this.getCaseSelectionKey(c)];
+                }.bind(this));
+                return;
+            }
+
+            if (!pageCases.length) {
+                event.target.checked = false;
+                return;
+            }
+
+            var teamsOnPage = {};
+            pageCases.forEach(function(c) {
+                var team = this.getCaseTeam(c);
+                if (team) {
+                    teamsOnPage[team] = true;
+                }
+            }.bind(this));
+            var uniqueTeams = Object.keys(teamsOnPage);
+
+            if (uniqueTeams.length > 1 && !this.selectedCases.length) {
+                event.target.checked = false;
+                this.showTeamMismatchToast();
+                return;
+            }
+
+            var targetTeam = this.selectedTeam || uniqueTeams[0] || '';
+            if (!targetTeam) {
+                event.target.checked = false;
+                return;
+            }
+
+            if (this.selectedTeam && this.selectedTeam !== targetTeam) {
+                event.target.checked = false;
+                this.showTeamMismatchToast();
+                return;
+            }
+
+            var self = this;
+            var toAdd = pageCases.filter(function(c) {
+                return self.getCaseTeam(c) === targetTeam && !self.isCaseSelected(c);
+            });
+
+            if (!toAdd.length && !this.isAllCurrentPageSelected) {
+                event.target.checked = false;
+                return;
+            }
+
+            this.selectedCases = this.selectedCases.concat(toAdd);
+        },
+
+        reload: function() {
+            this.fetchCases({ errorMessage: 'Error al recargar los casos' });
+        },
+
         fetchCases: function(options) {
             options = options || {};
             var self = this;
+            self.clearSelectedCases();
             self.loading = true;
             self.loadError = null;
 
@@ -369,7 +587,8 @@
                        self.activeFilter.key !== 'riesgo' &&
                        self.activeFilter.key !== 'equipo' &&
                        self.activeFilter.key !== 'seguimientos_ejecutados' &&
-                       self.activeFilter.key !== 'estado_caso') {
+                       self.activeFilter.key !== 'estado_caso' &&
+                       self.activeFilter.key !== 'barreras_activas') {
                 params.set('filter_key', self.activeFilter.key);
                 if (self.activeFilter.value) {
                     params.set('filter_value', self.activeFilter.value);
@@ -380,7 +599,7 @@
                 params.set('chip_filter', 'casos_nuevos');
             }
 
-            var dropdownParamKeys = ['riesgo', 'equipo', 'seguimientos_ejecutados', 'estado_caso'];
+            var dropdownParamKeys = ['riesgo', 'equipo', 'seguimientos_ejecutados', 'estado_caso', 'barreras_activas'];
             dropdownParamKeys.forEach(function(dk) {
                 var val = self.activeDropdowns[dk];
                 if (!val) {
@@ -443,6 +662,19 @@
             return dd + '/' + mm + '/' + yyyy;
         },
 
+        // Igual que formatDate pero leyendo los componentes en UTC, para mostrar la
+        // fecha de registro tal como se guardó sin aplicar el desfase de zona horaria
+        // local (UTC-5 en Colombia restaría un día cuando la hora es medianoche UTC).
+        formatDateUTC: function(dateStr) {
+            if (!dateStr) return '—';
+            var d = new Date(dateStr);
+            if (isNaN(d.getTime())) return '—';
+            var dd   = String(d.getUTCDate()).padStart(2, '0');
+            var mm   = String(d.getUTCMonth() + 1).padStart(2, '0');
+            var yyyy = d.getUTCFullYear();
+            return dd + '/' + mm + '/' + yyyy;
+        },
+
         riskBadgeClass: function(riskStatus) {
             var map = {
                 'extremo':     'cc-risk-badge extremo',
@@ -498,6 +730,39 @@
             var known = { ra: true, is: true, cd: true, ex: true, r: true, fc: true };
             var slug = known[code] ? code : 'desconocido';
             return 'cc-case-status-badge cc-case-status-' + slug;
+        },
+
+        barrierSectorLabel: function(code) {
+            var map = {
+                salud: 'Salud',
+                justicia: 'Justicia',
+                proteccion: 'Protección',
+                otras_instituciones: 'Otras instituciones',
+                barrera_transversal: 'Barrera Transversal',
+            };
+            if (!code) {
+                return '';
+            }
+            return map[String(code).toLowerCase()] || code;
+        },
+
+        formatOpenBarriers: function(caseObj) {
+            var barriers = (caseObj && caseObj.openBarriers) ? caseObj.openBarriers : [];
+            if (!barriers.length) {
+                return '';
+            }
+            var sectors = [];
+            var self = this;
+            barriers.forEach(function(b) {
+                var label = self.barrierSectorLabel(b.sector);
+                if (label && sectors.indexOf(label) === -1) {
+                    sectors.push(label);
+                }
+            });
+            if (!sectors.length) {
+                return 'Abierta';
+            }
+            return 'Abierta → Sector: ' + sectors.join(', ');
         },
 
         autocompleteMinLength: function() {
@@ -720,6 +985,13 @@
             this.currentPage = 1;
             this.cases = [];
             this.fetchCases({ errorMessage: 'Error al filtrar por persona asignada' });
+        },
+
+        emitReasignarCasos: function() {
+            if (!this.reasignacion || !this.selectedCases.length) {
+                return;
+            }
+            this.$emit('reasignar-casos', { cases: this.selectedCases.slice() });
         },
 
         clearAutocomplete: function(key) {

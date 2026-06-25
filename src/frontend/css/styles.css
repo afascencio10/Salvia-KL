@@ -207,10 +207,48 @@ html {
     line-height: 1.5;
 }
 
+.search-form.reportes-filter-form {
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 0 16px;
+}
+
+.search-form.reportes-filter-form .form-group {
+    flex: 1 1 180px;
+    margin-bottom: 0;
+}
+
+.search-form.reportes-filter-form .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.search-form.reportes-filter-form .form-group--actions {
+    flex: 0 0 auto;
+}
+
+.search-form.reportes-filter-form .form-group--actions .reportes-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.search-form.reportes-filter-form select,
+.search-form.reportes-filter-form input {
+    margin-bottom: 0;
+    margin-right: 0;
+    width: 100%;
+}
+
 @media (max-width: 768px) {
     .search-form .form-group:last-child {
         width: 100%;
         margin-top: 4px;
+    }
+
+    .search-form.reportes-filter-form .form-group--actions {
+        width: 100%;
     }
 }
 

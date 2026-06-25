@@ -23,11 +23,13 @@ Descripción:  Se ejecuta al montar el componente. Lee el prop :defaultFilter
               para determinar el filtro inicial. Llama al backend para obtener
               la lista de casos que cumplen ese filtro. Inicializa el estado
               interno: filtro activo, texto de búsqueda vacío y ordenamiento
-              por defecto (fecha de registro desc). Renderiza la tabla con
-              las columnas definidas en :columns, ocultando las que indica
-              :hiddenColumns, y pinta los botones de acción definidos en
-              :buttons en cada fila. Si :reasignacion es true, inicializa
-              selectedCases = [] y prepara la columna de checkbox.
+              por defecto (fecha de registro desc). Consulta barreras OPEN en
+              salvia.barrier_v2 por caso (un caso puede tener varias). Renderiza
+              la tabla con las columnas definidas en :columns, ocultando las que
+              indica :hiddenColumns — incluida la columna `barriers` si el padre
+              la registra — y pinta los botones de acción definidos en :buttons
+              en cada fila. Si :reasignacion es true, inicializa selectedCases = []
+              y prepara la columna de checkbox.
 Requerido:    Sí
 ```
 
@@ -46,6 +48,7 @@ E-02 se dividió en tres flujos independientes:
 | **E-11** | Por equipo (dropdown) | [flow-E11](./Flujos/flow-E11-cuando-filtra-equipo.md) |
 | **E-12** | Seguimientos ejecutados (dropdown) | [flow-E12](./Flujos/flow-E12-cuando-filtra-seguimientos-ejecutados.md) |
 | **E-13** | Estado del caso (dropdown) | [flow-E13](./Flujos/flow-E13-cuando-filtra-estado-caso.md) |
+| **E-16** | Barreras activas (dropdown) | [flow-E16](./Flujos/flow-E16-cuando-filtra-barreras-activas.md) |
 
 ---
 
@@ -124,6 +127,23 @@ Descripción:  Cambio en el dropdown "Estado del caso". Filtra por
               Opciones quemadas en el padre; etiquetas según labelEstado
               de get_case_detail_sv. Combinable con otros filtros.
               Llama al backend con filter_estado_caso={código}.
+Requerido:    Sí
+```
+
+---
+
+### E-16 — Cuando filtra por barreras activas
+
+📄 [Ver flujo → flow-E16-cuando-filtra-barreras-activas.md](./Flujos/flow-E16-cuando-filtra-barreras-activas.md)
+
+```
+Evento:       Cuando filtra por barreras activas
+Tipo:         User Interaction
+Descripción:  Cambio en el dropdown "Barreras activas". Única opción: OPEN
+              (etiqueta UI "Abierta"). Filtra casos que tienen al menos una
+              fila en salvia.barrier_v2 con status = 'OPEN' (modelo BarrierV2).
+              Un caso puede tener varias barreras abiertas. Combinable con
+              otros filtros. Llama al backend con filter_barreras_activas=OPEN.
 Requerido:    Sí
 ```
 
@@ -285,7 +305,7 @@ Requerido:    Condicional (solo si :reasignacion === true)
 ## Checklist de completitud
 
 - [x] ¿El ciclo de vida inicial (carga de datos) está cubierto? → E-01
-- [x] ¿Toda acción del usuario sobre la UI propia del componente está cubierta? → E-09, E-10, E-11, E-12, E-13, E-03, E-04, E-05, E-06, E-07, E-08, E-14, E-15
+- [x] ¿Toda acción del usuario sobre la UI propia del componente está cubierta? → E-09, E-10, E-11, E-12, E-13, E-16, E-03, E-04, E-05, E-06, E-07, E-08, E-14, E-15
 - [x] ¿Los eventos emitidos hacia el padre están cubiertos? → E-05, E-15
 - [x] ¿Hay lógica de backend desacoplada de la respuesta HTTP? → No
 - [x] ¿Hay scheduled tasks o webhooks? → No
@@ -304,6 +324,7 @@ Requerido:    Condicional (solo si :reasignacion === true)
 | E-11 | Cuando filtra por equipo | User Interaction | No (solo lee) |
 | E-12 | Cuando filtra por seguimientos ejecutados | User Interaction | No (solo lee) |
 | E-13 | Cuando filtra por estado del caso | User Interaction | No (solo lee) |
+| E-16 | Cuando filtra por barreras activas | User Interaction | No (solo lee) |
 | E-03 | Cuando el usuario escribe en el buscador | User Interaction | No (solo lee) |
 | E-04 | Cuando el usuario cambia el ordenamiento | User Interaction | No (solo lee, ORDER BY en servidor) |
 | E-05 | Cuando el usuario presiona un botón de acción | User Interaction | No (emite hacia padre) |
@@ -313,6 +334,6 @@ Requerido:    Condicional (solo si :reasignacion === true)
 | E-14 | Cuando el usuario selecciona o deselecciona un caso para reasignación | User Interaction | No (estado interno) |
 | E-15 | Cuando el usuario presiona "Reasignar Casos" | User Interaction | No (emite hacia padre) |
 
-**Total: 15 eventos — 1 Lifecycle, 13 User Interaction, 1 Índice**  
+**Total: 16 eventos — 1 Lifecycle, 14 User Interaction, 1 Índice**  
 **Ningún evento escribe en el backend desde este componente.**  
 **Las acciones resultantes de E-05 y E-15 son responsabilidad del componente padre que consume `casos-component`.**

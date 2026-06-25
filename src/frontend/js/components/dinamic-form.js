@@ -163,6 +163,18 @@
             margin-bottom: 20px;
         }
 
+        /* Divisor y separación entre preguntas dentro del repeater */
+        .df-repeater-item .df-question {
+            border-bottom: 1px solid #f0f0f0;
+            padding-bottom: 14px;
+            margin-bottom: 20px;
+        }
+        .df-repeater-item .df-question:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+            margin-bottom: 0;
+        }
+
         /* Estilos base del label (aplica a todos, incluyendo repeater interior) */
         .df-question > label,
         .df-repeater-item label {
@@ -173,7 +185,8 @@
         }
 
         /* Label de preguntas de nivel superior: fuente +25% + ícono */
-        .df-questions > .df-question > label {
+        .df-questions > .df-question > label,
+        .df-repeater-item .df-question > label {
             display: flex;
             align-items: flex-start;
             gap: 8px;
@@ -181,7 +194,8 @@
             margin-bottom: 8px;
             line-height: 1.4;
         }
-        .df-questions > .df-question > label::before {
+        .df-questions > .df-question > label::before,
+        .df-repeater-item .df-question > label::before {
             content: '';
             display: block;
             width: 7px; height: 7px;
@@ -1947,8 +1961,8 @@ app.component('dinamic-form', {
                                     <span>\${ applyRenderModifications(qData.question.description, qData.question.modifications, 'description', formState, entryData.entry.iteration - 1) }</span>
                                 </div>
 
-                                <div v-else-if="qData.isVisible" class="df-question" style="gap:0">
-                                    <label style="margin-bottom:4px;margin-top:0;min-height:unset">
+                                <div v-else-if="qData.isVisible" class="df-question">
+                                    <label>
                                         \${ applyRenderModifications(qData.question.description, qData.question.modifications, 'description', formState, entryData.entry.iteration - 1) }
                                         <span v-if="qData.question.required" class="df-required">*</span>
                                     </label>

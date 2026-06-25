@@ -30,6 +30,11 @@ var casosComponentTemplates = []string{
 	"frontend/html/salvia/case_component/case_component.html",
 }
 
+// listCasesTemplates — partials exclusivos de la pantalla Lista de casos.
+var listCasesTemplates = []string{
+	"frontend/html/salvia/list-cases/reasignar_casos_modal.html",
+}
+
 // VictimCasePOST maneja la solicitud POST para crear o actualizar un caso de víctima.
 // Obtiene la sesión actual, verifica los permisos necesarios, lee el cuerpo de la solicitud,
 // y llama al controlador correspondiente para procesar el caso de víctima.
@@ -224,10 +229,10 @@ func VictimCaseGET(c *gin.Context) {
 
 			if filter == "" || filter == "fcv" {
 				//Es la primera vez y carga por defecto los recontactos, o explícitamente se solicita el primer contacto.
-				code, victimContactRes, count = salvia_ctrl.GetVictimContactsWithoutVictimCase(page, "v", &db.ConnData{}, dbClientConfig, dbServerConfig)
+				code, victimContactRes, count = salvia_ctrl.GetVictimContactsWithoutVictimCase(page, "v", salvia_daos.VictimContactListFilters{}, &db.ConnData{}, dbClientConfig, dbServerConfig)
 			} else if filter == "fci" {
 				//Es la primera vez y carga por defecto los recontactos, o explícitamente se solicita el primer contacto.
-				code, victimContactRes, count = salvia_ctrl.GetVictimContactsWithoutVictimCase(page, "i", &db.ConnData{}, dbClientConfig, dbServerConfig)
+				code, victimContactRes, count = salvia_ctrl.GetVictimContactsWithoutVictimCase(page, "i", salvia_daos.VictimContactListFilters{}, &db.ConnData{}, dbClientConfig, dbServerConfig)
 			} else {
 				code, victimCaseRes, count = salvia_ctrl.GetVictimCasesByOwnerUserICode(s.UserICode, filter, page, &db.ConnData{}, dbClientConfig, dbServerConfig)
 			}
@@ -236,10 +241,10 @@ func VictimCaseGET(c *gin.Context) {
 
 			if filter == "" || filter == "fcv" {
 				//Es la primera vez y carga por defecto los recontactos, o explícitamente se solicita el primer contacto.
-				code, victimContactRes, count = salvia_ctrl.GetVictimContactsWithoutVictimCase(page, "v", &db.ConnData{}, dbClientConfig, dbServerConfig)
+				code, victimContactRes, count = salvia_ctrl.GetVictimContactsWithoutVictimCase(page, "v", salvia_daos.VictimContactListFilters{}, &db.ConnData{}, dbClientConfig, dbServerConfig)
 			} else if filter == "fci" {
 				//Es la primera vez y carga por defecto los recontactos, o explícitamente se solicita el primer contacto.
-				code, victimContactRes, count = salvia_ctrl.GetVictimContactsWithoutVictimCase(page, "i", &db.ConnData{}, dbClientConfig, dbServerConfig)
+				code, victimContactRes, count = salvia_ctrl.GetVictimContactsWithoutVictimCase(page, "i", salvia_daos.VictimContactListFilters{}, &db.ConnData{}, dbClientConfig, dbServerConfig)
 			} else {
 				code, victimCaseRes, count = salvia_ctrl.GetVictimCaseByAll(filter, page, &db.ConnData{}, dbClientConfig, dbServerConfig)
 			}
@@ -267,10 +272,10 @@ func VictimCaseGET(c *gin.Context) {
 			switch filter {
 			case "", "fcv":
 				//Es la primera vez y carga por defecto los recontactos, o explícitamente se solicita el primer contacto.
-				code, victimContactRes, count = salvia_ctrl.GetVictimContactsWithoutVictimCase(page, "v", &db.ConnData{}, dbClientConfig, dbServerConfig)
+				code, victimContactRes, count = salvia_ctrl.GetVictimContactsWithoutVictimCase(page, "v", salvia_daos.VictimContactListFilters{}, &db.ConnData{}, dbClientConfig, dbServerConfig)
 			case "fci":
 				//Es la primera vez y carga por defecto los recontactos, o explícitamente se solicita el primer contacto.
-				code, victimContactRes, count = salvia_ctrl.GetVictimContactsWithoutVictimCase(page, "i", &db.ConnData{}, dbClientConfig, dbServerConfig)
+				code, victimContactRes, count = salvia_ctrl.GetVictimContactsWithoutVictimCase(page, "i", salvia_daos.VictimContactListFilters{}, &db.ConnData{}, dbClientConfig, dbServerConfig)
 			default:
 				code, victimCaseRes, count = salvia_ctrl.GetVictimCaseByAll(filter, page, &db.ConnData{}, dbClientConfig, dbServerConfig)
 			}
@@ -316,9 +321,13 @@ func VictimCaseGET(c *gin.Context) {
 
 		// Renderiza la plantilla HTML con todos los parámetros necesarios para mostrar el caso de víctima.
 		extraTemplates := append(utils.GetFullHtmlTemplates(), casosComponentTemplates...)
+		listWindowTitle := salvia_config.Locale["sp"]["get_victim_case_window_title"]
+		if tplName == "get_victim_cases_sv" || tplName == "get_victim_cases_ro" {
+			listWindowTitle = "Consultar reportes"
+		}
 		common_facades.RenderTemplate(c, salvia_daos.VictimContactEntityName, "salvia", "victim_case/", salvia_config.HTML_Templates, tplName, extraTemplates, utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
 			map[string]interface{}{
-				"windowTitle":               salvia_config.Locale["sp"]["get_victim_case_window_title"],
+				"windowTitle":               listWindowTitle,
 				"currentUser":               s.Names + " " + s.LastNames,
 				"nav_rules":                 salvia_config.TranslateNavigationRule(s.Lang, salvia_config.NAVIGATION_RULES["get_victim_case"]),
 				"locale":                    salvia_config.Locale,
@@ -1013,6 +1022,7 @@ func ListCasesGET(c *gin.Context) {
 	}
 
 	extraTemplates := append(utils.GetFullHtmlTemplates(), casosComponentTemplates...)
+	extraTemplates = append(extraTemplates, listCasesTemplates...)
 	common_facades.RenderTemplate(c, salvia_daos.VictimCaseEntityName, "salvia", "list-cases/", salvia_config.HTML_Templates, "list_cases", extraTemplates, utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
 		map[string]interface{}{
 			"windowTitle": "Lista de casos",

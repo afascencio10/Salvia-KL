@@ -51,6 +51,7 @@ func (BarrierV2) TableName() string {
 // Estados válidos de BarrierV2.
 const (
 	BarrierV2StatusOpen       = "OPEN"
+	BarrierV2StatusEnGestion  = "En Gestion"
 	BarrierV2StatusArticulada = "Articulada"
 	BarrierV2StatusManaged    = "MANAGED"
 )

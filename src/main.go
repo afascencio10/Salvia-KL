@@ -80,6 +80,7 @@ func main() {
         &models.MenTeamRemision{},
         &models.DiscapacidadRemision{},
         &models.BarrierV2{},
+        &models.Directory{},
     } {
         if err := gormDB.AutoMigrate(m); err != nil {
             log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -115,6 +116,7 @@ func main() {
     caseTaskRepo           := repository.NewCaseTaskRepository(gormDB)
     entityLetterRepo       := repository.NewEntityLetterRepository(gormDB)
     casesListRepo          := repository.NewCasesListRepository(gormDB)
+    casesReassignRepo      := repository.NewCasesReassignRepository(gormDB)
 
     // Services
     casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
@@ -159,6 +161,7 @@ func main() {
     caseInfoSvc           := service.NewCaseInfoService(caseInfoRepo)
     reportSvc             := service.NewReportService(reportRepo)
     casesListSvc          := service.NewCasesListService(casesListRepo)
+    casesReassignSvc      := service.NewCasesReassignService(casesReassignRepo, caseTimelineRepo, gormDB)
     agentsSearchSvc       := service.NewAgentsSearchService(agentLightRepo)
 
     // Inyectar el servicio en el controller legacy para generación automática del calendario
@@ -190,13 +193,21 @@ func main() {
     })
     caseTaskCtrl            := salvia_ctrl.NewCaseTaskController(caseTaskSvc)
 
-    entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo, caseTaskRepo)
+    entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo, caseTaskRepo, barrierV2Repo)
     entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
     casesListCtrl          := salvia_ctrl.NewCasesListController(casesListSvc)
+    casesReassignCtrl      := salvia_ctrl.NewCasesReassignController(casesReassignSvc)
     agentsSearchCtrl       := salvia_ctrl.NewAgentsSearchController(agentsSearchSvc)
+    followUpV2Repo         := repository.NewFollowUpV2Repository(gormDB)
+    assignCaseSvc          := service.NewAssignCaseService(victimCaseLightRepo, agentLightRepo, followUpV2Repo)
+    assignCaseCtrl         := salvia_ctrl.NewAssignCaseController(assignCaseSvc)
 
     locationRepo := repository.NewLocationRepository(gormDB)
     locationCtrl := salvia_ctrl.NewLocationController(locationRepo)
+
+    directoryRepo := repository.NewDirectoryRepository(gormDB)
+    directorySvc := service.NewDirectoryService(directoryRepo, locationRepo)
+    directoryCtrl := salvia_ctrl.NewDirectoryController(directorySvc)
 
     // Routes
     api := router.Group("/api/v1")
@@ -217,8 +228,11 @@ func main() {
     barrierV2GinCtrl.RegisterRoutes(api)
     caseTaskCtrl.RegisterRoutes(api)
     locationCtrl.RegisterRoutes(api)
+    directoryCtrl.RegisterRoutes(api)
     casesListCtrl.RegisterRoutes(api)
+    casesReassignCtrl.RegisterRoutes(api)
     agentsSearchCtrl.RegisterRoutes(api)
+    assignCaseCtrl.RegisterRoutes(api)
 
     // Admin: endpoints de migración (protegidos por X-Security-Key)
     migrateCtrl := salvia_ctrl.NewMigrateController(gormDB)

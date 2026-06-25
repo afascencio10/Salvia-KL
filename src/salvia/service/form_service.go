@@ -2264,6 +2264,79 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 			return fmt.Errorf("processFollowUpSubmission: crear barrera entry [%s]: %w", entry.ID, err)
 		}
 		barrierCount++
+
+		// 3.3 Crear tareas (y oficios si aplica) por cada opción seleccionada en gestión
+		gestionRaw := strings.TrimSpace(entryMap[qBarreraGestion])
+		if gestionRaw != "" {
+			// Opciones que no generan ningún registro (ni tarea ni oficio)
+			gestionSinTarea := map[string]bool{
+				"orientacion_llamada": true,
+			}
+			// Opciones de gestión que requieren un oficio (entity_letter)
+			gestionConOficio := map[string]bool{
+				"activacion_ruta_interinstitucional": true,
+				"articulacion_institucional":         true,
+				"escalamiento_organismo_control":     true,
+			}
+			// Label legible por opción de gestión
+			gestionLabels := map[string]string{
+				"gestion_llamada":                    "Gestión administrativa - Llamada",
+				"activacion_ruta_interinstitucional": "Activación de ruta interinstitucional",
+				"articulacion_institucional":         "Articulación institucional",
+				"escalamiento_organismo_control":     "Escalamiento a organismo de control",
+				"alerta_barreras":                    "Alerta por barreras",
+			}
+
+			for _, gVal := range strings.Split(gestionRaw, ",") {
+				gVal = strings.TrimSpace(gVal)
+				if gVal == "" || gestionSinTarea[gVal] {
+					continue
+				}
+
+				label, ok := gestionLabels[gVal]
+				if !ok {
+					label = gVal
+				}
+
+				barrierID := b.ID
+				followUpID := fu.ID
+				var entityLetterID *string
+
+				if gestionConOficio[gVal] {
+					// Crear entity_letter en estado por_proyectar
+					letter := &models.EntityLetter{
+						BarrierID: barrierID,
+						CaseID:    fu.CaseID,
+						State:     models.EntityLetterStatePorProyectar,
+						AgentID:   &actorID,
+					}
+					if s.entityLetterRepo != nil {
+						if err := s.entityLetterRepo.Create(ctx, letter); err != nil {
+							log.Printf("[processFollowUp] WARN: no se pudo crear entity_letter para barrera %s gestion=%s: %v", barrierID, gVal, err)
+						} else {
+							entityLetterID = &letter.ID
+						}
+					}
+				}
+
+				task := &models.CaseTask{
+					Category:       "Barrera",
+					Type:           gVal,
+					Description:    label,
+					AssignedUserID: actorID,
+					Status:         models.CaseTaskStatusToDo,
+					CaseID:         fu.CaseID,
+					FollowUpID:     &followUpID,
+					BarrierID:      &barrierID,
+					EntityLetterID: entityLetterID,
+				}
+				if s.caseTaskRepo != nil {
+					if err := s.caseTaskRepo.Create(ctx, task); err != nil {
+						log.Printf("[processFollowUp] WARN: no se pudo crear case_task para barrera %s gestion=%s: %v", barrierID, gVal, err)
+					}
+				}
+			}
+		}
 	}
 
 	// 3b. Procesar Seguimiento a Barreras (Sección 3)

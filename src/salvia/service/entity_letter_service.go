@@ -142,14 +142,21 @@ type entityLetterService struct {
 	repo         repository.EntityLetterRepository
 	timelineRepo repository.CaseTimelineEventRepository
 	taskRepo     repository.CaseTaskRepository
+	barrierRepo  repository.BarrierV2Repository
 }
 
 func NewEntityLetterService(
 	repo repository.EntityLetterRepository,
 	timelineRepo repository.CaseTimelineEventRepository,
 	taskRepo repository.CaseTaskRepository,
+	barrierRepo repository.BarrierV2Repository,
 ) EntityLetterService {
-	return &entityLetterService{repo: repo, timelineRepo: timelineRepo, taskRepo: taskRepo}
+	return &entityLetterService{
+		repo:         repo,
+		timelineRepo: timelineRepo,
+		taskRepo:     taskRepo,
+		barrierRepo:  barrierRepo,
+	}
 }
 
 func (s *entityLetterService) Create(ctx context.Context, input CreateEntityLetterInput) (*models.EntityLetter, error) {
@@ -339,6 +346,11 @@ func (s *entityLetterService) PerformAction(ctx context.Context, id string, inpu
 		s.completarCaseTask(ctx, id)
 	}
 
+	// Al proyectar: si la barrera vinculada está OPEN, pasarla a "En Gestion" (fire-and-forget)
+	if input.Action == "proyectar" && s.barrierRepo != nil {
+		s.actualizarBarreraEnGestion(ctx, updated)
+	}
+
 	// Al marcar por corregir: crear nueva CaseTask para el agente de seguimiento (fire-and-forget)
 	if input.Action == "por_corregir" && s.taskRepo != nil {
 		s.crearCaseTaskCorreccion(ctx, updated, input.ReasonCorrection)
@@ -370,6 +382,32 @@ func (s *entityLetterService) completarCaseTask(ctx context.Context, entityLette
 	if err := s.taskRepo.UpdateFields(ctx, task.ID, updateFields); err != nil {
 		log.Printf("[WARN] entity_letter: no se pudo completar CaseTask %s (oficio %s): %v",
 			task.ID, entityLetterID, err)
+	}
+}
+
+// actualizarBarreraEnGestion cambia el status de barrier_v2 a "En Gestion" cuando el oficio
+// se proyecta y la barrera asociada aún está en OPEN. Los errores se loguean sin interrumpir el flujo.
+func (s *entityLetterService) actualizarBarreraEnGestion(ctx context.Context, letter *models.EntityLetter) {
+	if letter == nil || letter.BarrierID == "" {
+		return
+	}
+
+	barrier, err := s.barrierRepo.FindByID(ctx, letter.BarrierID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return
+		}
+		log.Printf("[WARN] entity_letter: no se pudo leer barrier_v2 %s (oficio %s): %v",
+			letter.BarrierID, letter.ID, err)
+		return
+	}
+	if barrier.Status != models.BarrierV2StatusOpen {
+		return
+	}
+
+	if err := s.barrierRepo.UpdateStatus(ctx, letter.BarrierID, models.BarrierV2StatusEnGestion); err != nil {
+		log.Printf("[WARN] entity_letter: no se pudo actualizar barrier_v2 %s a En Gestion (oficio %s): %v",
+			letter.BarrierID, letter.ID, err)
 	}
 }
 

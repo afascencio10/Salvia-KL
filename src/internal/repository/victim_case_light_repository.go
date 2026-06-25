@@ -11,6 +11,7 @@ import (
 type VictimCaseLightRepository interface {
 	FindByID(ctx context.Context, caseId string) (*models.VictimCaseLight, error)
 	FindByICode(ctx context.Context, iCode string) (*models.VictimCaseLight, error)
+	FindOpenByDocNumber(ctx context.Context, docNumber string) (*models.VictimCaseLight, error)
 	UpdateStatus(ctx context.Context, caseID string, status string) error
 	FindRiskLevelByICode(ctx context.Context, iCode string) (int, error)
 	UpdateRiskLevelByICode(ctx context.Context, iCode string, newLevel int) error
@@ -38,6 +39,18 @@ func (r *victimCaseLightRepository) FindByID(ctx context.Context, caseId string)
 func (r *victimCaseLightRepository) FindByICode(ctx context.Context, iCode string) (*models.VictimCaseLight, error) {
 	var vcase models.VictimCaseLight
 	err := r.db.WithContext(ctx).Where("victim_case_i_code = ?", iCode).First(&vcase).Error
+	if err != nil {
+		return nil, err
+	}
+	return &vcase, nil
+}
+
+func (r *victimCaseLightRepository) FindOpenByDocNumber(ctx context.Context, docNumber string) (*models.VictimCaseLight, error) {
+	var vcase models.VictimCaseLight
+	err := r.db.WithContext(ctx).
+		Where("victim_case_victim_doc_number = ? AND victim_case_status != ?", docNumber, "cd").
+		Order("victim_case_creation_date DESC").
+		First(&vcase).Error
 	if err != nil {
 		return nil, err
 	}

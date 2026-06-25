@@ -10,6 +10,7 @@ import (
 
 type AgentLightRepository interface {
 	FindByICode(ctx context.Context, iCode string) (*models.AgentLight, error)
+	FindByLogin(ctx context.Context, login string) (*models.AgentLight, error)
 	// FindAllByRoleAndTeam retorna los agentes activos (general_user_status = 'e')
 	// cuyo rol coincide con roleCode y cuyo equipo (general_user_team) coincide con team.
 	// Usado por el algoritmo de auto-asignación para acotar el pool de candidatos
@@ -31,9 +32,24 @@ func (r *agentLightRepository) FindByICode(ctx context.Context, iCode string) (*
 	var agent models.AgentLight
 	err := r.db.WithContext(ctx).
 		Table("security.general_user").
-		Select("security.general_user.general_user_i_code, security.general_user_profile.general_user_profile_names, security.general_user_profile.general_user_profile_last_names").
+		Select("security.general_user.general_user_i_code, security.general_user.general_user_login, security.general_user_profile.general_user_profile_names, security.general_user_profile.general_user_profile_last_names, security.general_user.general_user_team").
 		Joins("JOIN security.general_user_profile ON security.general_user.general_user_general_user_profile = security.general_user_profile.general_user_profile_id").
 		Where("security.general_user.general_user_i_code = ?", iCode).
+		Take(&agent).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return &agent, nil
+}
+
+func (r *agentLightRepository) FindByLogin(ctx context.Context, login string) (*models.AgentLight, error) {
+	var agent models.AgentLight
+	err := r.db.WithContext(ctx).
+		Table("security.general_user").
+		Select("security.general_user.general_user_i_code, security.general_user.general_user_login, security.general_user_profile.general_user_profile_names, security.general_user_profile.general_user_profile_last_names, security.general_user.general_user_team").
+		Joins("JOIN security.general_user_profile ON security.general_user.general_user_general_user_profile = security.general_user_profile.general_user_profile_id").
+		Where("LOWER(security.general_user.general_user_login) = LOWER(?)", login).
 		Take(&agent).Error
 
 	if err != nil {
