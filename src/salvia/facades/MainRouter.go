@@ -211,6 +211,12 @@ func StartRouter(router *gin.Engine) {
 		secRouter.GET("/lista-casos", ListCasesGET)
 
 		/*
+			KPIs Dashboard (embudo analítico)
+		*/
+		secRouter.GET("/kpis", KpiDashboardGET)
+		secRouter.GET("/kpis/funnel", KpiFunnelGET)
+
+		/*
 			Feminicide
 		*/
 		translatedEntity = salvia_config.Locale["sp"][salvia_daos.FeminicideEntityName]

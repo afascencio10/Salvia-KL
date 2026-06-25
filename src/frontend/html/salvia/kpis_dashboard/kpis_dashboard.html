@@ -1,0 +1,434 @@
+<link rel="stylesheet" href="/static/css/kpis_dashboard.css">
+
+<main class="salvia-main">
+<div class="kp-dashboard">
+
+    <!-- ══ HEADER ═══════════════════════════════════════════════════════ -->
+    <div class="kp-header">
+        <div class="kp-header-main">
+            <div class="kp-header-left">
+                <div class="kp-header-eyebrow">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Dashboard analítico</span>
+                    <span class="kp-header-sep">·</span>
+                    <span class="kp-header-date">${ formattedDate }</span>
+                </div>
+                <h1 class="kp-header-title">Hola, <strong>${ currentUser }</strong></h1>
+                <p class="kp-header-sub">Panel de gestión y seguimiento de casos</p>
+            </div>
+            <div class="kp-header-filters">
+                <div class="kp-hf-group">
+                    <label class="kp-hf-label"><i class="far fa-calendar-alt"></i> Desde</label>
+                    <input type="date" class="kp-hf-input" v-model="filters.from">
+                </div>
+                <div class="kp-hf-divider"></div>
+                <div class="kp-hf-group">
+                    <label class="kp-hf-label"><i class="far fa-calendar-check"></i> Hasta</label>
+                    <input type="date" class="kp-hf-input" v-model="filters.to">
+                </div>
+                <button class="kp-btn-primary kp-hf-btn" @click="loadMetrics" :disabled="loading">
+                    <i class="fas fa-sync-alt" :class="{'fa-spin': loading}"></i>
+                    ${ loading ? 'Cargando…' : 'Actualizar' }
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="error" class="kp-alert kp-alert--danger">${ error }</div>
+    <div v-if="loading && !metrics" class="kp-loading"><i class="fas fa-spinner fa-spin"></i> Cargando métricas…</div>
+
+    <template v-if="metrics">
+
+        <!-- ══ NIVEL 1: HERO danger + RIBBON 4-cell ══════════════════════ -->
+        <div class="kp-section">
+            <div class="kp-section-label">Entrada y Asignación</div>
+            <p class="kp-section-desc">Agilidad con la que el sistema capta y distribuye los casos críticos</p>
+
+            <div class="kp-hero-panel kp-hero-panel--danger">
+                <div class="kp-hero-left">
+                    <div class="kp-hero-eyebrow"><i class="fas fa-clock"></i> &nbsp; Casos pendientes</div>
+                    <div class="kp-hero-number">${ metrics.level1.pendingCases }</div>
+                    <p class="kp-hero-desc">Volumen de casos nuevos que permanecen en cola sin asignación. Representan el cuello de botella inicial del sistema.</p>
+                    <div class="kp-hero-progress">
+                        <div class="kp-hero-progress-fill" :style="{ width: pct(metrics.level1.pendingRatio) }"></div>
+                    </div>
+                    <div style="margin-top: 0.65rem; font-size: 0.75rem; opacity: 0.85;">
+                        ${ pct(metrics.level1.pendingRatio) } del total · ${ metrics.level1.assignedCases } asignados
+                    </div>
+                </div>
+                <div class="kp-hero-right">
+                    <div class="kp-hero-bar">
+                        <div class="kp-hero-bar-icon"><i class="fas fa-folder-open"></i></div>
+                        <div class="kp-hero-bar-info">
+                            <div class="kp-hero-bar-num">${ metrics.level1.totalCases }</div>
+                            <div class="kp-hero-bar-lbl">Casos totales</div>
+                        </div>
+                    </div>
+                    <div class="kp-hero-bar">
+                        <div class="kp-hero-bar-icon"><i class="fas fa-user-check"></i></div>
+                        <div class="kp-hero-bar-info">
+                            <div class="kp-hero-bar-num">${ metrics.level1.assignedCases }</div>
+                            <div class="kp-hero-bar-lbl">Asignados</div>
+                        </div>
+                    </div>
+                    <div class="kp-hero-bar">
+                        <div class="kp-hero-bar-icon"><i class="fas fa-hourglass-half"></i></div>
+                        <div class="kp-hero-bar-info">
+                            <div class="kp-hero-bar-num">${ pct(metrics.level1.pendingRatio) }</div>
+                            <div class="kp-hero-bar-lbl">Tasa de espera</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="kp-ribbon kp-ribbon--4">
+                <div class="kp-ribbon-cell" style="--kp-ribbon-color: var(--kp-warning); --kp-ribbon-bg: #fff3e6;">
+                    <div class="kp-ribbon-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="kp-ribbon-num">${ metrics.level1.criticalAlerts }</div>
+                    <div class="kp-ribbon-lbl">Prioridad máxima</div>
+                    <div class="kp-ribbon-desc">Alertas críticas del sistema (priority = 1)</div>
+                </div>
+                <div class="kp-ribbon-cell" style="--kp-ribbon-color: var(--kp-info); --kp-ribbon-bg: #e6f0ff;">
+                    <div class="kp-ribbon-icon"><i class="fas fa-bolt"></i></div>
+                    <div class="kp-ribbon-num">${ metrics.level1.immediateActions }</div>
+                    <div class="kp-ribbon-lbl">Acción inmediata</div>
+                    <div class="kp-ribbon-desc">Casos con crisis emocional urgente</div>
+                </div>
+                <div class="kp-ribbon-cell" style="--kp-ribbon-color: var(--kp-danger); --kp-ribbon-bg: #fde8ea;">
+                    <div class="kp-ribbon-icon"><i class="fas fa-fire"></i></div>
+                    <div class="kp-ribbon-num">${ metrics.level1.severityIngress.h || 0 }</div>
+                    <div class="kp-ribbon-lbl">Riesgo crítico</div>
+                    <div class="kp-ribbon-desc">Casos con severidad alta al ingreso</div>
+                </div>
+                <div class="kp-ribbon-cell" style="--kp-ribbon-color: var(--kp-success); --kp-ribbon-bg: #e8f5e9;">
+                    <div class="kp-ribbon-icon"><i class="fas fa-chart-line"></i></div>
+                    <div class="kp-ribbon-num">${ metrics.level1.avgRiskScore.toFixed(0) }%</div>
+                    <div class="kp-ribbon-lbl">Puntaje riesgo</div>
+                    <div class="kp-ribbon-desc">Promedio general de peligro</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ NIVEL 2: HERO PANEL gradient ══════════════════════════════ -->
+        <div class="kp-section">
+            <div class="kp-section-label">Contacto y Gestión Operativa</div>
+            <p class="kp-section-desc">Eficacia en el contacto y seguimiento operativo de los casos</p>
+
+            <div class="kp-hero-panel">
+                <div class="kp-hero-left">
+                    <div class="kp-hero-eyebrow"><i class="fas fa-phone-volume"></i> &nbsp; Efectividad del contacto</div>
+                    <div class="kp-hero-number">${ pct(metrics.level2.effectivenessRatio) }</div>
+                    <p class="kp-hero-desc">Porcentaje de seguimientos donde se logró contacto efectivo respecto al total registrado en el periodo.</p>
+                    <div class="kp-hero-progress">
+                        <div class="kp-hero-progress-fill" :style="{ width: pct(metrics.level2.effectivenessRatio) }"></div>
+                    </div>
+                </div>
+                <div class="kp-hero-right">
+                    <div class="kp-hero-bar">
+                        <div class="kp-hero-bar-icon"><i class="fas fa-list-ol"></i></div>
+                        <div class="kp-hero-bar-info">
+                            <div class="kp-hero-bar-num">${ metrics.level2.totalFollowUpEntries }</div>
+                            <div class="kp-hero-bar-lbl">Seguimientos totales</div>
+                        </div>
+                    </div>
+                    <div class="kp-hero-bar">
+                        <div class="kp-hero-bar-icon"><i class="fas fa-check-circle"></i></div>
+                        <div class="kp-hero-bar-info">
+                            <div class="kp-hero-bar-num">${ metrics.level2.effectiveEntries }</div>
+                            <div class="kp-hero-bar-lbl">Contactos exitosos</div>
+                        </div>
+                    </div>
+                    <div class="kp-hero-bar">
+                        <div class="kp-hero-bar-icon"><i class="fas fa-redo"></i></div>
+                        <div class="kp-hero-bar-info">
+                            <div class="kp-hero-bar-num">${ metrics.level2.avgIterationsPerCase.toFixed(1) }</div>
+                            <div class="kp-hero-bar-lbl">Iteraciones por caso</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ NIVEL 3: FUNNEL embudo + sector list ══════════════════════ -->
+        <div class="kp-section">
+            <div class="kp-section-label">Conversión y Ruta Institucional</div>
+            <p class="kp-section-desc">Embudo de conversión: total → asisten → reciben atención efectiva</p>
+
+            <div class="kp-grid kp-grid-1-2">
+                <div class="kp-funnel-card">
+                    <div class="kp-funnel-title">Embudo de Conversión</div>
+                    <div class="kp-funnel-sub">Cada paso muestra la pérdida en la ruta institucional</div>
+                    <div class="kp-funnel-steps">
+                        <div class="kp-funnel-step kp-funnel-step--1">
+                            <span class="kp-funnel-step-label"><i class="fas fa-users"></i> &nbsp; Casos referenciados</span>
+                            <span class="kp-funnel-step-value">${ metrics.level3.attendedInstitution + metrics.level3.notAttendedInstitution }<span class="kp-funnel-step-pct">100%</span></span>
+                        </div>
+                        <div class="kp-funnel-step kp-funnel-step--2">
+                            <span class="kp-funnel-step-label"><i class="fas fa-building"></i> &nbsp; Asistieron a entidad</span>
+                            <span class="kp-funnel-step-value">${ metrics.level3.attendedInstitution }<span class="kp-funnel-step-pct">${ pct(metrics.level3.institutionalAttendanceRate) }</span></span>
+                        </div>
+                        <div class="kp-funnel-step kp-funnel-step--3">
+                            <span class="kp-funnel-step-label"><i class="fas fa-hands-helping"></i> &nbsp; Recibieron atención</span>
+                            <span class="kp-funnel-step-value">${ metrics.level3.receivedAttention }<span class="kp-funnel-step-pct">${ pct(metrics.level3.effectiveAttentionRate) }</span></span>
+                        </div>
+                        <div class="kp-funnel-step kp-funnel-step--4">
+                            <span class="kp-funnel-step-label"><i class="fas fa-times-circle"></i> &nbsp; No acudieron</span>
+                            <span class="kp-funnel-step-value">${ metrics.level3.notAttendedInstitution }</span>
+                        </div>
+                    </div>
+                    <div class="kp-funnel-legend">
+                        <div class="kp-funnel-legend-item">
+                            <div class="kp-fll-num">${ pct(metrics.level3.institutionalAttendanceRate) }</div>
+                            <div class="kp-fll-lbl">Tasa asistencia</div>
+                        </div>
+                        <div class="kp-funnel-legend-item">
+                            <div class="kp-fll-num">${ pct(metrics.level3.effectiveAttentionRate) }</div>
+                            <div class="kp-fll-lbl">Atención efectiva</div>
+                        </div>
+                        <div class="kp-funnel-legend-item">
+                            <div class="kp-fll-num">${ metrics.level3.receivedAttention }</div>
+                            <div class="kp-fll-lbl">Casos atendidos</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="kp-card" v-if="sectorList.length">
+                    <div class="kp-card-header">
+                        <div class="kp-card-title">Atención por sector</div>
+                        <span class="kp-badge kp-badge--primary">${ sectorList.length } sectores</span>
+                    </div>
+                    <p style="font-size: 0.78rem; color: var(--kp-light-muted); margin: 0 0 1rem;">Distribución de casos atendidos por sector institucional</p>
+                    <div v-for="s in sectorList" :key="s.key" class="kp-bar-row">
+                        <span class="kp-bar-label">${ s.label }</span>
+                        <div class="kp-bar-track">
+                            <div class="kp-bar-fill" :style="{ width: s.pct + '%' }"></div>
+                        </div>
+                        <span class="kp-bar-count">${ s.count }</span>
+                    </div>
+                </div>
+                <div v-else class="kp-card">
+                    <div class="kp-card-title">Atención por sector</div>
+                    <div class="kp-empty"><i class="fas fa-info-circle"></i> Sin datos de atención efectiva en el periodo</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ NIVEL 4: BARCHART + NEEDS STRIP + RANKING ═════════════════ -->
+        <div class="kp-section">
+            <div class="kp-section-label">Fricción y Bloqueos</div>
+            <p class="kp-section-desc">Barreras institucionales por sector y necesidades críticas detectadas</p>
+
+            <div class="kp-grid kp-grid-2">
+                <div class="kp-barchart-card">
+                    <div class="kp-barchart-head">
+                        <h3>Barreras por sector</h3>
+                        <span class="kp-barchart-total">${ metrics.level4.totalBarriers } registros totales</span>
+                    </div>
+                    <div class="kp-barchart" v-if="barriersSectorList.length">
+                        <div class="kp-barchart-col" v-for="(b, i) in barriersSectorList" :key="b.key">
+                            <div class="kp-barchart-bar"
+                                 :style="{ height: b.heightPct + '%', '--kp-bar-color': barColor(i), '--kp-bar-color-dark': barColorDark(i) }">
+                                <span class="kp-barchart-val">${ b.count }</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="kp-empty" v-else><i class="fas fa-info-circle"></i> Sin barreras registradas</div>
+                    <div class="kp-barchart-labels" v-if="barriersSectorList.length">
+                        <div class="kp-barchart-lbl" v-for="b in barriersSectorList" :key="b.key">${ b.label }</div>
+                    </div>
+                </div>
+
+                <div class="kp-card">
+                    <div class="kp-card-header">
+                        <div class="kp-card-title">Top barreras detectadas</div>
+                        <span class="kp-badge kp-badge--danger">${ (metrics.level4.topBarriers || []).length } únicas</span>
+                    </div>
+                    <div class="kp-rank-list" v-if="metrics.level4.topBarriers && metrics.level4.topBarriers.length">
+                        <div class="kp-rank-row" v-for="(b, i) in metrics.level4.topBarriers.slice(0, 6)" :key="i">
+                            <div class="kp-rank-pos">${ i + 1 }</div>
+                            <div class="kp-rank-info">
+                                <div class="kp-rank-name">${ b.name }</div>
+                                <div class="kp-rank-sub">${ b.sector }</div>
+                            </div>
+                            <div class="kp-rank-count">${ b.count }</div>
+                        </div>
+                    </div>
+                    <div class="kp-empty" v-else><i class="fas fa-info-circle"></i> Sin barreras registradas</div>
+                </div>
+            </div>
+
+            <div class="kp-needs-strip">
+                <div class="kp-need-chip" style="--kp-chip-color: var(--kp-warning); --kp-chip-bg-from: #fff8eb; --kp-chip-bg-to: #ffeccc;">
+                    <div class="kp-need-chip-icon"><i class="fas fa-bus"></i></div>
+                    <div class="kp-need-chip-info">
+                        <div class="kp-need-chip-num">${ (metrics.level4.criticalNeedsCount && metrics.level4.criticalNeedsCount.transporte) || 0 }</div>
+                        <div class="kp-need-chip-lbl">Transporte</div>
+                        <div class="kp-need-chip-desc">Víctimas con dificultad de movilidad</div>
+                    </div>
+                </div>
+                <div class="kp-need-chip" style="--kp-chip-color: var(--kp-info); --kp-chip-bg-from: #eef4ff; --kp-chip-bg-to: #dfe9ff;">
+                    <div class="kp-need-chip-icon"><i class="fas fa-utensils"></i></div>
+                    <div class="kp-need-chip-info">
+                        <div class="kp-need-chip-num">${ (metrics.level4.criticalNeedsCount && metrics.level4.criticalNeedsCount.alimentacion) || 0 }</div>
+                        <div class="kp-need-chip-lbl">Alimentación</div>
+                        <div class="kp-need-chip-desc">Acceso limitado a alimentos</div>
+                    </div>
+                </div>
+                <div class="kp-need-chip" style="--kp-chip-color: var(--kp-primary); --kp-chip-bg-from: #f3eefb; --kp-chip-bg-to: #e6daf5;">
+                    <div class="kp-need-chip-icon"><i class="fas fa-hand-holding-usd"></i></div>
+                    <div class="kp-need-chip-info">
+                        <div class="kp-need-chip-num">${ (metrics.level4.criticalNeedsCount && metrics.level4.criticalNeedsCount.subsidio_transporte) || 0 }</div>
+                        <div class="kp-need-chip-lbl">Subsidio transporte</div>
+                        <div class="kp-need-chip-desc">Apoyo económico requerido</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ NIVEL 5: GAUGE + RIBBON delta riesgo ══════════════════════ -->
+        <div class="kp-section">
+            <div class="kp-section-label">Mitigación de Riesgo y Resolución</div>
+            <p class="kp-section-desc">Tasa de cierre efectivo y evolución del puntaje de riesgo entre evaluaciones</p>
+
+            <div class="kp-grid kp-grid-2-1">
+                <div class="kp-gauge-card">
+                    <div class="kp-gauge-title">Cierre Efectivo de Casos</div>
+                    <svg class="kp-gauge-svg" viewBox="0 0 200 110">
+                        <path class="kp-gauge-track" d="M 20 100 A 80 80 0 0 1 180 100"/>
+                        <path class="kp-gauge-fill"
+                              d="M 20 100 A 80 80 0 0 1 180 100"
+                              stroke-dasharray="251.3"
+                              :stroke-dashoffset="251.3 - 251.3 * (metrics.level5.effectiveClosureRate || 0)"/>
+                    </svg>
+                    <div class="kp-gauge-value">${ pct(metrics.level5.effectiveClosureRate) }</div>
+                    <div class="kp-gauge-label">de los casos cerrados o completados</div>
+                    <div class="kp-gauge-foot">
+                        <strong>${ (metrics.level5.casesByStatus.c || 0) + (metrics.level5.casesByStatus.cd || 0) }</strong> casos resueltos sobre <strong>${ metrics.level1.totalCases }</strong> totales
+                    </div>
+                </div>
+
+                <div class="kp-card">
+                    <div class="kp-card-header"><div class="kp-card-title">Resumen de cierre</div></div>
+                    <div style="display: flex; flex-direction: column; gap: 0.85rem; margin-top: 0.5rem;">
+                        <div style="display: flex; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid var(--kp-border);">
+                            <span style="font-size: 0.78rem; color: var(--kp-muted);">Completados</span>
+                            <strong style="font-size: 0.95rem; color: var(--kp-success);">${ metrics.level5.casesByStatus.c || 0 }</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid var(--kp-border);">
+                            <span style="font-size: 0.78rem; color: var(--kp-muted);">Cerrados</span>
+                            <strong style="font-size: 0.95rem; color: var(--kp-primary);">${ metrics.level5.casesByStatus.cd || 0 }</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid var(--kp-border);">
+                            <span style="font-size: 0.78rem; color: var(--kp-muted);">Vencidos</span>
+                            <strong style="font-size: 0.95rem; color: var(--kp-danger);">${ metrics.level5.casesByStatus.ex || 0 }</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 0.6rem 0;">
+                            <span style="font-size: 0.78rem; color: var(--kp-muted);">Inválidos</span>
+                            <strong style="font-size: 0.95rem; color: var(--kp-muted);">${ metrics.level5.casesByStatus.iv || 0 }</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="kp-ribbon">
+                <div class="kp-ribbon-cell" style="--kp-ribbon-color: var(--kp-success); --kp-ribbon-bg: #e8f5e9;">
+                    <div class="kp-ribbon-icon"><i class="fas fa-arrow-trend-down"></i></div>
+                    <div class="kp-ribbon-num">${ metrics.level5.riskDelta.casesWithImprovement }</div>
+                    <div class="kp-ribbon-lbl">Riesgo mejorado</div>
+                    <div class="kp-ribbon-desc">Puntaje disminuyó entre evaluaciones</div>
+                </div>
+                <div class="kp-ribbon-cell" style="--kp-ribbon-color: var(--kp-light-muted); --kp-ribbon-bg: #f1f3f5;">
+                    <div class="kp-ribbon-icon"><i class="fas fa-equals"></i></div>
+                    <div class="kp-ribbon-num">${ metrics.level5.riskDelta.casesUnchanged }</div>
+                    <div class="kp-ribbon-lbl">Sin cambio</div>
+                    <div class="kp-ribbon-desc">Puntaje estable en el periodo</div>
+                </div>
+                <div class="kp-ribbon-cell" style="--kp-ribbon-color: var(--kp-danger); --kp-ribbon-bg: #fde8ea;">
+                    <div class="kp-ribbon-icon"><i class="fas fa-arrow-trend-up"></i></div>
+                    <div class="kp-ribbon-num">${ metrics.level5.riskDelta.casesWithWorsening }</div>
+                    <div class="kp-ribbon-lbl">Riesgo empeorado</div>
+                    <div class="kp-ribbon-desc">Puntaje aumentó en la reevaluación</div>
+                </div>
+            </div>
+        </div>
+
+    </template>
+</div>
+</main>
+
+{{ template "standard_scripts.html" . }}
+{{ template "overlay.html" . }}
+
+<script>
+var home = Vue.createApp({
+    delimiters: ['${', '}'],
+    data() {
+        return {
+            currentUser: '{{ .currentUser }}',
+            metrics: null,
+            loading: false,
+            error: '',
+            filters: { from: '', to: '' },
+            formattedDate: new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+        };
+    },
+    computed: {
+        sectorList() {
+            if (!this.metrics) return [];
+            const data = this.metrics.level3.attentionBySector || {};
+            const total = Object.values(data).reduce((a, b) => a + b, 0) || 1;
+            return Object.keys(data).map(k => ({
+                key: k,
+                label: this.sectorLabel(k),
+                count: data[k],
+                pct: ((data[k] / total) * 100).toFixed(0)
+            })).sort((a, b) => b.count - a.count);
+        },
+        barriersSectorList() {
+            if (!this.metrics) return [];
+            const data = this.metrics.level4.barriersBySector || {};
+            const entries = Object.keys(data).map(k => ({ key: k, label: k, count: data[k] }))
+                .sort((a, b) => b.count - a.count).slice(0, 6);
+            const max = Math.max(1, ...entries.map(e => e.count));
+            return entries.map(e => ({ ...e, heightPct: (e.count / max * 100).toFixed(1) }));
+        }
+    },
+    mounted() {
+        document.body.style.display = 'block';
+        this.loadMetrics();
+    },
+    methods: {
+        async loadMetrics() {
+            this.loading = true;
+            this.error = '';
+            try {
+                const qs = new URLSearchParams();
+                if (this.filters.from) qs.set('from', this.filters.from);
+                if (this.filters.to) qs.set('to', this.filters.to);
+                const r = await fetch('/salvia/kpis/funnel?' + qs.toString(), { credentials: 'same-origin' });
+                if (!r.ok) throw new Error('Error HTTP ' + r.status);
+                this.metrics = await r.json();
+            } catch (e) {
+                this.error = e.message || 'Error cargando métricas';
+            } finally {
+                this.loading = false;
+            }
+        },
+        pct(v) { return ((v || 0) * 100).toFixed(0) + '%'; },
+        barColor(i) {
+            const palette = ['#5106A7', '#7c3aed', '#a78bfa', '#f4a261', '#e63946', '#2a9d8f'];
+            return palette[i % palette.length];
+        },
+        barColorDark(i) {
+            const palette = ['#3d0480', '#5b21b6', '#7c3aed', '#c77700', '#ad1f2a', '#1d6e64'];
+            return palette[i % palette.length];
+        },
+        sectorLabel(k) {
+            const m = { '1': 'Salud', '2': 'Justicia', '3': 'Protección', '4': 'Educación', '5': 'Trabajo', '6': 'Vivienda', '7': 'Otro', sin_sector: 'Sin sector' };
+            return m[k] || k;
+        },
+        logout() { window.location.href = '/security/logout'; }
+    }
+});
+home.mount('#app');
+</script>
