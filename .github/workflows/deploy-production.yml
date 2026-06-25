@@ -1,13 +1,13 @@
-name: Deploy to Windows Server (Testing)
+name: Deploy to Windows Server (Production)
 
 on:
   push:
     branches:
-      - testing
+      - main
 
 jobs:
   build-and-deploy:
-    runs-on: [self-hosted, windows, qa]
+    runs-on: [self-hosted, windows, prd]
     timeout-minutes: 20
     steps:
       - name: Checkout repository
@@ -24,10 +24,10 @@ jobs:
           
           # Escribir la configuración de base de datos desde los secretos de GitHub
           $dbConfig = @"
-          ${{ secrets.DB_CONFIG_QA }}
+          ${{ secrets.DB_CONFIG_PRD }}
           "@
           $dbConfig | Out-File -FilePath "src/config/db_config.json" -Encoding utf8 -Force
-          Write-Host "db_config.json generado desde GitHub Secrets para DEV/QA."
+          Write-Host "db_config.json generado desde GitHub Secrets para Producción."
 
       - name: Build
         shell: powershell
@@ -84,5 +84,5 @@ jobs:
           # Comprobar el estado del servicio
           Get-Service -Name SalviaApp
           
-          Write-Host "Deploy DEV/QA completado exitosamente."
+          Write-Host "Deploy Producción completado exitosamente."
           exit 0
