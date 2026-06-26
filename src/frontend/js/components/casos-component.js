@@ -662,6 +662,19 @@
             return dd + '/' + mm + '/' + yyyy;
         },
 
+        // Igual que formatDate pero leyendo los componentes en UTC, para mostrar la
+        // fecha de registro tal como se guardó sin aplicar el desfase de zona horaria
+        // local (UTC-5 en Colombia restaría un día cuando la hora es medianoche UTC).
+        formatDateUTC: function(dateStr) {
+            if (!dateStr) return '—';
+            var d = new Date(dateStr);
+            if (isNaN(d.getTime())) return '—';
+            var dd   = String(d.getUTCDate()).padStart(2, '0');
+            var mm   = String(d.getUTCMonth() + 1).padStart(2, '0');
+            var yyyy = d.getUTCFullYear();
+            return dd + '/' + mm + '/' + yyyy;
+        },
+
         riskBadgeClass: function(riskStatus) {
             var map = {
                 'extremo':     'cc-risk-badge extremo',

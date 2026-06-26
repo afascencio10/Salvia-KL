@@ -41,6 +41,12 @@
                 <span>Mis Casos</span>
             </a>
             {{ end }}
+            {{ if or (eq .currentRole "sv") (eq .currentRole "ad") }}
+            <a href="/salvia/kpis" class="salvia-sidebar__nav-link">
+                <i class="fas fa-chart-pie" aria-hidden="true"></i>
+                <span>Dashboard KPIs</span>
+            </a>
+            {{ end }}
             <!--<a href="/salvia/notificaciones" class="salvia-sidebar__nav-link">
                 <i class="fas fa-bell" aria-hidden="true"></i>
                 <span>Notificaciones Salvia</span>

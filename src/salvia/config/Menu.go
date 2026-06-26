@@ -258,6 +258,9 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"no": true,
 		"fo": true,
 	},
+
+	// ── Dashboard KPIs (Salvia_KPIs_v1) ──────────────────────────────────────
+	"get_kpis": {"sv": true, "ad": true},
 }
 
 // Menús del sistema. Se filtra por el tipo de menú (ie/ default) y luego por la sección principal repesentada por el locale.

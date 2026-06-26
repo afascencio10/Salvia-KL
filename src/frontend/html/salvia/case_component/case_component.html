@@ -271,7 +271,7 @@
 
                                 <!-- registration_date -->
                                 <td v-else-if="col.key === 'registration_date'" class="cc-cell">
-                                    ${ formatDate(caseObj.creationDate) }
+                                    ${ formatDateUTC(caseObj.creationDate) }
                                 </td>
 
                                 <!-- risk_level -->
