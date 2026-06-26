@@ -186,15 +186,19 @@ func main() {
     barrierV2Svc           := service.NewBarrierV2Service(barrierV2Repo)
     barrierV2GinCtrl       := salvia_ctrl.NewBarrierV2GinController(barrierV2Svc)
 
+    entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo, caseTaskRepo, barrierV2Repo)
+    entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
+
     caseTaskSvc             := service.NewCaseTaskService(service.CaseTaskServiceDeps{
         CaseTaskRepo:     caseTaskRepo,
         BarrierV2Repo:    barrierV2Repo,
         CaseTimelineRepo: caseTimelineRepo,
+        EntityLetterSvc:  entityLetterSvc,
+        EntityLetterRepo: entityLetterRepo,
     })
     caseTaskCtrl            := salvia_ctrl.NewCaseTaskController(caseTaskSvc)
 
-    entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo, caseTaskRepo, barrierV2Repo)
-    entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
+    entityBranchAPICtrl    := salvia_ctrl.NewEntityBranchAPIController(gormDB)
     casesListCtrl          := salvia_ctrl.NewCasesListController(casesListSvc)
     casesReassignCtrl      := salvia_ctrl.NewCasesReassignController(casesReassignSvc)
     agentsSearchCtrl       := salvia_ctrl.NewAgentsSearchController(agentsSearchSvc)
@@ -225,6 +229,7 @@ func main() {
     caseInfoCtrl.RegisterRoutes(api)
     reportCtrl.RegisterRoutes(api)
     entityLetterCtrl.RegisterRoutes(api)
+    entityBranchAPICtrl.RegisterRoutes(api)
     barrierV2GinCtrl.RegisterRoutes(api)
     caseTaskCtrl.RegisterRoutes(api)
     locationCtrl.RegisterRoutes(api)

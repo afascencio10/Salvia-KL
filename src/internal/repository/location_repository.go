@@ -77,7 +77,7 @@ func (r *locationRepository) GetCities(ctx context.Context, departmentID *uint64
 func (r *locationRepository) GetTownsByCityID(ctx context.Context, cityID uint64) ([]models.LocationOption, error) {
 	var rows []models.TownLight
 	if err := r.db.WithContext(ctx).
-		Select("town_id, town_name").
+		Select("town_id, town_name, town_code").
 		Where("city_id = ?", cityID).
 		Order("town_name ASC").
 		Find(&rows).Error; err != nil {
@@ -88,7 +88,7 @@ func (r *locationRepository) GetTownsByCityID(ctx context.Context, cityID uint64
 	for i, t := range rows {
 		out[i] = models.LocationOption{
 			Label: t.TownName,
-			Value: fmt.Sprintf("%d", t.ID),
+			Value: t.TownCode,
 		}
 	}
 	return out, nil

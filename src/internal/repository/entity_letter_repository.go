@@ -143,17 +143,26 @@ SELECT
     el.reason_correction,
     el.created_at,
     el.updated_at,
+    el.entity_branch_id,
+    el.department_id,
+    el.city_id,
+    el.town_id,
+    el.official_dependency,
+    el.subject,
     COALESCE(b.sector, '')                         AS barrier_sector,
     COALESCE(b.description, '')                    AS barrier_description,
     COALESCE(vc.victim_case_victim_names, '')       AS victim_name,
     COALESCE(vc.victim_case_victim_last_names, '')  AS victim_last_name,
     COALESCE(vc.victim_case_victim_doc_number, '')  AS victim_doc_number,
-    COALESCE(vc.victim_case_i_code, '')             AS case_code
+    COALESCE(vc.victim_case_i_code, '')             AS case_code,
+    COALESCE(t.town_name, '')                       AS town_name
 FROM salvia.entity_letter el
 LEFT JOIN salvia.barrier_v2 b
     ON b.id::text = el.barrier_id
 LEFT JOIN salvia.victim_case vc
     ON vc.victim_case_i_code = el.case_id
+LEFT JOIN security.town t
+    ON t.town_id::varchar = el.town_id
 WHERE el.deleted_at IS NULL
 `
 

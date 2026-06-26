@@ -18,6 +18,8 @@ La pantalla carga todos los oficios asignados al usuario según su rol, los mues
 | `src/frontend/html/salvia/notifications/modal_radicar.html` | Modal para estado `para_radicar` |
 | `src/frontend/html/salvia/notifications/modal_registrar_respuesta.html` | Modal para estado `radicado` |
 | `src/frontend/js/components/notifications.js` | Lógica Vue: carga, filtros, paginación, modales y acciones |
+| `src/salvia/controller/entity_branch_api_controller.go` | `GET /api/v1/entity-branches` — devuelve `{id, icode, name}` por `town_code` |
+| `src/salvia/controller/entity_letter_controller.go` | `PUT /api/v1/entity-letters/:id/action` — procesa las acciones del modal |
 
 ---
 
@@ -73,6 +75,9 @@ Pantalla: Notificaciones
 │   │       ├── Tag de estado del oficio
 │   │       ├── [v-if: canManage] Botón "Gestionar"
 │   │       ├── Tag de prioridad del oficio (normal | alta)
+│   │       ├── [v-if: entidad] Nombre de entidad · Municipio
+│   │       ├── [v-if: officialDependency] Funcionario
+│   │       ├── [v-if: subject] Asunto
 │   │       ├── [v-if: urlKofax] Link al documento en Kofax
 │   │       ├── Número radicado · Fecha de creación del oficio
 │   │       └── [v-if: correoEntidad] Correo de la entidad
@@ -93,8 +98,17 @@ Modales (renderizados siempre, visibles según activeModal)
 ├── Modal "Proyectar oficio" [estado: por_proyectar | rol: op]
 │   ├── Título del oficio (solo lectura)
 │   ├── Hint de instrucciones
-│   ├── Select "Nivel" (municipal | departamental | nacional) *requerido
-│   ├── Input "Entidad" *requerido
+│   ├── Dropdown "Departamento" *requerido
+│   ├── Dropdown "Ciudad" *requerido  :disabled si !departamento
+│   ├── Dropdown "Municipio" *requerido  :disabled si !ciudad
+│   ├── Dropdown "Entidad" *requerido  :disabled si !municipio
+│   │   ├── Opciones cargadas de GET /api/v1/entity-branches?town_code={townId}
+│   │   │   value = entity_branch_id (integer PK, FK a salvia.entity_branch)
+│   │   ├── Opción fija "Otra entidad" (value="otra")
+│   │   └── [v-if entidad == 'otra']
+│   │       Input texto "Nombre de la entidad" *requerido
+│   ├── Input "Funcionario" *requerido
+│   ├── Input "Asunto" *requerido
 │   ├── Input "Ruta del oficio en el Kofax" *requerido
 │   ├── Select "Prioridad del oficio" (normal | alta) *requerido
 │   └── Footer: [Cancelar] [Registrar]

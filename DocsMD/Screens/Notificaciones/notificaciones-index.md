@@ -19,6 +19,9 @@
 | E05 | Cuando presiona "Gestionar" | User Interaction | [📄 flow-E05-cuando-presiona-gestionar.md](./Flujos/flow-E05-cuando-presiona-gestionar.md) |
 | E06 | Cuando cancela el modal | User Interaction | — |
 | E07 | Cuando confirma acción en modal | User Interaction | [📄 flow-E07-cuando-confirma-accion-modal.md](./Flujos/flow-E07-cuando-confirma-accion-modal.md) |
+| E08 | Cuando selecciona departamento en modal proyectar | User Interaction | — |
+| E09 | Cuando selecciona ciudad en modal proyectar | User Interaction | — |
+| E10 | Cuando selecciona municipio en modal proyectar | User Interaction | — |
 
 ---
 
@@ -74,10 +77,31 @@
 
 **Nombre del evento:** Cuando confirma acción en modal
 **Tipo:** User Interaction
-**Descripción:** El usuario presiona el botón de acción principal del modal. Valida los campos requeridos según el tipo de acción, construye el payload y llama a `PATCH /api/v1/entity-letters/:id/action`. Si el API responde 200, actualiza el estado del oficio en la lista sin recargar la pantalla y cierra el modal.
+**Descripción:** El usuario presiona el botón de acción principal del modal. Valida los campos requeridos según el tipo de acción, construye el payload y llama a `PUT /api/v1/entity-letters/:id/action`. Si el API responde 200, actualiza el estado del oficio en la lista sin recargar la pantalla y cierra el modal.
 **Requerido:** Sí
 
 📄 [Ver flujo → flow-E07-cuando-confirma-accion-modal.md](./Flujos/flow-E07-cuando-confirma-accion-modal.md)
+
+---
+
+**Nombre del evento:** Cuando selecciona departamento en modal proyectar
+**Tipo:** User Interaction
+**Descripción:** Filtra `allCities` en memoria por `departmentId`. Resetea ciudad, municipio, entidad y sus listas de opciones. Sin fetch.
+**Requerido:** Sí
+
+---
+
+**Nombre del evento:** Cuando selecciona ciudad en modal proyectar
+**Tipo:** User Interaction
+**Descripción:** Fetchea municipios del API (`GET /api/v1/locations/towns?city_id={cityId}`). Resetea municipio, entidad y sus listas.
+**Requerido:** Sí
+
+---
+
+**Nombre del evento:** Cuando selecciona municipio en modal proyectar
+**Tipo:** User Interaction
+**Descripción:** Fetchea sedes del municipio (`GET /api/v1/entity-branches?town_code={townId}`). La respuesta incluye `id` (PK integer, FK a `salvia.entity_branch`), `icode` y `name`. El `<option>` usa `id` como valor. Resetea entidad. La opción "Otra entidad" (`value="otra"`) siempre está presente al final. Vue reactivamente muestra/oculta el input de nombre libre según la selección.
+**Requerido:** Sí
 
 ---
 
