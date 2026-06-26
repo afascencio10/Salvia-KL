@@ -26,8 +26,14 @@ jobs:
           $dbConfig = @"
           ${{ secrets.DB_CONFIG_QA }}
           "@
-          $dbConfig | Out-File -FilePath "src/config/db_config.json" -Encoding utf8 -Force
+          
+          # Escribir el archivo usando .NET para asegurar codificación UTF-8 pura (sin BOM)
+          [System.IO.File]::WriteAllText("src/config/db_config.json", $dbConfig)
+          
+          # Validar y mostrar el host en los logs (sin exponer credenciales sensibles)
+          $parsedConfig = Get-Content "src/config/db_config.json" -Raw | ConvertFrom-Json
           Write-Host "db_config.json generado desde GitHub Secrets para DEV/QA."
+          Write-Host "Host de Base de Datos configurado: $($parsedConfig.hostname)"
 
       - name: Build
         shell: powershell
