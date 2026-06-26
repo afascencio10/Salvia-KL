@@ -324,21 +324,21 @@
             </div>
             <div class="cd-sstat cd-sstat-green">
               <div class="cd-lbl">Resueltas</div>
-              <div class="cd-val">${ barriers.filter(b => b.status !== 'OPEN').length }</div>
+              <div class="cd-val">${ barriers.filter(b => barreraEsResuelta(b.status)).length }</div>
             </div>
           </div>
           <div v-if="barriers.length === 0" class="cd-empty">
             <div class="cd-empty-icon">✓</div>
             <p>No se han identificado barreras en este caso</p>
           </div>
-          <div v-for="b in barriers" :key="b.id" class="cd-seg-item" :class="b.status === 'OPEN' ? 'pending' : 'done'">
-            <div :class="['cd-seg-indicator', b.status === 'OPEN' ? 'cd-si-pending' : 'cd-si-done']">
-              ${ b.status === 'OPEN' ? '⚠' : '✓' }
+          <div v-for="b in barriers" :key="b.id" class="cd-seg-item" :class="barreraRowClass(b.status)">
+            <div :class="['cd-seg-indicator', barreraIndicatorClass(b.status)]">
+              ${ barreraIndicatorIcon(b.status) }
             </div>
             <div class="cd-seg-info">
               <div class="cd-seg-title">
                 <p>${ b.sector || 'Sin sector' }</p>
-                <span :class="['cd-seg-badge', b.status === 'OPEN' ? 'cd-sb-pending' : 'cd-sb-done']">
+                <span :class="['cd-seg-badge', barreraBadgeClass(b.status)]">
                   ${ labelBarreraStatus(b.status) }
                 </span>
               </div>
@@ -1104,6 +1104,43 @@ var home = Vue.createApp({
     badgeEntryStatus(s) {
       var m = { 'p':'cd-bd-proceso', 'd':'cd-bd-completado', 'u':'cd-bd-articulando', 'x':'cd-bd-resuelto' };
       return m[s] || 'cd-bd-proceso';
+    },
+    abelBarreraStatus(s) {
+      var m = {
+        'OPEN': 'Abierta',
+        'En Gestion': 'En gestión',
+        'Articulada': 'Articulada',
+        'MANAGED': 'Gestionada',
+        'CLOSED': 'Cerrada',
+        'FINISH': 'Cerrada',
+        'CLOSE': 'Cerrada',
+        'RESOLVED': 'Resuelta'
+      };
+      return m[s] || s || '—';
+    },
+    barreraRowClass(s) {
+      if (s === 'OPEN') return 'pending';
+      if (s === 'En Gestion') return 'gestion';
+      return 'done';
+    },
+    barreraIndicatorClass(s) {
+      if (s === 'OPEN') return 'cd-si-pending';
+      if (s === 'En Gestion') return 'cd-si-gestion';
+      return 'cd-si-done';
+    },
+    barreraBadgeClass(s) {
+      if (s === 'OPEN') return 'cd-sb-pending';
+      if (s === 'En Gestion') return 'cd-sb-gestion';
+      return 'cd-sb-done';
+    },
+    barreraIndicatorIcon(s) {
+      if (s === 'OPEN') return '⚠';
+      if (s === 'En Gestion') return '◷';
+      return '✓';
+    },
+    barreraEsResuelta(s) {
+      return s === 'Articulada' || s === 'MANAGED' || s === 'CLOSED' ||
+        s === 'FINISH' || s === 'CLOSE' || s === 'RESOLVED';
     },
     abrirModalNuevoSeg() {
       if (this.followUpsV2.length >= 8) return;
