@@ -23,9 +23,9 @@ jobs:
           }
           
           # Escribir la configuración de base de datos desde los secretos de GitHub
-          $dbConfig = @"
+          $dbConfig = @'
           ${{ secrets.DB_CONFIG_QA }}
-          "@
+          '@
           
           # Escribir el archivo usando .NET para asegurar codificación UTF-8 pura (sin BOM)
           [System.IO.File]::WriteAllText("src/config/db_config.json", $dbConfig)
