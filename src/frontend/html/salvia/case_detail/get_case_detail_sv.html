@@ -322,6 +322,10 @@
               <div class="cd-lbl" style="color:#dc2626!important">Abiertas</div>
               <div class="cd-val" style="color:#dc2626!important">${ barriers.filter(b => b.status === 'OPEN').length }</div>
             </div>
+            <div class="cd-sstat cd-sstat-gestion">
+              <div class="cd-lbl">En gestión</div>
+              <div class="cd-val">${ barrerasEnGestionCount() }</div>
+            </div>
             <div class="cd-sstat cd-sstat-green">
               <div class="cd-lbl">Resueltas</div>
               <div class="cd-val">${ barriers.filter(b => barreraEsResuelta(b.status)).length }</div>
@@ -1141,6 +1145,9 @@ var home = Vue.createApp({
     barreraEsResuelta(s) {
       return s === 'Articulada' || s === 'MANAGED' || s === 'CLOSED' ||
         s === 'FINISH' || s === 'CLOSE' || s === 'RESOLVED';
+    },
+    barrerasEnGestionCount() {
+      return this.barriers.filter(function(b) { return b.status === 'En Gestion'; }).length;
     },
     abrirModalNuevoSeg() {
       if (this.followUpsV2.length >= 8) return;
