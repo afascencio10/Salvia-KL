@@ -100,6 +100,12 @@
       <button style="background:none;border:none;color:#93c5fd;font-size:1rem;cursor:pointer;padding:4px" @click="tabActiva = 'seguimientos'">Ver →</button>
     </div>
 
+    <!-- ── Banner tareas pendientes global ── -->
+    <div v-if="caseTasks.filter(t => t.status === 'ToDo').length > 0" style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:.82rem;color:#92400e"><i class="fa fa-bell" style="margin-right:6px"></i>Tienes <strong>${ caseTasks.filter(t => t.status === 'ToDo').length }</strong> tarea(s) pendiente(s) con este caso</span>
+      <button @click="tabActiva = 'tareas'" style="background:#5106A7;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:.75rem;font-weight:600;cursor:pointer">Ver tareas</button>
+    </div>
+
     <!-- ── TABS ── -->
     <div class="cd-panel">
       <div class="cd-tabs">
@@ -148,6 +154,7 @@
               <p class="cd-section-title">Datos de la víctima</p>
               <div class="cd-data-grid">
                 <div class="cd-campo"><div class="cd-lbl">Nombre completo</div><div class="cd-val">${ caso.victimCaseVictimName + ' ' + caso.victimCaseVictimLastName || '—' }</div></div>
+                <div class="cd-campo"><div class="cd-lbl">Nombre identitario</div><div class="cd-val">${ nombreIdentitario || 'No registra' }</div></div>
                 <div class="cd-campo"><div class="cd-lbl">Tipo de documento</div><div class="cd-val">${ caso.victimCaseVictimDocType || '—' }</div></div>
                 <div class="cd-campo"><div class="cd-lbl">Número de identificación</div><div class="cd-val">${ caso.victimCaseVictimDocNumber || '—' }</div></div>
                 <div class="cd-campo"><div class="cd-lbl">Edad</div><div class="cd-val">${ edadCalculada ? edadCalculada + ' años' : (form1 && form1.age ? form1.age + ' años' : '—') }</div></div>
@@ -297,6 +304,15 @@
 
         <!-- ══ TAB: BARRERAS ══ -->
         <template v-if="tabActiva === 'barreras'">
+          <!-- Banner tareas pendientes -->
+          <div v-if="tareasPendientesTotal().length > 0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:1.1rem">⚠️</span>
+              <span style="font-size:.82rem;color:#92400e;font-weight:500">Tienes <strong>${ tareasPendientesTotal().length }</strong> tarea(s) pendiente(s) con este caso</span>
+            </div>
+            <button @click="tabActiva = 'tareas'" style="background:#5106A7;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:.75rem;font-weight:600;cursor:pointer">Ver tareas</button>
+          </div>
+
           <div class="cd-seg-stats">
             <div class="cd-sstat">
               <div class="cd-lbl">Total barreras</div>
@@ -328,6 +344,8 @@
               </div>
               <div style="font-size:.83rem;color:#374151;margin-top:4px">${ b.description }</div>
               <div class="cd-seg-meta">📅 ${ formatFecha(b.createdAt) }</div>
+              <!-- Tareas de esta barrera (componente reutilizable) -->
+              <case-tasks :case-id="caseICode" :barrier-id="b.id" :user-id="userICode" :user-role="userRole" @open-task-modal="openTaskModal"></case-tasks>
             </div>
           </div>
         </template>
@@ -430,6 +448,11 @@
               </div>
             </div>
           </div>
+        </template>
+
+        <!-- ══ TAB: TAREAS ══ -->
+        <template v-if="tabActiva === 'tareas'">
+          <case-tasks :case-id="caseICode" :user-id="userICode" :user-role="userRole" @open-task-modal="openTaskModal"></case-tasks>
         </template>
 
         <!-- ══ TAB: TIMELINE ══ -->
@@ -678,6 +701,7 @@ var home = Vue.createApp({
       psychosocialSupports: [],
       economicStabilizations: [],
       barriers: [],
+      caseTasks: [],
       tipoViolencia: [],
       subtipoViolencia: [],
       ambitoViolencia: [],
@@ -687,6 +711,7 @@ var home = Vue.createApp({
       territorioOcurrencia: '',
       edadCalculada: null,
       tipoAgresorResumen: '',
+      nombreIdentitario: '',
       planAtencion: [],
       ajusteRazonable: [],
       hechosTimeline: [],
@@ -731,6 +756,7 @@ var home = Vue.createApp({
         { id: 'derivaciones', label: 'Derivaciones',  icono: '↗️' },
         { id: 'barreras',     label: 'Barreras',      icono: '⚠️' },
         { id: 'seguimientos', label: 'Seguimientos',  icono: '📞' },
+        { id: 'tareas',       label: 'Tareas',        icono: '📝' },
         { id: 'timeline',     label: 'Timeline',      icono: '📋' },
       ],
     };
@@ -867,8 +893,9 @@ var home = Vue.createApp({
       return '';
     },
     iniciarSeguimiento(seg) {
-      // Validar que la fecha programada ya haya llegado
-      var hoy = new Date().toISOString().substring(0, 10);
+      // Validar que la fecha programada ya haya llegado (solo fecha, sin hora)
+      var ahora = new Date();
+      var hoy = ahora.getFullYear() + '-' + String(ahora.getMonth() + 1).padStart(2, '0') + '-' + String(ahora.getDate()).padStart(2, '0');
       var fechaSeg = seg.scheduled_date ? seg.scheduled_date.substring(0, 10) : '';
       if (fechaSeg && fechaSeg > hoy) {
         this.showToast('error', 'No es posible iniciar este seguimiento. La fecha programada (' + fechaSeg + ') aún no ha llegado.');
@@ -894,6 +921,10 @@ var home = Vue.createApp({
     onCaseTaskCompleted: function(tareaActualizada) {
       console.log('[case-task-modal] tarea completada:', tareaActualizada);
       this.testTaskId = '';
+      this.cargarTareasCaso();
+    },
+    openTaskModal: function(taskId) {
+      this.$refs.taskModal.open(taskId);
     },
     cargarDatos() {
       var self = this;
@@ -928,6 +959,7 @@ var home = Vue.createApp({
           self.psychosocialSupports = data.psychosocialSupports || [];
           self.economicStabilizations = data.economicStabilizations || [];
           self.barriers = data.barriers || [];
+          self.cargarTareasCaso();
           self.tipoViolencia = data.tipoViolencia || [];
           self.subtipoViolencia = data.subtipoViolencia || [];
           self.ambitoViolencia = data.ambitoViolencia || [];
@@ -937,6 +969,7 @@ var home = Vue.createApp({
           self.territorioOcurrencia = data.territorioOcurrencia || '';
           self.edadCalculada = data.edadCalculada || null;
           self.tipoAgresorResumen = data.tipoAgresorResumen || '';
+          self.nombreIdentitario = data.nombreIdentitario || 'No registra';
           self.planAtencion = data.planAtencion || [];
           self.ajusteRazonable = data.ajusteRazonable || [];
           self.hechosTimeline = (data.timelineEvents || []).filter(function(e) { return e.type === 'Hechos del caso'; });
@@ -998,6 +1031,21 @@ var home = Vue.createApp({
           self.todosAgentes = Array.isArray(data) ? data : [];
         })
         .catch(function() {});
+    },
+    cargarTareasCaso() {
+      var self = this;
+      fetch('/api/v1/case-tasks?caseId=' + CASE_ICODE)
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          self.caseTasks = Array.isArray(data) ? data : [];
+        })
+        .catch(function() { self.caseTasks = []; });
+    },
+    tareasPendientesPorBarrera(barrierId) {
+      return this.caseTasks.filter(function(t) { return t.barrierId === barrierId && t.status === 'ToDo'; });
+    },
+    tareasPendientesTotal() {
+      return this.caseTasks.filter(function(t) { return t.status === 'ToDo'; });
     },
     formatFecha(f) { return f ? f.substring(0, 10) : '—'; },
     formatFechaHora(f) {
@@ -1255,6 +1303,7 @@ var app = home;
 </script>
 <script src="/static/js/components/case-timeline.js"></script>
 <script src="/static/js/components/case-info.js"></script>
+<script src="/static/js/components/case-tasks.js"></script>
 <script src="/static/js/components/follow-up-contact-modal.js"></script>
 <script src="/static/js/components/dinamic-form.js"></script>
 <script src="/static/js/components/case-task-modal.js"></script>
