@@ -63,13 +63,11 @@ jobs:
               New-Item -Path $basePath -ItemType Directory -Force
           }
           
-          # 3. BACKUP: Si ya existe un salvia.exe, renombrarlo con fecha y hora
+          # 3. BACKUP: Si ya existe un salvia.exe, renombrarlo a salvia_old.exe (sobrescribe el anterior para no llenar el disco)
           $exePath = Join-Path $basePath "salvia.exe"
           if (Test-Path $exePath) {
-              $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-              $backupName = "salvia_$timestamp.exe"
-              $backupPath = Join-Path $basePath $backupName
-              Write-Host "Creando backup: $backupName"
+              $backupPath = Join-Path $basePath "salvia_old.exe"
+              Write-Host "Creando backup: salvia_old.exe"
               Move-Item -Path $exePath -Destination $backupPath -Force
           }
 
