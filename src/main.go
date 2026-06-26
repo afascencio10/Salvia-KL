@@ -186,15 +186,18 @@ func main() {
     barrierV2Svc           := service.NewBarrierV2Service(barrierV2Repo)
     barrierV2GinCtrl       := salvia_ctrl.NewBarrierV2GinController(barrierV2Svc)
 
+    entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo, caseTaskRepo, barrierV2Repo)
+    entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
+
     caseTaskSvc             := service.NewCaseTaskService(service.CaseTaskServiceDeps{
         CaseTaskRepo:     caseTaskRepo,
         BarrierV2Repo:    barrierV2Repo,
         CaseTimelineRepo: caseTimelineRepo,
+        EntityLetterSvc:  entityLetterSvc,
+        EntityLetterRepo: entityLetterRepo,
     })
     caseTaskCtrl            := salvia_ctrl.NewCaseTaskController(caseTaskSvc)
 
-    entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo, caseTaskRepo, barrierV2Repo)
-    entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
     entityBranchAPICtrl    := salvia_ctrl.NewEntityBranchAPIController(gormDB)
     casesListCtrl          := salvia_ctrl.NewCasesListController(casesListSvc)
     casesReassignCtrl      := salvia_ctrl.NewCasesReassignController(casesReassignSvc)

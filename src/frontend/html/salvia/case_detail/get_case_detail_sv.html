@@ -255,6 +255,25 @@
             </div>
           </div>
 
+          <!-- ── UI TEMPORAL: Probar case-task-modal ── -->
+          <div style="background:#fefce8;border:1.5px dashed #fbbf24;border-radius:12px;padding:16px;margin-bottom:14px">
+            <p style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px">🧪 Dev — Probar case-task-modal</p>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input
+                v-model="testTaskId"
+                placeholder="UUID de CaseTask"
+                style="flex:1;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-family:monospace;outline:none"
+              />
+              <button
+                @click="$refs.taskModal.open(testTaskId)"
+                :disabled="!testTaskId"
+                style="padding:8px 16px;background:#1d4ed8;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;opacity:1"
+                :style="{ opacity: testTaskId ? '1' : '.4', cursor: testTaskId ? 'pointer' : 'not-allowed' }">
+                Abrir modal
+              </button>
+            </div>
+          </div>
+
           <!-- Estabilizacion Socioeconomica -->
           <div class="cd-deriv-section" style="background:#f0fdf4;border-color:#bbf7d0">
             <div class="cd-deriv-header" style="border-bottom-color:#bbf7d0">
@@ -430,6 +449,13 @@
     :user-team="userTeam"
     @completed="onFollowUpContactCompleted">
   </follow-up-contact-modal>
+
+  <!-- Componente: Completar CaseTask (modal reutilizable) -->
+  <case-task-modal
+    ref="taskModal"
+    :current-user-id="userICode"
+    @completed="onCaseTaskCompleted">
+  </case-task-modal>
 
   <!-- Componente: Información completa del caso (modal) -->
   <case-info :case-id="caseICode" :visible="mostrarInfoCaso" @close="mostrarInfoCaso = false"></case-info>
@@ -668,6 +694,7 @@ var home = Vue.createApp({
       userRole: "{{.userRole}}",
       userTeam: "{{.userTeam}}",
       userICode: "{{.userICode}}",
+      testTaskId: '',
       operadores: [],
       agentesRO: [],
       todosAgentes: [],
@@ -862,6 +889,11 @@ var home = Vue.createApp({
       if (data.type === 'rescheduled' || data.type === 'closed') {
         self.cargarDatos();
       }
+    },
+
+    onCaseTaskCompleted: function(tareaActualizada) {
+      console.log('[case-task-modal] tarea completada:', tareaActualizada);
+      this.testTaskId = '';
     },
     cargarDatos() {
       var self = this;
@@ -1225,6 +1257,7 @@ var app = home;
 <script src="/static/js/components/case-info.js"></script>
 <script src="/static/js/components/follow-up-contact-modal.js"></script>
 <script src="/static/js/components/dinamic-form.js"></script>
+<script src="/static/js/components/case-task-modal.js"></script>
 <script>
 home.mount('#app');
 </script>

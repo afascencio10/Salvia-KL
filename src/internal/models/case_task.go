@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -27,8 +28,9 @@ type CaseTask struct {
 	CompletedAt *time.Time `gorm:"column:completed_at"                   json:"completedAt,omitempty"`
 
 	// Asignación y estado
-	AssignedUserID string `gorm:"type:varchar(36);not null;index;column:assigned_user_id" json:"assignedUserId"`
-	Status         string `gorm:"type:varchar(10);not null;default:'ToDo'"                 json:"status"`
+	AssignedUserID string         `gorm:"type:varchar(36);not null;index;column:assigned_user_id" json:"assignedUserId"`
+	Status         string         `gorm:"type:varchar(10);not null;default:'ToDo'"                 json:"status"`
+	FormData       datatypes.JSON `gorm:"type:jsonb;column:form_data"                              json:"formData,omitempty"`
 
 	// Relaciones (todas opcionales)
 	CaseID                  string  `gorm:"type:varchar(36);not null;index"                        json:"caseId"`

@@ -23,8 +23,9 @@ node_modules
 migrarCasos/
 *.exe
 
-# Binario compilado
+# Binarios compilados
 src/bitsflow
+src/main
 
 # Archivos temporales de documentación
 DocsMD/Otros/temp/

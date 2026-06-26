@@ -135,6 +135,137 @@ PUT /api/v1/entity-letters/{selectedOficio.id}/action
 
 → resultado: objeto entity_letter actualizado o error
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  BACKEND — entity_letter_service.go → PerformAction()
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BACK 1 — Cargar el oficio
+
+  DB.entity_letters.FindByID({ id })
+  SI no existe → retornar 404
+
+BACK 2 — Ejecutar lógica según action
+
+  SEGÚN action:
+
+  ┌── 'proyectar'  (por_proyectar → para_revisar) ──────────────┐
+
+    Validar estado actual = 'por_proyectar'  (422 si no coincide)
+    Validar requeridos: departmentId, cityId, townId, entityName,
+                        officialDependency, subject, urlKofax
+
+    → DB.entity_letters.UpdateFields({
+          department_id:       departmentId,
+          city_id:             cityId,
+          town_id:             townId,
+          entidad:             entityName,
+          official_dependency: officialDependency,
+          subject:             subject,
+          url_kofax:           urlKofax,
+          entity_branch_id:    entityBranchId  (null si eligió 'otra'),
+          priority:            priority || 'normal',
+          register_by:         userId,
+          state:               'para_revisar',
+      })
+
+    → completarCaseTask(id)  [fire-and-forget]
+        • FindTodoByEntityLetterID(id)
+          → UpdateFields({ status: 'Done', completed_at: now() })
+
+    → registrarEventoOficio('para_revisar')  [fire-and-forget]
+        • CaseTimelineEvent { type: "Oficio Para Revisar", color: blue }
+
+  └──────────────────────────────────────────────────────────────┘
+
+  ┌── 'revisar'  (para_revisar → aprobacion_juridica) ──────────┐
+
+    Validar estado actual = 'para_revisar'  (422 si no)
+    → DB.entity_letters.UpdateFields({ review_by: userId, state: 'aprobacion_juridica' })
+    → registrarEventoOficio('aprobacion_juridica')  [fire-and-forget]
+        • CaseTimelineEvent { type: "Oficio en Aprobación Jurídica", color: purple }
+
+  └──────────────────────────────────────────────────────────────┘
+
+  ┌── 'por_corregir'  (para_revisar → en_correccion) ───────────┐
+
+    Validar estado actual = 'para_revisar'  (422 si no)
+    Validar reasonCorrection requerido
+
+    → DB.entity_letters.UpdateFields({
+          reason_correction: reasonCorrection,
+          state:             'en_correccion',
+      })
+
+    → crearCaseTaskCorreccion()  [fire-and-forget]
+        • CaseTask {
+              type:             'Corregir oficio',
+              assigned_user_id: letter.AgentID,
+              description:      "Corregir oficio — Razón: {reasonCorrection}",
+              status:           'ToDo',
+              entity_letter_id: id,
+          }
+
+    → registrarEventoOficio('en_correccion')  [fire-and-forget]
+        • CaseTimelineEvent { type: "Oficio En Corrección",
+                              description: "... — Razón: {reason}", color: orange }
+
+  └──────────────────────────────────────────────────────────────┘
+
+  ┌── 'corregir'  (en_correccion → para_revisar) ───────────────┐
+
+    Validar estado actual = 'en_correccion'  (422 si no)
+    → DB.entity_letters.UpdateFields({ state: 'para_revisar' })
+
+    → completarCaseTask(id)  [fire-and-forget]
+        • Busca CaseTask ToDo de corrección con entity_letter_id = id
+        • UpdateFields({ status: 'Done', completed_at: now() })
+
+    → registrarEventoOficio('para_revisar')  [fire-and-forget]
+        • CaseTimelineEvent { type: "Oficio Para Revisar", color: blue }
+
+  └──────────────────────────────────────────────────────────────┘
+
+  ┌── 'radicar'  (aprobacion_juridica → radicado) ──────────────┐
+
+    Validar estado actual = 'aprobacion_juridica'  (422 si no)
+    Validar requeridos: asuntoRadicado, correoEntidad, numeroRadicado
+
+    → DB.entity_letters.UpdateFields({
+          asunto_radicado:  asuntoRadicado,
+          correo_entidad:   correoEntidad,
+          numero_radicado:  numeroRadicado,
+          radicado_by:      userId,
+          state:            'radicado',
+      })
+
+    → registrarEventoOficio('radicado')  [fire-and-forget]
+        • CaseTimelineEvent { type: "Oficio Radicado", color: green }
+
+  └──────────────────────────────────────────────────────────────┘
+
+  ┌── 'registrar_respuesta'  (radicado → respondido) ───────────┐
+
+    Validar estado actual = 'radicado'  (422 si no)
+    Validar requeridos: responseDate, correoRemitente, asuntoRespuesta, responseReviewBy
+    Parsear responseDate: "YYYY-MM-DD" → time.Time
+
+    → DB.entity_letters.UpdateFields({
+          correo_remitente:    correoRemitente,
+          asunto_respuesta:    asuntoRespuesta,
+          response_review_by:  responseReviewBy,
+          response_date:       time.Time parseado,
+          state:               'respondido',
+      })
+
+    → registrarEventoOficio('respondido')  [fire-and-forget]
+        • CaseTimelineEvent { type: "Oficio Respondido", color: green }
+
+  └──────────────────────────────────────────────────────────────┘
+
+BACK 3 — Retornar el oficio actualizado
+
+  DB.entity_letters.FindByID({ id }) → retornar objeto completo
+
 PASO 5 — Manejar respuesta
 
 SI status === 200:

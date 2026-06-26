@@ -39,6 +39,8 @@ type BarrierV2 struct {
 	Description        string `gorm:"type:text" json:"description"`             // Q21 text
 	ManagementActions  string `gorm:"type:text" json:"managementActions"`       // Q22 CSV
 
+	EnlaceActivado bool `gorm:"type:boolean;default:false;column:enlace_activado" json:"enlaceActivado"`
+
 	CreatedAt time.Time      `json:"createdAt"`
 	UpdatedAt time.Time      `json:"updatedAt"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
