@@ -24,6 +24,9 @@ type CaseTaskRepository interface {
 	// FindByCaseID devuelve todas las tareas de un caso.
 	FindByCaseID(ctx context.Context, caseID string) ([]models.CaseTask, error)
 
+	// FindByCaseIDAndBarrier devuelve las tareas de un caso filtradas por barrera.
+	FindByCaseIDAndBarrier(ctx context.Context, caseID, barrierID string) ([]models.CaseTask, error)
+
 	// FindByBarrierID devuelve todas las tareas relacionadas a una barrera.
 	FindByBarrierID(ctx context.Context, barrierID string) ([]models.CaseTask, error)
 
@@ -57,6 +60,15 @@ func (r *caseTaskRepository) FindByCaseID(ctx context.Context, caseID string) ([
 	var items []models.CaseTask
 	err := r.db.WithContext(ctx).
 		Where("case_id = ?", caseID).
+		Order("created_at DESC").
+		Find(&items).Error
+	return items, err
+}
+
+func (r *caseTaskRepository) FindByCaseIDAndBarrier(ctx context.Context, caseID, barrierID string) ([]models.CaseTask, error) {
+	var items []models.CaseTask
+	err := r.db.WithContext(ctx).
+		Where("case_id = ? AND barrier_id = ?", caseID, barrierID).
 		Order("created_at DESC").
 		Find(&items).Error
 	return items, err

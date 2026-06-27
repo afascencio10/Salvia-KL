@@ -181,7 +181,7 @@ func main() {
     followUpV2Ctrl         := salvia_ctrl.NewFollowUpV2Controller(followUpV2Svc)
     optionCtrl             := salvia_ctrl.NewOptionController(optionSvc)
     caseDetailCtrl         := salvia_ctrl.NewCaseDetailController(caseDetailSvc, caseTimelineRepo)
-    caseInfoCtrl           := salvia_ctrl.NewCaseInfoController(caseInfoSvc)
+    caseInfoCtrl           := salvia_ctrl.NewCaseInfoController(caseInfoSvc, gormDB)
     reportCtrl             := salvia_ctrl.NewReportController(reportSvc)
     barrierV2Svc           := service.NewBarrierV2Service(barrierV2Repo)
     barrierV2GinCtrl       := salvia_ctrl.NewBarrierV2GinController(barrierV2Svc)
@@ -193,8 +193,8 @@ func main() {
         CaseTaskRepo:     caseTaskRepo,
         BarrierV2Repo:    barrierV2Repo,
         CaseTimelineRepo: caseTimelineRepo,
-        EntityLetterSvc:  entityLetterSvc,
         EntityLetterRepo: entityLetterRepo,
+        DB:               gormDB,
     })
     caseTaskCtrl            := salvia_ctrl.NewCaseTaskController(caseTaskSvc)
 

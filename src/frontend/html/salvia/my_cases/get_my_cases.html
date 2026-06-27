@@ -81,7 +81,22 @@
                     { key: 'barriers',             label: 'Barreras'              },
                 ],
                 casosButtons: [
-                    { id: 'detalle', label: 'Ver detalle' },
+                    {
+                        id: 'detalle',
+                        label: 'Detalle del caso',
+                        icon: 'fas fa-layer-group',
+                        variant: 'primary',
+                        title: 'Ver detalle completo',
+                        href: '/salvia/casos/{i_code}/detalle',
+                    },
+                    {
+                        id: 'consultar',
+                        label: 'Consultar caso',
+                        icon: 'fas fa-eye',
+                        title: 'Consultar caso',
+                        href: '/salvia/casos/{i_code}/',
+                    },
+
                 ],
             };
         },
@@ -95,8 +110,14 @@
         },
         methods: {
             onCasoActionClicked: function(payload) {
-                if (payload.buttonId === 'detalle') {
-                    location.assign('/salvia/casos/' + payload.case.i_code + '/detalle');
+                var code = payload.case && (payload.case.i_code || payload.case.id);
+                if (!code) {
+                    return;
+                }
+                if (payload.buttonId === 'consultar') {
+                    location.assign('/salvia/casos/' + code + '/');
+                } else if (payload.buttonId === 'detalle') {
+                    location.assign('/salvia/casos/' + code + '/detalle');
                 }
             },
             logout(){

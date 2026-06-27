@@ -321,15 +321,27 @@
 
                             <!-- Columna de acciones -->
                             <td v-if="buttons.length > 0" class="cc-cell-actions">
-                                <button
-                                    v-for="btn in buttons"
-                                    :key="btn.id"
-                                    class="cc-action-btn"
-                                    type="button"
-                                    @click="emitActionClicked(btn.id, caseObj)"
-                                >
-                                    ${ btn.label }
-                                </button>
+                                <template v-for="btn in buttons" :key="btn.id">
+                                    <a
+                                        v-if="getActionHref(btn, caseObj)"
+                                        :href="getActionHref(btn, caseObj)"
+                                        :class="actionButtonClass(btn)"
+                                        :title="btn.title || btn.label"
+                                    >
+                                        <i v-if="btn.icon" :class="btn.icon" aria-hidden="true"></i>
+                                        ${ btn.label }
+                                    </a>
+                                    <button
+                                        v-else
+                                        :class="actionButtonClass(btn)"
+                                        type="button"
+                                        :title="btn.title || btn.label"
+                                        @click="emitActionClicked(btn.id, caseObj)"
+                                    >
+                                        <i v-if="btn.icon" :class="btn.icon" aria-hidden="true"></i>
+                                        ${ btn.label }
+                                    </button>
+                                </template>
                             </td>
 
                         </tr>

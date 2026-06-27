@@ -39,6 +39,7 @@ type CaseDetailData struct {
 	TerritorioOcurrencia string `json:"territorioOcurrencia"`
 	EdadCalculada        *int64 `json:"edadCalculada"`
 	TipoAgresorResumen   string `json:"tipoAgresorResumen"`
+	NombreIdentitario    string `json:"nombreIdentitario"`
 	PlanAtencion         []string `json:"planAtencion"`
 	AjusteRazonable      []string `json:"ajusteRazonable"`
 }
@@ -195,6 +196,15 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 		result.EdadCalculada = resumen.Edad
 		result.TipoAgresorResumen = resumen.RelAgresor
 
+		// Nombre identitario (solo form2)
+		var identityName string
+		r.db.WithContext(ctx).Raw(`SELECT COALESCE(victim_case_form2_identity_name, '') FROM salvia.victim_case_form2 WHERE victim_case_form2_victim_case = ?`, vc.VictimCaseId).Scan(&identityName)
+		if identityName != "" {
+			result.NombreIdentitario = identityName
+		} else {
+			result.NombreIdentitario = "No registra"
+		}
+
 		// Territorio de ocurrencia (municipio de los hechos)
 		if form2FactsTown := ""; true {
 			var factsTown string
@@ -213,7 +223,7 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 	var followUpsV2 []models.FollowUpV2
 	r.db.WithContext(ctx).
 		Where("case_id = ?", vc.VictimCaseICode).
-		Order("scheduled_date ASC, scheduled_time ASC").
+		Order("sequence_number ASC").
 		Find(&followUpsV2)
 
 	// Cargar intentos de contacto para cada seguimiento (esquema 3×3)

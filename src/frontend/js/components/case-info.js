@@ -158,6 +158,10 @@ var CI_SECTIONS_TPL = `
         <div class="ci-field" v-if="val(info.riesgo.creeCapazMatar)"><span class="ci-label">Cree capaz de matar</span><span class="ci-value">\${ siNo(info.riesgo.creeCapazMatar) }</span></div>
         <div class="ci-field" v-if="val(info.riesgo.riesgoInminente)"><span class="ci-label">Riesgo inminente</span><span class="ci-value">\${ siNo(info.riesgo.riesgoInminente) }</span></div>
         <div class="ci-field" v-if="val(info.riesgo.denunciaPrevia)"><span class="ci-label">Denuncia previa</span><span class="ci-value">\${ siNo(info.riesgo.denunciaPrevia) }</span></div>
+        <!-- Botón ver tamizaje completo -->
+        <div style="grid-column:1/-1;margin-top:8px">
+            <button @click="cargarTamizaje()" style="background:#5106A7;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer"><i class="fa fa-clipboard-list"></i> Ver tamizaje completo</button>
+        </div>
     </div>
 `;
 
@@ -192,6 +196,11 @@ app.component('case-info', {
             openSections: { encabezado: true, victima: true, etnicos: true, contacto: true, ubicacion: true, hechos: true, agresor: true, riesgo: true },
             activeNav: 'encabezado',
             hechosExpandido: false,
+            mostrarTamizaje: false,
+            tamizajeData: [],
+            tamizajeNivel: '',
+            tamizajeScore: null,
+            tamizajeCargando: false,
         };
     },
     watch: {
@@ -218,6 +227,22 @@ app.component('case-info', {
             }
         },
         cerrar() { this.$emit('close'); },
+        async cargarTamizaje() {
+            this.tamizajeCargando = true;
+            this.mostrarTamizaje = true;
+            try {
+                var res = await fetch('/api/v1/casos/' + this.caseId + '/tamizaje');
+                if (!res.ok) throw new Error('Error ' + res.status);
+                var data = await res.json();
+                this.tamizajeData = data.preguntas || [];
+                this.tamizajeNivel = data.nivelTexto || '';
+                this.tamizajeScore = data.riskScore || null;
+            } catch (e) {
+                this.tamizajeData = [];
+            } finally {
+                this.tamizajeCargando = false;
+            }
+        },
         toggle(id) { this.openSections[id] = !this.openSections[id]; this.activeNav = id; },
         navTo(id) {
             var newState = {};
@@ -240,6 +265,9 @@ app.component('case-info', {
             var obj = this.info[sectionId]; var count = 0;
             for (var k in obj) { if (this.val(obj[k])) count++; }
             return count;
+        },
+        tamizajePreguntas() {
+            return this.tamizajeData || [];
         },
     },
     template: `
@@ -271,6 +299,34 @@ app.component('case-info', {
         <div v-if="loading" class="ci-loading"><i class="fa fa-spinner fa-spin"></i> Cargando...</div>
         <div v-else-if="error" class="ci-error">\${ error }</div>
         <template v-else-if="info">` + CI_SECTIONS_BLOCK + `</template>
+    </div>
+    <!-- MODAL TAMIZAJE -->
+    <div v-if="mostrarTamizaje" class="ci-backdrop" @click.self="mostrarTamizaje = false">
+        <div class="ci-modal" style="max-width:700px;max-height:85vh;overflow-y:auto">
+            <div class="ci-header">
+                <p class="ci-title"><i class="fa fa-clipboard-list" style="color:#f97316"></i> Tamizaje de riesgo</p>
+                <button class="ci-close" @click="mostrarTamizaje = false">✕</button>
+            </div>
+            <div style="padding:20px 24px">
+                <div v-if="tamizajeCargando" class="ci-loading"><i class="fa fa-spinner fa-spin"></i> Cargando tamizaje...</div>
+                <template v-else>
+                    <div v-if="tamizajeData.length === 0" class="ci-empty" style="padding:20px 0">No se encontraron preguntas de tamizaje para este caso</div>
+                    <div v-else style="display:flex;flex-direction:column;gap:8px">
+                        <div v-for="(q, qi) in tamizajeData" :key="qi" style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border-radius:8px" :style="q.respuesta === 'Sí' ? 'background:#fef2f2;border:1px solid #fecaca' : 'background:#f9fafb;border:1px solid #e5e7eb'">
+                            <span style="min-width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#fff;flex-shrink:0" :style="q.respuesta === 'Sí' ? 'background:#dc2626' : 'background:#9ca3af'">\${ qi + 1 }</span>
+                            <div style="flex:1">
+                                <p style="font-size:.8rem;color:#374151;margin:0;line-height:1.4">\${ q.pregunta }</p>
+                            </div>
+                            <span style="font-size:.78rem;font-weight:700;min-width:28px;text-align:right" :style="q.respuesta === 'Sí' ? 'color:#dc2626' : 'color:#6b7280'">\${ q.respuesta }</span>
+                        </div>
+                    </div>
+                    <div v-if="tamizajeNivel" style="margin-top:16px;background:#f3e8ff;border:1px solid #d8b4fe;border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:12px">
+                        <span v-if="tamizajeScore" style="font-size:.82rem;color:#6b21a8">Cálculo de riesgo: <strong>\${ tamizajeScore }</strong></span>
+                        <span style="font-size:.82rem;color:#6b21a8;font-weight:600">Ponderación de riesgo: <strong>\${ tamizajeNivel }</strong></span>
+                    </div>
+                </template>
+            </div>
+        </div>
     </div>
 </div>
     `

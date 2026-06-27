@@ -367,5 +367,8 @@ func (s *caseDetailService) reasignarCasoInternal(ctx context.Context, caseICode
 	// 6. Reasignar seguimientos PENDIENTES al nuevo operador
 	db.Exec(`UPDATE salvia.follow_up_v2 SET agent_id = ? WHERE case_id = ? AND status = 'PENDIENTE'`, newOperadorICode, caseICode)
 
+	// 7. Reasignar tareas pendientes (CaseTask) al nuevo operador
+	db.Exec(`UPDATE salvia.case_task SET assigned_user_id = ? WHERE case_id = ? AND status = 'ToDo'`, newOperadorICode, caseICode)
+
 	return nil
 }
