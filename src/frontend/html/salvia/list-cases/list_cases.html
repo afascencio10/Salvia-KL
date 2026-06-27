@@ -2,6 +2,9 @@
 <div class="container">
     <div class="welcome-section">
         <h2><b>Lista de casos</b></h2>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <a href="/salvia/casos/nuevo"><button class="btn btn-primary">Crear Nuevo caso <i class="fas fa-plus-circle"></i></button></a>
+        </div>
     </div>
 
     {{ template "salvia/case_component/case_component.html" . }}
@@ -115,7 +118,8 @@
         },
         mounted: function() {
             document.title = {{.windowTitle}};
-            if (this.currentRole !== 'sv') {
+            var validRoles = ['op', 'an', 'no', 'sv', 'ad', 'ro', 'et'];
+            if (validRoles.indexOf(this.currentRole) === -1) {
                 this.roleLoadError = 'No tienes permiso para ver esta página.';
                 alert('No tienes permiso para ver esta página.');
             }

@@ -76,6 +76,10 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"et": true,
 		"sv": true,
 		"no": true,
+		"do": true,
+		"fo": true,
+		"ad": true,
+		"an": true,
 	},
 	"update_victim_case": {
 		"op": true,
