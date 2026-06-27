@@ -796,6 +796,21 @@
     border-color: #a78bfa;
 }
 
+.cc-action-btn--primary {
+    background: #5106A7;
+    border-color: #5106A7;
+    color: #fff;
+    font-size: 0.69rem;
+    padding: 3px 8px;
+    text-decoration: none;
+}
+
+.cc-action-btn--primary:hover {
+    background: #3d0480;
+    border-color: #3d0480;
+    color: #fff;
+}
+
 /* ====================================================================
    RISK BADGE
    ==================================================================== */

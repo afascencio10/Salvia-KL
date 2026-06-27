@@ -866,6 +866,32 @@
         // E-05 — Botón de acción en fila
         // ----------------------------------------------------------------
 
+        getCaseICode: function(caseObj) {
+            if (!caseObj) {
+                return '';
+            }
+            return caseObj.i_code || String(caseObj.id || '');
+        },
+
+        getActionHref: function(btn, caseObj) {
+            if (!btn || !btn.href) {
+                return null;
+            }
+            var code = this.getCaseICode(caseObj);
+            if (!code) {
+                return null;
+            }
+            return String(btn.href).replace('{i_code}', encodeURIComponent(code));
+        },
+
+        actionButtonClass: function(btn) {
+            var classes = ['cc-action-btn'];
+            if (btn && btn.variant === 'primary') {
+                classes.push('cc-action-btn--primary');
+            }
+            return classes.join(' ');
+        },
+
         emitActionClicked: function(btnId, caseObj) {
             this.$emit('action-clicked', { buttonId: btnId, case: caseObj });
         },

@@ -81,7 +81,14 @@
                     { key: 'barriers',             label: 'Barreras'              },
                 ],
                 casosButtons: [
-                    { id: 'detalle', label: 'Ver detalle' },
+                    {
+                        id: 'detalle',
+                        label: 'Detalle del caso',
+                        icon: 'fas fa-layer-group',
+                        variant: 'primary',
+                        title: 'Ver detalle completo',
+                        href: '/salvia/casos/{i_code}/detalle',
+                    },
                 ],
             };
         },
