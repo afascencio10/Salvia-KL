@@ -10,24 +10,20 @@
     {{ template "salvia/case_component/case_component.html" . }}
     {{ template "salvia/list-cases/reasignar_casos_modal.html" . }}
 
-    <div v-if="roleLoadError" class="mc-error-state">
-        <i class="fas fa-exclamation-triangle"></i>
-        <span>${ roleLoadError }</span>
-    </div>
-
-    <div v-else class="mt-4 mb-4">
+    <div class="mt-4 mb-4">
         <casos-component
             ref="casosComponent"
             :default-filter="casosDefaultFilter"
             :available-filters="casosAvailableFilters"
             :columns="casosColumns"
             :buttons="casosButtons"
-            :reasignacion="true"
+            :reasignacion="canReasignarCasos"
             @action-clicked="onCasoActionClicked"
             @reasignar-casos="onReasignarCasos"
         ></casos-component>
 
         <reasignar-casos-modal
+            v-if="canReasignarCasos"
             ref="reasignarModal"
             @closed="onReasignarModalClosed"
             @reassigned="onReasignarCompletado"
@@ -48,7 +44,6 @@
                 currentUser: "{{.currentUser}}",
                 currentRole: "{{.currentRole}}",
                 menu: {{.menu}},
-                roleLoadError: null,
 
                 casosDefaultFilter: {},
                 casosAvailableFilters: [
@@ -96,33 +91,38 @@
                     { key: 'next_follow_up_date',  label: 'Próximo seguimiento'   },
                     { key: 'completed_follow_ups', label: 'Seguimientos ejecutados' },
                 ],
-                casosButtons: [
-                    {
-                        id: 'detalle',
-                        label: 'Detalle',
-                        icon: 'fas fa-layer-group',
-                        variant: 'primary',
-                        title: 'Ver detalle completo',
-                        href: '/salvia/casos/{i_code}/detalle',
-                    },
-                    {
-                        id: 'consultar',
-                        label: 'Consultar caso',
-                        icon: 'fas fa-eye',
-                        title: 'Consultar caso',
-                        href: '/salvia/casos/{i_code}/',
-                    },
-                    
-                ],
             };
+        },
+        computed: {
+            canReasignarCasos: function() {
+                return this.currentRole === 'sv';
+            },
+            casosButtons: function() {
+                var consultar = {
+                    id: 'consultar',
+                    label: 'Consultar caso',
+                    icon: 'fas fa-eye',
+                    title: 'Consultar caso',
+                    href: '/salvia/casos/{i_code}/',
+                };
+                if (this.currentRole === 'sv') {
+                    return [
+                        {
+                            id: 'detalle',
+                            label: 'Detalle',
+                            icon: 'fas fa-layer-group',
+                            variant: 'primary',
+                            title: 'Ver detalle completo',
+                            href: '/salvia/casos/{i_code}/detalle',
+                        },
+                        consultar,
+                    ];
+                }
+                return [consultar];
+            },
         },
         mounted: function() {
             document.title = {{.windowTitle}};
-            var validRoles = ['op', 'an', 'no', 'sv', 'ad', 'ro', 'et'];
-            if (validRoles.indexOf(this.currentRole) === -1) {
-                this.roleLoadError = 'No tienes permiso para ver esta página.';
-                alert('No tienes permiso para ver esta página.');
-            }
             document.getElementById('app').style.display = 'block';
         },
         methods: {
@@ -138,6 +138,9 @@
                 }
             },
             onReasignarCasos: function(payload) {
+                if (!this.canReasignarCasos) {
+                    return;
+                }
                 if (this.$refs.reasignarModal) {
                     this.$refs.reasignarModal.open(payload.cases);
                 }

@@ -137,7 +137,7 @@ func VictimContactGET(c *gin.Context) {
 
 		// Seleccionar la plantilla adecuada según el rol del usuario.
 		switch s.CurrentRole {
-		case "sv":
+		case "sv", "ro":
 			if vContact.VictimContactForm1.VictimContactForm1ICode != "" {
 				tplName = "get_victim_contact_sv_v1"
 			} else {
@@ -160,7 +160,7 @@ func VictimContactGET(c *gin.Context) {
 
 		// Seleccionar la plantilla adecuada según el rol del usuario para múltiples contactos.
 		switch s.CurrentRole {
-		case "sv":
+		case "sv", "ro":
 			tplName = "get_victim_contacts_sv"
 		case "op":
 			tplName = "get_victim_contacts"
@@ -227,6 +227,9 @@ func VictimContactGET(c *gin.Context) {
 				"origin":                   salvia_config.ORIGIN_PLACE,
 				"occupation":               salvia_config.OCCUPATION,
 				"ethnicGroup":              salvia_config.ETHNIC_GROUP,
+				"yes_no":                   salvia_daos.VictimCaseForm2Enums["yes_no"],
+				"victimCaseForm2ReportType":        salvia_daos.VictimCaseForm2Enums["victim_case_form2_report_type"],
+				"victimCaseForm2ReportTypeDetails": salvia_daos.VictimCaseForm2Enums["victim_case_form2_report_type_details"],
 				"salviaFormPath":           salvia_config.FormPaths[s.Lang]["VictimContactPUT"],
 				"salviaVictimCaseFormPath": salvia_config.FormPaths[s.Lang]["VictimCaseGET"],
 			}, utils.GetFullHtmlFuncMap(),
