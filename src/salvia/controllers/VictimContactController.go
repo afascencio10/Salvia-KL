@@ -311,12 +311,14 @@ func GetVictimContactByICode(id string, connData *db.ConnData, dbClientConfig db
 		} else {
 			victimContact.VictimContactForm1 = victimContactForm1
 		}
-		//Traemos todos los enums asociados a este formulario
-		enums, err = salvia_daos.GetVictimCasesForm2EnumsByVictimContactForm2Id(victimContact.VictimContactForm2.VictimContactForm2Id, connData, &dbClientConfig, &dbServerConfig)
-		if err != nil {
-			return http.StatusInternalServerError, "", salvia_daos.VictimContactDTO{}
+		if victimContact.VictimContactForm2.VictimContactForm2Id > 0 {
+			//Traemos todos los enums asociados a este formulario
+			enums, err = salvia_daos.GetVictimCasesForm2EnumsByVictimContactForm2Id(victimContact.VictimContactForm2.VictimContactForm2Id, connData, &dbClientConfig, &dbServerConfig)
+			if err != nil {
+				return http.StatusInternalServerError, "", salvia_daos.VictimContactDTO{}
+			}
+			loadVictimContactEnumsMultiple(&victimContact.VictimContactForm2, enums)
 		}
-		loadVictimContactEnumsMultiple(&victimContact.VictimContactForm2, enums)
 
 		// Retorna éxito con el DTO actualizado.
 		return http.StatusOK, utils.CommMsgGetJSONSuccess(victimContact), victimContact
