@@ -242,6 +242,10 @@ func main() {
     // Admin: endpoints de migración (protegidos por X-Security-Key)
     migrateCtrl := salvia_ctrl.NewMigrateController(gormDB)
     migrateCtrl.RegisterRoutes(api)
+
+    // Admin: búsqueda de usuarios
+    adminUsersCtrl := salvia_ctrl.NewAdminUsersController(gormDB)
+    adminUsersCtrl.RegisterRoutes(api)
     // ────────────────────────────────────────────────────────────────────────
 
     // ── Graceful shutdown ────────────────────────────────────────────────────
