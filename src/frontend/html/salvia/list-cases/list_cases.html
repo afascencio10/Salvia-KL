@@ -98,27 +98,25 @@
                 return this.currentRole === 'sv';
             },
             casosButtons: function() {
-                var consultar = {
-                    id: 'consultar',
-                    label: 'Consultar caso',
-                    icon: 'fas fa-eye',
-                    title: 'Consultar caso',
-                    href: '/salvia/casos/{i_code}/',
-                };
-                if (this.currentRole === 'sv') {
-                    return [
-                        {
-                            id: 'detalle',
-                            label: 'Detalle',
-                            icon: 'fas fa-layer-group',
-                            variant: 'primary',
-                            title: 'Ver detalle completo',
-                            href: '/salvia/casos/{i_code}/detalle',
-                        },
-                        consultar,
-                    ];
-                }
-                return [consultar];
+                var consultar = [
+                    {
+                        id: 'detalle',
+                        label: 'Detalle del caso',
+                        icon: 'fas fa-layer-group',
+                        variant: 'primary',
+                        title: 'Ver detalle completo',
+                        href: '/salvia/casos/{i_code}/detalle',
+                    },
+                    {
+                        id: 'consultar',
+                        label: 'Consultar caso',
+                        icon: 'fas fa-eye',
+                        title: 'Consultar caso',
+                        href: '/salvia/casos/{i_code}/',
+                    },
+
+                ];
+                return consultar;
             },
         },
         mounted: function() {
