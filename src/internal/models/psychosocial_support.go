@@ -7,6 +7,13 @@ import (
 )
 
 // PsychosocialSupport modelo GORM que mapea la tabla salvia.psychosocial_support.
+//
+// Flujo de estados:
+//
+//	abierto       → al crear la remisión
+//	en_gestion    → se logró primer contacto
+//	en_devolucion → no cumplió criterios
+//	cerrado       → por cualquier motivo
 type PsychosocialSupport struct {
 	ID           string         `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	CaseID       string         `gorm:"type:varchar(36);not null" json:"caseId"`
@@ -17,6 +24,9 @@ type PsychosocialSupport struct {
 	SessionCount int            `gorm:"default:0" json:"sessionCount"`
 	Status       string         `gorm:"type:varchar(20);default:'ACTIVE'" json:"status"`
 	Notes        *string        `gorm:"type:text" json:"notes"`
+	SubmittedBy  *string        `gorm:"type:varchar(36);column:submitted_by" json:"submittedBy,omitempty"`
+	DuplaID      *string        `gorm:"type:varchar(36);column:dupla_id" json:"duplaId,omitempty"`
+	AgentID      *string        `gorm:"type:varchar(36);column:agent_id" json:"agentId,omitempty"`
 	CreatedAt    time.Time      `json:"createdAt"`
 	UpdatedAt    time.Time      `json:"updatedAt"`
 	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
@@ -25,3 +35,11 @@ type PsychosocialSupport struct {
 func (PsychosocialSupport) TableName() string {
 	return "salvia.psychosocial_support"
 }
+
+// Estados válidos de una remisión de Atención Psicosocial.
+const (
+	PsychosocialSupportStatusAbierto      = "abierto"
+	PsychosocialSupportStatusEnGestion    = "en_gestion"
+	PsychosocialSupportStatusEnDevolucion = "en_devolucion"
+	PsychosocialSupportStatusCerrado      = "cerrado"
+)

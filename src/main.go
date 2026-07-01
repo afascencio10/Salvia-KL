@@ -71,6 +71,7 @@ func main() {
         &models.Option{},
         &models.FollowUpV2{},
         &models.EmergencyMeasure{},
+        &models.Dupla{},
         &models.PsychosocialSupport{},
         &models.EconomicStabilization{},
         &models.CaseTimelineEvent{},
