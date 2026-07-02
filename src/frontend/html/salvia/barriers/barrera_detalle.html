@@ -108,6 +108,14 @@
             <p v-else class="brd-tasks-empty">No hay tareas completadas aún</p>
         </div>
 
+        <div class="brd-divider"></div>
+
+        <!-- Sección: Seguimientos a esta barrera -->
+        <div class="brd-tasks-block">
+            <div class="brd-tasks-title">Seguimientos</div>
+            <barrier-follow-up-timeline :barrier-id="barrierICode"></barrier-follow-up-timeline>
+        </div>
+
     </div>
 
     <!-- ─── Tab: Timeline ─── -->
@@ -174,5 +182,9 @@
         }
     });
 
+    var app = home;
+</script>
+<script src="/static/js/components/barrier-follow-up-timeline.js"></script>
+<script>
     home.mount('#app');
 </script>

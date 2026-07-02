@@ -81,6 +81,7 @@ func main() {
         &models.MenTeamRemision{},
         &models.DiscapacidadRemision{},
         &models.BarrierV2{},
+        &models.BarrierFollowUp{},
         &models.Directory{},
     } {
         if err := gormDB.AutoMigrate(m); err != nil {
@@ -101,6 +102,7 @@ func main() {
     followUpRepo           := repository.NewFollowUpRepository(gormDB)
     optionRepo             := repository.NewOptionRepository(gormDB)
     barrierV2Repo          := repository.NewBarrierV2Repository(gormDB)
+    barrierFollowUpRepo    := repository.NewBarrierFollowUpRepository(gormDB)
     victimCaseLightRepo    := repository.NewVictimCaseLightRepository(gormDB)
     townLightRepo          := repository.NewTownLightRepository(gormDB)
     attemptRepo            := repository.NewFollowUpAttemptRepository(gormDB)
@@ -150,6 +152,7 @@ func main() {
         MenTeamRemisionRepo:       menTeamRemisionRepo,
         DiscapacidadRemisionRepo:  discapacidadRemisionRepo,
         BarrierV2Repo:             barrierV2Repo,
+        BarrierFollowUpRepo:       barrierFollowUpRepo,
         CaseTimelineEventRepo:     caseTimelineRepo,
         AgentLightRepo:            agentLightRepo,
         CasoCierreService:         casoCierreSvc,
@@ -184,7 +187,7 @@ func main() {
     caseDetailCtrl         := salvia_ctrl.NewCaseDetailController(caseDetailSvc, caseTimelineRepo)
     caseInfoCtrl           := salvia_ctrl.NewCaseInfoController(caseInfoSvc, gormDB)
     reportCtrl             := salvia_ctrl.NewReportController(reportSvc)
-    barrierV2Svc           := service.NewBarrierV2Service(barrierV2Repo)
+    barrierV2Svc           := service.NewBarrierV2Service(barrierV2Repo, barrierFollowUpRepo, agentLightRepo)
     barrierV2GinCtrl       := salvia_ctrl.NewBarrierV2GinController(barrierV2Svc)
 
     entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo, caseTaskRepo, barrierV2Repo)
@@ -194,6 +197,7 @@ func main() {
         CaseTaskRepo:     caseTaskRepo,
         BarrierV2Repo:    barrierV2Repo,
         CaseTimelineRepo: caseTimelineRepo,
+        EntityLetterSvc:  entityLetterSvc,
         EntityLetterRepo: entityLetterRepo,
         DB:               gormDB,
     })

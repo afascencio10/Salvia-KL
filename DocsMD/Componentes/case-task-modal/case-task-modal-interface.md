@@ -1,6 +1,6 @@
 # `case-task-modal` — Interfaz del Componente
 
-Modal reutilizable para completar tareas (`case_task`). El padre lo activa vía `open(taskId)`, el componente carga la tarea del API, renderiza el formulario específico según `case_task.type` y al confirmar la marca como completada ejecutando los efectos de lado correspondientes en el backend.
+Modal reutilizable para completar tareas (`case_task`). El padre lo activa vía `open(taskId)`, el componente carga la tarea del API, renderiza el formulario específico según `case_task.type` (`gestion_llamada`, `proyectar_oficio`, `comite_caso` o `Corregir oficio`) y al confirmar la marca como completada ejecutando los efectos de lado correspondientes en el backend.
 
 ## Archivos relevantes
 
@@ -88,13 +88,36 @@ case-task-modal
             │           │   opciones: Municipal | Departamental | Nacional
             │           └── <textarea> Observaciones del mecanismo  (.ctm-textarea)
             │
+            │   [tarea.type === 'Corregir oficio']
+            │   FormCorregirOficio  (.ctm-form)  // solo lectura, sin campos editables
+            │   │
+            │   ├── [v-if cargandoOficio]
+            │   │   └── Spinner  "Cargando datos del oficio..."
+            │   │
+            │   ├── [v-else-if oficioVinculado]
+            │   │   ├── [v-if oficioVinculado.reasonCorrection]
+            │   │   │   RazonCorreccion  (.ctm-razon-box)
+            │   │   │   ├── Label  "⚠ Razón de corrección"
+            │   │   │   └── Texto  oficioVinculado.reasonCorrection
+            │   │   ├── [v-if oficioVinculado.urlKofax]
+            │   │   │   KofaxBox  (.ctm-kofax-box)
+            │   │   │   ├── Label  "Oficio en Kofax"
+            │   │   │   └── Texto  oficioVinculado.urlKofax
+            │   │   └── Instrucciones  "Revisa el oficio en el Kofax, aplica las correcciones indicadas y presiona 'Marcar como corregido'..."
+            │   │
+            │   └── [v-else]
+            │       └── ErrorMsg  "No se pudo cargar la información del oficio."
+            │
             ├── [v-if saveError]
             │   ErrorMsg  (.ctm-save-error)  saveError
             │
             └── Footer  (.ctm-footer)
                 ├── BtnCancelar  "Cancelar"  → cancelar()
-                └── BtnConfirmar  "Completar tarea"
-                    :disabled si !formularioValido || guardando
+                └── BtnConfirmar
+                    │   SEGÚN tarea.type:
+                    │     'Corregir oficio'  → "Marcar como corregido"
+                    │     default             → "Completar tarea"
+                    :disabled si !formularioValido || guardando || cargandoTarea
                     → confirmar()
 ```
 
@@ -109,21 +132,24 @@ case-task-modal
 | `proyectar_oficio` | — | Actualiza la `entity_letter` vinculada (`case_task.entity_letter_id`) con los datos del form → pasa a `para_revisar` + guarda JSON + Done |
 | `comite_caso` | `decisiones.includes('activar_enlace')` | Activa flag booleano de enlace territorial en el registro + guarda JSON + Done |
 | `comite_caso` | `decisiones.includes('oficio')` | Crea `entity_letter` (estado `por_proyectar`) + nueva `case_task` de tipo `proyectar_oficio` asignada al agente del caso + guarda JSON + Done |
+| `Corregir oficio` | — | Transiciona el `entity_letter` vinculado (`case_task.entity_letter_id`) de `en_correccion` → `para_revisar` + marca la tarea `Done`. No hay `form_data` que guardar — es solo confirmación. |
 
 ---
 
 ## Validaciones por tipo de tarea
 
-| Campo | `gestion_llamada` | `proyectar_oficio` | `comite_caso` |
-|---|---|---|---|
-| Departamento | required | required | — |
-| Ciudad | required | required | — |
-| Municipio | required | required | — |
-| Entidad | required | required | — |
-| Nombre entidad (si "otra") | required | required | — |
-| Funcionario | required | required | — |
-| Descripción | opcional | — | — |
-| Asunto | required si `generaOficio` | required | — |
-| Ruta al archivo en Kofax | required si `generaOficio` | required | — |
-| Decisiones del comité | — | — | min 1 requerida |
-| Nivel (mecanismo articulador) | — | — | required si decisión activa |
+| Campo | `gestion_llamada` | `proyectar_oficio` | `comite_caso` | `Corregir oficio` |
+|---|---|---|---|---|
+| Departamento | required | required | — | — |
+| Ciudad | required | required | — | — |
+| Municipio | required | required | — | — |
+| Entidad | required | required | — | — |
+| Nombre entidad (si "otra") | required | required | — | — |
+| Funcionario | required | required | — | — |
+| Descripción | opcional | — | — | — |
+| Asunto | required si `generaOficio` | required | — | — |
+| Ruta al archivo en Kofax | required si `generaOficio` | required | — | — |
+| Decisiones del comité | — | — | min 1 requerida | — |
+| Nivel (mecanismo articulador) | — | — | required si decisión activa | — |
+
+> `Corregir oficio` no tiene campos editables. `formularioValido` solo exige que `cargandoOficio === false` (que haya terminado de cargar el `entity_letter` vinculado en modo lectura).

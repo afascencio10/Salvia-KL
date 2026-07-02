@@ -27,6 +27,9 @@ migrarCasos/
 src/bitsflow
 src/main
 
+# Credenciales de base de datos
+src/config/db_config.json
+
 # Archivos temporales de documentación
 DocsMD/Otros/temp/
 

@@ -3,9 +3,11 @@ package controller
 import (
 	"bitsflow/internal/models"
 	"bitsflow/salvia/service"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/datatypes"
 )
 
 // CaseTaskController expone los endpoints HTTP de CaseTask usando Gin.
@@ -20,12 +22,14 @@ func NewCaseTaskController(svc service.CaseTaskService) *CaseTaskController {
 // RegisterRoutes registra las rutas de CaseTask en el grupo /api/v1.
 //
 //	GET  /api/v1/case-tasks?assignedUserId=<id>   → tareas con barrera asignadas al usuario
-//	POST /api/v1/case-tasks/:id/complete           → marcar tarea como completada
+//	POST /api/v1/case-tasks/:id/complete           → marcar tarea como completada (flujo legacy "Gestionar")
+//	PUT  /api/v1/case-tasks/:id/complete           → completar tarea con formData (case-task-modal)
 func (c *CaseTaskController) RegisterRoutes(rg *gin.RouterGroup) {
 	group := rg.Group("/case-tasks")
 	group.GET("", c.ListByAssignedUser)
 	group.GET("/:id", c.GetByID)
 	group.POST("/:id/complete", c.Complete)
+	group.PUT("/:id/complete", c.CompleteWithFormData)
 	group.POST("/:id/reassign", c.Reassign)
 }
 
@@ -33,7 +37,9 @@ func (c *CaseTaskController) RegisterRoutes(rg *gin.RouterGroup) {
 // enriquecidas con datos de barrier_v2 y victim_case.
 // También soporta filtro por caseId.
 //
-// GetByID retorna una tarea por su ID.
+// GetByID retorna una tarea por su ID, enriquecida con el nombre del usuario
+// asignado (assignedUserName) — necesario para vistas de solo lectura como
+// case-task-history, que muestran "Completado por" sin re-consultar aparte.
 // GET /api/v1/case-tasks/:id
 func (c *CaseTaskController) GetByID(ctx *gin.Context) {
 	id := ctx.Param("id")
@@ -46,7 +52,7 @@ func (c *CaseTaskController) GetByID(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "tarea no encontrada"})
 		return
 	}
-	ctx.JSON(http.StatusOK, task)
+	ctx.JSON(http.StatusOK, c.enrichTaskWithName(*task))
 }
 
 // ListByAssignedUser devuelve las tareas asignadas a un usuario o las de un caso.
@@ -149,6 +155,39 @@ func (c *CaseTaskController) Complete(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "tarea completada exitosamente"})
 }
 
+// CompleteWithFormData completa una CaseTask guardando el JSON del formulario
+// y ejecutando los efectos de lado propios del tipo (proyectar_oficio,
+// gestion_llamada, comite_caso, Corregir oficio).
+//
+//	PUT /api/v1/case-tasks/:id/complete
+//	Body: { "userId": "icode-usuario", "formData": { ... } }
+func (c *CaseTaskController) CompleteWithFormData(ctx *gin.Context) {
+	id := ctx.Param("id")
+
+	var body struct {
+		UserID   string         `json:"userId"   binding:"required"`
+		FormData datatypes.JSON `json:"formData" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	task, err := c.svc.CompleteWithFormData(ctx.Request.Context(), id, body.UserID, body.FormData)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrCaseTaskNotFound):
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "tarea no encontrada"})
+		case errors.Is(err, service.ErrEntityLetterInvalidState):
+			ctx.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		default:
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		}
+		return
+	}
+	ctx.JSON(http.StatusOK, task)
+}
+
 
 // Reassign reasigna una CaseTask a otro usuario.
 // POST /api/v1/case-tasks/:id/reassign
@@ -181,7 +220,56 @@ func (c *CaseTaskController) Reassign(ctx *gin.Context) {
 }
 
 
+// lookupUserName resuelve el nombre completo de un usuario a partir de su icode.
+// Devuelve "" si el icode está vacío o no se encuentra.
+func (c *CaseTaskController) lookupUserName(userID string) string {
+	if userID == "" {
+		return ""
+	}
+	var name string
+	c.svc.GetDB().Raw(`
+		SELECT COALESCE(gup.general_user_profile_names, '') || ' ' || COALESCE(gup.general_user_profile_last_names, '')
+		FROM security.general_user gu
+		JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+		WHERE gu.general_user_i_code = ?
+	`, userID).Scan(&name)
+	return name
+}
+
+// taskToJSON arma el gin.H completo de una tarea, incluyendo el nombre del
+// usuario asignado ya resuelto. Centraliza el shape para que GetByID y el
+// listado devuelvan siempre el mismo conjunto de campos.
+func (c *CaseTaskController) taskToJSON(t models.CaseTask, assignedUserName string) gin.H {
+	return gin.H{
+		"id":               t.ID,
+		"caseId":           t.CaseID,
+		"category":         t.Category,
+		"type":             t.Type,
+		"description":      t.Description,
+		"status":           t.Status,
+		"assignedUserId":   t.AssignedUserID,
+		"assignedUserName": assignedUserName,
+		"barrierId":        t.BarrierID,
+		"entityLetterId":   t.EntityLetterID,
+		"followUpId":       t.FollowUpID,
+		"result":           t.Result,
+		"formData":         t.FormData,
+		"completedAt":      t.CompletedAt,
+		"createdAt":        t.CreatedAt,
+		"updatedAt":        t.UpdatedAt,
+	}
+}
+
+// enrichTaskWithName enriquece una tarea individual con el nombre del usuario
+// asignado. Usado por GetByID — vistas de detalle como case-task-history
+// necesitan "todos los datos" de una sola tarea, incluyendo el nombre legible.
+func (c *CaseTaskController) enrichTaskWithName(t models.CaseTask) gin.H {
+	return c.taskToJSON(t, c.lookupUserName(t.AssignedUserID))
+}
+
 // enrichTasksWithNames agrega el nombre del usuario asignado a cada tarea.
+// Resuelve los nombres en batch (una consulta por icode único) para evitar
+// N+1 queries cuando el listado tiene muchas tareas del mismo agente.
 func (c *CaseTaskController) enrichTasksWithNames(tasks []models.CaseTask) []gin.H {
 	// Recolectar IDs únicos
 	idsMap := make(map[string]bool)
@@ -194,14 +282,7 @@ func (c *CaseTaskController) enrichTasksWithNames(tasks []models.CaseTask) []gin
 	// Resolver nombres
 	namesMap := make(map[string]string)
 	for id := range idsMap {
-		var name string
-		c.svc.GetDB().Raw(`
-			SELECT COALESCE(gup.general_user_profile_names, '') || ' ' || COALESCE(gup.general_user_profile_last_names, '')
-			FROM security.general_user gu
-			JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
-			WHERE gu.general_user_i_code = ?
-		`, id).Scan(&name)
-		if name != "" {
+		if name := c.lookupUserName(id); name != "" {
 			namesMap[id] = name
 		}
 	}
@@ -209,23 +290,7 @@ func (c *CaseTaskController) enrichTasksWithNames(tasks []models.CaseTask) []gin
 	// Construir response enriquecido
 	var result []gin.H
 	for _, t := range tasks {
-		item := gin.H{
-			"id":               t.ID,
-			"caseId":           t.CaseID,
-			"category":         t.Category,
-			"type":             t.Type,
-			"description":      t.Description,
-			"status":           t.Status,
-			"assignedUserId":   t.AssignedUserID,
-			"assignedUserName": namesMap[t.AssignedUserID],
-			"barrierId":        t.BarrierID,
-			"entityLetterId":   t.EntityLetterID,
-			"followUpId":       t.FollowUpID,
-			"result":           t.Result,
-			"completedAt":      t.CompletedAt,
-			"createdAt":        t.CreatedAt,
-		}
-		result = append(result, item)
+		result = append(result, c.taskToJSON(t, namesMap[t.AssignedUserID]))
 	}
 	if result == nil {
 		result = []gin.H{}
