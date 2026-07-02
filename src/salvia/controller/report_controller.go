@@ -1,6 +1,7 @@
 package controller
 
 import (
+	salvia_facades "bitsflow/salvia/facades"
 	"bitsflow/salvia/service"
 
 	"github.com/gin-gonic/gin"
@@ -15,5 +16,9 @@ func NewReportController(svc service.ReportService) *ReportController {
 }
 
 func (c *ReportController) RegisterRoutes(rg *gin.RouterGroup) {
-	// TODO: registrar rutas de reportes
+	rg.POST("/reportes/seguimientos-consolidado", c.DownloadConsolidatedReport)
+}
+
+func (c *ReportController) DownloadConsolidatedReport(ctx *gin.Context) {
+	salvia_facades.DownloadConsolidatedReport(ctx, c.svc)
 }
