@@ -2,13 +2,14 @@
 🟢 EVENTO: Cuando filtra por equipo remitente
    Tipo: User Interaction
    Código: E-13
+   Prerequisito: M-02 (campo submitted_by_team)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Disparado por: cambio en DropdownFilter `equipo_remitente`
 
-> Filtra por el equipo del usuario guardado en `submitted_by`.
-> El componente **solo lee** ese id y resuelve el team vía JOIN — no implementa
-> cómo se persiste `submitted_by` al crear la remisión.
+> Filtra por la columna `submitted_by_team` en `psychosocial_support`.
+> El nombre del remitente sigue resolviéndose vía JOIN en `submitted_by`.
+> El componente **solo lee** ambos campos; no implementa cómo se persisten al crear.
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -17,7 +18,7 @@ Disparado por: cambio en DropdownFilter `equipo_remitente`
 
 Opciones cargadas en E-01:
   `GET /api/v1/psychosocial-support/equipos-remitentes`
-  → equipos distintos de `submitter_gu.general_user_team` donde `submitted_by IS NOT NULL`
+  → equipos distintos de `ps.submitted_by_team` WHERE NOT NULL
 
 PASO 1 — activeFilters['equipo_remitente'] = value (o delete si "")
 
@@ -31,10 +32,10 @@ PASO 2 — fetchRemisiones()
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ```sql
-AND submitter_gu.general_user_team = {filter_equipo_remitente}
+AND ps.submitted_by_team = {filter_equipo_remitente}
 ```
 
-Remisiones con `submitted_by` NULL quedan excluidas al filtrar por equipo concreto.
+Remisiones con `submitted_by_team` NULL quedan excluidas al filtrar por equipo concreto.
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -42,16 +43,13 @@ Remisiones con `submitted_by` NULL quedan excluidas al filtrar por equipo concre
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ```sql
-SELECT DISTINCT submitter_gu.general_user_team AS team
+SELECT DISTINCT ps.submitted_by_team AS team
 FROM salvia.psychosocial_support ps
-JOIN security.general_user submitter_gu
-     ON submitter_gu.general_user_i_code = ps.submitted_by
 WHERE ps.deleted_at IS NULL
-  AND ps.submitted_by IS NOT NULL
-  AND submitter_gu.general_user_team <> ''
+  AND ps.submitted_by_team IS NOT NULL
+  AND ps.submitted_by_team <> ''
 ORDER BY team
 ```
 
-**Nota:** `submitted_by` se lee tal cual está en BD. El listado y el filtro de
-equipo remitente resuelven nombre y team vía JOIN. Cómo se guarda el id al
-crear la remisión está fuera del alcance de este componente.
+> **Cambio post-reunión:** ya no requiere JOIN a `security.general_user`.
+> El equipo se lee directamente de `submitted_by_team`.

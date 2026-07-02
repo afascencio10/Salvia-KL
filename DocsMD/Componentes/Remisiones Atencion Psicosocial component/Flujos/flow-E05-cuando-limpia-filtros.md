@@ -20,14 +20,14 @@ PASO 1 — Resetear filtros de UI (no el alcance fijo)
   autocompleteSuggestions.profesional_asignada = []
 
   // Restaurar pre-selección según scopeFilter
-  SI scopeFilter.agent_id:
-    → activeFilters['agent_id'] = scopeFilter.agent_id
+  SI scopeFilter.professional_id:
+    → activeFilters['professional_id'] = scopeFilter.professional_id
     → mantener autocompleteSelected si venía del defaultFilter
 
   SI scopeFilter.dupla_id:
     → activeFilters['dupla_id'] = scopeFilter.dupla_id
 
-  SI NO scopeFilter.agent_id:
+  SI NO scopeFilter.professional_id:
     → autocompleteSelected.profesional_asignada = null
 
 
@@ -43,7 +43,7 @@ PASO 3 — Recargar listado y stats
   fetchRemisiones()   // con activeFilters (= scopeFilter)
 
   SI mostrarCards === true:
-    → fetchStats()    // mismos filtros
+    → fetchStats()    // stats por status (abierto, en_gestion, …)
 
 PASO 4 — Re-renderizar FilterBar, cards (si aplica) y tabla
 
@@ -57,5 +57,5 @@ PASO 4 — Re-renderizar FilterBar, cards (si aplica) y tabla
 | Pantalla | defaultFilter | Tras "Limpiar filtros" |
 |---|---|---|
 | Listado general | `{}` | Lista completa sin filtros UI |
-| Mis remisiones (psicólogo) | `{ agent_id }` | Solo remisiones de ese agent_id |
+| Mis remisiones (profesional) | `{ professional_id }` | Solo remisiones de ese professional_id |
 | Mis remisiones (dupla) | `{ dupla_id }` | Solo remisiones de esa dupla |
