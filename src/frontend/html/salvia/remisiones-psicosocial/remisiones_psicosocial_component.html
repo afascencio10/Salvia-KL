@@ -1,0 +1,190 @@
+{{ define "salvia/remisiones-psicosocial/remisiones_psicosocial_component.html" }}
+<link rel="stylesheet" href="/static/css/remisiones-psicosocial-component.css">
+
+<script type="text/x-template" id="tpl-remisiones-psicosocial-component">
+<div class="rps-wrapper">
+
+    <!-- Cards de resumen -->
+    <div v-if="mostrarCards" class="rps-summary-cards">
+        <div class="rps-card rps-card--total">
+            <span class="rps-card-label">Total remisiones</span>
+            <span class="rps-card-value">${ stats.total }</span>
+        </div>
+        <div class="rps-card rps-card--abierto">
+            <span class="rps-card-label">Abiertos</span>
+            <span class="rps-card-value">${ stats.abierto }</span>
+        </div>
+        <div class="rps-card rps-card--en-gestion">
+            <span class="rps-card-label">En gestión</span>
+            <span class="rps-card-value">${ stats.enGestion }</span>
+        </div>
+        <div class="rps-card rps-card--en-devolucion">
+            <span class="rps-card-label">En devolución</span>
+            <span class="rps-card-value">${ stats.enDevolucion }</span>
+        </div>
+        <div class="rps-card rps-card--cerrado">
+            <span class="rps-card-label">Cerrados</span>
+            <span class="rps-card-value">${ stats.cerrado }</span>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="rps-filter-bar">
+        <div class="rps-filter-row">
+            <div class="rps-filter-item">
+                <label class="rps-filter-label">Número de identidad</label>
+                <input type="text" class="rps-input" v-model="searchNumeroIdentidad" @input="onSearchInput('numero_identidad')" placeholder="Número de identidad">
+            </div>
+            <div class="rps-filter-item">
+                <label class="rps-filter-label">Teléfono</label>
+                <input type="text" class="rps-input" v-model="searchTelefono" @input="onSearchInput('telefono')" placeholder="Teléfono">
+            </div>
+            <div class="rps-filter-item">
+                <label class="rps-filter-label">Estado remisión</label>
+                <select class="rps-select" :value="activeFilters.estado_remision || ''" @change="setDropdownFilter('estado_remision', $event.target.value)">
+                    <option value="">Todos</option>
+                    <option v-for="opt in estadoRemisionOptions" :key="opt.value" :value="opt.value">${ opt.label }</option>
+                </select>
+            </div>
+            <div class="rps-filter-item">
+                <label class="rps-filter-label">Sesiones completadas</label>
+                <select class="rps-select" :value="activeFilters.sesiones_completadas || ''" @change="setDropdownFilter('sesiones_completadas', $event.target.value)">
+                    <option value="">Todas</option>
+                    <option v-for="n in sesionesOptions" :key="n" :value="String(n)">${ n }</option>
+                </select>
+            </div>
+        </div>
+        <div class="rps-filter-row">
+            <div class="rps-filter-item">
+                <label class="rps-filter-label">Dupla asignada</label>
+                <select class="rps-select" :value="activeFilters.dupla_id || ''" @change="setDropdownFilter('dupla_id', $event.target.value)">
+                    <option value="">Todas</option>
+                    <option v-for="d in duplaOptions" :key="d.id" :value="d.id">${ d.name }</option>
+                </select>
+            </div>
+            <div class="rps-filter-item rps-autocomplete-filter" data-autocomplete-key="profesional_asignada">
+                <label class="rps-filter-label">Profesional asignada</label>
+                <div v-if="!autocompleteSelected.profesional_asignada" class="rps-autocomplete-input-wrap">
+                    <input type="text" class="rps-input" v-model="autocompleteText.profesional_asignada" @input="onAutocompleteInput" placeholder="Profesional asignada" autocomplete="off">
+                </div>
+                <div v-else class="rps-autocomplete-tag">
+                    <span>${ autocompleteSelected.profesional_asignada.label }</span>
+                    <button type="button" class="rps-tag-clear" @click="clearAutocomplete">✕</button>
+                </div>
+                <div v-if="autocompleteSuggestions.length > 0 && !autocompleteSelected.profesional_asignada" class="rps-autocomplete-dropdown">
+                    <div v-for="opt in autocompleteSuggestions" :key="opt.value" class="rps-autocomplete-item" @click="selectAutocomplete(opt)">${ opt.label }</div>
+                </div>
+            </div>
+            <div class="rps-filter-item">
+                <label class="rps-filter-label">Nivel de riesgo</label>
+                <select class="rps-select" :value="activeFilters.nivel_riesgo || ''" @change="setDropdownFilter('nivel_riesgo', $event.target.value)">
+                    <option value="">Todos</option>
+                    <option v-for="opt in nivelRiesgoOptions" :key="opt.value" :value="opt.value">${ opt.label }</option>
+                </select>
+            </div>
+            <div class="rps-filter-item">
+                <label class="rps-filter-label">Equipo remitente</label>
+                <select class="rps-select" :value="activeFilters.equipo_remitente || ''" @change="setDropdownFilter('equipo_remitente', $event.target.value)">
+                    <option value="">Todos</option>
+                    <option v-for="t in equipoRemitenteOptions" :key="t" :value="t">${ t }</option>
+                </select>
+            </div>
+        </div>
+        <button type="button" class="rps-clear-filters" @click="clearAllFilters">Limpiar filtros</button>
+    </div>
+
+    <!-- Tabla -->
+    <div class="rps-table-wrap">
+        <div v-if="tableAlert.visible" class="rps-table-alert" role="alert">
+            <strong>Selección no permitida</strong>
+            <p>${ tableAlert.message }</p>
+            <button type="button" @click="hideTableAlert">✕</button>
+        </div>
+
+        <div v-if="reasignacion && selectedRemisiones.length > 0" class="rps-table-toolbar">
+            <span>${ selectedRemisiones.length } remisión(es) seleccionada(s)</span>
+            <button type="button" class="rps-reassign-btn" @click="emitReasignar">Reasignar</button>
+        </div>
+
+        <div v-if="paginatedRemisiones.length === 0" class="rps-empty">
+            <i class="fas fa-inbox"></i>
+            <span>No se encontraron remisiones</span>
+        </div>
+
+        <table v-else class="rps-table">
+            <thead>
+                <tr>
+                    <th v-if="reasignacion" class="rps-th-select">
+                        <label class="rps-select-all">
+                            <input type="checkbox" :checked="isAllPageSelected" :indeterminate.prop="isPagePartiallySelected" @change="toggleSelectAllPage">
+                        </label>
+                    </th>
+                    <th>CASO</th>
+                    <th>REMISIÓN</th>
+                    <th>ESTADO Y ASIGNACIÓN</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="r in paginatedRemisiones" :key="r.id" class="rps-row">
+                    <td v-if="reasignacion" class="rps-cell-select">
+                        <input type="checkbox" :checked="isSelected(r)" @change="toggleRemisionSelection(r, $event.target.checked)">
+                    </td>
+                    <td class="rps-col-caso">
+                        <div class="rps-victim-line">
+                            <span class="rps-victim-name">${ r.victimNames } ${ r.victimLastNames }</span>
+                            <span class="rps-risk-badge" :class="riskBadgeClass(r.riskLevel)">${ riskLabel(r.riskLevel) }</span>
+                        </div>
+                        <div class="rps-case-meta">${ r.caseICode } - ${ r.docNumber }</div>
+                        <div class="rps-case-meta">${ r.victimPhone }</div>
+                        <div class="rps-case-meta">${ r.municipality }</div>
+                        <button type="button" class="rps-link" @click="emitVerCaso(r)">Ver caso →</button>
+                    </td>
+                    <td class="rps-col-remision">
+                        <div class="rps-remision-meta">Remitido por: ${ r.submittedByName || '—' }</div>
+                        <div class="rps-remision-meta">Equipo: ${ r.submittedByTeam || '—' }</div>
+                        <div class="rps-remision-meta">${ formatDate(r.createdAt) }</div>
+                        <button type="button" class="rps-link" @click="emitVerRemision(r)">Ver remisión →</button>
+                    </td>
+                    <td class="rps-col-estado">
+                        <span class="rps-status-badge" :class="statusBadgeClass(r.status)">${ statusLabel(r.status) }</span>
+                        <div class="rps-sessions">
+                            <span class="rps-sessions-label">${ sessionLabel }</span>
+                            <div class="rps-dots">
+                                <span v-for="n in sessionDots" :key="n" class="rps-dot" :class="{ 'rps-dot--filled': n <= r.sessionCount }"></span>
+                            </div>
+                            <span class="rps-sessions-summary">${ r.sessionCount } realizadas</span>
+                        </div>
+                        <span v-if="r.duplaName" class="rps-dupla-tag">${ r.duplaName }</span>
+                        <div class="rps-professionals">
+                            <template v-if="r.duplaId">
+                                <div class="rps-professional" v-if="r.psychologistName">
+                                    <span class="rps-avatar">${ initials(r.psychologistName) }</span>
+                                    <span>${ r.psychologistName } - Psicóloga</span>
+                                </div>
+                                <div class="rps-professional" v-if="r.socialWorkerName">
+                                    <span class="rps-avatar">${ initials(r.socialWorkerName) }</span>
+                                    <span>${ r.socialWorkerName } - Trab. Social</span>
+                                </div>
+                            </template>
+                            <template v-else-if="r.professionalId">
+                                <div class="rps-professional">
+                                    <span class="rps-avatar">${ initials(r.professionalName) }</span>
+                                    <span>${ r.professionalName } - ${ professionalRoleLabel(r.professionalTeam) }</span>
+                                </div>
+                            </template>
+                            <em v-else class="rps-sin-asignar">Sin asignar</em>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div v-if="filteredRemisiones.length > 0" class="rps-pagination">
+            <button type="button" class="rps-page-btn" :disabled="currentPage === 1" @click="changePage(currentPage - 1)">← Anterior</button>
+            <span class="rps-page-info">Página ${ currentPage } de ${ totalPages }</span>
+            <button type="button" class="rps-page-btn" :disabled="currentPage >= totalPages" @click="changePage(currentPage + 1)">Siguiente →</button>
+        </div>
+    </div>
+</div>
+</script>
+{{ end }}

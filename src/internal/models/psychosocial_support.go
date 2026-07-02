@@ -15,21 +15,22 @@ import (
 //	en_devolucion → no cumplió criterios
 //	cerrado       → por cualquier motivo
 type PsychosocialSupport struct {
-	ID           string         `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	CaseID       string         `gorm:"type:varchar(36);not null" json:"caseId"`
-	FollowUpID   string         `gorm:"type:uuid;not null" json:"followUpId"`
-	Type         string         `gorm:"type:varchar(50);not null" json:"type"`
-	Provider     string         `gorm:"type:varchar(255)" json:"provider"`
-	ScheduledAt  *time.Time     `json:"scheduledAt"`
-	SessionCount int            `gorm:"default:0" json:"sessionCount"`
-	Status       string         `gorm:"type:varchar(20);default:'ACTIVE'" json:"status"`
-	Notes        *string        `gorm:"type:text" json:"notes"`
-	SubmittedBy  *string        `gorm:"type:varchar(36);column:submitted_by" json:"submittedBy,omitempty"`
-	DuplaID      *string        `gorm:"type:varchar(36);column:dupla_id" json:"duplaId,omitempty"`
-	AgentID      *string        `gorm:"type:varchar(36);column:agent_id" json:"agentId,omitempty"`
-	CreatedAt    time.Time      `json:"createdAt"`
-	UpdatedAt    time.Time      `json:"updatedAt"`
-	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
+	ID              string         `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	CaseID          string         `gorm:"type:varchar(36);not null" json:"caseId"`
+	FollowUpID      string         `gorm:"type:uuid;not null" json:"followUpId"`
+	Type            string         `gorm:"type:varchar(50);not null" json:"type"`
+	Provider        string         `gorm:"type:varchar(255)" json:"provider"`
+	ScheduledAt     *time.Time     `json:"scheduledAt"`
+	SessionCount    int            `gorm:"default:0" json:"sessionCount"`
+	Status          string         `gorm:"type:varchar(30);default:'abierto'" json:"status"`
+	Notes           *string        `gorm:"type:text" json:"notes"`
+	SubmittedBy     *string        `gorm:"type:varchar(36);column:submitted_by" json:"submittedBy,omitempty"`
+	SubmittedByTeam *string        `gorm:"type:varchar(50);column:submitted_by_team" json:"submittedByTeam,omitempty"`
+	DuplaID         *string        `gorm:"type:varchar(36);column:dupla_id" json:"duplaId,omitempty"`
+	ProfessionalID  *string        `gorm:"type:varchar(36);column:professional_id" json:"professionalId,omitempty"`
+	CreatedAt       time.Time      `json:"createdAt"`
+	UpdatedAt       time.Time      `json:"updatedAt"`
+	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (PsychosocialSupport) TableName() string {

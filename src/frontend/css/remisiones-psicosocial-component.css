@@ -1,0 +1,428 @@
+/* remisiones-psicosocial-component — prefijo rps- */
+
+.rps-wrapper {
+    font-family: 'Nunito Sans', sans-serif;
+    max-width: 100%;
+    min-width: 0;
+}
+
+/* ---- Cards resumen ---- */
+.rps-summary-cards {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+@media (max-width: 1100px) {
+    .rps-summary-cards {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 700px) {
+    .rps-summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.rps-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+}
+
+.rps-card-label {
+    font-size: 0.82rem;
+    font-weight: 500;
+}
+
+.rps-card-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.rps-card--total {
+    background: #fff;
+    color: #1f2937;
+}
+
+.rps-card--abierto {
+    background: #fef9c3;
+    color: #854d0e;
+    border-color: #fde68a;
+}
+
+.rps-card--en-gestion {
+    background: #dbeafe;
+    color: #1e40af;
+    border-color: #bfdbfe;
+}
+
+.rps-card--en-devolucion {
+    background: #ffedd5;
+    color: #c2410c;
+    border-color: #fed7aa;
+}
+
+.rps-card--cerrado {
+    background: #dcfce7;
+    color: #166534;
+    border-color: #bbf7d0;
+}
+
+/* ---- Filtros ---- */
+.rps-filter-bar {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.rps-filter-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+@media (max-width: 1100px) {
+    .rps-filter-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.rps-filter-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: relative;
+}
+
+.rps-filter-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.rps-input,
+.rps-select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    background: #fff;
+}
+
+.rps-clear-filters {
+    background: none;
+    border: none;
+    color: #5106A7;
+    font-size: 0.84rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+}
+
+.rps-clear-filters:hover {
+    text-decoration: underline;
+}
+
+/* Autocomplete */
+.rps-autocomplete-tag {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: #ede9fe;
+    border-radius: 6px;
+    font-size: 0.875rem;
+}
+
+.rps-tag-clear {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #6b7280;
+}
+
+.rps-autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.rps-autocomplete-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.rps-autocomplete-item:hover {
+    background: #f3f4f6;
+}
+
+/* ---- Tabla ---- */
+.rps-table-wrap {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.rps-table-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: #f5f3ff;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.rps-reassign-btn {
+    background: #5106A7;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.rps-table-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 16px;
+    background: #fff7ed;
+    border-bottom: 1px solid #fed7aa;
+    color: #92400e;
+    font-size: 0.84rem;
+}
+
+.rps-table-alert button {
+    margin-left: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.rps-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 48px 16px;
+    color: #9ca3af;
+}
+
+.rps-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.rps-table th {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6b7280;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.rps-table td {
+    padding: 16px;
+    vertical-align: top;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 0.875rem;
+}
+
+.rps-row:last-child td {
+    border-bottom: none;
+}
+
+.rps-th-select,
+.rps-cell-select {
+    width: 48px;
+    text-align: center;
+}
+
+.rps-victim-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.rps-victim-name {
+    font-weight: 700;
+    color: #111827;
+}
+
+.rps-case-meta,
+.rps-remision-meta {
+    color: #6b7280;
+    font-size: 0.82rem;
+    margin-bottom: 2px;
+}
+
+.rps-link {
+    background: none;
+    border: none;
+    color: #5106A7;
+    font-weight: 600;
+    font-size: 0.82rem;
+    cursor: pointer;
+    padding: 4px 0 0;
+}
+
+.rps-link:hover {
+    text-decoration: underline;
+}
+
+/* Badges */
+.rps-risk-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.rps-risk-badge.alto { background: #ffedd5; color: #c2410c; }
+.rps-risk-badge.extremo { background: #fee2e2; color: #b91c1c; }
+.rps-risk-badge.moderado { background: #fef9c3; color: #a16207; }
+.rps-risk-badge.bajo { background: #dcfce7; color: #15803d; }
+
+.rps-status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.rps-status-badge.abierto { background: #fef9c3; color: #854d0e; }
+.rps-status-badge.en_gestion { background: #dbeafe; color: #1e40af; }
+.rps-status-badge.en_devolucion { background: #ffedd5; color: #c2410c; }
+.rps-status-badge.cerrado { background: #dcfce7; color: #166534; }
+
+.rps-dupla-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    background: #ede9fe;
+    color: #5b21b6;
+    margin-bottom: 8px;
+}
+
+/* Sesiones */
+.rps-sessions {
+    margin-bottom: 8px;
+}
+
+.rps-sessions-label {
+    font-size: 0.78rem;
+    color: #6b7280;
+}
+
+.rps-dots {
+    display: flex;
+    gap: 4px;
+    margin: 4px 0;
+}
+
+.rps-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #e5e7eb;
+}
+
+.rps-dot--filled {
+    background: #5106A7;
+}
+
+.rps-sessions-summary {
+    font-size: 0.78rem;
+    color: #6b7280;
+}
+
+/* Profesionales */
+.rps-professional {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    font-size: 0.82rem;
+}
+
+.rps-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #ede9fe;
+    color: #5106A7;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.rps-sin-asignar {
+    color: #9ca3af;
+    font-size: 0.82rem;
+}
+
+/* Paginación */
+.rps-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 14px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.rps-page-btn {
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 0.84rem;
+}
+
+.rps-page-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.rps-page-info {
+    font-size: 0.84rem;
+    color: #6b7280;
+}

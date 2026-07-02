@@ -73,6 +73,7 @@ func main() {
         &models.EmergencyMeasure{},
         &models.Dupla{},
         &models.PsychosocialSupport{},
+        &models.TeamContact{},
         &models.EconomicStabilization{},
         &models.CaseTimelineEvent{},
         &models.EntityLetter{},
