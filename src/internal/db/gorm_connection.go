@@ -29,7 +29,13 @@ func NewGormDB(cfg commondb.DBClientConfig) (*gorm.DB, error) {
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		cfg.Hostname, cfg.Port, cfg.UserName, cfg.Password, cfg.DatabaseName, sslmode,
 	)
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+	// PreferSimpleProtocol evita prepared statements en el driver pgx.
+	// Sin esto, el pooler de Supabase puede devolver intermitentemente:
+	// "prepared statement stmtcache_... does not exist" (SQLSTATE 26000).
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true,
+	}), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Warn),
 	})
 	if err != nil {
@@ -106,6 +112,9 @@ func IsConnectionError(err error) bool {
 		"connection timed out",
 		"dial tcp",
 		"eof",
+		"prepared statement",
+		"stmtcache_",
+		"sqlstate 26000",
 	}
 	for _, ce := range connectionErrors {
 		if strings.Contains(msg, ce) {
