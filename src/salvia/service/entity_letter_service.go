@@ -81,6 +81,14 @@ type ActionInput struct {
 	CorreoRemitente  *string
 	AsuntoRespuesta  *string
 	ResponseReviewBy *string
+
+	// TaskDescription — solo se llena cuando la acción viene de completar una
+	// CaseTask vía case-task-modal (acciones "proyectar" y "corregir" disparadas
+	// desde CompleteWithFormData). Si está presente, sobreescribe el texto
+	// genérico por-estado del CaseTimelineEvent con "Tarea completada: {desc}".
+	// Para el resto de acciones (revisar, por_corregir, radicar,
+	// registrar_respuesta) queda nil y el evento conserva su texto genérico.
+	TaskDescription *string
 }
 
 // UpdateStateInput contiene el nuevo estado y quién realiza la transición.
@@ -386,7 +394,7 @@ func (s *entityLetterService) PerformAction(ctx context.Context, id string, inpu
 	}
 
 	// Registrar evento en el timeline (fire-and-forget: no bloquea si falla)
-	s.registrarEventoOficio(ctx, updated, input.UserID, input.ReasonCorrection)
+	s.registrarEventoOficio(ctx, updated, input.UserID, input.ReasonCorrection, input.TaskDescription)
 
 	return updated, nil
 }
@@ -488,6 +496,7 @@ func (s *entityLetterService) registrarEventoOficio(
 	letter *models.EntityLetter,
 	userID string,
 	reasonCorrection *string,
+	taskDescription *string,
 ) {
 	if s.timelineRepo == nil {
 		return
@@ -548,6 +557,13 @@ func (s *entityLetterService) registrarEventoOficio(
 	if letter.State == models.EntityLetterStateEnCorreccion &&
 		reasonCorrection != nil && *reasonCorrection != "" {
 		cfg.description = fmt.Sprintf("%s — Razón: %s", cfg.description, *reasonCorrection)
+	}
+
+	// Si esta transición vino de completar una CaseTask (proyectar/corregir vía
+	// case-task-modal), el evento debe reflejar la tarea completada, no el
+	// texto genérico del estado.
+	if taskDescription != nil && *taskDescription != "" {
+		cfg.description = "Tarea completada: " + *taskDescription
 	}
 
 	now := time.Now()

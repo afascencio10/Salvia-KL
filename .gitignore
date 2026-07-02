@@ -27,8 +27,34 @@ migrarCasos/
 src/bitsflow
 src/main
 
+# Credenciales de base de datos
+src/config/db_config.json
+
 # Archivos temporales de documentación
 DocsMD/Otros/temp/
 
 # Estado del workspace de Obsidian (uso local)
 DocsMD/.obsidian/
+
+# Agente de desarrollo camilo start
+# Contexto para agentes de IA (symlinks + reglas)
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.cursorrules
+
+.knowledge/
+.skills/
+.agents/
+.templates/
+.scripts/
+.githooks/
+.harness/
+
+Makefile
+CONTRIBUTING.md
+.gitlab-ci.yml
+.github/workflows/okf-validation.yml
+.github/workflows/playwright.yml
+# Agente de desarrollo camilo end
+

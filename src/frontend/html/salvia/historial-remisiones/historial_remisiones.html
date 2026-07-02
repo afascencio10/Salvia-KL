@@ -1,0 +1,78 @@
+<main class="salvia-main">
+<div class="container">
+    <div class="welcome-section">
+        <div>
+            <h2><b>Historial de Remisiones</b></h2>
+            <p class="text-muted mb-0">Remisiones de Atención Psicosocial</p>
+        </div>
+    </div>
+
+    {{ template "salvia/remisiones-psicosocial/remisiones_psicosocial_component.html" . }}
+
+    <div class="mt-4 mb-4">
+        <remisiones-psicosocial-component
+            ref="remisionesComponent"
+            :mostrar-cards="true"
+            :reasignacion="true"
+            :default-filter="defaultFilter"
+            @ver-caso="onVerCaso"
+            @ver-remision="onVerRemision"
+            @reasignar-remisiones="onReasignarRemisiones"
+        ></remisiones-psicosocial-component>
+    </div>
+</div>
+</main>
+
+{{ template "standard_scripts.html" . }}
+{{ template "overlay.html" . }}
+
+<script>
+    var home = Vue.createApp({
+        delimiters: ['${', '}'],
+        data: function() {
+            return {
+                windowTitle: {{.windowTitle}},
+                currentUser: "{{.currentUser}}",
+                currentRole: "{{.currentRole}}",
+                menu: {{.menu}},
+                defaultFilter: {},
+            };
+        },
+        mounted: function() {
+            document.title = {{.windowTitle}};
+            document.getElementById('app').style.display = 'block';
+        },
+        methods: {
+            onVerCaso: function(payload) {
+                var code = payload && payload.caseICode;
+                if (code) {
+                    window.location.href = '/salvia/casos/' + encodeURIComponent(code) + '/detalle';
+                }
+            },
+            onVerRemision: function(payload) {
+                var followUpId = payload && payload.followUpId;
+                if (followUpId) {
+                    window.location.href = '/salvia/hacer-seguimiento/' + encodeURIComponent(followUpId);
+                }
+            },
+            onReasignarRemisiones: function(payload) {
+                var count = payload && payload.remisiones ? payload.remisiones.length : 0;
+                alert('Reasignación pendiente de implementar (' + count + ' remisión(es) seleccionada(s)).');
+            },
+            logout: function() {
+                logout("/seguridad/logout");
+            },
+        },
+    });
+
+    var app = home;
+
+    var _tplRps = document.getElementById('tpl-remisiones-psicosocial-component');
+    window.__remisionesPsicosocialComponentTpl = _tplRps ? _tplRps.innerHTML : '';
+</script>
+
+<script src="/static/js/components/remisiones-psicosocial-component.js"></script>
+
+<script>
+    home.mount("#app");
+</script>

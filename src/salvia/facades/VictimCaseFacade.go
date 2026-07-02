@@ -33,6 +33,7 @@ var casosComponentTemplates = []string{
 // listCasesTemplates — partials exclusivos de la pantalla Lista de casos.
 var listCasesTemplates = []string{
 	"frontend/html/salvia/list-cases/reasignar_casos_modal.html",
+	"frontend/html/salvia/list-cases/consolidated_report_modal.html",
 }
 
 // VictimCasePOST maneja la solicitud POST para crear o actualizar un caso de víctima.

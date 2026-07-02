@@ -4,11 +4,13 @@ import (
 	"bitsflow/internal/models"
 	"bitsflow/internal/repository"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"time"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -47,6 +49,11 @@ type CaseTaskService interface {
 	//   2. Actualiza BarrierV2 → status=Articulada  (si la tarea tiene barrierId)
 	//   3. Crea un CaseTimelineEvent de tipo BARRERA_ARTICULADA
 	Complete(ctx context.Context, id string, result string) error
+
+	// CompleteWithFormData completa una CaseTask del tipo gestion_llamada,
+	// proyectar_oficio, comite_caso o Corregir oficio guardando el JSON del
+	// formulario y ejecutando los efectos de lado correspondientes a cada tipo.
+	CompleteWithFormData(ctx context.Context, id string, userId string, formData datatypes.JSON) (*models.CaseTask, error)
 }
 
 // CaseTaskServiceDeps agrupa las dependencias necesarias para CaseTaskService.
@@ -54,6 +61,7 @@ type CaseTaskServiceDeps struct {
 	CaseTaskRepo     repository.CaseTaskRepository
 	BarrierV2Repo    repository.BarrierV2Repository
 	CaseTimelineRepo repository.CaseTimelineEventRepository
+	EntityLetterSvc  EntityLetterService
 	EntityLetterRepo repository.EntityLetterRepository
 	DB               *gorm.DB
 }
@@ -62,6 +70,7 @@ type caseTaskService struct {
 	repo             repository.CaseTaskRepository
 	barrierRepo      repository.BarrierV2Repository
 	timelineRepo     repository.CaseTimelineEventRepository
+	entityLetterSvc  EntityLetterService
 	entityLetterRepo repository.EntityLetterRepository
 	db               *gorm.DB
 }
@@ -71,6 +80,7 @@ func NewCaseTaskService(deps CaseTaskServiceDeps) CaseTaskService {
 		repo:             deps.CaseTaskRepo,
 		barrierRepo:      deps.BarrierV2Repo,
 		timelineRepo:     deps.CaseTimelineRepo,
+		entityLetterSvc:  deps.EntityLetterSvc,
 		entityLetterRepo: deps.EntityLetterRepo,
 		db:               deps.DB,
 	}
@@ -209,4 +219,279 @@ func (s *caseTaskService) Complete(ctx context.Context, id string, result string
 	}
 
 	return nil
+}
+
+// CompleteWithFormData completa una CaseTask de tipo gestion_llamada,
+// proyectar_oficio, comite_caso o Corregir oficio. Persiste el JSON del
+// formulario y ejecuta los efectos de lado propios de cada tipo.
+//
+// Para proyectar_oficio: guarda form_data en la tarea y delega en
+// EntityLetterService.PerformAction("proyectar") que actualiza el oficio
+// y marca la tarea Done a través de completarCaseTask().
+//
+// Para Corregir oficio: delega en PerformAction("corregir") que transiciona
+// el entity_letter (en_correccion → para_revisar) y marca la tarea Done.
+//
+// Para gestion_llamada y comite_caso: marca la tarea Done + guarda form_data
+// primero; los efectos de lado son best-effort (se loguean pero no abortan).
+func (s *caseTaskService) CompleteWithFormData(ctx context.Context, id string, userId string, formData datatypes.JSON) (*models.CaseTask, error) {
+	// ── 1. Cargar la tarea ────────────────────────────────────────────────────
+	task, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrCaseTaskNotFound
+		}
+		return nil, fmt.Errorf("CompleteWithFormData: cargar tarea: %w", err)
+	}
+
+	// ── 2. Parsear formData ───────────────────────────────────────────────────
+	var fd map[string]interface{}
+	if err := json.Unmarshal(formData, &fd); err != nil {
+		return nil, fmt.Errorf("CompleteWithFormData: formData inválido: %w", err)
+	}
+
+	now := time.Now()
+
+	// ── 3. Lógica por tipo ────────────────────────────────────────────────────
+	switch task.Type {
+
+	case "proyectar_oficio":
+		// Guardar form_data antes de llamar a PerformAction (sin cambiar status aún
+		// — PerformAction llamará completarCaseTask() que lo marcará Done).
+		if err := s.repo.UpdateFields(ctx, id, map[string]interface{}{
+			"form_data": formData,
+		}); err != nil {
+			return nil, fmt.Errorf("CompleteWithFormData: guardar form_data: %w", err)
+		}
+
+		if task.EntityLetterID == nil {
+			return nil, fmt.Errorf("CompleteWithFormData: proyectar_oficio sin entity_letter_id")
+		}
+
+		input := s.buildProyectarInput(userId, fd)
+		input.TaskDescription = &task.Description
+		if _, err := s.entityLetterSvc.PerformAction(ctx, *task.EntityLetterID, input); err != nil {
+			return nil, fmt.Errorf("CompleteWithFormData: proyectar oficio: %w", err)
+		}
+
+	case "Corregir oficio":
+		// Sin form_data relevante: delega directamente en PerformAction("corregir")
+		// que transiciona el entity_letter (en_correccion → para_revisar) y llama
+		// completarCaseTask() [fire-and-forget] para marcar esta tarea Done.
+		if task.EntityLetterID == nil {
+			return nil, fmt.Errorf("CompleteWithFormData: Corregir oficio sin entity_letter_id")
+		}
+
+		input := ActionInput{Action: "corregir", UserID: userId, TaskDescription: &task.Description}
+		if _, err := s.entityLetterSvc.PerformAction(ctx, *task.EntityLetterID, input); err != nil {
+			return nil, fmt.Errorf("CompleteWithFormData: corregir oficio: %w", err)
+		}
+
+	case "gestion_llamada":
+		if err := s.repo.UpdateFields(ctx, id, map[string]interface{}{
+			"form_data":    formData,
+			"status":       models.CaseTaskStatusDone,
+			"completed_at": now,
+		}); err != nil {
+			return nil, fmt.Errorf("CompleteWithFormData: marcar Done: %w", err)
+		}
+		go s.sideEffectsGestionLlamada(context.Background(), task, fd, userId, now)
+
+	case "comite_caso":
+		if err := s.repo.UpdateFields(ctx, id, map[string]interface{}{
+			"form_data":    formData,
+			"status":       models.CaseTaskStatusDone,
+			"completed_at": now,
+		}); err != nil {
+			return nil, fmt.Errorf("CompleteWithFormData: marcar Done: %w", err)
+		}
+		go s.sideEffectsComiteCaso(context.Background(), task, fd, userId, now)
+
+	default:
+		return nil, fmt.Errorf("CompleteWithFormData: tipo de tarea no soportado: %s", task.Type)
+	}
+
+	// ── 4. Retornar tarea actualizada ─────────────────────────────────────────
+	return s.repo.FindByID(ctx, id)
+}
+
+// buildProyectarInput construye el ActionInput para PerformAction("proyectar")
+// a partir del formData parseado.
+func (s *caseTaskService) buildProyectarInput(userId string, fd map[string]interface{}) ActionInput {
+	input := ActionInput{
+		Action: "proyectar",
+		UserID: userId,
+	}
+	if v, ok := fd["departamentoId"].(string); ok {
+		input.DepartmentID = &v
+	}
+	if v, ok := fd["ciudadId"].(string); ok {
+		input.CityID = &v
+	}
+	if v, ok := fd["municipioId"].(string); ok {
+		input.TownID = &v
+	}
+	if v, ok := fd["entidadNombre"].(string); ok {
+		input.EntityName = &v
+	}
+	if v, ok := fd["funcionario"].(string); ok {
+		input.OfficialDependency = &v
+	}
+	if v, ok := fd["asunto"].(string); ok {
+		input.Subject = &v
+	}
+	if v, ok := fd["rutaKofax"].(string); ok {
+		input.UrlKofax = &v
+	}
+	if v, ok := fd["entidadId"].(float64); ok {
+		id64 := int64(v)
+		input.EntityBranchID = &id64
+	}
+	return input
+}
+
+// sideEffectsGestionLlamada ejecuta los efectos de lado de una tarea gestion_llamada
+// de forma asíncrona (fire-and-forget). Los errores se loguean pero no abortan.
+func (s *caseTaskService) sideEffectsGestionLlamada(ctx context.Context, task *models.CaseTask, fd map[string]interface{}, userId string, now time.Time) {
+	generaOficio, _ := fd["generaOficio"].(bool)
+	if generaOficio {
+		letter := s.buildEntityLetterFromFormData(task, fd, userId, models.EntityLetterStateParaRevisar)
+		if err := s.entityLetterRepo.Create(ctx, letter); err != nil {
+			log.Printf("[CaseTaskService] WARN: gestion_llamada no pudo crear entity_letter para tarea %s: %v", task.ID, err)
+		}
+	}
+
+	barrierID := ""
+	if task.BarrierID != nil {
+		barrierID = *task.BarrierID
+	}
+	event := &models.CaseTimelineEvent{
+		CaseID:      task.CaseID,
+		Category:    models.TimelineCategoryBarreras,
+		Type:        "Gestión de Llamada",
+		EventType:   "GESTION_LLAMADA",
+		Icon:        "phone",
+		Color:       models.TimelineColorBlue,
+		Date:        now,
+		Description: "Tarea completada: " + task.Description,
+		EventUserID: userId,
+		BarrierID:   barrierID,
+		TaskID:      task.ID,
+	}
+	if err := s.timelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[CaseTaskService] WARN: gestion_llamada no pudo crear timeline event para case %s: %v", task.CaseID, err)
+	}
+}
+
+// sideEffectsComiteCaso ejecuta los efectos de lado de una tarea comite_caso
+// de forma asíncrona (fire-and-forget). Los errores se loguean pero no abortan.
+func (s *caseTaskService) sideEffectsComiteCaso(ctx context.Context, task *models.CaseTask, fd map[string]interface{}, userId string, now time.Time) {
+	decisiones, _ := fd["decisiones"].([]interface{})
+
+	for _, d := range decisiones {
+		decision, _ := d.(string)
+		switch decision {
+
+		case "activar_enlace":
+			if task.BarrierID != nil && *task.BarrierID != "" {
+				if err := s.barrierRepo.UpdateFields(ctx, *task.BarrierID, map[string]interface{}{
+					"enlace_activado": true,
+				}); err != nil {
+					log.Printf("[CaseTaskService] WARN: comite_caso no pudo activar enlace en barrier %s: %v", *task.BarrierID, err)
+				}
+			}
+
+		case "oficio":
+			barrierID := ""
+			if task.BarrierID != nil {
+				barrierID = *task.BarrierID
+			}
+			letter := &models.EntityLetter{
+				BarrierID: barrierID,
+				CaseID:    task.CaseID,
+				AgentID:   &userId,
+				State:     models.EntityLetterStatePorProyectar,
+			}
+			if err := s.entityLetterRepo.Create(ctx, letter); err != nil {
+				log.Printf("[CaseTaskService] WARN: comite_caso no pudo crear entity_letter para tarea %s: %v", task.ID, err)
+				continue
+			}
+			newTask := &models.CaseTask{
+				Category:       "Barreras",
+				Type:           "proyectar_oficio",
+				Description:    "Proyectar oficio — Decisión de comité",
+				Status:         models.CaseTaskStatusToDo,
+				AssignedUserID: userId,
+				CaseID:         task.CaseID,
+				BarrierID:      task.BarrierID,
+				EntityLetterID: &letter.ID,
+			}
+			if err := s.repo.Create(ctx, newTask); err != nil {
+				log.Printf("[CaseTaskService] WARN: comite_caso no pudo crear task proyectar_oficio para tarea %s: %v", task.ID, err)
+			}
+		}
+	}
+
+	barrierID := ""
+	if task.BarrierID != nil {
+		barrierID = *task.BarrierID
+	}
+	event := &models.CaseTimelineEvent{
+		CaseID:      task.CaseID,
+		Category:    models.TimelineCategoryGeneral,
+		Type:        "Decisiones del Comité",
+		EventType:   "COMITE_CASO",
+		Icon:        "users",
+		Color:       models.TimelineColorPurple,
+		Date:        now,
+		Description: "Tarea completada: " + task.Description,
+		EventUserID: userId,
+		BarrierID:   barrierID,
+		TaskID:      task.ID,
+	}
+	if err := s.timelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[CaseTaskService] WARN: comite_caso no pudo crear timeline event para case %s: %v", task.CaseID, err)
+	}
+}
+
+// buildEntityLetterFromFormData construye un EntityLetter a partir del formData
+// de gestion_llamada. El state se pasa explícitamente.
+func (s *caseTaskService) buildEntityLetterFromFormData(task *models.CaseTask, fd map[string]interface{}, userId string, state string) *models.EntityLetter {
+	barrierID := ""
+	if task.BarrierID != nil {
+		barrierID = *task.BarrierID
+	}
+	letter := &models.EntityLetter{
+		BarrierID:  barrierID,
+		CaseID:     task.CaseID,
+		AgentID:    &userId,
+		RegisterBy: &userId,
+		State:      state,
+	}
+	if v, ok := fd["departamentoId"].(string); ok {
+		letter.DepartmentID = &v
+	}
+	if v, ok := fd["ciudadId"].(string); ok {
+		letter.CityID = &v
+	}
+	if v, ok := fd["municipioId"].(string); ok {
+		letter.TownID = &v
+	}
+	if v, ok := fd["entidadNombre"].(string); ok {
+		letter.Entidad = &v
+	}
+	if v, ok := fd["funcionario"].(string); ok {
+		letter.OfficialDependency = &v
+	}
+	if v, ok := fd["asunto"].(string); ok {
+		letter.Subject = &v
+	}
+	if v, ok := fd["rutaKofax"].(string); ok {
+		letter.UrlKofax = &v
+	}
+	if v, ok := fd["entidadId"].(float64); ok {
+		id64 := int64(v)
+		letter.EntityBranchID = &id64
+	}
+	return letter
 }

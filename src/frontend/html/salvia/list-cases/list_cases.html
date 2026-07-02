@@ -3,12 +3,14 @@
     <div class="welcome-section">
         <h2><b>Lista de casos</b></h2>
         <div style="display:flex; gap:8px; align-items:center;">
+            <button v-if="canDescargarReporte" class="btn btn-secondary" @click="onDescargarReporte">Descargar reporte consolidado <i class="fas fa-file-excel"></i></button>
             <a href="/salvia/casos/nuevo"><button class="btn btn-primary">Crear Nuevo caso <i class="fas fa-plus-circle"></i></button></a>
         </div>
     </div>
 
     {{ template "salvia/case_component/case_component.html" . }}
     {{ template "salvia/list-cases/reasignar_casos_modal.html" . }}
+    {{ template "salvia/list-cases/consolidated_report_modal.html" . }}
 
     <div class="mt-4 mb-4">
         <casos-component
@@ -28,6 +30,12 @@
             @closed="onReasignarModalClosed"
             @reassigned="onReasignarCompletado"
         ></reasignar-casos-modal>
+
+        <consolidated-report-modal
+            v-if="canDescargarReporte"
+            ref="reporteModal"
+            :current-role="currentRole"
+        ></consolidated-report-modal>
     </div>
 </div>
 </main>
@@ -97,6 +105,9 @@
             canReasignarCasos: function() {
                 return this.currentRole === 'sv';
             },
+            canDescargarReporte: function() {
+                return this.currentRole === 'sv' || this.currentRole === 'ad';
+            },
             casosButtons: function() {
                 var consultar = [
                     {
@@ -154,6 +165,11 @@
             logout(){
                 logout("/seguridad/logout");
             },
+            onDescargarReporte: function() {
+                if (this.$refs.reporteModal) {
+                    this.$refs.reporteModal.open();
+                }
+            },
         },
     });
 
@@ -164,10 +180,14 @@
 
     var _tplRcm = document.getElementById('tpl-reasignar-casos-modal');
     window.__reasignarCasosModalTpl = _tplRcm ? _tplRcm.innerHTML : '';
+
+    var _tplRcmReport = document.getElementById('tpl-consolidated-report-modal');
+    window.__consolidatedReportModalTpl = _tplRcmReport ? _tplRcmReport.innerHTML : '';
 </script>
 
 <script src="/static/js/components/casos-component.js"></script>
 <script src="/static/js/components/reasignar-casos-modal.js"></script>
+<script src="/static/js/components/consolidated-report-modal.js"></script>
 
 <script>
     home.mount("#app");

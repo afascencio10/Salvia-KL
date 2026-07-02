@@ -159,6 +159,7 @@ type FormServiceDeps struct {
 	FollowUpV2Svc              FollowUpV2Service
 	CaseTaskRepo               repository.CaseTaskRepository
 	EntityLetterRepo           repository.EntityLetterRepository
+	BarrierFollowUpRepo        repository.BarrierFollowUpRepository
 }
 
 type formService struct {
@@ -186,6 +187,7 @@ type formService struct {
 	followUpV2Svc              FollowUpV2Service
 	caseTaskRepo               repository.CaseTaskRepository
 	entityLetterRepo           repository.EntityLetterRepository
+	barrierFollowUpRepo        repository.BarrierFollowUpRepository
 }
 
 func NewFormService(deps FormServiceDeps) FormService {
@@ -214,6 +216,7 @@ func NewFormService(deps FormServiceDeps) FormService {
 		followUpV2Svc:             deps.FollowUpV2Svc,
 		caseTaskRepo:              deps.CaseTaskRepo,
 		entityLetterRepo:          deps.EntityLetterRepo,
+		barrierFollowUpRepo:       deps.BarrierFollowUpRepo,
 	}
 }
 
@@ -2420,6 +2423,26 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 					log.Printf("[processFollowUp] ❌ evento timeline barrera %s: %v", barrierID, err)
 				} else {
 					log.Printf("[processFollowUp] ✅ evento timeline creado → barrera [%d] id=%s", idx, barrierID)
+				}
+			}
+
+			// Persistir respuestas estructuradas del seguimiento a barrera
+			if s.barrierFollowUpRepo != nil && barrierID != "" {
+				bfu := &models.BarrierFollowUp{
+					BarrierID:             barrierID,
+					FollowUpID:            fu.ID,
+					CreatedByID:           actorID,
+					Persists:              sbMap[qSBPersiste] == "true",
+					InstitutionalResponse: sbMap[qSBRespuestaInstitucional],
+					ManagementActions:     sbMap[qSBGestion],
+					Actions:               sbMap[qSBActuaciones],
+					ClosesBarrier:         sbMap[qSBCierra] == "true",
+					ClosureReason:         sbMap[qSBMotivoCierre],
+				}
+				if err := s.barrierFollowUpRepo.Create(ctx, bfu); err != nil {
+					log.Printf("[processFollowUp] ❌ barrier_follow_up barrera %s: %v", barrierID, err)
+				} else {
+					log.Printf("[processFollowUp] ✅ barrier_follow_up creado → barrera %s", barrierID)
 				}
 			}
 		}

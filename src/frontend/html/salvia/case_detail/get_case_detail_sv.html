@@ -281,6 +281,25 @@
             </div>
           </div>
 
+          <!-- ── UI TEMPORAL: Probar case-task-history ── -->
+          <div style="background:#f0fdf4;border:1.5px dashed #4ade80;border-radius:12px;padding:16px;margin-bottom:14px">
+            <p style="font-size:11px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px">🧪 Dev — Probar case-task-history</p>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input
+                v-model="testHistoryTaskId"
+                placeholder="UUID de CaseTask completada"
+                style="flex:1;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-family:monospace;outline:none"
+              />
+              <button
+                @click="$refs.taskHistory.open(testHistoryTaskId)"
+                :disabled="!testHistoryTaskId"
+                style="padding:8px 16px;background:#16a34a;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap"
+                :style="{ opacity: testHistoryTaskId ? '1' : '.4', cursor: testHistoryTaskId ? 'pointer' : 'not-allowed' }">
+                Ver detalle
+              </button>
+            </div>
+          </div>
+
           <!-- Estabilizacion Socioeconomica -->
           <div class="cd-deriv-section" style="background:#f0fdf4;border-color:#bbf7d0">
             <div class="cd-deriv-header" style="border-bottom-color:#bbf7d0">
@@ -341,15 +360,43 @@
             </div>
             <div class="cd-seg-info">
               <div class="cd-seg-title">
-                <p>${ b.sector || 'Sin sector' }</p>
+                <p style="text-transform:uppercase;font-weight:600">${ b.sector || 'Sin sector' }</p>
                 <span :class="['cd-seg-badge', barreraBadgeClass(b.status)]">
                   ${ labelBarreraStatus(b.status) }
                 </span>
               </div>
-              <div style="font-size:.83rem;color:#374151;margin-top:4px">${ b.description }</div>
+              <div v-if="b.specificBarriers" style="margin-top:6px">
+                <div style="font-size:.72rem;color:#6b7280;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Barreras identificadas</div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px">
+                  <span v-for="lbl in resolveBarrierCSV(b.specificBarriers)" :key="lbl" style="font-size:.75rem;background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:4px;border:1px solid #e5e7eb">${ lbl }</span>
+                </div>
+              </div>
+              <div v-if="b.otherBarrierDesc" style="margin-top:6px">
+                <div style="font-size:.72rem;color:#6b7280;font-weight:600;margin-bottom:2px;text-transform:uppercase;letter-spacing:.04em">Otra barrera</div>
+                <div style="font-size:.83rem;color:#374151">${ b.otherBarrierDesc }</div>
+              </div>
+              <div v-if="b.specificInstitutions" style="margin-top:6px">
+                <div style="font-size:.72rem;color:#6b7280;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Instituciones</div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px">
+                  <span v-for="lbl in resolveInstitutionCSV(b.specificInstitutions)" :key="lbl" style="font-size:.75rem;background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:4px;border:1px solid #bfdbfe">${ lbl }</span>
+                </div>
+              </div>
+              <div v-if="b.institutionName" style="margin-top:6px">
+                <div style="font-size:.72rem;color:#6b7280;font-weight:600;margin-bottom:2px;text-transform:uppercase;letter-spacing:.04em">Institución específica</div>
+                <div style="font-size:.83rem;color:#374151">${ b.institutionName }</div>
+              </div>
               <div class="cd-seg-meta">📅 ${ formatFecha(b.createdAt) }</div>
-              <!-- Tareas de esta barrera (componente reutilizable) -->
-              <case-tasks :case-id="caseICode" :barrier-id="b.id" :user-id="userICode" :user-role="userRole" @open-task-modal="openTaskModal"></case-tasks>
+              <button @click="barrExpandido = barrExpandido === b.id ? null : b.id" style="background:none;border:none;padding:0;font-size:.78rem;color:#6b7280;cursor:pointer;margin-top:6px;display:flex;align-items:center;gap:4px">
+                ${ barrExpandido === b.id ? '▲ Ocultar detalle' : '▼ Ver descripción y tareas' }
+              </button>
+              <div v-if="barrExpandido === b.id">
+                <div v-if="b.description" style="margin-top:8px">
+                  <div style="font-size:.72rem;color:#6b7280;font-weight:600;margin-bottom:2px;text-transform:uppercase;letter-spacing:.04em">Descripción</div>
+                  <div style="font-size:.83rem;color:#374151">${ b.description }</div>
+                </div>
+                <!-- Tareas de esta barrera (componente reutilizable) -->
+                <case-tasks :case-id="caseICode" :barrier-id="b.id" :user-id="userICode" :user-role="userRole" @open-task-modal="openTaskModal"></case-tasks>
+              </div>
             </div>
           </div>
         </template>
@@ -483,6 +530,9 @@
     :current-user-id="userICode"
     @completed="onCaseTaskCompleted">
   </case-task-modal>
+
+  <!-- Componente: Ver detalle de CaseTask completada (modal de solo lectura) -->
+  <case-task-history ref="taskHistory"></case-task-history>
 
   <!-- Componente: Información completa del caso (modal) -->
   <case-info :case-id="caseICode" :visible="mostrarInfoCaso" @close="mostrarInfoCaso = false"></case-info>
@@ -724,6 +774,7 @@ var home = Vue.createApp({
       userTeam: "{{.userTeam}}",
       userICode: "{{.userICode}}",
       testTaskId: '',
+      testHistoryTaskId: '',
       operadores: [],
       agentesRO: [],
       todosAgentes: [],
@@ -737,6 +788,7 @@ var home = Vue.createApp({
       reasignarSegActual: null,
       reasignandoSeg: false,
       segExpandido: null,
+      barrExpandido: null,
       mostrarInfoCaso: false,
       infoSeccion: { resumen: true, hechos: false, completa: false },
       modalEditarSeg: false,
@@ -1149,6 +1201,86 @@ var home = Vue.createApp({
     barrerasEnGestionCount() {
       return this.barriers.filter(function(b) { return b.status === 'En Gestion'; }).length;
     },
+    resolveBarrierCSV(csv) {
+      if (!csv) return [];
+      var map = {
+        'dificultades_aseguramiento':          'Dificultades de aseguramiento o afiliación en salud',
+        'negacion_urgencias':                   'Negaciones en los servicios de urgencias',
+        'fallas_calidad_urgencias':             'Fallas en la calidad del servicio de urgencias',
+        'demoras_citas':                        'Demoras en la asignación de citas y continuidad de tratamientos',
+        'falta_protocolo_violencia_sexual':     'Faltas de activación de protocolos para violencia sexual',
+        'falta_protocolo_agentes_quimicos':     'Faltas de activación de protocolos para ataques con agentes químicos',
+        'demoras_valoracion_medicolegal':       'Demoras y dificultades en la valoración medicolegal',
+        'negacion_ive':                         'Negaciones en el acceso a la IVE',
+        'exigencias_autorizacion_discapacidad': 'Exigencias indebidas de autorización (discapacidad cognitiva/psicosocial)',
+        'falta_enfoque_cultural_salud':         'Atenciones no centradas en cosmovisiones y prácticas culturales propias',
+        'negacion_procedimientos_osigd':        'Negaciones o imposiciones de procedimientos a personas OSIGD',
+        'otras_barreras_salud':                 'Otras barreras en salud',
+        'negativa_recibir_denuncia':            'Negativa institucional para recibir la denuncia',
+        'dilacion_registro_denuncia':           'Dilación en la recepción y registro de la denuncia',
+        'denegacion_no_confrontacion':          'Denegación al derecho a la no confrontación',
+        'falta_info_documental':                'Falta de entrega de información y documentación procesal',
+        'formalismo_excesivo':                  'Formalismo excesivo en los trámites judiciales',
+        'cargas_probatorias_excesivas':         'Imposición de cargas probatorias injustificadas o excesivas',
+        'falta_celeridad_investigacion':        'Falta de celeridad en la investigación judicial',
+        'incumplimiento_ordenes_judiciales':    'Incumplimiento de órdenes judiciales de protección o sanción',
+        'tipificacion_erronea':                 'Tipificación errónea del delito',
+        'traslado_inadecuado_expediente':       'Traslado inadecuado o incompleto del expediente judicial',
+        'dificultad_reasignacion_municipio':    'Dificultades en la reasignación de procesos (cambio de municipio)',
+        'falta_representacion_judicial':        'Ausencia o dificultad de acceso a representación judicial',
+        'vacios_normativos_vbg':                'Vacíos normativos y definiciones restrictivas en VBG',
+        'riesgo_vencimiento_terminos':          'Riesgo de vencimiento de términos',
+        'medidas_libertad_riesgo':              'Medidas preventivas de libertad que ponen en riesgo a la víctima',
+        'falta_proteccion_info_confidencial':   'Falta de protección en la divulgación de información confidencial',
+        'deficiencias_notificacion_agresor':    'Deficiencias en la notificación y recolección de datos del agresor',
+        'otras_barreras_justicia':              'Otras barreras en justicia',
+        'demoras_medidas_comisaria':            'Ausencia o demoras en medidas de protección en Comisaría de Familia',
+        'dilacion_medidas_fisicas':             'Ausencia o dilación en medidas de protección físicas',
+        'demora_atencion_integral_comisaria':   'Demora en la activación de atención integral en Comisaría de Familia',
+        'incumplimiento_medidas_proteccion':    'Incumplimiento de medidas de protección sin respuesta institucional',
+        'filtracion_info_confidencial':         'Divulgación o filtración de información confidencial',
+        'medidas_ineficaces':                   'Medidas de protección ineficaces o mal implementadas',
+        'falta_seguimiento_medidas':            'Falta de seguimiento institucional a las medidas de protección',
+        'fallas_valoracion_riesgo':             'Fallas en la valoración y actualización del riesgo',
+        'medidas_insuficientes':                'Medidas de protección insuficientes acordes a la situación de riesgo',
+        'omision_restriccion_visitas':          'Omisión de restricción de visitas ante riesgo de feminicidio',
+        'omision_apoyo_policial':               'Omisión de apoyo policial en residencia o lugar de trabajo',
+        'otras_barreras_proteccion':            'Otras barreras en protección',
+      };
+      return csv.split(',').map(function(v) { var k = v.trim(); return map[k] || k; });
+    },
+    resolveInstitutionCSV(csv) {
+      if (!csv) return [];
+      var map = {
+        'hospital_publico':             'Hospital Público',
+        'hospital_privado':             'Hospital Privado',
+        'ips':                          'IPS',
+        'eps':                          'EPS',
+        'puesto_salud':                 'Puesto de Salud',
+        'consultorio_medico':           'Consultorio médico',
+        'cai_policia':                  'CAI - Policía',
+        'caivas':                       'CAIVAS',
+        'casas_justicia':               'Casas de Justicia',
+        'caviv':                        'CAVIV',
+        'comisaria_familia':            'Comisaría de Familia',
+        'estacion_policia':             'Estación de Policía',
+        'fiscalia':                     'Fiscalía General de la Nación',
+        'inspeccion_policia':           'Inspección de Policía',
+        'medicina_legal':               'Instituto Nacional de Medicina Legal',
+        'jueces_civiles':               'Jueces Civiles o Promiscuos Municipales',
+        'jueces_penales':               'Jueces de Control de Garantías o Jueces Penales',
+        'policia_judicial':             'Policía Judicial',
+        'unidad_reaccion_inmediata':    'Unidad de Reacción Inmediata',
+        'fiscalia_proteccion':          'Fiscalía General de la Nación (protección)',
+        'icbf':                         'ICBF',
+        'unidad_nacional_proteccion':   'Unidad Nacional de Protección',
+        'defensoria_familia':           'Defensoría de Familia',
+        'ejercito_nacional':            'Ejército Nacional',
+        'armada_colombiana':            'Armada Colombiana',
+        'no_sabe':                      'No sabe / No responde',
+      };
+      return csv.split(',').map(function(v) { var k = v.trim(); return map[k] || k; });
+    },
     abrirModalNuevoSeg() {
       if (this.followUpsV2.length >= 8) return;
       // Si es RO, asignar a sí mismo. Si es SV, preseleccionar el agente del último seguimiento
@@ -1351,6 +1483,7 @@ var app = home;
 <script src="/static/js/components/follow-up-contact-modal.js"></script>
 <script src="/static/js/components/dinamic-form.js"></script>
 <script src="/static/js/components/case-task-modal.js"></script>
+<script src="/static/js/components/case-task-history.js"></script>
 <script>
 home.mount('#app');
 </script>

@@ -40,7 +40,7 @@
 
 **Evento:** Cuando se abre con una tarea
 **Tipo:** User Interaction
-**Descripción:** El padre llama al método público `open(taskId)`. El componente setea `taskId`, muestra el modal, resetea el formulario y hace `GET /api/v1/tasks/:taskId` para cargar la tarea. Una vez cargada, inicializa el formulario según `tarea.type`.
+**Descripción:** El padre llama al método público `open(taskId)`. El componente setea `taskId`, muestra el modal, resetea el formulario y hace `GET /api/v1/case-tasks/:taskId` para cargar la tarea. Una vez cargada, inicializa el formulario según `tarea.type`. Si `tarea.type === 'Corregir oficio'`, además hace `GET /api/v1/entity-letters/:letterId` (usando `tarea.entityLetterId`) para mostrar en solo lectura la razón de corrección y la ruta Kofax.
 **Requerido:** Sí
 
 ---
@@ -101,7 +101,7 @@
 
 **Evento:** Cuando confirma el formulario
 **Tipo:** User Interaction
-**Descripción:** El usuario presiona "Completar tarea". Valida los campos requeridos según `tarea.type` (ver tabla en interface). Si válido, construye el payload con `formData` como JSON y llama `PUT /api/v1/tasks/:taskId/complete`. Si responde 200, cierra el modal y emite `@completed` con la tarea actualizada. Si error, muestra `saveError` sin cerrar el modal.
+**Descripción:** El usuario presiona "Completar tarea" (o "Marcar como corregido" si `tarea.type === 'Corregir oficio'`). Valida los campos requeridos según `tarea.type` (ver tabla en interface) — `Corregir oficio` no tiene campos, solo requiere que haya terminado de cargar el oficio vinculado. Si válido, construye el payload con `formData` como JSON (`{}` para `Corregir oficio`) y llama `PUT /api/v1/case-tasks/:taskId/complete`. Si responde 200, cierra el modal y emite `@completed` con la tarea actualizada. Si error, muestra `saveError` sin cerrar el modal.
 **Requerido:** Sí
 
 ---

@@ -627,40 +627,63 @@ app.component('case-task-modal', {
             const entidadNombreLabel = (f.entidadId && f.entidadId !== 'otra')
                 ? (this.entidades.find(e => String(e.id) === String(f.entidadId)) || {}).name || ''
                 : f.entidadNombre;
+            // Resuelve el label legible de un <select> a partir de su lista de opciones {value,label}
+            const lookupLabel = (lista, valor) =>
+                (lista.find(o => String(o.value) === String(valor)) || {}).label || '';
 
             switch (this.tarea.type) {
                 case 'gestion_llamada':
                     return {
-                        departamentoId: f.departamentoId,
-                        ciudadId:       f.ciudadId,
-                        municipioId:    f.municipioId,
-                        entidadId:      f.entidadId !== 'otra' ? Number(f.entidadId) : null,
-                        entidadNombre:  entidadNombreLabel,
-                        funcionario:    f.funcionario,
-                        descripcion:    f.descripcion || null,
-                        generaOficio:   !!f.generaOficio,
-                        asunto:         f.generaOficio ? f.asunto   : null,
-                        rutaKofax:      f.generaOficio ? f.rutaKofax : null,
+                        departamentoId:     f.departamentoId,
+                        departamentoNombre: lookupLabel(this.departamentos, f.departamentoId),
+                        ciudadId:           f.ciudadId,
+                        ciudadNombre:       lookupLabel(this.ciudades, f.ciudadId),
+                        municipioId:        f.municipioId,
+                        municipioNombre:    lookupLabel(this.municipios, f.municipioId),
+                        entidadId:          f.entidadId !== 'otra' ? Number(f.entidadId) : null,
+                        entidadNombre:      entidadNombreLabel,
+                        funcionario:        f.funcionario,
+                        descripcion:        f.descripcion || null,
+                        generaOficio:       !!f.generaOficio,
+                        asunto:             f.generaOficio ? f.asunto   : null,
+                        rutaKofax:          f.generaOficio ? f.rutaKofax : null,
                     };
                 case 'proyectar_oficio':
                     return {
-                        departamentoId: f.departamentoId,
-                        ciudadId:       f.ciudadId,
-                        municipioId:    f.municipioId,
-                        entidadId:      f.entidadId !== 'otra' ? Number(f.entidadId) : null,
-                        entidadNombre:  entidadNombreLabel,
-                        funcionario:    f.funcionario,
-                        asunto:         f.asunto,
-                        rutaKofax:      f.rutaKofax,
+                        departamentoId:     f.departamentoId,
+                        departamentoNombre: lookupLabel(this.departamentos, f.departamentoId),
+                        ciudadId:           f.ciudadId,
+                        ciudadNombre:       lookupLabel(this.ciudades, f.ciudadId),
+                        municipioId:        f.municipioId,
+                        municipioNombre:    lookupLabel(this.municipios, f.municipioId),
+                        entidadId:          f.entidadId !== 'otra' ? Number(f.entidadId) : null,
+                        entidadNombre:      entidadNombreLabel,
+                        funcionario:        f.funcionario,
+                        asunto:             f.asunto,
+                        rutaKofax:          f.rutaKofax,
                     };
-                case 'comite_caso':
+                case 'comite_caso': {
+                    const DECISION_LABELS = {
+                        activar_enlace:         'Activar Enlace',
+                        oficio:                 'Generar Oficio',
+                        recomendaciones_agente: 'Recomendaciones al Agente',
+                        mecanismo_articulador:  'Mecanismo Articulador',
+                    };
+                    const NIVEL_LABELS = {
+                        municipal:     'Municipal',
+                        departamental: 'Departamental',
+                        nacional:      'Nacional',
+                    };
                     return {
                         decisiones:                   f.decisiones,
+                        decisionesTexto:              f.decisiones.map(d => DECISION_LABELS[d] || d),
                         observacionesOficio:          this.tieneDecision('oficio')                ? f.observacionesOficio          || null : null,
                         observacionesRecomendaciones: this.tieneDecision('recomendaciones_agente') ? f.observacionesRecomendaciones || null : null,
                         nivelMecanismo:               this.tieneDecision('mecanismo_articulador')  ? f.nivelMecanismo                       : null,
+                        nivelMecanismoTexto:          this.tieneDecision('mecanismo_articulador')  ? (NIVEL_LABELS[f.nivelMecanismo] || null) : null,
                         observacionesMecanismo:       this.tieneDecision('mecanismo_articulador')  ? f.observacionesMecanismo       || null : null,
                     };
+                }
                 case 'Corregir oficio':
                     return {};
             }
