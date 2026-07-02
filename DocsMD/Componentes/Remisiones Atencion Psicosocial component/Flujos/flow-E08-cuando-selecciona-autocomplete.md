@@ -21,15 +21,15 @@ PASO 1 — Guardar selección
 
 PASO 2 — Activar filtro y recargar
 
-  activeFilters['agent_id'] = opt.value   // general_user_i_code
-  currentPage               = 1
-  selectedRemisiones        = []
-  loading                   = true
+  activeFilters['professional_id'] = opt.value   // general_user_i_code
+  currentPage                      = 1
+  selectedRemisiones               = []
+  loading                          = true
 
 PASO 3 — fetchRemisiones() con todos los filtros activos
 
   GET /api/v1/psychosocial-support/list
-    &filter_agent_id={opt.value}
+    &filter_professional_id={opt.value}
     (+ demás filter_*)
 
   → FIN EJECUCIÓN ✓
@@ -46,7 +46,7 @@ PASO 1 — Limpiar estado autocomplete
 
 PASO 2 — Quitar filtro y recargar
 
-  delete activeFilters['agent_id']
+  delete activeFilters['professional_id']
   currentPage        = 1
   selectedRemisiones = []
 
@@ -60,8 +60,10 @@ PASO 3 — fetchRemisiones()
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ```sql
-AND ps.agent_id = {filter_agent_id}
+AND ps.professional_id = {filter_professional_id}
 ```
 
-Filtra por `psychosocial_support.agent_id` (profesional asignado directamente).
-Remisiones asignadas solo vía dupla (sin `agent_id`) no aparecen con este filtro.
+Filtra por `psychosocial_support.professional_id` (profesional asignado directamente).
+Remisiones asignadas solo vía dupla (sin `professional_id`) no aparecen con este filtro.
+
+> **Cambio post-reunión:** reemplaza `agent_id` / `filter_agent_id` de la versión anterior.

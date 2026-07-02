@@ -2,13 +2,13 @@
 🟢 EVENTO: Cuando carga el componente
    Tipo: Lifecycle
    Código: E-01
-   Prerequisito: M-01 (schema dupla + psychosocial_support)
+   Prerequisito: M-01 + M-02 (schema dupla, psychosocial_support, team_contact)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 INPUT: {
   mostrarCards:   mostrar cards resumen   → prop :mostrarCards (default false)
   defaultFilter:  filtro inicial fijo     → prop :defaultFilter (opcional)
-                  shape: { agent_id?: string, dupla_id?: string }
+                  shape: { professional_id?: string, dupla_id?: string }
   reasignacion:   modo reasignación       → prop :reasignacion (default false)
   pageSize:       registros/página          → prop :pageSize (default 20)
 }
@@ -21,8 +21,8 @@ INPUT: {
 
 PASO 1 — Inicializar estado interno
 
-  scopeFilter           = { ...defaultFilter }   // copia inmutable del prop
-  activeFilters         = { ...defaultFilter }   // incluye agent_id o dupla_id si el padre los envió
+  scopeFilter           = { ...defaultFilter }
+  activeFilters         = { ...defaultFilter }
   searchNumeroIdentidad = ""
   searchTelefono        = ""
   autocompleteText      = { profesional_asignada: "" }
@@ -30,7 +30,7 @@ PASO 1 — Inicializar estado interno
   autocompleteSuggestions = { profesional_asignada: [] }
   duplaOptions          = []
   equipoRemitenteOptions = []
-  stats                 = { total: 0, pendienteAsignacion: 0, enProceso: 0, cerradas: 0 }
+  stats                 = { total: 0, abierto: 0, enGestion: 0, enDevolucion: 0, cerrado: 0 }
   sortBy                = "created_at"
   sortOrder             = "desc"
   currentPage           = 1
@@ -41,12 +41,13 @@ PASO 1 — Inicializar estado interno
   loadError             = null
   selectedRemisiones    = []
 
-  MAX_SESSIONS          = 6
+  SESSION_DOTS          = 6
+  SESSION_LABEL         = "Sesiones (4 - 6)"   // quemado en UI
 
   // Pre-selección UI según defaultFilter
-  SI defaultFilter.agent_id:
-    → activeFilters['agent_id'] = defaultFilter.agent_id
-    → (opcional) precargar autocompleteSelected con nombre del agente
+  SI defaultFilter.professional_id:
+    → activeFilters['professional_id'] = defaultFilter.professional_id
+    → (opcional) precargar autocompleteSelected con nombre del profesional
 
   SI defaultFilter.dupla_id:
     → activeFilters['dupla_id'] = defaultFilter.dupla_id
@@ -79,11 +80,18 @@ PASO 2A — Listado paginado
     &order=desc
     (+ todos los activeFilters como filter_*)
 
-  Ejemplo pantalla "Mis remisiones" por psicólogo:
-    &filter_agent_id={defaultFilter.agent_id}
+  Ejemplo pantalla "Mis remisiones" por profesional:
+    &filter_professional_id={defaultFilter.professional_id}
 
   Ejemplo pantalla por dupla:
     &filter_dupla_id={defaultFilter.dupla_id}
+
+  Cada ítem incluye:
+    → submittedByName     (JOIN submitted_by)
+    → submittedByTeam     (columna ps.submitted_by_team)
+    → professionalId      (columna ps.professional_id)
+    → sessionCount        (subquery team_contact — ver PASO 4)
+    → dupla, status, datos de caso, etc.
 
   → remisiones, totalRemisiones
 
@@ -97,6 +105,7 @@ PASO 2B — Catálogo de duplas
 PASO 2C — Equipos remitentes
 
   GET /api/v1/psychosocial-support/equipos-remitentes
+  → DISTINCT submitted_by_team (sin JOIN a general_user)
   → equipoRemitenteOptions
 
 
@@ -107,9 +116,10 @@ PASO 2D — Stats para cards (solo si mostrarCards)
 
   200 {
     total: 8,
-    pendienteAsignacion: 2,
-    enProceso: 3,
-    cerradas: 3
+    abierto: 2,
+    enGestion: 3,
+    enDevolucion: 0,
+    cerrado: 3
   }
   → stats
 
@@ -123,18 +133,37 @@ PASO 3 — Calcular derivados y finalizar carga
 PASO 4 — Renderizar UI
 
   SI mostrarCards === true:
-    → SummaryCardsRow con stats (encima de FilterBar)
+    → SummaryCardsRow con 5 cards:
+        • Total remisiones → stats.total
+        • Abiertos       → stats.abierto
+        • En gestión     → stats.enGestion
+        • En devolución  → stats.enDevolucion
+        • Cerrados       → stats.cerrado
 
   FilterBar → filtros E-03 … E-13
 
   Tabla → bloques por fila:
 
-    Bloque REMISIÓN — submitted_by (solo lectura):
-      → submittedByName = submitter_names + submitter_last_names
-      → submitterTeam   = general_user_team del JOIN en submitted_by
-      → SI submitted_by NULL → "—" en ambos campos
+    Bloque CASO — sin cambios (víctima, riesgo, links)
 
-    (resto igual: badge/t tags "Por consultar", sesiones, dupla, etc.)
+    Bloque REMISIÓN — simplificado (sin badge ni tags):
+      → submittedByName  = JOIN submitted_by → general_user_profile
+      → submitterTeam    = ps.submitted_by_team (columna directa)
+      → createdAt
+      → "Ver remisión →"
+      → NO renderizar ReferralTypeBadge ni ExtraTags
+
+    Bloque ESTADO Y ASIGNACIÓN:
+      → status badge (abierto | en_gestion | en_devolucion | cerrado)
+      → label fijo: "Sesiones (4 - 6)"
+      → 6 puntos (.rps-dot); pintar los primeros N donde:
+           N = sessionCount de la remisión
+           sessionCount = COUNT(team_contact)
+             WHERE psicosocial_id = ps.id
+               AND is_psico_session = true
+               AND is_completed = true
+               AND deleted_at IS NULL
+      → dupla / professionalId asignación (sin cambio de lógica de visualización)
 
   PaginationBar → E-06
 
@@ -145,21 +174,16 @@ PASO 4 — Renderizar UI
   BACKEND — GET /api/v1/psychosocial-support/stats
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Mismos JOINs y filtros WHERE que el listado (PASO 5), sin paginación:
+Mismos JOINs y filtros WHERE que el listado, sin paginación:
 
 ```sql
 SELECT
-  COUNT(*)::int AS total,
-  COUNT(*) FILTER (
-    WHERE ps.dupla_id IS NULL AND ps.agent_id IS NULL
-  )::int AS pendiente_asignacion,
-  COUNT(*) FILTER (
-    WHERE ps.status = 'en_gestion'
-  )::int AS en_proceso,
-  COUNT(*) FILTER (
-    WHERE ps.status = 'cerrado'
-  )::int AS cerradas
-FROM ... -- misma query base E-01
+  COUNT(*)::int                                            AS total,
+  COUNT(*) FILTER (WHERE ps.status = 'abierto')::int       AS abierto,
+  COUNT(*) FILTER (WHERE ps.status = 'en_gestion')::int    AS en_gestion,
+  COUNT(*) FILTER (WHERE ps.status = 'en_devolucion')::int AS en_devolucion,
+  COUNT(*) FILTER (WHERE ps.status = 'cerrado')::int       AS cerrado
+FROM ... -- misma query base del listado
 WHERE ps.deleted_at IS NULL
   AND ... -- mismos filter_* activos
 ```
@@ -169,9 +193,10 @@ Response:
 ```json
 {
   "total": 8,
-  "pendienteAsignacion": 2,
-  "enProceso": 3,
-  "cerradas": 3
+  "abierto": 2,
+  "enGestion": 3,
+  "enDevolucion": 0,
+  "cerrado": 3
 }
 ```
 
@@ -182,7 +207,7 @@ Response:
 
 | Param | Condición |
 |---|---|
-| `filter_agent_id` | `ps.agent_id = {value}` |
+| `filter_professional_id` | `ps.professional_id = {value}` |
 | `filter_dupla_id` | `ps.dupla_id = {value}` |
 
 Combinables con el resto de filtros UI (AND).
@@ -192,12 +217,26 @@ Combinables con el resto de filtros UI (AND).
   BACKEND — GET /api/v1/psychosocial-support/list
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-(Query base sin cambios — ver versión anterior de este flujo)
+SELECT adicional / subquery por fila:
 
-`submitted_by` en SELECT/JOIN:
-- Leer `ps.submitted_by` tal cual está en BD
-- JOIN `submitter_gu` / `submitter_gup` para nombre y team
-- Sin lógica de escritura en este endpoint
+```sql
+(
+  SELECT COUNT(*)::int
+  FROM salvia.team_contact tc
+  WHERE tc.psicosocial_id = ps.id
+    AND tc.is_psico_session = true
+    AND tc.is_completed = true
+    AND tc.deleted_at IS NULL
+) AS session_count
+```
+
+Campos de remitente:
+- `ps.submitted_by` → JOIN nombre
+- `ps.submitted_by_team` → columna directa (sin JOIN para team)
+
+Asignación:
+- `ps.professional_id` (reemplaza agent_id)
+- `ps.dupla_id` → JOIN dupla para nombres psicóloga / trab. social
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -206,7 +245,8 @@ Combinables con el resto de filtros UI (AND).
 
 | Tema | Decisión |
 |---|---|
-| Cards | Solo si `mostrarCards === true`; se recargan en cada `fetchRemisiones()` |
-| defaultFilter | Persiste al limpiar filtros (E-05) |
-| submitted_by | Solo lectura + JOIN; fuera de alcance cómo se guarda al crear |
-| fetchStats | Mismos filtros que listado; no incluye paginación |
+| Cards | 5 cards: Total + 4 status de PsychosocialSupportStatus; solo si `mostrarCards === true` |
+| defaultFilter | Persiste al limpiar filtros (E-05); usa `professional_id` |
+| submitted_by_team | Columna denormalizada; evita JOIN para equipo remitente |
+| Sesiones UI | Label quemado "Sesiones (4 - 6)"; puntos = team_contact completadas |
+| REMISIÓN | Sin badge tipo ni tags — eliminados post-reunión |

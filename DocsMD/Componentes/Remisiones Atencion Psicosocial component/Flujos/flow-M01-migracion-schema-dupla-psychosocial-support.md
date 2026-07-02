@@ -7,7 +7,10 @@
 
 > **Alcance:** Documenta los cambios de modelo y BD que deben existir **antes**
 > de implementar el componente. El campo `submitted_by` se define en schema;
-> este componente solo lo **lee** para mostrar nombre y equipo del remitente.
+> este componente solo lo **lee** para mostrar nombre del remitente.
+>
+> **Nota post-reunión:** Ver [M-02](./flow-M02-migracion-submitted-by-team-professional-id-team-contact.md)
+> para `submitted_by_team`, renombre `agent_id` → `professional_id` y tabla `team_contact`.
 
 INPUT: {
   gormDB:   conexión GORM al arrancar la aplicación   → src/main.go
