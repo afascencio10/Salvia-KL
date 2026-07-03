@@ -1,165 +1,169 @@
 {{ define "salvia/list-cases/consolidated_report_modal.html" }}
 <style>
-/* Estilos mínimos indispensables para la estructura del modal */
-.rcm-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(15, 23, 42, 0.6); /* Backdrop semi-transparente slate */
-    backdrop-filter: blur(4px); /* Difuminado premium */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 2000;
-}
-
-.rcm-dialog {
-    background-color: #ffffff;
-    border-radius: 16px;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    width: 90%;
-    max-width: 480px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    animation: rcm-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes rcm-slide-up {
-    from {
-        transform: translateY(20px);
-        opacity: 0;
+    /* Estilos mínimos indispensables para la estructura del modal */
+    .rcm-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(15, 23, 42, 0.6);
+        /* Backdrop semi-transparente slate */
+        backdrop-filter: blur(4px);
+        /* Difuminado premium */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000;
     }
-    to {
-        transform: translateY(0);
-        opacity: 1;
+
+    .rcm-dialog {
+        background-color: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        width: 90%;
+        max-width: 480px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        animation: rcm-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
-}
 
-.rcm-header {
-    padding: 20px 24px;
-    border-bottom: 1px solid #f1f5f9;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
+    @keyframes rcm-slide-up {
+        from {
+            transform: translateY(20px);
+            opacity: 0;
+        }
 
-.rcm-title {
-    margin: 0;
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #0f172a;
-}
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
 
-.rcm-close {
-    background: none;
-    border: none;
-    font-size: 1.1rem;
-    color: #64748b;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 6px;
-    transition: background-color 0.2s, color 0.2s;
-}
+    .rcm-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
 
-.rcm-close:hover:not(:disabled) {
-    background-color: #f1f5f9;
-    color: #0f172a;
-}
+    .rcm-title {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
 
-.rcm-close:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
+    .rcm-close {
+        background: none;
+        border: none;
+        font-size: 1.1rem;
+        color: #64748b;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 6px;
+        transition: background-color 0.2s, color 0.2s;
+    }
 
-.rcm-body {
-    padding: 24px;
-}
+    .rcm-close:hover:not(:disabled) {
+        background-color: #f1f5f9;
+        color: #0f172a;
+    }
 
-.rcm-warning {
-    background-color: #fffbeb;
-    border-left: 4px solid #f59e0b;
-    padding: 16px;
-    border-radius: 4px;
-    display: flex;
-    gap: 12px;
-}
+    .rcm-close:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
 
-.rcm-warning-icon {
-    color: #d97706;
-    font-size: 1.1rem;
-    margin-top: 2px;
-}
+    .rcm-body {
+        padding: 24px;
+    }
 
-.rcm-warning-text {
-    margin: 0;
-    font-size: 0.825rem;
-    color: #78350f;
-    line-height: 1.4;
-}
+    .rcm-warning {
+        background-color: #fffbeb;
+        border-left: 4px solid #f59e0b;
+        padding: 16px;
+        border-radius: 4px;
+        display: flex;
+        gap: 12px;
+    }
 
-.rcm-error-banner {
-    background-color: #fef2f2;
-    border-left: 4px solid #ef4444;
-    padding: 12px 16px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #991b1b;
-    font-size: 0.85rem;
-}
+    .rcm-warning-icon {
+        color: #d97706;
+        font-size: 1.1rem;
+        margin-top: 2px;
+    }
 
-.rcm-footer {
-    padding: 16px 24px;
-    background-color: #f8fafc;
-    border-top: 1px solid #f1f5f9;
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-}
+    .rcm-warning-text {
+        margin: 0;
+        font-size: 0.825rem;
+        color: #78350f;
+        line-height: 1.4;
+    }
 
-.rcm-btn {
-    padding: 10px 18px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background-color 0.2s, color 0.2s;
-    border: none;
-}
+    .rcm-error-banner {
+        background-color: #fef2f2;
+        border-left: 4px solid #ef4444;
+        padding: 12px 16px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #991b1b;
+        font-size: 0.85rem;
+    }
 
-.rcm-btn--secondary {
-    background-color: #e2e8f0;
-    color: #334155;
-}
+    .rcm-footer {
+        padding: 16px 24px;
+        background-color: #f8fafc;
+        border-top: 1px solid #f1f5f9;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
 
-.rcm-btn--secondary:hover:not(:disabled) {
-    background-color: #cbd5e1;
-}
+    .rcm-btn {
+        padding: 10px 18px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.2s, color 0.2s;
+        border: none;
+    }
 
-.rcm-btn--primary {
-    background-color: #6d28d9; /* Morado corporativo */
-    color: #ffffff;
-}
+    .rcm-btn--secondary {
+        background-color: #e2e8f0;
+        color: #334155;
+    }
 
-.rcm-btn--primary:hover:not(:disabled) {
-    background-color: #5b21b6;
-}
+    .rcm-btn--secondary:hover:not(:disabled) {
+        background-color: #cbd5e1;
+    }
 
-.rcm-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
+    .rcm-btn--primary {
+        background-color: #6d28d9;
+        /* Morado corporativo */
+        color: #ffffff;
+    }
+
+    .rcm-btn--primary:hover:not(:disabled) {
+        background-color: #5b21b6;
+    }
+
+    .rcm-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
 </style>
 
 <script type="text/x-template" id="tpl-consolidated-report-modal">
 <div v-if="visible" class="rcm-backdrop" @click.self="onBackdropClick">
     <div class="rcm-dialog" role="dialog" aria-modal="true" aria-labelledby="rcm-report-title">
         <div class="rcm-header">
-            <h3 id="rcm-report-title" class="rcm-title" style="color: #6d28d9; font-weight: 700;">Reporte Consolidado (Excel)</h3>
+            <h3 id="rcm-report-title" class="rcm-title" style="color: #6d28d9; font-weight: 700;">Reporte Consolidado de Casos (Excel)</h3>
             <button type="button" class="rcm-close" aria-label="Cerrar" :disabled="loading" @click="close">
                 <i class="fas fa-times"></i>
             </button>
@@ -183,7 +187,7 @@
                 <div class="row">
                     <div class="col-6">
                         <div class="form-group mb-0">
-                            <label class="font-weight-bold text-secondary mb-1" style="font-size: 0.85rem;" for="rcm-date-from">Fecha de creación Desde:</label>
+                            <label class="font-weight-bold text-secondary mb-1" style="font-size: 0.85rem;" for="rcm-date-from">Fecha de creación casos Desde:</label>
                             <input
                                 type="date"
                                 id="rcm-date-from"
@@ -196,7 +200,7 @@
                     </div>
                     <div class="col-6">
                         <div class="form-group mb-0">
-                            <label class="font-weight-bold text-secondary mb-1" style="font-size: 0.85rem;" for="rcm-date-to">Fecha de creación Hasta:</label>
+                            <label class="font-weight-bold text-secondary mb-1" style="font-size: 0.85rem;" for="rcm-date-to">Fecha de creación casos Hasta:</label>
                             <input
                                 type="date"
                                 id="rcm-date-to"
