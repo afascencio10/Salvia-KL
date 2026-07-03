@@ -21,6 +21,8 @@
             defaultFilter: { type: Object,  default: function() { return {}; } },
             reasignacion:  { type: Boolean, default: false },
             pageSize:      { type: Number,  default: 20 },
+            mostrarFiltroDupla:        { type: Boolean, default: true },
+            mostrarFiltroProfesional:  { type: Boolean, default: true },
         },
 
         emits: ['ver-caso', 'ver-remision', 'reasignar-remisiones'],
@@ -172,10 +174,12 @@
                 self.loadError = null;
 
                 var tasks = [
-                    self.fetchDuplas(),
                     self.fetchEquiposRemitentes(),
                     self.fetchRemisiones(false),
                 ];
+                if (self.mostrarFiltroDupla) {
+                    tasks.unshift(self.fetchDuplas());
+                }
                 if (self.mostrarCards) {
                     tasks.push(self.fetchStats());
                 }

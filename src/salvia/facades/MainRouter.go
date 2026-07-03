@@ -216,6 +216,11 @@ func StartRouter(router *gin.Engine) {
 		secRouter.GET("/historial-remisiones", HistorialRemisionesGET)
 
 		/*
+			Mis remisiones Psicosocial (roles ps, ts)
+		*/
+		secRouter.GET("/mis-remisiones-psicosocial", MisRemisionesPsicosocialGET)
+
+		/*
 			KPIs Dashboard (embudo analítico)
 		*/
 		secRouter.GET("/kpis", KpiDashboardGET)

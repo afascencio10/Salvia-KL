@@ -303,13 +303,27 @@ ORDER BY team
 	return teams, nil
 }
 
+const psychosocialProfessionalIDFilterClause = `AND (
+	BTRIM(ps.professional_id::text) = BTRIM(?)
+	OR ps.dupla_id IN (
+		SELECT d.id
+		FROM salvia.dupla d
+		WHERE d.deleted_at IS NULL
+		  AND (
+			BTRIM(d.psychologist_id::text) = BTRIM(?)
+			OR BTRIM(d.social_worker_id::text) = BTRIM(?)
+		  )
+	)
+)`
+
 func buildPsychosocialListWhere(filters PsychosocialListFilters) (string, []interface{}) {
 	clauses := []string{"WHERE ps.deleted_at IS NULL"}
 	args := []interface{}{}
 
 	if filters.FilterProfessionalID != "" {
-		clauses = append(clauses, "AND BTRIM(ps.professional_id::text) = BTRIM(?)")
-		args = append(args, filters.FilterProfessionalID)
+		clauses = append(clauses, psychosocialProfessionalIDFilterClause)
+		pid := strings.TrimSpace(filters.FilterProfessionalID)
+		args = append(args, pid, pid, pid)
 	}
 	if filters.FilterDuplaID != "" {
 		clauses = append(clauses, "AND BTRIM(ps.dupla_id::text) = BTRIM(?)")
