@@ -136,7 +136,7 @@
                 <tr>
                     <th v-if="reasignacion" class="rps-th-select">
                         <label class="rps-select-all">
-                            <input type="checkbox" :checked="isAllPageSelected" :indeterminate.prop="isPagePartiallySelected" @change="toggleSelectAllPage">
+                            <input type="checkbox" :checked="isAllPageSelected" :indeterminate.prop="isPagePartiallySelected" :disabled="!hasSelectableOnPage" @change="toggleSelectAllPage">
                         </label>
                     </th>
                     <th>CASO</th>
@@ -147,7 +147,7 @@
             <tbody>
                 <tr v-for="r in paginatedRemisiones" :key="r.id" class="rps-row">
                     <td v-if="reasignacion" class="rps-cell-select">
-                        <input type="checkbox" :checked="isSelected(r)" @change="toggleRemisionSelection(r, $event.target.checked)">
+                        <input type="checkbox" :checked="isSelected(r)" :disabled="!isReassignable(r)" @change="toggleRemisionSelection(r, $event.target.checked, $event)">
                     </td>
                     <td class="rps-col-caso">
                         <div class="rps-victim-line">

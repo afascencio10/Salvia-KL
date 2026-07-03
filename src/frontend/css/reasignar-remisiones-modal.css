@@ -1,0 +1,323 @@
+/* ====================================================================
+   REASIGNAR REMISIONES MODAL
+   Prefijo: rrm- (reasignar-remisiones-modal)
+   ==================================================================== */
+
+.rrm-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(17, 24, 39, 0.65);
+    backdrop-filter: blur(4px);
+}
+
+.rrm-dialog {
+    width: 100%;
+    max-width: 440px;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 25px 50px -12px rgba(81, 6, 167, 0.25);
+    overflow: hidden;
+    font-family: 'Nunito Sans', sans-serif;
+    position: relative;
+}
+
+.rrm-confirm-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(17, 24, 39, 0.55);
+    backdrop-filter: blur(2px);
+}
+
+.rrm-confirm-dialog {
+    width: min(100%, 380px);
+    padding: 22px 24px 20px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 20px 40px rgba(81, 6, 167, 0.22);
+    text-align: center;
+}
+
+.rrm-confirm-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #fff7ed;
+    color: #d97706;
+    font-size: 1.25rem;
+}
+
+.rrm-confirm-title {
+    margin: 0 0 10px;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #5106A7;
+}
+
+.rrm-confirm-message {
+    margin: 0 0 18px;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: #333;
+}
+
+.rrm-confirm-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.rrm-save-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    color: #b91c1c;
+    font-size: 0.84rem;
+}
+
+.rrm-save-error i {
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.rrm-header {
+    padding: 22px 24px 0;
+}
+
+.rrm-title {
+    margin: 0 0 6px;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #1a1a1a;
+    line-height: 1.3;
+}
+
+.rrm-subtitle {
+    margin: 0;
+    font-size: 0.88rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.rrm-body {
+    padding: 20px 24px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.rrm-switch-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.rrm-toggle {
+    width: 44px;
+    height: 24px;
+    border: none;
+    border-radius: 12px;
+    background: #d1d5db;
+    position: relative;
+    flex-shrink: 0;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.2s;
+}
+
+.rrm-toggle--on {
+    background: #5106A7;
+}
+
+.rrm-toggle:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.rrm-toggle-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+    transition: left 0.2s;
+    pointer-events: none;
+}
+
+.rrm-toggle--on .rrm-toggle-thumb {
+    left: 23px;
+}
+
+.rrm-switch-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+.rrm-assignment-section {
+    display: flex;
+    flex-direction: column;
+}
+
+.rrm-label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #555;
+    margin-bottom: 8px;
+}
+
+.rrm-select {
+    width: 100%;
+    padding: 10px 32px 10px 12px;
+    border: 1.5px solid #c4b5fd;
+    border-radius: 8px;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E") no-repeat right 12px center;
+    -webkit-appearance: none;
+    appearance: none;
+    font-size: 0.88rem;
+    font-family: 'Nunito Sans', sans-serif;
+    color: #333;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.rrm-select:focus {
+    outline: none;
+    border-color: #5106A7;
+    box-shadow: 0 0 0 3px rgba(81, 6, 167, 0.12);
+}
+
+.rrm-select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.rrm-loading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    color: #888;
+    font-size: 0.84rem;
+}
+
+.rrm-spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #e9d5ff;
+    border-top-color: #5106A7;
+    border-radius: 50%;
+    animation: rrm-spin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes rrm-spin {
+    to { transform: rotate(360deg); }
+}
+
+.rrm-options-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 8px;
+    color: #92400e;
+    font-size: 0.84rem;
+}
+
+.rrm-options-error i {
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.rrm-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 24px 22px;
+}
+
+.rrm-btn {
+    padding: 9px 20px;
+    border-radius: 8px;
+    font-size: 0.86rem;
+    font-weight: 700;
+    font-family: 'Nunito Sans', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+    border: 1.5px solid transparent;
+}
+
+.rrm-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.rrm-btn--secondary {
+    background: #fff;
+    border-color: #d1d5db;
+    color: #374151;
+}
+
+.rrm-btn--secondary:hover:not(:disabled) {
+    background: #f9fafb;
+    border-color: #9ca3af;
+}
+
+.rrm-btn--primary {
+    background: #a78bfa;
+    color: #fff;
+    border-color: #a78bfa;
+}
+
+.rrm-btn--primary:hover:not(:disabled) {
+    background: #8b5cf6;
+    border-color: #8b5cf6;
+}
+
+.rrm-btn--primary:not(:disabled) {
+    background: #5106A7;
+    border-color: #5106A7;
+}
+
+.rrm-btn--primary:not(:disabled):hover {
+    background: #3d0482;
+    border-color: #3d0482;
+}
+
+@media (max-width: 480px) {
+    .rrm-footer {
+        flex-direction: column-reverse;
+    }
+
+    .rrm-btn {
+        width: 100%;
+        text-align: center;
+    }
+}

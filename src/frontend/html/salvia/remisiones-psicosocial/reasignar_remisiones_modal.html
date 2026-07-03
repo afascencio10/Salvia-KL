@@ -1,0 +1,147 @@
+{{ define "salvia/remisiones-psicosocial/reasignar_remisiones_modal.html" }}
+<link rel="stylesheet" href="/static/css/reasignar-remisiones-modal.css">
+
+<script type="text/x-template" id="tpl-reasignar-remisiones-modal">
+<div v-if="visible" class="rrm-backdrop" @click.self="onBackdropClick">
+    <div class="rrm-dialog" role="dialog" aria-modal="true" aria-labelledby="rrm-title">
+        <div class="rrm-header">
+            <h3 id="rrm-title" class="rrm-title">Reasignar remisiones</h3>
+            <p class="rrm-subtitle">${ selectionSubtitle }</p>
+        </div>
+
+        <div class="rrm-body">
+            <div class="rrm-switch-row">
+                <button
+                    type="button"
+                    class="rrm-toggle"
+                    :class="{ 'rrm-toggle--on': asignarEnDupla }"
+                    role="switch"
+                    :aria-checked="asignarEnDupla"
+                    :disabled="saving"
+                    @click="onToggleDupla"
+                >
+                    <span class="rrm-toggle-thumb"></span>
+                </button>
+                <span class="rrm-switch-label">Asignar en dupla</span>
+            </div>
+
+            <!-- Modo profesional -->
+            <section v-if="!asignarEnDupla" class="rrm-assignment-section">
+                <label class="rrm-label" for="rrm-professional-select">Profesional</label>
+
+                <div v-if="loadingOptions" class="rrm-loading">
+                    <div class="rrm-spinner"></div>
+                    <span>Cargando...</span>
+                </div>
+
+                <div v-else-if="optionsError" class="rrm-options-error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>${ optionsError }</span>
+                </div>
+
+                <select
+                    v-else
+                    id="rrm-professional-select"
+                    class="rrm-select"
+                    v-model="selectedProfessionalId"
+                    :disabled="saving"
+                >
+                    <option value="">Seleccionar profesional...</option>
+                    <optgroup
+                        v-for="group in professionalGroups"
+                        :key="group.role"
+                        :label="group.label"
+                    >
+                        <option
+                            v-for="prof in group.professionals"
+                            :key="prof.icode"
+                            :value="prof.icode"
+                        >
+                            ${ prof.fullName }
+                        </option>
+                    </optgroup>
+                </select>
+            </section>
+
+            <!-- Modo dupla -->
+            <section v-else class="rrm-assignment-section">
+                <label class="rrm-label" for="rrm-dupla-select">Dupla</label>
+
+                <div v-if="loadingOptions" class="rrm-loading">
+                    <div class="rrm-spinner"></div>
+                    <span>Cargando...</span>
+                </div>
+
+                <div v-else-if="optionsError" class="rrm-options-error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>${ optionsError }</span>
+                </div>
+
+                <select
+                    v-else
+                    id="rrm-dupla-select"
+                    class="rrm-select"
+                    v-model="selectedDuplaId"
+                    :disabled="saving"
+                >
+                    <option value="">Seleccionar dupla...</option>
+                    <option
+                        v-for="dupla in duplaOptions"
+                        :key="dupla.id"
+                        :value="dupla.id"
+                    >
+                        ${ dupla.label }
+                    </option>
+                </select>
+            </section>
+
+            <div v-if="saveError" class="rrm-save-error">
+                <i class="fas fa-exclamation-circle"></i>
+                <span>${ saveError }</span>
+            </div>
+        </div>
+
+        <div class="rrm-footer">
+            <button type="button" class="rrm-btn rrm-btn--secondary" :disabled="saving" @click="close">
+                Cancelar
+            </button>
+            <button
+                type="button"
+                class="rrm-btn rrm-btn--primary"
+                :disabled="!canConfirm || saving"
+                @click="confirmReassign"
+            >
+                ${ saving ? 'Guardando...' : 'Reasignar' }
+            </button>
+        </div>
+    </div>
+
+    <div
+        v-if="confirmVisible"
+        class="rrm-confirm-overlay"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="rrm-confirm-title"
+    >
+        <div class="rrm-confirm-dialog">
+            <div class="rrm-confirm-icon" aria-hidden="true">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h4 id="rrm-confirm-title" class="rrm-confirm-title">¿Confirmar reasignación?</h4>
+            <p class="rrm-confirm-message">
+                Se reasignarán <strong>${ remisiones.length }</strong> remisión(es) a
+                <strong>${ selectedAssigneeLabel }</strong>.
+            </p>
+            <div class="rrm-confirm-actions">
+                <button type="button" class="rrm-btn rrm-btn--secondary" @click="cancelConfirm">
+                    Cancelar
+                </button>
+                <button type="button" class="rrm-btn rrm-btn--primary" @click="acceptConfirm">
+                    Sí, reasignar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+</script>
+{{ end }}

@@ -20,20 +20,14 @@ PASO 1 — Validar modo reasignación
   SI reasignacion !== true → TERMINAR
 
 
-PASO 2 — Regla de selección homogénea
-
-  Campo de comparación: `remision.status`
+PASO 2 — Regla de selección
 
   SI el usuario intenta MARCAR una remisión:
-    SI selectedRemisiones está vacío → permitir
-    SI selectedRemisiones NO está vacío:
-      SI remision.status !== selectedRemisiones[0].status:
-        → Revertir checkbox
-        → Alerta flotante (.rps-table-alert):
-          "Solo puedes seleccionar remisiones con el mismo estado"
-        → TERMINAR
-
-  // Misma dupla no es requisito estricto — solo mismo status
+    SI status === 'cerrado':
+      → Checkbox deshabilitado / revertir si aplica
+      → Alerta: "No puedes reasignar remisiones en estado cerrado"
+      → TERMINAR
+    SI NO → permitir (cualquier combinación de estados)
 
 
 PASO 3 — Actualizar selectedRemisiones (solo página actual)
@@ -43,9 +37,8 @@ PASO 3 — Actualizar selectedRemisiones (solo página actual)
     SI unchecked → quitar
 
   Checkbox "Todos":
-    SI unchecked → quitar todas las de la página actual
-    SI checked → agregar todas las de la página con mismo status que la selección previa
-                  (o status del primer ítem si selectedRemisiones vacío)
+    SI unchecked → quitar todas las reasignables de la página actual
+    SI checked → agregar todas las reasignables de la página (status <> cerrado)
 
 PASO 4 — Mostrar u ocultar botón "Reasignar"
 
@@ -70,3 +63,4 @@ PASO 4 — Mostrar u ocultar botón "Reasignar"
 | E-06 Cambio página | selectedRemisiones = [] |
 | Cualquier filtro E-03…E-13 | selectedRemisiones = [] |
 | fetchRemisiones() | selectedRemisiones = [] |
+| reload() | selectedRemisiones = [] |
