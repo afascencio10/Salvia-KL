@@ -1124,7 +1124,16 @@ var home = Vue.createApp({
       return m[s] || s || '—';
     },
     labelBarreraStatus(s) {
-      var m = { 'OPEN':'Abierta', 'CLOSED':'Cerrada', 'FINISH':'Cerrada', 'CLOSE':'Cerrada', 'RESOLVED':'Resuelta' };
+      var m = {
+        'OPEN': 'Abierta',
+        'En Gestion': 'En gestión',
+        'Articulada': 'Articulada',
+        'MANAGED': 'Gestionada',
+        'CLOSED': 'Cerrada',
+        'FINISH': 'Cerrada',
+        'CLOSE': 'Cerrada',
+        'RESOLVED': 'Resuelta'
+      };
       return m[s] || s || '—';
     },
     labelRiesgo(n) {
@@ -1160,19 +1169,6 @@ var home = Vue.createApp({
     badgeEntryStatus(s) {
       var m = { 'p':'cd-bd-proceso', 'd':'cd-bd-completado', 'u':'cd-bd-articulando', 'x':'cd-bd-resuelto' };
       return m[s] || 'cd-bd-proceso';
-    },
-    abelBarreraStatus(s) {
-      var m = {
-        'OPEN': 'Abierta',
-        'En Gestion': 'En gestión',
-        'Articulada': 'Articulada',
-        'MANAGED': 'Gestionada',
-        'CLOSED': 'Cerrada',
-        'FINISH': 'Cerrada',
-        'CLOSE': 'Cerrada',
-        'RESOLVED': 'Resuelta'
-      };
-      return m[s] || s || '—';
     },
     barreraRowClass(s) {
       if (s === 'OPEN') return 'pending';
