@@ -127,13 +127,15 @@
             flex-wrap: wrap;
         }
         .ct-type-badge {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
             font-size: 11px;
-            font-weight: 600;
-            padding: 2px 8px;
+            font-weight: 700;
+            padding: 3px 10px;
             border-radius: 999px;
-            color: #111827;
             white-space: nowrap;
+            letter-spacing: 0.01em;
         }
         .ct-date {
             font-size: 11px;
@@ -208,15 +210,27 @@ var CT_CATEGORIAS = [
 /* ─── Helper: color de fondo por defecto cuando el evento no trae color ── */
 function ctDefaultColor(category) {
     var map = {
-        'Seguimientos':   '#3b82f6',
-        'Barreras':       '#ef4444',
-        'Medidas':        '#f59e0b',
-        'Psicosocial':    '#8b5cf6',
-        'Estabilización': '#10b981',
-        'Oficios':        '#06b6d4',
-        'General':        '#6b7280',
+        'Seguimientos':   '#1d4ed8',
+        'Barreras':       '#b91c1c',
+        'Medidas':        '#c2410c',
+        'Psicosocial':    '#5106A7',
+        'Estabilización': '#15803d',
+        'Oficios':        '#0f766e',
+        'General':        '#4b5563',
     };
-    return map[category] || '#6b7280';
+    return map[category] || '#4b5563';
+}
+
+/* ─── Helper: tinte rgba a partir de hex ────────────────────────────────── */
+function ctTint(hex, alpha) {
+    if (alpha == null) alpha = 0.12;
+    if (!hex) return 'rgba(75, 85, 99, ' + alpha + ')';
+    var h = hex.replace('#', '');
+    if (h.length === 3) h = h.split('').map(function(c){ return c + c; }).join('');
+    var r = parseInt(h.substr(0, 2), 16);
+    var g = parseInt(h.substr(2, 2), 16);
+    var b = parseInt(h.substr(4, 2), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
 }
 
 /* ─── Helper: formatear fecha ─────────────────────────────────────────── */
@@ -285,6 +299,14 @@ app.component('case-timeline', {
         iconColor(ev) {
             return ev.color || ctDefaultColor(ev.category);
         },
+        badgeStyle(ev) {
+            var c = this.iconColor(ev);
+            return {
+                color: c,
+                background: ctTint(c, 0.12),
+                border: '1px solid ' + ctTint(c, 0.32),
+            };
+        },
         actorLabel(ev) {
             return ev.actor_full_name || ev.actor_name || '';
         },
@@ -347,7 +369,7 @@ app.component('case-timeline', {
                 <!-- Card -->
                 <div class="ct-card">
                     <div class="ct-card-header">
-                        <span class="ct-type-badge" :style="{ background: iconColor(ev) }">
+                        <span class="ct-type-badge" :style="badgeStyle(ev)">
                             \${ ev.type || ev.category || '—' }
                         </span>
                         <span class="ct-date">\${ formatFecha(ev.date || ev.created_at) }</span>

@@ -55,14 +55,14 @@
             </div>
         </div>
         <div class="rps-filter-row">
-            <div class="rps-filter-item">
+            <div class="rps-filter-item" v-if="mostrarFiltroDupla">
                 <label class="rps-filter-label">Dupla asignada</label>
                 <select class="rps-select" :value="activeFilters.dupla_id || ''" @change="setDropdownFilter('dupla_id', $event.target.value)">
                     <option value="">Todas</option>
                     <option v-for="d in duplaOptions" :key="d.id" :value="d.id">${ d.name }</option>
                 </select>
             </div>
-            <div class="rps-filter-item rps-autocomplete-filter" data-autocomplete-key="profesional_asignada">
+            <div class="rps-filter-item rps-autocomplete-filter" v-if="mostrarFiltroProfesional" data-autocomplete-key="profesional_asignada">
                 <label class="rps-filter-label">Profesional asignada</label>
                 <div v-if="!autocompleteSelected.profesional_asignada" class="rps-autocomplete-input-wrap">
                     <input type="text" class="rps-input" :class="{ 'rps-input--error': autocompleteError }" v-model="autocompleteText.profesional_asignada" @input="onAutocompleteInput" placeholder="Profesional asignada" autocomplete="off">
@@ -136,7 +136,7 @@
                 <tr>
                     <th v-if="reasignacion" class="rps-th-select">
                         <label class="rps-select-all">
-                            <input type="checkbox" :checked="isAllPageSelected" :indeterminate.prop="isPagePartiallySelected" @change="toggleSelectAllPage">
+                            <input type="checkbox" :checked="isAllPageSelected" :indeterminate.prop="isPagePartiallySelected" :disabled="!hasSelectableOnPage" @change="toggleSelectAllPage">
                         </label>
                     </th>
                     <th>CASO</th>
@@ -147,7 +147,7 @@
             <tbody>
                 <tr v-for="r in paginatedRemisiones" :key="r.id" class="rps-row">
                     <td v-if="reasignacion" class="rps-cell-select">
-                        <input type="checkbox" :checked="isSelected(r)" @change="toggleRemisionSelection(r, $event.target.checked)">
+                        <input type="checkbox" :checked="isSelected(r)" :disabled="!isReassignable(r)" @change="toggleRemisionSelection(r, $event.target.checked, $event)">
                     </td>
                     <td class="rps-col-caso">
                         <div class="rps-victim-line">

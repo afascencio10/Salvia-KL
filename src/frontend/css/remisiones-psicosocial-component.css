@@ -356,6 +356,12 @@
     text-align: center;
 }
 
+.rps-cell-select input[type="checkbox"]:disabled,
+.rps-th-select input[type="checkbox"]:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
 .rps-victim-line {
     display: flex;
     align-items: center;

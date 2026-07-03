@@ -11,6 +11,7 @@
 
     var SESSION_DOTS = 6;
     var SESSION_LABEL = 'Sesiones (4 - 6)';
+    var STATUS_CERRADO = 'cerrado';
 
     vueApp.component('remisiones-psicosocial-component', {
         delimiters: ['${', '}'],
@@ -21,6 +22,8 @@
             defaultFilter: { type: Object,  default: function() { return {}; } },
             reasignacion:  { type: Boolean, default: false },
             pageSize:      { type: Number,  default: 20 },
+            mostrarFiltroDupla:        { type: Boolean, default: true },
+            mostrarFiltroProfesional:  { type: Boolean, default: true },
         },
 
         emits: ['ver-caso', 'ver-remision', 'reasignar-remisiones'],
@@ -95,22 +98,33 @@
             },
 
             isAllPageSelected: function() {
-                var page = this.paginatedRemisiones;
-                if (!page.length) {
+                var self = this;
+                var selectable = this.paginatedRemisiones.filter(function(r) {
+                    return self.isReassignable(r);
+                });
+                if (!selectable.length) {
                     return false;
                 }
-                var self = this;
-                return page.every(function(r) { return self.isSelected(r); });
+                return selectable.every(function(r) { return self.isSelected(r); });
             },
 
             isPagePartiallySelected: function() {
-                var page = this.paginatedRemisiones;
-                if (!page.length) {
+                var self = this;
+                var selectable = this.paginatedRemisiones.filter(function(r) {
+                    return self.isReassignable(r);
+                });
+                if (!selectable.length) {
                     return false;
                 }
-                var self = this;
-                var any = page.some(function(r) { return self.isSelected(r); });
+                var any = selectable.some(function(r) { return self.isSelected(r); });
                 return any && !this.isAllPageSelected;
+            },
+
+            hasSelectableOnPage: function() {
+                var self = this;
+                return this.paginatedRemisiones.some(function(r) {
+                    return self.isReassignable(r);
+                });
             },
         },
 
@@ -172,10 +186,12 @@
                 self.loadError = null;
 
                 var tasks = [
-                    self.fetchDuplas(),
                     self.fetchEquiposRemitentes(),
                     self.fetchRemisiones(false),
                 ];
+                if (self.mostrarFiltroDupla) {
+                    tasks.unshift(self.fetchDuplas());
+                }
                 if (self.mostrarCards) {
                     tasks.push(self.fetchStats());
                 }
@@ -496,16 +512,22 @@
                 return this.selectedRemisiones.some(function(s) { return s.id === r.id; });
             },
 
-            toggleRemisionSelection: function(r, checked) {
+            isReassignable: function(r) {
+                return r && r.status !== STATUS_CERRADO;
+            },
+
+            toggleRemisionSelection: function(r, checked, ev) {
                 if (!this.reasignacion) {
                     return;
                 }
-                if (checked) {
-                    if (this.selectedRemisiones.length > 0 &&
-                        this.selectedRemisiones[0].status !== r.status) {
-                        this.showTableAlert('Solo puedes seleccionar remisiones con el mismo estado');
-                        return;
+                if (checked && !this.isReassignable(r)) {
+                    if (ev && ev.target) {
+                        ev.target.checked = false;
                     }
+                    this.showTableAlert('No puedes reasignar remisiones en estado cerrado');
+                    return;
+                }
+                if (checked) {
                     if (!this.isSelected(r)) {
                         this.selectedRemisiones.push(r);
                     }
@@ -518,7 +540,10 @@
 
             toggleSelectAllPage: function(ev) {
                 var checked = ev.target.checked;
-                var page = this.paginatedRemisiones;
+                var self = this;
+                var page = this.paginatedRemisiones.filter(function(r) {
+                    return self.isReassignable(r);
+                });
                 if (!checked) {
                     var pageIds = page.map(function(r) { return r.id; });
                     this.selectedRemisiones = this.selectedRemisiones.filter(function(s) {
@@ -526,18 +551,13 @@
                     });
                     return;
                 }
-                var targetStatus = this.selectedRemisiones.length
-                    ? this.selectedRemisiones[0].status
-                    : (page[0] ? page[0].status : null);
-                var mixed = page.some(function(r) { return r.status !== targetStatus; });
-                if (mixed && !this.selectedRemisiones.length) {
-                    this.showTableAlert('Solo puedes seleccionar remisiones con el mismo estado');
+                if (!page.length) {
                     ev.target.checked = false;
+                    this.showTableAlert('No hay remisiones reasignables en esta página');
                     return;
                 }
-                var self = this;
                 page.forEach(function(r) {
-                    if (r.status === targetStatus && !self.isSelected(r)) {
+                    if (!self.isSelected(r)) {
                         self.selectedRemisiones.push(r);
                     }
                 });
@@ -559,7 +579,14 @@
             },
 
             emitReasignar: function() {
-                this.$emit('reasignar-remisiones', { remisiones: this.selectedRemisiones.slice() });
+                var reassignable = this.selectedRemisiones.filter(function(r) {
+                    return r.status !== STATUS_CERRADO;
+                });
+                if (!reassignable.length) {
+                    this.showTableAlert('No puedes reasignar remisiones en estado cerrado');
+                    return;
+                }
+                this.$emit('reasignar-remisiones', { remisiones: reassignable.slice() });
             },
 
             emitVerCaso: function(r) {

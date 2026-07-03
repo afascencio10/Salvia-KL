@@ -2,31 +2,25 @@
 <div class="container">
     <div class="welcome-section">
         <div>
-            <h2><b>Historial de Remisiones</b></h2>
-            <p class="text-muted mb-0">Remisiones de Atención Psicosocial</p>
+            <h2><b>Mis remisiones Psicosocial</b></h2>
+            <p class="text-muted mb-0">Remisiones asignadas a ${ currentUser }</p>
         </div>
     </div>
 
     {{ template "salvia/remisiones-psicosocial/remisiones_psicosocial_component.html" . }}
-    {{ template "salvia/remisiones-psicosocial/reasignar_remisiones_modal.html" . }}
 
     <div class="mt-4 mb-4">
         <remisiones-psicosocial-component
             ref="remisionesComponent"
-            :mostrar-cards="true"
-            :reasignacion="true"
+            :mostrar-cards="false"
+            :reasignacion="false"
+            :mostrar-filtro-dupla="false"
+            :mostrar-filtro-profesional="false"
             :default-filter="defaultFilter"
             @ver-caso="onVerCaso"
             @ver-remision="onVerRemision"
-            @reasignar-remisiones="onReasignarRemisiones"
         ></remisiones-psicosocial-component>
     </div>
-
-    <reasignar-remisiones-modal
-        ref="reasignarModal"
-        @closed="onReasignarModalClosed"
-        @reassigned="onReasignarCompletado"
-    ></reasignar-remisiones-modal>
 </div>
 </main>
 
@@ -41,8 +35,11 @@
                 windowTitle: {{.windowTitle}},
                 currentUser: "{{.currentUser}}",
                 currentRole: "{{.currentRole}}",
+                currentUserId: "{{.currentUserId}}",
                 menu: {{.menu}},
-                defaultFilter: {},
+                defaultFilter: {
+                    professional_id: "{{.currentUserId}}",
+                },
             };
         },
         mounted: function() {
@@ -62,19 +59,6 @@
                     window.location.href = '/salvia/hacer-seguimiento/' + encodeURIComponent(followUpId);
                 }
             },
-            onReasignarRemisiones: function(payload) {
-                if (payload && payload.remisiones && payload.remisiones.length) {
-                    this.$refs.reasignarModal.open(payload.remisiones);
-                }
-            },
-            onReasignarModalClosed: function() {
-                // Sin acción — la selección se conserva hasta recarga tras RRM-05
-            },
-            onReasignarCompletado: function() {
-                if (this.$refs.remisionesComponent) {
-                    this.$refs.remisionesComponent.reload();
-                }
-            },
             logout: function() {
                 logout("/seguridad/logout");
             },
@@ -85,13 +69,9 @@
 
     var _tplRps = document.getElementById('tpl-remisiones-psicosocial-component');
     window.__remisionesPsicosocialComponentTpl = _tplRps ? _tplRps.innerHTML : '';
-
-    var _tplRrm = document.getElementById('tpl-reasignar-remisiones-modal');
-    window.__reasignarRemisionesModalTpl = _tplRrm ? _tplRrm.innerHTML : '';
 </script>
 
 <script src="/static/js/components/remisiones-psicosocial-component.js"></script>
-<script src="/static/js/components/reasignar-remisiones-modal.js"></script>
 
 <script>
     home.mount("#app");

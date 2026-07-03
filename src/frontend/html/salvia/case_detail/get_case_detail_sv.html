@@ -263,7 +263,7 @@
           </div>
 
           <!-- ── UI TEMPORAL: Probar case-task-modal ── -->
-          <div style="background:#fefce8;border:1.5px dashed #fbbf24;border-radius:12px;padding:16px;margin-bottom:14px">
+          <div v-if="!esConsultaSoloLectura" style="background:#fefce8;border:1.5px dashed #fbbf24;border-radius:12px;padding:16px;margin-bottom:14px">
             <p style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px">🧪 Dev — Probar case-task-modal</p>
             <div style="display:flex;gap:8px;align-items:center">
               <input
@@ -282,7 +282,7 @@
           </div>
 
           <!-- ── UI TEMPORAL: Probar case-task-history ── -->
-          <div style="background:#f0fdf4;border:1.5px dashed #4ade80;border-radius:12px;padding:16px;margin-bottom:14px">
+          <div v-if="!esConsultaSoloLectura" style="background:#f0fdf4;border:1.5px dashed #4ade80;border-radius:12px;padding:16px;margin-bottom:14px">
             <p style="font-size:11px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px">🧪 Dev — Probar case-task-history</p>
             <div style="display:flex;gap:8px;align-items:center">
               <input
@@ -841,6 +841,10 @@ var home = Vue.createApp({
       // Cualquier supervisor puede reasignar cualquier caso
       return this.userRole === 'sv';
     },
+    esConsultaSoloLectura() {
+      // Agente psicosocial: solo consulta, sin acciones que modifiquen el caso
+      return this.userRole === 'ps' || this.userRole === 'ts';
+    },
     proximoSeguimiento() {
       // Buscar el primer seguimiento PENDIENTE ordenado por fecha (ya vienen ordenados del backend)
       for (var i = 0; i < this.followUpsV2.length; i++) {
@@ -1124,7 +1128,16 @@ var home = Vue.createApp({
       return m[s] || s || '—';
     },
     labelBarreraStatus(s) {
-      var m = { 'OPEN':'Abierta', 'CLOSED':'Cerrada', 'FINISH':'Cerrada', 'CLOSE':'Cerrada', 'RESOLVED':'Resuelta' };
+      var m = {
+        'OPEN': 'Abierta',
+        'En Gestion': 'En gestión',
+        'Articulada': 'Articulada',
+        'MANAGED': 'Gestionada',
+        'CLOSED': 'Cerrada',
+        'FINISH': 'Cerrada',
+        'CLOSE': 'Cerrada',
+        'RESOLVED': 'Resuelta'
+      };
       return m[s] || s || '—';
     },
     labelRiesgo(n) {
@@ -1160,19 +1173,6 @@ var home = Vue.createApp({
     badgeEntryStatus(s) {
       var m = { 'p':'cd-bd-proceso', 'd':'cd-bd-completado', 'u':'cd-bd-articulando', 'x':'cd-bd-resuelto' };
       return m[s] || 'cd-bd-proceso';
-    },
-    abelBarreraStatus(s) {
-      var m = {
-        'OPEN': 'Abierta',
-        'En Gestion': 'En gestión',
-        'Articulada': 'Articulada',
-        'MANAGED': 'Gestionada',
-        'CLOSED': 'Cerrada',
-        'FINISH': 'Cerrada',
-        'CLOSE': 'Cerrada',
-        'RESOLVED': 'Resuelta'
-      };
-      return m[s] || s || '—';
     },
     barreraRowClass(s) {
       if (s === 'OPEN') return 'pending';

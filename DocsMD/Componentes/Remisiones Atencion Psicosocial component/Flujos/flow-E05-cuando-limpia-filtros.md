@@ -57,5 +57,5 @@ PASO 4 — Re-renderizar FilterBar, cards (si aplica) y tabla
 | Pantalla | defaultFilter | Tras "Limpiar filtros" |
 |---|---|---|
 | Listado general | `{}` | Lista completa sin filtros UI |
-| Mis remisiones (profesional) | `{ professional_id }` | Solo remisiones de ese professional_id |
-| Mis remisiones (dupla) | `{ dupla_id }` | Solo remisiones de esa dupla |
+| Mis remisiones (profesional) | `{ professional_id }` | Remisiones del profesional: asignación directa **+** remisiones de duplas donde participa |
+| Mis remisiones (dupla) | `{ dupla_id }` | Solo remisiones de esa dupla concreta |

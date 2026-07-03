@@ -69,16 +69,18 @@ const (
 )
 
 // ─── Colores ─────────────────────────────────────────────────────────────────
+// Paleta alineada a SALVIA (#5106A7 primario) con tonos accesibles para badges
+// con fondo tintado claro (12% opacidad) y texto bold del color principal.
 const (
-	TimelineColorPurple = "#7c3aed"
-	TimelineColorGreen  = "#22c55e"
-	TimelineColorBlue   = "#3b82f6"
-	TimelineColorOrange = "#f97316"
-	TimelineColorGray   = "#6b7280"
-	TimelineColorTeal   = "#63e6be"
-	TimelineColorYellow = "#f8a625"
-	TimelineColorRed      = "#dc2626"
-	TimelineColorLightRed = "#f87171"
+	TimelineColorPurple   = "#5106A7"
+	TimelineColorGreen    = "#15803d"
+	TimelineColorBlue     = "#1d4ed8"
+	TimelineColorOrange   = "#c2410c"
+	TimelineColorGray     = "#4b5563"
+	TimelineColorTeal     = "#0f766e"
+	TimelineColorYellow   = "#a16207"
+	TimelineColorRed      = "#b91c1c"
+	TimelineColorLightRed = "#dc2626"
 )
 
 // ─── Constantes legacy (compatibilidad con eventos existentes en BD) ─────────

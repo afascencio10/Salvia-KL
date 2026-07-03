@@ -115,6 +115,7 @@ app.component('case-tasks', {
             this.$emit('task-completed');
         },
         puedeCompletar: function(task) {
+            if (this.userRole === 'ps' || this.userRole === 'ts') return false;
             if (this.userRole === 'sv') return true;
             return task.assignedUserId === this.userId;
         },

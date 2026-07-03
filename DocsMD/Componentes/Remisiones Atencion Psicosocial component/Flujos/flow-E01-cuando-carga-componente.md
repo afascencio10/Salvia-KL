@@ -207,7 +207,7 @@ Response:
 
 | Param | Condición |
 |---|---|
-| `filter_professional_id` | `ps.professional_id = {value}` |
+| `filter_professional_id` | Ver [DEC-E08-01](./flow-decision-E08-filtro-profesional-incluye-dupla.md): `ps.professional_id = icode` **OR** `ps.dupla_id` en dupla donde `psychologist_id` o `social_worker_id` = icode |
 | `filter_dupla_id` | `ps.dupla_id = {value}` |
 
 Combinables con el resto de filtros UI (AND).

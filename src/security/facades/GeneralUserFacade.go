@@ -207,6 +207,15 @@ func GeneralUserLOGIN_POST(c *gin.Context) {
 					}
 					navByte, _ := json.Marshal(navMap)
 					navStr = string(navByte)
+
+				case "ps", "ts":
+					// Profesional psicosocial: redirigir a Mis remisiones Psicosocial.
+					navMap := map[string]string{
+						"login": "/salvia/mis-remisiones-psicosocial",
+						"role":  currentRole,
+					}
+					navByte, _ := json.Marshal(navMap)
+					navStr = string(navByte)
 				}
 
 				// Se crea una sesión común con la información del usuario autenticado.

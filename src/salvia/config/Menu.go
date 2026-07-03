@@ -265,6 +265,8 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"sv": true,
 		"no": true,
 		"fo": true,
+		"ps": true,
+		"ts": true,
 	},
 
 	// ── Dashboard KPIs (Salvia_KPIs_v1) ──────────────────────────────────────
@@ -272,6 +274,9 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 
 	// ── Historial de Remisiones (Atención Psicosocial) ─────────────────────
 	"get_historial_remisiones": {"sv": true},
+
+	// ── Mis remisiones Psicosocial (profesional ps / ts) ────────────────────
+	"get_mis_remisiones_psicosocial": {"ps": true, "ts": true},
 }
 
 // Menús del sistema. Se filtra por el tipo de menú (ie/ default) y luego por la sección principal repesentada por el locale.
