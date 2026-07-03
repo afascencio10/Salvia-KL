@@ -123,8 +123,8 @@ Filtro de alcance que se aplica al montar y **no se elimina** con "Limpiar filtr
 
 | Campo | Tipo | Uso |
 |---|---|---|
-| `professional_id` | `string` | Remisiones donde `psychosocial_support.professional_id` = icode del psicólogo/trab. social |
-| `dupla_id` | `string` | Remisiones donde `psychosocial_support.dupla_id` = id de la dupla |
+| `professional_id` | `string` | Remisiones vinculadas al icode: asignación directa **o** vía dupla donde es `psychologist_id` / `social_worker_id`. Ver [DEC-E08-01](./Flujos/flow-decision-E08-filtro-profesional-incluye-dupla.md) |
+| `dupla_id` | `string` | Remisiones donde `psychosocial_support.dupla_id` = id de **una dupla concreta** |
 
 Ejemplos de pantallas padre:
 
@@ -132,12 +132,12 @@ Ejemplos de pantallas padre:
 <!-- Listado general (supervisor) -->
 <remisiones-psicosocial-component :mostrar-cards="true" />
 
-<!-- Mis remisiones — profesional asignado directamente -->
+<!-- Mis remisiones — todo lo del profesional (directo + duplas donde participa) -->
 <remisiones-psicosocial-component
   :default-filter="{ professional_id: sessionAgentIcode }"
 />
 
-<!-- Mis remisiones — vista por dupla -->
+<!-- Mis remisiones — acotado a una dupla concreta (opcional) -->
 <remisiones-psicosocial-component
   :default-filter="{ dupla_id: sessionDuplaId }"
 />
@@ -274,7 +274,7 @@ remisiones-psicosocial-component  (.rps-wrapper)
 | `estado_remision` | dropdown | Estado remisión | `psychosocial_support.status` |
 | `sesiones_completadas` | dropdown | Sesiones completadas | COUNT `team_contact` (0-6) exacto |
 | `dupla_asignada` | dropdown | Dupla asignada | `dupla_id` — opciones de `dupla.name` |
-| `profesional_asignada` | autocomplete | Profesional asignada | `professional_id` — equipos `psicologia`, `trab. social` |
+| `profesional_asignada` | autocomplete | Profesional asignada | `filter_professional_id` — incluye asignación directa **y** remisiones de duplas donde el usuario es `psychologist_id` o `social_worker_id` ([DEC-E08-01](./Flujos/flow-decision-E08-filtro-profesional-incluye-dupla.md)) |
 | `nivel_riesgo` | dropdown | Nivel de riesgo | `victim_case_form2_risk_level` del caso |
 | `equipo_remitente` | dropdown | Equipo remitente | `submitted_by_team` (columna directa) |
 
@@ -344,7 +344,7 @@ Query params del listado (combinables AND):
 | `filter_estado_remision` | E-09 |
 | `filter_sesiones_completadas` | E-10 |
 | `filter_dupla_id` | E-11 |
-| `filter_professional_id` | E-08 |
+| `filter_professional_id` | E-08 — asignación directa **OR** duplas del profesional ([DEC-E08-01](./Flujos/flow-decision-E08-filtro-profesional-incluye-dupla.md)) |
 | `filter_nivel_riesgo` | E-12 |
 | `filter_equipo_remitente` | E-13 |
 | `page`, `page_size` | E-06 |

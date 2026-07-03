@@ -24,6 +24,7 @@ Interfaz detallada: [remisiones-psicosocial-component-interface.md](./remisiones
 | Cards de resumen: **Total** + 4 estados `PsychosocialSupportStatus` | **E-01** |
 | Columna REMISIÓN: quitar badge y tags | **E-01** |
 | Columna ESTADO Y ASIGNACIÓN: label quemado `"Sesiones (4 - 6)"` + 6 puntos pintados por sesiones completadas | **E-01** |
+| **DEC-E08-01:** `filter_professional_id` incluye remisiones vía dupla | **E-01**, **E-05**, **E-08** |
 
 Eventos **sin cambio funcional**: E-02 (índice), E-03, E-04, E-06, E-07, E-09, E-11, E-12, E-14, E-15, E-16, E-17.
 
@@ -195,10 +196,14 @@ Requerido:    Sí
 ```
 Evento:       Cuando el usuario selecciona o limpia el autocomplete
 Tipo:         User Interaction
-Descripción:  Seleccionar filtra por psychosocial_support.professional_id. Limpiar
-              quita el filtro y recarga combinando el resto de filtros activos.
+Descripción:  Seleccionar activa `filter_professional_id` y recarga el listado. El backend
+              devuelve remisiones donde el profesional está asignado directamente
+              (`professional_id`) **o** participa en la dupla de la remisión
+              (`dupla.psychologist_id` / `social_worker_id`). Ver DEC-E08-01.
+              Limpiar quita el filtro y recarga combinando el resto de filtros activos.
 
               CAMBIO: filter_professional_id (antes filter_agent_id / agent_id).
+              CAMBIO DEC-E08-01: ya no filtra solo `ps.professional_id`.
 Requerido:    Sí
 ```
 
@@ -394,10 +399,12 @@ Requerido:    Sí
 | Badge tipo / tags REMISIÓN | **Eliminados** — columna solo muestra remitente, equipo, fecha y acciones |
 | `submitted_by` | JOIN solo para **nombre** del remitente |
 | `submitted_by_team` | Columna directa en `psychosocial_support` — render y filtro E-13 |
-| `professional_id` | Reemplaza `agent_id` en modelo, filtros y asignación directa |
+| `professional_id` | Asignación directa en remisión; filtro E-08 también incluye duplas del profesional (DEC-E08-01) |
+| `defaultFilter.professional_id` | Alcance fijo “mis remisiones”: directas + vía dupla |
+| `defaultFilter.dupla_id` | Alcance fijo a una dupla concreta (opcional; distinto de E-08) |
 | `team_contact` | Fuente de verdad para sesiones psicosociales completadas |
 | `mostrarCards` | Prop booleano; 5 cards (total + 4 status) encima de filtros |
-| `defaultFilter` | `{ professional_id }` o `{ dupla_id }` — alcance fijo, persiste al limpiar filtros |
+| Filtro E-08 / `defaultFilter.professional_id` | Incluye asignación directa **OR** duplas del profesional — [DEC-E08-01](./Flujos/flow-decision-E08-filtro-profesional-incluye-dupla.md) |
 | Botón reasignación | Label **"Reasignar"**; emite `reasignar-remisiones` al padre |
 | Modal reasignación | Fuera de alcance — planeación futura |
 
@@ -407,6 +414,7 @@ Requerido:    Sí
 
 | Tema | Impacto |
 |---|---|
+| Implementar DEC-E08-01 en backend (`buildPsychosocialListWhere`) | E-08, E-01 defaultFilter, stats |
 | Implementar M-02 en código (modelos + AutoMigrate) | Prerequisito backend real |
 | Población de `submitted_by_team` al crear remisión | E-01, E-13 — fuera del componente |
 | Creación de registros `team_contact` al completar sesiones | E-01 barra de puntos, E-10 |
