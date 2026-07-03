@@ -81,6 +81,25 @@
                 </div>
             </div>
 
+            <!-- Motivo de corrección (devolución por inconsistencia jurídica) -->
+            <div class="nf-modal-form-group" style="margin-top:16px;">
+                <label class="nf-modal-label">
+                    Motivo de corrección
+                    <span v-if="modalForm.reasonCorrection === '' || modalForm.reasonCorrection === null"
+                          style="color:#6c757d;font-weight:400;font-size:0.85em;margin-left:4px;">
+                        (requerido si marca "Por corregir")
+                    </span>
+                    <span v-else style="color:#198754;font-weight:400;font-size:0.85em;margin-left:4px;">
+                        ✓ diligenciado
+                    </span>
+                </label>
+                <textarea
+                    v-model="modalForm.reasonCorrection"
+                    class="form-control nf-modal-input"
+                    rows="3"
+                    placeholder="Describa la inconsistencia encontrada en el oficio"></textarea>
+            </div>
+
             <div v-if="saveError" class="nf-error-state" style="margin-top:12px;">
                 <i class="fas fa-exclamation-triangle"></i> ${ saveError }
             </div>
@@ -88,6 +107,10 @@
             <div class="nf-modal-footer">
                 <button class="btn nf-btn-modal-cancel" @click="closeModal" :disabled="isSaving">
                     Cancelar
+                </button>
+                <button class="btn nf-btn-modal-secondary" @click="submitModal('por_corregir')" :disabled="isSaving">
+                    <span v-if="isSaving"><i class="fas fa-spinner fa-spin"></i></span>
+                    <span v-else><i class="fas fa-undo"></i> Por corregir</span>
                 </button>
                 <button class="btn nf-btn-modal-primary" @click="submitModal('radicar')" :disabled="isSaving">
                     <span v-if="isSaving"><i class="fas fa-spinner fa-spin"></i> Guardando...</span>
