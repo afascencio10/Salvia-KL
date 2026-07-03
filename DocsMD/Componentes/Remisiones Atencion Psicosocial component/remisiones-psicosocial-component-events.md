@@ -295,7 +295,7 @@ Prerequisito: M-02
 Evento:       Cuando el usuario selecciona o deselecciona una remisión para reasignación
 Tipo:         User Interaction
 Descripción:  Solo si :reasignacion === true. Checkbox por fila y "Todos".
-              Regla: mismo status en todas las seleccionadas. Solo página actual.
+              Regla: excluir status cerrado. Cualquier combinación de estados permitida. Solo página actual.
 Requerido:    Condicional
 ```
 
@@ -354,7 +354,7 @@ Requerido:    Sí
 - [x] ¿Interfaz actualizada (interface.md)? → Sí
 - [x] ¿Filtro inicial professional_id / dupla_id? → prop `defaultFilter`, E-01, E-05
 - [x] ¿Flujos detallados escritos? → M-01, M-02, E-01 … E-17
-- [ ] ¿Modal reasignar-remisiones? → Planeación futura (padre consume E-15)
+- [x] ¿Modal reasignar-remisiones? → [reasignar-remisiones-modal-events.md](./reasignar-remisiones-modal-events.md) (RRM-01 … RRM-05)
 - [x] ¿Pantalla padre e integración de rutas? → Historial de Remisiones (sv)
 - [ ] ¿Implementación M-02 en código? → Pendiente
 
@@ -406,7 +406,7 @@ Requerido:    Sí
 | `mostrarCards` | Prop booleano; 5 cards (total + 4 status) encima de filtros |
 | Filtro E-08 / `defaultFilter.professional_id` | Incluye asignación directa **OR** duplas del profesional — [DEC-E08-01](./Flujos/flow-decision-E08-filtro-profesional-incluye-dupla.md) |
 | Botón reasignación | Label **"Reasignar"**; emite `reasignar-remisiones` al padre |
-| Modal reasignación | Fuera de alcance — planeación futura |
+| Modal reasignación | `reasignar-remisiones-modal` — RRM-01 … RRM-05; padre consume E-15 |
 
 ---
 
@@ -419,4 +419,4 @@ Requerido:    Sí
 | Población de `submitted_by_team` al crear remisión | E-01, E-13 — fuera del componente |
 | Creación de registros `team_contact` al completar sesiones | E-01 barra de puntos, E-10 |
 | Actualizar mock frontend existente | E-01 — alinear con nueva UI |
-| Planeación `reasignar-remisiones-modal` | E-15 — padre |
+| Implementación `reasignar-remisiones-modal` + endpoints bulk | E-15 — padre; ver RRM-05 |

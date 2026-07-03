@@ -123,6 +123,7 @@ func main() {
     casesReassignRepo      := repository.NewCasesReassignRepository(gormDB)
     psychosocialListRepo   := repository.NewPsychosocialListRepository(gormDB)
     duplaRepo              := repository.NewDuplaRepository(gormDB)
+    psychosocialReassignRepo := repository.NewPsychosocialReassignRepository(gormDB)
 
     // Services
     casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
@@ -171,6 +172,7 @@ func main() {
     casesReassignSvc      := service.NewCasesReassignService(casesReassignRepo, caseTimelineRepo, gormDB)
     agentsSearchSvc       := service.NewAgentsSearchService(agentLightRepo)
     psychosocialListSvc   := service.NewPsychosocialListService(psychosocialListRepo, duplaRepo)
+    psychosocialReassignSvc := service.NewPsychosocialReassignService(psychosocialReassignRepo, gormDB)
 
     // Inyectar el servicio en el controller legacy para generación automática del calendario
     salvia_legacy.FollowUpSvc = followUpV2Svc
@@ -212,6 +214,7 @@ func main() {
     casesReassignCtrl      := salvia_ctrl.NewCasesReassignController(casesReassignSvc)
     agentsSearchCtrl       := salvia_ctrl.NewAgentsSearchController(agentsSearchSvc)
     psychosocialListCtrl   := salvia_ctrl.NewPsychosocialListController(psychosocialListSvc)
+    psychosocialReassignCtrl := salvia_ctrl.NewPsychosocialReassignController(psychosocialReassignSvc)
     followUpV2Repo         := repository.NewFollowUpV2Repository(gormDB)
     assignCaseSvc          := service.NewAssignCaseService(victimCaseLightRepo, agentLightRepo, followUpV2Repo)
     assignCaseCtrl         := salvia_ctrl.NewAssignCaseController(assignCaseSvc)
@@ -248,6 +251,7 @@ func main() {
     casesReassignCtrl.RegisterRoutes(api)
     agentsSearchCtrl.RegisterRoutes(api)
     psychosocialListCtrl.RegisterRoutes(api)
+    psychosocialReassignCtrl.RegisterRoutes(api)
     assignCaseCtrl.RegisterRoutes(api)
 
     // Admin: endpoints de migración (protegidos por X-Security-Key)

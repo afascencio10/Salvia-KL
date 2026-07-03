@@ -11,9 +11,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// remisionesPsicosocialComponentTemplates — partial del componente Vue remisiones-psicosocial-component.
+// remisionesPsicosocialComponentTemplates — partials Vue del listado y modal de reasignación.
 var remisionesPsicosocialComponentTemplates = []string{
 	"frontend/html/salvia/remisiones-psicosocial/remisiones_psicosocial_component.html",
+	"frontend/html/salvia/remisiones-psicosocial/reasignar_remisiones_modal.html",
 }
 
 // HistorialRemisionesGET renderiza la pantalla "Historial de Remisiones" con datos mock (backend pendiente).

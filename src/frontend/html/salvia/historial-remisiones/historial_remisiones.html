@@ -8,6 +8,7 @@
     </div>
 
     {{ template "salvia/remisiones-psicosocial/remisiones_psicosocial_component.html" . }}
+    {{ template "salvia/remisiones-psicosocial/reasignar_remisiones_modal.html" . }}
 
     <div class="mt-4 mb-4">
         <remisiones-psicosocial-component
@@ -20,6 +21,12 @@
             @reasignar-remisiones="onReasignarRemisiones"
         ></remisiones-psicosocial-component>
     </div>
+
+    <reasignar-remisiones-modal
+        ref="reasignarModal"
+        @closed="onReasignarModalClosed"
+        @reassigned="onReasignarCompletado"
+    ></reasignar-remisiones-modal>
 </div>
 </main>
 
@@ -56,8 +63,17 @@
                 }
             },
             onReasignarRemisiones: function(payload) {
-                var count = payload && payload.remisiones ? payload.remisiones.length : 0;
-                alert('Reasignación pendiente de implementar (' + count + ' remisión(es) seleccionada(s)).');
+                if (payload && payload.remisiones && payload.remisiones.length) {
+                    this.$refs.reasignarModal.open(payload.remisiones);
+                }
+            },
+            onReasignarModalClosed: function() {
+                // Sin acción — la selección se conserva hasta recarga tras RRM-05
+            },
+            onReasignarCompletado: function() {
+                if (this.$refs.remisionesComponent) {
+                    this.$refs.remisionesComponent.reload();
+                }
             },
             logout: function() {
                 logout("/seguridad/logout");
@@ -69,9 +85,13 @@
 
     var _tplRps = document.getElementById('tpl-remisiones-psicosocial-component');
     window.__remisionesPsicosocialComponentTpl = _tplRps ? _tplRps.innerHTML : '';
+
+    var _tplRrm = document.getElementById('tpl-reasignar-remisiones-modal');
+    window.__reasignarRemisionesModalTpl = _tplRrm ? _tplRrm.innerHTML : '';
 </script>
 
 <script src="/static/js/components/remisiones-psicosocial-component.js"></script>
+<script src="/static/js/components/reasignar-remisiones-modal.js"></script>
 
 <script>
     home.mount("#app");

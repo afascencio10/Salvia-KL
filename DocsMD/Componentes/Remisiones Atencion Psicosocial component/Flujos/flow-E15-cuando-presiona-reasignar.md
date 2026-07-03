@@ -29,7 +29,8 @@ PASO 2 — Emitir evento hacia el padre
   })
 
   // El componente NO abre modal ni llama al backend.
-  // El padre decidirá qué hacer (modal reasignar-remisiones — planeación futura).
+  // El padre abre reasignar-remisiones-modal → RRM-01
+  // Ver: ../reasignar-remisiones-modal-interface.md
 
 
 PASO 3 — Estado post-emisión
@@ -59,4 +60,12 @@ PASO 3 — Estado post-emisión
 }
 ```
 
-**Responsabilidad del padre:** abrir modal, persistir reasignación, recargar tabla.
+**Responsabilidad del padre:**
+
+```javascript
+onReasignarRemisiones(payload) {
+  this.$refs.reasignarModal.open(payload.remisiones);  // RRM-01
+}
+```
+
+Documentación modal: [reasignar-remisiones-modal-interface.md](../reasignar-remisiones-modal-interface.md)

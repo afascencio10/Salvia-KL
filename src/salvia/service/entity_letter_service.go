@@ -295,10 +295,13 @@ func (s *entityLetterService) PerformAction(ctx context.Context, id string, inpu
 		fields["state"] = models.EntityLetterStateAprobacionJuridica
 
 	case "por_corregir":
-		// para_revisar → en_correccion
-		if letter.State != models.EntityLetterStateParaRevisar {
-			return nil, fmt.Errorf("%w: acción 'por_corregir' requiere estado '%s', estado actual: '%s'",
-				ErrEntityLetterInvalidState, models.EntityLetterStateParaRevisar, letter.State)
+		// para_revisar → en_correccion (agente de notificaciones)
+		// aprobacion_juridica → en_correccion (abogado devuelve por inconsistencia)
+		if letter.State != models.EntityLetterStateParaRevisar &&
+			letter.State != models.EntityLetterStateAprobacionJuridica {
+			return nil, fmt.Errorf("%w: acción 'por_corregir' requiere estado '%s' o '%s', estado actual: '%s'",
+				ErrEntityLetterInvalidState, models.EntityLetterStateParaRevisar,
+				models.EntityLetterStateAprobacionJuridica, letter.State)
 		}
 		if input.ReasonCorrection == nil || *input.ReasonCorrection == "" {
 			return nil, fmt.Errorf("entity_letter: el campo 'reasonCorrection' es requerido para marcar por corregir")

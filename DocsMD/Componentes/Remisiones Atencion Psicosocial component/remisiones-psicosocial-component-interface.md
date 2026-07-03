@@ -294,10 +294,10 @@ Endpoint: `GET /api/v1/agents/search-psicosocial?q={text}&limit=10`
 | Elemento | Comportamiento |
 |---|---|
 | Checkbox | Primera columna; solo página actual |
-| Regla | Mismo `status` en todas las seleccionadas |
+| Regla | No seleccionar remisiones con `status = 'cerrado'`; cualquier otro estado puede combinarse |
 | Botón | **"Reasignar"** — visible si hay selección |
 | Emisión | `$emit('reasignar-remisiones', { remisiones })` → E-15 |
-| Modal | **Fuera de alcance** — el padre lo implementará después |
+| Modal | `reasignar-remisiones-modal` — ver [interface](./reasignar-remisiones-modal-interface.md) |
 
 ---
 
