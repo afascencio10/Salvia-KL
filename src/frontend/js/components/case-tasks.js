@@ -170,32 +170,71 @@ app.component('case-tasks', {
 <div class="ct-container">
     <div v-if="loading" class="ct-loading"><i class="fa fa-spinner fa-spin"></i> Cargando tareas...</div>
     <template v-else>
-        <!-- Lista de tareas pendientes -->
-        <div v-if="pendingTasks.length === 0" class="ct-empty">
-            No hay tareas pendientes
+        <!-- Tabs: Pendientes / Completadas -->
+        <div v-if="tasks.length > 0" style="display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid #e5e7eb;padding-bottom:0">
+            <button @click="activeTab = 'pending'" style="padding:8px 16px;font-size:.78rem;font-weight:600;border:none;cursor:pointer;border-bottom:2px solid transparent;background:none" :style="activeTab === 'pending' ? 'color:#5106A7;border-bottom-color:#5106A7' : 'color:#6b7280'">
+                Pendientes (\${ pendingTasks.length })
+            </button>
+            <button @click="activeTab = 'completed'" style="padding:8px 16px;font-size:.78rem;font-weight:600;border:none;cursor:pointer;border-bottom:2px solid transparent;background:none" :style="activeTab === 'completed' ? 'color:#5106A7;border-bottom-color:#5106A7' : 'color:#6b7280'">
+                Completadas (\${ completedTasks.length })
+            </button>
         </div>
-        <div v-else class="ct-list">
-            <div v-for="task in pendingTasks" :key="task.id" class="ct-task" style="flex-direction:row;align-items:center;gap:12px;padding:14px 20px">
-                <div style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0" :style="task.type && task.type.indexOf('oficio') !== -1 ? 'background:#f3f4f6' : task.type && (task.type.indexOf('llamar') !== -1 || task.type.indexOf('llamada') !== -1) ? 'background:#fce7f3' : task.type && task.type.indexOf('comite') !== -1 ? 'background:#fef9c3' : 'background:#ede9fe'">
-                    <i :class="task.type && task.type.indexOf('oficio') !== -1 ? 'fa fa-file-alt' : task.type && (task.type.indexOf('llamar') !== -1 || task.type.indexOf('llamada') !== -1) ? 'fa fa-phone' : task.type && task.type.indexOf('comite') !== -1 ? 'fa fa-clipboard-list' : 'fa fa-tasks'" :style="task.type && task.type.indexOf('oficio') !== -1 ? 'color:#1f2937' : task.type && (task.type.indexOf('llamar') !== -1 || task.type.indexOf('llamada') !== -1) ? 'color:#db2777' : task.type && task.type.indexOf('comite') !== -1 ? 'color:#92400e' : 'color:#7c3aed'" style="font-size:.82rem"></i>
-                </div>
-                <div style="flex:1;min-width:0">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
-                        <span style="font-size:.7rem;font-weight:800;color:#1f2937;text-transform:uppercase;letter-spacing:.04em">\${ task.category }</span>
-                        <span class="ct-badge ct-badge-todo">Pendiente</span>
+
+        <!-- Lista de tareas pendientes -->
+        <template v-if="activeTab === 'pending'">
+            <div v-if="pendingTasks.length === 0" class="ct-empty">
+                No hay tareas pendientes
+            </div>
+            <div v-else class="ct-list">
+                <div v-for="task in pendingTasks" :key="task.id" class="ct-task" style="flex-direction:row;align-items:center;gap:12px;padding:14px 20px">
+                    <div style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0" :style="task.type && task.type.indexOf('oficio') !== -1 ? 'background:#f3f4f6' : task.type && (task.type.indexOf('llamar') !== -1 || task.type.indexOf('llamada') !== -1) ? 'background:#fce7f3' : task.type && task.type.indexOf('comite') !== -1 ? 'background:#fef9c3' : 'background:#ede9fe'">
+                        <i :class="task.type && task.type.indexOf('oficio') !== -1 ? 'fa fa-file-alt' : task.type && (task.type.indexOf('llamar') !== -1 || task.type.indexOf('llamada') !== -1) ? 'fa fa-phone' : task.type && task.type.indexOf('comite') !== -1 ? 'fa fa-clipboard-list' : 'fa fa-tasks'" :style="task.type && task.type.indexOf('oficio') !== -1 ? 'color:#1f2937' : task.type && (task.type.indexOf('llamar') !== -1 || task.type.indexOf('llamada') !== -1) ? 'color:#db2777' : task.type && task.type.indexOf('comite') !== -1 ? 'color:#92400e' : 'color:#7c3aed'" style="font-size:.82rem"></i>
                     </div>
-                    <div style="font-size:.84rem;font-weight:700;color:#1f2937">\${ task.description || labelTipo(task) }</div>
-                    <div style="font-size:.73rem;color:#9ca3af;margin-top:2px">Asignado a: \${ task.assignedUserName || 'Sin asignar' }</div>
-                </div>
-                <div style="display:flex;gap:6px;flex-shrink:0">
-                    <button v-if="puedeCompletar(task)" class="ct-btn-complete" @click="abrirModal(task)">Gestionar</button>
-                    <button v-if="false && userRole === 'sv'" class="ct-btn-complete" style="background:#3b82f6" @click="abrirReasignar(task)">Reasignar</button>
+                    <div style="flex:1;min-width:0">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+                            <span style="font-size:.7rem;font-weight:800;color:#1f2937;text-transform:uppercase;letter-spacing:.04em">\${ task.category }</span>
+                            <span class="ct-badge ct-badge-todo">Pendiente</span>
+                        </div>
+                        <div style="font-size:.84rem;font-weight:700;color:#1f2937">\${ task.description || labelTipo(task) }</div>
+                        <div style="font-size:.73rem;color:#9ca3af;margin-top:2px">Asignado a: \${ task.assignedUserName || 'Sin asignar' }</div>
+                    </div>
+                    <div style="display:flex;gap:6px;flex-shrink:0">
+                        <button v-if="puedeCompletar(task)" class="ct-btn-complete" @click="abrirModal(task)">Gestionar</button>
+                        <button v-if="false && userRole === 'sv'" class="ct-btn-complete" style="background:#3b82f6" @click="abrirReasignar(task)">Reasignar</button>
+                    </div>
                 </div>
             </div>
-        </div>
+        </template>
+
+        <!-- Lista de tareas completadas -->
+        <template v-if="activeTab === 'completed'">
+            <div v-if="completedTasks.length === 0" class="ct-empty">
+                No hay tareas completadas aún
+            </div>
+            <div v-else class="ct-list">
+                <div v-for="task in completedTasks" :key="task.id" class="ct-task" style="flex-direction:row;align-items:center;gap:12px;padding:14px 20px;background:#f9fafb">
+                    <div style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#dcfce7">
+                        <i class="fa fa-check" style="color:#16a34a;font-size:.82rem"></i>
+                    </div>
+                    <div style="flex:1;min-width:0">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+                            <span style="font-size:.7rem;font-weight:800;color:#1f2937;text-transform:uppercase;letter-spacing:.04em">\${ task.category }</span>
+                            <span class="ct-badge ct-badge-done">Completada</span>
+                        </div>
+                        <div style="font-size:.84rem;font-weight:700;color:#1f2937">\${ task.description || labelTipo(task) }</div>
+                        <div style="font-size:.73rem;color:#9ca3af;margin-top:2px">Completada por: \${ task.assignedUserName || '—' }</div>
+                    </div>
+                    <div style="display:flex;gap:6px;flex-shrink:0">
+                        <button class="ct-btn-complete" style="background:#16a34a" @click="$refs.taskHistory.open(task.id)">Ver detalle</button>
+                    </div>
+                </div>
+            </div>
+        </template>
     </template>
 
     <!-- Modal de tareas se maneja desde el padre via @open-task-modal -->
+    <!-- Modal ver detalle tarea completada (autosuficiente) -->
+    <case-task-history ref="taskHistory"></case-task-history>
     <!-- Modal reasignar tarea -->
     <div v-if="reasignarTask" class="ct-modal-backdrop" @click.self="reasignarTask = null">
         <div class="ct-modal">

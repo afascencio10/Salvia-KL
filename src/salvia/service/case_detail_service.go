@@ -58,6 +58,22 @@ func (s *caseDetailService) GetDetail(ctx context.Context, caseICode string) (*r
 		return nil, err
 	}
 
+	// Ajustar status de barreras: si tiene tareas pendientes y está en OPEN → "En Gestion"
+	for i := range detail.Barriers {
+		if detail.Barriers[i].Status == models.BarrierV2StatusOpen {
+			var pendingCount int64
+			s.db.WithContext(ctx).Raw(`
+				SELECT COUNT(*) FROM salvia.case_task
+				WHERE barrier_id = ? AND status = 'ToDo' AND deleted_at IS NULL
+			`, detail.Barriers[i].ID).Scan(&pendingCount)
+			if pendingCount > 0 {
+				detail.Barriers[i].Status = models.BarrierV2StatusEnGestion
+				// También actualizar en BD para que quede consistente
+				s.db.Exec(`UPDATE salvia.barrier_v2 SET status = ? WHERE id = ?`, models.BarrierV2StatusEnGestion, detail.Barriers[i].ID)
+			}
+		}
+	}
+
 	// Traducir enums con Locale
 	locale := salvia_config.Locale["sp"]
 	for i, v := range detail.TipoViolencia {

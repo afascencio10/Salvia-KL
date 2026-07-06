@@ -23,6 +23,7 @@ func NewBarrierV2GinController(svc service.BarrierV2Service) *BarrierV2GinContro
 func (c *BarrierV2GinController) RegisterRoutes(rg *gin.RouterGroup) {
 	barriers := rg.Group("/barriers-v2")
 	barriers.GET("", c.List)
+	barriers.GET("/:id/detail", c.GetDetail)
 	barriers.GET("/:id/follow-ups", c.ListFollowUps)
 }
 
@@ -43,6 +44,29 @@ func (c *BarrierV2GinController) List(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, items)
+}
+
+// GetDetail devuelve el detalle completo de una barrera con datos de la víctima.
+//
+//	GET /api/v1/barriers-v2/:id/detail
+func (c *BarrierV2GinController) GetDetail(ctx *gin.Context) {
+	barrierID := ctx.Param("id")
+	if barrierID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "id de barrera requerido"})
+		return
+	}
+
+	detail, err := c.svc.GetDetail(ctx.Request.Context(), barrierID)
+	if err != nil {
+		if err.Error() == "barrier_v2: registro no encontrado" {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "barrera no encontrada"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, detail)
 }
 
 // ListFollowUps devuelve los seguimientos de una barrera en orden cronológico.

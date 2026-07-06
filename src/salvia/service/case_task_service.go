@@ -134,7 +134,16 @@ func (s *caseTaskService) Create(ctx context.Context, ct *models.CaseTask) error
 	if ct.Status == "" {
 		ct.Status = models.CaseTaskStatusToDo
 	}
-	return s.repo.Create(ctx, ct)
+	if err := s.repo.Create(ctx, ct); err != nil {
+		return err
+	}
+	// Si la tarea está asociada a una barrera y es pendiente, marcar barrera como "En Gestion"
+	if ct.BarrierID != nil && *ct.BarrierID != "" && ct.Status == models.CaseTaskStatusToDo {
+		s.barrierRepo.UpdateFields(ctx, *ct.BarrierID, map[string]interface{}{
+			"status": models.BarrierV2StatusEnGestion,
+		})
+	}
+	return nil
 }
 
 func (s *caseTaskService) Update(ctx context.Context, ct *models.CaseTask) error {

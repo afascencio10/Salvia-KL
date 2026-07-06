@@ -386,9 +386,14 @@
                 <div style="font-size:.83rem;color:#374151">${ b.institutionName }</div>
               </div>
               <div class="cd-seg-meta">📅 ${ formatFecha(b.createdAt) }</div>
-              <button @click="barrExpandido = barrExpandido === b.id ? null : b.id" style="background:none;border:none;padding:0;font-size:.78rem;color:#6b7280;cursor:pointer;margin-top:6px;display:flex;align-items:center;gap:4px">
-                ${ barrExpandido === b.id ? '▲ Ocultar detalle' : '▼ Ver descripción y tareas' }
-              </button>
+              <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
+                <button @click="barrExpandido = barrExpandido === b.id ? null : b.id" style="background:none;border:none;padding:0;font-size:.78rem;color:#6b7280;cursor:pointer;display:flex;align-items:center;gap:4px">
+                  ${ barrExpandido === b.id ? '▲ Ocultar detalle' : '▼ Ver descripción y tareas' }
+                </button>
+                <a :href="'/salvia/barreras/' + b.id" style="font-size:.75rem;font-weight:600;color:#5106A7;text-decoration:none;display:flex;align-items:center;gap:4px">
+                  📄 Ver detalle barrera →
+                </a>
+              </div>
               <div v-if="barrExpandido === b.id">
                 <div v-if="b.description" style="margin-top:8px">
                   <div style="font-size:.72rem;color:#6b7280;font-weight:600;margin-bottom:2px;text-transform:uppercase;letter-spacing:.04em">Descripción</div>
