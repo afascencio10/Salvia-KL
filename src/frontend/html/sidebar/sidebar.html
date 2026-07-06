@@ -39,24 +39,19 @@
                 <span>Mis Casos</span>
             </a>
             {{ end }}
-            <!--
-            {{ if eq .currentRole "sv" }}
-            <a href="/salvia/historial-remisiones" class="salvia-sidebar__nav-link">
-                <i class="fas fa-file-medical" aria-hidden="true"></i>
-                <span>Historial de Remisiones</span>
-            </a>
-            {{ end }}
-        -->
+            
             {{ if or (eq .currentRole "sv") (eq .currentRole "ad") }}
             <a href="/salvia/kpis" class="salvia-sidebar__nav-link">
                 <i class="fas fa-chart-pie" aria-hidden="true"></i>
                 <span>Dashboard KPIs</span>
             </a>
             {{ end }}
-            <!--<a href="/salvia/notificaciones" class="salvia-sidebar__nav-link">
+            {{ if or (eq .currentRole "ro") (eq .currentRole "an") (eq .currentRole "op") }}
+            <a href="/salvia/notificaciones" class="salvia-sidebar__nav-link">
                 <i class="fas fa-bell" aria-hidden="true"></i>
                 <span>Notificaciones Salvia</span>
-            </a>-->
+            </a>
+            {{ end }}
         </nav>
     </aside>
 </div>

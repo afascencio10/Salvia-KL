@@ -245,7 +245,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	"get_mis_barreras": {"en": true},
 
 	// ── Módulo de Seguimiento (HU-027) ──────────────────────────────────────
-	"get_seguimiento_detalle_caso":    {"ad": true, "sv": true, "op": true},
+	"get_seguimiento_detalle_caso":    {"ad": true, "sv": true, "op": true, },
 	"get_seguimiento_detalle":         {"ad": true, "sv": true, "op": true},
 	"get_seguimiento_formulario":      {"op": true},
 	"get_mis_seguimientos_dia":        {"op": true},
@@ -267,6 +267,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"fo": true,
 		"ps": true,
 		"ts": true,
+		"an": true,
 	},
 
 	// ── Dashboard KPIs (Salvia_KPIs_v1) ──────────────────────────────────────
