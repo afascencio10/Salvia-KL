@@ -118,6 +118,7 @@
 
 /* ---- Tabla de oficios ---- */
 .nf-table-wrapper {
+    position: relative;
     border: 1px solid #e8e8e8;
     border-radius: 12px;
     overflow: hidden;
@@ -126,7 +127,7 @@
 
 .nf-table-header {
     display: grid;
-    grid-template-columns: 21% 24% 1fr;
+    grid-template-columns: 18% 22% 1fr 17%;
     background: #fafafa;
     border-bottom: 2px solid #eeeeee;
     padding: 10px 20px;
@@ -143,7 +144,7 @@
 
 .nf-row {
     display: grid;
-    grid-template-columns: 21% 24% 1fr;
+    grid-template-columns: 18% 22% 1fr 17%;
     padding: 16px 20px;
     border-bottom: 1px solid #f2f2f2;
     gap: 16px;
@@ -157,6 +158,34 @@
 
 .nf-row:hover {
     background: #fdf8ff;
+}
+
+.nf-historial-col {
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+
+.nf-historial-line {
+    margin-bottom: 4px;
+}
+
+.nf-historial-line:last-child {
+    margin-bottom: 0;
+}
+
+.nf-historial-label {
+    display: block;
+    color: #888;
+    font-size: 0.72rem;
+}
+
+.nf-historial-name {
+    font-weight: 600;
+    color: #333;
+}
+
+.nf-historial-empty {
+    color: #bbb;
 }
 
 /* ---- Columna CASO ---- */
@@ -794,7 +823,21 @@
     color: #5106A7;
 }
 
-/* ---- Estado de carga ---- */
+/* ---- Estado de carga (solo sobre la tabla) ---- */
+.nf-table-loading-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.82);
+    color: #6c5b9e;
+    font-size: 15px;
+    border-radius: 10px;
+}
+
 .nf-loading-state {
     display: flex;
     align-items: center;

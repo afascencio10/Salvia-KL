@@ -2,53 +2,52 @@
 
 Endpoint usado por la pantalla de Notificaciones para cargar oficios con paginación y filtros en base de datos.
 
-## Endpoint
+## Endpoint principal
 
 ```
 GET /api/v1/entity-letters
 ```
 
-## Roles y parámetros de usuario
+## Roles y alcance
 
-| Rol | Parámetro requerido | Descripción |
+| Rol | Tab | Parámetros clave |
 |---|---|---|
-| `op` | `agentId` | Agente de seguimiento — oficios donde es agent_id |
-| `ro` | `agentId` | Revisor operativo — mismo alcance que `op` |
-| `an` | `notificationUserId` | Agente de notificaciones — oficios donde es notification_user_id |
+| `op` / `ro` | Todos mis oficios | `agentId={userId}` |
+| `op` / `ro` | Oficios por gestionar | `agentId={userId}&manageableOnly=true` |
+| `an` | Todos | `listAll=true` |
+| `an` | Mis Oficios | `mineOnly=true&notificationAgentId={userId}` |
+| `an` | Oficios por gestionar | `listAll=true&manageableOnly=true` |
 
-La validación de rol ocurre en frontend al montar la pantalla. El backend filtra por el ID enviado.
-
-## Parámetros de paginación
+## Paginación
 
 | Parámetro | Tipo | Default | Descripción |
 |---|---|---|---|
 | `page` | int | 0 | Página base-0 |
-| `limit` | int | 20 | Registros por página. **Requerido** para respuesta paginada |
+| `limit` | int | 20 | Registros por página (**requerido** para respuesta paginada) |
 
-> Sin `limit`, el endpoint devuelve el array completo (compatibilidad con `oficios-list.js`).
+## Filtros comunes
 
-## Parámetros de filtro
-
-| Parámetro | Tipo | Descripción |
-|---|---|---|
-| `state` | string | Estado exacto del oficio (`por_proyectar`, `para_revisar`, etc.) |
-| `identidad` | string | ILIKE sobre `victim_case.victim_case_victim_doc_number` |
-| `entidad` | string | ILIKE sobre `barrier_v2.sector` |
-| `numeroRadicado` | string | ILIKE sobre `entity_letter.numero_radicado` |
-| `manageableOnly` | bool | Si `true`, solo estados gestionables según rol del usuario |
-
-### Estados gestionables (`manageableOnly=true`)
-
-| Rol | Estados incluidos |
+| Parámetro | Descripción |
 |---|---|
-| `op`, `ro` | `por_proyectar`, `en_correccion` |
-| `an` | `para_revisar`, `aprobacion_juridica`, `para_radicar`, `radicado` |
+| `state` | Estado exacto del oficio |
+| `identidad` | ILIKE sobre documento de la víctima |
+| `entidad` | ILIKE sobre sector de barrera |
+| `numeroRadicado` | ILIKE sobre número radicado |
+| `manageableOnly` | Solo estados gestionables según rol |
+
+## Filtros agente de notificaciones (rol `an`)
+
+| Parámetro | Columna BD |
+|---|---|
+| `notificationUserIdReview` | `notification_user_id_review` |
+| `notificationUserIdRadicado` | `notification_user_id_radicado` |
+| `notificationUserIdResponse` | `notification_user_id_response` |
 
 ## Respuesta paginada
 
 ```json
 {
-  "items": [ /* EntityLetterWithRelations[] */ ],
+  "items": [],
   "total": 42,
   "page": 0,
   "pageSize": 5,
@@ -56,30 +55,26 @@ La validación de rol ocurre en frontend al montar la pantalla. El backend filtr
 }
 ```
 
-| Campo | Descripción |
+## Catálogo de agentes `an`
+
+```
+GET /api/v1/agents/by-role?role=an
+```
+
+```json
+{
+  "agents": [
+    { "icode": "USR001", "names": "María", "lastNames": "García", "team": "..." }
+  ]
+}
+```
+
+## Campos nuevos en entity_letter
+
+| JSON | Se asigna en acción |
 |---|---|
-| `items` | Oficios de la página actual, enriquecidos con caso y barrera |
-| `total` | Total de registros que coinciden con filtros activos |
-| `page` | Página devuelta |
-| `pageSize` | Tamaño de página usado |
-| `pendingCount` | Oficios gestionables del usuario (sin aplicar filtros de UI) |
+| `notificationUserIdReview` | `revisar`, `por_corregir` (solo desde `para_revisar`) |
+| `notificationUserIdRadicado` | `radicar` (modal aprobar) |
+| `notificationUserIdResponse` | `registrar_respuesta` |
 
-## Ejemplo — Agente de seguimiento, tab gestionar, página 2
-
-```
-GET /api/v1/entity-letters?page=1&limit=5&agentId=USR001&manageableOnly=true
-```
-
-## Ejemplo — Agente de notificaciones con filtros
-
-```
-GET /api/v1/entity-letters?page=0&limit=5&notificationUserId=USR002&state=para_revisar&identidad=52.123
-```
-
-## Implementación backend
-
-| Archivo | Responsabilidad |
-|---|---|
-| `src/salvia/controller/entity_letter_controller.go` | Parseo de query params y respuesta HTTP |
-| `src/salvia/service/entity_letter_service.go` | Estados gestionables por rol |
-| `src/internal/repository/entity_letter_repository.go` | SQL con JOINs, filtros ILIKE y COUNT paginado |
+Los campos legacy `review_by` y `radicado_by` se mantienen con su lógica actual.

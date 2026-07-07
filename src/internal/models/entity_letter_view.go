@@ -41,6 +41,9 @@ type EntityLetterWithRelations struct {
 	AsuntoRespuesta    *string    `gorm:"column:asunto_respuesta"     json:"asuntoRespuesta,omitempty"`
 	ResponseReviewBy   *string    `gorm:"column:response_review_by"   json:"responseReviewBy,omitempty"`
 	ReasonCorrection   *string    `gorm:"column:reason_correction"    json:"reasonCorrection,omitempty"`
+	NotificationUserIDReview   *string `gorm:"column:notification_user_id_review"   json:"notificationUserIdReview,omitempty"`
+	NotificationUserIDRadicado *string `gorm:"column:notification_user_id_radicado" json:"notificationUserIdRadicado,omitempty"`
+	NotificationUserIDResponse *string `gorm:"column:notification_user_id_response" json:"notificationUserIdResponse,omitempty"`
 	CreatedAt          time.Time  `gorm:"column:created_at"           json:"createdAt"`
 	UpdatedAt          time.Time  `gorm:"column:updated_at"           json:"updatedAt"`
 

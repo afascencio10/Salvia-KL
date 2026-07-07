@@ -12,13 +12,19 @@ import (
 // EntityLetterListFilter agrupa los criterios de consulta paginada con relaciones.
 type EntityLetterListFilter struct {
 	AgentID            string
-	NotificationUserID string
+	NotificationUserID string // legacy v1
+	ListAll            bool   // rol an — tab Todos / gestionar global
+	MineOnly           bool   // rol an — tab Mis Oficios
+	NotificationAgentID string
 	State              string
-	Identidad          string // victim_case_victim_doc_number (ILIKE)
-	Entidad            string // barrier_v2.sector (ILIKE) — coincide con filtro UI
+	Identidad          string
+	Entidad            string
 	NumeroRadicado     string
 	ManageableOnly     bool
-	ManageableStates   []string // estados gestionables según rol; usado si ManageableOnly=true
+	ManageableStates   []string
+	NotificationUserIDReview   string
+	NotificationUserIDRadicado string
+	NotificationUserIDResponse string
 }
 
 // EntityLetterListResult extiende PageResult con el conteo de oficios pendientes de gestionar.
@@ -164,6 +170,9 @@ SELECT
     el.asunto_respuesta,
     el.response_review_by,
     el.reason_correction,
+    el.notification_user_id_review,
+    el.notification_user_id_radicado,
+    el.notification_user_id_response,
     el.created_at,
     el.updated_at,
     el.entity_branch_id,
@@ -210,13 +219,23 @@ func buildRelationsWhere(filter EntityLetterListFilter) (string, []interface{}) 
 	var conds []string
 	var args []interface{}
 
-	switch {
-	case filter.AgentID != "":
+	if filter.AgentID != "" {
 		conds = append(conds, "el.agent_id = ?")
 		args = append(args, filter.AgentID)
-	case filter.NotificationUserID != "":
+	} else if filter.MineOnly {
+		if filter.NotificationAgentID != "" {
+			conds = append(conds, `(
+				el.notification_user_id_review = ? OR
+				el.notification_user_id_radicado = ? OR
+				el.notification_user_id_response = ?
+			)`)
+			args = append(args, filter.NotificationAgentID, filter.NotificationAgentID, filter.NotificationAgentID)
+		}
+	} else if filter.NotificationUserID != "" {
 		conds = append(conds, "el.notification_user_id = ?")
 		args = append(args, filter.NotificationUserID)
+	} else if filter.ListAll {
+		// sin filtro por usuario — todos los oficios
 	}
 
 	if filter.ManageableOnly && len(filter.ManageableStates) > 0 {
@@ -242,6 +261,18 @@ func buildRelationsWhere(filter EntityLetterListFilter) (string, []interface{}) 
 	if filter.NumeroRadicado != "" {
 		conds = append(conds, "el.numero_radicado ILIKE ?")
 		args = append(args, "%"+filter.NumeroRadicado+"%")
+	}
+	if filter.NotificationUserIDReview != "" {
+		conds = append(conds, "el.notification_user_id_review = ?")
+		args = append(args, filter.NotificationUserIDReview)
+	}
+	if filter.NotificationUserIDRadicado != "" {
+		conds = append(conds, "el.notification_user_id_radicado = ?")
+		args = append(args, filter.NotificationUserIDRadicado)
+	}
+	if filter.NotificationUserIDResponse != "" {
+		conds = append(conds, "el.notification_user_id_response = ?")
+		args = append(args, filter.NotificationUserIDResponse)
 	}
 
 	if len(conds) == 0 {
@@ -271,8 +302,8 @@ func (r *entityLetterRepository) FindWithRelationsFilteredPaginated(
 	offset := page * pageSize
 
 	whereExtra, args := buildRelationsWhere(filter)
-	if whereExtra == "" {
-		return EntityLetterListResult{}, fmt.Errorf("entity_letter: se requiere agentId o notificationUserId")
+	if whereExtra == "" && !filter.ListAll {
+		return EntityLetterListResult{}, fmt.Errorf("entity_letter: se requiere agentId, listAll o mineOnly")
 	}
 
 	var total int64
@@ -312,10 +343,18 @@ func (r *entityLetterRepository) countManageableWithRelations(ctx context.Contex
 	}
 
 	pendingFilter := EntityLetterListFilter{
-		AgentID:            filter.AgentID,
-		NotificationUserID: filter.NotificationUserID,
-		ManageableOnly:     true,
-		ManageableStates:   filter.ManageableStates,
+		ManageableOnly:   true,
+		ManageableStates: filter.ManageableStates,
+	}
+	if filter.AgentID != "" {
+		pendingFilter.AgentID = filter.AgentID
+	} else if filter.MineOnly && filter.NotificationAgentID != "" {
+		pendingFilter.MineOnly = true
+		pendingFilter.NotificationAgentID = filter.NotificationAgentID
+	} else if filter.NotificationUserID != "" {
+		pendingFilter.NotificationUserID = filter.NotificationUserID
+	} else {
+		pendingFilter.ListAll = true
 	}
 	whereExtra, args := buildRelationsWhere(pendingFilter)
 	if whereExtra == "" {

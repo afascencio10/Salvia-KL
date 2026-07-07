@@ -68,6 +68,18 @@ func (c *EntityLetterController) List(ctx *gin.Context) {
 	entidad            := ctx.Query("entidad")
 	numeroRadicado     := ctx.Query("numeroRadicado")
 	manageableOnly     := ctx.Query("manageableOnly") == "true"
+	listAll            := ctx.Query("listAll") == "true"
+	mineOnly           := ctx.Query("mineOnly") == "true"
+	notificationAgentID := ctx.Query("notificationAgentId")
+	if mineOnly {
+		listAll = false
+		if notificationAgentID == "" {
+			notificationAgentID = agentID
+		}
+	}
+	filterReview       := ctx.Query("notificationUserIdReview")
+	filterRadicado     := ctx.Query("notificationUserIdRadicado")
+	filterResponse     := ctx.Query("notificationUserIdResponse")
 	_, hasLimit        := ctx.GetQuery("limit")
 
 	switch {
@@ -87,16 +99,22 @@ func (c *EntityLetterController) List(ctx *gin.Context) {
 		}
 		ctx.JSON(http.StatusOK, items)
 
-	case agentID != "" || notificationUserID != "":
+	case agentID != "" || notificationUserID != "" || listAll || mineOnly:
 		if hasLimit {
 			filter := repository.EntityLetterListFilter{
-				AgentID:            agentID,
-				NotificationUserID: notificationUserID,
-				State:              state,
-				Identidad:          identidad,
-				Entidad:            entidad,
-				NumeroRadicado:     numeroRadicado,
-				ManageableOnly:     manageableOnly,
+				AgentID:                    agentID,
+				NotificationUserID:         notificationUserID,
+				ListAll:                    listAll,
+				MineOnly:                   mineOnly,
+				NotificationAgentID:        notificationAgentID,
+				State:                      state,
+				Identidad:                  identidad,
+				Entidad:                    entidad,
+				NumeroRadicado:             numeroRadicado,
+				ManageableOnly:             manageableOnly,
+				NotificationUserIDReview:   filterReview,
+				NotificationUserIDRadicado: filterRadicado,
+				NotificationUserIDResponse: filterResponse,
 			}
 			result, err := c.svc.ListWithRelationsFiltered(ctx.Request.Context(), filter, page, limit)
 			if err != nil {

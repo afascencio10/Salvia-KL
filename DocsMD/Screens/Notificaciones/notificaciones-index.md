@@ -6,6 +6,19 @@
 |---|---|
 | Interfaz | [notificaciones-interface.md](./notificaciones-interface.md) |
 | API paginada | [notificaciones-api.md](./notificaciones-api.md) |
+| **Plan v2 (an) — pendiente** | [notificaciones-plan-v2-an.md](./notificaciones-plan-v2-an.md) |
+
+---
+
+## Cambios v2 (agente de notificaciones) — implementado
+
+Ver detalle en [notificaciones-plan-v2-an.md](./notificaciones-plan-v2-an.md) y [notificaciones-api.md](./notificaciones-api.md).
+
+- Todos los agentes `an` ven y gestionan cualquier oficio.
+- 3 campos de auditoría: `notificationUserIdReview`, `Radicado`, `Response`.
+- Tabs `an`: **Todos** | **Mis Oficios** | **Oficios por gestionar**.
+- 3 dropdowns de filtro + columna **Historial Agentes**.
+- `modal_radicar.html` obsoleto; radicación vía `modal_aprobar.html`.
 
 ---
 
@@ -15,7 +28,7 @@
 |---|---|---|
 | Agente de Seguimiento | `op` | Oficios asignados como `agent_id`; gestiona `por_proyectar` y `en_correccion` |
 | Revisor Operativo | `ro` | Mismo alcance que `op` |
-| Agente de Notificaciones | `an` | Oficios asignados como `notification_user_id`; gestiona revisión, aprobación, radicación y respuesta |
+| Agente de Notificaciones | `an` | Ve todos los oficios; gestiona cualquier oficio en estado gestionable; tab "Mis Oficios" filtra por los 3 `notificationUserId*` propios |
 
 ---
 

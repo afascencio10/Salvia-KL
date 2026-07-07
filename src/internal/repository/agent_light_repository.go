@@ -13,10 +13,9 @@ type AgentLightRepository interface {
 	FindByICode(ctx context.Context, iCode string) (*models.AgentLight, error)
 	FindByLogin(ctx context.Context, login string) (*models.AgentLight, error)
 	// FindAllByRoleAndTeam retorna los agentes activos (general_user_status = 'e')
-	// cuyo rol coincide con roleCode y cuyo equipo (general_user_team) coincide con team.
-	// Usado por el algoritmo de auto-asignación para acotar el pool de candidatos
-	// al mismo equipo que recibirá los nuevos seguimientos.
 	FindAllByRoleAndTeam(ctx context.Context, roleCode, team string) ([]models.AgentLight, error)
+	// FindAllByRole retorna agentes activos con el rol indicado (sin filtro de equipo).
+	FindAllByRole(ctx context.Context, roleCode string) ([]models.AgentLight, error)
 	// SearchByName busca agentes activos por nombre/apellido (E-07 casos-component).
 	SearchByName(ctx context.Context, query string, limit int) ([]models.AgentLight, error)
 	// SearchPsicosocialByName busca profesionales activos del equipo psicosocial (E-07 remisiones).
@@ -81,6 +80,26 @@ func (r *agentLightRepository) FindAllByRoleAndTeam(ctx context.Context, roleCod
 		Joins("JOIN security.rel_role_general_user ON security.rel_role_general_user.general_user_id = security.general_user.general_user_id").
 		Joins("JOIN security.role ON security.role.role_id = security.rel_role_general_user.role_id").
 		Where("security.role.role_code = ? AND security.general_user.general_user_team = ? AND security.general_user.general_user_status = ?", roleCode, team, "e").
+		Find(&agents).Error
+	return agents, err
+}
+
+// FindAllByRole retorna agentes activos con roleCode asignado, ordenados por apellido y nombre.
+func (r *agentLightRepository) FindAllByRole(ctx context.Context, roleCode string) ([]models.AgentLight, error) {
+	var agents []models.AgentLight
+	err := r.db.WithContext(ctx).
+		Table("security.general_user gu").
+		Select(
+			"gu.general_user_i_code, "+
+				"COALESCE(gup.general_user_profile_names, '') AS general_user_profile_names, "+
+				"COALESCE(gup.general_user_profile_last_names, '') AS general_user_profile_last_names, "+
+				"gu.general_user_team",
+		).
+		Joins("LEFT JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile").
+		Joins("JOIN security.rel_role_general_user rr ON rr.general_user_id = gu.general_user_id").
+		Joins("JOIN security.role r ON r.role_id = rr.role_id").
+		Where("r.role_code = ? AND gu.general_user_status = ?", roleCode, "e").
+		Order("gup.general_user_profile_last_names ASC, gup.general_user_profile_names ASC").
 		Find(&agents).Error
 	return agents, err
 }

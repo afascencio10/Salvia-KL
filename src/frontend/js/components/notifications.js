@@ -24,11 +24,16 @@
                 currentTab: 'todos',
 
                 filters: {
-                    estado:    '',
-                    identidad: '',
-                    entidad:   '',
-                    radicado:  ''
+                    estado:       '',
+                    identidad:    '',
+                    entidad:      '',
+                    radicado:     '',
+                    revisadoPor:  '',
+                    radicadoPor:  '',
+                    respuestaPor: ''
                 },
+
+                notificationAgents: [],
 
                 itemsPerPage: 5,
                 currentPage:  0,
@@ -79,7 +84,7 @@
                     para_revisar:        'revisar',
                     en_correccion:       'corregir',
                     aprobacion_juridica: 'aprobar',
-                    para_radicar:        'radicar',
+                    para_radicar:        'aprobar',
                     radicado:            'registrar_respuesta'
                 },
 
@@ -106,6 +111,7 @@
             document.getElementById('app').style.display = 'block';
             this.loadOficios();
             this.loadLocations();
+            this.loadNotificationAgents();
         },
 
         computed: {
@@ -144,8 +150,6 @@
 
         methods: {
 
-            /* ── Locaciones (carga en background al montar) ─────────────────────── */
-
             loadLocations() {
                 var self = this;
                 Promise.all([
@@ -170,21 +174,53 @@
                 ]);
             },
 
-            /* ── Carga inicial ──────────────────────────────────────────────────── */
+            loadNotificationAgents() {
+                var self = this;
+                getData('/api/v1/agents/by-role?role=an', function (status, response) {
+                    if (status === 200 && response && Array.isArray(response.agents)) {
+                        self.notificationAgents = response.agents;
+                    } else {
+                        self.notificationAgents = [];
+                    }
+                }, true);
+            },
 
             buildOficiosUrl() {
                 const params = new URLSearchParams();
                 params.set('page', String(this.currentPage));
                 params.set('limit', String(this.itemsPerPage));
 
-                if (this.currentRole === 'op' || this.currentRole === 'ro') {
-                    params.set('agentId', this.currentUserId);
-                } else if (this.currentRole === 'an') {
-                    params.set('notificationUserId', this.currentUserId);
-                }
+                const role = String(this.currentRole || '').trim();
+                const userId = String(this.currentUserId || '').trim();
 
-                if (this.currentTab === 'gestionar') {
-                    params.set('manageableOnly', 'true');
+                if (role === 'op' || role === 'ro') {
+                    if (userId) {
+                        params.set('agentId', userId);
+                    }
+                    if (this.currentTab === 'gestionar') {
+                        params.set('manageableOnly', 'true');
+                    }
+                } else if (role === 'an') {
+                    if (this.currentTab === 'mis_oficios') {
+                        params.set('mineOnly', 'true');
+                        if (userId) {
+                            params.set('notificationAgentId', userId);
+                        }
+                    } else {
+                        params.set('listAll', 'true');
+                        if (this.currentTab === 'gestionar') {
+                            params.set('manageableOnly', 'true');
+                        }
+                    }
+                    if (this.filters.revisadoPor) {
+                        params.set('notificationUserIdReview', this.filters.revisadoPor);
+                    }
+                    if (this.filters.radicadoPor) {
+                        params.set('notificationUserIdRadicado', this.filters.radicadoPor);
+                    }
+                    if (this.filters.respuestaPor) {
+                        params.set('notificationUserIdResponse', this.filters.respuestaPor);
+                    }
                 }
                 if (this.filters.estado) {
                     params.set('state', this.filters.estado);
@@ -204,8 +240,14 @@
 
             loadOficios() {
                 const VALID_ROLES = ['op', 'an', 'ro'];
-                if (!VALID_ROLES.includes(this.currentRole)) {
+                const role = String(this.currentRole || '').trim();
+                if (!VALID_ROLES.includes(role)) {
                     this.loadError = 'Rol no autorizado para acceder a esta pantalla.';
+                    return;
+                }
+
+                if (role === 'an' && this.currentTab === 'mis_oficios' && !String(this.currentUserId || '').trim()) {
+                    this.loadError = 'No se pudo identificar al usuario en sesión.';
                     return;
                 }
 
@@ -296,8 +338,30 @@
                     reasonCorrection:     el.reasonCorrection    || null,
                     officialDependency:   el.officialDependency  || null,
                     subject:              el.subject             || null,
-                    townName:             el.townName            || null
+                    townName:             el.townName            || null,
+                    notificationUserIdReview:   el.notificationUserIdReview   || null,
+                    notificationUserIdRadicado: el.notificationUserIdRadicado || null,
+                    notificationUserIdResponse: el.notificationUserIdResponse || null
                 };
+            },
+
+            agentDisplayName(icode) {
+                if (!icode) return '—';
+                var agent = this.notificationAgents.find(function (a) {
+                    return a.icode === icode;
+                });
+                if (agent) {
+                    return [agent.names, agent.lastNames].filter(function (s) {
+                        return s && s.trim();
+                    }).join(' ').trim() || icode;
+                }
+                return icode;
+            },
+
+            hasHistorial(oficio) {
+                return !!(oficio.notificationUserIdReview ||
+                    oficio.notificationUserIdRadicado ||
+                    oficio.notificationUserIdResponse);
             },
 
             /* ── Utilidades ─────────────────────────────────────────────────────── */
