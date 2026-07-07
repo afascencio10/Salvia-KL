@@ -342,6 +342,8 @@ app.component('case-task-modal', {
             ciudades:      [],
             municipios:    [],
             entidades:     [],
+            entidadBusqueda: '',
+            entidadDropdownOpen: false,
 
             // Formulario (shape varía según tarea.type)
             form: {},
@@ -353,6 +355,11 @@ app.component('case-task-modal', {
     },
 
     computed: {
+        entidadesFiltradas() {
+            if (!this.entidadBusqueda) return this.entidades;
+            var q = this.entidadBusqueda.toLowerCase();
+            return this.entidades.filter(function(e) { return e.name.toLowerCase().indexOf(q) !== -1; });
+        },
         titulo() {
             if (!this.tarea) return 'Completar tarea';
             return {
@@ -427,7 +434,7 @@ app.component('case-task-modal', {
             this.guardando     = false;
             this.ciudades      = [];
             this.municipios    = [];
-            this.entidades     = [];
+            this.entidades     = []; this.entidadBusqueda = ""; this.entidadDropdownOpen = false;
             this.form          = {};
 
             try {
@@ -538,7 +545,7 @@ app.component('case-task-modal', {
             this.form.entidadId   = null;
             this.form.entidadNombre = '';
             this.municipios = [];
-            this.entidades  = [];
+            this.entidades  = []; this.entidadBusqueda = ""; this.entidadDropdownOpen = false;
             console.log('[CTM] E02 dept seleccionado:', deptId, '| ciudades disponibles:', this.ciudades.length);
         },
 
@@ -548,7 +555,7 @@ app.component('case-task-modal', {
             this.form.entidadId   = null;
             this.form.entidadNombre = '';
             this.municipios = [];
-            this.entidades  = [];
+            this.entidades  = []; this.entidadBusqueda = ""; this.entidadDropdownOpen = false;
             if (!ciudadId) return;
             console.log('[CTM] E03 ciudad seleccionada:', ciudadId, '— cargando municipios...');
             try {
@@ -567,11 +574,16 @@ app.component('case-task-modal', {
             const townCode  = this.form.municipioId;
             this.form.entidadId   = null;
             this.form.entidadNombre = '';
-            this.entidades  = [];
+            this.entidades  = []; this.entidadBusqueda = ""; this.entidadDropdownOpen = false;
             if (!townCode) return;
+            // Construir URL con filtro por sector si la tarea tiene barrera con sector
+            var url = '/api/v1/entity-branches?town_code=' + encodeURIComponent(townCode);
+            if (this.tarea && this.tarea.barrierSector) {
+                url += '&sector=' + encodeURIComponent(this.tarea.barrierSector);
+            }
             console.log('[CTM] E04 municipio seleccionado:', townCode, '— cargando entidades...');
             try {
-                const res = await fetch('/api/v1/entity-branches?town_code=' + encodeURIComponent(townCode));
+                const res = await fetch(url);
                 if (res.ok) {
                     const data = await res.json();
                     this.entidades = Array.isArray(data) ? data : (data.items || []);
@@ -588,6 +600,20 @@ app.component('case-task-modal', {
                 ? (this.entidades.find(e => String(e.id) === String(id)) || {}).name || '?'
                 : 'otra';
             console.log('[CTM] E05 entidad seleccionada: id=' + id + ' · "' + name + '"');
+            this.entidadDropdownOpen = false;
+        },
+
+        selectEntidad(entidad) {
+            this.form.entidadId = entidad.id;
+            this.entidadBusqueda = entidad.name;
+            this.entidadDropdownOpen = false;
+            console.log('[CTM] E05 entidad seleccionada: id=' + entidad.id + ' · "' + entidad.name + '"');
+        },
+
+        selectOtraEntidad() {
+            this.form.entidadId = 'otra';
+            this.entidadBusqueda = '';
+            this.entidadDropdownOpen = false;
         },
 
         onChangeGeneraOficio() {
@@ -821,13 +847,20 @@ app.component('case-task-modal', {
                 </div>
             </div>
 
-            <div class="ctm-field">
+            <div class="ctm-field" style="position:relative">
                 <label class="ctm-label">Sede / Entidad <span class="req">*</span></label>
-                <select class="ctm-select" v-model="form.entidadId" :disabled="!form.municipioId" @change="onSelectEntidad">
-                    <option :value="null" disabled>Selecciona entidad</option>
-                    <option v-for="e in entidades" :key="e.id" :value="e.id">\${ e.name }</option>
-                    <option value="otra">Otra entidad…</option>
-                </select>
+                <input class="ctm-input" v-model="entidadBusqueda" :disabled="!form.municipioId" placeholder="Buscar entidad..." @focus="entidadDropdownOpen = true" @input="entidadDropdownOpen = true; form.entidadId = null" autocomplete="off"/>
+                <div v-if="entidadDropdownOpen && form.municipioId" style="position:absolute;z-index:100;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);margin-top:4px">
+                    <div v-for="e in entidadesFiltradas" :key="e.id" @mousedown.prevent="selectEntidad(e)" style="padding:8px 12px;font-size:.82rem;cursor:pointer;border-bottom:1px solid #f3f4f6" :style="form.entidadId === e.id ? 'background:#ede9fe;color:#5106A7;font-weight:600' : ''" @mouseover="$event.target.style.background='#f9fafb'" @mouseout="$event.target.style.background=form.entidadId === e.id ? '#ede9fe' : ''">
+                        \${ e.name }
+                    </div>
+                    <div @mousedown.prevent="selectOtraEntidad()" style="padding:8px 12px;font-size:.82rem;cursor:pointer;color:#6b7280;font-style:italic;border-top:1px solid #e5e7eb">
+                        Otra entidad…
+                    </div>
+                    <div v-if="entidadesFiltradas.length === 0" style="padding:12px;font-size:.8rem;color:#9ca3af;text-align:center">
+                        No se encontraron resultados
+                    </div>
+                </div>
             </div>
 
             <div v-if="form.entidadId === 'otra'" class="ctm-field">
@@ -839,12 +872,12 @@ app.component('case-task-modal', {
 
             <div class="ctm-field">
                 <label class="ctm-label">Funcionario contactado <span class="req">*</span></label>
-                <input class="ctm-input" v-model="form.funcionario" placeholder="Nombre del funcionario"/>
+                <input class="ctm-input" v-model="form.funcionario" placeholder="Nombre del funcionario" maxlength="50"/>
             </div>
 
             <div class="ctm-field">
                 <label class="ctm-label">Descripción / Notas</label>
-                <textarea class="ctm-textarea" v-model="form.descripcion" rows="3" placeholder="Resumen de la gestión..."></textarea>
+                <textarea class="ctm-textarea" v-model="form.descripcion" rows="3" placeholder="Resumen de la gestión..." maxlength="255"></textarea>
             </div>
 
             <p class="ctm-section-title">Oficio</p>
@@ -866,7 +899,7 @@ app.component('case-task-modal', {
             <template v-if="form.generaOficio === true">
                 <div class="ctm-field">
                     <label class="ctm-label">Asunto del oficio <span class="req">*</span></label>
-                    <input class="ctm-input" v-model="form.asunto" placeholder="Asunto…"/>
+                    <input class="ctm-input" v-model="form.asunto" placeholder="Asunto…" maxlength="80"/>
                 </div>
                 <div class="ctm-field">
                     <label class="ctm-label">Ruta Kofax / URL del archivo <span class="req">*</span></label>
@@ -912,13 +945,20 @@ app.component('case-task-modal', {
                 </div>
             </div>
 
-            <div class="ctm-field">
+            <div class="ctm-field" style="position:relative">
                 <label class="ctm-label">Sede / Entidad <span class="req">*</span></label>
-                <select class="ctm-select" v-model="form.entidadId" :disabled="!form.municipioId">
-                    <option :value="null" disabled>Selecciona entidad</option>
-                    <option v-for="e in entidades" :key="e.id" :value="e.id">\${ e.name }</option>
-                    <option value="otra">Otra entidad…</option>
-                </select>
+                <input class="ctm-input" v-model="entidadBusqueda" :disabled="!form.municipioId" placeholder="Buscar entidad..." @focus="entidadDropdownOpen = true" @input="entidadDropdownOpen = true; form.entidadId = null" autocomplete="off"/>
+                <div v-if="entidadDropdownOpen && form.municipioId" style="position:absolute;z-index:100;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);margin-top:4px">
+                    <div v-for="e in entidadesFiltradas" :key="e.id" @mousedown.prevent="selectEntidad(e)" style="padding:8px 12px;font-size:.82rem;cursor:pointer;border-bottom:1px solid #f3f4f6" :style="form.entidadId === e.id ? 'background:#ede9fe;color:#5106A7;font-weight:600' : ''" @mouseover="$event.target.style.background='#f9fafb'" @mouseout="$event.target.style.background=form.entidadId === e.id ? '#ede9fe' : ''">
+                        \${ e.name }
+                    </div>
+                    <div @mousedown.prevent="selectOtraEntidad()" style="padding:8px 12px;font-size:.82rem;cursor:pointer;color:#6b7280;font-style:italic;border-top:1px solid #e5e7eb">
+                        Otra entidad…
+                    </div>
+                    <div v-if="entidadesFiltradas.length === 0" style="padding:12px;font-size:.8rem;color:#9ca3af;text-align:center">
+                        No se encontraron resultados
+                    </div>
+                </div>
             </div>
 
             <div v-if="form.entidadId === 'otra'" class="ctm-field">
@@ -930,12 +970,12 @@ app.component('case-task-modal', {
 
             <div class="ctm-field">
                 <label class="ctm-label">Dependencia del funcionario <span class="req">*</span></label>
-                <input class="ctm-input" v-model="form.funcionario" placeholder="Ej. Departamento de Protección Social"/>
+                <input class="ctm-input" v-model="form.funcionario" placeholder="Ej. Departamento de Protección Social" maxlength="50"/>
             </div>
 
             <div class="ctm-field">
                 <label class="ctm-label">Asunto <span class="req">*</span></label>
-                <input class="ctm-input" v-model="form.asunto" placeholder="Asunto del oficio…"/>
+                <input class="ctm-input" v-model="form.asunto" placeholder="Asunto del oficio…" maxlength="80"/>
             </div>
 
             <div class="ctm-field">
