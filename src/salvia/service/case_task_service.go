@@ -134,7 +134,16 @@ func (s *caseTaskService) Create(ctx context.Context, ct *models.CaseTask) error
 	if ct.Status == "" {
 		ct.Status = models.CaseTaskStatusToDo
 	}
-	return s.repo.Create(ctx, ct)
+	if err := s.repo.Create(ctx, ct); err != nil {
+		return err
+	}
+	// Si la tarea está asociada a una barrera y es pendiente, marcar barrera como "En Gestion"
+	if ct.BarrierID != nil && *ct.BarrierID != "" && ct.Status == models.CaseTaskStatusToDo {
+		s.barrierRepo.UpdateFields(ctx, *ct.BarrierID, map[string]interface{}{
+			"status": models.BarrierV2StatusEnGestion,
+		})
+	}
+	return nil
 }
 
 func (s *caseTaskService) Update(ctx context.Context, ct *models.CaseTask) error {
@@ -311,8 +320,39 @@ func (s *caseTaskService) CompleteWithFormData(ctx context.Context, id string, u
 		return nil, fmt.Errorf("CompleteWithFormData: tipo de tarea no soportado: %s", task.Type)
 	}
 
-	// ── 4. Retornar tarea actualizada ─────────────────────────────────────────
+	// ── 4. Barrier OPEN → En Gestion (fire-and-forget, aplica a cualquier tipo) ──
+	if task.BarrierID != nil && *task.BarrierID != "" {
+		go s.actualizarBarreraEnGestion(context.Background(), *task.BarrierID, id)
+	}
+
+	// ── 5. Retornar tarea actualizada ─────────────────────────────────────────
 	return s.repo.FindByID(ctx, id)
+}
+
+// actualizarBarreraEnGestion transiciona barrier_v2 de OPEN a "En Gestion" si aplica.
+// Es fire-and-forget: los errores se loguean pero no abortan el flujo principal.
+func (s *caseTaskService) actualizarBarreraEnGestion(ctx context.Context, barrierID string, taskID string) {
+	log.Printf("[CaseTaskService] DEBUG: actualizarBarreraEnGestion — barrier=%s task=%s", barrierID, taskID)
+
+	barrier, err := s.barrierRepo.FindByID(ctx, barrierID)
+	if err != nil {
+		log.Printf("[CaseTaskService] WARN: actualizarBarreraEnGestion no pudo leer barrier %s (task %s): %v", barrierID, taskID, err)
+		return
+	}
+
+	log.Printf("[CaseTaskService] DEBUG: barrier %s status actual=%s", barrierID, barrier.Status)
+
+	if barrier.Status != models.BarrierV2StatusOpen {
+		log.Printf("[CaseTaskService] DEBUG: barrier %s no está OPEN — sin cambios", barrierID)
+		return
+	}
+
+	if err := s.barrierRepo.UpdateStatus(ctx, barrierID, models.BarrierV2StatusEnGestion); err != nil {
+		log.Printf("[CaseTaskService] WARN: actualizarBarreraEnGestion no pudo actualizar barrier %s (task %s): %v", barrierID, taskID, err)
+		return
+	}
+
+	log.Printf("[CaseTaskService] DEBUG: barrier %s actualizada OPEN → En Gestion (task %s)", barrierID, taskID)
 }
 
 // buildProyectarInput construye el ActionInput para PerformAction("proyectar")

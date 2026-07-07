@@ -96,7 +96,7 @@
                     </div>
                     <div class="nf-barrera-org">${ oficio.barrierOrg }</div>
                     <div class="nf-barrera-desc">${ oficio.barrierDesc }</div>
-                    <a :href="'/salvia/barreras/' + oficio.barrierId" class="nf-link">Ver barrera →</a>
+                    <a v-if="oficio.barrierId" :href="'/salvia/barreras/' + oficio.barrierId" class="nf-link">Ver barrera →</a>
                 </div>
 
                 <!-- INFORMACIÓN DEL OFICIO -->

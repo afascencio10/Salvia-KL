@@ -254,6 +254,7 @@
                     caseCode:        el.caseCode       || el.caseId   || '—',
                     docNumber:       el.victimDocNumber || '—',
                     caseId:          el.caseId         || '',
+                    barrierId:       el.barrierId      || '',
                     priority:        'Alto',
                     letterPriority:  letterPriority,
                     sectors:         sectors,

@@ -246,8 +246,9 @@ function ctFormatDate(raw) {
 app.component('case-timeline', {
     delimiters: ['${', '}'],
     props: {
-        caseId:    { type: String, required: true },
-        barrierId: { type: String, required: false, default: '' },
+        caseId:      { type: String, required: true },
+        barrierId:   { type: String, required: false, default: '' },
+        showFilters: { type: Boolean, required: false, default: true },
     },
     data() {
         return {
@@ -337,7 +338,7 @@ app.component('case-timeline', {
     <template v-else>
 
         <!-- Filtros por categoría -->
-        <div class="ct-filters">
+        <div v-if="showFilters" class="ct-filters">
             <button
                 v-for="cat in categorias"
                 :key="cat.value"

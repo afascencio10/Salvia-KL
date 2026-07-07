@@ -1,135 +1,204 @@
-{{/* Template: barrera_detalle.html — Pantalla de Detalle de Barrera */}}
+{{/* Template: barrera_detalle.html — Pantalla de Detalle de Barrera (dinámica) */}}
 <link rel="stylesheet" href="/static/css/barrera_detalle.css">
 
 <div class="container brd-container">
 
-    <!-- ─── Breadcrumb ─── -->
-    <div class="brd-breadcrumb">
-        <a href="javascript:history.back()" class="brd-back-link">
-            <i class="fas fa-arrow-left"></i>
-            ${ barrera.victimName }
-        </a>
-        <span class="brd-breadcrumb-sep">/</span>
+    <!-- ─── Loading ─── -->
+    <div v-if="cargando" style="text-align:center;padding:80px 0;color:#6b7280">
+        <i class="fa fa-spinner fa-spin" style="font-size:1.5rem"></i>
+        <p style="margin-top:12px">Cargando información de la barrera...</p>
     </div>
 
-    <!-- ─── Header: Info de la víctima ─── -->
-    <div class="brd-header-card">
-        <div class="brd-victim-avatar">${ barrera.victimName.charAt(0).toUpperCase() }</div>
-        <div class="brd-victim-info">
-            <div class="brd-victim-name-row">
-                <span class="brd-victim-name">${ barrera.victimName }</span>
-                <span class="brd-prioridad-tag" :class="'brd-prioridad-' + slugify(barrera.priority)">
-                    ${ barrera.priority }
+    <!-- ─── Error ─── -->
+    <div v-if="error && !cargando" style="text-align:center;padding:80px 20px">
+        <div style="max-width:400px;margin:0 auto;background:#fff;border-radius:12px;padding:32px;box-shadow:0 2px 12px rgba(0,0,0,.08)">
+            <p style="font-size:2.5rem;margin:0 0 12px">⚠️</p>
+            <p style="font-size:1rem;font-weight:700;color:#111827;margin:0 0 8px">No se pudo cargar la barrera</p>
+            <p style="font-size:.85rem;color:#6b7280;margin:0 0 20px">${ error }</p>
+            <a href="javascript:history.back()" class="btn btn-secondary" style="border-radius:8px;padding:8px 16px;font-size:.85rem">← Volver</a>
+        </div>
+    </div>
+
+    <template v-if="barrera && !cargando">
+
+        <!-- ─── Breadcrumb ─── -->
+        <div class="brd-breadcrumb">
+            <a href="javascript:history.back()" class="brd-back-link">
+                <i class="fas fa-arrow-left"></i>
+                ${ victimName || 'Caso' }
+            </a>
+            <span class="brd-breadcrumb-sep">/</span>
+            <span style="font-size:.82rem;color:#6b7280">${ barrera.sector || 'Barrera' }</span>
+        </div>
+
+        <!-- ─── Header: Info de la víctima ─── -->
+        <div class="brd-header-card">
+            <div class="brd-victim-avatar">${ victimName ? victimName.charAt(0).toUpperCase() : '?' }</div>
+            <div class="brd-victim-info">
+                <div class="brd-victim-name-row">
+                    <span class="brd-victim-name">${ victimName }</span>
+                    <span :style="badgeRiesgoStyle(riskLevel)" style="font-size:.7rem;font-weight:700;padding:3px 10px;border-radius:20px">
+                        ${ labelRiesgo(riskLevel) }
+                    </span>
+                </div>
+                <div class="brd-victim-meta">
+                    <span v-if="victimAge">${ victimAge } años</span>
+                    <span v-if="victimAge && location"> · </span>
+                    <span v-if="location">${ location }</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── Tabs ─── -->
+        <div class="brd-tabs-wrapper">
+            <button class="brd-tab" :class="{ active: activeTab === 'info' }" @click="activeTab = 'info'">
+                ⚠️ Información General
+            </button>
+            <button class="brd-tab" :class="{ active: activeTab === 'tareas' }" @click="activeTab = 'tareas'">
+                📋 Tareas
+            </button>
+            <button class="brd-tab" :class="{ active: activeTab === 'timeline' }" @click="activeTab = 'timeline'">
+                🕐 Timeline
+            </button>
+        </div>
+
+        <!-- ─── Tab: Información General ─── -->
+        <div v-if="activeTab === 'info'" class="brd-tab-content-card">
+
+            <!-- Estado -->
+            <div class="brd-info-row">
+                <span class="brd-info-label">
+                    <span class="brd-info-icon">📅</span>
+                    Identificada el
+                    <span class="brd-info-date">${ formatFecha(barrera.createdAt) }</span>
+                </span>
+                <span :style="badgeEstadoBarrera(barrera.status)" style="font-size:.72rem;font-weight:700;padding:4px 12px;border-radius:20px">
+                    ${ labelBarreraStatus(barrera.status) }
                 </span>
             </div>
-            <div class="brd-victim-meta">${ barrera.age } años · ${ barrera.location }</div>
-        </div>
-    </div>
+            <div class="brd-divider"></div>
 
-    <!-- ─── Tabs ─── -->
-    <div class="brd-tabs-wrapper">
-        <button class="brd-tab" :class="{ active: activeTab === 'info' }" @click="activeTab = 'info'">
-            ⚠️ Información General
-        </button>
-        <button class="brd-tab" :class="{ active: activeTab === 'timeline' }" @click="activeTab = 'timeline'">
-            📋 Timeline
-        </button>
-    </div>
-
-    <!-- ─── Tab: Información General ─── -->
-    <div v-if="activeTab === 'info'" class="brd-tab-content-card">
-
-        <!-- Sección: Información general -->
-        <div class="brd-section-header">Información general</div>
-        <div class="brd-divider"></div>
-
-        <!-- Sub-sección: toggle de estado activo -->
-        <div class="brd-info-subsection">
-            <label class="brd-toggle-label">
-                <div class="brd-toggle-switch" :class="{ on: barrera.active }" @click="barrera.active = !barrera.active">
-                    <div class="brd-toggle-thumb"></div>
+            <!-- Detalle -->
+            <div class="brd-barrier-detail-row">
+                <div class="brd-detail-field">
+                    <span class="brd-detail-label">Sector</span>
+                    <span class="brd-sector-tag" :class="'brd-sector-' + slugify(barrera.sector)">${ barrera.sector || '—' }</span>
                 </div>
-                <span class="brd-toggle-text">${ barrera.active ? 'Activa' : 'Inactiva' }</span>
-            </label>
-        </div>
-        <div class="brd-divider"></div>
-
-        <!-- Sub-sección: fecha de identificación y estado -->
-        <div class="brd-info-row">
-            <span class="brd-info-label">
-                <span class="brd-info-icon">📅</span>
-                Identificada el
-                <span class="brd-info-date" v-if="barrera.identifiedAt">${ barrera.identifiedAt }</span>
-            </span>
-            <span class="brd-status-tag" :class="'brd-status-' + slugify(barrera.status)">
-                ${ barrera.status }
-            </span>
-        </div>
-        <div class="brd-divider"></div>
-
-        <!-- Sub-sección: detalle de la barrera -->
-        <div class="brd-barrier-detail-row">
-            <div class="brd-detail-field">
-                <span class="brd-detail-label">Sector</span>
-                <span class="brd-sector-tag" :class="'brd-sector-' + slugify(barrera.sector)">${ barrera.sector }</span>
-            </div>
-            <div class="brd-detail-field">
-                <span class="brd-detail-label">Entidad</span>
-                <span class="brd-detail-value">${ barrera.org }</span>
-            </div>
-            <div class="brd-detail-field brd-detail-full">
-                <span class="brd-detail-label">Descripción de la barrera</span>
-                <span class="brd-detail-value">${ barrera.description }</span>
-            </div>
-        </div>
-        <div class="brd-divider"></div>
-
-        <!-- Sección: Tareas pendientes -->
-        <div class="brd-tasks-block">
-            <div class="brd-tasks-title">Tareas pendientes</div>
-            <template v-if="barrera.pendingTasks && barrera.pendingTasks.length > 0">
-                <div v-for="task in barrera.pendingTasks" :key="task.id" class="brd-task-item">
-                    <i class="fas fa-circle brd-task-dot pending"></i>
-                    <span>${ task.label }</span>
+                <div class="brd-detail-field" v-if="barrera.specificInstitutions || barrera.institutionName">
+                    <span class="brd-detail-label">Entidad</span>
+                    <div v-if="barrera.specificInstitutions" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
+                        <span v-for="lbl in resolveInstitutionCSV(barrera.specificInstitutions)" :key="lbl" style="font-size:.73rem;background:#eff6ff;color:#1d4ed8;padding:3px 10px;border-radius:20px;border:1px solid #bfdbfe">${ lbl }</span>
+                    </div>
+                    <span v-else class="brd-detail-value">${ barrera.institutionName }</span>
                 </div>
-            </template>
-            <p v-else class="brd-tasks-empty">No hay tareas pendientes</p>
-        </div>
-
-        <!-- Sección: Tareas completadas -->
-        <div class="brd-tasks-block">
-            <div class="brd-tasks-title">Tareas completadas</div>
-            <template v-if="barrera.completedTasks && barrera.completedTasks.length > 0">
-                <div v-for="task in barrera.completedTasks" :key="task.id" class="brd-task-item">
-                    <i class="fas fa-check-circle brd-task-dot completed"></i>
-                    <span>${ task.label }</span>
+                <div class="brd-detail-field" v-if="barrera.officialDependency">
+                    <span class="brd-detail-label">Dependencia responsable</span>
+                    <span class="brd-detail-value">${ barrera.officialDependency }</span>
                 </div>
-            </template>
-            <p v-else class="brd-tasks-empty">No hay tareas completadas aún</p>
+                <div class="brd-detail-field" v-if="createdByName">
+                    <span class="brd-detail-label">Identificada por</span>
+                    <span class="brd-detail-value" style="color:#5106A7;font-weight:600">${ createdByName }</span>
+                </div>
+                <div class="brd-detail-field" v-if="agentName">
+                    <span class="brd-detail-label">Agente responsable del caso</span>
+                    <span class="brd-detail-value" style="color:#5106A7;font-weight:600">${ agentName }</span>
+                </div>
+                <div class="brd-detail-field" v-if="barrera.barrierDate">
+                    <span class="brd-detail-label">Fecha de la barrera</span>
+                    <span class="brd-detail-value">${ barrera.barrierDate }</span>
+                </div>
+                <div class="brd-detail-field" v-if="barrera.enlaceActivado">
+                    <span class="brd-detail-label">Enlace territorial</span>
+                    <span class="brd-detail-value" style="color:#16a34a;font-weight:600">✓ Activado</span>
+                </div>
+                <div class="brd-detail-field brd-detail-full" v-if="barrera.specificBarriers">
+                    <span class="brd-detail-label">Barreras identificadas</span>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
+                        <span v-for="lbl in resolveBarrierCSV(barrera.specificBarriers)" :key="lbl" style="font-size:.73rem;background:#f3f4f6;color:#374151;padding:3px 10px;border-radius:20px;border:1px solid #e5e7eb">${ lbl }</span>
+                    </div>
+                </div>
+                <div class="brd-detail-field brd-detail-full" v-if="barrera.description">
+                    <span class="brd-detail-label">Descripción</span>
+                    <span class="brd-detail-value">${ barrera.description }</span>
+                </div>
+                <div class="brd-detail-field" v-if="barrera.otherBarrierDesc">
+                    <span class="brd-detail-label">Otra barrera</span>
+                    <span class="brd-detail-value">${ barrera.otherBarrierDesc }</span>
+                </div>
+                <div class="brd-detail-field" v-if="barrera.managementActions">
+                    <span class="brd-detail-label">Acciones de gestión</span>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
+                        <span v-for="action in resolveManagementCSV(barrera.managementActions)" :key="action" style="font-size:.73rem;background:#eff6ff;color:#1d4ed8;padding:3px 10px;border-radius:20px;border:1px solid #bfdbfe">${ action }</span>
+                    </div>
+                </div>
+            </div>
+            <div class="brd-divider"></div>
+
+            <!-- Ubicación de la barrera -->
+            <div v-if="barrierDepartment || barrierCity || barrierTown" class="brd-barrier-detail-row">
+                <div class="brd-detail-field brd-detail-full">
+                    <span class="brd-detail-label">📍 Ubicación de la barrera</span>
+                    <span class="brd-detail-value">${ [barrierTown, barrierCity, barrierDepartment].filter(Boolean).join(', ') }</span>
+                </div>
+            </div>
+            <div v-if="barrierDepartment || barrierCity || barrierTown" class="brd-divider"></div>
+
+            <!-- Barreras estructurales -->
+            <div v-if="barrera.structuralInstitutional || barrera.structuralEconomic || barrera.structuralTerritorial || barrera.structuralDifferential" style="margin-bottom:16px;padding:0 16px">
+                <span class="brd-detail-label" style="display:block;margin-bottom:10px">Barreras estructurales</span>
+                <div v-if="barrera.structuralInstitutional" style="margin-bottom:8px">
+                    <span style="font-size:.7rem;font-weight:700;color:#6b7280;text-transform:uppercase;display:block;margin-bottom:4px">Institucionales</span>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px">
+                        <span v-for="item in resolveStructuralCSV(barrera.structuralInstitutional, 'institutional')" :key="'si-'+item" style="font-size:.73rem;background:#fef2f2;color:#dc2626;padding:3px 10px;border-radius:20px;border:1px solid #fecaca">${ item }</span>
+                    </div>
+                </div>
+                <div v-if="barrera.structuralEconomic" style="margin-bottom:8px">
+                    <span style="font-size:.7rem;font-weight:700;color:#6b7280;text-transform:uppercase;display:block;margin-bottom:4px">Económicas</span>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px">
+                        <span v-for="item in resolveStructuralCSV(barrera.structuralEconomic, 'economic')" :key="'se-'+item" style="font-size:.73rem;background:#fff7ed;color:#c2410c;padding:3px 10px;border-radius:20px;border:1px solid #fed7aa">${ item }</span>
+                    </div>
+                </div>
+                <div v-if="barrera.structuralTerritorial" style="margin-bottom:8px">
+                    <span style="font-size:.7rem;font-weight:700;color:#6b7280;text-transform:uppercase;display:block;margin-bottom:4px">Territoriales</span>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px">
+                        <span v-for="item in resolveStructuralCSV(barrera.structuralTerritorial, 'territorial')" :key="'st-'+item" style="font-size:.73rem;background:#f0fdf4;color:#15803d;padding:3px 10px;border-radius:20px;border:1px solid #bbf7d0">${ item }</span>
+                    </div>
+                </div>
+                <div v-if="barrera.structuralDifferential" style="margin-bottom:8px">
+                    <span style="font-size:.7rem;font-weight:700;color:#6b7280;text-transform:uppercase;display:block;margin-bottom:4px">Diferenciales</span>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px">
+                        <span v-for="item in resolveStructuralCSV(barrera.structuralDifferential, 'differential')" :key="'sd-'+item" style="font-size:.73rem;background:#faf5ff;color:#7c3aed;padding:3px 10px;border-radius:20px;border:1px solid #e9d5ff">${ item }</span>
+                    </div>
+                </div>
+            </div>
+            <div v-if="barrera.structuralInstitutional || barrera.structuralEconomic || barrera.structuralTerritorial || barrera.structuralDifferential" class="brd-divider"></div>
+
+            <!-- Seguimientos a esta barrera -->
+            <div class="brd-tasks-block">
+                <div class="brd-tasks-title">Seguimientos a esta barrera</div>
+                <barrier-follow-up-timeline :barrier-id="barrierICode"></barrier-follow-up-timeline>
+            </div>
         </div>
 
-        <div class="brd-divider"></div>
-
-        <!-- Sección: Seguimientos a esta barrera -->
-        <div class="brd-tasks-block">
-            <div class="brd-tasks-title">Seguimientos</div>
-            <barrier-follow-up-timeline :barrier-id="barrierICode"></barrier-follow-up-timeline>
+        <!-- ─── Tab: Tareas ─── -->
+        <div v-if="activeTab === 'tareas'" class="brd-tab-content-card">
+            <case-tasks :case-id="barrera.caseId" :barrier-id="barrierICode" :user-id="currentUserId" :user-role="currentRole" @open-task-modal="openTaskModal"></case-tasks>
         </div>
 
-    </div>
-
-    <!-- ─── Tab: Timeline ─── -->
-    <div v-if="activeTab === 'timeline'" class="brd-tab-content-card">
-        <div class="brd-empty-timeline">
-            <i class="fas fa-history"></i>
-            <p>No hay eventos registrados en el timeline de esta barrera.</p>
+        <!-- ─── Tab: Timeline ─── -->
+        <div v-if="activeTab === 'timeline'" class="brd-tab-content-card">
+            <case-timeline :case-id="barrera.caseId" :barrier-id="barrierICode" :show-filters="false"></case-timeline>
         </div>
-    </div>
 
+    </template>
 </div>
 
 {{ template "standard_scripts.html" .}}
 {{ template "overlay.html" .}}
+
+<!-- Modales de tareas (fuera del flujo visual) -->
+<case-task-modal ref="taskModal" :current-user-id="currentUserId" @task-completed="onTaskCompleted"></case-task-modal>
+<case-task-history ref="taskHistory"></case-task-history>
 
 <script>
     var home = Vue.createApp({
@@ -142,31 +211,138 @@
                 barrierICode:  {{.barrierICode}},
 
                 activeTab: 'info',
+                cargando: true,
+                error: null,
 
-                /* ── Datos de muestra (mock) ─────────────────────────────────── */
-                barrera: {
-                    id:           {{.barrierICode}},
-                    victimName:   'María González',
-                    age:          32,
-                    location:     'San Salvador, San Salvador',
-                    priority:     'Alto',
-                    sector:       'Justicia',
-                    org:          'Policía Nacional',
-                    description:  'Negación de recibir denuncia formal',
-                    status:       'Por articular',
-                    identifiedAt: '15 may. 2026',
-                    active:       true,
-                    pendingTasks:   [],
-                    completedTasks: []
-                }
+                // Datos del API
+                barrera: null,
+                victimName: '',
+                victimAge: null,
+                location: '',
+                riskLevel: null,
+                agentName: '',
+                createdByName: '',
+                barrierDepartment: '',
+                barrierCity: '',
+                barrierTown: '',
             };
         },
 
         mounted() {
             document.getElementById('app').style.display = 'block';
+            this.cargarDetalle();
         },
 
         methods: {
+            async cargarDetalle() {
+                this.cargando = true;
+                this.error = null;
+                try {
+                    var res = await fetch('/api/v1/barriers-v2/' + this.barrierICode + '/detail');
+                    if (!res.ok) {
+                        if (res.status === 404) throw new Error('Barrera no encontrada');
+                        throw new Error('Error ' + res.status);
+                    }
+                    var data = await res.json();
+                    this.barrera = data.barrier;
+                    this.victimName = data.victimName || '';
+                    this.victimAge = data.victimAge;
+                    this.location = data.location || '';
+                    this.riskLevel = data.riskLevel;
+                    this.agentName = data.agentName || '';
+                    this.createdByName = data.createdByName || '';
+                    this.barrierDepartment = data.barrierDepartment || '';
+                    this.barrierCity = data.barrierCity || '';
+                    this.barrierTown = data.barrierTown || '';
+                } catch (e) {
+                    this.error = e.message;
+                } finally {
+                    this.cargando = false;
+                }
+            },
+
+            openTaskModal(taskId) {
+                if (this.$refs.taskModal) {
+                    this.$refs.taskModal.open(taskId);
+                }
+            },
+
+            onTaskCompleted() {
+                // Recargar la pestaña de tareas forzando re-render
+                this.activeTab = '';
+                this.$nextTick(() => { this.activeTab = 'tareas'; });
+            },
+
+            formatFecha(iso) {
+                if (!iso) return '';
+                var d = new Date(iso);
+                if (d.getFullYear() < 2000) return '';
+                var meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+                return d.getDate() + ' ' + meses[d.getMonth()] + '. ' + d.getFullYear();
+            },
+
+            formatFechaHora(iso) {
+                if (!iso) return '';
+                var d = new Date(iso);
+                if (d.getFullYear() < 2000) return '';
+                var meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+                return d.getDate() + ' ' + meses[d.getMonth()] + '. ' + d.getFullYear() + ' ' + d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+            },
+
+            labelRiesgo(level) {
+                if (!level) return 'Sin evaluar';
+                switch (level) {
+                    case 1: return 'Bajo';
+                    case 2: return 'Moderado';
+                    case 3: return 'Alto';
+                    case 4: return 'Extremo';
+                    default: return 'Sin evaluar';
+                }
+            },
+
+            badgeRiesgoStyle(level) {
+                // Colores idénticos a case_detail.css: badge-bajo, badge-medio, badge-alto, badge-critico
+                switch (level) {
+                    case 1: return { background: '#dcfce7', color: '#16a34a', border: '1px solid #86efac' };
+                    case 2: return { background: '#dbeafe', color: '#1d4ed8', border: '1px solid #93c5fd' };
+                    case 3: return { background: '#ffedd5', color: '#ea580c', border: '1px solid #fdba74' };
+                    case 4: return { background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5' };
+                    default: return { background: '#f3f4f6', color: '#6b7280', border: '1px solid #e5e7eb' };
+                }
+            },
+
+            badgeEstadoBarrera(status) {
+                switch (status) {
+                    case 'OPEN': return { background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa' };
+                    case 'En Gestion': return { background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' };
+                    case 'Articulada': return { background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0' };
+                    case 'MANAGED': return { background: '#dcfce7', color: '#15803d', border: '1px solid #bbf7d0' };
+                    default: return { background: '#f3f4f6', color: '#6b7280', border: '1px solid #e5e7eb' };
+                }
+            },
+
+            labelBarreraStatus(status) {
+                var map = {
+                    'OPEN': 'Abierta',
+                    'En Gestion': 'En gestión',
+                    'Articulada': 'Articulada',
+                    'MANAGED': 'Gestionada',
+                    'CLOSED': 'Cerrada',
+                };
+                return map[status] || status;
+            },
+
+            slugifyRiesgo(level) {
+                if (!level) return 'sin-evaluar';
+                switch (level) {
+                    case 1: return 'bajo';
+                    case 2: return 'moderado';
+                    case 3: return 'alto';
+                    case 4: return 'extremo';
+                    default: return 'sin-evaluar';
+                }
+            },
+
             slugify(str) {
                 if (!str) return '';
                 return str.toLowerCase()
@@ -174,6 +350,68 @@
                     .replace(/[\u0300-\u036f]/g, '')
                     .replace(/\s+/g, '-')
                     .replace(/[^a-z0-9-]/g, '');
+            },
+
+            resolveManagementCSV(csv) {
+                if (!csv) return [];
+                var map = {
+                    'orientacion_llamada': 'Orientación y enrutamiento - Llamada',
+                    'gestion_llamada': 'Gestión administrativa - Llamada',
+                    'activacion_ruta_interinstitucional': 'Activación de ruta interinstitucional',
+                    'articulacion_institucional': 'Articulación institucional',
+                    'escalamiento_organismo_control': 'Escalamiento a organismo de control',
+                    'alerta_barreras': 'Alerta por barreras',
+                };
+                return csv.split(',').map(function(v) { var k = v.trim(); return map[k] || k; });
+            },
+
+            resolveStructuralCSV(csv, type) {
+                if (!csv) return [];
+                var maps = {
+                    institutional: {
+                        'falta_enfoque_genero': 'Falta de aplicación del enfoque de género / Revictimización o violencia institucional',
+                        'falta_protocolos_vbg': 'Falta de aplicación o desactualización de protocolos de atención en VBG',
+                        'capacidad_institucional_limitada': 'Capacidad institucional limitada',
+                        'desarticulacion_institucional': 'Desarticulación institucional y ausencia de gestión integral de casos',
+                        'insuficiencia_orientacion_derechos': 'Insuficiencia en la orientación en derechos a las víctimas',
+                    },
+                    economic: {
+                        'falta_autonomia_economica': 'Falta de autonomía económica',
+                        'pobreza_desigualdad': 'Pobreza y desigualdad estructural',
+                    },
+                    territorial: {
+                        'ausencia_institucional_territorial': 'Ausencia institucional, infraestructura y conectividad insuficiente',
+                    },
+                    differential: {
+                        'barrera_osigd': 'Barreras para personas OSIGD',
+                        'barrera_salud_mental': 'Barreras para personas con condiciones de salud mental',
+                        'barrera_etnica': 'Barreras para población con origen étnico',
+                        'barrera_ciclo_vida': 'Barreras asociadas al ciclo de vida',
+                        'barrera_discapacidad': 'Barreras para personas con discapacidad',
+                        'barrera_migrantes': 'Barreras para personas migrantes y refugiadas',
+                        'barrera_privadas_libertad': 'Barreras para personas privadas de la libertad',
+                        'barrera_situacion_calle': 'Barreras para personas en situación de calle',
+                        'barrera_trata': 'Barreras para víctimas de trata de personas',
+                    },
+                };
+                var map = maps[type] || {};
+                return csv.split(',').map(function(v) { var k = v.trim(); return map[k] || k; });
+            },
+
+            resolveBarrierCSV(csv) {
+                if (!csv) return [];
+                var map = {
+                    'dificultades_aseguramiento':'Dificultades de aseguramiento o afiliación en salud','negacion_urgencias':'Negaciones en los servicios de urgencias','fallas_calidad_urgencias':'Fallas en la calidad del servicio de urgencias','demoras_citas':'Demoras en la asignación de citas y continuidad de tratamientos','falta_protocolo_violencia_sexual':'Faltas de activación de protocolos para violencia sexual','falta_protocolo_agentes_quimicos':'Faltas de activación de protocolos para ataques con agentes químicos','demoras_valoracion_medicolegal':'Demoras y dificultades en la valoración medicolegal','negacion_ive':'Negaciones en el acceso a la IVE','exigencias_autorizacion_discapacidad':'Exigencias indebidas de autorización (discapacidad)','falta_enfoque_cultural_salud':'Atenciones no centradas en cosmovisiones culturales propias','negacion_procedimientos_osigd':'Negaciones o imposiciones de procedimientos a personas OSIGD','otras_barreras_salud':'Otras barreras en salud','negativa_recibir_denuncia':'Negativa institucional para recibir la denuncia','dilacion_registro_denuncia':'Dilación en la recepción y registro de la denuncia','denegacion_no_confrontacion':'Denegación al derecho a la no confrontación','falta_info_documental':'Falta de entrega de información y documentación procesal','formalismo_excesivo':'Formalismo excesivo en los trámites judiciales','cargas_probatorias_excesivas':'Imposición de cargas probatorias excesivas','falta_celeridad_investigacion':'Falta de celeridad en la investigación judicial','incumplimiento_ordenes_judiciales':'Incumplimiento de órdenes judiciales','tipificacion_erronea':'Tipificación errónea del delito','traslado_inadecuado_expediente':'Traslado inadecuado del expediente judicial','dificultad_reasignacion_municipio':'Dificultades en la reasignación de procesos','falta_representacion_judicial':'Ausencia de acceso a representación judicial','vacios_normativos_vbg':'Vacíos normativos en VBG','riesgo_vencimiento_terminos':'Riesgo de vencimiento de términos','medidas_libertad_riesgo':'Medidas de libertad que ponen en riesgo a la víctima','falta_proteccion_info_confidencial':'Falta de protección de información confidencial','deficiencias_notificacion_agresor':'Deficiencias en la notificación del agresor','otras_barreras_justicia':'Otras barreras en justicia','demoras_medidas_comisaria':'Ausencia o demoras en medidas de protección en Comisaría de Familia','dilacion_medidas_fisicas':'Ausencia o dilación en medidas de protección físicas','demora_atencion_integral_comisaria':'Demora en la activación de atención integral en Comisaría de Familia','incumplimiento_medidas_proteccion':'Incumplimiento de medidas de protección','filtracion_info_confidencial':'Divulgación de información confidencial','medidas_ineficaces':'Medidas de protección ineficaces','falta_seguimiento_medidas':'Falta de seguimiento institucional a las medidas','fallas_valoracion_riesgo':'Fallas en la valoración del riesgo','medidas_insuficientes':'Medidas de protección insuficientes','omision_restriccion_visitas':'Omisión de restricción de visitas ante riesgo','omision_apoyo_policial':'Omisión de apoyo policial','otras_barreras_proteccion':'Otras barreras en protección',
+                };
+                return csv.split(',').map(function(v) { var k = v.trim(); return map[k] || k; });
+            },
+
+            resolveInstitutionCSV(csv) {
+                if (!csv) return [];
+                var map = {
+                    'hospital_publico':'Hospital Público','hospital_privado':'Hospital Privado','ips':'IPS','eps':'EPS','puesto_salud':'Puesto de Salud','consultorio_medico':'Consultorio médico','cai_policia':'CAI - Policía','caivas':'CAIVAS','casas_justicia':'Casas de Justicia','caviv':'CAVIV','comisaria_familia':'Comisaría de Familia','estacion_policia':'Estación de Policía','fiscalia':'Fiscalía General de la Nación','inspeccion_policia':'Inspección de Policía','medicina_legal':'Instituto Nacional de Medicina Legal','jueces_civiles':'Jueces Civiles o Promiscuos Municipales','jueces_penales':'Jueces de Control de Garantías o Jueces Penales','policia_judicial':'Policía Judicial','unidad_reaccion_inmediata':'Unidad de Reacción Inmediata','fiscalia_proteccion':'Fiscalía General de la Nación (protección)','icbf':'ICBF','unidad_nacional_proteccion':'Unidad Nacional de Protección','defensoria_familia':'Defensoría de Familia','ejercito_nacional':'Ejército Nacional','armada_colombiana':'Armada Colombiana','no_sabe':'No sabe / No responde',
+                };
+                return csv.split(',').map(function(v) { var k = v.trim(); return map[k] || k; });
             },
 
             logout() {
@@ -185,6 +423,11 @@
     var app = home;
 </script>
 <script src="/static/js/components/barrier-follow-up-timeline.js"></script>
+<script src="/static/js/components/case-timeline.js"></script>
+<script src="/static/js/components/case-tasks.js"></script>
+<script src="/static/js/components/case-task-modal.js"></script>
+<script src="/static/js/components/case-task-history.js"></script>
+<script src="/static/js/components/dinamic-form.js"></script>
 <script>
     home.mount('#app');
 </script>

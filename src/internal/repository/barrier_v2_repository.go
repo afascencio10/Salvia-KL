@@ -17,6 +17,7 @@ type BarrierV2Repository interface {
 	// FindByCreatedByIDWithRelations devuelve barreras del agente enriquecidas
 	// con datos de victim_case (nombres, documento, i_code).
 	FindByCreatedByIDWithRelations(ctx context.Context, createdByID string) ([]models.BarrierV2WithRelations, error)
+	GetDB() *gorm.DB
 }
 
 type barrierV2Repository struct {
@@ -29,6 +30,10 @@ func NewBarrierV2Repository(db *gorm.DB) BarrierV2Repository {
 		repository: repository[models.BarrierV2]{db: db},
 		db:         db,
 	}
+}
+
+func (r *barrierV2Repository) GetDB() *gorm.DB {
+	return r.db
 }
 
 func (r *barrierV2Repository) FindByCaseID(ctx context.Context, caseID string) ([]models.BarrierV2, error) {
