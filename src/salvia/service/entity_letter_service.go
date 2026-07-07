@@ -143,6 +143,9 @@ type EntityLetterService interface {
 	ListByAgentWithRelations(ctx context.Context, agentID string) ([]models.EntityLetterWithRelations, error)
 	ListByNotificationUserWithRelations(ctx context.Context, notifUserID string) ([]models.EntityLetterWithRelations, error)
 
+	// ListWithRelationsFiltered devuelve oficios paginados con filtros en BD y conteo de pendientes.
+	ListWithRelationsFiltered(ctx context.Context, filter repository.EntityLetterListFilter, page, limit int) (repository.EntityLetterListResult, error)
+
 	// Transición de estado con validación
 	UpdateState(ctx context.Context, id string, input UpdateStateInput) (*models.EntityLetter, error)
 
@@ -625,6 +628,41 @@ func (s *entityLetterService) ListByAgentWithRelations(ctx context.Context, agen
 
 func (s *entityLetterService) ListByNotificationUserWithRelations(ctx context.Context, notifUserID string) ([]models.EntityLetterWithRelations, error) {
 	return s.repo.FindByNotificationUserIDWithRelations(ctx, notifUserID)
+}
+
+// ManageableStatesForAgent devuelve los estados que el rol op/ro puede gestionar.
+func ManageableStatesForAgent() []string {
+	return []string{
+		models.EntityLetterStatePorProyectar,
+		models.EntityLetterStateEnCorreccion,
+	}
+}
+
+// ManageableStatesForNotificationUser devuelve los estados que el rol an puede gestionar.
+func ManageableStatesForNotificationUser() []string {
+	return []string{
+		models.EntityLetterStateParaRevisar,
+		models.EntityLetterStateAprobacionJuridica,
+		models.EntityLetterStateParaRadicar,
+		models.EntityLetterStateRadicado,
+	}
+}
+
+func (s *entityLetterService) ListWithRelationsFiltered(
+	ctx context.Context,
+	filter repository.EntityLetterListFilter,
+	page, limit int,
+) (repository.EntityLetterListResult, error) {
+	if filter.AgentID == "" && filter.NotificationUserID == "" {
+		return repository.EntityLetterListResult{}, fmt.Errorf("entity_letter: se requiere agentId o notificationUserId")
+	}
+	if filter.AgentID != "" && len(filter.ManageableStates) == 0 {
+		filter.ManageableStates = ManageableStatesForAgent()
+	}
+	if filter.NotificationUserID != "" && len(filter.ManageableStates) == 0 {
+		filter.ManageableStates = ManageableStatesForNotificationUser()
+	}
+	return s.repo.FindWithRelationsFilteredPaginated(ctx, filter, page, limit)
 }
 
 // UpdateState valida que la transición sea permitida y actualiza el estado.

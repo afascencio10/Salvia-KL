@@ -4,7 +4,7 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando carga la pantalla
    Tipo: Lifecycle
-   Funciones: mounted() · loadOficios()
+   Funciones: mounted() · loadOficios() · buildOficiosUrl()
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 INPUT: {
@@ -17,7 +17,7 @@ PASO 1 — Mostrar el contenedor principal de la app
 
 PASO 2 — Verificar que el rol tiene acceso a la pantalla
 
-SI currentRole NO está en ['op', 'an']:
+SI currentRole NO está en ['op', 'an', 'ro']:
   → Asignar loadError = 'Rol no autorizado para acceder a esta pantalla.'
   → La pantalla muestra el bloque de error (v-if loadError)
   → TERMINAR ejecución
@@ -29,36 +29,40 @@ PASO 3 — Activar estado de carga
   isLoading = true
   loadError = null
 
-PASO 4 — Construir URL del API según rol
+PASO 4 — Construir URL del API con paginación y filtros (buildOficiosUrl)
 
-SI currentRole === 'op':
-  → url = '/api/v1/entity-letters?limit=100&page=0&agentId={currentUserId}'
+Parámetros base:
+  page  = currentPage (0-based)
+  limit = itemsPerPage (5)
 
-SI currentRole === 'an':
-  → url = '/api/v1/entity-letters?limit=100&page=0&notificationUserId={currentUserId}'
+Según rol:
+  op / ro → agentId={currentUserId}
+  an      → notificationUserId={currentUserId}
 
-PASO 5 — Consultar oficios del usuario
+Tab activo:
+  currentTab === 'gestionar' → manageableOnly=true
 
-GET {url}
+Filtros opcionales (solo si tienen valor):
+  state          ← filters.estado
+  identidad      ← filters.identidad
+  entidad        ← filters.entidad
+  numeroRadicado ← filters.radicado
 
-→ resultado: array de entity_letter o error
+PASO 5 — Consultar oficios del usuario (paginado en BD)
+
+GET /api/v1/entity-letters?{params}
+
+→ resultado: { items, total, page, pageSize, pendingCount } o error
 
 PASO 6 — Manejar respuesta del API
 
 SI status === 200:
-  → Extraer items: response si es array, o response.items si es objeto
-  → Ordenar items por createdAt DESC
-  → Mapear cada item con mapApiToOficio():
-      - Construir nombre completo de la víctima (victimName + victimLastName)
-      - Extraer sectores de la barrera
-      - Determinar letterPriority (alta | normal)
-      - Calcular canManage según el estado del oficio y el rol:
-          op  → canManage si estado es 'por_proyectar' o 'en_correccion'
-          an  → canManage si estado es 'para_revisar', 'aprobacion_juridica',
-                'para_radicar' o 'radicado'
-  → Asignar resultado a this.oficios
+  → Extraer items de response.items
+  → Mapear cada item con mapApiToOficio()
+  → Asignar totalItems = response.total
+  → Asignar pendingCount = response.pendingCount (badge del tab "Oficios por gestionar")
   → isLoading = false
-  → Vue renderiza la tabla con los oficios cargados
+  → Vue renderiza la tabla con la página actual
 
 SI status === 401:
   → Redirigir a /static/landing.html
@@ -69,12 +73,8 @@ SI otro status:
   → isLoading = false
   → Vue muestra el bloque de error
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️  GAPS — Información pendiente
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-| Variable / decisión                                        | Paso afectado |
-|------------------------------------------------------------|---------------|
-| ¿Qué campos exactos devuelve el endpoint GET?              | PASO 5        |
-| ¿El endpoint soporta paginación server-side? limit=100     | PASO 4        |
-| puede quedarse corto si hay más de 100 oficios por usuario |               |
+PASO 7 — Carga en background de locaciones (loadLocations)
+  GET /api/v1/locations/departments
+  GET /api/v1/locations/cities
+  (para modales de proyectar; no bloquea la tabla)
 ```

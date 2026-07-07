@@ -24,7 +24,7 @@ var notifModalTemplates = []string{
 
 // NotificacionesGET renderiza la pantalla de Notificaciones Salvia.
 // Ruta: GET /salvia/notificaciones
-// Roles permitidos: op (Agente Seguimiento), an (Agente de Notificaciones)
+// Roles con acceso funcional: op (Agente Seguimiento), ro (Revisor Operativo), an (Agente de Notificaciones)
 func NotificacionesGET(c *gin.Context) {
 	session := sessions.Default(c)
 	sessionIDVal := session.Get("userData")
@@ -41,7 +41,7 @@ func NotificacionesGET(c *gin.Context) {
 	}
 
 	// Validar que el usuario tenga permiso para acceder a notificaciones.
-	// Roles válidos: op (Agente Seguimiento) y an (Agente de Notificaciones).
+	// Roles con acceso funcional en frontend: op, ro y an.
 	if !utils.CheckPermission(salvia_config.PermissionsByRole, "get_notificaciones", s.CurrentRole, c) {
 		return
 	}

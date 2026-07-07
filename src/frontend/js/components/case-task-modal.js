@@ -334,6 +334,7 @@ app.component('case-task-modal', {
             cargandoTarea: false,
             errorTarea:    null,
             guardando:     false,
+            completado:    false,
             saveError:     null,
 
             // Ubicaciones
@@ -456,6 +457,8 @@ app.component('case-task-modal', {
             this.form            = {};
             this.saveError       = null;
             this.errorTarea      = null;
+            this.guardando       = false;
+            this.completado      = false;
             this.ciudades        = [];
             this.municipios      = [];
             this.entidades       = [];
@@ -755,7 +758,8 @@ app.component('case-task-modal', {
                 const tareaActualizada = await res.json();
                 console.log('[CTM] E09 tarea completada:', JSON.stringify(tareaActualizada));
                 this.$emit('completed', tareaActualizada);
-                this.cancelar();
+                this.completado = true;
+                setTimeout(() => this.cancelar(), 1500);
 
             } catch (e) {
                 console.error('[CTM] E09 error de red:', e);
@@ -785,13 +789,23 @@ app.component('case-task-modal', {
         <button class="ctm-close-btn" @click="cancelar" :disabled="guardando">✕</button>
     </div>
 
-    <!-- Loader overlay mientras guarda -->
-    <div v-if="guardando" style="position:absolute;inset:0;background:rgba(255,255,255,.65);border-radius:16px;display:flex;align-items:center;justify-content:center;z-index:10;flex-direction:column;gap:10px">
-        <svg style="width:32px;height:32px;animation:ctm-spin .7s linear infinite" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" stroke="#e5e7eb" stroke-width="3"/>
-            <path d="M12 2a10 10 0 0 1 10 10" stroke="#1d4ed8" stroke-width="3" stroke-linecap="round"/>
-        </svg>
-        <span style="font-size:13px;font-weight:600;color:#1d4ed8">Guardando...</span>
+    <!-- Loader / success overlay -->
+    <div v-if="guardando || completado" style="position:absolute;inset:0;background:rgba(255,255,255,.8);border-radius:16px;display:flex;align-items:center;justify-content:center;z-index:10;flex-direction:column;gap:12px">
+        <template v-if="completado">
+            <div style="width:52px;height:52px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center">
+                <svg viewBox="0 0 24 24" fill="none" style="width:28px;height:28px">
+                    <path d="M5 13l4 4L19 7" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <span style="font-size:14px;font-weight:600;color:#15803d">¡Tarea completada!</span>
+        </template>
+        <template v-else>
+            <svg style="width:32px;height:32px;animation:ctm-spin .7s linear infinite" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="#e5e7eb" stroke-width="3"/>
+                <path d="M12 2a10 10 0 0 1 10 10" stroke="#1d4ed8" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+            <span style="font-size:13px;font-weight:600;color:#1d4ed8">Guardando...</span>
+        </template>
     </div>
 
     <!-- Body -->

@@ -32,6 +32,10 @@
 
                 itemsPerPage: 5,
                 currentPage:  0,
+                totalItems:   0,
+                pendingCount: 0,
+
+                filterDebounceTimer: null,
 
                 showModal:      false,
                 activeModal:    null,
@@ -105,30 +109,12 @@
         },
 
         computed: {
-            pendingCount() {
-                return this.oficios.filter(o => o.canManage).length;
-            },
-
-            filteredOficios() {
-                return this.oficios.filter(o => {
-                    const tabOk      = this.currentTab === 'todos' || o.canManage;
-                    const estadoOk   = !this.filters.estado || o.status === this.filters.estado;
-                    const idOk       = !this.filters.identidad || o.docNumber.includes(this.filters.identidad);
-                    const entidadOk  = !this.filters.entidad ||
-                        o.barrierOrg.toLowerCase().includes(this.filters.entidad.toLowerCase());
-                    const radicadoOk = !this.filters.radicado ||
-                        (o.numeroRadicado && o.numeroRadicado.toLowerCase().includes(this.filters.radicado.toLowerCase()));
-                    return tabOk && estadoOk && idOk && entidadOk && radicadoOk;
-                });
-            },
-
             numPages() {
-                return Math.max(1, Math.ceil(this.filteredOficios.length / this.itemsPerPage));
+                return Math.max(1, Math.ceil(this.totalItems / this.itemsPerPage));
             },
 
             paginatedOficios() {
-                const start = this.currentPage * this.itemsPerPage;
-                return this.filteredOficios.slice(start, start + this.itemsPerPage);
+                return this.oficios;
             },
 
             visiblePages() {
@@ -186,6 +172,36 @@
 
             /* ── Carga inicial ──────────────────────────────────────────────────── */
 
+            buildOficiosUrl() {
+                const params = new URLSearchParams();
+                params.set('page', String(this.currentPage));
+                params.set('limit', String(this.itemsPerPage));
+
+                if (this.currentRole === 'op' || this.currentRole === 'ro') {
+                    params.set('agentId', this.currentUserId);
+                } else if (this.currentRole === 'an') {
+                    params.set('notificationUserId', this.currentUserId);
+                }
+
+                if (this.currentTab === 'gestionar') {
+                    params.set('manageableOnly', 'true');
+                }
+                if (this.filters.estado) {
+                    params.set('state', this.filters.estado);
+                }
+                if (this.filters.identidad.trim()) {
+                    params.set('identidad', this.filters.identidad.trim());
+                }
+                if (this.filters.entidad.trim()) {
+                    params.set('entidad', this.filters.entidad.trim());
+                }
+                if (this.filters.radicado.trim()) {
+                    params.set('numeroRadicado', this.filters.radicado.trim());
+                }
+
+                return '/api/v1/entity-letters?' + params.toString();
+            },
+
             loadOficios() {
                 const VALID_ROLES = ['op', 'an', 'ro'];
                 if (!VALID_ROLES.includes(this.currentRole)) {
@@ -196,12 +212,7 @@
                 this.isLoading = true;
                 this.loadError = null;
 
-                let url = '/api/v1/entity-letters?limit=100&page=0';
-                if (this.currentRole === 'op' || this.currentRole === 'ro') {
-                    url += '&agentId=' + encodeURIComponent(this.currentUserId);
-                } else if (this.currentRole === 'an') {
-                    url += '&notificationUserId=' + encodeURIComponent(this.currentUserId);
-                }
+                const url = this.buildOficiosUrl();
 
                 getData(url, (function (status, response) {
                     this.isLoading = false;
@@ -211,10 +222,20 @@
                             ? response
                             : (response && response.items ? response.items : []);
 
-                        if (items.length > 0) {
-                            this.oficios = items
-                                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-                                .map(el => this.mapApiToOficio(el));
+                        this.oficios = items.map(el => this.mapApiToOficio(el));
+
+                        if (response && typeof response.total === 'number') {
+                            this.totalItems = response.total;
+                        } else {
+                            this.totalItems = items.length;
+                        }
+                        if (response && typeof response.pendingCount === 'number') {
+                            this.pendingCount = response.pendingCount;
+                        }
+
+                        if (this.currentPage > 0 && this.currentPage >= this.numPages) {
+                            this.currentPage = Math.max(0, this.numPages - 1);
+                            this.loadOficios();
                         }
                     } else if (status === 401) {
                         location.assign('/static/landing.html');
@@ -296,12 +317,14 @@
             switchTab(tab) {
                 this.currentTab  = tab;
                 this.currentPage = 0;
+                this.loadOficios();
             },
 
             goToPage(page) {
                 if (page < 0 || page >= this.numPages) return;
                 this.currentPage = page;
                 window.scrollTo(0, 0);
+                this.loadOficios();
             },
 
             /* ── Modal de gestión ───────────────────────────────────────────────── */
@@ -475,16 +498,8 @@
                             if (overlay) overlay.style.display = 'none';
                         }, 1200);
 
-                        const idx = this.oficios.findIndex(o => o.id === this.selectedOficio.id);
-                        if (idx !== -1) {
-                            const updated = response;
-                            this.oficios[idx] = {
-                                ...this.oficios[idx],
-                                status:    updated.state,
-                                canManage: this.canManageForRole(updated.state)
-                            };
-                        }
                         this.closeModal();
+                        this.loadOficios();
                     } else if (status === 401) {
                         location.assign('/static/landing.html');
                     } else if (status === 422) {
@@ -562,7 +577,13 @@
         watch: {
             filters: {
                 deep: true,
-                handler() { this.currentPage = 0; }
+                handler() {
+                    this.currentPage = 0;
+                    clearTimeout(this.filterDebounceTimer);
+                    this.filterDebounceTimer = setTimeout(() => {
+                        this.loadOficios();
+                    }, 350);
+                }
             }
         }
     });

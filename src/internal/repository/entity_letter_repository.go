@@ -3,9 +3,29 @@ package repository
 import (
 	"bitsflow/internal/models"
 	"context"
+	"fmt"
+	"strings"
 
 	"gorm.io/gorm"
 )
+
+// EntityLetterListFilter agrupa los criterios de consulta paginada con relaciones.
+type EntityLetterListFilter struct {
+	AgentID            string
+	NotificationUserID string
+	State              string
+	Identidad          string // victim_case_victim_doc_number (ILIKE)
+	Entidad            string // barrier_v2.sector (ILIKE) — coincide con filtro UI
+	NumeroRadicado     string
+	ManageableOnly     bool
+	ManageableStates   []string // estados gestionables según rol; usado si ManageableOnly=true
+}
+
+// EntityLetterListResult extiende PageResult con el conteo de oficios pendientes de gestionar.
+type EntityLetterListResult struct {
+	PageResult[models.EntityLetterWithRelations]
+	PendingCount int64
+}
 
 // EntityLetterRepository extiende el contrato CRUD genérico con consultas
 // específicas del dominio de oficios (EntityLetter).
@@ -34,6 +54,9 @@ type EntityLetterRepository interface {
 	// FindByNotificationUserIDWithRelations devuelve los oficios del agente de notificaciones
 	// enriquecidos con datos de barrier_v2 y victim_case.
 	FindByNotificationUserIDWithRelations(ctx context.Context, notifUserID string) ([]models.EntityLetterWithRelations, error)
+
+	// FindWithRelationsFilteredPaginated devuelve oficios enriquecidos con paginación y filtros en BD.
+	FindWithRelationsFilteredPaginated(ctx context.Context, filter EntityLetterListFilter, page, pageSize int) (EntityLetterListResult, error)
 
 	// UpdateState actualiza únicamente el campo state del oficio.
 	UpdateState(ctx context.Context, id, state string) error
@@ -180,6 +203,130 @@ func (r *entityLetterRepository) FindByNotificationUserIDWithRelations(ctx conte
 		Raw(withRelationsSQL+" AND el.notification_user_id = ? ORDER BY el.created_at DESC", notifUserID).
 		Scan(&items).Error
 	return items, err
+}
+
+// buildRelationsWhere construye la cláusula WHERE adicional y sus argumentos para consultas enriquecidas.
+func buildRelationsWhere(filter EntityLetterListFilter) (string, []interface{}) {
+	var conds []string
+	var args []interface{}
+
+	switch {
+	case filter.AgentID != "":
+		conds = append(conds, "el.agent_id = ?")
+		args = append(args, filter.AgentID)
+	case filter.NotificationUserID != "":
+		conds = append(conds, "el.notification_user_id = ?")
+		args = append(args, filter.NotificationUserID)
+	}
+
+	if filter.ManageableOnly && len(filter.ManageableStates) > 0 {
+		placeholders := strings.Repeat("?,", len(filter.ManageableStates))
+		placeholders = placeholders[:len(placeholders)-1]
+		conds = append(conds, fmt.Sprintf("el.state IN (%s)", placeholders))
+		for _, s := range filter.ManageableStates {
+			args = append(args, s)
+		}
+	} else if filter.State != "" {
+		conds = append(conds, "el.state = ?")
+		args = append(args, filter.State)
+	}
+
+	if filter.Identidad != "" {
+		conds = append(conds, "vc.victim_case_victim_doc_number ILIKE ?")
+		args = append(args, "%"+filter.Identidad+"%")
+	}
+	if filter.Entidad != "" {
+		conds = append(conds, "b.sector ILIKE ?")
+		args = append(args, "%"+filter.Entidad+"%")
+	}
+	if filter.NumeroRadicado != "" {
+		conds = append(conds, "el.numero_radicado ILIKE ?")
+		args = append(args, "%"+filter.NumeroRadicado+"%")
+	}
+
+	if len(conds) == 0 {
+		return "", args
+	}
+	return " AND " + strings.Join(conds, " AND "), args
+}
+
+const withRelationsCountSQL = `
+SELECT COUNT(*)
+FROM salvia.entity_letter el
+LEFT JOIN salvia.barrier_v2 b
+    ON b.id::text = el.barrier_id
+LEFT JOIN salvia.victim_case vc
+    ON vc.victim_case_i_code = el.case_id
+WHERE el.deleted_at IS NULL
+`
+
+func (r *entityLetterRepository) FindWithRelationsFilteredPaginated(
+	ctx context.Context,
+	filter EntityLetterListFilter,
+	page, pageSize int,
+) (EntityLetterListResult, error) {
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	offset := page * pageSize
+
+	whereExtra, args := buildRelationsWhere(filter)
+	if whereExtra == "" {
+		return EntityLetterListResult{}, fmt.Errorf("entity_letter: se requiere agentId o notificationUserId")
+	}
+
+	var total int64
+	if err := r.db.WithContext(ctx).
+		Raw(withRelationsCountSQL+whereExtra, args...).
+		Scan(&total).Error; err != nil {
+		return EntityLetterListResult{}, err
+	}
+
+	dataSQL := withRelationsSQL + whereExtra + " ORDER BY el.created_at DESC LIMIT ? OFFSET ?"
+	dataArgs := append(append([]interface{}{}, args...), pageSize, offset)
+
+	var items []models.EntityLetterWithRelations
+	if err := r.db.WithContext(ctx).Raw(dataSQL, dataArgs...).Scan(&items).Error; err != nil {
+		return EntityLetterListResult{}, err
+	}
+
+	pendingCount, err := r.countManageableWithRelations(ctx, filter)
+	if err != nil {
+		return EntityLetterListResult{}, err
+	}
+
+	return EntityLetterListResult{
+		PageResult: PageResult[models.EntityLetterWithRelations]{
+			Items:    items,
+			Total:    total,
+			Page:     page,
+			PageSize: pageSize,
+		},
+		PendingCount: pendingCount,
+	}, nil
+}
+
+func (r *entityLetterRepository) countManageableWithRelations(ctx context.Context, filter EntityLetterListFilter) (int64, error) {
+	if len(filter.ManageableStates) == 0 {
+		return 0, nil
+	}
+
+	pendingFilter := EntityLetterListFilter{
+		AgentID:            filter.AgentID,
+		NotificationUserID: filter.NotificationUserID,
+		ManageableOnly:     true,
+		ManageableStates:   filter.ManageableStates,
+	}
+	whereExtra, args := buildRelationsWhere(pendingFilter)
+	if whereExtra == "" {
+		return 0, nil
+	}
+
+	var count int64
+	err := r.db.WithContext(ctx).
+		Raw(withRelationsCountSQL+whereExtra, args...).
+		Scan(&count).Error
+	return count, err
 }
 
 func (r *entityLetterRepository) UpdateState(ctx context.Context, id, state string) error {

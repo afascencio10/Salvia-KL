@@ -238,7 +238,7 @@ app.component('case-tasks', {
     <!-- Modal ver detalle tarea completada (autosuficiente) -->
     <case-task-history ref="taskHistory"></case-task-history>
     <!-- Modal gestionar tarea pendiente (autosuficiente) -->
-    <case-task-modal ref="taskModal" @completed="onTaskCompleted"></case-task-modal>
+    <case-task-modal ref="taskModal" :current-user-id="userId" @completed="onTaskCompleted"></case-task-modal>
     <!-- Modal reasignar tarea -->
     <div v-if="reasignarTask" class="ct-modal-backdrop" @click.self="reasignarTask = null">
         <div class="ct-modal">

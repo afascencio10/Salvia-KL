@@ -270,12 +270,9 @@ PASO 5 — Manejar respuesta
 
 SI status === 200:
   → Ocultar overlay de éxito después de 1.2s
-  → Buscar el oficio en this.oficios por ID
-  → Actualizar en la lista (sin recargar):
-      status    = response.state
-      canManage = canManageForRole(response.state)
-  → Vue re-evalúa reactivamente: badge de pendientes, filtros, tabla
   → Cerrar modal → Ver flujo: Cuando cancela el modal (E06)
+  → Recargar página actual desde BD: loadOficios()
+      (actualiza tabla, total, pendingCount y paginador)
   → isSaving = false
 
 SI status === 401:
