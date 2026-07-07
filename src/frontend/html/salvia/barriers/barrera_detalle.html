@@ -197,7 +197,7 @@
 {{ template "overlay.html" .}}
 
 <!-- Modales de tareas (fuera del flujo visual) -->
-<case-task-modal ref="taskModal" @task-completed="onTaskCompleted"></case-task-modal>
+<case-task-modal ref="taskModal" :current-user-id="currentUserId" @task-completed="onTaskCompleted"></case-task-modal>
 <case-task-history ref="taskHistory"></case-task-history>
 
 <script>

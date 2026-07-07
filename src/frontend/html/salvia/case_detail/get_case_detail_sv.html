@@ -404,6 +404,12 @@
               </div>
             </div>
           </div>
+
+          <!-- Oficios del caso (componente reutilizable) -->
+          <div style="margin-top:24px;padding-top:20px;border-top:1px solid #e5e7eb">
+            <p style="font-size:.72rem;color:#6b7280;font-weight:700;margin:0 0 12px;text-transform:uppercase;letter-spacing:.04em">📄 Oficios del caso</p>
+            <case-oficios :case-id="caseICode"></case-oficios>
+          </div>
         </template>
 
         <!-- ══ TAB: SEGUIMIENTOS ══ -->
@@ -1489,6 +1495,7 @@ var app = home;
 <script src="/static/js/components/dinamic-form.js"></script>
 <script src="/static/js/components/case-task-modal.js"></script>
 <script src="/static/js/components/case-task-history.js"></script>
+<script src="/static/js/components/case-oficios.js"></script>
 <script>
 home.mount('#app');
 </script>
