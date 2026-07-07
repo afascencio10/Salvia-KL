@@ -1,8 +1,8 @@
 # Notificaciones — Interfaz
 
-Pantalla que gestiona el flujo completo de oficios enviados a entidades para atender barreras institucionales de casos VBG. El operador (`op`) proyecta y corrige oficios; el agente de notificaciones (`an`) los revisa, aprueba, radica y registra respuestas. Cada oficio sigue un flujo de estados: `por_proyectar → para_revisar → aprobacion_juridica → para_radicar → radicado → respondido`, con una rama de corrección que devuelve al estado `para_revisar`.
+Pantalla que gestiona el flujo completo de oficios enviados a entidades para atender barreras institucionales de casos VBG. El operador (`op`) y revisor operativo (`ro`) proyectan y corrigen oficios; el agente de notificaciones (`an`) los revisa, aprueba, radica y registra respuestas. Cada oficio sigue un flujo de estados: `por_proyectar → para_revisar → aprobacion_juridica → para_radicar → radicado → respondido`, con una rama de corrección que devuelve al estado `para_revisar`.
 
-La pantalla carga todos los oficios asignados al usuario según su rol, los muestra en una tabla paginada (5 por página) y permite gestionarlos mediante modales específicos por estado. Los filtros y tabs operan de forma reactiva sin recargar la página.
+La pantalla carga oficios paginados desde el backend (5 por página), aplica filtros y tabs directamente en la base de datos, y permite gestionarlos mediante modales específicos por estado.
 
 ---
 
@@ -17,9 +17,11 @@ La pantalla carga todos los oficios asignados al usuario según su rol, los mues
 | `src/frontend/html/salvia/notifications/modal_aprobar.html` | Modal para estado `aprobacion_juridica` |
 | `src/frontend/html/salvia/notifications/modal_radicar.html` | Modal para estado `para_radicar` |
 | `src/frontend/html/salvia/notifications/modal_registrar_respuesta.html` | Modal para estado `radicado` |
-| `src/frontend/js/components/notifications.js` | Lógica Vue: carga, filtros, paginación, modales y acciones |
+| `src/frontend/js/components/notifications.js` | Lógica Vue: carga paginada, filtros server-side, modales y acciones |
+| `src/salvia/controller/entity_letter_controller.go` | `GET /api/v1/entity-letters` — listado paginado con filtros |
 | `src/salvia/controller/entity_branch_api_controller.go` | `GET /api/v1/entity-branches` — devuelve `{id, icode, name}` por `town_code` |
-| `src/salvia/controller/entity_letter_controller.go` | `PUT /api/v1/entity-letters/:id/action` — procesa las acciones del modal |
+| `src/internal/repository/entity_letter_repository.go` | Consultas SQL paginadas con JOINs y filtros ILIKE |
+| `DocsMD/Screens/Notificaciones/notificaciones-api.md` | Documentación del endpoint de listado paginado |
 
 ---
 
@@ -35,7 +37,7 @@ Pantalla: Notificaciones
 ├── Tabs
 │   ├── Tab "Todos mis oficios"
 │   └── Tab "Oficios por gestionar"
-│       └── Badge con conteo de oficios donde canManage = true
+│       └── Badge con pendingCount del API (oficios gestionables del usuario)
 │
 ├── [v-if: isLoading] Estado de carga
 │   ├── Spinner
