@@ -74,6 +74,12 @@ var (
 		"Amenaza de Muerte a Ella/Hijos (Form 1)",
 		"Celoso Violento Constantemente (Form 1)",
 		"Cree Capaz de Matarla (Form 1)",
+		"Utiliza Salud para Chantajear (Form 2)",
+		"Amenaza con Revelar Orientación (Form 2)",
+		"Dejó de Buscar Ayuda (Form 2)",
+		"Forzada a Relaciones Sexuales (Form 2)",
+		"Aprovechó Vulnerabilidad Física (Form 2)",
+		"Violencia Motivada por Género/Orientación (Form 2)",
 		"Formulario Registro Completado (Form 1)",
 		"Formulario Valoración Completado (Form 2)",
 	}
@@ -347,8 +353,14 @@ func BuildFollowUpsExcel(
 		_ = f.SetCellValue("Registro", fmt.Sprintf("AT%d", rNum), translateEnumKey(c.ThreatenedToKillOrHarmChildren))
 		_ = f.SetCellValue("Registro", fmt.Sprintf("AU%d", rNum), translateEnumKey(c.JealousAndViolent))
 		_ = f.SetCellValue("Registro", fmt.Sprintf("AV%d", rNum), translateEnumKey(c.BelievesCapableOfKilling))
-		_ = f.SetCellValue("Registro", fmt.Sprintf("AW%d", rNum), c.HasForm1)
-		_ = f.SetCellValue("Registro", fmt.Sprintf("AX%d", rNum), c.HasForm2)
+		_ = f.SetCellValue("Registro", fmt.Sprintf("AW%d", rNum), translateEnumKey(c.VictimHealthToBlackmail))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("AX%d", rNum), translateEnumKey(c.ThreatenedRevealSexualOrientation))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("AY%d", rNum), translateEnumKey(c.StoppedSeekingHelp))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("AZ%d", rNum), translateEnumKey(c.AggressorSexuallyHarassment2))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("BA%d", rNum), translateEnumKey(c.AggressorTakenAdvantagePhysicalVulnerabil))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("BB%d", rNum), translateEnumKey(c.ViolenceMotivatedByGender2))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("BC%d", rNum), c.HasForm1)
+		_ = f.SetCellValue("Registro", fmt.Sprintf("BD%d", rNum), c.HasForm2)
 	}
 
 	// 3. Llenar hoja "Seguimientos"
