@@ -73,7 +73,10 @@
                     correoRemitente:      '',
                     asuntoRespuesta:      '',
                     respuestaRecibidaPor: '',
-                    reasonCorrection:     ''
+                    reasonCorrection:           '',
+                    reasonCorrections:          [],
+                    reasonCorrectionOtherEnabled: false,
+                    reasonCorrectionOther:      ''
                 },
 
                 isSaving:  false,
@@ -102,6 +105,16 @@
                     normal: 'Normal',
                     alta:   'Alta'
                 },
+
+                correctionReasonOptions: [
+                    'Número de identificación incorrecto.',
+                    'Incumplimiento de lineamientos técnicos de forma (omisión de comillas en la transcripción de los hechos, ausencia del nombre del agente que proyecta el oficio, etc).',
+                    'Inconsistencias en la descripción de los hechos (relato ambiguo, información confusa, redacción imprecisa o secuencia cronológica inconsistente).',
+                    'Solicitudes que requieren ajuste o precisión.',
+                    'Inconsistencias entre el registro en SALVIA y el contenido del oficio.',
+                    'Inconsistencias en las entidades destinatarias del oficio (entidades que no corresponden con el caso o con las competencias requeridas).',
+                    'Caso que no corresponde a una Violencia Basada en Género (VBG).'
+                ],
 
                 oficios: []
             };
@@ -145,6 +158,10 @@
                     last = i;
                 }
                 return result;
+            },
+
+            hasReasonCorrectionSelection() {
+                return this.getReasonCorrectionParts().length > 0;
             }
         },
 
@@ -422,7 +439,10 @@
                     correoRemitente:      oficio.correo            || '',
                     asuntoRespuesta:      '',
                     respuestaRecibidaPor: '',
-                    reasonCorrection:     ''
+                    reasonCorrection:           '',
+                    reasonCorrections:          [],
+                    reasonCorrectionOtherEnabled: false,
+                    reasonCorrectionOther:      ''
                 };
 
                 this.saveError = null;
@@ -434,7 +454,52 @@
                 this.activeModal        = null;
                 this.selectedOficio     = null;
                 this.saveError          = null;
-                this.modalForm.reasonCorrection = '';
+                this.modalForm.reasonCorrection           = '';
+                this.modalForm.reasonCorrections          = [];
+                this.modalForm.reasonCorrectionOtherEnabled = false;
+                this.modalForm.reasonCorrectionOther      = '';
+            },
+
+            getReasonCorrectionParts() {
+                var parts = Array.isArray(this.modalForm.reasonCorrections)
+                    ? this.modalForm.reasonCorrections.slice()
+                    : [];
+
+                if (this.modalForm.reasonCorrectionOtherEnabled) {
+                    var other = String(this.modalForm.reasonCorrectionOther || '').trim();
+                    if (other) {
+                        parts.push(other);
+                    }
+                }
+
+                return parts.filter(function (part) {
+                    return part && String(part).trim();
+                });
+            },
+
+            buildReasonCorrectionText() {
+                return this.getReasonCorrectionParts().join(' - ');
+            },
+
+            validateReasonCorrection() {
+                var selectedCount = Array.isArray(this.modalForm.reasonCorrections)
+                    ? this.modalForm.reasonCorrections.length
+                    : 0;
+
+                if (this.modalForm.reasonCorrectionOtherEnabled) {
+                    var other = String(this.modalForm.reasonCorrectionOther || '').trim();
+                    if (!other) {
+                        alert('Ingrese la razón en el campo "Otra".');
+                        return false;
+                    }
+                }
+
+                if (selectedCount === 0 && !this.modalForm.reasonCorrectionOtherEnabled) {
+                    alert('Seleccione al menos una razón de corrección.');
+                    return false;
+                }
+
+                return true;
             },
 
             submitModal(action) {
@@ -499,11 +564,19 @@
                 }
 
                 if (action === 'por_corregir') {
-                    if (!this.modalForm.reasonCorrection) {
-                        alert('El campo "Razón de corrección" es requerido para marcar el oficio por corregir.');
-                        return;
+                    if (this.activeModal === 'aprobar') {
+                        var motivo = String(this.modalForm.reasonCorrection || '').trim();
+                        if (!motivo) {
+                            alert('El campo "Motivo de corrección" es requerido para marcar el oficio por corregir.');
+                            return;
+                        }
+                        payload.reasonCorrection = motivo;
+                    } else {
+                        if (!this.validateReasonCorrection()) {
+                            return;
+                        }
+                        payload.reasonCorrection = this.buildReasonCorrectionText();
                     }
-                    payload.reasonCorrection = this.modalForm.reasonCorrection;
                 }
 
                 if (action === 'registrar_respuesta') {

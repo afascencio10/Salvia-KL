@@ -6,7 +6,7 @@
        · Por corregir         → en_correccion */}}
 
 <div v-if="showModal && activeModal === 'revisar'" class="nf-modal-overlay" @click.self="closeModal">
-    <div class="nf-modal">
+    <div class="nf-modal nf-modal--revisar">
 
         <div class="nf-modal-header">
             <h5>Revisar oficio</h5>
@@ -48,40 +48,41 @@
                 </span>
             </div>
 
-            <!-- Razón de corrección -->
-            <div class="nf-modal-form-group" style="margin-top:16px;">
+            <!-- Razones de corrección -->
+            <div class="nf-modal-form-group nf-reason-correction-group">
                 <label class="nf-modal-label">
-                    Razón de corrección
-                    <span v-if="modalForm.reasonCorrection === '' || modalForm.reasonCorrection === null"
+                    Razones de corrección
+                    <span v-if="!hasReasonCorrectionSelection"
                           style="color:#6c757d;font-weight:400;font-size:0.85em;margin-left:4px;">
                         (requerido si marca "Por corregir")
                     </span>
                     <span v-else style="color:#198754;font-weight:400;font-size:0.85em;margin-left:4px;">
-                        ✓ seleccionado
+                        ✓ ${ getReasonCorrectionParts().length } seleccionada(s)
                     </span>
                 </label>
-                <select v-model="modalForm.reasonCorrection" class="form-control nf-filter-input">
-                    <option value="">— Seleccione una razón —</option>
-                    <option value="Números de documentos errados">Números de documentos errados</option>
-                    <option value="No hay claridad en los hechos de violencia reportados, ni tampoco se encuentran con las sugerencias brindadas por los lineamientos técnicos">
-                        No hay claridad en los hechos de violencia reportados, ni tampoco se encuentran con las sugerencias brindadas por los lineamientos técnicos
-                    </option>
-                    <option value="Solicitudes inadecuadas o no relacionadas con hechos de violencia basada en género">
-                        Solicitudes inadecuadas o no relacionadas con hechos de violencia basada en género
-                    </option>
-                    <option value="Dificultades repetitivas y pronunciadas en redacción">
-                        Dificultades repetitivas y pronunciadas en redacción
-                    </option>
-                    <option value="Exigencias desfasadas a las entidades">
-                        Exigencias desfasadas a las entidades
-                    </option>
-                    <option value="No hay relación de hechos en SALVIA en comparación al oficio">
-                        No hay relación de hechos en SALVIA en comparación al oficio
-                    </option>
-                    <option value="Falta de nombre de quien proyecta el oficio">
-                        Falta de nombre de quien proyecta el oficio
-                    </option>
-                </select>
+
+                <div class="nf-reason-checklist">
+                    <label v-for="(reason, index) in correctionReasonOptions"
+                           :key="'reason-' + index"
+                           class="nf-reason-check-item">
+                        <input type="checkbox"
+                               :value="reason"
+                               v-model="modalForm.reasonCorrections">
+                        <span>${ reason }</span>
+                    </label>
+
+                    <label class="nf-reason-check-item nf-reason-check-item--other">
+                        <input type="checkbox"
+                               v-model="modalForm.reasonCorrectionOtherEnabled">
+                        <span>Otra</span>
+                    </label>
+                </div>
+
+                <input v-if="modalForm.reasonCorrectionOtherEnabled"
+                       v-model="modalForm.reasonCorrectionOther"
+                       type="text"
+                       class="form-control nf-filter-input nf-reason-other-input"
+                       placeholder="Especifique otra razón de corrección">
             </div>
 
             <div v-if="saveError" class="nf-error-state" style="margin-top:12px;">
