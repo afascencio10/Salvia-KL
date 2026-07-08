@@ -2,6 +2,7 @@
 package controller
 
 import (
+	"bitsflow/internal/repository"
 	"bitsflow/salvia/service"
 	"errors"
 	"net/http"
@@ -50,7 +51,10 @@ func (c *EntityLetterController) RegisterRoutes(rg *gin.RouterGroup) {
 
 // List devuelve oficios paginados con filtros opcionales por query string.
 //
-//	GET /api/v1/entity-letters?page=0&limit=20&state=para_revisar&caseId=...&agentId=...&notificationUserId=...
+//	GET /api/v1/entity-letters?page=0&limit=5&agentId=...&state=...&identidad=...&entidad=...&numeroRadicado=...&manageableOnly=true
+//
+// Con agentId o notificationUserId + limit: respuesta paginada enriquecida { items, total, page, pageSize, pendingCount }.
+// Con agentId o notificationUserId sin limit: respuesta legacy (array completo) para compatibilidad con oficios-list.
 func (c *EntityLetterController) List(ctx *gin.Context) {
 	page  := ginQueryInt(ctx, "page", 0)
 	limit := ginQueryInt(ctx, "limit", 20)
@@ -60,16 +64,25 @@ func (c *EntityLetterController) List(ctx *gin.Context) {
 	barrierID          := ctx.Query("barrierId")
 	agentID            := ctx.Query("agentId")
 	notificationUserID := ctx.Query("notificationUserId")
+	identidad          := ctx.Query("identidad")
+	entidad            := ctx.Query("entidad")
+	numeroRadicado     := ctx.Query("numeroRadicado")
+	manageableOnly     := ctx.Query("manageableOnly") == "true"
+	listAll            := ctx.Query("listAll") == "true"
+	mineOnly           := ctx.Query("mineOnly") == "true"
+	notificationAgentID := ctx.Query("notificationAgentId")
+	if mineOnly {
+		listAll = false
+		if notificationAgentID == "" {
+			notificationAgentID = agentID
+		}
+	}
+	filterReview       := ctx.Query("notificationUserIdReview")
+	filterRadicado     := ctx.Query("notificationUserIdRadicado")
+	filterResponse     := ctx.Query("notificationUserIdResponse")
+	_, hasLimit        := ctx.GetQuery("limit")
 
 	switch {
-	case state != "":
-		result, err := c.svc.ListByState(ctx.Request.Context(), state, page, limit)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
-			return
-		}
-		ctx.JSON(http.StatusOK, result)
-
 	case caseID != "":
 		items, err := c.svc.ListByCase(ctx.Request.Context(), caseID)
 		if err != nil {
@@ -86,23 +99,62 @@ func (c *EntityLetterController) List(ctx *gin.Context) {
 		}
 		ctx.JSON(http.StatusOK, items)
 
-	case agentID != "":
-		// Devuelve la lista enriquecida con datos de barrier_v2 y victim_case
-		items, err := c.svc.ListByAgentWithRelations(ctx.Request.Context(), agentID)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+	case agentID != "" || notificationUserID != "" || listAll || mineOnly:
+		if hasLimit {
+			filter := repository.EntityLetterListFilter{
+				AgentID:                    agentID,
+				NotificationUserID:         notificationUserID,
+				ListAll:                    listAll,
+				MineOnly:                   mineOnly,
+				NotificationAgentID:        notificationAgentID,
+				State:                      state,
+				Identidad:                  identidad,
+				Entidad:                    entidad,
+				NumeroRadicado:             numeroRadicado,
+				ManageableOnly:             manageableOnly,
+				NotificationUserIDReview:   filterReview,
+				NotificationUserIDRadicado: filterRadicado,
+				NotificationUserIDResponse: filterResponse,
+			}
+			result, err := c.svc.ListWithRelationsFiltered(ctx.Request.Context(), filter, page, limit)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+				return
+			}
+			ctx.JSON(http.StatusOK, gin.H{
+				"items":        result.Items,
+				"total":        result.Total,
+				"page":         result.Page,
+				"pageSize":     result.PageSize,
+				"pendingCount": result.PendingCount,
+			})
 			return
 		}
-		ctx.JSON(http.StatusOK, items)
 
-	case notificationUserID != "":
-		// Devuelve la lista enriquecida con datos de barrier_v2 y victim_case
+		// Legacy: sin limit → array completo enriquecido
+		if agentID != "" {
+			items, err := c.svc.ListByAgentWithRelations(ctx.Request.Context(), agentID)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+				return
+			}
+			ctx.JSON(http.StatusOK, items)
+			return
+		}
 		items, err := c.svc.ListByNotificationUserWithRelations(ctx.Request.Context(), notificationUserID)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
 			return
 		}
 		ctx.JSON(http.StatusOK, items)
+
+	case state != "":
+		result, err := c.svc.ListByState(ctx.Request.Context(), state, page, limit)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+			return
+		}
+		ctx.JSON(http.StatusOK, result)
 
 	default:
 		result, err := c.svc.List(ctx.Request.Context(), page, limit)

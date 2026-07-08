@@ -11,7 +11,7 @@
     </div>
 
     <!-- ─── Tabs ─── -->
-    <div class="nf-tabs-wrapper">
+    <div class="nf-tabs-wrapper" v-if="currentRole !== 'an'">
         <button class="nf-tab" :class="{ active: currentTab === 'todos' }" @click="switchTab('todos')">
             Todos mis oficios
         </button>
@@ -20,21 +20,27 @@
             <span class="nf-tab-badge">${ pendingCount }</span>
         </button>
     </div>
-
-    <!-- ─── Estado de carga ─── -->
-    <div v-if="isLoading" class="nf-loading-state">
-        <div class="nf-spinner"></div>
-        <span>Cargando oficios...</span>
+    <div class="nf-tabs-wrapper" v-else>
+        <button class="nf-tab" :class="{ active: currentTab === 'todos' }" @click="switchTab('todos')">
+            Todos
+        </button>
+        <button class="nf-tab" :class="{ active: currentTab === 'mis_oficios' }" @click="switchTab('mis_oficios')">
+            Mis Oficios
+        </button>
+        <button class="nf-tab" :class="{ active: currentTab === 'gestionar' }" @click="switchTab('gestionar')">
+            Oficios por gestionar
+            <span class="nf-tab-badge">${ pendingCount }</span>
+        </button>
     </div>
 
     <!-- ─── Error: rol no autorizado o fallo de red ─── -->
-    <div v-if="loadError && !isLoading" class="nf-error-state">
+    <div v-if="loadError" class="nf-error-state">
         <i class="fas fa-exclamation-triangle"></i>
         ${ loadError }
     </div>
 
     <!-- ─── Filtros ─── -->
-    <div v-if="!isLoading && !loadError" class="nf-filters">
+    <div v-if="!loadError" class="nf-filters">
         <div class="nf-filter-group">
             <label>Estado del oficio</label>
             <select v-model="filters.estado" class="nf-filter-input form-control">
@@ -60,15 +66,50 @@
             <label>Número radicado</label>
             <input v-model="filters.radicado" type="text" class="nf-filter-input form-control" placeholder="Ej: 2026-FGN-00412">
         </div>
+        <template v-if="currentRole === 'an'">
+            <div class="nf-filter-group">
+                <label>Revisado por</label>
+                <select v-model="filters.revisadoPor" class="nf-filter-input form-control">
+                    <option value="">Todos</option>
+                    <option v-for="agent in notificationAgents" :key="'rev-' + agent.icode" :value="agent.icode">
+                        ${ agent.names } ${ agent.lastNames }
+                    </option>
+                </select>
+            </div>
+            <div class="nf-filter-group">
+                <label>Radicado por</label>
+                <select v-model="filters.radicadoPor" class="nf-filter-input form-control">
+                    <option value="">Todos</option>
+                    <option v-for="agent in notificationAgents" :key="'rad-' + agent.icode" :value="agent.icode">
+                        ${ agent.names } ${ agent.lastNames }
+                    </option>
+                </select>
+            </div>
+            <div class="nf-filter-group">
+                <label>Respuesta registrada por</label>
+                <select v-model="filters.respuestaPor" class="nf-filter-input form-control">
+                    <option value="">Todos</option>
+                    <option v-for="agent in notificationAgents" :key="'res-' + agent.icode" :value="agent.icode">
+                        ${ agent.names } ${ agent.lastNames }
+                    </option>
+                </select>
+            </div>
+        </template>
     </div>
 
     <!-- ─── Tabla de oficios ─── -->
-    <div v-if="!isLoading && !loadError" class="nf-table-wrapper">
+    <div v-if="!loadError" class="nf-table-wrapper">
+
+        <div v-if="isLoading" class="nf-table-loading-overlay" aria-live="polite" aria-busy="true">
+            <div class="nf-spinner"></div>
+            <span>Cargando oficios...</span>
+        </div>
 
         <div class="nf-table-header">
             <div>Caso</div>
             <div>Barrera</div>
             <div>Información del Oficio</div>
+            <div>Historial Agentes</div>
         </div>
 
         <template v-if="paginatedOficios.length > 0">
@@ -148,6 +189,25 @@
                     </div>
                 </div>
 
+                <!-- HISTORIAL AGENTES -->
+                <div class="nf-historial-col">
+                    <template v-if="hasHistorial(oficio)">
+                        <div v-if="oficio.notificationUserIdReview" class="nf-historial-line">
+                            <span class="nf-historial-label">Revisado por:</span>
+                            <span class="nf-historial-name">${ agentDisplayName(oficio.notificationUserIdReview) }</span>
+                        </div>
+                        <div v-if="oficio.notificationUserIdRadicado" class="nf-historial-line">
+                            <span class="nf-historial-label">Radicado por:</span>
+                            <span class="nf-historial-name">${ agentDisplayName(oficio.notificationUserIdRadicado) }</span>
+                        </div>
+                        <div v-if="oficio.notificationUserIdResponse" class="nf-historial-line">
+                            <span class="nf-historial-label">Respuesta por:</span>
+                            <span class="nf-historial-name">${ agentDisplayName(oficio.notificationUserIdResponse) }</span>
+                        </div>
+                    </template>
+                    <span v-else class="nf-historial-empty">—</span>
+                </div>
+
             </div>
         </template>
 
@@ -159,7 +219,7 @@
     </div>
 
     <!-- ─── Paginador ─── -->
-    <nav v-if="!isLoading && !loadError && numPages > 1" aria-label="Paginación" class="nf-pagination-wrapper">
+    <nav v-if="!loadError && numPages > 1" aria-label="Paginación" class="nf-pagination-wrapper">
         <ul class="pagination justify-content-center mt-3">
             <li class="page-item" :class="{ disabled: currentPage === 0 }">
                 <a class="page-link" href="#" @click.prevent="goToPage(currentPage - 1)">Anterior</a>
@@ -194,9 +254,9 @@
 
 <script>
     window.NotifConfig = {
-        currentUser:   {{.currentUser}},
-        currentRole:   {{.currentRole}},
-        currentUserId: {{.currentUserId}}
+        currentUser:   "{{.currentUser}}",
+        currentRole:   "{{.currentRole}}",
+        currentUserId: "{{.currentUserId}}"
     };
 </script>
 <script src="/static/js/components/notifications.js"></script>

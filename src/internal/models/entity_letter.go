@@ -68,6 +68,9 @@ type EntityLetter struct {
 	AsuntoRespuesta    *string        `gorm:"type:varchar(255);column:asunto_respuesta"            json:"asuntoRespuesta,omitempty"`
 	ResponseReviewBy   *string        `gorm:"type:varchar(36);column:response_review_by"           json:"responseReviewBy,omitempty"`
 	ReasonCorrection   *string        `gorm:"type:varchar(255);column:reason_correction"           json:"reasonCorrection,omitempty"`
+	NotificationUserIDReview   *string `gorm:"type:varchar(36);column:notification_user_id_review"   json:"notificationUserIdReview,omitempty"`
+	NotificationUserIDRadicado *string `gorm:"type:varchar(36);column:notification_user_id_radicado" json:"notificationUserIdRadicado,omitempty"`
+	NotificationUserIDResponse *string `gorm:"type:varchar(36);column:notification_user_id_response" json:"notificationUserIdResponse,omitempty"`
 	CreatedAt          time.Time      `                                                            json:"createdAt"`
 	UpdatedAt          time.Time      `                                                            json:"updatedAt"`
 	DeletedAt          gorm.DeletedAt `gorm:"index"                                                json:"deletedAt,omitempty"`

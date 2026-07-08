@@ -40,6 +40,7 @@ type AgentsPsicosocialSearchResponse struct {
 type AgentsSearchService interface {
 	Search(ctx context.Context, query string, limit int) (AgentsSearchResponse, error)
 	SearchPsicosocial(ctx context.Context, query string, limit int) (AgentsPsicosocialSearchResponse, error)
+	ListByRole(ctx context.Context, roleCode string) (AgentsSearchResponse, error)
 }
 
 type agentsSearchService struct {
@@ -98,6 +99,30 @@ func (s *agentsSearchService) SearchPsicosocial(ctx context.Context, query strin
 	}
 
 	return AgentsPsicosocialSearchResponse{Agents: items}, nil
+}
+
+func (s *agentsSearchService) ListByRole(ctx context.Context, roleCode string) (AgentsSearchResponse, error) {
+	roleCode = strings.TrimSpace(strings.ToLower(roleCode))
+	if roleCode == "" {
+		return AgentsSearchResponse{Agents: []AgentSearchItem{}}, nil
+	}
+
+	rows, err := s.repo.FindAllByRole(ctx, roleCode)
+	if err != nil {
+		return AgentsSearchResponse{}, err
+	}
+
+	items := make([]AgentSearchItem, len(rows))
+	for i, row := range rows {
+		items[i] = AgentSearchItem{
+			ICode:     row.ICode,
+			Names:     row.Names,
+			LastNames: row.LastNames,
+			Team:      row.Team,
+		}
+	}
+
+	return AgentsSearchResponse{Agents: items}, nil
 }
 
 func psicosocialRoleLabel(specialty string) string {

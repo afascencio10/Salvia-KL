@@ -143,6 +143,9 @@ type EntityLetterService interface {
 	ListByAgentWithRelations(ctx context.Context, agentID string) ([]models.EntityLetterWithRelations, error)
 	ListByNotificationUserWithRelations(ctx context.Context, notifUserID string) ([]models.EntityLetterWithRelations, error)
 
+	// ListWithRelationsFiltered devuelve oficios paginados con filtros en BD y conteo de pendientes.
+	ListWithRelationsFiltered(ctx context.Context, filter repository.EntityLetterListFilter, page, limit int) (repository.EntityLetterListResult, error)
+
 	// Transición de estado con validación
 	UpdateState(ctx context.Context, id string, input UpdateStateInput) (*models.EntityLetter, error)
 
@@ -291,6 +294,7 @@ func (s *entityLetterService) PerformAction(ctx context.Context, id string, inpu
 		}
 		if input.UserID != "" {
 			fields["review_by"] = input.UserID
+			fields["notification_user_id_review"] = input.UserID
 		}
 		fields["state"] = models.EntityLetterStateAprobacionJuridica
 
@@ -307,6 +311,9 @@ func (s *entityLetterService) PerformAction(ctx context.Context, id string, inpu
 			return nil, fmt.Errorf("entity_letter: el campo 'reasonCorrection' es requerido para marcar por corregir")
 		}
 		fields["reason_correction"] = *input.ReasonCorrection
+		if letter.State == models.EntityLetterStateParaRevisar && input.UserID != "" {
+			fields["notification_user_id_review"] = input.UserID
+		}
 		fields["state"] = models.EntityLetterStateEnCorreccion
 
 	case "radicar":
@@ -329,6 +336,7 @@ func (s *entityLetterService) PerformAction(ctx context.Context, id string, inpu
 		fields["numero_radicado"] = *input.NumeroRadicado
 		if input.UserID != "" {
 			fields["radicado_by"] = input.UserID
+			fields["notification_user_id_radicado"] = input.UserID
 		}
 		fields["state"] = models.EntityLetterStateRadicado
 
@@ -366,6 +374,9 @@ func (s *entityLetterService) PerformAction(ctx context.Context, id string, inpu
 		fields["asunto_respuesta"]   = *input.AsuntoRespuesta
 		fields["response_review_by"] = *input.ResponseReviewBy
 		fields["response_date"]      = parsedDate
+		if input.UserID != "" {
+			fields["notification_user_id_response"] = input.UserID
+		}
 		fields["state"]              = models.EntityLetterStateRespondido
 
 	default:
@@ -625,6 +636,49 @@ func (s *entityLetterService) ListByAgentWithRelations(ctx context.Context, agen
 
 func (s *entityLetterService) ListByNotificationUserWithRelations(ctx context.Context, notifUserID string) ([]models.EntityLetterWithRelations, error) {
 	return s.repo.FindByNotificationUserIDWithRelations(ctx, notifUserID)
+}
+
+// ManageableStatesForAgent devuelve los estados que el rol op/ro puede gestionar.
+func ManageableStatesForAgent() []string {
+	return []string{
+		models.EntityLetterStatePorProyectar,
+		models.EntityLetterStateEnCorreccion,
+	}
+}
+
+// ManageableStatesForNotificationUser devuelve los estados que el rol an puede gestionar.
+func ManageableStatesForNotificationUser() []string {
+	return []string{
+		models.EntityLetterStateParaRevisar,
+		models.EntityLetterStateAprobacionJuridica,
+		models.EntityLetterStateParaRadicar,
+		models.EntityLetterStateRadicado,
+	}
+}
+
+func (s *entityLetterService) ListWithRelationsFiltered(
+	ctx context.Context,
+	filter repository.EntityLetterListFilter,
+	page, limit int,
+) (repository.EntityLetterListResult, error) {
+	hasScope := filter.AgentID != "" ||
+		filter.NotificationUserID != "" ||
+		filter.ListAll ||
+		(filter.MineOnly && filter.NotificationAgentID != "")
+	if !hasScope {
+		return repository.EntityLetterListResult{}, fmt.Errorf("entity_letter: se requiere agentId, listAll o mineOnly")
+	}
+	if filter.AgentID != "" {
+		if len(filter.ManageableStates) == 0 {
+			filter.ManageableStates = ManageableStatesForAgent()
+		}
+	} else if len(filter.ManageableStates) == 0 {
+		filter.ManageableStates = ManageableStatesForNotificationUser()
+	}
+	if filter.MineOnly {
+		filter.ListAll = false
+	}
+	return s.repo.FindWithRelationsFilteredPaginated(ctx, filter, page, limit)
 }
 
 // UpdateState valida que la transición sea permitida y actualiza el estado.

@@ -24,14 +24,23 @@
                 currentTab: 'todos',
 
                 filters: {
-                    estado:    '',
-                    identidad: '',
-                    entidad:   '',
-                    radicado:  ''
+                    estado:       '',
+                    identidad:    '',
+                    entidad:      '',
+                    radicado:     '',
+                    revisadoPor:  '',
+                    radicadoPor:  '',
+                    respuestaPor: ''
                 },
+
+                notificationAgents: [],
 
                 itemsPerPage: 5,
                 currentPage:  0,
+                totalItems:   0,
+                pendingCount: 0,
+
+                filterDebounceTimer: null,
 
                 showModal:      false,
                 activeModal:    null,
@@ -64,7 +73,10 @@
                     correoRemitente:      '',
                     asuntoRespuesta:      '',
                     respuestaRecibidaPor: '',
-                    reasonCorrection:     ''
+                    reasonCorrection:           '',
+                    reasonCorrections:          [],
+                    reasonCorrectionOtherEnabled: false,
+                    reasonCorrectionOther:      ''
                 },
 
                 isSaving:  false,
@@ -75,7 +87,7 @@
                     para_revisar:        'revisar',
                     en_correccion:       'corregir',
                     aprobacion_juridica: 'aprobar',
-                    para_radicar:        'radicar',
+                    para_radicar:        'aprobar',
                     radicado:            'registrar_respuesta'
                 },
 
@@ -94,6 +106,16 @@
                     alta:   'Alta'
                 },
 
+                correctionReasonOptions: [
+                    'Número de identificación incorrecto.',
+                    'Incumplimiento de lineamientos técnicos de forma (omisión de comillas en la transcripción de los hechos, ausencia del nombre del agente que proyecta el oficio, etc).',
+                    'Inconsistencias en la descripción de los hechos (relato ambiguo, información confusa, redacción imprecisa o secuencia cronológica inconsistente).',
+                    'Solicitudes que requieren ajuste o precisión.',
+                    'Inconsistencias entre el registro en SALVIA y el contenido del oficio.',
+                    'Inconsistencias en las entidades destinatarias del oficio (entidades que no corresponden con el caso o con las competencias requeridas).',
+                    'Caso que no corresponde a una Violencia Basada en Género (VBG).'
+                ],
+
                 oficios: []
             };
         },
@@ -102,33 +124,16 @@
             document.getElementById('app').style.display = 'block';
             this.loadOficios();
             this.loadLocations();
+            this.loadNotificationAgents();
         },
 
         computed: {
-            pendingCount() {
-                return this.oficios.filter(o => o.canManage).length;
-            },
-
-            filteredOficios() {
-                return this.oficios.filter(o => {
-                    const tabOk      = this.currentTab === 'todos' || o.canManage;
-                    const estadoOk   = !this.filters.estado || o.status === this.filters.estado;
-                    const idOk       = !this.filters.identidad || o.docNumber.includes(this.filters.identidad);
-                    const entidadOk  = !this.filters.entidad ||
-                        o.barrierOrg.toLowerCase().includes(this.filters.entidad.toLowerCase());
-                    const radicadoOk = !this.filters.radicado ||
-                        (o.numeroRadicado && o.numeroRadicado.toLowerCase().includes(this.filters.radicado.toLowerCase()));
-                    return tabOk && estadoOk && idOk && entidadOk && radicadoOk;
-                });
-            },
-
             numPages() {
-                return Math.max(1, Math.ceil(this.filteredOficios.length / this.itemsPerPage));
+                return Math.max(1, Math.ceil(this.totalItems / this.itemsPerPage));
             },
 
             paginatedOficios() {
-                const start = this.currentPage * this.itemsPerPage;
-                return this.filteredOficios.slice(start, start + this.itemsPerPage);
+                return this.oficios;
             },
 
             visiblePages() {
@@ -153,12 +158,14 @@
                     last = i;
                 }
                 return result;
+            },
+
+            hasReasonCorrectionSelection() {
+                return this.getReasonCorrectionParts().length > 0;
             }
         },
 
         methods: {
-
-            /* ── Locaciones (carga en background al montar) ─────────────────────── */
 
             loadLocations() {
                 var self = this;
@@ -184,24 +191,87 @@
                 ]);
             },
 
-            /* ── Carga inicial ──────────────────────────────────────────────────── */
+            loadNotificationAgents() {
+                var self = this;
+                getData('/api/v1/agents/by-role?role=an', function (status, response) {
+                    if (status === 200 && response && Array.isArray(response.agents)) {
+                        self.notificationAgents = response.agents;
+                    } else {
+                        self.notificationAgents = [];
+                    }
+                }, true);
+            },
+
+            buildOficiosUrl() {
+                const params = new URLSearchParams();
+                params.set('page', String(this.currentPage));
+                params.set('limit', String(this.itemsPerPage));
+
+                const role = String(this.currentRole || '').trim();
+                const userId = String(this.currentUserId || '').trim();
+
+                if (role === 'op' || role === 'ro') {
+                    if (userId) {
+                        params.set('agentId', userId);
+                    }
+                    if (this.currentTab === 'gestionar') {
+                        params.set('manageableOnly', 'true');
+                    }
+                } else if (role === 'an') {
+                    if (this.currentTab === 'mis_oficios') {
+                        params.set('mineOnly', 'true');
+                        if (userId) {
+                            params.set('notificationAgentId', userId);
+                        }
+                    } else {
+                        params.set('listAll', 'true');
+                        if (this.currentTab === 'gestionar') {
+                            params.set('manageableOnly', 'true');
+                        }
+                    }
+                    if (this.filters.revisadoPor) {
+                        params.set('notificationUserIdReview', this.filters.revisadoPor);
+                    }
+                    if (this.filters.radicadoPor) {
+                        params.set('notificationUserIdRadicado', this.filters.radicadoPor);
+                    }
+                    if (this.filters.respuestaPor) {
+                        params.set('notificationUserIdResponse', this.filters.respuestaPor);
+                    }
+                }
+                if (this.filters.estado) {
+                    params.set('state', this.filters.estado);
+                }
+                if (this.filters.identidad.trim()) {
+                    params.set('identidad', this.filters.identidad.trim());
+                }
+                if (this.filters.entidad.trim()) {
+                    params.set('entidad', this.filters.entidad.trim());
+                }
+                if (this.filters.radicado.trim()) {
+                    params.set('numeroRadicado', this.filters.radicado.trim());
+                }
+
+                return '/api/v1/entity-letters?' + params.toString();
+            },
 
             loadOficios() {
                 const VALID_ROLES = ['op', 'an', 'ro'];
-                if (!VALID_ROLES.includes(this.currentRole)) {
+                const role = String(this.currentRole || '').trim();
+                if (!VALID_ROLES.includes(role)) {
                     this.loadError = 'Rol no autorizado para acceder a esta pantalla.';
+                    return;
+                }
+
+                if (role === 'an' && this.currentTab === 'mis_oficios' && !String(this.currentUserId || '').trim()) {
+                    this.loadError = 'No se pudo identificar al usuario en sesión.';
                     return;
                 }
 
                 this.isLoading = true;
                 this.loadError = null;
 
-                let url = '/api/v1/entity-letters?limit=100&page=0';
-                if (this.currentRole === 'op' || this.currentRole === 'ro') {
-                    url += '&agentId=' + encodeURIComponent(this.currentUserId);
-                } else if (this.currentRole === 'an') {
-                    url += '&notificationUserId=' + encodeURIComponent(this.currentUserId);
-                }
+                const url = this.buildOficiosUrl();
 
                 getData(url, (function (status, response) {
                     this.isLoading = false;
@@ -211,10 +281,20 @@
                             ? response
                             : (response && response.items ? response.items : []);
 
-                        if (items.length > 0) {
-                            this.oficios = items
-                                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-                                .map(el => this.mapApiToOficio(el));
+                        this.oficios = items.map(el => this.mapApiToOficio(el));
+
+                        if (response && typeof response.total === 'number') {
+                            this.totalItems = response.total;
+                        } else {
+                            this.totalItems = items.length;
+                        }
+                        if (response && typeof response.pendingCount === 'number') {
+                            this.pendingCount = response.pendingCount;
+                        }
+
+                        if (this.currentPage > 0 && this.currentPage >= this.numPages) {
+                            this.currentPage = Math.max(0, this.numPages - 1);
+                            this.loadOficios();
                         }
                     } else if (status === 401) {
                         location.assign('/static/landing.html');
@@ -275,8 +355,30 @@
                     reasonCorrection:     el.reasonCorrection    || null,
                     officialDependency:   el.officialDependency  || null,
                     subject:              el.subject             || null,
-                    townName:             el.townName            || null
+                    townName:             el.townName            || null,
+                    notificationUserIdReview:   el.notificationUserIdReview   || null,
+                    notificationUserIdRadicado: el.notificationUserIdRadicado || null,
+                    notificationUserIdResponse: el.notificationUserIdResponse || null
                 };
+            },
+
+            agentDisplayName(icode) {
+                if (!icode) return '—';
+                var agent = this.notificationAgents.find(function (a) {
+                    return a.icode === icode;
+                });
+                if (agent) {
+                    return [agent.names, agent.lastNames].filter(function (s) {
+                        return s && s.trim();
+                    }).join(' ').trim() || icode;
+                }
+                return icode;
+            },
+
+            hasHistorial(oficio) {
+                return !!(oficio.notificationUserIdReview ||
+                    oficio.notificationUserIdRadicado ||
+                    oficio.notificationUserIdResponse);
             },
 
             /* ── Utilidades ─────────────────────────────────────────────────────── */
@@ -296,12 +398,14 @@
             switchTab(tab) {
                 this.currentTab  = tab;
                 this.currentPage = 0;
+                this.loadOficios();
             },
 
             goToPage(page) {
                 if (page < 0 || page >= this.numPages) return;
                 this.currentPage = page;
                 window.scrollTo(0, 0);
+                this.loadOficios();
             },
 
             /* ── Modal de gestión ───────────────────────────────────────────────── */
@@ -335,7 +439,10 @@
                     correoRemitente:      oficio.correo            || '',
                     asuntoRespuesta:      '',
                     respuestaRecibidaPor: '',
-                    reasonCorrection:     ''
+                    reasonCorrection:           '',
+                    reasonCorrections:          [],
+                    reasonCorrectionOtherEnabled: false,
+                    reasonCorrectionOther:      ''
                 };
 
                 this.saveError = null;
@@ -347,7 +454,52 @@
                 this.activeModal        = null;
                 this.selectedOficio     = null;
                 this.saveError          = null;
-                this.modalForm.reasonCorrection = '';
+                this.modalForm.reasonCorrection           = '';
+                this.modalForm.reasonCorrections          = [];
+                this.modalForm.reasonCorrectionOtherEnabled = false;
+                this.modalForm.reasonCorrectionOther      = '';
+            },
+
+            getReasonCorrectionParts() {
+                var parts = Array.isArray(this.modalForm.reasonCorrections)
+                    ? this.modalForm.reasonCorrections.slice()
+                    : [];
+
+                if (this.modalForm.reasonCorrectionOtherEnabled) {
+                    var other = String(this.modalForm.reasonCorrectionOther || '').trim();
+                    if (other) {
+                        parts.push(other);
+                    }
+                }
+
+                return parts.filter(function (part) {
+                    return part && String(part).trim();
+                });
+            },
+
+            buildReasonCorrectionText() {
+                return this.getReasonCorrectionParts().join(' - ');
+            },
+
+            validateReasonCorrection() {
+                var selectedCount = Array.isArray(this.modalForm.reasonCorrections)
+                    ? this.modalForm.reasonCorrections.length
+                    : 0;
+
+                if (this.modalForm.reasonCorrectionOtherEnabled) {
+                    var other = String(this.modalForm.reasonCorrectionOther || '').trim();
+                    if (!other) {
+                        alert('Ingrese la razón en el campo "Otra".');
+                        return false;
+                    }
+                }
+
+                if (selectedCount === 0 && !this.modalForm.reasonCorrectionOtherEnabled) {
+                    alert('Seleccione al menos una razón de corrección.');
+                    return false;
+                }
+
+                return true;
             },
 
             submitModal(action) {
@@ -412,11 +564,19 @@
                 }
 
                 if (action === 'por_corregir') {
-                    if (!this.modalForm.reasonCorrection) {
-                        alert('El campo "Razón de corrección" es requerido para marcar el oficio por corregir.');
-                        return;
+                    if (this.activeModal === 'aprobar') {
+                        var motivo = String(this.modalForm.reasonCorrection || '').trim();
+                        if (!motivo) {
+                            alert('El campo "Motivo de corrección" es requerido para marcar el oficio por corregir.');
+                            return;
+                        }
+                        payload.reasonCorrection = motivo;
+                    } else {
+                        if (!this.validateReasonCorrection()) {
+                            return;
+                        }
+                        payload.reasonCorrection = this.buildReasonCorrectionText();
                     }
-                    payload.reasonCorrection = this.modalForm.reasonCorrection;
                 }
 
                 if (action === 'registrar_respuesta') {
@@ -475,16 +635,8 @@
                             if (overlay) overlay.style.display = 'none';
                         }, 1200);
 
-                        const idx = this.oficios.findIndex(o => o.id === this.selectedOficio.id);
-                        if (idx !== -1) {
-                            const updated = response;
-                            this.oficios[idx] = {
-                                ...this.oficios[idx],
-                                status:    updated.state,
-                                canManage: this.canManageForRole(updated.state)
-                            };
-                        }
                         this.closeModal();
+                        this.loadOficios();
                     } else if (status === 401) {
                         location.assign('/static/landing.html');
                     } else if (status === 422) {
@@ -562,7 +714,13 @@
         watch: {
             filters: {
                 deep: true,
-                handler() { this.currentPage = 0; }
+                handler() {
+                    this.currentPage = 0;
+                    clearTimeout(this.filterDebounceTimer);
+                    this.filterDebounceTimer = setTimeout(() => {
+                        this.loadOficios();
+                    }, 350);
+                }
             }
         }
     });

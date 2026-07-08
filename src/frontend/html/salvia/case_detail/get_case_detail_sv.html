@@ -400,7 +400,7 @@
                   <div style="font-size:.83rem;color:#374151">${ b.description }</div>
                 </div>
                 <!-- Tareas de esta barrera (componente reutilizable) -->
-                <case-tasks :case-id="caseICode" :barrier-id="b.id" :user-id="userICode" :user-role="userRole" @open-task-modal="openTaskModal"></case-tasks>
+                <case-tasks :case-id="caseICode" :barrier-id="b.id" :user-id="userICode" :user-role="userRole" ></case-tasks>
               </div>
             </div>
           </div>
@@ -514,7 +514,7 @@
 
         <!-- ══ TAB: TAREAS ══ -->
         <template v-if="tabActiva === 'tareas'">
-          <case-tasks :case-id="caseICode" :user-id="userICode" :user-role="userRole" @open-task-modal="openTaskModal"></case-tasks>
+          <case-tasks :case-id="caseICode" :user-id="userICode" :user-role="userRole" ></case-tasks>
         </template>
 
         <!-- ══ TAB: TIMELINE ══ -->

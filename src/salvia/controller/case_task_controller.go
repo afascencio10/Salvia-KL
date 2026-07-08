@@ -240,7 +240,7 @@ func (c *CaseTaskController) lookupUserName(userID string) string {
 // usuario asignado ya resuelto. Centraliza el shape para que GetByID y el
 // listado devuelvan siempre el mismo conjunto de campos.
 func (c *CaseTaskController) taskToJSON(t models.CaseTask, assignedUserName string) gin.H {
-	return gin.H{
+	result := gin.H{
 		"id":               t.ID,
 		"caseId":           t.CaseID,
 		"category":         t.Category,
@@ -258,6 +258,13 @@ func (c *CaseTaskController) taskToJSON(t models.CaseTask, assignedUserName stri
 		"createdAt":        t.CreatedAt,
 		"updatedAt":        t.UpdatedAt,
 	}
+	// Resolver sector de la barrera si tiene barrierId
+	if t.BarrierID != nil && *t.BarrierID != "" {
+		var sector string
+		c.svc.GetDB().Raw("SELECT COALESCE(sector, '') FROM salvia.barrier_v2 WHERE id = ? LIMIT 1", *t.BarrierID).Scan(&sector)
+		result["barrierSector"] = sector
+	}
+	return result
 }
 
 // enrichTaskWithName enriquece una tarea individual con el nombre del usuario

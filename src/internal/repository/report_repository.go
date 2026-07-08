@@ -77,6 +77,14 @@ type CaseReportDTO struct {
 	ThreatenedToKillOrHarmChildren string `gorm:"column:threatened_children"`
 	JealousAndViolent              string `gorm:"column:jealous_violent"`
 	BelievesCapableOfKilling       string `gorm:"column:capable_killing"`
+
+	// Nuevas preguntas de riesgo pareja / no pareja (Form 2)
+	VictimHealthToBlackmail                   string `gorm:"column:victim_health_to_blackmail"`
+	ThreatenedRevealSexualOrientation         string `gorm:"column:threatened_reveal_sexual_orientation"`
+	StoppedSeekingHelp                        string `gorm:"column:stopped_seeking_help"`
+	AggressorSexuallyHarassment2              string `gorm:"column:aggressor_sexually_harassment_2"`
+	AggressorTakenAdvantagePhysicalVulnerabil string `gorm:"column:aggressor_taken_advantage_physical_vulnerabil"`
+	ViolenceMotivatedByGender2                string `gorm:"column:violence_motivated_by_gender_2"`
 }
 
 type FollowUpReportDTO struct {
@@ -198,7 +206,15 @@ func (r *reportRepository) FindCasesInDateRange(ctx context.Context, start, end 
 			COALESCE(NULLIF(vf1.victim_case_form1_threatened_with_weapon, ''), '') AS threatened_weapon,
 			COALESCE(NULLIF(vf1.victim_case_form1_threatened_to_kill_or_harm_children, ''), '') AS threatened_children,
 			COALESCE(NULLIF(vf1.victim_case_form1_jealous_and_violent, ''), '') AS jealous_violent,
-			COALESCE(NULLIF(vf1.victim_case_form1_believes_capable_of_killing, '') , '') AS capable_killing
+			COALESCE(NULLIF(vf1.victim_case_form1_believes_capable_of_killing, '') , '') AS capable_killing,
+
+			-- Nuevas preguntas de riesgo pareja / no pareja (Form 2)
+			COALESCE(NULLIF(htb.victim_case_form2_enums_name, ''), '') AS victim_health_to_blackmail,
+			COALESCE(NULLIF(tro.victim_case_form2_enums_name, ''), '') AS threatened_reveal_sexual_orientation,
+			COALESCE(NULLIF(ssh.victim_case_form2_enums_name, ''), '') AS stopped_seeking_help,
+			COALESCE(NULLIF(ash.victim_case_form2_enums_name, ''), '') AS aggressor_sexually_harassment_2,
+			COALESCE(NULLIF(avp.victim_case_form2_enums_name, ''), '') AS aggressor_taken_advantage_physical_vulnerabil,
+			COALESCE(NULLIF(vmg.victim_case_form2_enums_name, ''), '') AS violence_motivated_by_gender_2
 
 		FROM salvia.victim_case vc
 		LEFT JOIN salvia.victim_case_form1 vf1 ON vf1.victim_case_form1_victim_case = vc.victim_case_id
@@ -218,6 +234,12 @@ func (r *reportRepository) FindCasesInDateRange(ctx context.Context, start, end 
 		LEFT JOIN salvia.victim_case_form2_enums kin ON kin.victim_case_form2_enums_id = vf2.victim_case_form2_support_contact_kinship
 		LEFT JOIN salvia.victim_case_form2_enums sv ON sv.victim_case_form2_enums_id = vf2.victim_case_form2_scenario_violence
 		LEFT JOIN salvia.victim_case_form2_enums oc2 ON oc2.victim_case_form2_enums_id = vf2.victim_case_form2_occupation
+		LEFT JOIN salvia.victim_case_form2_enums htb ON htb.victim_case_form2_enums_id = vf2.victim_case_form2_victim_health_to_blackmail
+		LEFT JOIN salvia.victim_case_form2_enums tro ON tro.victim_case_form2_enums_id = vf2.victim_case_form2_threatened_reveal_sexual_orientation
+		LEFT JOIN salvia.victim_case_form2_enums ssh ON ssh.victim_case_form2_enums_id = vf2.victim_case_form2_stopped_seeking_help
+		LEFT JOIN salvia.victim_case_form2_enums ash ON ash.victim_case_form2_enums_id = vf2.victim_case_form2_aggressor_sexually_harassment_2
+		LEFT JOIN salvia.victim_case_form2_enums avp ON avp.victim_case_form2_enums_id = vf2.victim_case_form2_aggressor_taken_advantage_physical_vulnerabil
+		LEFT JOIN salvia.victim_case_form2_enums vmg ON vmg.victim_case_form2_enums_id = vf2.victim_case_form2_violence_motivated_by_gender_2
 		LEFT JOIN security.town t ON t.town_code = vc.victim_case_victim_town_code
 		LEFT JOIN security.city c ON c.city_id = t.city_id
 		LEFT JOIN security.department d ON d.department_id = c.department_id

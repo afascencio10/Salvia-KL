@@ -64,7 +64,7 @@ app.component('case-tasks', {
         userRole: { type: String, default: '' },
         barrierId: { type: String, default: '' },
     },
-    emits: ['task-completed', 'open-task-modal'],
+    emits: ['task-completed'],
     data: function() {
         return {
             loading: false,
@@ -108,7 +108,9 @@ app.component('case-tasks', {
             }
         },
         abrirModal: function(task) {
-            this.$emit('open-task-modal', task.id);
+            if (this.$refs.taskModal) {
+                this.$refs.taskModal.open(task.id);
+            }
         },
         onTaskCompleted: function() {
             this.cargar();
@@ -235,6 +237,8 @@ app.component('case-tasks', {
     <!-- Modal de tareas se maneja desde el padre via @open-task-modal -->
     <!-- Modal ver detalle tarea completada (autosuficiente) -->
     <case-task-history ref="taskHistory"></case-task-history>
+    <!-- Modal gestionar tarea pendiente (autosuficiente) -->
+    <case-task-modal ref="taskModal" :current-user-id="userId" @completed="onTaskCompleted"></case-task-modal>
     <!-- Modal reasignar tarea -->
     <div v-if="reasignarTask" class="ct-modal-backdrop" @click.self="reasignarTask = null">
         <div class="ct-modal">

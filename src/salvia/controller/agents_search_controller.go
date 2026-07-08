@@ -24,6 +24,7 @@ func NewAgentsSearchController(svc service.AgentsSearchService) *AgentsSearchCon
 func (c *AgentsSearchController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/agents/search", c.Search)
 	rg.GET("/agents/search-psicosocial", c.SearchPsicosocial)
+	rg.GET("/agents/by-role", c.ListByRole)
 }
 
 // Search devuelve agentes cuyo nombre o apellido coincide con q (mín. 3 caracteres).
@@ -46,6 +47,17 @@ func (c *AgentsSearchController) SearchPsicosocial(ctx *gin.Context) {
 	result, err := c.svc.SearchPsicosocial(ctx.Request.Context(), ctx.Query("q"), limit)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error al buscar profesionales psicosociales"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, result)
+}
+
+// ListByRole devuelve agentes activos con el rol indicado (ej. role=an).
+func (c *AgentsSearchController) ListByRole(ctx *gin.Context) {
+	result, err := c.svc.ListByRole(ctx.Request.Context(), ctx.Query("role"))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error al listar agentes"})
 		return
 	}
 
