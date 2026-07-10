@@ -52,6 +52,15 @@ func (s *stub3x3) ScheduleSession(_ context.Context, psicosocialID string, immed
 func (s *stub3x3) SetNextAttempt(_ context.Context, psicosocialID string, at time.Time) (*time.Time, error) {
 	return &at, nil
 }
+func (s *stub3x3) InitClosureForm(_ context.Context, psicosocialID, reason string) (*service.ClosureFormInit, error) {
+	if reason != "no_consentimiento" && reason != "imposibilidad_contacto_3x3" {
+		return nil, service.ErrInvalidReason
+	}
+	return &service.ClosureFormInit{SubmissionID: "sub-1", FormID: service.ClosureFormID, PreselectedMotivo: reason}, nil
+}
+func (s *stub3x3) CloseProcess(_ context.Context, psicosocialID, submissionID string) (string, string, error) {
+	return "cerrado", "imposibilidad_contacto_3x3", nil
+}
 
 func router(svc service.Psychosocial3x3Service) *gin.Engine {
 	gin.SetMode(gin.TestMode)
@@ -132,5 +141,43 @@ func TestSetNextAttempt(t *testing.T) {
 	w := req(router(&stub3x3{}), http.MethodPut, "/api/v1/psychosocial/ps-1/next-attempt", `{"next_contact_attempt_at":"2026-07-10T14:00:00Z"}`)
 	if w.Code != http.StatusOK {
 		t.Fatalf("esperaba 200, obtuvo %d (%s)", w.Code, w.Body.String())
+	}
+}
+
+func TestInitClosureForm(t *testing.T) {
+	w := req(router(&stub3x3{}), http.MethodPost, "/api/v1/psychosocial/ps-1/init-closure-form?reason=imposibilidad_contacto_3x3", "")
+	if w.Code != http.StatusCreated {
+		t.Fatalf("esperaba 201, obtuvo %d (%s)", w.Code, w.Body.String())
+	}
+	var out map[string]interface{}
+	_ = json.Unmarshal(w.Body.Bytes(), &out)
+	if out["preselectedMotivo"] != "imposibilidad_contacto_3x3" || out["submission_id"] != "sub-1" {
+		t.Fatalf("respuesta inesperada: %s", w.Body.String())
+	}
+}
+
+func TestInitClosureFormInvalidReason(t *testing.T) {
+	w := req(router(&stub3x3{}), http.MethodPost, "/api/v1/psychosocial/ps-1/init-closure-form?reason=nope", "")
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("esperaba 400, obtuvo %d", w.Code)
+	}
+}
+
+func TestCloseProcess(t *testing.T) {
+	w := req(router(&stub3x3{}), http.MethodPost, "/api/v1/psychosocial/ps-1/close", `{"submission_id":"sub-1"}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("esperaba 200, obtuvo %d (%s)", w.Code, w.Body.String())
+	}
+	var out map[string]interface{}
+	_ = json.Unmarshal(w.Body.Bytes(), &out)
+	if out["status"] != "cerrado" {
+		t.Fatalf("status esperado cerrado, obtuvo %v", out["status"])
+	}
+}
+
+func TestCloseProcessMissingSubmission(t *testing.T) {
+	w := req(router(&stub3x3{}), http.MethodPost, "/api/v1/psychosocial/ps-1/close", `{}`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("esperaba 400, obtuvo %d", w.Code)
 	}
 }

@@ -61,18 +61,21 @@ app.component('psychosocial-contact-card', {
     },
     mounted: function() { this.fetchHistory(); },
     methods: {
-        fetchHistory: function() {
+        fetchHistory: function(isRefresh) {
             var self = this;
-            this.loading = true; this.error = null;
+            // En refresco NO ponemos loading=true: eso desmontaría el bloque v-else
+            // (y con él el <psychosocial-contact-modal> que está en pleno flujo).
+            if (!isRefresh) { this.loading = true; }
+            this.error = null;
             fetch('/api/v1/psychosocial/' + encodeURIComponent(this.psicosocialId) + '/contact-attempts')
                 .then(function(res) {
                     return res.json().then(function(json) {
                         self.loading = false;
-                        if (!res.ok) { self.error = json.error || 'No se pudo cargar el historial'; return; }
+                        if (!res.ok) { if (!isRefresh) { self.error = json.error || 'No se pudo cargar el historial'; } return; }
                         self.data = json;
                     });
                 })
-                .catch(function(e) { self.loading = false; self.error = e.message; });
+                .catch(function(e) { self.loading = false; if (!isRefresh) { self.error = e.message; } });
         },
         openRegister: function() {
             var c = this.counters;
@@ -85,7 +88,7 @@ app.component('psychosocial-contact-card', {
                 closureEligible: !!c.closureEligible
             });
         },
-        onModalCompleted: function() { this.fetchHistory(); },
+        onModalCompleted: function() { this.fetchHistory(true); },
         fmt: function(v) {
             if (!v) return '—';
             var d = new Date(v);

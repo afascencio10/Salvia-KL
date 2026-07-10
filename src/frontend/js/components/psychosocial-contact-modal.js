@@ -51,6 +51,10 @@ app.component('psychosocial-contact-modal', {
             modalSesion: false,
             modalAcciones: false,
             modalNextAttempt: false,
+            modalCierre: false,
+            closureLoading: false,
+            closureFormId: null,
+            closureSubmissionId: null,
             attemptDateTime: '',
             note: '',
             scheduledDate: '',
@@ -86,9 +90,10 @@ app.component('psychosocial-contact-modal', {
         },
         closeAll: function() {
             this.modalContesto = this.modalConsentimiento = this.modalSesion = false;
-            this.modalAcciones = this.modalNextAttempt = false;
+            this.modalAcciones = this.modalNextAttempt = this.modalCierre = false;
             this.proc = null; this.note = ''; this.scheduledDate = ''; this.scheduledTime = '';
             this.nextAttemptDateTime = ''; this.lastSuccessAttemptId = null; this.loading = false;
+            this.closureFormId = null; this.closureSubmissionId = null; this.closureLoading = false;
         },
         flashSuccess: function() {
             var ov = document.getElementById('successOverlay');
@@ -167,9 +172,7 @@ app.component('psychosocial-contact-modal', {
                     if (accepted) {
                         self.modalSesion = true;
                     } else {
-                        self.$emit('completed', { type: 'closure-triggered', psicosocialId: self.proc.id, reason: 'no_acepta_consentimiento' });
-                        self.futureNote('El proceso se cerrará mediante el formulario de cierre (pendiente de implementar).');
-                        self.closeAll();
+                        self.openClosureForm('no_consentimiento');
                     }
                 });
             }).catch(function(e) { self.loading = false; self.showError(e.message); });
@@ -232,9 +235,46 @@ app.component('psychosocial-contact-modal', {
             this.modalContesto = true;
         },
         closeByImpossibility: function() {
-            this.$emit('completed', { type: 'closure-triggered', psicosocialId: this.proc.id, reason: 'imposibilidad_contacto' });
-            this.futureNote('El proceso se cerrará mediante el formulario de cierre por imposibilidad de contacto (pendiente de implementar).');
-            this.closeAll();
+            this.modalAcciones = false;
+            this.openClosureForm('imposibilidad_contacto_3x3');
+        },
+
+        // ── Cierre (formulario dinámico) ───────────────────────────────
+        openClosureForm: function(reason) {
+            var self = this;
+            if (this.closureLoading) return;
+            // Abrir el modal de inmediato con loader; el form se carga en segundo plano.
+            this.closureLoading = true;
+            this.closureFormId = null;
+            this.closureSubmissionId = null;
+            this.modalConsentimiento = false;
+            this.modalAcciones = false;
+            this.modalCierre = true;
+            fetch('/api/v1/psychosocial/' + encodeURIComponent(this.proc.id) + '/init-closure-form?reason=' + encodeURIComponent(reason), {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }
+            }).then(function(res) {
+                return res.json().then(function(json) {
+                    self.closureLoading = false;
+                    if (!res.ok) { self.modalCierre = false; self.showError(json.error || 'No se pudo iniciar el formulario de cierre'); return; }
+                    self.closureFormId = json.form_id;
+                    self.closureSubmissionId = json.submission_id;
+                });
+            }).catch(function(e) { self.closureLoading = false; self.modalCierre = false; self.showError(e.message); });
+        },
+        onClosureCompleted: function() {
+            var self = this;
+            var psId = this.proc ? this.proc.id : null;
+            fetch('/api/v1/psychosocial/' + encodeURIComponent(psId) + '/close', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ submission_id: this.closureSubmissionId })
+            }).then(function(res) {
+                return res.json().then(function(json) {
+                    if (!res.ok) { self.showError(json.error || 'No se pudo cerrar el proceso'); return; }
+                    self.$emit('completed', { type: 'closed', psicosocialId: psId, status: json.status, motivo: json.motivo });
+                    self.closeAll();
+                    self.flashSuccess();
+                });
+            }).catch(function(e) { self.showError(e.message); });
         }
     },
     template: `
@@ -320,6 +360,26 @@ app.component('psychosocial-contact-modal', {
             <button class="psc-btn psc-btn-ghost" :disabled="loading" @click="closeAll">Cancelar</button>
             <button class="psc-btn psc-btn-primary" :disabled="loading" @click="saveNextAttempt">Guardar</button>
           </div>
+        </div>
+      </div>
+
+      <!-- Formulario de Cierre de proceso psicosocial (dinamic-form) -->
+      <div v-if="modalCierre" class="psc-modal-overlay" @click.self="closeAll">
+        <div class="psc-modal-content" style="max-width:900px; width:95%; max-height:90vh; overflow:auto; text-align:left;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid #e5e7eb; padding-bottom:.75rem;">
+            <h3 class="psc-title" style="margin:0;">Formulario de Cierre de proceso psicosocial</h3>
+            <button @click="closeAll" style="background:none;border:none;font-size:1.25rem;color:#9ca3af;cursor:pointer;"><i class="fas fa-times"></i></button>
+          </div>
+          <div v-if="!closureFormId || !closureSubmissionId" style="text-align:center; padding:2.5rem 1rem; color:#6b7280;">
+            <i class="fas fa-circle-notch fa-spin" style="font-size:1.75rem; color:#8b5cf6;"></i>
+            <p style="margin-top:.75rem; font-size:.9rem;">Cargando formulario de cierre…</p>
+          </div>
+          <dinamic-form
+            v-else
+            :form-id="closureFormId"
+            :submission-id="closureSubmissionId"
+            @form-completed="onClosureCompleted">
+          </dinamic-form>
         </div>
       </div>
     </div>

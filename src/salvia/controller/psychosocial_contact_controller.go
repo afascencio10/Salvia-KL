@@ -36,6 +36,8 @@ func (c *PsychosocialContactController) RegisterRoutes(api *gin.RouterGroup) {
 		grp.POST("/contact-attempts", c.RegisterAttempt)
 		grp.POST("/sessions", c.ScheduleSession)
 		grp.PUT("/next-attempt", c.SetNextAttempt)
+		grp.POST("/init-closure-form", c.InitClosureForm)
+		grp.POST("/close", c.CloseProcess)
 	}
 	api.PATCH("/contact-attempts/:id/consent", c.SetConsent)
 }
@@ -211,6 +213,59 @@ func (c *PsychosocialContactController) SetNextAttempt(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
 		"psicosocialId":        psicosocialID,
 		"nextContactAttemptAt": saved,
+	})
+}
+
+func (c *PsychosocialContactController) InitClosureForm(ctx *gin.Context) {
+	psicosocialID := ctx.Param("psicosocialId")
+	reason := ctx.Query("reason")
+
+	init, err := c.svc.InitClosureForm(ctx.Request.Context(), psicosocialID, reason)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrInvalidReason):
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "reason inválido"})
+		case errors.Is(err, service.ErrPsychosocial3x3NotFound):
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "proceso psicosocial no encontrado"})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+	ctx.JSON(http.StatusCreated, gin.H{
+		"submission_id":     init.SubmissionID,
+		"form_id":           init.FormID,
+		"preselectedMotivo": init.PreselectedMotivo,
+	})
+}
+
+func (c *PsychosocialContactController) CloseProcess(ctx *gin.Context) {
+	psicosocialID := ctx.Param("psicosocialId")
+
+	var body struct {
+		SubmissionID *string `json:"submission_id"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil || body.SubmissionID == nil || *body.SubmissionID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "submission_id es requerido"})
+		return
+	}
+
+	status, motivo, err := c.svc.CloseProcess(ctx.Request.Context(), psicosocialID, *body.SubmissionID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrInvalidReason):
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "la submission no tiene Motivo de cierre respondido"})
+		case errors.Is(err, service.ErrPsychosocial3x3NotFound):
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "proceso psicosocial no encontrado"})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"psicosocialId": psicosocialID,
+		"status":        status,
+		"motivo":        motivo,
 	})
 }
 

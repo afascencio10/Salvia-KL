@@ -20,7 +20,36 @@ var (
 	ErrMaxAttemptsReached      = errors.New("max contact attempts reached")
 	ErrConsentNotAccepted      = errors.New("informed consent not accepted")
 	ErrInvalidAttempt          = errors.New("invalid contact attempt")
+	ErrInvalidReason           = errors.New("invalid closure reason")
 )
+
+// Formulario de Cierre de proceso psicosocial (ver closure-form-model.md).
+const (
+	ClosureFormID  = "fcc7dc8d-835b-4559-9283-2ea8b8e6092b"
+	ClosureQMotivo = "1c6d97ac-dc83-4e73-b747-14cd93ad422d" // pregunta "Motivo de cierre"
+)
+
+// validClosureReasons: disparadores permitidos hoy para iniciar el cierre.
+var validClosureReasons = map[string]bool{
+	"no_consentimiento":          true,
+	"imposibilidad_contacto_3x3": true,
+}
+
+// closureReasonToStatus mapea el Motivo de cierre al estado resultante (RN-12).
+var closureReasonToStatus = map[string]string{
+	"imposibilidad_contacto_3x3": models.PsychosocialSupportStatusCerrado,
+	"cumplimiento_objetivos":     models.PsychosocialSupportStatusCerrado,
+	"cumplimiento_esquema":       models.PsychosocialSupportStatusCerrado,
+	"no_consentimiento":          models.PsychosocialSupportStatusEnDevolucion,
+	"desistimiento_proceso":      models.PsychosocialSupportStatusEnDevolucion,
+}
+
+// ClosureFormInit es la respuesta de InitClosureForm.
+type ClosureFormInit struct {
+	SubmissionID      string `json:"submission_id"`
+	FormID            string `json:"form_id"`
+	PreselectedMotivo string `json:"preselectedMotivo"`
+}
 
 // Umbrales del flujo 3x3.
 const (
@@ -82,6 +111,8 @@ type Psychosocial3x3Service interface {
 	SetConsent(ctx context.Context, attemptID string, consentGiven bool) (*ConsentResult, error)
 	ScheduleSession(ctx context.Context, psicosocialID string, immediate bool, scheduledAt *time.Time, scheduledTime *string, professionalID, team string) (*SessionResult, error)
 	SetNextAttempt(ctx context.Context, psicosocialID string, at time.Time) (*time.Time, error)
+	InitClosureForm(ctx context.Context, psicosocialID, reason string) (*ClosureFormInit, error)
+	CloseProcess(ctx context.Context, psicosocialID, submissionID string) (status, motivo string, err error)
 }
 
 type psychosocial3x3Service struct {
@@ -332,4 +363,66 @@ func (s *psychosocial3x3Service) SetNextAttempt(ctx context.Context, psicosocial
 		return nil, err
 	}
 	return &utc, nil
+}
+
+// InitClosureForm crea la form_submission del formulario de cierre y pre-responde
+// el Motivo según el disparador (queda preseleccionado pero editable).
+func (s *psychosocial3x3Service) InitClosureForm(ctx context.Context, psicosocialID, reason string) (*ClosureFormInit, error) {
+	if !validClosureReasons[reason] {
+		return nil, ErrInvalidReason
+	}
+	if _, err := s.loadProcess(ctx, psicosocialID); err != nil {
+		return nil, err
+	}
+
+	submission := &models.FormSubmission{FormID: ClosureFormID}
+	if err := s.db.WithContext(ctx).Create(submission).Error; err != nil {
+		return nil, err
+	}
+	// Pre-respuesta del Motivo (editable por la profesional en el dinamic-form).
+	answer := &models.Answer{FormSubmissionID: submission.ID, QuestionID: ClosureQMotivo, Value: reason}
+	if err := s.db.WithContext(ctx).Create(answer).Error; err != nil {
+		return nil, err
+	}
+
+	return &ClosureFormInit{
+		SubmissionID:      submission.ID,
+		FormID:            ClosureFormID,
+		PreselectedMotivo: reason,
+	}, nil
+}
+
+// CloseProcess lee el Motivo de la submission y transiciona el proceso a
+// cerrado / en_devolucion. Afecta solo al proceso psicosocial.
+func (s *psychosocial3x3Service) CloseProcess(ctx context.Context, psicosocialID, submissionID string) (string, string, error) {
+	if _, err := s.loadProcess(ctx, psicosocialID); err != nil {
+		return "", "", err
+	}
+
+	var motivos []string
+	if err := s.db.WithContext(ctx).
+		Model(&models.Answer{}).
+		Where("form_submission_id = ? AND question_id = ?", submissionID, ClosureQMotivo).
+		Order("updated_at DESC").
+		Limit(1).
+		Pluck("value", &motivos).Error; err != nil {
+		return "", "", err
+	}
+	if len(motivos) == 0 || motivos[0] == "" {
+		return "", "", ErrInvalidReason
+	}
+	motivo := motivos[0]
+
+	status, ok := closureReasonToStatus[motivo]
+	if !ok {
+		status = models.PsychosocialSupportStatusCerrado
+	}
+
+	if err := s.db.WithContext(ctx).
+		Model(&models.PsychosocialSupport{}).
+		Where("id = ?", psicosocialID).
+		Update("status", status).Error; err != nil {
+		return "", "", err
+	}
+	return status, motivo, nil
 }

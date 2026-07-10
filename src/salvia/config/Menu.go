@@ -285,6 +285,8 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	"set_psychosocial_consent":               {"ps": true, "ts": true},
 	"schedule_psychosocial_session":          {"ps": true, "ts": true},
 	"set_psychosocial_next_attempt":          {"ps": true, "ts": true},
+	"init_psychosocial_closure_form":         {"ps": true, "ts": true},
+	"close_psychosocial_process":             {"ps": true, "ts": true},
 }
 
 // Menús del sistema. Se filtra por el tipo de menú (ie/ default) y luego por la sección principal repesentada por el locale.
