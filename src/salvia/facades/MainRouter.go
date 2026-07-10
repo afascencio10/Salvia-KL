@@ -221,6 +221,11 @@ func StartRouter(router *gin.Engine) {
 		secRouter.GET("/mis-remisiones-psicosocial", MisRemisionesPsicosocialGET)
 
 		/*
+			Remisión Temporal (host del card 3x3 — pantalla puente, roles ps, ts)
+		*/
+		secRouter.GET("/remision-temporal/:id", RemisionTemporalGET)
+
+		/*
 			KPIs Dashboard (embudo analítico)
 		*/
 		secRouter.GET("/kpis", KpiDashboardGET)

@@ -278,6 +278,13 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 
 	// ── Mis remisiones Psicosocial (profesional ps / ts) ────────────────────
 	"get_mis_remisiones_psicosocial": {"ps": true, "ts": true},
+
+	// ── Flujo 3x3 de Atención Psicosocial (profesional ps / ts) ─────────────
+	"get_psychosocial_contact_attempts":      {"ps": true, "ts": true},
+	"register_psychosocial_contact_attempt":  {"ps": true, "ts": true},
+	"set_psychosocial_consent":               {"ps": true, "ts": true},
+	"schedule_psychosocial_session":          {"ps": true, "ts": true},
+	"set_psychosocial_next_attempt":          {"ps": true, "ts": true},
 }
 
 // Menús del sistema. Se filtra por el tipo de menú (ie/ default) y luego por la sección principal repesentada por el locale.

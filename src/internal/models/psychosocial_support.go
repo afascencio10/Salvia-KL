@@ -23,6 +23,8 @@ type PsychosocialSupport struct {
 	ScheduledAt     *time.Time     `json:"scheduledAt"`
 	SessionCount    int            `gorm:"default:0" json:"sessionCount"`
 	Status          string         `gorm:"type:varchar(30);default:'abierto'" json:"status"`
+	// NextContactAttemptAt: fecha/hora del próximo intento de contacto (acción 3a del flujo 3x3).
+	NextContactAttemptAt *time.Time `gorm:"column:next_contact_attempt_at" json:"nextContactAttemptAt,omitempty"`
 	Notes           *string        `gorm:"type:text" json:"notes"`
 	SubmittedBy     *string        `gorm:"type:varchar(36);column:submitted_by" json:"submittedBy,omitempty"`
 	SubmittedByTeam *string        `gorm:"type:varchar(50);column:submitted_by_team" json:"submittedByTeam,omitempty"`

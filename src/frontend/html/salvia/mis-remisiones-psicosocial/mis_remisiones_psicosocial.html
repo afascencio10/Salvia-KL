@@ -54,9 +54,12 @@
                 }
             },
             onVerRemision: function(payload) {
-                var followUpId = payload && payload.followUpId;
-                if (followUpId) {
-                    window.location.href = '/salvia/hacer-seguimiento/' + encodeURIComponent(followUpId);
+                // remisionId = psychosocial_support_id (PsychosocialListItem.ID).
+                // Pantalla temporal que monta el card 3x3 mientras no exista la
+                // pantalla interna definitiva de Remisión.
+                var psicosocialId = payload && payload.remisionId;
+                if (psicosocialId) {
+                    window.location.href = '/salvia/remision-temporal/' + encodeURIComponent(psicosocialId);
                 }
             },
             logout: function() {
