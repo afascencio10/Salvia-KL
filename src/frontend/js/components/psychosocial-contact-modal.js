@@ -370,9 +370,13 @@ app.component('psychosocial-contact-modal', {
             <h3 class="psc-title" style="margin:0;">Formulario de Cierre de proceso psicosocial</h3>
             <button @click="closeAll" style="background:none;border:none;font-size:1.25rem;color:#9ca3af;cursor:pointer;"><i class="fas fa-times"></i></button>
           </div>
-          <div v-if="!closureFormId || !closureSubmissionId" style="text-align:center; padding:2.5rem 1rem; color:#6b7280;">
-            <i class="fas fa-circle-notch fa-spin" style="font-size:1.75rem; color:#8b5cf6;"></i>
-            <p style="margin-top:.75rem; font-size:.9rem;">Cargando formulario de cierre…</p>
+          <!-- Loader idéntico al del dinamic-form para que el cambio sea invisible -->
+          <div v-if="!closureFormId || !closureSubmissionId" style="display:flex;align-items:center;justify-content:center;width:100%;padding:48px 0;gap:12px;color:#6b7280;font-size:14px;">
+            <svg style="width:20px;height:20px;animation:df-spin 0.8s linear infinite;flex-shrink:0" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="#e5e7eb" stroke-width="3"/>
+              <path d="M12 2a10 10 0 0 1 10 10" stroke="#7c3aed" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+            Cargando formulario...
           </div>
           <dinamic-form
             v-else
