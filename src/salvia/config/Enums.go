@@ -58,9 +58,11 @@ var HTML_Templates map[string]string = map[string]string{
 	"get_feminicide_risk":      "get_feminicide_risk.html",
 	"notificaciones":           "notificaciones.html",
 	"mis_barreras":             "barrieris.html",
-	"barrera_detalle":                "barrera_detalle.html",
-	"remision_psicosocial_detalle":   "remision_psicosocial_detalle.html",
-	"kpis_dashboard":                 "kpis_dashboard.html",
+	"barrera_detalle":                  "barrera_detalle.html",
+	"remision_psicosocial_detalle":     "remision_psicosocial_detalle.html",
+	"kpis_dashboard":                   "kpis_dashboard.html",
+	"registrar_sesion_psicosocial":     "registrar_sesion.html",
+	"test_casos_psicosocial":           "test_casos_psicosocial.html",
 }
 
 var FormPaths map[string]map[string]string = map[string]map[string]string{

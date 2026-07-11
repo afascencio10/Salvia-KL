@@ -246,6 +246,13 @@ func StartRouter(router *gin.Engine) {
 		secRouter.GET("/seguimientos/area", SeguimientosAreaGET)
 
 		/*
+			Psicosocial — Registrar sesión
+			Rutas estáticas antes de la dinámica para evitar conflictos en Gin.
+		*/
+		secRouter.GET("/psicosocial/test", TestCasosPsicosocialGET)
+		secRouter.GET("/psicosocial/registrar/:id", RegistrarSesionPsicosocialGET)
+
+		/*
 			Notificaciones
 		*/
 		secRouter.GET("/notificaciones", NotificacionesGET)

@@ -278,6 +278,12 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 
 	// ── Mis remisiones Psicosocial (profesional ps / ts) ────────────────────
 	"get_mis_remisiones_psicosocial": {"ps": true, "ts": true},
+
+	// ── Registrar sesión psicosocial (profesional ps / ts) ──────────────────
+	"get_registrar_sesion_psicosocial": {"ps": true, "ts": true},
+
+	// ── Test — selección de casos psicosocial (solo desarrollo / supervisión) ─
+	"get_test_psicosocial": {"ps": true, "ts": true, "sv": true, "ad": true},
 }
 
 // Menús del sistema. Se filtra por el tipo de menú (ie/ default) y luego por la sección principal repesentada por el locale.

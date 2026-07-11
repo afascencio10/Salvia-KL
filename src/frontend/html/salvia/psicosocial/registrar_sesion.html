@@ -1,0 +1,890 @@
+<div class="container mt-4">
+    <div class="welcome-section mb-4">
+        <h2><b>Registrar Sesión Psicosocial</b></h2>
+    </div>
+
+    <div id="psicosocial-app">
+
+        <!-- ── Card de información del caso ─────────────────────────────── -->
+        <div v-if="victimInfo" class="card ps-card mb-4">
+            <div class="card-body">
+                <div class="ps-card-header">
+                    <div class="ps-card-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="ps-card-name-block">
+                        <h5 class="ps-card-name">
+                            ${ [victimInfo.Names, victimInfo.LastNames].filter(Boolean).join(' ') || '—' }
+                        </h5>
+                        <span class="ps-card-location">
+                            <i class="fas fa-map-marker-alt"></i> ${ victimInfo.TownName || '—' }
+                        </span>
+                    </div>
+                </div>
+
+                <hr class="ps-divider">
+
+                <div class="ps-card-body-row">
+                    <!-- Campos de la víctima -->
+                    <div class="ps-card-fields">
+                        <div class="ps-field">
+                            <span class="ps-field-label">Teléfono</span>
+                            <span class="ps-field-value">${ victimInfo.Phone || '—' }</span>
+                        </div>
+                        <div class="ps-field">
+                            <span class="ps-field-label">Identidad de género</span>
+                            <span class="ps-field-value">${ victimInfo.GenderIdentity || '—' }</span>
+                        </div>
+                        <div class="ps-field">
+                            <span class="ps-field-label">Nivel de riesgo</span>
+                            <span class="ps-field-value ps-risk" :class="'ps-risk--' + victimInfo.RiskLevel">
+                                ${ riskLabel }
+                            </span>
+                        </div>
+                        <div class="ps-field">
+                            <span class="ps-field-label">Código de caso</span>
+                            <span class="ps-field-value">${ victimInfo.CaseICode || '—' }</span>
+                        </div>
+                    </div>
+
+                    <!-- Estado de la sesión -->
+                    <div class="ps-session-status">
+                        <div class="ps-ss-badge ps-ss-session">
+                            <i class="fas fa-calendar-check"></i>
+                            Sesión ${ psicosocialState.sessionCount + 1 } de 6
+                        </div>
+                        <div class="ps-ss-badge"
+                            :style="{ color: statusInfo.color, background: statusInfo.bg, border: '1px solid ' + statusInfo.color + '44' }">
+                            ${ statusInfo.label }
+                        </div>
+                        <div class="ps-ss-badge ps-ss-form">
+                            <i class="fas fa-file-alt"></i>
+                            ${ formTypeLabel }
+                        </div>
+                        <div v-if="formState.skipContact" class="ps-ss-badge ps-ss-skip">
+                            <i class="fas fa-forward"></i>
+                            Continúa desde Primer Contacto
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Error de carga ────────────────────────────────────────────── -->
+        <div v-if="loadError" class="alert alert-danger">${ loadError }</div>
+
+        <!-- ── Área principal con sidebar + formulario ───────────────────── -->
+        <div v-else-if="sectionsToShow.length > 0" class="ps-layout">
+
+            <!-- Sidebar de navegación de secciones -->
+            <aside class="ps-sidebar">
+                <div class="ps-sidebar-header">
+                    <p class="ps-sidebar-title">SECCIONES</p>
+                </div>
+                <nav class="ps-sidebar-nav">
+                    <button
+                        v-for="(sec, idx) in sectionsToShow"
+                        :key="idx"
+                        class="ps-section-item"
+                        :class="{
+                            'ps-section-item--active':    currentSectionIdx === idx,
+                            'ps-section-item--completed': answeredSections[idx],
+                            'ps-section-item--pending':   idx > firstPendingIdx,
+                        }"
+                        :disabled="idx > firstPendingIdx"
+                        @click="goToSection(idx)"
+                    >
+                        <span class="ps-badge"
+                            :class="{
+                                'ps-badge--active':    currentSectionIdx === idx,
+                                'ps-badge--completed': answeredSections[idx],
+                            }">
+                            <i v-if="answeredSections[idx]" class="fas fa-check"></i>
+                            <span v-else>${ sec.order }</span>
+                        </span>
+                        <span class="ps-section-name">${ sec.name }</span>
+                    </button>
+                </nav>
+
+                <!-- Barra de progreso -->
+                <div class="ps-progress-wrap">
+                    <div class="ps-progress-label">
+                        <span>Progreso</span>
+                        <span>${ Object.keys(answeredSections).length } / ${ sectionsToShow.length }</span>
+                    </div>
+                    <div class="ps-progress-bar-bg">
+                        <div class="ps-progress-bar-fill" :style="{ width: progressPercent + '%' }"></div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Panel principal -->
+            <main class="ps-main">
+
+                <!-- Banner solo lectura -->
+                <div v-if="!canEdit" class="ps-readonly-banner">
+                    <i class="fas fa-lock"></i>
+                    Este formulario está en modo solo lectura (proceso cerrado).
+                </div>
+
+                <!-- Header de la sección -->
+                <div class="ps-section-header">
+                    <div class="ps-section-header-row">
+                        <span class="ps-section-number">${ currentSection.order }</span>
+                        <h2 class="ps-section-title">${ currentSection.name }</h2>
+                        <span v-if="!canEdit" class="ps-readonly-badge">🔒 Solo lectura</span>
+                    </div>
+                    <div v-if="currentSection.conditionNote" class="ps-section-condition-note">
+                        <i class="fas fa-eye"></i> ${ currentSection.conditionNote }
+                    </div>
+                    <div v-if="currentSection.skipable && formState.skipContact" class="ps-section-skip-note">
+                        <i class="fas fa-forward"></i> ${ currentSection.skipNote }
+                    </div>
+                </div>
+
+                <!-- Preguntas de la sección -->
+                <div class="ps-questions">
+                    <div
+                        v-for="(q, qi) in currentSection.questions"
+                        :key="qi"
+                        class="ps-question"
+                        :class="{ 'ps-question--highlight': q.highlight }"
+                    >
+                        <div class="ps-question-header">
+                            <span class="ps-q-number">${ qi + 1 }</span>
+                            <label class="ps-q-label">
+                                ${ q.label }
+                                <span v-if="q.highlight" class="ps-q-highlight-tag">gatillo</span>
+                            </label>
+                        </div>
+
+                        <!-- Condicional visible note -->
+                        <div v-if="q.conditional" class="ps-q-conditional">
+                            <i class="fas fa-eye-slash"></i> Visible: ${ q.conditional }
+                        </div>
+
+                        <!-- Input según tipo -->
+                        <div class="ps-q-input">
+                            <!-- single / opciones -->
+                            <div v-if="q.type === 'single' || q.type === 'multiple'" class="ps-btn-group">
+                                <button
+                                    v-for="opt in q.options"
+                                    :key="opt"
+                                    class="ps-opt-btn"
+                                    :class="{ 'ps-opt-btn--active': mockAnswers[currentSectionIdx + '_' + qi] === opt || (Array.isArray(mockAnswers[currentSectionIdx + '_' + qi]) && mockAnswers[currentSectionIdx + '_' + qi].includes(opt)) }"
+                                    :disabled="!canEdit"
+                                    @click="toggleAnswer(currentSectionIdx, qi, opt, q.type)"
+                                >
+                                    ${ opt }
+                                </button>
+                            </div>
+
+                            <!-- boolean -->
+                            <div v-else-if="q.type === 'boolean'" class="ps-bool-group">
+                                <button class="ps-bool-btn"
+                                    :class="{ 'ps-bool-btn--active': mockAnswers[currentSectionIdx + '_' + qi] === true }"
+                                    :disabled="!canEdit"
+                                    @click="mockAnswers[currentSectionIdx + '_' + qi] = true">
+                                    Sí
+                                </button>
+                                <button class="ps-bool-btn"
+                                    :class="{ 'ps-bool-btn--active': mockAnswers[currentSectionIdx + '_' + qi] === false }"
+                                    :disabled="!canEdit"
+                                    @click="mockAnswers[currentSectionIdx + '_' + qi] = false">
+                                    No
+                                </button>
+                            </div>
+
+                            <!-- text -->
+                            <textarea v-else-if="q.type === 'text'"
+                                class="ps-textarea"
+                                :disabled="!canEdit"
+                                v-model="mockAnswers[currentSectionIdx + '_' + qi]"
+                                rows="2"
+                                :placeholder="canEdit ? 'Escribir respuesta...' : '—'">
+                            </textarea>
+
+                            <!-- date -->
+                            <input v-else-if="q.type === 'date'"
+                                type="date"
+                                class="ps-input"
+                                :disabled="!canEdit"
+                                v-model="mockAnswers[currentSectionIdx + '_' + qi]"
+                            />
+                        </div>
+
+                        <!-- Nota de gatillo -->
+                        <div v-if="q.note" class="ps-q-note">
+                            <i class="fas fa-info-circle"></i> ${ q.note }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Barra de navegación -->
+                <div class="ps-nav">
+                    <button class="ps-btn-prev"
+                        :disabled="currentSectionIdx === 0"
+                        @click="goPrev">
+                        ← Anterior
+                    </button>
+                    <button class="ps-btn-next"
+                        @click="goNext">
+                        <span v-if="isLastSection && canEdit">Guardar sesión ✓</span>
+                        <span v-else-if="isLastSection && !canEdit">Cerrar</span>
+                        <span v-else>Siguiente →</span>
+                    </button>
+                </div>
+
+            </main>
+        </div>
+
+        <!-- ── Overlay de sesión completada ─────────────────────────────── -->
+        <div v-if="sessionCompleted" class="ps-completed-backdrop">
+            <div class="ps-completed-card">
+                <div class="ps-completed-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" fill="#22c55e"/>
+                        <path d="M7 12.5l3.5 3.5 6-7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+
+                <!-- Variante: Primer Contacto con Continuar = Sí -->
+                <template v-if="completedVariant === 'continuar_pa'">
+                    <h4 class="ps-completed-title">Primer Contacto guardado</h4>
+                    <p class="ps-completed-text">Continúa con el registro de la Primera Atención.</p>
+                    <button class="ps-completed-btn ps-completed-btn--secondary" @click="resetMock">
+                        ← Volver a casos de prueba
+                    </button>
+                    <button class="ps-completed-btn" @click="simularContinuar">
+                        Iniciar Primera Atención →
+                    </button>
+                </template>
+
+                <!-- Variante: Solo Contacto -->
+                <template v-else-if="completedVariant === 'solo_contacto'">
+                    <h4 class="ps-completed-title">Contacto registrado</h4>
+                    <p class="ps-completed-text">El contacto fue registrado. La próxima sesión queda pendiente de agendar.</p>
+                    <button class="ps-completed-btn" @click="resetMock">
+                        ← Volver a casos de prueba
+                    </button>
+                </template>
+
+                <!-- Variante: Cierre -->
+                <template v-else-if="completedVariant === 'cierre'">
+                    <h4 class="ps-completed-title">Proceso cerrado</h4>
+                    <p class="ps-completed-text">El proceso psicosocial fue cerrado exitosamente.</p>
+                    <button class="ps-completed-btn" @click="resetMock">
+                        ← Volver a casos de prueba
+                    </button>
+                </template>
+
+                <!-- Variante: sesión normal -->
+                <template v-else>
+                    <h4 class="ps-completed-title">Sesión registrada</h4>
+                    <p class="ps-completed-text">La sesión fue registrada exitosamente.</p>
+                    <button class="ps-completed-btn" @click="resetMock">
+                        ← Volver a casos de prueba
+                    </button>
+                </template>
+            </div>
+        </div>
+
+    </div><!-- /#psicosocial-app -->
+</div>
+
+<!-- ═══════════════════════════════════════════════ ESTILOS ═══════════ -->
+<style>
+/* ── Card info caso ──────────────────────────────────────────────────── */
+.ps-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.ps-card-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.ps-card-avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: #f0e9ff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; color: #7c3aed;
+    flex-shrink: 0;
+}
+.ps-card-name-block { display: flex; flex-direction: column; gap: 2px; }
+.ps-card-name { margin: 0; font-size: 16px; font-weight: 600; }
+.ps-card-location { font-size: 13px; color: #888; }
+.ps-card-location i { font-size: 11px; }
+.ps-divider { margin: 14px 0; border-color: #f0f0f0; }
+
+.ps-card-body-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+.ps-card-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 32px;
+    flex: 1;
+}
+.ps-field { display: flex; flex-direction: column; gap: 2px; min-width: 130px; }
+.ps-field-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.4px; }
+.ps-field-value { font-size: 14px; font-weight: 500; color: #333; }
+.ps-risk { padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+.ps-risk--1 { background: #fffbeb; color: #d97706; }
+.ps-risk--2 { background: #fff7ed; color: #ea580c; }
+.ps-risk--3 { background: #fef2f2; color: #dc2626; }
+.ps-risk--4 { background: #450a0a; color: #fca5a5; }
+
+/* ── Estado de la sesión ─────────────────────────────────────────────── */
+.ps-session-status {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-end;
+    min-width: 180px;
+}
+.ps-ss-badge {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+.ps-ss-session { background: #ede9fe; color: #7c3aed; border: 1px solid #c4b5fd; }
+.ps-ss-form    { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+.ps-ss-skip    { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; font-size: 11px; }
+
+/* ── Layout sidebar + main ───────────────────────────────────────────── */
+.ps-layout {
+    display: flex;
+    gap: 0;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    overflow: hidden;
+    min-height: 560px;
+    margin-bottom: 40px;
+}
+.ps-sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    background: #fafafa;
+    border-right: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 0 16px;
+}
+.ps-sidebar-header { padding: 0 18px 10px; }
+.ps-sidebar-title  { margin: 0; font-size: 10px; font-weight: 700; color: #9ca3af; letter-spacing: 1px; text-transform: uppercase; }
+.ps-sidebar-nav    { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 0 10px; }
+
+.ps-section-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.12s;
+    width: 100%;
+}
+.ps-section-item:hover:not(:disabled) { background: #f3f4f6; }
+.ps-section-item:disabled { cursor: not-allowed; opacity: 0.45; }
+.ps-section-item--active  { background: #ede9fe !important; }
+.ps-section-item--pending { opacity: 0.4; }
+
+.ps-badge {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: #e5e7eb;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.12s, color 0.12s;
+}
+.ps-badge--active    { background: #7c3aed; color: #fff; }
+.ps-badge--completed { background: #22c55e; color: #fff; }
+.ps-section-name { font-size: 13px; color: #374151; font-weight: 500; line-height: 1.3; }
+.ps-section-item--active .ps-section-name { color: #7c3aed; font-weight: 600; }
+
+.ps-progress-wrap { padding: 16px 14px 0; margin-top: auto; }
+.ps-progress-label { display: flex; justify-content: space-between; font-size: 11px; color: #9ca3af; margin-bottom: 6px; }
+.ps-progress-bar-bg { background: #e5e7eb; border-radius: 6px; height: 6px; overflow: hidden; }
+.ps-progress-bar-fill { background: #7c3aed; height: 100%; border-radius: 6px; transition: width 0.3s; }
+
+/* ── Panel principal ─────────────────────────────────────────────────── */
+.ps-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 28px 32px 24px;
+    overflow-y: auto;
+}
+.ps-readonly-banner {
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
+    color: #92400e;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+.ps-section-header { margin-bottom: 20px; }
+.ps-section-header-row { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+.ps-section-number {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: #7c3aed;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.ps-section-title { margin: 0; font-size: 18px; font-weight: 700; color: #111827; }
+.ps-readonly-badge {
+    margin-left: auto;
+    font-size: 11px;
+    background: #f3f4f6;
+    color: #6b7280;
+    border: 1px solid #e5e7eb;
+    padding: 3px 9px;
+    border-radius: 12px;
+}
+.ps-section-condition-note,
+.ps-section-skip-note {
+    font-size: 12px;
+    padding: 5px 10px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+}
+.ps-section-condition-note { background: #eff6ff; color: #2563eb; }
+.ps-section-skip-note      { background: #fef9c3; color: #a16207; }
+
+/* ── Preguntas ───────────────────────────────────────────────────────── */
+.ps-questions { flex: 1; display: flex; flex-direction: column; gap: 18px; margin-bottom: 24px; }
+.ps-question {
+    background: #fafafa;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 14px 16px;
+    transition: border-color 0.12s;
+}
+.ps-question:hover { border-color: #c4b5fd; }
+.ps-question--highlight {
+    border-color: #7c3aed;
+    background: #f5f3ff;
+}
+.ps-question-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+.ps-q-number {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: #e5e7eb;
+    color: #6b7280;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+.ps-q-label { font-size: 13px; font-weight: 500; color: #111827; line-height: 1.5; flex: 1; }
+.ps-q-highlight-tag {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    background: #7c3aed;
+    color: #fff;
+    padding: 1px 7px;
+    border-radius: 10px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+.ps-q-conditional {
+    font-size: 11px;
+    color: #9ca3af;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.ps-q-note {
+    margin-top: 8px;
+    font-size: 11px;
+    color: #7c3aed;
+    background: #ede9fe;
+    padding: 5px 10px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Inputs */
+.ps-btn-group  { display: flex; flex-wrap: wrap; gap: 6px; }
+.ps-opt-btn {
+    padding: 6px 14px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 20px;
+    background: #fff;
+    color: #374151;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.12s;
+}
+.ps-opt-btn:hover:not(:disabled) { border-color: #7c3aed; color: #7c3aed; }
+.ps-opt-btn--active { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+.ps-opt-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.ps-bool-group { display: flex; gap: 8px; }
+.ps-bool-btn {
+    padding: 7px 22px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 20px;
+    background: #fff;
+    color: #374151;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.12s;
+}
+.ps-bool-btn:hover:not(:disabled) { border-color: #7c3aed; color: #7c3aed; }
+.ps-bool-btn--active { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+.ps-bool-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.ps-textarea {
+    width: 100%;
+    border: 1.5px solid #d1d5db;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #374151;
+    resize: vertical;
+    transition: border-color 0.12s;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+.ps-textarea:focus { outline: none; border-color: #7c3aed; }
+.ps-textarea:disabled { background: #f9fafb; cursor: not-allowed; }
+
+.ps-input {
+    border: 1.5px solid #d1d5db;
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 13px;
+    color: #374151;
+    transition: border-color 0.12s;
+}
+.ps-input:focus { outline: none; border-color: #7c3aed; }
+.ps-input:disabled { background: #f9fafb; cursor: not-allowed; }
+
+/* ── Barra de navegación ─────────────────────────────────────────────── */
+.ps-nav { display: flex; justify-content: space-between; margin-top: auto; padding-top: 16px; border-top: 1px solid #f0f0f0; }
+.ps-btn-prev {
+    padding: 10px 20px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+    color: #6b7280;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.12s;
+}
+.ps-btn-prev:hover:not(:disabled) { border-color: #7c3aed; color: #7c3aed; }
+.ps-btn-prev:disabled { opacity: 0.4; cursor: not-allowed; }
+.ps-btn-next {
+    padding: 10px 24px;
+    background: #7c3aed;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+.ps-btn-next:hover { background: #6d28d9; }
+
+/* ── Overlay completado ──────────────────────────────────────────────── */
+.ps-completed-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+}
+.ps-completed-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 40px 48px;
+    max-width: 420px;
+    width: 90%;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+}
+.ps-completed-icon {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: #f0fdf4;
+    display: flex; align-items: center; justify-content: center;
+}
+.ps-completed-title { margin: 0; font-size: 18px; font-weight: 700; color: #111827; }
+.ps-completed-text  { margin: 0; font-size: 14px; color: #6b7280; }
+.ps-completed-btn {
+    margin-top: 4px;
+    padding: 10px 28px;
+    background: #7c3aed;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    width: 100%;
+}
+.ps-completed-btn:hover { background: #6d28d9; }
+.ps-completed-btn--secondary {
+    background: #fff;
+    color: #7c3aed;
+    border: 1.5px solid #7c3aed;
+}
+.ps-completed-btn--secondary:hover { background: #ede9fe; }
+</style>
+
+{{ template "standard_scripts.html" .}}
+<script src="/static/js/psicosocial/mock_psicosocial.js"></script>
+
+<script>
+(function () {
+    // ── Detectar modo mock ──────────────────────────────────────────────
+    const urlParams  = new URLSearchParams(window.location.search);
+    const mockCasoId = urlParams.get('mock');   // ej: 'caso1'
+    const IS_MOCK    = !!mockCasoId;
+
+    // ── Labels de estado ────────────────────────────────────────────────
+    const RISK_LABELS = { 0: 'Sin dato', 1: 'Bajo', 2: 'Medio', 3: 'Alto', 4: 'Extremo' };
+
+    var app = Vue.createApp({
+        delimiters: ['${', '}'],
+        data() {
+            return {
+                // ── Datos de identificación ──────────────────────────
+                psicosocialId: '{{ .psicosocialId }}',
+                userICode:     '{{ .userICode }}',
+
+                // ── Estado de carga ──────────────────────────────────
+                loadError:     null,
+
+                // ── Datos del proceso psicosocial ────────────────────
+                formId:          null,
+                submissionId:    null,
+                formType:        null,
+                victimInfo:      null,
+                psicosocialState: {
+                    yaHizoPrimerContacto:  false,
+                    yaHizoPrimeraAtencion: false,
+                    sessionCount:          0,
+                    status:                'abierto',
+                },
+                formState:   { skipContact: false },
+                canEdit:     true,
+
+                // ── Secciones del formulario (mock preview) ──────────
+                sections:        [],
+
+                // ── Navegación de secciones ──────────────────────────
+                currentSectionIdx: 0,
+                answeredSections:  {},
+
+                // ── Respuestas mock para demo ────────────────────────
+                mockAnswers:       {},
+
+                // ── Estado de completado ─────────────────────────────
+                sessionCompleted:  false,
+                completedVariant:  'default',
+            };
+        },
+
+        computed: {
+            riskLabel() {
+                return RISK_LABELS[this.victimInfo?.RiskLevel] || '—';
+            },
+            statusInfo() {
+                return window.PSICO_MOCK.STATUS_LABELS[this.psicosocialState.status]
+                    || { label: this.psicosocialState.status, color: '#6b7280', bg: '#f9fafb' };
+            },
+            formTypeLabel() {
+                return window.PSICO_MOCK.FORM_TYPE_LABELS[this.formType] || this.formType || '—';
+            },
+            sectionsToShow() {
+                if (!this.sections.length) return [];
+                if (this.formState.skipContact) {
+                    return this.sections.filter(s => !s.skipable);
+                }
+                return this.sections;
+            },
+            currentSection() {
+                return this.sectionsToShow[this.currentSectionIdx] || {};
+            },
+            isLastSection() {
+                return this.currentSectionIdx === this.sectionsToShow.length - 1;
+            },
+            firstPendingIdx() {
+                const answered = Object.keys(this.answeredSections).map(Number);
+                if (answered.length === 0) return 0;
+                return Math.min(answered.length, this.sectionsToShow.length - 1);
+            },
+            progressPercent() {
+                if (!this.sectionsToShow.length) return 0;
+                return Math.round((Object.keys(this.answeredSections).length / this.sectionsToShow.length) * 100);
+            },
+        },
+
+        mounted() {
+            document.getElementById('app').style.display = 'block';
+            if (IS_MOCK) {
+                this.loadMockData(mockCasoId);
+            } else {
+                this.loadPsicosocial();
+            }
+        },
+
+        methods: {
+            // ── Carga de datos ─────────────────────────────────────
+            loadMockData(casoId) {
+                const caso = window.PSICO_MOCK.getCaso(casoId);
+                if (!caso) {
+                    this.loadError = `Caso mock "${casoId}" no encontrado.`;
+                    return;
+                }
+                this.formId          = caso.formId;
+                this.submissionId    = caso.submissionId;
+                this.formType        = caso.formType;
+                this.victimInfo      = caso.victimInfo;
+                this.psicosocialState = { ...caso.psicosocialState };
+                this.formState       = { ...caso.formState };
+                this.canEdit         = caso.canEdit;
+                this.sections        = caso.sections;
+            },
+
+            async loadPsicosocial() {
+                try {
+                    const url  = `/api/v1/psicosocial-support/${this.psicosocialId}/load?agent_id=${this.userICode}`;
+                    const res  = await fetch(url);
+                    const data = await res.json();
+                    if (!res.ok) {
+                        this.loadError = data.error || 'Error al cargar la sesión psicosocial';
+                        return;
+                    }
+                    this.formId           = data.formId;
+                    this.submissionId     = data.submissionId;
+                    this.formType         = data.formType;
+                    this.victimInfo       = data.victimInfo;
+                    this.psicosocialState = data.psicosocialState;
+                    this.formState        = data.formState;
+                    this.canEdit          = data.psicosocialState.status !== 'cerrado';
+                    // TODO: montar DinamicForm real cuando el seed esté ejecutado
+                    console.log('[PSICO] Datos cargados:', data);
+                } catch (e) {
+                    this.loadError = 'Error de conexión al cargar la sesión psicosocial';
+                    console.error('[PSICO] error:', e);
+                }
+            },
+
+            // ── Navegación de secciones ────────────────────────────
+            goToSection(idx) {
+                if (idx > this.firstPendingIdx) return;
+                this.currentSectionIdx = idx;
+            },
+            goPrev() {
+                if (this.currentSectionIdx > 0) this.currentSectionIdx--;
+            },
+            goNext() {
+                if (!this.isLastSection) {
+                    this.answeredSections = {
+                        ...this.answeredSections,
+                        [this.currentSectionIdx]: true,
+                    };
+                    this.currentSectionIdx++;
+                } else {
+                    this.saveSession();
+                }
+            },
+
+            // ── Respuestas mock ────────────────────────────────────
+            toggleAnswer(secIdx, qIdx, opt, type) {
+                const key = `${secIdx}_${qIdx}`;
+                if (type === 'single') {
+                    this.mockAnswers = { ...this.mockAnswers, [key]: opt };
+                } else {
+                    const current = Array.isArray(this.mockAnswers[key]) ? [...this.mockAnswers[key]] : [];
+                    const pos = current.indexOf(opt);
+                    if (pos >= 0) current.splice(pos, 1); else current.push(opt);
+                    this.mockAnswers = { ...this.mockAnswers, [key]: current };
+                }
+            },
+
+            // ── Guardar sesión (mock) ──────────────────────────────
+            saveSession() {
+                this.answeredSections = {
+                    ...this.answeredSections,
+                    [this.currentSectionIdx]: true,
+                };
+
+                // Determinar variante del overlay
+                if (this.formType === 'PRIMER_CONTACTO') {
+                    // Buscar si "Continuar Primera Atención" = Sí en las respuestas
+                    const lastSecIdx  = this.sectionsToShow.length - 1;
+                    const lastSec     = this.sectionsToShow[lastSecIdx] || {};
+                    const lastQ       = (lastSec.questions || []).length - 1;
+                    const gatillo     = this.mockAnswers[`${lastSecIdx}_${lastQ}`];
+                    this.completedVariant = (gatillo === true) ? 'continuar_pa' : 'default';
+                } else if (this.formType === 'CIERRE') {
+                    this.completedVariant = 'cierre';
+                } else {
+                    this.completedVariant = 'default';
+                }
+
+                this.sessionCompleted = true;
+            },
+
+            // ── Acciones del overlay ───────────────────────────────
+            simularContinuar() {
+                // Simula la carga del caso3 (Primera Atención con skipContact = true)
+                window.location.href = '/salvia/psicosocial/registrar/mock?mock=caso3';
+            },
+            resetMock() {
+                window.location.href = '/salvia/test-psicosocial';
+            },
+        },
+    });
+
+    app.mount('#psicosocial-app');
+})();
+</script>
