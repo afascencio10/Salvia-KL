@@ -214,6 +214,7 @@ func main() {
     casesReassignCtrl      := salvia_ctrl.NewCasesReassignController(casesReassignSvc)
     agentsSearchCtrl       := salvia_ctrl.NewAgentsSearchController(agentsSearchSvc)
     psychosocialListCtrl   := salvia_ctrl.NewPsychosocialListController(psychosocialListSvc)
+    psychosocialDetailCtrl := salvia_ctrl.NewPsychosocialDetailController(gormDB)
     psychosocialReassignCtrl := salvia_ctrl.NewPsychosocialReassignController(psychosocialReassignSvc)
     followUpV2Repo         := repository.NewFollowUpV2Repository(gormDB)
     assignCaseSvc          := service.NewAssignCaseService(victimCaseLightRepo, agentLightRepo, followUpV2Repo)
@@ -251,6 +252,7 @@ func main() {
     casesReassignCtrl.RegisterRoutes(api)
     agentsSearchCtrl.RegisterRoutes(api)
     psychosocialListCtrl.RegisterRoutes(api)
+    psychosocialDetailCtrl.RegisterRoutes(api)
     psychosocialReassignCtrl.RegisterRoutes(api)
     assignCaseCtrl.RegisterRoutes(api)
 

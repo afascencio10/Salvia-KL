@@ -262,6 +262,11 @@ func StartRouter(router *gin.Engine) {
 		secRouter.GET("/barreras/:id", BarreraDetalleGET)
 
 		/*
+			Remisión Psicosocial Detalle — pantalla interna de una remisión
+		*/
+		secRouter.GET("/remision-psicosocial/:id", RemisionPsicosocialDetalleGET)
+
+		/*
 			FeminicideRisk
 		*/
 		translatedEntity = salvia_config.Locale["sp"][salvia_daos.FeminicideRiskEntityName]

@@ -325,8 +325,14 @@ func buildCasesListWhere(filters CasesListFilters) (string, []interface{}) {
                 WHERE vcf1.victim_contact_form1_victim_contact = vc.victim_case_victim_contact
                   AND vcf1.victim_contact_form1_phone::text ILIKE ?
             )
+            OR EXISTS (
+                SELECT 1
+                FROM salvia.victim_case_form1 vcf1b
+                WHERE vcf1b.victim_case_form1_victim_case = vc.victim_case_id
+                  AND vcf1b.victim_case_form1_victim_phone::text ILIKE ?
+            )
         )`)
-		args = append(args, pattern, pattern, pattern)
+		args = append(args, pattern, pattern, pattern, pattern)
 	}
 
 	return "WHERE " + strings.Join(clauses, " AND "), args

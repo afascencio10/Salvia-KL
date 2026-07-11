@@ -175,8 +175,116 @@
 
             <!-- Seguimientos a esta barrera -->
             <div class="brd-tasks-block">
-                <div class="brd-tasks-title">Seguimientos a esta barrera</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                    <div class="brd-tasks-title" style="margin-bottom:0">Seguimientos a esta barrera</div>
+                    <button @click="mostrarRegistroCompleto = true" style="background:#5106A7;color:#fff;border:none;padding:7px 14px;border-radius:6px;font-size:.75rem;font-weight:600;cursor:pointer">📋 Ver registro completo</button>
+                </div>
                 <barrier-follow-up-timeline :barrier-id="barrierICode"></barrier-follow-up-timeline>
+            </div>
+        </div>
+
+        <!-- ─── Modal: Registro completo de la barrera ─── -->
+        <div v-if="mostrarRegistroCompleto" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:10000;padding:16px" @click.self="mostrarRegistroCompleto = false">
+            <div style="background:#fff;border-radius:16px;width:95%;max-width:700px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,.2);overflow:hidden">
+                <!-- Header -->
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px 14px;border-bottom:1px solid #f3f4f6;flex-shrink:0">
+                    <p style="font-size:1rem;font-weight:700;color:#111827;margin:0;display:flex;align-items:center;gap:8px"><i class="fa fa-clipboard-list" style="color:#5106A7"></i> Registro completo de la barrera</p>
+                    <button @click="mostrarRegistroCompleto = false" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:1.1rem;padding:4px 8px;border-radius:6px">✕</button>
+                </div>
+                <!-- Body -->
+                <div style="flex:1;overflow-y:auto;padding:20px 24px">
+                    <!-- Q1: Sector -->
+                    <div style="margin-bottom:16px">
+                        <span style="font-size:.68rem;font-weight:700;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">1. Sector de la barrera</span>
+                        <span style="font-size:.85rem;color:#111827;font-weight:600">${ barrera.sector || '—' }</span>
+                    </div>
+                    <!-- Q2-Q10: Barreras identificadas -->
+                    <div v-if="barrera.specificBarriers" style="margin-bottom:16px">
+                        <span style="font-size:.68rem;font-weight:700;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">2. Barreras identificadas</span>
+                        <div style="display:flex;flex-wrap:wrap;gap:4px">
+                            <span v-for="lbl in resolveBarrierCSV(barrera.specificBarriers)" :key="lbl" style="font-size:.75rem;background:#f3f4f6;color:#374151;padding:3px 10px;border-radius:20px;border:1px solid #e5e7eb">${ lbl }</span>
+                        </div>
+                    </div>
+                    <!-- Q3/Q6/Q9: Instituciones -->
+                    <div v-if="barrera.specificInstitutions" style="margin-bottom:16px">
+                        <span style="font-size:.68rem;font-weight:700;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">3. ¿A qué institución acudió?</span>
+                        <div style="display:flex;flex-wrap:wrap;gap:4px">
+                            <span v-for="lbl in resolveInstitutionCSV(barrera.specificInstitutions)" :key="lbl" style="font-size:.75rem;background:#eff6ff;color:#1d4ed8;padding:3px 10px;border-radius:20px;border:1px solid #bfdbfe">${ lbl }</span>
+                        </div>
+                    </div>
+                    <!-- Q4/Q7/Q10: Otra barrera -->
+                    <div v-if="barrera.otherBarrierDesc" style="margin-bottom:16px">
+                        <span style="font-size:.68rem;font-weight:700;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">4. Otra barrera ¿cuál?</span>
+                        <span style="font-size:.85rem;color:#374151">${ barrera.otherBarrierDesc }</span>
+                    </div>
+                    <!-- Q11: Nombre institución -->
+                    <div v-if="barrera.institutionName" style="margin-bottom:16px">
+                        <span style="font-size:.68rem;font-weight:700;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">5. Nombre de la institución</span>
+                        <span style="font-size:.85rem;color:#374151">${ barrera.institutionName }</span>
+                    </div>
+                    <!-- Q12-14: Ubicación -->
+                    <div v-if="barrierDepartment || barrierCity || barrierTown" style="margin-bottom:16px">
+                        <span style="font-size:.68rem;font-weight:700;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">6. Ubicación donde se presentó la barrera</span>
+                        <span style="font-size:.85rem;color:#374151">${ [barrierTown, barrierCity, barrierDepartment].filter(Boolean).join(', ') }</span>
+                    </div>
+                    <!-- Q15: Estructurales institucionales -->
+                    <div v-if="barrera.structuralInstitutional" style="margin-bottom:16px">
+                        <span style="font-size:.68rem;font-weight:700;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">7. Barreras institucionales y de talento humano</span>
+                        <div style="display:flex;flex-wrap:wrap;gap:4px">
+                            <span v-for="item in resolveStructuralCSV(barrera.structuralInstitutional, 'institutional')" :key="item" style="font-size:.75rem;background:#fef2f2;color:#dc2626;padding:3px 10px;border-radius:20px;border:1px solid #fecaca">${ item }</span>
+                        </div>
+                    </div>
+                    <!-- Q16: Económicas -->
+                    <div v-if="barrera.structuralEconomic" style="margin-bottom:16px">
+                        <span style="font-size:.68rem;font-weight:700;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">8. Barreras económicas y socioeconómicas</span>
+                        <div style="display:flex;flex-wrap:wrap;gap:4px">
+                            <span v-for="item in resolveStructuralCSV(barrera.structuralEconomic, 'economic')" :key="item" style="font-size:.75rem;background:#fff7ed;color:#c2410c;padding:3px 10px;border-radius:20px;border:1px solid #fed7aa">${ item }</span>
+                        </div>
+                    </div>
+                    <!-- Q17: Territoriales -->
+                    <div v-if="barrera.structuralTerritorial" style="margin-bottom:16px">
+                        <span style="font-size:.68rem;font-weight:700;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">9. Barreras territoriales y geográficas</span>
+                        <div style="display:flex;flex-wrap:wrap;gap:4px">
+                            <span v-for="item in resolveStructuralCSV(barrera.structuralTerritorial, 'territorial')" :key="item" style="font-size:.75rem;background:#f0fdf4;color:#15803d;padding:3px 10px;border-radius:20px;border:1px solid #bbf7d0">${ item }</span>
+                        </div>
+                    </div>
+                    <!-- Q18: Diferenciales -->
+                    <div v-if="barrera.structuralDifferential" style="margin-bottom:16px">
+                        <span style="font-size:.68rem;font-weight:700;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">10. Barreras por ausencia de enfoque diferencial</span>
+                        <div style="display:flex;flex-wrap:wrap;gap:4px">
+                            <span v-for="item in resolveStructuralCSV(barrera.structuralDifferential, 'differential')" :key="item" style="font-size:.75rem;background:#faf5ff;color:#7c3aed;padding:3px 10px;border-radius:20px;border:1px solid #e9d5ff">${ item }</span>
+                        </div>
+                    </div>
+                    <!-- Q19: Fecha -->
+                    <div v-if="barrera.barrierDate" style="margin-bottom:16px">
+                        <span style="font-size:.68rem;font-weight:700;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">11. Fecha en la que se presentó la barrera</span>
+                        <span style="font-size:.85rem;color:#374151">${ barrera.barrierDate }</span>
+                    </div>
+                    <!-- Q20: Funcionario/dependencia -->
+                    <div v-if="barrera.officialDependency" style="margin-bottom:16px">
+                        <span style="font-size:.68rem;font-weight:700;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">12. Funcionario/a o dependencia donde se presentó</span>
+                        <span style="font-size:.85rem;color:#374151">${ barrera.officialDependency }</span>
+                    </div>
+                    <!-- Q21: Descripción -->
+                    <div v-if="barrera.description" style="margin-bottom:16px">
+                        <span style="font-size:.68rem;font-weight:700;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">13. Descripción de la barrera</span>
+                        <span style="font-size:.85rem;color:#374151;line-height:1.5">${ barrera.description }</span>
+                    </div>
+                    <!-- Q22: Gestión -->
+                    <div v-if="barrera.managementActions" style="margin-bottom:16px">
+                        <span style="font-size:.68rem;font-weight:700;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">14. Gestión de la barrera</span>
+                        <div style="display:flex;flex-wrap:wrap;gap:4px">
+                            <span v-for="action in resolveManagementCSV(barrera.managementActions)" :key="action" style="font-size:.75rem;background:#eff6ff;color:#1d4ed8;padding:3px 10px;border-radius:20px;border:1px solid #bfdbfe">${ action }</span>
+                        </div>
+                    </div>
+                    <!-- Metadata -->
+                    <div style="border-top:1px solid #e5e7eb;padding-top:14px;margin-top:8px">
+                        <div style="display:flex;gap:20px;flex-wrap:wrap">
+                            <div v-if="createdByName"><span style="font-size:.68rem;font-weight:700;color:#9ca3af;display:block">Registrada por</span><span style="font-size:.82rem;color:#5106A7;font-weight:600">${ createdByName }</span></div>
+                            <div><span style="font-size:.68rem;font-weight:700;color:#9ca3af;display:block">Fecha de registro</span><span style="font-size:.82rem;color:#374151">${ formatFecha(barrera.createdAt) }</span></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -224,6 +332,7 @@
                 barrierDepartment: '',
                 barrierCity: '',
                 barrierTown: '',
+                mostrarRegistroCompleto: false,
             };
         },
 
