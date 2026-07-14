@@ -54,6 +54,24 @@ Proceso real `019f24bb-…-000000000002` ("Juliana Orozco"), estado inicial `abi
   Datos de prueba limpiados (submissions/answers borradas, `status` restaurado a `abierto`).
 - No se hizo `curl` HTTP en vivo de los endpoints de cierre por la misma saturación del pooler de Supabase (arranque completo de la app sin conexiones); no es problema de código.
 
+### 4. Migración del card 3x3 a Detalle de Remisión Psicosocial (2026-07-14)
+
+Card 3x3 movido del andamio `remision-temporal/:id` (retirado) a la pestaña **Contactos** de `remision-psicosocial/:id`; prop `canRegister` para ocultar "Registrar intento" al supervisor.
+
+- **Build** (`go build . ./salvia/... ./internal/... ./tests/...`) → OK. (El único fallo de `go build ./...` es `cmd/backup` por `godotenv` ausente, preexistente y ajeno a este cambio.)
+- **httptest** (`go test ./tests/psychosocial3x3/`) → `ok bitsflow/tests/psychosocial3x3` — **PASS** (sin regresión tras `canRegister`).
+- **Lint JS** (`node --check`) de `psychosocial-contact-card.js` y `psychosocial-contact-modal.js` → OK.
+- **Validador OKF** (`make validate`) → 48 archivos, 0 errores, 0 warnings.
+- **Render del template verificado (closed-loop)**: server real levantado (`PORT=8099 go run main.go`, DB de `config/db_config.json`) y test desechable que replica el `ParseFS`+`Execute` de `RenderTemplate` sobre `remision_psicosocial_detalle.html` con sus includes reales → **render OK, 27 511 bytes**, contiene `<psychosocial-contact-card>`, `can-register` y el `userTeam` inyectado. Sin error de parseo/ejecución. Test temporal eliminado tras verificar.
+- **Bug del disparador de acciones — causa raíz confirmada con datos reales**: `GET /api/v1/psychosocial/019f24bb-0002-…-000000000002/contact-attempts` devuelve `counters = { dailyFailedCount: 0, totalCount: 17, distinctDaysCount: 3, closureEligible: true }`. La lógica vieja (`dailyFailedCount >= 3`) daba `false` → abría "¿Contestó?"; la corregida (`… || closureEligible`) da `true` → abre el modal de acciones. Verificado contra la DB real.
+
+### Correcciones (2026-07-14)
+
+- **Historial colapsado al cargar**: `psychosocial-contact-card.js` `historyCollapsed` default `false`→`true`.
+- **Modal de acciones con proceso elegible a cierre**: `psychosocial-contact-modal.js` `start()` abre `modalAcciones` si `dailyFailedCount >= 3` **o** `closureEligible`.
+
+- ⏳ **Pendiente (browser E2E, TC-3X3-UI-16/17/18)**: la comprobación visual final en navegador (chevron plegado, botón oculto para `sv`, apertura del modal correcto al click) requiere Playwright + sesión con login (captcha); el server sirve los assets embebidos, así que exige reiniciar el binario. Datos y render ya verificados arriba.
+
 ## Pruebas de API (Backend - Playwright)
 
 | ID Caso | Escenario | Resultado Esperado | Playwright Script (`.spec.ts`) |
@@ -102,6 +120,9 @@ Proceso real `019f24bb-…-000000000002` ("Juliana Orozco"), estado inicial `abi
 | `TC-3X3-UI-13` | ¿Llamada efectiva? = Sí | Se muestran Contenido, Plan de orientación y Temas trabajados | `tests/e2e/` |
 | `TC-3X3-UI-14` | Hay nuevos hechos = verdadero | Descripción y Fecha se muestran y quedan obligatorias | `tests/e2e/` |
 | `TC-3X3-UI-15` | Completar formulario de cierre | Proceso pasa a cerrado/en_devolucion; card refresca | `tests/e2e/` |
+| `TC-3X3-UI-16` | `ps`/`ts` abre Detalle de Remisión (`/salvia/remision-psicosocial/:id`) → pestaña Contactos | El card 3x3 se monta (no el placeholder estático); el botón "Registrar intento" es visible | `tests/e2e/` |
+| `TC-3X3-UI-17` | `sv` abre el mismo Detalle desde Historial de Remisiones → pestaña Contactos | El card 3x3 se monta en modo lectura: contador/tiles/historial visibles, botón "Registrar intento" **oculto** (`canRegister=false`) | `tests/e2e/` |
+| `TC-3X3-UI-18` | "Ver remisión" en Mis Remisiones Psicosocial | Navega a `/salvia/remision-psicosocial/:id` (ya no al andamio `remision-temporal/:id`) | `tests/e2e/` |
 
 ## Pruebas Unitarias (Go)
 

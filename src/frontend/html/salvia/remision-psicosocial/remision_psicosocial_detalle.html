@@ -110,19 +110,15 @@
         <!-- Tab: Contactos -->
         <div v-if="activeTab === 'contactos'" style="padding-top:20px">
 
-            <!-- Intentos de contacto 3x3 (placeholder — lo implementará otro compañero) -->
-            <div style="background:#fff;border-radius:12px;padding:16px 20px;margin-bottom:24px;border:1px solid #e5e7eb">
-                <div style="display:flex;align-items:center;justify-content:space-between">
-                    <div style="display:flex;align-items:center;gap:10px">
-                        <span style="font-size:.88rem;font-weight:700;color:#111827">Intentos de contacto 3×3</span>
-                        <span style="width:8px;height:8px;border-radius:50%;background:#d1d5db"></span>
-                        <span style="width:8px;height:8px;border-radius:50%;background:#d1d5db"></span>
-                        <span style="width:8px;height:8px;border-radius:50%;background:#d1d5db"></span>
-                        <span style="font-size:.75rem;color:#9ca3af">0/3</span>
-                    </div>
-                    <button style="background:#5106A7;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer">Registrar intento</button>
-                </div>
-                <p style="font-size:.8rem;color:#9ca3af;margin:8px 0 0;font-style:italic">Sin intentos registrados.</p>
+            <!-- Intentos de contacto 3x3 -->
+            <div style="margin-bottom:24px">
+                <psychosocial-contact-card
+                    :psicosocial-id="remisionID"
+                    :current-user="currentUser"
+                    :current-user-id="currentUserId"
+                    :user-team="userTeam"
+                    :can-register="canRegister">
+                </psychosocial-contact-card>
             </div>
 
             <!-- Header contactos -->
@@ -252,6 +248,7 @@
                 currentUser:   {{.currentUser}},
                 currentRole:   {{.currentRole}},
                 currentUserId: {{.currentUserId}},
+                userTeam:      "{{.userTeam}}",
                 remisionID:    "{{.remisionId}}",
 
                 activeTab: 'info',
@@ -276,6 +273,11 @@
             sesionesRealizadas() {
                 if (!this.remision || !this.remision.contacts) return 0;
                 return this.remision.contacts.filter(function(c) { return c.isCompleted && c.isPsicoSession; }).length;
+            },
+            // Solo ps/ts pueden registrar intentos (RBAC register_psychosocial_contact_attempt).
+            // El supervisor (sv) y demás roles ven el card 3x3 en modo lectura.
+            canRegister() {
+                return this.currentRole === 'ps' || this.currentRole === 'ts';
             }
         },
 
@@ -411,6 +413,9 @@
 </script>
 <script src="/static/js/components/registrar-contacto-modal.js"></script>
 <script src="/static/js/components/case-timeline.js"></script>
+<script src="/static/js/components/dinamic-form.js"></script>
+<script src="/static/js/components/psychosocial-contact-modal.js"></script>
+<script src="/static/js/components/psychosocial-contact-card.js"></script>
 <script>
     home.mount('#app');
 </script>

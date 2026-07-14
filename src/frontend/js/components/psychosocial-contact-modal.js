@@ -64,13 +64,38 @@ app.component('psychosocial-contact-modal', {
             loading: false
         };
     },
+    computed: {
+        // El modal de acciones se abre por dos disparadores: umbral diario o
+        // elegibilidad de cierre. El texto se adapta usando los conteos reales.
+        accionesPorDia: function() {
+            return this.proc && (this.proc.dailyFailedCount || 0) >= 3;
+        },
+        accionesTitle: function() {
+            return this.accionesPorDia ? 'Límite de intentos del día' : 'Cierre por imposibilidad disponible';
+        },
+        accionesSub: function() {
+            if (!this.proc) return '';
+            if (this.accionesPorDia) {
+                var n = this.proc.dailyFailedCount || 0;
+                return 'Se registraron ' + n + ' intento' + (n === 1 ? '' : 's') + ' fallido' + (n === 1 ? '' : 's') + ' hoy. ¿Qué deseas hacer?';
+            }
+            var total = this.proc.totalCount || 0;
+            var dias = this.proc.distinctDaysCount || 0;
+            return 'Este proceso acumula ' + total + ' intento' + (total === 1 ? '' : 's') +
+                ' en ' + dias + ' día' + (dias === 1 ? '' : 's') + ' distinto' + (dias === 1 ? '' : 's') +
+                ', suficiente para cerrar por imposibilidad de contacto. ¿Qué deseas hacer?';
+        }
+    },
     methods: {
         // ── API pública ────────────────────────────────────────────────
         start: function(process) {
             this.proc = process || {};
             this.note = '';
             this.initAttemptDateTime();
-            if ((this.proc.dailyFailedCount || 0) >= 3) {
+            // Abre directo el modal de acciones si (a) hay 3 fallidos del día (RN-04)
+            // o (b) el proceso ya es elegible para cierre por imposibilidad (RN-06):
+            // en ese caso la opción de cierre debe estar siempre a la vista.
+            if ((this.proc.dailyFailedCount || 0) >= 3 || this.proc.closureEligible) {
                 this.modalAcciones = true;
             } else {
                 this.modalContesto = true;
@@ -133,6 +158,7 @@ app.component('psychosocial-contact-modal', {
                 var counters = data.counters || {};
                 if (counters.dailyThresholdReached) {
                     // Refrescar el proc con los contadores nuevos y abrir Acciones
+                    self.proc.dailyFailedCount = counters.dailyFailedCount;
                     self.proc.totalCount = counters.totalCount;
                     self.proc.distinctDaysCount = counters.distinctDaysCount;
                     self.proc.closureEligible = counters.closureEligible;
@@ -337,9 +363,9 @@ app.component('psychosocial-contact-modal', {
       <!-- Acciones -->
       <div v-if="modalAcciones" class="psc-modal-overlay" @click.self="closeAll">
         <div class="psc-modal-content">
-          <div class="psc-icon" style="background:#fee2e2;color:#dc2626;"><i class="fas fa-exclamation-circle"></i></div>
-          <h3 class="psc-title">Límite de intentos del día</h3>
-          <p class="psc-sub" style="margin-bottom:1.25rem;">Se registraron 3 intentos fallidos hoy. ¿Qué deseas hacer?</p>
+          <div class="psc-icon" :style="accionesPorDia ? 'background:#fee2e2;color:#dc2626;' : 'background:#ede9fe;color:#7c3aed;'"><i class="fas fa-exclamation-circle"></i></div>
+          <h3 class="psc-title">\${ accionesTitle }</h3>
+          <p class="psc-sub" style="margin-bottom:1.25rem;">\${ accionesSub }</p>
           <div class="psc-stack">
             <button class="psc-btn psc-btn-primary" :disabled="loading" @click="openNextAttempt"><i class="far fa-calendar-alt"></i> Fijar próximo intento</button>
             <button class="psc-btn psc-btn-ghost" :disabled="loading || (proc && proc.totalCount >= 50)" @click="addAttempt"><i class="fas fa-plus-circle"></i> Añadir intento \${ proc && proc.totalCount >= 50 ? '(tope 50)' : '' }</button>

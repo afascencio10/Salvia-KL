@@ -31,8 +31,13 @@ interface PsychosocialContactCardProps {
   currentUserId: string;   // profesional ps/ts
   userTeam: string;
   closureThreshold?: number; // denominador del contador "X de N"; default 9 (umbral de elegibilidad de cierre)
+  canRegister?: boolean;   // muestra/oculta el botón "Registrar intento"; default true. La pantalla anfitriona lo fija en (rol === 'ps' || rol === 'ts').
 }
 ```
+
+### Modo lectura (`canRegister=false`)
+
+Cuando `canRegister` es `false`, el card **oculta el botón "Registrar intento"** y no expone forma de abrir el flujo de modales: queda en **modo lectura** (contador "X de N", tiles de último/próximo intento e historial siguen visibles). Es la defensa de UI para roles sin permiso de escritura (p. ej. supervisor `sv`, que llega al detalle desde Historial de Remisiones). Alineado con el permiso `register_psychosocial_contact_attempt` del [RBAC](/.knowledge/6-security/rbac-matrix.md) (solo `ps`/`ts`). No sustituye al control de backend: es solo presentación.
 
 ## Fuentes de datos
 
@@ -86,7 +91,7 @@ interface PsychosocialContactCardProps {
 | :--- | :--- |
 | `loading` | Cargando historial **en la carga inicial** (GET en vuelo). Muestra skeleton. En los **refrescos** (tras un `completed` del modal) NO se activa `loading`: el re-fetch es silencioso para no desmontar el bloque del card ni el `<psychosocial-contact-modal>` que está en pleno flujo (evita perder, p. ej., el modal de Consentimiento). |
 | `loaded` | Card renderizado con datos. |
-| `historyCollapsed` | Sección "HISTORIAL DE CONTACTO" plegada/desplegada (toggle chevron). |
+| `historyCollapsed` | Sección "HISTORIAL DE CONTACTO" plegada/desplegada (toggle chevron). **Inicia plegada (colapsada)** en la carga de la pantalla; la profesional la despliega si quiere ver el timeline. |
 | `error` | Fallo de carga; mensaje con reintento. |
 
 ## Árbol de Renderizado
@@ -97,8 +102,8 @@ interface PsychosocialContactCardProps {
 ├── [loading]  → skeleton
 ├── [error]    → mensaje + botón "Reintentar"
 └── [loaded]
-      ├── Header (título + subtítulo "X de N intentos" + botón "Registrar intento")
-      │      └── click "Registrar intento" → $refs.modal.start(processContext)
+      ├── Header (título + subtítulo "X de N intentos" + botón "Registrar intento" [v-if canRegister])
+      │      └── click "Registrar intento" → $refs.modal.start(processContext)   (solo si canRegister)
       ├── Tiles (Último intento realizado | Próximo intento)
       ├── Historial colapsable (más nuevo → más viejo)
       │      ├── fila sintética "Próximo" con badge PROGRAMADO (si nextContactAttemptAt) — arriba
@@ -111,6 +116,10 @@ interface PsychosocialContactCardProps {
 - El botón **"Registrar intento"** llama a `$refs.modal.start(ctx)` con `ctx = { id: psicosocialId, caseId, caseName, dailyFailedCount, totalCount, distinctDaysCount }`.
 - El modal decide (según `dailyFailedCount >= 3`) si abre "¿Contestó?" o directamente el modal de acciones (ver [PsychosocialContactModal](../PsychosocialContactModal/index.md)).
 - Tras cualquier `completed`, el card refresca el historial (re-fetch **silencioso**, sin activar `loading`) para reflejar el nuevo intento / próximo intento / transición de estado, **sin desmontar el modal** que pueda seguir abierto (Consentimiento, Sesión, Acciones, Cierre).
+
+## Ancho / layout
+
+El card es **fluido**: ocupa el 100% del ancho de su contenedor anfitrión (`max-width:100%`), dejando que la pantalla host decida el ancho real (p. ej. en el Detalle de Remisión el contenedor `.brd-container` lo acota a ~900px). No fija un ancho máximo propio.
 
 ## Accesibilidad (a11y)
 
@@ -128,7 +137,11 @@ interface PsychosocialContactCardProps {
 
 ## Montaje en pantallas
 
-Este card se monta en **una o varias pantallas** del módulo psicosocial (p.ej. detalle del proceso / gestión del caso). Las pantallas anfitrionas concretas se listan a medida que se especifican; cada una solo debe pasar las props (`psicosocialId`, `caseId`, `caseName`, datos de la profesional). El card no asume una pantalla específica.
+Este card se monta en **una o varias pantallas** del módulo psicosocial. Las pantallas anfitrionas concretas se listan a medida que se especifican; cada una solo debe pasar las props (`psicosocialId`, datos de la profesional, y `canRegister` según el rol). El card no asume una pantalla específica.
+
+Pantallas anfitrionas actuales:
+- [Detalle de Remisión Psicosocial](../../screens/RemisionPsicosocialDetalle/index.md) (`/salvia/remision-psicosocial/:id`, pestaña Contactos) — **host definitivo**.
+- ~~[Remisión Temporal](../../screens/RemisionTemporal/index.md) (`/salvia/remision-temporal/:id`)~~ — **retirada** al existir la pantalla definitiva.
 
 > [!NOTE]
 > **Confirmado:** el denominador "de 9" del contador es el **umbral de elegibilidad de cierre** (9 intentos). La interfaz lo comunica en el subtítulo ("X de 9 intentos") y en el texto de ayuda. Se expone como prop `closureThreshold` (default 9). El cierre por imposibilidad requiere además ≥3 días distintos (RN-06); por eso el texto de ayuda menciona ambas condiciones.

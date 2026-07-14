@@ -45,6 +45,7 @@ func RemisionPsicosocialDetalleGET(c *gin.Context) {
 			"currentUser":   s.Names + " " + s.LastNames,
 			"currentRole":   s.CurrentRole,
 			"currentUserId": s.UserICode,
+			"userTeam":      s.Team,
 			"remisionId":    remisionId,
 			"locale":        salvia_config.Locale,
 			"lang":          s.Lang,

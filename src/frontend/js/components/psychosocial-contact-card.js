@@ -10,7 +10,7 @@
     var style = document.createElement('style');
     style.id = 'psc-card-styles';
     style.textContent = `
-        .psc-card { background:#fff; border:1px solid #eef0f4; border-radius:1rem; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,.06); max-width:760px; }
+        .psc-card { background:#fff; border:1px solid #eef0f4; border-radius:1rem; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,.06); max-width:100%; }
         .psc-card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap; }
         .psc-card-title { font-size:1.15rem; font-weight:800; color:#111827; margin:0; }
         .psc-card-count { font-size:.85rem; color:#6b7280; margin:.15rem 0 0; }
@@ -44,13 +44,14 @@ app.component('psychosocial-contact-card', {
         currentUser:     { type: String, default: '' },
         currentUserId:   { type: String, default: '' },
         userTeam:        { type: String, default: '' },
-        closureThreshold:{ type: Number, default: 9 }
+        closureThreshold:{ type: Number, default: 9 },
+        canRegister:     { type: Boolean, default: true }
     },
     data: function() {
         return {
             loading: true,
             error: null,
-            historyCollapsed: false,
+            historyCollapsed: true,
             data: null
         };
     },
@@ -114,7 +115,7 @@ app.component('psychosocial-contact-card', {
             <p class="psc-card-count">\${ counters.totalCount || 0 } de \${ closureThreshold } intentos</p>
             <p class="psc-card-help">Al llegar a \${ closureThreshold } intentos en ≥3 días distintos se habilita el cierre por imposibilidad de contacto.</p>
           </div>
-          <button class="psc-register-btn" :disabled="counters.maxAttemptsReached" @click="openRegister">
+          <button v-if="canRegister" class="psc-register-btn" :disabled="counters.maxAttemptsReached" @click="openRegister">
             <i class="fas fa-phone-alt"></i> Registrar intento
           </button>
         </div>

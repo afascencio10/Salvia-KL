@@ -78,7 +78,8 @@ El contador es **por día natural** (se reinicia cada día). Cuando hay **3 inte
 ### Frontend — Screens
 | Pantalla | Spec | Estado |
 | :--- | :--- | :---: |
-| Remisión Temporal (`/salvia/remision-temporal/:id`, host del card) | [index.md](./frontend/screens/RemisionTemporal/index.md) | 🔜 |
+| Detalle de Remisión Psicosocial (`/salvia/remision-psicosocial/:id`, host definitivo del card) | [index.md](./frontend/screens/RemisionPsicosocialDetalle/index.md) | 🔜 |
+| ~~Remisión Temporal (`/salvia/remision-temporal/:id`)~~ — retirada, reemplazada por la anterior | [index.md](./frontend/screens/RemisionTemporal/index.md) | ⚰️ |
 
 ### Frontend — Componentes
 | Componente | Spec | Estado |
@@ -103,7 +104,8 @@ El contador es **por día natural** (se reinicia cada día). Cuando hay **3 inte
 | US-3X3-06 | Como profesional, quiero fijar la fecha/hora exacta del próximo intento (3a) en lugar de un posponer automático. | 🔜 |
 | US-3X3-07 | Como profesional, quiero poder añadir más intentos el mismo día hasta un tope de 50. | 🔜 |
 | US-3X3-08 | Como profesional, tras 9 intentos en 3 días distintos quiero cerrar el proceso por imposibilidad de contacto. | 🔜 |
-| US-3X3-09 | Como profesional (`ps`/`ts`), al dar "Ver remisión" en Mis Remisiones Psicosocial quiero llegar a una pantalla que cargue el card 3x3 del proceso (pantalla temporal `remision-temporal/:id`) mientras no exista la pantalla interna definitiva. | 🔜 |
+| US-3X3-09 | Como profesional (`ps`/`ts`), al dar "Ver remisión" en Mis Remisiones Psicosocial quiero llegar a la pantalla de Detalle de Remisión Psicosocial (`remision-psicosocial/:id`) y ver el card 3x3 en su pestaña Contactos. _(Antes apuntaba al andamio `remision-temporal/:id`, ya retirado.)_ | 🔜 |
+| US-3X3-10 | Como supervisor (`sv`), al abrir el detalle de una remisión desde Historial de Remisiones quiero ver el card 3x3 en modo lectura (sin el botón "Registrar intento"). | 🔜 |
 
 ## Reglas de Negocio (resumen normativo)
 

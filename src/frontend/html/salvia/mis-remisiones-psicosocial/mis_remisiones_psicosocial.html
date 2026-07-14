@@ -55,11 +55,10 @@
             },
             onVerRemision: function(payload) {
                 // remisionId = psychosocial_support_id (PsychosocialListItem.ID).
-                // Pantalla temporal que monta el card 3x3 mientras no exista la
-                // pantalla interna definitiva de Remisión.
+                // Pantalla de Detalle de Remisión Psicosocial (host definitivo del card 3x3).
                 var psicosocialId = payload && payload.remisionId;
                 if (psicosocialId) {
-                    window.location.href = '/salvia/remision-temporal/' + encodeURIComponent(psicosocialId);
+                    window.location.href = '/salvia/remision-psicosocial/' + encodeURIComponent(psicosocialId);
                 }
             },
             logout: function() {
