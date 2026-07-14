@@ -54,9 +54,11 @@
                 }
             },
             onVerRemision: function(payload) {
-                var remisionId = payload && payload.remisionId;
-                if (remisionId) {
-                    window.location.href = '/salvia/remision-psicosocial/' + encodeURIComponent(remisionId);
+                // remisionId = psychosocial_support_id (PsychosocialListItem.ID).
+                // Pantalla de Detalle de Remisión Psicosocial (host definitivo del card 3x3).
+                var psicosocialId = payload && payload.remisionId;
+                if (psicosocialId) {
+                    window.location.href = '/salvia/remision-psicosocial/' + encodeURIComponent(psicosocialId);
                 }
             },
             logout: function() {

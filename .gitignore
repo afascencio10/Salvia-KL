@@ -42,18 +42,15 @@ AGENTS.md
 CLAUDE.md
 GEMINI.md
 .cursorrules
-
-.knowledge/
+#.knowledge/
 .skills/
 .agents/
 .templates/
 .scripts/
 .githooks/
 .harness/
-
 Makefile
 CONTRIBUTING.md
-.gitlab-ci.yml
 .github/workflows/okf-validation.yml
 .github/workflows/playwright.yml
 # Agente de desarrollo camilo end
