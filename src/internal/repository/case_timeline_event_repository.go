@@ -36,7 +36,8 @@ type CaseTimelineEventRepository interface {
 	Create(ctx context.Context, event *models.CaseTimelineEvent) error
 	// GetByCaseID retorna eventos del caso en orden cronológico descendente.
 	// Si barrierID no es vacío filtra además por ese barrier_id.
-	GetByCaseID(ctx context.Context, caseID string, barrierID string) ([]TimelineEventRow, error)
+	// Si psychosocialID no es vacío filtra además por ese psychosocial_support_id.
+	GetByCaseID(ctx context.Context, caseID string, barrierID string, psychosocialID ...string) ([]TimelineEventRow, error)
 }
 
 type caseTimelineEventRepository struct {
@@ -51,7 +52,7 @@ func (r *caseTimelineEventRepository) Create(ctx context.Context, event *models.
 	return r.db.WithContext(ctx).Create(event).Error
 }
 
-func (r *caseTimelineEventRepository) GetByCaseID(ctx context.Context, caseID string, barrierID string) ([]TimelineEventRow, error) {
+func (r *caseTimelineEventRepository) GetByCaseID(ctx context.Context, caseID string, barrierID string, psychosocialID ...string) ([]TimelineEventRow, error) {
 	q := `
 		SELECT
 			cte.id,
@@ -87,6 +88,10 @@ func (r *caseTimelineEventRepository) GetByCaseID(ctx context.Context, caseID st
 	if barrierID != "" {
 		q += " AND cte.barrier_id = ?"
 		args = append(args, barrierID)
+	}
+	if len(psychosocialID) > 0 && psychosocialID[0] != "" {
+		q += " AND cte.psychosocial_support_id = ?"
+		args = append(args, psychosocialID[0])
 	}
 	q += " ORDER BY COALESCE(cte.date, cte.created_at) DESC"
 

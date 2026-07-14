@@ -1,7 +1,7 @@
 {{/* Template: remision_detalle.html — Pantalla de Detalle de Remisión Psicosocial */}}
 <link rel="stylesheet" href="/static/css/barrera_detalle.css">
 
-<div class="container brd-container">
+<div class="container brd-container" style="background:#f8f6ff;min-height:100vh;padding:24px 16px">
 
     <!-- Loading -->
     <div v-if="cargando" style="text-align:center;padding:80px 0;color:#6b7280">
@@ -32,125 +32,151 @@
         </div>
 
         <!-- Header -->
-        <div class="brd-header-card">
-            <div class="brd-victim-avatar">${ remision.victimNames ? remision.victimNames.charAt(0).toUpperCase() : '?' }</div>
-            <div class="brd-victim-info" style="flex:1">
-                <div class="brd-victim-name-row">
-                    <span class="brd-victim-name">${ remision.victimNames } ${ remision.victimLastNames }</span>
-                    <span :style="badgeRiesgoStyle(remision.riskLevel)" style="font-size:.7rem;font-weight:700;padding:3px 10px;border-radius:20px">
-                        ${ labelRiesgo(remision.riskLevel) }
-                    </span>
-                    <span :style="badgeEstadoStyle(remision.status)" style="font-size:.7rem;font-weight:700;padding:3px 10px;border-radius:20px">
-                        ${ labelEstado(remision.status) }
-                    </span>
+        <div style="background:#fff;border-radius:16px;padding:24px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:14px">
+                    <div style="width:48px;height:48px;border-radius:50%;background:#5106A7;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700">${ remision.victimNames ? remision.victimNames.charAt(0).toUpperCase() : '?' }</div>
+                    <div>
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                            <span style="font-size:1.05rem;font-weight:700;color:#111827">${ remision.victimNames } ${ remision.victimLastNames }</span>
+                            <span :style="badgeRiesgoStyle(remision.riskLevel)" style="font-size:.68rem;font-weight:700;padding:3px 10px;border-radius:20px">${ labelRiesgo(remision.riskLevel) }</span>
+                            <span :style="badgeEstadoStyle(remision.status)" style="font-size:.68rem;font-weight:700;padding:3px 10px;border-radius:20px">${ labelEstado(remision.status) }</span>
+                        </div>
+                        <div style="font-size:.82rem;color:#6b7280;margin-top:4px">
+                            <span v-if="remision.docNumber">${ remision.docNumber }</span>
+                            <span v-if="remision.victimPhone"> · ${ remision.victimPhone }</span>
+                            <span v-if="remision.municipality"> · ${ remision.municipality }</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="brd-victim-meta">
-                    <span v-if="remision.docNumber">${ remision.docNumber }</span>
-                    <span v-if="remision.victimPhone"> · ${ remision.victimPhone }</span>
-                    <span v-if="remision.municipality"> · ${ remision.municipality }</span>
-                </div>
-            </div>
-            <div v-if="remision.professionalName" style="display:flex;align-items:center;gap:8px">
-                <div style="width:32px;height:32px;border-radius:50%;background:#ede9fe;color:#5106A7;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700">${ remision.professionalName.charAt(0).toUpperCase() }</div>
-                <div>
-                    <div style="font-size:.78rem;font-weight:600;color:#374151">${ remision.professionalName }</div>
-                    <div style="font-size:.68rem;color:#9ca3af">${ remision.professionalRole || 'Profesional' }</div>
+                <div v-if="remision.professionalName" style="display:flex;align-items:center;gap:10px">
+                    <div style="width:36px;height:36px;border-radius:50%;background:#ede9fe;color:#5106A7;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700">${ remision.professionalName.charAt(0).toUpperCase() }</div>
+                    <div>
+                        <div style="font-size:.7rem;color:#9ca3af">Psicóloga</div>
+                        <div style="font-size:.82rem;font-weight:600;color:#374151">${ remision.professionalName }</div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Sesiones counter -->
+        <!-- Sesiones counter con circulitos -->
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding:0 4px">
-            <span style="font-size:.78rem;color:#6b7280">Sesiones (${ remision.sessionCount })</span>
-            <span v-for="n in remision.sessionCount" :key="n" style="width:10px;height:10px;border-radius:50%;background:#5106A7"></span>
+            <span style="font-size:.78rem;color:#6b7280">Sesiones (4–6)</span>
+            <span v-for="n in 6" :key="'s'+n" style="width:10px;height:10px;border-radius:50%" :style="n <= sesionesRealizadas ? 'background:#5106A7' : 'background:#e5e7eb'"></span>
             <span style="font-size:.75rem;color:#9ca3af;margin-left:4px">${ sesionesRealizadas } realizadas</span>
         </div>
 
         <!-- Tabs -->
-        <div class="brd-tabs-wrapper">
-            <button class="brd-tab" :class="{ active: activeTab === 'info' }" @click="activeTab = 'info'">
-                📋 Info Remisión
-            </button>
-            <button class="brd-tab" :class="{ active: activeTab === 'contactos' }" @click="activeTab = 'contactos'">
-                📞 Contactos
-            </button>
-            <button class="brd-tab" :class="{ active: activeTab === 'tareas' }" @click="activeTab = 'tareas'">
-                ✅ Tareas
-            </button>
-            <button class="brd-tab" :class="{ active: activeTab === 'timeline' }" @click="activeTab = 'timeline'">
-                📊 Timeline
+        <div style="display:flex;gap:0;border-bottom:2px solid #e5e7eb;margin-bottom:0">
+            <button v-for="tab in [{id:'info',icon:'📋',label:'Info Remisión'},{id:'contactos',icon:'📞',label:'Contactos'},{id:'tareas',icon:'✅',label:'Tareas'},{id:'timeline',icon:'📊',label:'Timeline'}]" :key="tab.id"
+                style="padding:10px 18px;font-size:.82rem;font-weight:600;border:none;cursor:pointer;background:none;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .12s"
+                :style="activeTab === tab.id ? 'color:#5106A7;border-bottom-color:#5106A7' : 'color:#6b7280'"
+                @click="activeTab = tab.id">
+                ${ tab.icon } ${ tab.label }
             </button>
         </div>
 
         <!-- Tab: Info Remisión -->
-        <div v-if="activeTab === 'info'" class="brd-tab-content-card">
-            <p style="font-size:.9rem;font-weight:700;color:#111827;margin:0 0 16px">Datos de la remisión</p>
+        <div v-if="activeTab === 'info'" style="background:#fff;border-radius:0 0 12px 12px;padding:28px;box-shadow:0 1px 4px rgba(0,0,0,.04)">
+            <p style="font-size:.92rem;font-weight:700;color:#111827;margin:0 0 20px">Datos de la remisión</p>
 
-            <div class="brd-barrier-detail-row">
-                <div class="brd-detail-field">
-                    <span class="brd-detail-label">Motivo</span>
-                    <span class="brd-detail-value" style="font-weight:600">${ remision.type || '—' }</span>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px 40px">
+                <div>
+                    <span style="font-size:.68rem;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">Motivo</span>
+                    <span style="font-size:.88rem;font-weight:700;color:#111827">${ remision.type || '—' }</span>
                 </div>
-                <div class="brd-detail-field">
-                    <span class="brd-detail-label">Fecha de remisión</span>
-                    <span class="brd-detail-value" style="font-weight:600">${ remision.createdAt }</span>
+                <div>
+                    <span style="font-size:.68rem;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">Fecha de remisión</span>
+                    <span style="font-size:.88rem;font-weight:700;color:#111827">${ remision.createdAt }</span>
                 </div>
-                <div class="brd-detail-field">
-                    <span class="brd-detail-label">Remitido por</span>
-                    <span class="brd-detail-value" style="font-weight:600">${ remision.submittedByName || '—' }</span>
+                <div>
+                    <span style="font-size:.68rem;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">Remitido por</span>
+                    <span style="font-size:.88rem;font-weight:700;color:#111827">${ remision.submittedByName || '—' }</span>
                     <span v-if="remision.submittedByTeam" style="font-size:.72rem;color:#9ca3af;display:block">${ remision.submittedByTeam }</span>
                 </div>
-                <div class="brd-detail-field">
-                    <span class="brd-detail-label">Psicóloga asignada</span>
-                    <span class="brd-detail-value" style="font-weight:600;color:#5106A7">${ remision.professionalName || 'Sin asignar' }</span>
+                <div>
+                    <span style="font-size:.68rem;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">Psicóloga asignada</span>
+                    <span style="font-size:.88rem;font-weight:700;color:#5106A7">${ remision.professionalName || 'Sin asignar' }</span>
                 </div>
             </div>
 
             <!-- Observaciones -->
-            <div v-if="remision.notes" style="margin-top:16px;background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:14px 16px">
+            <div v-if="remision.notes" style="margin-top:24px;background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:14px 16px">
                 <p style="font-size:.72rem;font-weight:700;color:#92400e;text-transform:uppercase;margin:0 0 6px">🔒 Observaciones de la remisión (solo equipo psicosocial)</p>
                 <p style="font-size:.84rem;color:#374151;margin:0;line-height:1.5">${ remision.notes }</p>
             </div>
         </div>
 
         <!-- Tab: Contactos -->
-        <div v-if="activeTab === 'contactos'" class="brd-tab-content-card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-                <span style="font-size:.82rem;font-weight:700;color:#374151;text-transform:uppercase">Contactos (${ remision.contacts.length })</span>
-                <button style="background:#5106A7;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer">+ Registrar contacto</button>
+        <div v-if="activeTab === 'contactos'" style="padding-top:20px">
+
+            <!-- Intentos de contacto 3x3 (placeholder — lo implementará otro compañero) -->
+            <div style="background:#fff;border-radius:12px;padding:16px 20px;margin-bottom:24px;border:1px solid #e5e7eb">
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                    <div style="display:flex;align-items:center;gap:10px">
+                        <span style="font-size:.88rem;font-weight:700;color:#111827">Intentos de contacto 3×3</span>
+                        <span style="width:8px;height:8px;border-radius:50%;background:#d1d5db"></span>
+                        <span style="width:8px;height:8px;border-radius:50%;background:#d1d5db"></span>
+                        <span style="width:8px;height:8px;border-radius:50%;background:#d1d5db"></span>
+                        <span style="font-size:.75rem;color:#9ca3af">0/3</span>
+                    </div>
+                    <button style="background:#5106A7;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer">Registrar intento</button>
+                </div>
+                <p style="font-size:.8rem;color:#9ca3af;margin:8px 0 0;font-style:italic">Sin intentos registrados.</p>
             </div>
 
+            <!-- Header contactos -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <span style="font-size:.82rem;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.03em">Contactos (${ remision.contacts.length })</span>
+                <button @click="$refs.registrarContactoModal.open(remisionID)" style="background:#5106A7;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer">+ Registrar contacto</button>
+            </div>
+
+            <!-- Lista de contactos -->
             <div v-if="remision.contacts.length === 0" style="text-align:center;padding:40px 0;color:#9ca3af;font-size:.85rem">
                 No hay contactos registrados
             </div>
 
-            <div v-for="contact in remision.contacts" :key="contact.id" style="border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px" :style="contact.isCompleted ? 'border-left:3px solid #16a34a' : contact.status === 'agendada' ? 'border-left:3px solid #f59e0b' : 'border-left:3px solid #6b7280'">
+            <div v-for="(contact, idx) in remision.contacts" :key="contact.id" style="border-left:3px solid;border-radius:12px;padding:18px 20px;margin-bottom:14px;background:#fff" :style="contact.status === 'cancelada' ? 'border-left-color:#d1d5db;opacity:.7' : contact.isCompleted ? 'border-left-color:#16a34a' : contact.isPsicoSession && !contact.isCompleted ? 'border-left-color:#f59e0b' : 'border-left-color:#6b7280'">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start">
-                    <div>
-                        <div style="font-size:.72rem;color:#9ca3af;margin-bottom:4px">
-                            ${ contact.scheduledDate || contact.createdAt }
-                            <span v-if="contact.scheduledTime"> · ${ contact.scheduledTime }</span>
+                    <div style="display:flex;gap:12px;align-items:flex-start">
+                        <!-- Icono -->
+                        <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.9rem" :style="contact.isCompleted ? 'background:#dcfce7;color:#16a34a' : contact.isPsicoSession && !contact.isCompleted ? 'background:#fef3c7;color:#92400e' : 'background:#f3f4f6;color:#6b7280'">
+                            <span v-if="contact.isCompleted">✓</span>
+                            <span v-else-if="contact.isPsicoSession && !contact.isCompleted">📅</span>
+                            <span v-else>💬</span>
                         </div>
-                        <div style="font-size:.85rem;font-weight:600;color:#111827">
-                            <span v-if="contact.isPsicoSession && contact.isCompleted">Sesión realizada</span>
-                            <span v-else-if="contact.isPsicoSession && !contact.isCompleted">Sesión agendada</span>
-                            <span v-else>Contacto sin sesión</span>
-                            <span v-if="contact.sessionType"> — ${ labelSessionType(contact.sessionType) }</span>
+                        <div>
+                            <div style="font-size:.72rem;color:#9ca3af;margin-bottom:3px">
+                                ${ contact.scheduledDate || contact.createdAt }
+                                <span v-if="contact.scheduledTime"> · ${ contact.scheduledTime }</span>
+                            </div>
+                            <div style="font-size:.88rem;font-weight:700;color:#111827" :style="contact.status === 'cancelada' ? 'text-decoration:line-through;color:#9ca3af' : ''">
+                                <span v-if="contact.status === 'cancelada'">Sesión ${ contarSesionesHasta(idx) } cancelada</span>
+                                <span v-else-if="contact.isPsicoSession && contact.isCompleted">Sesión ${ contarSesionesHasta(idx) } realizada</span>
+                                <span v-else-if="contact.isPsicoSession && !contact.isCompleted">Sesión ${ contarSesionesHasta(idx) } agendada</span>
+                                <span v-else>Contacto sin sesión</span>
+                                <span v-if="contact.sessionType"> — ${ labelSessionType(contact.sessionType) }</span>
+                            </div>
+                            <div v-if="contact.summary" style="font-size:.8rem;color:#6b7280;margin-top:4px">${ contact.summary }</div>
+                            <!-- Fecha agendada para sesiones pendientes -->
+                            <div v-if="contact.isPsicoSession && !contact.isCompleted && contact.scheduledDate" style="font-size:.78rem;color:#7c3aed;margin-top:4px">
+                                📅 ${ contact.scheduledDate }<span v-if="contact.scheduledTime"> a las ${ contact.scheduledTime }</span>
+                            </div>
                         </div>
-                        <div v-if="contact.summary" style="font-size:.8rem;color:#6b7280;margin-top:4px">${ contact.summary }</div>
                     </div>
-                    <span style="font-size:.68rem;font-weight:700;padding:3px 10px;border-radius:20px" :style="contact.isCompleted ? 'background:#dcfce7;color:#15803d' : contact.status === 'agendada' ? 'background:#fef3c7;color:#92400e' : 'background:#f3f4f6;color:#6b7280'">
-                        ${ contact.isCompleted ? 'Realizada' : contact.status === 'agendada' ? 'Agendada' : 'Contacto' }
+                    <!-- Badge estado -->
+                    <span style="font-size:.7rem;font-weight:700;padding:4px 12px;border-radius:20px;flex-shrink:0" :style="contact.status === 'cancelada' ? 'background:#f3f4f6;color:#9ca3af;border:1px solid #e5e7eb' : contact.isCompleted ? 'background:#dcfce7;color:#15803d;border:1px solid #bbf7d0' : contact.isPsicoSession && !contact.isCompleted ? 'background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0' : 'background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb'">
+                        ${ contact.status === 'cancelada' ? 'Cancelada' : contact.isCompleted ? 'Realizada' : contact.isPsicoSession && !contact.isCompleted ? 'Agendada' : 'Contacto' }
                     </span>
                 </div>
 
                 <!-- Botones -->
-                <div style="display:flex;gap:8px;margin-top:10px">
-                    <button v-if="contact.isCompleted" style="font-size:.75rem;padding:5px 12px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;color:#5106A7;cursor:pointer;font-weight:600">Ver sesión</button>
-                    <template v-if="!contact.isCompleted && contact.isPsicoSession">
-                        <button style="font-size:.75rem;padding:5px 12px;border-radius:6px;border:none;background:#5106A7;color:#fff;cursor:pointer;font-weight:600">Registrar sesión</button>
-                        <button style="font-size:.75rem;padding:5px 12px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;color:#374151;cursor:pointer;font-weight:500">Reprogramar</button>
-                        <button style="font-size:.75rem;padding:5px 12px;border-radius:6px;border:1px solid #fecaca;background:#fff;color:#dc2626;cursor:pointer;font-weight:500">Cancelar sesión</button>
+                <div style="display:flex;gap:8px;margin-top:12px;padding-left:48px">
+                    <button v-if="contact.isCompleted" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #5106A7;background:#fff;color:#5106A7;cursor:pointer;font-weight:600">Ver sesión</button>
+                    <template v-if="contact.isPsicoSession && !contact.isCompleted && contact.status !== 'cancelada'">
+                        <button disabled style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:none;background:#5106A7;color:#fff;cursor:not-allowed;font-weight:600;opacity:.5">Registrar sesión</button>
+                        <button @click="abrirReprogramar(contact, idx)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;color:#374151;cursor:pointer;font-weight:500">Reprogramar</button>
+                        <button @click="cancelarSesion(contact)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #fecaca;background:#fff;color:#dc2626;cursor:pointer;font-weight:500">Cancelar sesión</button>
                     </template>
                 </div>
             </div>
@@ -164,18 +190,59 @@
         </div>
 
         <!-- Tab: Timeline -->
-        <div v-if="activeTab === 'timeline'" class="brd-tab-content-card">
-            <div style="text-align:center;padding:40px 0;color:#9ca3af;font-size:.85rem">
-                <i class="fas fa-history" style="font-size:1.5rem;margin-bottom:8px;display:block"></i>
-                <p>No hay eventos en el timeline de esta remisión</p>
-            </div>
+        <div v-if="activeTab === 'timeline'" style="background:#fff;border-radius:0 0 12px 12px;padding:28px;box-shadow:0 1px 4px rgba(0,0,0,.04)">
+            <case-timeline :case-id="remision.caseId" :psychosocial-id="remisionID" :show-filters="false"></case-timeline>
         </div>
 
     </template>
+
+    <!-- Modal registrar contacto -->
+    <registrar-contacto-modal ref="registrarContactoModal" @saved="cargarDetalle"></registrar-contacto-modal>
 </div>
 
 {{ template "standard_scripts.html" .}}
 {{ template "overlay.html" .}}
+
+<!-- Modal Reprogramar sesión -->
+<div v-if="reprogramarVisible" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:10000;padding:16px" @click.self="reprogramarVisible = false">
+    <div style="background:#fff;border-radius:16px;width:100%;max-width:440px;padding:32px;box-shadow:0 20px 40px rgba(0,0,0,.18)">
+        <p style="font-size:1.2rem;font-weight:800;color:#111827;margin:0 0 6px">Reprogramar sesión ${ contarSesionesHasta(reprogramarIdx) }</p>
+        <p style="font-size:.85rem;color:#6b7280;margin:0 0 24px">Elige la nueva fecha y hora.</p>
+        <div style="display:flex;gap:14px;margin-bottom:24px">
+            <div style="flex:1">
+                <label style="font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">Fecha</label>
+                <input type="date" v-model="reprogramarFecha" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:10px;font-size:.85rem;outline:none" />
+            </div>
+            <div style="flex:1">
+                <label style="font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">Hora</label>
+                <input type="time" v-model="reprogramarHora" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:10px;font-size:.85rem;outline:none" />
+            </div>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end">
+            <button @click="reprogramarVisible = false" style="padding:10px 24px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;color:#374151;font-size:.85rem;font-weight:600;cursor:pointer">Cancelar</button>
+            <button @click="guardarReprogramar" :disabled="!reprogramarFecha || !reprogramarHora || reprogramarGuardando" style="padding:10px 24px;border-radius:10px;border:none;background:#c4b5fd;color:#1f2937;font-size:.85rem;font-weight:700;cursor:pointer" :style="{ opacity: reprogramarFecha && reprogramarHora && !reprogramarGuardando ? '1' : '.5' }">
+                ${ reprogramarGuardando ? 'Guardando...' : 'Guardar' }
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar cancelación -->
+<div v-if="cancelarVisible" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:10001;padding:16px" @click.self="cancelarVisible = false">
+    <div style="background:#fff;border-radius:16px;width:100%;max-width:400px;padding:32px;box-shadow:0 20px 40px rgba(0,0,0,.18);text-align:center">
+        <div style="width:52px;height:52px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+            <span style="font-size:1.5rem">⚠️</span>
+        </div>
+        <p style="font-size:1.05rem;font-weight:700;color:#111827;margin:0 0 8px">¿Cancelar esta sesión?</p>
+        <p style="font-size:.85rem;color:#6b7280;margin:0 0 24px;line-height:1.5">La sesión quedará marcada como cancelada en el historial. Esta acción no se puede deshacer.</p>
+        <div style="display:flex;gap:12px;justify-content:center">
+            <button @click="cancelarVisible = false" style="padding:10px 24px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;color:#374151;font-size:.85rem;font-weight:600;cursor:pointer">No, volver</button>
+            <button @click="confirmarCancelacion" :disabled="cancelarGuardando" style="padding:10px 24px;border-radius:10px;border:none;background:#dc2626;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer" :style="{ opacity: cancelarGuardando ? '.5' : '1' }">
+                ${ cancelarGuardando ? 'Cancelando...' : 'Sí, cancelar sesión' }
+            </button>
+        </div>
+    </div>
+</div>
 
 <script>
     var home = Vue.createApp({
@@ -191,6 +258,17 @@
                 cargando: true,
                 error: null,
                 remision: null,
+                // Reprogramar modal
+                reprogramarVisible: false,
+                reprogramarContact: null,
+                reprogramarIdx: 0,
+                reprogramarFecha: '',
+                reprogramarHora: '',
+                reprogramarGuardando: false,
+                // Cancelar modal
+                cancelarVisible: false,
+                cancelarContact: null,
+                cancelarGuardando: false,
             };
         },
 
@@ -262,6 +340,67 @@
                 return map[type] || type || '';
             },
 
+            contarSesionesHasta(idx) {
+                var count = 0;
+                for (var i = 0; i <= idx; i++) {
+                    if (this.remision.contacts[i] && this.remision.contacts[i].isPsicoSession) {
+                        count++;
+                    }
+                }
+                return count;
+            },
+
+            abrirReprogramar(contact, idx) {
+                this.reprogramarContact = contact;
+                this.reprogramarIdx = idx;
+                this.reprogramarFecha = contact.scheduledDate || '';
+                this.reprogramarHora = contact.scheduledTime || '';
+                this.reprogramarVisible = true;
+            },
+
+            async guardarReprogramar() {
+                if (!this.reprogramarFecha || !this.reprogramarHora || this.reprogramarGuardando) return;
+                this.reprogramarGuardando = true;
+                try {
+                    var res = await fetch('/api/v1/psychosocial-support/contacts/' + this.reprogramarContact.id + '/reschedule', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ scheduledDate: this.reprogramarFecha, scheduledTime: this.reprogramarHora }),
+                    });
+                    if (!res.ok) throw new Error('Error');
+                    this.reprogramarVisible = false;
+                    this.cargarDetalle();
+                } catch (e) {
+                    console.error('Error reprogramando:', e);
+                } finally {
+                    this.reprogramarGuardando = false;
+                }
+            },
+
+            async cancelarSesion(contact) {
+                this.cancelarContact = contact;
+                this.cancelarVisible = true;
+            },
+
+            async confirmarCancelacion() {
+                if (this.cancelarGuardando) return;
+                this.cancelarGuardando = true;
+                try {
+                    var res = await fetch('/api/v1/psychosocial-support/contacts/' + this.cancelarContact.id + '/cancel', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                    });
+                    if (!res.ok) throw new Error('Error');
+                    this.cancelarVisible = false;
+                    this.cancelarContact = null;
+                    this.cargarDetalle();
+                } catch (e) {
+                    console.error('Error cancelando:', e);
+                } finally {
+                    this.cancelarGuardando = false;
+                }
+            },
+
             logout() {
                 logout('/seguridad/logout');
             }
@@ -270,6 +409,8 @@
 
     var app = home;
 </script>
+<script src="/static/js/components/registrar-contacto-modal.js"></script>
+<script src="/static/js/components/case-timeline.js"></script>
 <script>
     home.mount('#app');
 </script>

@@ -6,6 +6,7 @@ import (
 	"bitsflow/internal/models"
 	"context"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -59,6 +60,9 @@ type PsychosocialContactItem struct {
 
 type PsychosocialDetailService interface {
 	GetDetail(ctx context.Context, id string) (*PsychosocialDetailResponse, error)
+	CreateContact(ctx context.Context, psicosocialID, contactType, contactDate, contactTime, summary, sessionType, scheduledDate, scheduledTime string) (*models.TeamContact, error)
+	RescheduleContact(ctx context.Context, contactID, scheduledDate, scheduledTime string) error
+	CancelContact(ctx context.Context, contactID string) error
 }
 
 type psychosocialDetailService struct {
@@ -198,4 +202,193 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 	}
 
 	return resp, nil
+}
+
+func (s *psychosocialDetailService) CreateContact(ctx context.Context, psicosocialID, contactType, contactDate, contactTime, summary, sessionType, scheduledDate, scheduledTime string) (*models.TeamContact, error) {
+	// Obtener la remisión para saber el case_id
+	var ps models.PsychosocialSupport
+	if err := s.db.WithContext(ctx).Where("id = ?", psicosocialID).First(&ps).Error; err != nil {
+		return nil, err
+	}
+
+	contact := &models.TeamContact{
+		CaseID:        ps.CaseID,
+		PsicosocialID: &psicosocialID,
+	}
+
+	// Parsear fecha/hora del contacto
+	if contactDate != "" && contactTime != "" {
+		t, err := time.Parse("2006-01-02 15:04", contactDate+" "+contactTime)
+		if err == nil {
+			contact.ScheduledDate = &t
+			contact.ScheduledTime = &contactTime
+		}
+	}
+
+	switch contactType {
+	case "contacto":
+		// Solo contacto — no es sesión psico
+		contact.IsPsicoSession = false
+		contact.IsCompleted = true
+		now := time.Now()
+		contact.CompletedAt = &now
+		contact.Summary = &summary
+		status := "realizado"
+		contact.Status = &status
+
+	case "agendar":
+		// Agendé sesión — es sesión psico, pendiente
+		contact.IsPsicoSession = true
+		contact.IsCompleted = false
+		status := "agendada"
+		contact.Status = &status
+		// Parsear fecha/hora de la sesión agendada
+		if scheduledDate != "" && scheduledTime != "" {
+			t, err := time.Parse("2006-01-02 15:04", scheduledDate+" "+scheduledTime)
+			if err == nil {
+				contact.ScheduledDate = &t
+				contact.ScheduledTime = &scheduledTime
+			}
+		}
+
+	case "realizar":
+		// Realicé sesión — es sesión psico, ya completada
+		contact.IsPsicoSession = true
+		contact.IsCompleted = true
+		now := time.Now()
+		contact.CompletedAt = &now
+		status := "realizado"
+		contact.Status = &status
+	}
+
+	if err := s.db.WithContext(ctx).Create(contact).Error; err != nil {
+		return nil, err
+	}
+
+	// Si es sesión completada, incrementar session_count en psychosocial_support
+	if contact.IsPsicoSession && contact.IsCompleted {
+		s.db.Exec("UPDATE salvia.psychosocial_support SET session_count = session_count + 1 WHERE id = ?", psicosocialID)
+	}
+
+	// Registrar evento en timeline
+	now := time.Now()
+	var desc string
+	var tlType string
+	var icon string
+	var color string
+	switch contactType {
+	case "contacto":
+		desc = "Contacto registrado: " + summary
+		tlType = "Contacto registrado"
+		icon = "note-sticky"
+		color = models.TimelineColorGray
+	case "agendar":
+		desc = "Sesión agendada para " + scheduledDate + " " + scheduledTime
+		tlType = "Sesión agendada"
+		icon = models.TimelineIconSeguimiento
+		color = models.TimelineColorGreen
+	case "realizar":
+		desc = "Sesión realizada"
+		tlType = "Sesión realizada"
+		icon = "circle-check"
+		color = models.TimelineColorGreen
+	}
+	s.db.WithContext(ctx).Create(&models.CaseTimelineEvent{
+		CaseID:                ps.CaseID,
+		EventType:             "PSICOSOCIAL_CONTACTO",
+		Category:              models.TimelineCategoryPsicosocial,
+		Type:                  tlType,
+		Icon:                  icon,
+		Color:                 color,
+		Date:                  now,
+		Description:           desc,
+		PsychosocialSupportID: psicosocialID,
+		CreatedAt:             now,
+	})
+
+	return contact, nil
+}
+
+func (s *psychosocialDetailService) RescheduleContact(ctx context.Context, contactID, scheduledDate, scheduledTime string) error {
+	t, err := time.Parse("2006-01-02 15:04", scheduledDate+" "+scheduledTime)
+	if err != nil {
+		return err
+	}
+
+	// Obtener el contacto para saber case_id y psicosocial_id
+	var contact models.TeamContact
+	if err := s.db.WithContext(ctx).Where("id = ?", contactID).First(&contact).Error; err != nil {
+		return err
+	}
+
+	// Actualizar fecha/hora
+	if err := s.db.WithContext(ctx).
+		Model(&models.TeamContact{}).
+		Where("id = ?", contactID).
+		Updates(map[string]interface{}{
+			"scheduled_date": t,
+			"scheduled_time": scheduledTime,
+		}).Error; err != nil {
+		return err
+	}
+
+	// Registrar evento en timeline
+	psID := ""
+	if contact.PsicosocialID != nil {
+		psID = *contact.PsicosocialID
+	}
+	now := time.Now()
+	s.db.WithContext(ctx).Create(&models.CaseTimelineEvent{
+		CaseID:                contact.CaseID,
+		EventType:             "SESION_REPROGRAMADA",
+		Category:              models.TimelineCategoryPsicosocial,
+		Type:                  "Sesión reprogramada",
+		Icon:                  models.TimelineIconPospuesto,
+		Color:                 models.TimelineColorBlue,
+		Date:                  now,
+		Description:           "Sesión reprogramada para " + scheduledDate + " a las " + scheduledTime,
+		PsychosocialSupportID: psID,
+		CreatedAt:             now,
+	})
+
+	return nil
+}
+
+func (s *psychosocialDetailService) CancelContact(ctx context.Context, contactID string) error {
+	// Obtener el contacto para saber case_id y psicosocial_id
+	var contact models.TeamContact
+	if err := s.db.WithContext(ctx).Where("id = ?", contactID).First(&contact).Error; err != nil {
+		return err
+	}
+
+	cancelado := "cancelada"
+	if err := s.db.WithContext(ctx).
+		Model(&models.TeamContact{}).
+		Where("id = ?", contactID).
+		Updates(map[string]interface{}{
+			"status": cancelado,
+		}).Error; err != nil {
+		return err
+	}
+
+	// Registrar evento en timeline
+	psID := ""
+	if contact.PsicosocialID != nil {
+		psID = *contact.PsicosocialID
+	}
+	now := time.Now()
+	s.db.WithContext(ctx).Create(&models.CaseTimelineEvent{
+		CaseID:                contact.CaseID,
+		EventType:             "SESION_CANCELADA",
+		Category:              models.TimelineCategoryPsicosocial,
+		Type:                  "Sesión cancelada",
+		Icon:                  "circle-xmark",
+		Color:                 models.TimelineColorRed,
+		Date:                  now,
+		Description:           "Sesión cancelada",
+		PsychosocialSupportID: psID,
+		CreatedAt:             now,
+	})
+
+	return nil
 }

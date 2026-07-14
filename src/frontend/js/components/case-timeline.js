@@ -246,9 +246,10 @@ function ctFormatDate(raw) {
 app.component('case-timeline', {
     delimiters: ['${', '}'],
     props: {
-        caseId:      { type: String, required: true },
-        barrierId:   { type: String, required: false, default: '' },
-        showFilters: { type: Boolean, required: false, default: true },
+        caseId:           { type: String, required: true },
+        barrierId:        { type: String, required: false, default: '' },
+        psychosocialId:   { type: String, required: false, default: '' },
+        showFilters:      { type: Boolean, required: false, default: true },
     },
     data() {
         return {
@@ -286,7 +287,10 @@ app.component('case-timeline', {
             this.error   = null;
             try {
                 var url = '/api/v1/casos/' + this.caseId + '/timeline-events';
-                if (this.barrierId) url += '?barrierId=' + encodeURIComponent(this.barrierId);
+                var params = [];
+                if (this.barrierId) params.push('barrierId=' + encodeURIComponent(this.barrierId));
+                if (this.psychosocialId) params.push('psychosocialId=' + encodeURIComponent(this.psychosocialId));
+                if (params.length) url += '?' + params.join('&');
                 var res = await fetch(url);
                 if (!res.ok) throw new Error('Error ' + res.status + ' al cargar el timeline');
                 var data = await res.json();
