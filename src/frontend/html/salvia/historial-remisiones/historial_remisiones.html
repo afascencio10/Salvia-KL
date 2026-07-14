@@ -57,9 +57,9 @@
                 }
             },
             onVerRemision: function(payload) {
-                var followUpId = payload && payload.followUpId;
-                if (followUpId) {
-                    window.location.href = '/salvia/hacer-seguimiento/' + encodeURIComponent(followUpId);
+                var remisionId = payload && payload.remisionId;
+                if (remisionId) {
+                    window.location.href = '/salvia/remision-psicosocial/' + encodeURIComponent(remisionId);
                 }
             },
             onReasignarRemisiones: function(payload) {

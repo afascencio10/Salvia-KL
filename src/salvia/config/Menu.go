@@ -279,6 +279,11 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	// ── Mis remisiones Psicosocial (profesional ps / ts) ────────────────────
 	"get_mis_remisiones_psicosocial": {"ps": true, "ts": true},
 
+	// ── Registrar sesión psicosocial (profesional ps / ts) ──────────────────
+	"get_registrar_sesion_psicosocial": {"ps": true, "ts": true},
+
+	// ── Test — selección de casos psicosocial (solo desarrollo / supervisión) ─
+	"get_test_psicosocial": {"ps": true, "ts": true, "sv": true, "ad": true},
 	// ── Flujo 3x3 de Atención Psicosocial (profesional ps / ts) ─────────────
 	"get_psychosocial_contact_attempts":      {"ps": true, "ts": true},
 	"register_psychosocial_contact_attempt":  {"ps": true, "ts": true},

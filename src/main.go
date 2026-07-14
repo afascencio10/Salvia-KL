@@ -215,6 +215,7 @@ func main() {
     casesReassignCtrl      := salvia_ctrl.NewCasesReassignController(casesReassignSvc)
     agentsSearchCtrl       := salvia_ctrl.NewAgentsSearchController(agentsSearchSvc)
     psychosocialListCtrl   := salvia_ctrl.NewPsychosocialListController(psychosocialListSvc)
+    psychosocialDetailCtrl := salvia_ctrl.NewPsychosocialDetailController(gormDB)
     psychosocialReassignCtrl := salvia_ctrl.NewPsychosocialReassignController(psychosocialReassignSvc)
     // Flujo 3x3 de Atención Psicosocial
     contactAttemptRepo      := repository.NewContactAttemptRepository(gormDB)
@@ -256,6 +257,7 @@ func main() {
     casesReassignCtrl.RegisterRoutes(api)
     agentsSearchCtrl.RegisterRoutes(api)
     psychosocialListCtrl.RegisterRoutes(api)
+    psychosocialDetailCtrl.RegisterRoutes(api)
     psychosocialReassignCtrl.RegisterRoutes(api)
     psychosocialContactCtrl.RegisterRoutes(api)
     assignCaseCtrl.RegisterRoutes(api)

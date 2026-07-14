@@ -251,6 +251,13 @@ func StartRouter(router *gin.Engine) {
 		secRouter.GET("/seguimientos/area", SeguimientosAreaGET)
 
 		/*
+			Psicosocial — Registrar sesión
+			Rutas estáticas antes de la dinámica para evitar conflictos en Gin.
+		*/
+		secRouter.GET("/psicosocial/test", TestCasosPsicosocialGET)
+		secRouter.GET("/psicosocial/registrar/:id", RegistrarSesionPsicosocialGET)
+
+		/*
 			Notificaciones
 		*/
 		secRouter.GET("/notificaciones", NotificacionesGET)
@@ -265,6 +272,11 @@ func StartRouter(router *gin.Engine) {
 			Nota: usa /barreras (plural) para evitar conflicto con las rutas JSON /barrera/:id
 		*/
 		secRouter.GET("/barreras/:id", BarreraDetalleGET)
+
+		/*
+			Remisión Psicosocial Detalle — pantalla interna de una remisión
+		*/
+		secRouter.GET("/remision-psicosocial/:id", RemisionPsicosocialDetalleGET)
 
 		/*
 			FeminicideRisk

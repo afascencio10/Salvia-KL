@@ -291,8 +291,9 @@ func (c *CaseDetailController) AddTimelineEvent(ctx *gin.Context) {
 func (c *CaseDetailController) GetTimelineEvents(ctx *gin.Context) {
 	caseID    := ctx.Param("id")
 	barrierID := ctx.Query("barrierId")
+	psychosocialID := ctx.Query("psychosocialId")
 
-	events, err := c.timelineRepo.GetByCaseID(ctx.Request.Context(), caseID, barrierID)
+	events, err := c.timelineRepo.GetByCaseID(ctx.Request.Context(), caseID, barrierID, psychosocialID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error al cargar eventos del timeline"})
 		return
