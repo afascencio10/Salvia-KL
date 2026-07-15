@@ -76,17 +76,25 @@ Tabla ya existente. Cada llamada/sesión del profesional genera un `team_contact
 | `summary` | text | Resumen de la sesión |
 | `created_at`, `updated_at`, `deleted_at` | timestamps | Auditoría |
 
-**Campo nuevo a agregar (migración):**
+**Campos nuevos agregados (migración — implementado Jul 2026):**
 
 | Campo | Tipo | Default | Valores | Descripción |
 |---|---|---|---|---|
-| `session_type` | varchar(30) | `null` | `PRIMER_CONTACTO` / `PRIMERA_ATENCION` / `SEGUIMIENTO` / `CIERRE` | Tipo de sesión registrada |
+| `session_type` | varchar(30) | `null` | `PRIMER_CONTACTO` / `PRIMERA_ATENCION` / `ATENCION_PSICOSOCIAL` / `CIERRE` | Tipo de sesión registrada |
+| `form_id` | varchar(36) | `null` | UUID de `salvia.form` | Formulario con el que se inició esta sesión (evento E-01). Se fija una sola vez y se reutiliza en cargas posteriores para que la sesión no cambie de formulario si el estado del proceso avanza mientras el contacto sigue pendiente. |
 
 **Cambio en Go (`team_contact.go`):**
 ```go
-// Agregar al struct TeamContact:
+// Agregado al struct TeamContact:
+FormID      *string `gorm:"type:varchar(36);column:form_id" json:"formId,omitempty"`
 SessionType *string `gorm:"type:varchar(30);column:session_type" json:"sessionType,omitempty"`
 ```
+
+**Regla de asignación profesional/dupla (GAP resuelto):** un `team_contact` nunca
+guarda `professional_id` y `dupla_id` a la vez. Al crear uno nuevo, se copia
+exactamente el modo de asignación de `psychosocial_support`: si tiene `dupla_id`,
+el contacto usa `dupla_id` (cualquier miembro de la dupla puede completarlo); si
+tiene `professional_id`, el contacto usa ese `professional_id`.
 
 **Regla de conteo de sesiones** (sin cambios):
 ```sql
@@ -115,7 +123,7 @@ Estas tablas son las que se popula con el seed (`seed_psicosocial.sql`):
 **4 registros a insertar** (uno por formulario):
 - `Primer Contacto Psicosocial`
 - `Primera Atención Psicosocial`
-- `Seguimiento Psicosocial`
+- `Atención Psicosocial` (antes "Seguimiento Psicosocial" — rebranding Jul 2026)
 - `Cierre Psicosocial`
 
 ---
@@ -233,6 +241,7 @@ salvia.psychosocial_support (1)
 | `salvia.psychosocial_support` | ADD COLUMN | `ya_hizo_primer_contacto boolean DEFAULT false` |
 | `salvia.psychosocial_support` | ADD COLUMN | `ya_hizo_primera_atencion boolean DEFAULT false` |
 | `salvia.team_contact` | ADD COLUMN | `session_type varchar(30) NULL` |
+| `salvia.team_contact` | ADD COLUMN | `form_id varchar(36) NULL` |
 | `salvia.form` | INSERT | 4 registros (Primer Contacto, Primera Atención, Seguimiento, Cierre) |
 | `salvia.form_section` | INSERT | 8 secciones distribuidas en los 4 formularios |
 | `salvia.question` | INSERT | ~70 preguntas |
