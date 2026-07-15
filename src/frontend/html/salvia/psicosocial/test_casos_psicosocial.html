@@ -1,0 +1,249 @@
+<div class="container mt-4">
+    <div class="welcome-section mb-2">
+        <h2><b>Test — Casos Psicosocial</b></h2>
+        <p class="text-muted" style="font-size:14px;">
+            Pantalla de prueba para validar el flujo de la pantalla de registro de sesión psicosocial.
+            Selecciona un caso para ver la interfaz correspondiente.
+        </p>
+    </div>
+
+    <div id="test-casos-app">
+        <div class="tc-grid">
+            <div
+                v-for="caso in casos"
+                :key="caso.id"
+                class="tc-card"
+                @click="irACaso(caso.id)"
+            >
+                <!-- Número de caso -->
+                <div class="tc-card-header">
+                    <span class="tc-badge" :style="{ background: caso._meta.badge.color }">
+                        ${ caso._meta.badge.label }
+                    </span>
+                    <span class="tc-form-type" :style="{ color: caso._meta.badge.color }">
+                        ${ FORM_TYPE_LABELS[caso.formType] }
+                    </span>
+                </div>
+
+                <!-- Título -->
+                <h5 class="tc-card-title">${ caso._meta.title }</h5>
+                <p class="tc-card-subtitle">${ caso._meta.subtitle }</p>
+
+                <!-- Estado del proceso -->
+                <div class="tc-state-row">
+                    <div class="tc-state-item">
+                        <span class="tc-state-dot" :class="caso.psicosocialState.yaHizoPrimerContacto ? 'dot--on' : 'dot--off'"></span>
+                        Primer contacto
+                    </div>
+                    <div class="tc-state-item">
+                        <span class="tc-state-dot" :class="caso.psicosocialState.yaHizoPrimeraAtencion ? 'dot--on' : 'dot--off'"></span>
+                        Primera atención
+                    </div>
+                    <div class="tc-state-item">
+                        <span class="tc-state-dot" style="background:#7c3aed;"></span>
+                        Sesiones: ${ caso.psicosocialState.sessionCount }
+                    </div>
+                </div>
+
+                <!-- Badges secundarios -->
+                <div class="tc-tags">
+                    <span class="tc-tag"
+                        :style="{ color: STATUS_LABELS[caso.psicosocialState.status].color, background: STATUS_LABELS[caso.psicosocialState.status].bg, border: '1px solid ' + STATUS_LABELS[caso.psicosocialState.status].color + '44' }">
+                        ${ STATUS_LABELS[caso.psicosocialState.status].label }
+                    </span>
+                    <span v-if="caso._previewState && caso._previewState.continuarPrimeraAtencion" class="tc-tag tc-tag--purple">
+                        Continuar PA = Sí
+                    </span>
+                    <span v-if="caso._previewState && caso._previewState.cerrarRemision === true" class="tc-tag tc-tag--red">
+                        Cerrar remisión = Sí
+                    </span>
+                    <span v-if="caso._previewState && caso._previewState.cerrarRemision === false" class="tc-tag tc-tag--orange">
+                        Cerrar remisión = No
+                    </span>
+                    <span v-if="!caso.canEdit" class="tc-tag tc-tag--gray">
+                        🔒 Solo lectura
+                    </span>
+                </div>
+
+                <!-- Secciones del formulario -->
+                <div class="tc-sections">
+                    <span class="tc-sections-label">Secciones:</span>
+                    <span v-for="(sec, idx) in caso.sections" :key="idx" class="tc-section-pill"
+                          :class="{ 'tc-section-pill--conditional': !!sec.conditionNote }">
+                        ${ sec.order }. ${ sec.name }
+                        <span v-if="sec.conditionNote" class="tc-section-cond" title="${ sec.conditionNote }">⚙</span>
+                    </span>
+                </div>
+
+                <!-- CTA -->
+                <button class="tc-cta">
+                    Ver pantalla →
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.tc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 20px;
+    margin-bottom: 40px;
+}
+.tc-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 22px 24px 18px;
+    cursor: pointer;
+    transition: box-shadow 0.15s, border-color 0.15s, transform 0.1s;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.tc-card:hover {
+    box-shadow: 0 6px 24px rgba(124,58,237,0.13);
+    border-color: #7c3aed;
+    transform: translateY(-2px);
+}
+.tc-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.tc-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.5px;
+}
+.tc-form-type {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.tc-card-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+}
+.tc-card-subtitle {
+    margin: 0;
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.5;
+}
+.tc-state-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 2px;
+}
+.tc-state-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: #374151;
+}
+.tc-state-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.dot--on  { background: #10b981; }
+.dot--off { background: #d1d5db; }
+.tc-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.tc-tag {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 9px;
+    border-radius: 12px;
+}
+.tc-tag--purple { background: #ede9fe; color: #7c3aed; border: 1px solid #c4b5fd; }
+.tc-tag--red    { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+.tc-tag--orange { background: #fff7ed; color: #ea580c; border: 1px solid #fdba74; }
+.tc-tag--gray   { background: #f3f4f6; color: #6b7280; border: 1px solid #e5e7eb; }
+.tc-sections {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    align-items: center;
+}
+.tc-sections-label {
+    font-size: 11px;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-right: 2px;
+}
+.tc-section-pill {
+    font-size: 11px;
+    background: #f3f4f6;
+    color: #374151;
+    border-radius: 8px;
+    padding: 2px 8px;
+}
+.tc-section-pill--conditional {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+.tc-section-cond {
+    font-size: 10px;
+    opacity: 0.7;
+    cursor: help;
+}
+.tc-cta {
+    margin-top: 6px;
+    padding: 9px 0;
+    width: 100%;
+    background: #7c3aed;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.tc-cta:hover { background: #6d28d9; }
+</style>
+
+{{ template "standard_scripts.html" .}}
+
+<script src="/static/js/psicosocial/mock_psicosocial.js"></script>
+
+<script>
+    var testApp = Vue.createApp({
+        delimiters: ['${', '}'],
+        data() {
+            return {
+                casos:            window.PSICO_MOCK.getAllCasos(),
+                STATUS_LABELS:    window.PSICO_MOCK.STATUS_LABELS,
+                FORM_TYPE_LABELS: window.PSICO_MOCK.FORM_TYPE_LABELS,
+            };
+        },
+        mounted() {
+            document.getElementById('app').style.display = 'block';
+        },
+        methods: {
+            irACaso(id) {
+                window.location.href = `/salvia/psicosocial/registrar/mock?mock=${id}`;
+            },
+        },
+    });
+    testApp.mount('#test-casos-app');
+</script>

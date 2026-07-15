@@ -73,7 +73,6 @@
                     correoRemitente:      '',
                     asuntoRespuesta:      '',
                     respuestaRecibidaPor: '',
-                    reasonCorrection:           '',
                     reasonCorrections:          [],
                     reasonCorrectionOtherEnabled: false,
                     reasonCorrectionOther:      ''
@@ -439,7 +438,6 @@
                     correoRemitente:      oficio.correo            || '',
                     asuntoRespuesta:      '',
                     respuestaRecibidaPor: '',
-                    reasonCorrection:           '',
                     reasonCorrections:          [],
                     reasonCorrectionOtherEnabled: false,
                     reasonCorrectionOther:      ''
@@ -454,7 +452,6 @@
                 this.activeModal        = null;
                 this.selectedOficio     = null;
                 this.saveError          = null;
-                this.modalForm.reasonCorrection           = '';
                 this.modalForm.reasonCorrections          = [];
                 this.modalForm.reasonCorrectionOtherEnabled = false;
                 this.modalForm.reasonCorrectionOther      = '';
@@ -564,19 +561,10 @@
                 }
 
                 if (action === 'por_corregir') {
-                    if (this.activeModal === 'aprobar') {
-                        var motivo = String(this.modalForm.reasonCorrection || '').trim();
-                        if (!motivo) {
-                            alert('El campo "Motivo de corrección" es requerido para marcar el oficio por corregir.');
-                            return;
-                        }
-                        payload.reasonCorrection = motivo;
-                    } else {
-                        if (!this.validateReasonCorrection()) {
-                            return;
-                        }
-                        payload.reasonCorrection = this.buildReasonCorrectionText();
+                    if (!this.validateReasonCorrection()) {
+                        return;
                     }
+                    payload.reasonCorrection = this.buildReasonCorrectionText();
                 }
 
                 if (action === 'registrar_respuesta') {

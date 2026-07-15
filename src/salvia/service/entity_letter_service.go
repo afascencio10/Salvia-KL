@@ -51,6 +51,9 @@ type UpdateEntityLetterInput struct {
 //	"revisar"     — modal Revisar oficio    (para_revisar  → aprobacion_juridica)
 //	"por_corregir"— modal Revisar oficio    (para_revisar  → en_correccion)
 //	"radicar"     — modal Radicar oficio    (aprobacion_juridica → radicado)
+//
+// Los abogados (aprobacion_juridica) no pueden devolver el oficio por corregir;
+// solo pueden radicarlo.
 type ActionInput struct {
 	Action string  // nombre de la acción
 	UserID string  // ID del usuario que ejecuta la acción
@@ -104,7 +107,7 @@ var validTransitions = map[string][]string{
 	models.EntityLetterStatePorProyectar:       {models.EntityLetterStateParaRevisar},
 	models.EntityLetterStateParaRevisar:        {models.EntityLetterStateAprobacionJuridica, models.EntityLetterStateEnCorreccion},
 	models.EntityLetterStateEnCorreccion:       {models.EntityLetterStateParaRevisar},
-	models.EntityLetterStateAprobacionJuridica: {models.EntityLetterStateParaRadicar, models.EntityLetterStateEnCorreccion, models.EntityLetterStateRadicado},
+	models.EntityLetterStateAprobacionJuridica: {models.EntityLetterStateParaRadicar, models.EntityLetterStateRadicado},
 	models.EntityLetterStateParaRadicar:        {models.EntityLetterStateRadicado},
 	models.EntityLetterStateRadicado:           {models.EntityLetterStateRespondido},
 }
@@ -300,18 +303,15 @@ func (s *entityLetterService) PerformAction(ctx context.Context, id string, inpu
 
 	case "por_corregir":
 		// para_revisar → en_correccion (agente de notificaciones)
-		// aprobacion_juridica → en_correccion (abogado devuelve por inconsistencia)
-		if letter.State != models.EntityLetterStateParaRevisar &&
-			letter.State != models.EntityLetterStateAprobacionJuridica {
-			return nil, fmt.Errorf("%w: acción 'por_corregir' requiere estado '%s' o '%s', estado actual: '%s'",
-				ErrEntityLetterInvalidState, models.EntityLetterStateParaRevisar,
-				models.EntityLetterStateAprobacionJuridica, letter.State)
+		if letter.State != models.EntityLetterStateParaRevisar {
+			return nil, fmt.Errorf("%w: acción 'por_corregir' requiere estado '%s', estado actual: '%s'",
+				ErrEntityLetterInvalidState, models.EntityLetterStateParaRevisar, letter.State)
 		}
 		if input.ReasonCorrection == nil || *input.ReasonCorrection == "" {
 			return nil, fmt.Errorf("entity_letter: el campo 'reasonCorrection' es requerido para marcar por corregir")
 		}
 		fields["reason_correction"] = *input.ReasonCorrection
-		if letter.State == models.EntityLetterStateParaRevisar && input.UserID != "" {
+		if input.UserID != "" {
 			fields["notification_user_id_review"] = input.UserID
 		}
 		fields["state"] = models.EntityLetterStateEnCorreccion

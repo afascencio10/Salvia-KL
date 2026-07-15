@@ -74,6 +74,7 @@ func main() {
         &models.Dupla{},
         &models.PsychosocialSupport{},
         &models.TeamContact{},
+        &models.ContactAttempt{},
         &models.EconomicStabilization{},
         &models.CaseTimelineEvent{},
         &models.EntityLetter{},
@@ -214,7 +215,12 @@ func main() {
     casesReassignCtrl      := salvia_ctrl.NewCasesReassignController(casesReassignSvc)
     agentsSearchCtrl       := salvia_ctrl.NewAgentsSearchController(agentsSearchSvc)
     psychosocialListCtrl   := salvia_ctrl.NewPsychosocialListController(psychosocialListSvc)
+    psychosocialDetailCtrl := salvia_ctrl.NewPsychosocialDetailController(gormDB)
     psychosocialReassignCtrl := salvia_ctrl.NewPsychosocialReassignController(psychosocialReassignSvc)
+    // Flujo 3x3 de Atención Psicosocial
+    contactAttemptRepo      := repository.NewContactAttemptRepository(gormDB)
+    psychosocial3x3Svc      := service.NewPsychosocial3x3Service(contactAttemptRepo, gormDB)
+    psychosocialContactCtrl := salvia_ctrl.NewPsychosocialContactController(psychosocial3x3Svc)
     followUpV2Repo         := repository.NewFollowUpV2Repository(gormDB)
     assignCaseSvc          := service.NewAssignCaseService(victimCaseLightRepo, agentLightRepo, followUpV2Repo)
     assignCaseCtrl         := salvia_ctrl.NewAssignCaseController(assignCaseSvc)
@@ -251,7 +257,9 @@ func main() {
     casesReassignCtrl.RegisterRoutes(api)
     agentsSearchCtrl.RegisterRoutes(api)
     psychosocialListCtrl.RegisterRoutes(api)
+    psychosocialDetailCtrl.RegisterRoutes(api)
     psychosocialReassignCtrl.RegisterRoutes(api)
+    psychosocialContactCtrl.RegisterRoutes(api)
     assignCaseCtrl.RegisterRoutes(api)
 
     // Admin: endpoints de migración (protegidos por X-Security-Key)
