@@ -3,13 +3,27 @@
 package service
 
 import (
+	"bitsflow/internal/constants"
 	"bitsflow/internal/models"
+	salvia_config "bitsflow/salvia/config"
 	"context"
+	"errors"
+	"fmt"
+	"log"
 	"strings"
 	"time"
 
 	"gorm.io/gorm"
 )
+
+// ── Errores de dominio — evento E-01 (cargar pantalla de sesión) ──────────────
+
+// ErrPsicosocialSessionNotFound se retorna cuando la remisión no existe o fue eliminada.
+var ErrPsicosocialSessionNotFound = errors.New("psicosocialSession: remisión no encontrada")
+
+// ErrPsicosocialSessionNotAssigned se retorna cuando el agente no es el profesional
+// directo ni pertenece a la dupla asignada a la remisión.
+var ErrPsicosocialSessionNotAssigned = errors.New("psicosocialSession: sesión no asignada a este profesional")
 
 // PsychosocialDetailResponse agrupa los datos para la pantalla de detalle.
 type PsychosocialDetailResponse struct {
@@ -63,6 +77,40 @@ type PsychosocialDetailService interface {
 	CreateContact(ctx context.Context, psicosocialID, contactType, contactDate, contactTime, summary, sessionType, scheduledDate, scheduledTime string) (*models.TeamContact, error)
 	RescheduleContact(ctx context.Context, contactID, scheduledDate, scheduledTime string) error
 	CancelContact(ctx context.Context, contactID string) error
+	LoadSession(ctx context.Context, psicosocialID, agentID string) (*LoadPsicosocialSessionResult, error)
+}
+
+// ── Evento E-01: cargar pantalla "Registrar Sesión Psicosocial" ───────────────
+
+// PsicosocialSessionVictimInfo es la información de la víctima mostrada en la tarjeta
+// de la pantalla de sesión (subconjunto reducido frente al detalle de remisión).
+type PsicosocialSessionVictimInfo struct {
+	Names          string `json:"Names"`
+	LastNames      string `json:"LastNames"`
+	Phone          string `json:"Phone"`
+	GenderIdentity string `json:"GenderIdentity"`
+	TownName       string `json:"TownName"`
+	RiskLevel      int    `json:"RiskLevel"`
+	CaseICode      string `json:"CaseICode"`
+}
+
+// PsicosocialStateInfo resume el estado acumulado del proceso, usado por el frontend
+// para el badge "Sesión X de 6" y el label del formulario cargado.
+type PsicosocialStateInfo struct {
+	YaHizoPrimerContacto  bool   `json:"yaHizoPrimerContacto"`
+	YaHizoPrimeraAtencion bool   `json:"yaHizoPrimeraAtencion"`
+	SessionCount          int    `json:"sessionCount"`
+	Status                string `json:"status"`
+}
+
+// LoadPsicosocialSessionResult es la respuesta completa de GET /psychosocial-support/:id/load.
+type LoadPsicosocialSessionResult struct {
+	FormID           string                        `json:"formId"`
+	FormType         string                        `json:"formType"`
+	SubmissionID     string                        `json:"submissionId"`
+	VictimInfo       *PsicosocialSessionVictimInfo `json:"victimInfo"`
+	PsicosocialState PsicosocialStateInfo          `json:"psicosocialState"`
+	FormState        map[string]interface{}        `json:"formState"`
 }
 
 type psychosocialDetailService struct {
@@ -391,4 +439,214 @@ func (s *psychosocialDetailService) CancelContact(ctx context.Context, contactID
 	})
 
 	return nil
+}
+
+// LoadSession implementa el evento E-01 (carga inicial de la pantalla de sesión):
+//  1. Valida que la remisión exista y que el agente tenga acceso (profesional directo
+//     o miembro de la dupla asignada).
+//  2. Selecciona el formulario psicosocial según el estado del proceso (PASO 7).
+//  3. Resuelve (o crea) el team_contact pendiente y fija su form_id la primera vez,
+//     reutilizándolo en cargas posteriores para que la sesión no cambie de formulario
+//     a medio camino. Un team_contact nuevo solo recibe professional_id O dupla_id
+//     (nunca ambos), reflejando el modo de asignación de la remisión padre.
+//  4. Resuelve (o crea) el form_submission asociado.
+//  5. Carga la información resumida de la víctima.
+func (s *psychosocialDetailService) LoadSession(ctx context.Context, psicosocialID, agentID string) (*LoadPsicosocialSessionResult, error) {
+	var ps models.PsychosocialSupport
+	if err := s.db.WithContext(ctx).Where("id = ?", psicosocialID).First(&ps).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrPsicosocialSessionNotFound
+		}
+		return nil, err
+	}
+
+	if err := s.checkSessionAccess(ctx, ps, agentID); err != nil {
+		return nil, err
+	}
+
+	tc, isNewContact, err := s.findOrInitPendingContact(ctx, psicosocialID)
+	if err != nil {
+		return nil, fmt.Errorf("loadSession: resolver team_contact: %w", err)
+	}
+
+	formKey, formID := "", ""
+	if tc.FormID != nil && *tc.FormID != "" {
+		// El formulario ya quedó fijado en una carga anterior — se reutiliza siempre.
+		formID = *tc.FormID
+		formKey = string(constants.PsicosocialFormKeyByID[formID])
+	} else {
+		key, id := selectPsicosocialForm(ps)
+		formKey, formID = string(key), id
+		tc.FormID = &formID
+		sessionType := formKey
+		tc.SessionType = &sessionType
+	}
+
+	if isNewContact {
+		if err := s.applyContactAssignment(&tc, ps, agentID); err != nil {
+			return nil, fmt.Errorf("loadSession: asignar team_contact: %w", err)
+		}
+		if err := s.db.WithContext(ctx).Create(&tc).Error; err != nil {
+			return nil, fmt.Errorf("loadSession: crear team_contact: %w", err)
+		}
+	} else {
+		if err := s.db.WithContext(ctx).Model(&models.TeamContact{}).Where("id = ?", tc.ID).
+			Updates(map[string]interface{}{"form_id": tc.FormID, "session_type": tc.SessionType}).Error; err != nil {
+			return nil, fmt.Errorf("loadSession: actualizar team_contact: %w", err)
+		}
+	}
+
+	if tc.FormSubmissionID == nil || *tc.FormSubmissionID == "" {
+		fs := &models.FormSubmission{FormID: formID}
+		if err := s.db.WithContext(ctx).Create(fs).Error; err != nil {
+			return nil, fmt.Errorf("loadSession: crear form_submission: %w", err)
+		}
+		if err := s.db.WithContext(ctx).Model(&models.TeamContact{}).Where("id = ?", tc.ID).
+			Update("form_submission_id", fs.ID).Error; err != nil {
+			return nil, fmt.Errorf("loadSession: asociar form_submission a team_contact: %w", err)
+		}
+		tc.FormSubmissionID = &fs.ID
+	}
+
+	victimInfo, err := s.loadSessionVictimInfo(ctx, ps.CaseID)
+	if err != nil {
+		log.Printf("[SVC] LoadSession → advertencia: no se pudo cargar victimInfo de caseID=%s: %v", ps.CaseID, err)
+	}
+
+	return &LoadPsicosocialSessionResult{
+		FormID:       formID,
+		FormType:     formKey,
+		SubmissionID: *tc.FormSubmissionID,
+		VictimInfo:   victimInfo,
+		PsicosocialState: PsicosocialStateInfo{
+			YaHizoPrimerContacto:  ps.YaHizoPrimerContacto,
+			YaHizoPrimeraAtencion: ps.YaHizoPrimeraAtencion,
+			SessionCount:          ps.SessionCount,
+			Status:                ps.Status,
+		},
+		FormState: map[string]interface{}{},
+	}, nil
+}
+
+// checkSessionAccess valida que agentID sea el profesional directo asignado a la
+// remisión, o que pertenezca a la dupla asignada (psicóloga o trabajador social).
+func (s *psychosocialDetailService) checkSessionAccess(ctx context.Context, ps models.PsychosocialSupport, agentID string) error {
+	if ps.ProfessionalID != nil && *ps.ProfessionalID == agentID {
+		return nil
+	}
+	if ps.DuplaID != nil && *ps.DuplaID != "" {
+		var dupla models.Dupla
+		if err := s.db.WithContext(ctx).Where("id = ?", *ps.DuplaID).First(&dupla).Error; err == nil {
+			if dupla.PsychologistID == agentID || dupla.SocialWorkerID == agentID {
+				return nil
+			}
+		}
+	}
+	return ErrPsicosocialSessionNotAssigned
+}
+
+// findOrInitPendingContact busca un team_contact pendiente (no completado, sesión
+// psico) para la remisión. Si no existe, retorna un struct vacío listo para crear
+// (isNewContact = true); el llamador decide asignación y formulario antes de crearlo.
+func (s *psychosocialDetailService) findOrInitPendingContact(ctx context.Context, psicosocialID string) (models.TeamContact, bool, error) {
+	var tc models.TeamContact
+	err := s.db.WithContext(ctx).
+		Where("psicosocial_id = ? AND is_completed = false AND is_psico_session = true AND deleted_at IS NULL", psicosocialID).
+		Order("created_at DESC").
+		First(&tc).Error
+
+	if err == nil {
+		return tc, false, nil
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return models.TeamContact{
+			CaseID:         "", // se completa en LoadSession antes de crear
+			PsicosocialID:  &psicosocialID,
+			IsCompleted:    false,
+			IsPsicoSession: true,
+		}, true, nil
+	}
+	return models.TeamContact{}, false, err
+}
+
+// applyContactAssignment fija case_id y professional_id/dupla_id en un team_contact
+// nuevo, reflejando exactamente el modo de asignación de la remisión padre: nunca
+// se guardan ambos campos a la vez.
+func (s *psychosocialDetailService) applyContactAssignment(tc *models.TeamContact, ps models.PsychosocialSupport, agentID string) error {
+	tc.CaseID = ps.CaseID
+	switch {
+	case ps.DuplaID != nil && *ps.DuplaID != "":
+		tc.DuplaID = ps.DuplaID
+		tc.ProfessionalID = nil
+	case ps.ProfessionalID != nil && *ps.ProfessionalID != "":
+		tc.ProfessionalID = ps.ProfessionalID
+		tc.DuplaID = nil
+	default:
+		// La remisión no tiene asignación explícita todavía (caso raro) — se asigna
+		// directamente al agente que abrió la sesión.
+		tc.ProfessionalID = &agentID
+		tc.DuplaID = nil
+	}
+	return nil
+}
+
+// selectPsicosocialForm implementa el PASO 7 del flujo E-01: elige, en orden, el
+// primer formulario cuyo criterio se cumpla según el estado acumulado del proceso.
+func selectPsicosocialForm(ps models.PsychosocialSupport) (constants.PsicosocialFormKey, string) {
+	switch {
+	case !ps.YaHizoPrimerContacto:
+		return constants.PsicosocialFormPrimerContacto, constants.FormIDPrimerContacto
+	case !ps.YaHizoPrimeraAtencion:
+		return constants.PsicosocialFormPrimeraAtencion, constants.FormIDPrimeraAtencion
+	case ps.SessionCount < 3:
+		return constants.PsicosocialFormAtencionPsicosocial, constants.FormIDAtencionPsicosocial
+	default:
+		return constants.PsicosocialFormCierre, constants.FormIDCierre
+	}
+}
+
+// loadSessionVictimInfo carga los datos resumidos de la víctima para la tarjeta de
+// la pantalla de sesión psicosocial (PASO 10).
+func (s *psychosocialDetailService) loadSessionVictimInfo(ctx context.Context, caseID string) (*PsicosocialSessionVictimInfo, error) {
+	type victimRow struct {
+		Names          string `gorm:"column:names"`
+		LastNames      string `gorm:"column:last_names"`
+		Phone          string `gorm:"column:phone"`
+		GenderIdentity string `gorm:"column:gender_identity"`
+		TownName       string `gorm:"column:town_name"`
+		RiskLevel      int    `gorm:"column:risk_level"`
+	}
+	var row victimRow
+	err := s.db.WithContext(ctx).Raw(`
+		SELECT
+			COALESCE(vc.victim_case_victim_names, '')                    AS names,
+			COALESCE(vc.victim_case_victim_last_names, '')               AS last_names,
+			COALESCE(f2.victim_case_form2_victim_phone::text, '')        AS phone,
+			COALESCE(gi.victim_case_form2_enums_name, '')                AS gender_identity,
+			COALESCE(t.town_name, '')                                    AS town_name,
+			COALESCE(f2.victim_case_form2_risk_level, 0)                 AS risk_level
+		FROM salvia.victim_case vc
+		LEFT JOIN salvia.victim_case_form2 f2
+			ON f2.victim_case_form2_victim_case = vc.victim_case_id
+		LEFT JOIN security.town t
+			ON t.town_code = vc.victim_case_victim_town_code
+		LEFT JOIN salvia.victim_case_form2_enums gi
+			ON gi.victim_case_form2_enums_id = f2.victim_case_form2_gender_identity
+		WHERE vc.victim_case_i_code = ?
+		LIMIT 1
+	`, caseID).Scan(&row).Error
+	if err != nil {
+		return nil, err
+	}
+
+	locale := salvia_config.Locale["sp"]
+	return &PsicosocialSessionVictimInfo{
+		Names:          row.Names,
+		LastNames:      row.LastNames,
+		Phone:          row.Phone,
+		GenderIdentity: locale[row.GenderIdentity],
+		TownName:       row.TownName,
+		RiskLevel:      row.RiskLevel,
+		CaseICode:      caseID,
+	}, nil
 }

@@ -110,6 +110,7 @@ func main() {
     attemptRepo            := repository.NewFollowUpAttemptRepository(gormDB)
     emRepo                 := repository.NewEmergencyMeasureRepository(gormDB)
     psRepo                 := repository.NewPsychosocialSupportRepository(gormDB)
+    teamContactRepo        := repository.NewTeamContactRepository(gormDB)
     esRepo                 := repository.NewEconomicStabilizationRepository(gormDB)
     menTeamRemisionRepo       := repository.NewMenTeamRemisionRepository(gormDB)
     discapacidadRemisionRepo  := repository.NewDiscapacidadRemisionRepository(gormDB)
@@ -165,6 +166,7 @@ func main() {
         FollowUpV2Svc:             followUpV2Svc,
         CaseTaskRepo:              caseTaskRepo,
         EntityLetterRepo:          entityLetterRepo,
+        TeamContactRepo:           teamContactRepo,
     })
     caseDetailSvc         := service.NewCaseDetailService(caseDetailRepo, gormDB)
     caseInfoSvc           := service.NewCaseInfoService(caseInfoRepo)

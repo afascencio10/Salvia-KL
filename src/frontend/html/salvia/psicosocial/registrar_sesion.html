@@ -5,6 +5,17 @@
 
     <div id="psicosocial-app">
 
+        <!-- ── Loader mientras se resuelve el formulario a cargar ─────────── -->
+        <div v-if="pageLoading" class="ps-page-loader">
+            <svg class="ps-spinner" width="40" height="40" viewBox="0 0 40 40">
+                <circle cx="20" cy="20" r="16" fill="none" stroke="#ede9fe" stroke-width="4"></circle>
+                <circle cx="20" cy="20" r="16" fill="none" stroke="#7c3aed" stroke-width="4" stroke-linecap="round" stroke-dasharray="70 100"></circle>
+            </svg>
+            <p class="ps-page-loader-text">Cargando sesión psicosocial...</p>
+        </div>
+
+        <template v-else>
+
         <!-- ── Card de información del caso ─────────────────────────────── -->
         <div v-if="victimInfo" class="card ps-card mb-4">
             <div class="card-body">
@@ -73,8 +84,8 @@
         <!-- ── Error de carga ────────────────────────────────────────────── -->
         <div v-if="loadError" class="alert alert-danger">${ loadError }</div>
 
-        <!-- ── Área principal con sidebar + formulario ───────────────────── -->
-        <div v-else-if="sectionsToShow.length > 0" class="ps-layout">
+        <!-- ── Área principal (modo mock) — preview de secciones simulado ── -->
+        <div v-else-if="isMock && sectionsToShow.length > 0" class="ps-layout">
 
             <!-- Sidebar de navegación de secciones -->
             <aside class="ps-sidebar">
@@ -238,6 +249,17 @@
             </main>
         </div>
 
+        <!-- ── Área principal (modo real) — componente DinamicForm ────────── -->
+        <dinamic-form
+            v-else-if="formId && submissionId"
+            :form-id="formId"
+            :submission-id="submissionId"
+            :can-edit="canEdit"
+            :form-state="formState"
+            @form-completed="onFormCompleted"
+            @answers-updated="onAnswersUpdated">
+        </dinamic-form>
+
         <!-- ── Overlay de sesión completada ─────────────────────────────── -->
         <div v-if="sessionCompleted" class="ps-completed-backdrop">
             <div class="ps-completed-card">
@@ -278,22 +300,46 @@
                     </button>
                 </template>
 
-                <!-- Variante: sesión normal -->
-                <template v-else>
+                <!-- Variante: sesión normal (mock) -->
+                <template v-else-if="isMock">
                     <h4 class="ps-completed-title">Sesión registrada</h4>
                     <p class="ps-completed-text">La sesión fue registrada exitosamente.</p>
                     <button class="ps-completed-btn" @click="resetMock">
                         ← Volver a casos de prueba
                     </button>
                 </template>
+
+                <!-- Variante: sesión normal (real) -->
+                <template v-else>
+                    <h4 class="ps-completed-title">Sesión registrada</h4>
+                    <p class="ps-completed-text">La sesión fue registrada exitosamente.</p>
+                    <button class="ps-completed-btn" @click="goToRemision">
+                        Ver remisión
+                    </button>
+                </template>
             </div>
         </div>
+
+        </template><!-- /v-else pageLoading -->
 
     </div><!-- /#psicosocial-app -->
 </div>
 
 <!-- ═══════════════════════════════════════════════ ESTILOS ═══════════ -->
 <style>
+/* ── Loader de página ────────────────────────────────────────────────── */
+.ps-page-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 90px 0;
+}
+.ps-spinner { animation: ps-spin 0.9s linear infinite; }
+@keyframes ps-spin { to { transform: rotate(360deg); } }
+.ps-page-loader-text { margin: 0; font-size: 14px; color: #6b7280; font-weight: 500; }
+
 /* ── Card info caso ──────────────────────────────────────────────────── */
 .ps-card {
     border: 1px solid #e0e0e0;
@@ -681,14 +727,41 @@
 <script src="/static/js/psicosocial/mock_psicosocial.js"></script>
 
 <script>
-(function () {
     // ── Detectar modo mock ──────────────────────────────────────────────
     const urlParams  = new URLSearchParams(window.location.search);
     const mockCasoId = urlParams.get('mock');   // ej: 'caso1'
-    const IS_MOCK    = !!mockCasoId;
+    const IS_MOCK     = !!mockCasoId;
 
     // ── Labels de estado ────────────────────────────────────────────────
     const RISK_LABELS = { 0: 'Sin dato', 1: 'Bajo', 2: 'Medio', 3: 'Alto', 4: 'Extremo' };
+
+    // ── Config de ubicación de barreras por formulario ───────────────────
+    // La sección "Identificación de Barreras" existe clonada en cada uno de los 4
+    // formularios psicosociales, con su propio repeater group y preguntas de
+    // Departamento/Ciudad (mismo patrón que hacer_seguimiento.html, pero un config
+    // distinto por formId ya que los IDs de pregunta/repeater no se comparten entre forms).
+    const PSICO_BARRIER_LOCATION_CONFIG = {
+        '439b57e6-07ea-4da4-9721-8ed28c6ca43f': { // Primer Contacto Psicosocial
+            groupId: '4e9a169b-76d7-4f4d-ab9d-c807cff457d5',
+            deptQ:   'e95358fa-f413-4521-9b20-2b1a8eeb9ea5',
+            cityQ:   '3583a842-1c51-499c-a1ee-9b94d95aa7db',
+        },
+        '501ab3d7-8382-4447-96a6-f463152693c6': { // Primera Atención Psicosocial
+            groupId: 'b7fe655d-7e4e-4f67-b997-a1bf7512210e',
+            deptQ:   '87ed2814-8590-419b-a463-0109b1f4cfe2',
+            cityQ:   '0bd19847-748c-4c7e-9b78-92de08f0a2c4',
+        },
+        '7a7b61b3-7bc3-4088-a74d-0974e54a3563': { // Atención Psicosocial
+            groupId: '0fbc7da0-8349-4bcd-acd2-da3c5240b4cd',
+            deptQ:   'ebea5f98-11cc-484b-84c9-adde4d88e3a5',
+            cityQ:   '672848b1-507b-47d5-9b09-d2dabf8d4617',
+        },
+        'c31026f8-7ce2-49b9-8990-04b44ed4513c': { // Cierre Psicosocial
+            groupId: 'cb9b49e5-91f0-430e-9c0f-dc0235ef396f',
+            deptQ:   '99adb055-39dd-4ee2-ae7f-16633d2c123d',
+            cityQ:   '2cf2d66b-d435-4b77-8e5b-7a09b5535a05',
+        },
+    };
 
     var app = Vue.createApp({
         delimiters: ['${', '}'],
@@ -697,8 +770,10 @@
                 // ── Datos de identificación ──────────────────────────
                 psicosocialId: '{{ .psicosocialId }}',
                 userICode:     '{{ .userICode }}',
+                isMock:        IS_MOCK,
 
                 // ── Estado de carga ──────────────────────────────────
+                pageLoading:   true,
                 loadError:     null,
 
                 // ── Datos del proceso psicosocial ────────────────────
@@ -712,8 +787,13 @@
                     sessionCount:          0,
                     status:                'abierto',
                 },
-                formState:   { skipContact: false },
+                formState:   { skipContact: false, statesColombia: [], newBarriers: [] },
                 canEdit:     true,
+
+                // ── Ubicación de barreras (Identificación de Barreras) ────
+                allCities:      [],   // [{ label, value, departmentId }] — para filtrado local
+                _deptCityCache: {},   // { [idx]: deptId } — evita re-filtrar ciudades sin cambio
+                _townCityCache: {},   // { [idx]: cityId } — evita re-fetch redundante de municipios
 
                 // ── Secciones del formulario (mock preview) ──────────
                 sections:        [],
@@ -772,6 +852,7 @@
                 this.loadMockData(mockCasoId);
             } else {
                 this.loadPsicosocial();
+                this.loadLocations();
             }
         },
 
@@ -781,6 +862,7 @@
                 const caso = window.PSICO_MOCK.getCaso(casoId);
                 if (!caso) {
                     this.loadError = `Caso mock "${casoId}" no encontrado.`;
+                    this.pageLoading = false;
                     return;
                 }
                 this.formId          = caso.formId;
@@ -791,11 +873,12 @@
                 this.formState       = { ...caso.formState };
                 this.canEdit         = caso.canEdit;
                 this.sections        = caso.sections;
+                this.pageLoading     = false;
             },
 
             async loadPsicosocial() {
                 try {
-                    const url  = `/api/v1/psicosocial-support/${this.psicosocialId}/load?agent_id=${this.userICode}`;
+                    const url  = `/api/v1/psychosocial-support/${this.psicosocialId}/load?agent_id=${this.userICode}`;
                     const res  = await fetch(url);
                     const data = await res.json();
                     if (!res.ok) {
@@ -807,14 +890,88 @@
                     this.formType         = data.formType;
                     this.victimInfo       = data.victimInfo;
                     this.psicosocialState = data.psicosocialState;
-                    this.formState        = data.formState;
+                    // Merge (no reemplaza) para no perder statesColombia/newBarriers que
+                    // loadLocations() puede haber poblado en paralelo (ambas se disparan juntas
+                    // en mounted() y no hay orden garantizado de resolución).
+                    this.formState        = { ...this.formState, ...(data.formState || {}) };
                     this.canEdit          = data.psicosocialState.status !== 'cerrado';
-                    // TODO: montar DinamicForm real cuando el seed esté ejecutado
                     console.log('[PSICO] Datos cargados:', data);
                 } catch (e) {
                     this.loadError = 'Error de conexión al cargar la sesión psicosocial';
                     console.error('[PSICO] error:', e);
+                } finally {
+                    this.pageLoading = false;
                 }
+            },
+
+            // ── Ubicaciones para el repeater "Identificación de Barreras" ─
+            async loadLocations() {
+                try {
+                    const [deptRes, cityRes] = await Promise.all([
+                        fetch('/api/v1/locations/departments'),
+                        fetch('/api/v1/locations/cities'),
+                    ]);
+                    if (deptRes.ok) this.formState.statesColombia = await deptRes.json();
+                    if (cityRes.ok) this.allCities = await cityRes.json();
+                } catch (e) {
+                    console.warn('[PSICO] loadLocations error:', e);
+                }
+            },
+
+            // ── Evento del componente DinamicForm (flujo real) ─────
+            onFormCompleted() {
+                this.completedVariant = 'default';
+                this.sessionCompleted = true;
+            },
+            onAnswersUpdated(payload) {
+                this._updateBarreraLocationOptions(payload);
+            },
+            // Filtra las entries del repeater "Identificación de Barreras" (según el formId
+            // actual) y va poblando formState.newBarriers[i].cities/.towns a medida que el
+            // agente elige Departamento → Ciudad, tal como lo hace hacer_seguimiento.html.
+            _updateBarreraLocationOptions(payload) {
+                const cfg = PSICO_BARRIER_LOCATION_CONFIG[this.formId];
+                if (!cfg) return;
+
+                const entries = (payload.answers?.repeaterEntries || [])
+                    .filter(e => e.repeaterGroupId === cfg.groupId);
+
+                if (!Array.isArray(this.formState.newBarriers)) this.formState.newBarriers = [];
+                while (this.formState.newBarriers.length < entries.length) {
+                    this.formState.newBarriers.push({ cities: [], towns: [] });
+                }
+
+                entries.forEach((entry, idx) => {
+                    const getEntryVal = qId => (entry.answers.find(a => a.questionId === qId)?.value || '');
+                    const deptId = getEntryVal(cfg.deptQ);
+                    const cityId = getEntryVal(cfg.cityQ);
+
+                    const cachedDept = this._deptCityCache[idx] || '';
+                    if (String(deptId) !== String(cachedDept)) {
+                        this._deptCityCache[idx] = deptId;
+                        this.formState.newBarriers[idx].cities = deptId
+                            ? this.allCities
+                                .filter(c => String(c.departmentId) === String(deptId))
+                                .map(c => ({ label: c.label, value: c.value }))
+                            : [];
+                    }
+
+                    const cachedCity = this._townCityCache[idx] || '';
+                    if (String(cityId) !== String(cachedCity)) {
+                        this._townCityCache[idx] = cityId;
+                        if (cityId) {
+                            fetch(`/api/v1/locations/towns?city_id=${cityId}`)
+                                .then(r => r.json())
+                                .then(towns => { this.formState.newBarriers[idx].towns = towns; })
+                                .catch(() => { this.formState.newBarriers[idx].towns = []; });
+                        } else {
+                            this.formState.newBarriers[idx].towns = [];
+                        }
+                    }
+                });
+            },
+            goToRemision() {
+                window.location.href = `/salvia/remision-psicosocial/${this.psicosocialId}`;
             },
 
             // ── Navegación de secciones ────────────────────────────
@@ -884,7 +1041,13 @@
             },
         },
     });
+</script>
 
+<!-- dinamic-form.js espera un global `app` ya creado (arriba) antes de registrarse
+     como componente, y debe cargarse antes de app.mount(). Mismo orden que
+     hacer_seguimiento.html. -->
+<script src="/static/js/components/dinamic-form.js"></script>
+
+<script>
     app.mount('#psicosocial-app');
-})();
 </script>
