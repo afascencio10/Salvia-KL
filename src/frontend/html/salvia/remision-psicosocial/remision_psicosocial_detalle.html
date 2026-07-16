@@ -170,7 +170,7 @@
                 <div style="display:flex;gap:8px;margin-top:12px;padding-left:48px">
                     <button v-if="contact.isCompleted" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #5106A7;background:#fff;color:#5106A7;cursor:pointer;font-weight:600">Ver sesión</button>
                     <template v-if="contact.isPsicoSession && !contact.isCompleted && contact.status !== 'cancelada'">
-                        <button disabled style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:none;background:#5106A7;color:#fff;cursor:not-allowed;font-weight:600;opacity:.5">Registrar sesión</button>
+                        <button @click="registrarSesion(contact)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:none;background:#5106A7;color:#fff;cursor:not-allowed;font-weight:600;opacity:.5">Registrar sesión</button>
                         <button @click="abrirReprogramar(contact, idx)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;color:#374151;cursor:pointer;font-weight:500">Reprogramar</button>
                         <button @click="cancelarSesion(contact)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #fecaca;background:#fff;color:#dc2626;cursor:pointer;font-weight:500">Cancelar sesión</button>
                     </template>
@@ -382,6 +382,11 @@
             async cancelarSesion(contact) {
                 this.cancelarContact = contact;
                 this.cancelarVisible = true;
+            },
+
+            registrarSesion(contact) {
+                this.registrarContact = contact;
+                window.location.href = '/salvia/psicosocial/registrar/' + this.remisionID;
             },
 
             async confirmarCancelacion() {

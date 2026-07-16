@@ -2017,17 +2017,30 @@ func psicosocialSessionTimelineType(sessionType string) string {
 	}
 }
 
-// extractFechaProximaAtencion busca la respuesta de "Fecha próxima atención" en el formulario
-// que se acaba de completar. Esta pregunta se repite en una sección distinta de cada uno de los
-// 4 formularios (y en 2 secciones mutuamente excluyentes dentro de Primer Contacto, según la
-// respuesta de "Continuar Primera Atención"); retorna la primera no vacía que encuentre.
+// extractFechaProximaAtencion busca la respuesta de "Fecha próxima atención"/"Fecha nueva" en el
+// formulario que se acaba de completar. Esta pregunta se repite en 2 secciones mutuamente
+// excluyentes de cada uno de los 4 formularios, según la respuesta del trigger de esa sección:
+//   - Primer Contacto: S1 "Fecha nueva" (visible si Continuar Primera Atención = No) / S4 "Fecha
+//     próxima atención" (visible si Continuar = Sí).
+//   - Primera Atención / Atención Psicosocial / Cierre: S1 "Fecha nueva" — sección Contacto,
+//     visible si "¿Es atención o solo contacto?" = Solo Contacto — / S4 "Fecha próxima
+//     atención" — sección Atención Psicosocial, visible si "Es atención" = Atención.
+//
+// BUG (corregido Jul 2026): solo se revisaban los IDs de S4 para Primera Atención/Atención
+// Psicosocial/Cierre. Cuando el agente respondía "Solo Contacto" y llenaba "Fecha nueva" en S1,
+// el formulario se guardaba correctamente (la respuesta sí queda en salvia.answer) pero no se
+// agendaba el nuevo team_contact porque esta función retornaba "" — el candidato de S1 nunca se
+// revisaba. Retorna la primera respuesta no vacía que encuentre entre los 2 candidatos.
 func extractFechaProximaAtencion(formID string, answerMap map[string]string) string {
 	const (
 		qPCFechaProximaS1 = "58ce2d34-24d2-4e73-bf95-26a2c608f8e6" // PC S1 — visible si Continuar=No
 		qPCFechaProximaS4 = "fd2fb664-de83-4069-a161-6348dfef48bf" // PC S4 — visible si Continuar=Sí
-		qPAFechaProxima   = "d68c7334-74bb-47b1-a2ee-f1d3da04627b" // PA S4
-		qSEGFechaProxima  = "7040a37d-f346-4bf7-9b80-6286b9da62c5" // SEG S4 — Atención Psicosocial
-		qCIEFechaProxima  = "3ce6ff5a-f139-4417-9255-155207e9a970" // CIE S4 — Atención Psicosocial (Cierre)
+		qPAFechaNuevaS1   = "64d63b79-edee-464b-be56-1104efd31a46" // PA S1 — visible si "Es atención"=Solo Contacto
+		qPAFechaProximaS4 = "d68c7334-74bb-47b1-a2ee-f1d3da04627b" // PA S4 — visible si "Es atención"=Atención
+		qSEGFechaNuevaS1  = "72ce49d2-f853-4f4a-9f1a-f795f4d514c3" // SEG S1 — visible si "Es atención"=Solo Contacto
+		qSEGFechaProximaS4 = "7040a37d-f346-4bf7-9b80-6286b9da62c5" // SEG S4 — Atención Psicosocial
+		qCIEFechaNuevaS1  = "1b4d09f0-e5ca-4b4e-9d74-428478a113c6" // CIE S1 — visible si "Es atención"=Solo Contacto
+		qCIEFechaProximaS4 = "3ce6ff5a-f139-4417-9255-155207e9a970" // CIE S4 — Atención Psicosocial (Cierre)
 	)
 
 	var candidates []string
@@ -2035,11 +2048,11 @@ func extractFechaProximaAtencion(formID string, answerMap map[string]string) str
 	case constants.FormIDPrimerContacto:
 		candidates = []string{qPCFechaProximaS1, qPCFechaProximaS4}
 	case constants.FormIDPrimeraAtencion:
-		candidates = []string{qPAFechaProxima}
+		candidates = []string{qPAFechaNuevaS1, qPAFechaProximaS4}
 	case constants.FormIDAtencionPsicosocial:
-		candidates = []string{qSEGFechaProxima}
+		candidates = []string{qSEGFechaNuevaS1, qSEGFechaProximaS4}
 	case constants.FormIDCierre:
-		candidates = []string{qCIEFechaProxima}
+		candidates = []string{qCIEFechaNuevaS1, qCIEFechaProximaS4}
 	}
 
 	for _, qID := range candidates {

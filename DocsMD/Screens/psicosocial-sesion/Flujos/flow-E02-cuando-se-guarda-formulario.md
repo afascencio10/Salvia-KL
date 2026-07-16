@@ -321,15 +321,28 @@ no en un evento aparte.
 
 | Formulario | Sección | ID | Condición de visibilidad |
 |---|---|---|---|
-| Primer Contacto | S1 — Primer contacto (Q13) | `58ce2d34-24d2-4e73-bf95-26a2c608f8e6` | Visible si Continuar Primera Atención = No |
-| Primer Contacto | S4 — Primera Atención (Q11) | `fd2fb664-de83-4069-a161-6348dfef48bf` | Visible si Continuar Primera Atención = Sí |
-| Primera Atención | S4 — Primera Atención (Q11) | `d68c7334-74bb-47b1-a2ee-f1d3da04627b` | Sección visible si "Es atención" = atención |
-| Atención Psicosocial | S4 — Atención Psicosocial (Q4) | `7040a37d-f346-4bf7-9b80-6286b9da62c5` | Sección visible si "Es atención" = atención |
-| Cierre | S4 — Atención Psicosocial (Cierre) (Q4) | `3ce6ff5a-f139-4417-9255-155207e9a970` | Sección visible si "Es atención" = atención |
+| Primer Contacto | S1 — Primer contacto (Q13) — "Fecha nueva" | `58ce2d34-24d2-4e73-bf95-26a2c608f8e6` | Visible si Continuar Primera Atención = No |
+| Primer Contacto | S4 — Primera Atención (Q11) — "Fecha próxima atención" | `fd2fb664-de83-4069-a161-6348dfef48bf` | Visible si Continuar Primera Atención = Sí |
+| Primera Atención | S1 — Contacto (Q?) — "Fecha nueva" | `64d63b79-edee-464b-be56-1104efd31a46` | Visible si "¿Es atención o solo contacto?" = Solo Contacto |
+| Primera Atención | S4 — Primera Atención (Q11) — "Fecha próxima atención" | `d68c7334-74bb-47b1-a2ee-f1d3da04627b` | Sección visible si "Es atención" = Atención |
+| Atención Psicosocial | S1 — Contacto Atención Psicosocial (Q?) — "Fecha nueva" | `72ce49d2-f853-4f4a-9f1a-f795f4d514c3` | Visible si "¿Es atención o solo contacto?" = Solo Contacto |
+| Atención Psicosocial | S4 — Atención Psicosocial (Q4) — "Fecha próxima atención" | `7040a37d-f346-4bf7-9b80-6286b9da62c5` | Sección visible si "Es atención" = Atención |
+| Cierre | S1 — Contacto (Q?) — "Fecha nueva" | `1b4d09f0-e5ca-4b4e-9d74-428478a113c6` | Visible si "¿Es atención o solo contacto?" = Solo Contacto |
+| Cierre | S4 — Atención Psicosocial (Cierre) (Q4) — "Fecha próxima atención" | `3ce6ff5a-f139-4417-9255-155207e9a970` | Sección visible si "Es atención" = Atención |
 
-`extractFechaProximaAtencion(formID, answerMap)` revisa el/los ID(s) candidatos de cada
-formulario (2 en Primer Contacto, mutuamente excluyentes por visibilidad; 1 en los otros 3) y
-retorna el primer valor no vacío.
+`extractFechaProximaAtencion(formID, answerMap)` revisa los 2 IDs candidatos de cada formulario
+(mutuamente excluyentes por visibilidad — ambos dependen del mismo trigger "¿Es atención o solo
+contacto?"/"Continuar Primera Atención") y retorna el primer valor no vacío.
+
+**🐛 Bug corregido (Jul 2026):** la primera implementación solo incluía el candidato de S4 para
+Primera Atención / Atención Psicosocial / Cierre — el de S1 ("Fecha nueva" en la sección
+Contacto, visible cuando se responde "Solo Contacto") no estaba en la lista. Efecto: el
+formulario se guardaba bien (la respuesta sí quedaba en `salvia.answer`), pero
+`extractFechaProximaAtencion` retornaba `""` y nunca se llamaba a
+`scheduleNextPsicosocialContact` — no se creaba el `team_contact` agendado. Reportado por el
+usuario tras probar el escenario "Solo Contacto" en Atención Psicosocial (y confirmado que
+aplicaba igual a Primera Atención y Cierre). Corregido agregando los 3 IDs de S1 faltantes
+(`qPAFechaNuevaS1`, `qSEGFechaNuevaS1`, `qCIEFechaNuevaS1`) a sus respectivos candidatos.
 
 ### Lógica (`scheduleNextPsicosocialContact`)
 
