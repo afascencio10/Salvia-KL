@@ -83,15 +83,18 @@ type PsychosocialDetailService interface {
 // ── Evento E-01: cargar pantalla "Registrar Sesión Psicosocial" ───────────────
 
 // PsicosocialSessionVictimInfo es la información de la víctima mostrada en la tarjeta
-// de la pantalla de sesión (subconjunto reducido frente al detalle de remisión).
+// de la pantalla de sesión (mismos campos que VictimCaseInfo de hacer-seguimiento).
 type PsicosocialSessionVictimInfo struct {
-	Names          string `json:"Names"`
-	LastNames      string `json:"LastNames"`
-	Phone          string `json:"Phone"`
-	GenderIdentity string `json:"GenderIdentity"`
-	TownName       string `json:"TownName"`
-	RiskLevel      int    `json:"RiskLevel"`
-	CaseICode      string `json:"CaseICode"`
+	Names             string `json:"Names"`
+	LastNames         string `json:"LastNames"`
+	Phone             string `json:"Phone"`
+	GenderIdentity    string `json:"GenderIdentity"`
+	SexualOrientation string `json:"SexualOrientation"`
+	ContactPhone      string `json:"ContactPhone"`
+	Age               *int64 `json:"Age"`
+	TownName          string `json:"TownName"`
+	RiskLevel         int    `json:"RiskLevel"`
+	CaseICode         string `json:"CaseICode"`
 }
 
 // PsicosocialStateInfo resume el estado acumulado del proceso, usado por el frontend
@@ -513,6 +516,8 @@ func (s *psychosocialDetailService) LoadSession(ctx context.Context, psicosocial
 		log.Printf("[SVC] LoadSession → advertencia: no se pudo cargar victimInfo de caseID=%s: %v", ps.CaseID, err)
 	}
 
+	currentBarriers := s.loadActivePsicosocialBarriers(ctx, ps.ID)
+
 	return &LoadPsicosocialSessionResult{
 		FormID:       formID,
 		FormType:     formKey,
@@ -524,8 +529,50 @@ func (s *psychosocialDetailService) LoadSession(ctx context.Context, psicosocial
 			SessionCount:          ps.SessionCount,
 			Status:                ps.Status,
 		},
-		FormState: map[string]interface{}{},
+		FormState: map[string]interface{}{
+			"currentBarriers": currentBarriers,
+		},
 	}, nil
+}
+
+// loadActivePsicosocialBarriers resuelve las "barreras activas" de una remisión psicosocial
+// para poblar formState.currentBarriers (consumido por el repeater "Seguimiento a Barreras" vía
+// stateItems, igual patrón que hacer_seguimiento.html/followUpV2Service). A diferencia de
+// hacer_seguimiento (que filtra por case_id + guarda un CSV de IDs en el propio follow_up), aquí
+// se filtra por team_contact_id: se buscan todos los team_contact de este psychosocial_support y
+// luego las barrier_v2 (no MANAGED) cuyo team_contact_id esté en ese conjunto — decisión de los
+// líderes (Jul 2026) para no depender de un campo adicional en psychosocial_support.
+// Reutiliza ActiveBarrierInfo/buildBarrierName definidos en followup_v2_service.go (mismo paquete).
+func (s *psychosocialDetailService) loadActivePsicosocialBarriers(ctx context.Context, psicosocialID string) []ActiveBarrierInfo {
+	var contacts []models.TeamContact
+	if err := s.db.WithContext(ctx).
+		Where("psicosocial_id = ? AND deleted_at IS NULL", psicosocialID).
+		Find(&contacts).Error; err != nil {
+		log.Printf("[SVC] loadActivePsicosocialBarriers → error leyendo team_contact de psicosocialId=%s: %v", psicosocialID, err)
+		return []ActiveBarrierInfo{}
+	}
+	if len(contacts) == 0 {
+		return []ActiveBarrierInfo{}
+	}
+	contactIDs := make([]string, len(contacts))
+	for i, c := range contacts {
+		contactIDs[i] = c.ID
+	}
+
+	var barriers []models.BarrierV2
+	if err := s.db.WithContext(ctx).
+		Where("team_contact_id IN ? AND status != ? AND deleted_at IS NULL", contactIDs, models.BarrierV2StatusManaged).
+		Order("created_at ASC").
+		Find(&barriers).Error; err != nil {
+		log.Printf("[SVC] loadActivePsicosocialBarriers → error leyendo barrier_v2 de psicosocialId=%s: %v", psicosocialID, err)
+		return []ActiveBarrierInfo{}
+	}
+
+	result := make([]ActiveBarrierInfo, len(barriers))
+	for i, b := range barriers {
+		result[i] = ActiveBarrierInfo{ID: b.ID, BarrierName: buildBarrierName(b)}
+	}
+	return result
 }
 
 // checkSessionAccess valida que agentID sea el profesional directo asignado a la
@@ -606,25 +653,31 @@ func selectPsicosocialForm(ps models.PsychosocialSupport) (constants.Psicosocial
 }
 
 // loadSessionVictimInfo carga los datos resumidos de la víctima para la tarjeta de
-// la pantalla de sesión psicosocial (PASO 10).
+// la pantalla de sesión psicosocial (mismos campos que LoadVictimInfoByCaseID).
 func (s *psychosocialDetailService) loadSessionVictimInfo(ctx context.Context, caseID string) (*PsicosocialSessionVictimInfo, error) {
 	type victimRow struct {
-		Names          string `gorm:"column:names"`
-		LastNames      string `gorm:"column:last_names"`
-		Phone          string `gorm:"column:phone"`
-		GenderIdentity string `gorm:"column:gender_identity"`
-		TownName       string `gorm:"column:town_name"`
-		RiskLevel      int    `gorm:"column:risk_level"`
+		Names             string `gorm:"column:names"`
+		LastNames         string `gorm:"column:last_names"`
+		Phone             string `gorm:"column:phone"`
+		GenderIdentity    string `gorm:"column:gender_identity"`
+		SexualOrientation string `gorm:"column:sexual_orientation"`
+		ContactPhone      string `gorm:"column:contact_phone"`
+		Age               *int64 `gorm:"column:age"`
+		TownName          string `gorm:"column:town_name"`
+		RiskLevel         int    `gorm:"column:risk_level"`
 	}
 	var row victimRow
 	err := s.db.WithContext(ctx).Raw(`
 		SELECT
-			COALESCE(vc.victim_case_victim_names, '')                    AS names,
-			COALESCE(vc.victim_case_victim_last_names, '')               AS last_names,
-			COALESCE(f2.victim_case_form2_victim_phone::text, '')        AS phone,
-			COALESCE(gi.victim_case_form2_enums_name, '')                AS gender_identity,
-			COALESCE(t.town_name, '')                                    AS town_name,
-			COALESCE(f2.victim_case_form2_risk_level, 0)                 AS risk_level
+			COALESCE(vc.victim_case_victim_names, '')                           AS names,
+			COALESCE(vc.victim_case_victim_last_names, '')                      AS last_names,
+			COALESCE(f2.victim_case_form2_victim_phone::text, '')               AS phone,
+			COALESCE(gi.victim_case_form2_enums_name, '')                       AS gender_identity,
+			COALESCE(so.victim_case_form2_enums_name, '')                       AS sexual_orientation,
+			COALESCE(f2.victim_case_form2_support_contact_phone::text, '')      AS contact_phone,
+			EXTRACT(YEAR FROM AGE(NOW(), f2.victim_case_form2_birth_date))::int AS age,
+			COALESCE(t.town_name, '')                                           AS town_name,
+			COALESCE(f2.victim_case_form2_risk_level, 0)                        AS risk_level
 		FROM salvia.victim_case vc
 		LEFT JOIN salvia.victim_case_form2 f2
 			ON f2.victim_case_form2_victim_case = vc.victim_case_id
@@ -632,6 +685,8 @@ func (s *psychosocialDetailService) loadSessionVictimInfo(ctx context.Context, c
 			ON t.town_code = vc.victim_case_victim_town_code
 		LEFT JOIN salvia.victim_case_form2_enums gi
 			ON gi.victim_case_form2_enums_id = f2.victim_case_form2_gender_identity
+		LEFT JOIN salvia.victim_case_form2_enums so
+			ON so.victim_case_form2_enums_id = f2.victim_case_form2_sexual_orientation
 		WHERE vc.victim_case_i_code = ?
 		LIMIT 1
 	`, caseID).Scan(&row).Error
@@ -641,12 +696,15 @@ func (s *psychosocialDetailService) loadSessionVictimInfo(ctx context.Context, c
 
 	locale := salvia_config.Locale["sp"]
 	return &PsicosocialSessionVictimInfo{
-		Names:          row.Names,
-		LastNames:      row.LastNames,
-		Phone:          row.Phone,
-		GenderIdentity: locale[row.GenderIdentity],
-		TownName:       row.TownName,
-		RiskLevel:      row.RiskLevel,
-		CaseICode:      caseID,
+		Names:             row.Names,
+		LastNames:         row.LastNames,
+		Phone:             row.Phone,
+		GenderIdentity:    locale[row.GenderIdentity],
+		SexualOrientation: locale[row.SexualOrientation],
+		ContactPhone:      row.ContactPhone,
+		Age:               row.Age,
+		TownName:          row.TownName,
+		RiskLevel:         row.RiskLevel,
+		CaseICode:         caseID,
 	}, nil
 }

@@ -2,8 +2,11 @@
 🟢 EVENTO: Cuando se guarda el formulario psicosocial
    Tipo: Frontend → Backend
    Estado: IMPLEMENTADO (Jul 2026) — incluye creación de barrier_v2/case_task desde
-           "Identificación de Barreras" (ver sección 9). Pendiente solo "Seguimiento a
-           Barreras" (actualizar barreras existentes, ver punto C / sección 9).
+           "Identificación de Barreras" (sección 9) y resolución de "barreras activas" para
+           "Seguimiento a Barreras" vía barrier_v2.team_contact_id (sección 9.5).
+           ⚠️ REQUIERE ACCIÓN MANUAL: falta correr el ALTER TABLE de la columna
+           team_contact_id contra Supabase (ver sección 9.5) antes de poder guardar barreras.
+           Pendiente: actualizar/cerrar barreras desde "Seguimiento a Barreras" (sección 9.6).
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Equivalente psicosocial de `DocsMD/Screens/hacer-seguimiento/Flujos/flow-E04-cuando-se-procesa-submission.md`.
@@ -375,12 +378,13 @@ entrada agregada al repeater **"Identificación de Barreras"**, en cualquiera de
 formularios psicosociales. Replica 1:1 el PASO 3 de `processFollowUpSubmission`
 (`hacer_seguimiento`), solo que relacionado con la remisión psicosocial en vez del follow-up.
 
-**Fuera de alcance todavía:** la sección **"Seguimiento a Barreras"** (actualizar/cerrar
-barreras ya existentes del caso). Esa sección necesita saber cuáles son las "barreras activas"
-del caso para relacionar cada entry del repeater por posición — en `hacer_seguimiento` viene de
-`follow_up_v2.active_barrier_ids`, y `psychosocial_support` no tiene un campo equivalente hoy.
-Sus respuestas quedan igualmente persistidas en `salvia.answer`/`repeater_entry` (no se pierden),
-solo no generan efectos de negocio todavía.
+**Actualizado (Jul 2026, implementado — ver sección 9.5):** la sección **"Seguimiento a
+Barreras"** (mostrar las barreras activas de la remisión para que el agente les dé seguimiento)
+ya resuelve de dónde salen esas "barreras activas": en vez de replicar el campo
+`follow_up_v2.active_barrier_ids` (CSV de IDs guardado en el propio follow_up), se decidió con
+los líderes agregar `barrier_v2.team_contact_id` y resolver las barreras activas de una remisión
+buscando todos los `team_contact` de ese `psychosocial_support`. La actualización/cierre de esas
+barreras (equivalente al PASO 3b de `processFollowUpSubmission`) sigue pendiente — ver 9.6.
 
 ### 9.1 Frontend — cascada de ubicación (Departamento → Ciudad → Municipio)
 
@@ -459,3 +463,131 @@ barrera" y "Gestión de la barrera" usan los mismos `value` (`salud`/`justicia`/
 No requirió migraciones — `state_options_path` de Departamento/Ciudad/Municipio ya estaba seteado
 correctamente desde el seed original en los 4 formularios (verificado contra Supabase antes de
 implementar). Compilado sin errores (`go build ./internal/... ./salvia/... .`).
+
+---
+
+## 9.5 "Seguimiento a Barreras" — resolver las barreras activas vía `team_contact_id` (Jul 2026, implementado)
+
+**Decisión de los líderes:** en vez de replicar `follow_up_v2.active_barrier_ids` (un CSV de IDs
+guardado en el propio contenedor padre — follow_up en `hacer_seguimiento`), se agrega una
+relación directa `barrier_v2.team_contact_id` → `team_contact.id`. Cada barrera creada por
+`processPsicosocialBarrierEntries` (sección 9.2) queda marcada con el `team_contact` de la
+sesión donde se identificó. Al cargar la pantalla, se buscan **todos** los `team_contact` de ese
+`psychosocial_support` y luego las `barrier_v2` (no `MANAGED`) cuyo `team_contact_id` esté en ese
+conjunto — son las "barreras activas" de la remisión, mostradas en el repeater "Seguimiento a
+Barreras Activas" vía `stateItems: currentBarriers`.
+
+**Por qué este enfoque y no el de `hacer_seguimiento`:** `active_barrier_ids` funciona bien
+cuando hay un solo contenedor "vivo" por caso (el follow_up actual). En la remisión psicosocial
+el equivalente sería `psychosocial_support`, pero agregarle un campo mutable de ese tipo implica
+recalcularlo/reescribirlo en cada sesión (más estado a sincronizar). Con `team_contact_id` la
+relación queda fija en el momento de creación de la barrera y no requiere ningún campo adicional
+en `psychosocial_support` — se resuelve siempre "hacia atrás" desde `team_contact`.
+
+### Cambios
+
+**1. Modelo — `internal/models/barrier_v2.go`**
+
+```go
+TeamContactID *string `gorm:"type:varchar(36);column:team_contact_id;index" json:"teamContactId,omitempty"`
+```
+
+Nullable — las barreras creadas por `hacer_seguimiento` (o remisiones anteriores a este cambio)
+quedan con `team_contact_id = NULL`; solo importa para las creadas desde los formularios
+psicosociales.
+
+**2. `salvia/service/psicosocial_barreras.go` — `processPsicosocialBarrierEntries`**
+
+Firma ahora recibe `teamContactID string` (el `tc.ID` que se está completando en
+`processPsicosocialSessionSubmission`) y lo fija en cada `BarrierV2` creado.
+
+**3. Repositorios nuevos**
+
+- `TeamContactRepository.FindByPsicosocialID(ctx, psicosocialID) ([]models.TeamContact, error)`
+  — todos los `team_contact` (completados o no) de una remisión.
+- `BarrierV2Repository.FindActiveByTeamContactIDs(ctx, teamContactIDs) ([]models.BarrierV2, error)`
+  — filtra `team_contact_id IN (?) AND status != 'MANAGED'`.
+
+Ninguno de los dos se usa todavía desde fuera de `psychosocial_detail_service.go` (que resuelve
+esto con una query directa vía `s.db`, igual estilo que el resto del archivo — ver punto 4), pero
+quedan expuestos en la interfaz del repositorio para quien necesite esta consulta desde otro
+service.
+
+**4. `salvia/service/psychosocial_detail_service.go` — `LoadSession` (evento E-01)**
+
+Se agregó `loadActivePsicosocialBarriers(ctx, psicosocialID) []ActiveBarrierInfo` (reutiliza el
+struct `ActiveBarrierInfo`/`buildBarrierName` ya definidos en `followup_v2_service.go`, mismo
+paquete `service`) y se puebla `FormState["currentBarriers"]` en la respuesta de `LoadSession`.
+Antes `FormState` se devolvía siempre vacío (`map[string]interface{}{}`).
+
+**5. Frontend — sin cambios en `registrar_sesion.html`**
+
+No hizo falta tocar el frontend: `formState.currentBarriers` llega directo del backend en la
+respuesta de `/psychosocial-support/:id/load` y ya se mergea correctamente gracias al cambio de
+la sección 9.1 (`this.formState = { ...this.formState, ...(data.formState || {}) }`).
+`dinamic-form.js` lee `currentBarriers` vía `stateItems` del repeater (ver punto 6) sin lógica
+adicional del componente `registrar_sesion.html`.
+
+**6. Configuración de formulario (datos, no código) — `state_items` + `render_modification`**
+
+Los 4 repeaters "Seguimiento a Barreras Activas" no tenían `state_items` seteado (a diferencia
+del de `hacer_seguimiento`, que sí lo tenía desde antes) ni el `render_modification` que muestra
+el nombre de la barrera en la pregunta info "Seguimiento a Barrera". Se ejecutó contra Supabase:
+
+```sql
+UPDATE salvia.repeater_group SET state_items = 'currentBarriers' WHERE id IN (
+  'cb2fb8b8-0431-4088-b626-06e1069432fa', -- Atención Psicosocial
+  '10122569-e6c2-4449-a7ff-add378815eb8', -- Cierre
+  '94718173-b809-41e4-86d5-378de3434dca', -- Primer Contacto
+  '3cb23f26-af5a-4052-8987-28294f68e5dc'  -- Primera Atención
+);
+
+INSERT INTO salvia.render_modification (target_type, target_id, target_field, modification_type, state_path)
+VALUES
+  ('question', '752865b1-1dbd-4111-8ea1-1425c3997bba', 'description', 'SET', 'currentBarriers.{_entryIndex}.barrierName'), -- Atención Psicosocial
+  ('question', 'c0d96633-901f-49f2-bc56-337f05656f41', 'description', 'SET', 'currentBarriers.{_entryIndex}.barrierName'), -- Cierre
+  ('question', '8fa34c29-652c-49e2-ad44-d84aa3b74add', 'description', 'SET', 'currentBarriers.{_entryIndex}.barrierName'), -- Primer Contacto
+  ('question', '1e65b5f2-41b2-46b6-937b-e5a37fc4ba8a', 'description', 'SET', 'currentBarriers.{_entryIndex}.barrierName'); -- Primera Atención
+```
+
+Ambos ya quedaron aplicados en la base (ejecutados contra Supabase con el mismo mecanismo que se
+usó para migrar el seed).
+
+### ⚠️ Pendiente manual — columna `barrier_v2.team_contact_id`
+
+Igual que pasó con `team_contact.form_id`/`session_type` (ver sección 2), el usuario de base de
+datos de la app **no tiene permisos de `ALTER TABLE`** sobre `barrier_v2` (`ERROR: must be owner
+of table barrier_v2`, SQLSTATE 42501). Se agregó el `ADD COLUMN IF NOT EXISTS` defensivo en
+`main.go` (junto a los de `victim_case`) y `models.BarrierV2` ya está en la lista de
+`AutoMigrate`, pero ambos van a fallar en silencio (log `[WARN]`) contra Supabase con el usuario
+actual. **Falta ejecutar manualmente, con un usuario con permisos de owner:**
+
+```sql
+ALTER TABLE salvia.barrier_v2 ADD COLUMN IF NOT EXISTS team_contact_id VARCHAR(36);
+CREATE INDEX IF NOT EXISTS idx_barrier_v2_team_contact_id ON salvia.barrier_v2(team_contact_id);
+```
+
+Hasta que se ejecute, `processPsicosocialBarrierEntries` va a fallar al crear cualquier barrera
+(columna inexistente) — mismo síntoma que el error `column "form_id" of relation "team_contact"
+does not exist` que ya se vio antes con `team_contact`.
+
+## 9.6 Pendiente — actualizar/cerrar barreras desde "Seguimiento a Barreras"
+
+Mostrar las barreras activas (9.5) resuelve la mitad del flujo. Falta el equivalente al PASO 3b
+de `processFollowUpSubmission`: cuando el agente responde el repeater "Seguimiento a Barreras"
+(¿persiste?, gestión, ¿se cierra?, motivo de cierre), hay que:
+
+- Relacionar cada entry del repeater con su `BarrierV2.ID` — como ahora `currentBarriers` ya
+  trae `{id, barrierName}` en el mismo orden en que se renderizan las entries (`stateItems`), la
+  relación por posición es directa (mismo mecanismo que `activeIDs[idx]` en
+  `processFollowUpSubmission`, pero ahora la fuente es `currentBarriers[idx].id` en vez de
+  `fu.ActiveBarrierIDs`).
+- Si `¿Se realiza cierre de la barrera? = true` → `BarrierV2Repository.UpdateStatus(ctx, id, MANAGED)`.
+- Crear un `BarrierFollowUp` (¿persiste?, respuesta institucional, gestión, actuaciones, cierre,
+  motivo) — el modelo ya existe (`internal/models/barrier_follow_up.go`), solo falta usarlo desde
+  el flujo psicosocial (usaría `FollowUpID: ps.FollowUpID`, igual criterio que 9.2).
+- Registrar un evento de timeline por cada seguimiento a barrera (igual que
+  `buildBarrierFollowUpSummary` en `processFollowUpSubmission`).
+
+No implementado todavía — queda para la siguiente iteración una vez validado el flujo de 9.5 en
+producción.

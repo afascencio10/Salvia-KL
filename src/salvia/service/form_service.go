@@ -2226,7 +2226,7 @@ func (s *formService) processPsicosocialSessionSubmission(ctx context.Context, f
 
 	// ── Barreras: crear barrier_v2 + case_task/entity_letter por cada entrada del repeater
 	// "Identificación de Barreras" ────────────────────────────────────────────────────────
-	barrierCount, err := s.processPsicosocialBarrierEntries(ctx, formID, submissionID, actorID, ps)
+	barrierCount, err := s.processPsicosocialBarrierEntries(ctx, formID, submissionID, actorID, tc.ID, ps)
 	if err != nil {
 		log.Printf("[processPsicosocialSessionSubmission] advertencia: error procesando barreras: %v", err)
 	}

@@ -166,7 +166,12 @@ var psicosocialBarrierQuestionsByForm = map[string]psicosocialBarrierQuestions{
 //
 // No es un error si el formulario no tiene barreras configuradas o si no se agregó ninguna
 // entrada — en ambos casos retorna (0, nil).
-func (s *formService) processPsicosocialBarrierEntries(ctx context.Context, formID, submissionID, actorID string, ps *models.PsychosocialSupport) (int, error) {
+//
+// teamContactID es el team_contact que se está completando en este guardado (el mismo `tc` de
+// processPsicosocialSessionSubmission) — se fija en cada BarrierV2 creado para poder resolverlas
+// después como "barreras activas" de la remisión (ver LoadSession en
+// psychosocial_detail_service.go y flow-E02 §9).
+func (s *formService) processPsicosocialBarrierEntries(ctx context.Context, formID, submissionID, actorID, teamContactID string, ps *models.PsychosocialSupport) (int, error) {
 	cfg, ok := psicosocialBarrierQuestionsByForm[formID]
 	if !ok {
 		return 0, nil
@@ -212,10 +217,11 @@ func (s *formService) processPsicosocialBarrierEntries(ctx context.Context, form
 		sector := strings.TrimSpace(entryMap[cfg.QSector])
 
 		b := &models.BarrierV2{
-			CaseID:      ps.CaseID,
-			FollowUpID:  ps.FollowUpID,
-			CreatedByID: actorID,
-			Status:      models.BarrierV2StatusOpen,
+			CaseID:        ps.CaseID,
+			FollowUpID:    ps.FollowUpID,
+			TeamContactID: &teamContactID,
+			CreatedByID:   actorID,
+			Status:        models.BarrierV2StatusOpen,
 
 			Sector:               sector,
 			SpecificBarriers:     entryMap[sectorBarrierQ[sector]],

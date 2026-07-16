@@ -36,7 +36,7 @@
                 <hr class="ps-divider">
 
                 <div class="ps-card-body-row">
-                    <!-- Campos de la víctima -->
+                    <!-- Campos de la víctima (mismos que hacer_seguimiento) -->
                     <div class="ps-card-fields">
                         <div class="ps-field">
                             <span class="ps-field-label">Teléfono</span>
@@ -47,14 +47,16 @@
                             <span class="ps-field-value">${ victimInfo.GenderIdentity || '—' }</span>
                         </div>
                         <div class="ps-field">
-                            <span class="ps-field-label">Nivel de riesgo</span>
-                            <span class="ps-field-value ps-risk" :class="'ps-risk--' + victimInfo.RiskLevel">
-                                ${ riskLabel }
-                            </span>
+                            <span class="ps-field-label">Orientación sexual</span>
+                            <span class="ps-field-value">${ victimInfo.SexualOrientation || '—' }</span>
                         </div>
                         <div class="ps-field">
-                            <span class="ps-field-label">Código de caso</span>
-                            <span class="ps-field-value">${ victimInfo.CaseICode || '—' }</span>
+                            <span class="ps-field-label">Teléfono de contacto</span>
+                            <span class="ps-field-value">${ victimInfo.ContactPhone || '—' }</span>
+                        </div>
+                        <div class="ps-field">
+                            <span class="ps-field-label">Edad</span>
+                            <span class="ps-field-value">${ victimInfo.Age != null ? victimInfo.Age + ' años' : '—' }</span>
                         </div>
                     </div>
 
@@ -80,6 +82,27 @@
                 </div>
             </div>
         </div>
+
+        <!-- ── Tabs: Información del caso / Formulario ───────────────────── -->
+        <div class="ps-tabs mb-3">
+            <button class="ps-tab" :class="{ 'ps-tab--active': activeTab === 'caso' }" @click="activeTab = 'caso'">
+                <i class="fas fa-folder-open"></i> Información del caso
+            </button>
+            <button class="ps-tab" :class="{ 'ps-tab--active': activeTab === 'sesion' }" @click="activeTab = 'sesion'">
+                <i class="fas fa-clipboard-list"></i> Formulario de sesión
+            </button>
+        </div>
+
+        <!-- Tab: Información del caso (componente case-info, modo modal) -->
+        <case-info
+            v-if="caseICode"
+            :case-id="caseICode"
+            :visible="activeTab === 'caso'"
+            @close="activeTab = 'sesion'">
+        </case-info>
+
+        <!-- Tab: Formulario de sesión -->
+        <div v-show="activeTab === 'sesion'">
 
         <!-- ── Error de carga ────────────────────────────────────────────── -->
         <div v-if="loadError" class="alert alert-danger">${ loadError }</div>
@@ -260,6 +283,8 @@
             @answers-updated="onAnswersUpdated">
         </dinamic-form>
 
+        </div><!-- /v-show activeTab === 'sesion' -->
+
         <!-- ── Overlay de sesión completada ─────────────────────────────── -->
         <div v-if="sessionCompleted" class="ps-completed-backdrop">
             <div class="ps-completed-card">
@@ -340,6 +365,34 @@
 @keyframes ps-spin { to { transform: rotate(360deg); } }
 .ps-page-loader-text { margin: 0; font-size: 14px; color: #6b7280; font-weight: 500; }
 
+/* ── Tabs (mismo patrón que hacer_seguimiento) ───────────────────────── */
+.ps-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid #e5e7eb;
+}
+.ps-tab {
+    padding: 9px 18px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transition: color 0.15s, border-color 0.15s;
+}
+.ps-tab:hover { color: #374151; }
+.ps-tab--active {
+    color: #7c3aed;
+    border-bottom-color: #7c3aed;
+    font-weight: 600;
+}
+
 /* ── Card info caso ──────────────────────────────────────────────────── */
 .ps-card {
     border: 1px solid #e0e0e0;
@@ -381,11 +434,6 @@
 .ps-field { display: flex; flex-direction: column; gap: 2px; min-width: 130px; }
 .ps-field-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.4px; }
 .ps-field-value { font-size: 14px; font-weight: 500; color: #333; }
-.ps-risk { padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
-.ps-risk--1 { background: #fffbeb; color: #d97706; }
-.ps-risk--2 { background: #fff7ed; color: #ea580c; }
-.ps-risk--3 { background: #fef2f2; color: #dc2626; }
-.ps-risk--4 { background: #450a0a; color: #fca5a5; }
 
 /* ── Estado de la sesión ─────────────────────────────────────────────── */
 .ps-session-status {
@@ -732,9 +780,6 @@
     const mockCasoId = urlParams.get('mock');   // ej: 'caso1'
     const IS_MOCK     = !!mockCasoId;
 
-    // ── Labels de estado ────────────────────────────────────────────────
-    const RISK_LABELS = { 0: 'Sin dato', 1: 'Bajo', 2: 'Medio', 3: 'Alto', 4: 'Extremo' };
-
     // ── Config de ubicación de barreras por formulario ───────────────────
     // La sección "Identificación de Barreras" existe clonada en cada uno de los 4
     // formularios psicosociales, con su propio repeater group y preguntas de
@@ -770,6 +815,7 @@
                 // ── Datos de identificación ──────────────────────────
                 psicosocialId: '{{ .psicosocialId }}',
                 userICode:     '{{ .userICode }}',
+                currentUser:   '{{ .currentUser }}',
                 isMock:        IS_MOCK,
 
                 // ── Estado de carga ──────────────────────────────────
@@ -781,6 +827,8 @@
                 submissionId:    null,
                 formType:        null,
                 victimInfo:      null,
+                caseICode:       null,   // icode del caso → prop de <case-info>
+                activeTab:       'sesion',
                 psicosocialState: {
                     yaHizoPrimerContacto:  false,
                     yaHizoPrimeraAtencion: false,
@@ -812,9 +860,6 @@
         },
 
         computed: {
-            riskLabel() {
-                return RISK_LABELS[this.victimInfo?.RiskLevel] || '—';
-            },
             statusInfo() {
                 return window.PSICO_MOCK.STATUS_LABELS[this.psicosocialState.status]
                     || { label: this.psicosocialState.status, color: '#6b7280', bg: '#f9fafb' };
@@ -848,6 +893,12 @@
 
         mounted() {
             document.getElementById('app').style.display = 'block';
+            // El header está fuera del mount de Vue — populamos currentUser directo via DOM
+            const navUserDiv = document.querySelector('.navbar.nav_banner .user');
+            if (navUserDiv) {
+                navUserDiv.querySelector('div:first-child').innerHTML =
+                    '<i class="fas fa-user"></i> Hola, {{ .currentUser }}';
+            }
             if (IS_MOCK) {
                 this.loadMockData(mockCasoId);
             } else {
@@ -869,6 +920,7 @@
                 this.submissionId    = caso.submissionId;
                 this.formType        = caso.formType;
                 this.victimInfo      = caso.victimInfo;
+                this.caseICode       = caso.victimInfo?.CaseICode || null;
                 this.psicosocialState = { ...caso.psicosocialState };
                 this.formState       = { ...caso.formState };
                 this.canEdit         = caso.canEdit;
@@ -889,6 +941,7 @@
                     this.submissionId     = data.submissionId;
                     this.formType         = data.formType;
                     this.victimInfo       = data.victimInfo;
+                    this.caseICode        = data.victimInfo?.CaseICode || null;
                     this.psicosocialState = data.psicosocialState;
                     // Merge (no reemplaza) para no perder statesColombia/newBarriers que
                     // loadLocations() puede haber poblado en paralelo (ambas se disparan juntas
@@ -896,6 +949,7 @@
                     this.formState        = { ...this.formState, ...(data.formState || {}) };
                     this.canEdit          = data.psicosocialState.status !== 'cerrado';
                     console.log('[PSICO] Datos cargados:', data);
+                    console.log('[PSICO] caseICode:', this.caseICode);
                 } catch (e) {
                     this.loadError = 'Error de conexión al cargar la sesión psicosocial';
                     console.error('[PSICO] error:', e);
@@ -1043,9 +1097,10 @@
     });
 </script>
 
-<!-- dinamic-form.js espera un global `app` ya creado (arriba) antes de registrarse
-     como componente, y debe cargarse antes de app.mount(). Mismo orden que
-     hacer_seguimiento.html. -->
+<!-- case-info.js y dinamic-form.js esperan un global `app` ya creado (arriba)
+     antes de registrarse como componentes, y deben cargarse antes de app.mount().
+     Mismo orden que hacer_seguimiento.html. -->
+<script src="/static/js/components/case-info.js"></script>
 <script src="/static/js/components/dinamic-form.js"></script>
 
 <script>

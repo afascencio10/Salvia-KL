@@ -16,6 +16,10 @@ type TeamContactRepository interface {
 	// que recibe el submissionId desde OnEndFormSubmission y necesita el contexto
 	// (case_id, psicosocial_id, professional/dupla) para actualizar el estado.
 	FindByFormSubmissionID(ctx context.Context, submissionID string) (*models.TeamContact, error)
+	// FindByPsicosocialID retorna todos los team_contact (completados o no) de una remisión
+	// psicosocial — usado para resolver las "barreras activas" de la sección "Seguimiento a
+	// Barreras" (se buscan las barrier_v2 cuyo team_contact_id esté entre estos IDs).
+	FindByPsicosocialID(ctx context.Context, psicosocialID string) ([]models.TeamContact, error)
 }
 
 type teamContactRepository struct {
@@ -43,4 +47,13 @@ func (r *teamContactRepository) FindByFormSubmissionID(ctx context.Context, subm
 		return nil, err
 	}
 	return &tc, nil
+}
+
+func (r *teamContactRepository) FindByPsicosocialID(ctx context.Context, psicosocialID string) ([]models.TeamContact, error) {
+	var items []models.TeamContact
+	err := r.db.WithContext(ctx).
+		Where("psicosocial_id = ? AND deleted_at IS NULL", psicosocialID).
+		Order("created_at ASC").
+		Find(&items).Error
+	return items, err
 }
