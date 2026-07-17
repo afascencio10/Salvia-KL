@@ -36,6 +36,7 @@ type PsychosocialSupport struct {
 	// YaHizoPrimeraAtencion se activa al completar el formulario "Primera Atención" con consentimiento.
 	// Determina si la pantalla de sesión carga el Form 2 o Form 3/4 (Atención Psicosocial / Cierre).
 	YaHizoPrimeraAtencion bool           `gorm:"column:ya_hizo_primera_atencion;default:false" json:"yaHizoPrimeraAtencion"`
+	SchedulePreference    *string        `gorm:"type:text;column:schedule_preference" json:"schedulePreference,omitempty"`
 	CreatedAt             time.Time      `json:"createdAt"`
 	UpdatedAt             time.Time      `json:"updatedAt"`
 	DeletedAt             gorm.DeletedAt `gorm:"index" json:"-"`

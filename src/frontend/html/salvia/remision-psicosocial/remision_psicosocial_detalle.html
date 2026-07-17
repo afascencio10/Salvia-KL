@@ -1,7 +1,7 @@
 {{/* Template: remision_detalle.html — Pantalla de Detalle de Remisión Psicosocial */}}
 <link rel="stylesheet" href="/static/css/barrera_detalle.css">
 
-<div class="container brd-container" style="background:#f8f6ff;min-height:100vh;padding:24px 16px">
+<div class="container brd-container" style="background:#f3f4f6;min-height:100vh;padding:24px 16px;max-width:1200px">
 
     <!-- Loading -->
     <div v-if="cargando" style="text-align:center;padding:80px 0;color:#6b7280">
@@ -95,13 +95,45 @@
                     <span v-if="remision.submittedByTeam" style="font-size:.72rem;color:#9ca3af;display:block">${ remision.submittedByTeam }</span>
                 </div>
                 <div>
+                    <span style="font-size:.68rem;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">Requiere intérprete</span>
+                    <span style="font-size:.88rem;font-weight:700;color:#111827">${ remision.requiresInterpreter || 'No' }</span>
+                </div>
+                <div>
+                    <span style="font-size:.68rem;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">Consentimiento informado</span>
+                    <span v-if="remision.consentStatus" style="font-size:.88rem;font-weight:700" :style="remision.consentStatus === 'Aceptado' ? 'color:#15803d' : 'color:#dc2626'">
+                        ${ remision.consentStatus === 'Aceptado' ? '✓' : '✕' } ${ remision.consentStatus }
+                        <span v-if="remision.consentDate" style="font-size:.75rem;color:#9ca3af;font-weight:400"> — ${ remision.consentDate }</span>
+                    </span>
+                    <span v-else style="font-size:.88rem;color:#9ca3af">Pendiente</span>
+                </div>
+                <div>
                     <span style="font-size:.68rem;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">Psicóloga asignada</span>
                     <span style="font-size:.88rem;font-weight:700;color:#5106A7">${ remision.professionalName || 'Sin asignar' }</span>
                 </div>
             </div>
 
+            <!-- Preferencia de horario -->
+            <div style="margin-top:24px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px">
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                    <p style="font-size:.72rem;font-weight:700;color:#1d4ed8;text-transform:uppercase;margin:0">🔒 Preferencia de horario de la paciente <span style="font-weight:400;text-transform:none">(solo equipo psicosocial)</span></p>
+                    <button v-if="!editandoHorario" @click="editandoHorario = true; nuevoHorario = remision.schedulePreference || ''" style="font-size:.75rem;color:#5106A7;font-weight:600;background:none;border:none;cursor:pointer">Editar</button>
+                </div>
+                <div v-if="!editandoHorario" style="margin-top:8px">
+                    <p style="font-size:.84rem;color:#374151;margin:0">${ remision.schedulePreference || 'Sin preferencia registrada' }</p>
+                </div>
+                <div v-else style="margin-top:10px">
+                    <textarea v-model="nuevoHorario" rows="2" placeholder="Ej: Mañanas, lunes y miércoles entre 9am y 12pm" maxlength="255" style="width:100%;padding:8px 12px;border:1px solid #bfdbfe;border-radius:8px;font-size:.84rem;outline:none;resize:vertical"></textarea>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+                        <button @click="editandoHorario = false" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;color:#374151;cursor:pointer">Cancelar</button>
+                        <button @click="guardarPreferenciaHorario" :disabled="guardandoHorario" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:none;background:#5106A7;color:#fff;cursor:pointer;font-weight:600" :style="{ opacity: guardandoHorario ? '.5' : '1' }">
+                            ${ guardandoHorario ? 'Guardando...' : 'Guardar' }
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Observaciones -->
-            <div v-if="remision.notes" style="margin-top:24px;background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:14px 16px">
+            <div v-if="remision.notes" style="margin-top:16px;background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:14px 16px">
                 <p style="font-size:.72rem;font-weight:700;color:#92400e;text-transform:uppercase;margin:0 0 6px">🔒 Observaciones de la remisión (solo equipo psicosocial)</p>
                 <p style="font-size:.84rem;color:#374151;margin:0;line-height:1.5">${ remision.notes }</p>
             </div>
@@ -124,7 +156,7 @@
             <!-- Header contactos -->
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
                 <span style="font-size:.82rem;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.03em">Contactos (${ remision.contacts.length })</span>
-                <button @click="$refs.registrarContactoModal.open(remisionID)" style="background:#5106A7;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer">+ Registrar contacto</button>
+                <button v-if="puedeGestionarContactos" @click="$refs.registrarContactoModal.open(remisionID)" style="background:#5106A7;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer">+ Registrar contacto</button>
             </div>
 
             <!-- Lista de contactos -->
@@ -167,7 +199,7 @@
                 </div>
 
                 <!-- Botones -->
-                <div style="display:flex;gap:8px;margin-top:12px;padding-left:48px">
+                <div v-if="puedeGestionarContactos" style="display:flex;gap:8px;margin-top:12px;padding-left:48px">
                     <button v-if="contact.isCompleted" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #5106A7;background:#fff;color:#5106A7;cursor:pointer;font-weight:600">Ver sesión</button>
                     <template v-if="contact.isPsicoSession && !contact.isCompleted && contact.status !== 'cancelada'">
                         <button @click="registrarSesion(contact)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:none;background:#5106A7;color:#fff;cursor:not-allowed;font-weight:600;opacity:.5">Registrar sesión</button>
@@ -180,9 +212,7 @@
 
         <!-- Tab: Tareas -->
         <div v-if="activeTab === 'tareas'" class="brd-tab-content-card">
-            <div style="text-align:center;padding:40px 0;color:#9ca3af;font-size:.85rem">
-                <p>No hay tareas asociadas a esta remisión</p>
-            </div>
+            <case-tasks :case-id="remision.caseId" :psychosocial-id="remisionID" :user-id="currentUserId" :user-role="currentRole"></case-tasks>
         </div>
 
         <!-- Tab: Timeline -->
@@ -255,6 +285,10 @@
                 cargando: true,
                 error: null,
                 remision: null,
+                // Editar preferencia de horario
+                editandoHorario: false,
+                nuevoHorario: '',
+                guardandoHorario: false,
                 // Reprogramar modal
                 reprogramarVisible: false,
                 reprogramarContact: null,
@@ -270,6 +304,9 @@
         },
 
         computed: {
+            puedeGestionarContactos() {
+                return this.currentRole === 'ps' || this.currentRole === 'ts' || this.currentRole === 'sv';
+            },
             sesionesRealizadas() {
                 if (!this.remision || !this.remision.contacts) return 0;
                 return this.remision.contacts.filter(function(c) { return c.isCompleted && c.isPsicoSession; }).length;
@@ -352,6 +389,25 @@
                 return count;
             },
 
+            async guardarPreferenciaHorario() {
+                if (this.guardandoHorario) return;
+                this.guardandoHorario = true;
+                try {
+                    var res = await fetch('/api/v1/psychosocial-support/' + this.remisionID + '/schedule-preference', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ preference: this.nuevoHorario }),
+                    });
+                    if (!res.ok) throw new Error('Error');
+                    this.editandoHorario = false;
+                    this.cargarDetalle();
+                } catch (e) {
+                    console.error('Error guardando preferencia:', e);
+                } finally {
+                    this.guardandoHorario = false;
+                }
+            },
+
             abrirReprogramar(contact, idx) {
                 this.reprogramarContact = contact;
                 this.reprogramarIdx = idx;
@@ -418,6 +474,9 @@
 </script>
 <script src="/static/js/components/registrar-contacto-modal.js"></script>
 <script src="/static/js/components/case-timeline.js"></script>
+<script src="/static/js/components/case-tasks.js"></script>
+<script src="/static/js/components/case-task-modal.js"></script>
+<script src="/static/js/components/case-task-history.js"></script>
 <script src="/static/js/components/dinamic-form.js"></script>
 <script src="/static/js/components/psychosocial-contact-modal.js"></script>
 <script src="/static/js/components/psychosocial-contact-card.js"></script>

@@ -26,6 +26,7 @@ func (c *PsychosocialDetailController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.POST("/psychosocial-support/:id/contacts", c.CreateContact)
 	rg.PUT("/psychosocial-support/contacts/:contactId/reschedule", c.RescheduleContact)
 	rg.PUT("/psychosocial-support/contacts/:contactId/cancel", c.CancelContact)
+	rg.PUT("/psychosocial-support/:id/schedule-preference", c.UpdateSchedulePreference)
 	rg.GET("/psychosocial-support/:id/load", c.LoadSession)
 }
 
@@ -137,4 +138,23 @@ func (c *PsychosocialDetailController) LoadSession(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, result)
+}
+
+// UpdateSchedulePreference actualiza la preferencia de horario de la paciente.
+// PUT /api/v1/psychosocial-support/:id/schedule-preference
+func (c *PsychosocialDetailController) UpdateSchedulePreference(ctx *gin.Context) {
+	id := ctx.Param("id")
+	var body struct {
+		Preference string `json:"preference" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := c.svc.UpdateSchedulePreference(ctx.Request.Context(), id, body.Preference); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"ok": true})
 }

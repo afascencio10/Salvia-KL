@@ -54,6 +54,12 @@ type PsychosocialDetailResponse struct {
 	// Remitente
 	SubmittedByName string `json:"submittedByName"`
 
+	// Campos adicionales
+	RequiresInterpreter string  `json:"requiresInterpreter"`
+	ConsentStatus       string  `json:"consentStatus"`
+	ConsentDate         string  `json:"consentDate"`
+	SchedulePreference  *string `json:"schedulePreference"`
+
 	// Contactos/Sesiones
 	Contacts []PsychosocialContactItem `json:"contacts"`
 }
@@ -77,6 +83,7 @@ type PsychosocialDetailService interface {
 	CreateContact(ctx context.Context, psicosocialID, contactType, contactDate, contactTime, summary, sessionType, scheduledDate, scheduledTime string) (*models.TeamContact, error)
 	RescheduleContact(ctx context.Context, contactID, scheduledDate, scheduledTime string) error
 	CancelContact(ctx context.Context, contactID string) error
+	UpdateSchedulePreference(ctx context.Context, psicosocialID, preference string) error
 	LoadSession(ctx context.Context, psicosocialID, agentID string) (*LoadPsicosocialSessionResult, error)
 }
 
@@ -218,7 +225,44 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 		resp.SubmittedByName = strings.TrimSpace(submitterName)
 	}
 
-	// 5. Contactos/Sesiones
+	// 5. Requiere intérprete (desde form2 de la víctima)
+	var requiresInterpreter string
+	s.db.WithContext(ctx).Raw(`
+		SELECT COALESCE(ri.victim_case_form2_enums_name, '')
+		FROM salvia.victim_case vc
+		LEFT JOIN salvia.victim_case_form2 f2 ON f2.victim_case_form2_victim_case = vc.victim_case_id
+		LEFT JOIN salvia.victim_case_form2_enums ri ON ri.victim_case_form2_enums_id = f2.victim_case_form2_require_language_interpreter
+		WHERE vc.victim_case_i_code = ?
+		LIMIT 1
+	`, ps.CaseID).Scan(&requiresInterpreter)
+	resp.RequiresInterpreter = requiresInterpreter
+
+	// 6. Consentimiento informado (último intento de contacto con consent_given)
+	type consentRow struct {
+		ConsentGiven *bool  `gorm:"column:consent_given"`
+		AttemptAt    string `gorm:"column:attempt_at"`
+	}
+	var consent consentRow
+	s.db.WithContext(ctx).Raw(`
+		SELECT consent_given, TO_CHAR(attempt_at, 'YYYY-MM-DD') AS attempt_at
+		FROM salvia.contact_attempt
+		WHERE psicosocial_id = ? AND consent_given IS NOT NULL AND deleted_at IS NULL
+		ORDER BY attempt_at DESC
+		LIMIT 1
+	`, ps.ID).Scan(&consent)
+	if consent.ConsentGiven != nil {
+		if *consent.ConsentGiven {
+			resp.ConsentStatus = "Aceptado"
+		} else {
+			resp.ConsentStatus = "No aceptado"
+		}
+		resp.ConsentDate = consent.AttemptAt
+	}
+
+	// 7. Preferencia de horario
+	resp.SchedulePreference = ps.SchedulePreference
+
+	// 8. Contactos/Sesiones
 	var contacts []models.TeamContact
 	s.db.WithContext(ctx).
 		Where("psicosocial_id = ? AND deleted_at IS NULL", ps.ID).
@@ -707,4 +751,11 @@ func (s *psychosocialDetailService) loadSessionVictimInfo(ctx context.Context, c
 		RiskLevel:         row.RiskLevel,
 		CaseICode:         caseID,
 	}, nil
+}
+
+func (s *psychosocialDetailService) UpdateSchedulePreference(ctx context.Context, psicosocialID, preference string) error {
+	return s.db.WithContext(ctx).
+		Model(&models.PsychosocialSupport{}).
+		Where("id = ?", psicosocialID).
+		Update("schedule_preference", preference).Error
 }

@@ -78,6 +78,16 @@ func (c *CaseTaskController) ListByAssignedUser(ctx *gin.Context) {
 			ctx.JSON(http.StatusOK, c.enrichTasksWithNames(items))
 			return
 		}
+		psychosocialID := ctx.Query("psychosocialId")
+		if psychosocialID != "" {
+			items, err := c.svc.ListByCaseIDAndPsychosocial(ctx.Request.Context(), caseID, psychosocialID)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+				return
+			}
+			ctx.JSON(http.StatusOK, c.enrichTasksWithNames(items))
+			return
+		}
 		items, err := c.svc.ListByCaseID(ctx.Request.Context(), caseID)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
