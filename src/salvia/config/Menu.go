@@ -95,6 +95,10 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"sv": true,
 		"ad": true,
 	},
+	"report_contacts_consolidated": {
+		"sv": true,
+		"ad": true,
+	},
 	"approve_victim_case": {
 		"op": true,
 		"ro": true,

@@ -1,0 +1,95 @@
+{{ define "salvia/victim_case/contacts_report_modal.html" }}
+<link rel="stylesheet" href="/static/css/contacts-report-modal.css">
+
+<script type="text/x-template" id="tpl-contacts-report-modal">
+<div v-if="visible" class="crm-backdrop" @click.self="onBackdropClick">
+    <div class="crm-dialog" role="dialog" aria-modal="true" aria-labelledby="crm-report-title">
+        <div class="crm-header">
+            <h3 id="crm-report-title" class="crm-title" style="color: #6d28d9; font-weight: 700;">Descarga de Reportes (Excel)</h3>
+            <button type="button" class="crm-close" aria-label="Cerrar" :disabled="loading" @click="close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="crm-body">
+            <!-- Loader con progreso simulado (estado loading) -->
+            <div v-if="loading" class="d-flex flex-column align-items-center justify-content-center text-center w-100" style="min-height: 200px;" role="status" aria-live="polite">
+                <div class="spinner-border mb-3" style="width: 3.5rem; height: 3.5rem; color: #6d28d9 !important;" role="status">
+                    <span class="sr-only">Cargando...</span>
+                </div>
+                <div>
+                    <h5 class="font-weight-bold text-dark mb-1" style="font-size: 1.05rem;">${ progressMessage }</h5>
+                    <p class="text-muted small px-3 mb-0">Generando el archivo de reportes. Por favor, no cierres este modal.</p>
+                </div>
+            </div>
+
+            <!-- Formulario de Selección (estados idle / error) -->
+            <div v-else class="d-flex flex-column" style="gap: 16px;">
+                <div class="row">
+                    <div class="col-6">
+                        <div class="form-group mb-0">
+                            <label class="font-weight-bold text-secondary mb-1" style="font-size: 0.85rem;" for="crm-date-from">Fecha de creación reportes Desde:</label>
+                            <input
+                                type="date"
+                                id="crm-date-from"
+                                class="form-control"
+                                aria-label="Fecha desde"
+                                v-model="startDate"
+                                :disabled="loading"
+                                style="border-radius: 8px; border: 1px solid #cbd5e1; height: 42px; display: block; width: 100%; box-sizing: border-box;"
+                            />
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="form-group mb-0">
+                            <label class="font-weight-bold text-secondary mb-1" style="font-size: 0.85rem;" for="crm-date-to">Fecha de creación reportes Hasta:</label>
+                            <input
+                                type="date"
+                                id="crm-date-to"
+                                class="form-control"
+                                aria-label="Fecha hasta"
+                                v-model="endDate"
+                                :disabled="loading"
+                                style="border-radius: 8px; border: 1px solid #cbd5e1; height: 42px; display: block; width: 100%; box-sizing: border-box;"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error Banner -->
+                <div v-if="errorMessage" class="crm-error-banner" role="alert">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>${ errorMessage }</span>
+                </div>
+
+                <!-- Advertencia visual -->
+                <div class="crm-warning">
+                    <div class="crm-warning-icon" aria-hidden="true">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <p class="crm-warning-text">
+                        <strong>Nota:</strong> Se descargarán todos los reportes creados en el rango seleccionado (máximo 1 año), con su información completa de Formulario 1 o Formulario 2. Para rangos amplios la generación puede tomar varios segundos; no cierres este modal.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="crm-footer">
+            <button type="button" class="crm-btn crm-btn--secondary" :disabled="loading" @click="close">
+                Cancelar
+            </button>
+            <button
+                type="button"
+                class="crm-btn crm-btn--primary"
+                :disabled="loading || !startDate || !endDate"
+                @click="submitReport"
+                aria-busy="loading"
+                style="background-color: #6d28d9; border-color: #6d28d9;"
+            >
+                ${ loading ? 'Procesando...' : 'Descargar' }
+            </button>
+        </div>
+    </div>
+</div>
+</script>
+{{ end }}
