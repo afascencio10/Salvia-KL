@@ -31,6 +31,7 @@ Esta documentación está estructurada bajo el **Open Knowledge Format (OKF)** y
 
 ### ⚙️ 3 — Features
 - **[Reporte consolidado de seguimientos](/.knowledge/3-features/ReporteConsolidadoSeguimientos/index.md)** — Exporta a Excel el historial de seguimientos de casos por rango de fechas (`draft`)
+- **[Reporte consolidado de contactos (reportes)](/.knowledge/3-features/ReporteConsolidadoContactos/index.md)** — Exporta a Excel todos los reportes (Form1/Form2) por rango de fechas, hoja plana con cabeceras amigables (`active`)
 - **[Autenticación y Redirección de Sesión (Auth)](/.knowledge/3-features/Auth/index.md)** — Autenticación y navegación por roles
 - **[Consulta de Caso para Agente Psicosocial](/.knowledge/3-features/ConsultaCasoPsicosocial/index.md)** — Acceso de solo lectura de `ps`/`ts` al detalle del caso vía "Ver caso" (`draft`)
 - **[Flujo 3x3 de Atención Psicosocial](/.knowledge/3-features/AtencionPsicosocial3x3/index.md)** — Gestión de contacto 3x3 psicosocial: intentos (`contact_attempts`), consentimiento, agendamiento de sesión y cierre por imposibilidad (`draft`)

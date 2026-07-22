@@ -326,6 +326,10 @@ func VictimCaseGET(c *gin.Context) {
 		if tplName == "get_victim_cases_sv" || tplName == "get_victim_cases_ro" {
 			listWindowTitle = "Consultar reportes"
 		}
+		if tplName == "get_victim_cases_sv" {
+			// Modal de descarga del reporte consolidado de contactos (solo pantalla sv)
+			extraTemplates = append(extraTemplates, "frontend/html/salvia/victim_case/contacts_report_modal.html")
+		}
 		common_facades.RenderTemplate(c, salvia_daos.VictimContactEntityName, "salvia", "victim_case/", salvia_config.HTML_Templates, tplName, extraTemplates, utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
 			map[string]interface{}{
 				"windowTitle":               listWindowTitle,

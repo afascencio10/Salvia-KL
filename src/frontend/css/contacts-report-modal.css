@@ -1,0 +1,159 @@
+/* ====================================================================
+   MODAL DESCARGA DE REPORTES (Excel)
+   Prefijo: crm- (contacts-report-modal)
+   ==================================================================== */
+
+.crm-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+}
+
+.crm-dialog {
+    position: relative;
+    z-index: 1;
+    width: 90%;
+    max-width: 480px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    animation: crm-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes crm-slide-up {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.crm-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.crm-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.crm-close {
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    color: #64748b;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.crm-close:hover:not(:disabled) {
+    background-color: #f1f5f9;
+    color: #0f172a;
+}
+
+.crm-close:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.crm-body {
+    padding: 24px;
+}
+
+.crm-warning {
+    background-color: #fffbeb;
+    border-left: 4px solid #f59e0b;
+    padding: 16px;
+    border-radius: 4px;
+    display: flex;
+    gap: 12px;
+}
+
+.crm-warning-icon {
+    color: #d97706;
+    font-size: 1.1rem;
+    margin-top: 2px;
+}
+
+.crm-warning-text {
+    margin: 0;
+    font-size: 0.825rem;
+    color: #78350f;
+    line-height: 1.4;
+}
+
+.crm-error-banner {
+    background-color: #fef2f2;
+    border-left: 4px solid #ef4444;
+    padding: 12px 16px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #991b1b;
+    font-size: 0.85rem;
+}
+
+.crm-footer {
+    padding: 16px 24px;
+    background-color: #f8fafc;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.crm-btn {
+    padding: 10px 18px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+    border: none;
+}
+
+.crm-btn--secondary {
+    background-color: #e2e8f0;
+    color: #334155;
+}
+
+.crm-btn--secondary:hover:not(:disabled) {
+    background-color: #cbd5e1;
+}
+
+.crm-btn--primary {
+    background-color: #6d28d9;
+    color: #ffffff;
+}
+
+.crm-btn--primary:hover:not(:disabled) {
+    background-color: #5b21b6;
+}
+
+.crm-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
