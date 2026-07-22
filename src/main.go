@@ -176,6 +176,7 @@ func main() {
     agentsSearchSvc       := service.NewAgentsSearchService(agentLightRepo)
     psychosocialListSvc   := service.NewPsychosocialListService(psychosocialListRepo, duplaRepo)
     psychosocialReassignSvc := service.NewPsychosocialReassignService(psychosocialReassignRepo, gormDB)
+    duplaAdminSvc         := service.NewDuplaAdminService(duplaRepo, psychosocialReassignRepo)
 
     // Inyectar el servicio en el controller legacy para generación automática del calendario
     salvia_legacy.FollowUpSvc = followUpV2Svc
@@ -219,6 +220,7 @@ func main() {
     psychosocialListCtrl   := salvia_ctrl.NewPsychosocialListController(psychosocialListSvc)
     psychosocialDetailCtrl := salvia_ctrl.NewPsychosocialDetailController(gormDB)
     psychosocialReassignCtrl := salvia_ctrl.NewPsychosocialReassignController(psychosocialReassignSvc)
+    duplaAdminCtrl         := salvia_ctrl.NewDuplaAdminController(duplaAdminSvc)
     // Flujo 3x3 de Atención Psicosocial
     contactAttemptRepo      := repository.NewContactAttemptRepository(gormDB)
     psychosocial3x3Svc      := service.NewPsychosocial3x3Service(contactAttemptRepo, gormDB)
@@ -261,6 +263,7 @@ func main() {
     psychosocialListCtrl.RegisterRoutes(api)
     psychosocialDetailCtrl.RegisterRoutes(api)
     psychosocialReassignCtrl.RegisterRoutes(api)
+    duplaAdminCtrl.RegisterRoutes(api)
     psychosocialContactCtrl.RegisterRoutes(api)
     assignCaseCtrl.RegisterRoutes(api)
 

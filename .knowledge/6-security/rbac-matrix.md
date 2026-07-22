@@ -6,7 +6,7 @@ description: "Roles del sistema SALVIA y matriz de permisos por operación, deri
 owner: "@security-guild"
 status: active
 tags: [security, rbac, compliance]
-last_updated: "2026-07-02"
+last_updated: "2026-07-17"
 code_refs: [src/salvia/config/Menu.go]
 ---
 
@@ -168,9 +168,13 @@ Códigos de columna: `ad`=Administrador, `sv`=Supervisor, `op`=Operador, `ro`=Op
 | `assign_operators` | · | ✅ | · | · | · | · | · | · | · | · | · |
 | `load_plain_files` | ✅ | · | · | · | · | · | · | · | · | · | · |
 | `report_followups_consolidated` | ✅ | ✅ | · | · | · | · | · | · | · | · | · |
+| `report_contacts_consolidated` | ✅ | ✅ | · | · | · | · | · | · | · | · | · |
 
 > [!NOTE]
 > `report_followups_consolidated` pertenece al feature [Reporte consolidado de seguimientos](/.knowledge/3-features/ReporteConsolidadoSeguimientos/index.md) y ya está implementado en `PermissionsByRole` (`Menu.go`) y en el endpoint `POST /api/v1/reportes/seguimientos-consolidado`. Habilita descargar el Excel consolidado (solo `ad`, `sv`).
+
+> [!NOTE]
+> `report_contacts_consolidated` pertenece al feature [Reporte consolidado de contactos](/.knowledge/3-features/ReporteConsolidadoContactos/index.md) (spec `active`, **implementado** en `Menu.go`). Habilita descargar el Excel consolidado de reportes vía `POST /api/v1/reportes/contactos-consolidado` (solo `ad`, `sv`).
 
 ## Cómo mantener esta matriz
 

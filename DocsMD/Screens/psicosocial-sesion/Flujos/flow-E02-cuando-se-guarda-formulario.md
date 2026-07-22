@@ -7,6 +7,9 @@
            ⚠️ REQUIERE ACCIÓN MANUAL: falta correr el ALTER TABLE de la columna
            team_contact_id contra Supabase (ver sección 9.5) antes de poder guardar barreras.
            Pendiente: actualizar/cerrar barreras desde "Seguimiento a Barreras" (sección 9.6).
+           Bug corregido: "Continuar Primera Atención = Sí" no completaba la sesión por un dato
+           de seed incorrecto (pregunta de Consentimiento como 'info' en vez de 'single' —
+           sección 10).
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Equivalente psicosocial de `DocsMD/Screens/hacer-seguimiento/Flujos/flow-E04-cuando-se-procesa-submission.md`.
@@ -604,3 +607,50 @@ de `processFollowUpSubmission`: cuando el agente responde el repeater "Seguimien
 
 No implementado todavía — queda para la siguiente iteración una vez validado el flujo de 9.5 en
 producción.
+
+## 10. Bug corregido — "Continuar Primera Atención = Sí" no completaba la sesión (Jul 2026)
+
+**Síntoma reportado:** en el formulario "Primer Contacto", al marcar "Continuar Primera Atención" =
+Sí (se habilita la Sección 4 "Primera Atención" dentro del mismo formulario) y responder esa
+sección, al presionar "Guardar" las respuestas quedaban persistidas pero:
+- `team_contact` no se marcaba como completo... en realidad sí se marcaba, pero con el
+  `sessionType` incorrecto.
+- `psychosocial_support.ya_hizo_primera_atencion` seguía en `false` y `session_count` no subía.
+- El nuevo `team_contact` agendado con la "Fecha próxima atención" de la Sección 4 no se creaba
+  en los casos donde el flujo se interrumpía antes de llegar a esa parte del código.
+
+**Causa raíz:** la pregunta "PC-A-Q2" (Consentimiento Informado, primera pregunta de la Sección 4
+"Primera Atención" dentro de Primer Contacto, id `c3296c87-d7e3-4ea1-8a0f-cbf77c561d0f`) se había
+seedeado con `question_type = 'info'` (banner informativo, sin control de respuesta) en vez de
+`'single'` (Sí/No) — a diferencia de su equivalente exacto en el formulario "Primera Atención"
+(`7256b91e-861b-48b3-9216-2ac13f0ae889`), que sí quedó correctamente como `'single'`.
+
+Efecto: al ser tipo `info`, ni el frontend (`dinamic-form.js` → `validateCurrentSection`) ni el
+backend (`validateAnswer` → `case "info": return validateAnswerOK`) exigían ni permitían responder
+Sí/No a esa pregunta — el agente solo veía el texto del consentimiento, sin ningún control
+interactivo. Como consecuencia, `answerMap[qPCConsentimiento]` llegaba siempre vacío a
+`resolvePsicosocialSessionType`, que interpretaba esto como "no hay consentimiento" y devolvía
+`SessionTypePrimerContactoSinConsentimiento` en lugar de `SessionTypePrimerContactoConAtencion`:
+
+```go
+if answerMap[qPCConsentimiento] == "si" {
+    return models.SessionTypePrimerContactoConAtencion, ""
+}
+return models.SessionTypePrimerContactoSinConsentimiento, ""
+```
+
+Con `SessionTypePrimerContactoSinConsentimiento`, `processPsicosocialSessionSubmission` solo
+marca `ya_hizo_primer_contacto = true` y no toca `ya_hizo_primera_atencion` ni `session_count`
+(ver switch en la sección 5) — exactamente el síntoma reportado.
+
+**Corrección aplicada:**
+1. `src/cmd/seed/seed_psicosocial.sql` (bloque `PC-A-Q2`): `question_type` cambiado de `'info'` a
+   `'single'` (ya tenía las opciones Sí/No creadas correctamente).
+2. Corrección aplicada también directamente en la BD viva (Supabase) sobre la pregunta existente
+   `c3296c87-d7e3-4ea1-8a0f-cbf77c561d0f`, ya que el seed no se re-ejecuta automáticamente.
+
+No se requirió ningún cambio de código Go — la lógica de `resolvePsicosocialSessionType` y
+`processPsicosocialSessionSubmission` ya era correcta; el problema era exclusivamente de datos
+(seed). El agendamiento automático de "Fecha próxima atención" (sección 8) ya contemplaba los IDs
+de S1 y S4 de Primer Contacto desde el principio, así que una vez corregido el `sessionType`,
+la creación del nuevo `team_contact` agendado funciona sin cambios adicionales.

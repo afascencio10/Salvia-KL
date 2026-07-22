@@ -16,6 +16,7 @@ type FollowUpsReportRange struct {
 
 type ReportService interface {
 	GenerateConsolidatedFollowUpsReport(ctx context.Context, r FollowUpsReportRange) (*excelize.File, error)
+	GenerateConsolidatedContactsReport(ctx context.Context, r FollowUpsReportRange) (*excelize.File, error)
 }
 
 type reportService struct {
@@ -73,4 +74,19 @@ func (s *reportService) GenerateConsolidatedFollowUpsReport(ctx context.Context,
 
 	// 6. Construir el Excel consolidado con los datos enriquecidos
 	return BuildFollowUpsExcel(cases, followUps, answers, events)
+}
+
+func (s *reportService) GenerateConsolidatedContactsReport(ctx context.Context, r FollowUpsReportRange) (*excelize.File, error) {
+	contacts, err := s.repo.FindContactsInDateRange(ctx, r.StartDate, r.EndDate)
+	if err != nil {
+		return nil, err
+	}
+
+	// Si no hay reportes creados en el rango, no se genera archivo (decisión de spec):
+	// el facade mapea este error de negocio a 400 VALIDATION_FAILED.
+	if len(contacts) == 0 {
+		return nil, errors.New("no_contacts_found")
+	}
+
+	return BuildContactsExcel(contacts)
 }
