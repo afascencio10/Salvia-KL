@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bitsflow/internal/constants"
 	"bitsflow/internal/models"
 	"bitsflow/internal/repository"
 	"context"
@@ -160,6 +161,7 @@ type FormServiceDeps struct {
 	CaseTaskRepo               repository.CaseTaskRepository
 	EntityLetterRepo           repository.EntityLetterRepository
 	BarrierFollowUpRepo        repository.BarrierFollowUpRepository
+	TeamContactRepo            repository.TeamContactRepository
 }
 
 type formService struct {
@@ -188,6 +190,7 @@ type formService struct {
 	caseTaskRepo               repository.CaseTaskRepository
 	entityLetterRepo           repository.EntityLetterRepository
 	barrierFollowUpRepo        repository.BarrierFollowUpRepository
+	teamContactRepo            repository.TeamContactRepository
 }
 
 func NewFormService(deps FormServiceDeps) FormService {
@@ -217,6 +220,7 @@ func NewFormService(deps FormServiceDeps) FormService {
 		caseTaskRepo:              deps.CaseTaskRepo,
 		entityLetterRepo:          deps.EntityLetterRepo,
 		barrierFollowUpRepo:       deps.BarrierFollowUpRepo,
+		teamContactRepo:           deps.TeamContactRepo,
 	}
 }
 
@@ -1920,7 +1924,354 @@ func (s *formService) OnEndFormSubmission(ctx context.Context, formID, submissio
 		return s.processBarrierUpdateSubmission(ctx, submissionID)
 	case cierreCasoFormID:
 		return s.processCaseClosureSubmission(ctx, submissionID, actorID)
+	case constants.FormIDPrimerContacto, constants.FormIDPrimeraAtencion,
+		constants.FormIDAtencionPsicosocial, constants.FormIDCierre:
+		return s.processPsicosocialSessionSubmission(ctx, formID, submissionID, actorID)
 	}
+	return nil
+}
+
+// ─── Formularios Psicosociales — evento E-02 (guardado) ──────────────────────
+//
+// Ver DocsMD/Screens/psicosocial-sesion/Flujos/flow-E02-cuando-se-guarda-formulario.md
+// para el detalle de decisiones (IDs de pregunta reales capturados de Supabase, tabla de
+// transición de estados, y preguntas resueltas con el líder).
+
+// resolvePsicosocialSessionType determina el session_type resultante de completar uno de los
+// 4 formularios psicosociales, según formID y las respuestas directas del submission.
+// El segundo valor retornado es la "fecha nueva" (string YYYY-MM-DD) cuando sessionType ==
+// SessionTypeContactoSinAtencion; vacío en cualquier otro caso.
+func resolvePsicosocialSessionType(formID string, answerMap map[string]string) (sessionType string, fechaNueva string) {
+	const (
+		// Form Primer Contacto
+		qPCContinuarPA    = "aa46351a-f6c0-4666-af3e-e0f1f7b6dc8c" // S1 — Continuar Primera Atención (boolean)
+		qPCConsentimiento = "c3296c87-d7e3-4ea1-8a0f-cbf77c561d0f" // S4 — Consentimiento Informado (si/no)
+
+		// Form Primera Atención
+		qPAEsAtencion     = "3117fd01-6a31-4595-9888-dcdcc96d84e7" // S1 — ¿Es atención o solo contacto?
+		qPAConsentimiento = "7256b91e-861b-48b3-9216-2ac13f0ae889" // S4 — Consentimiento Informado (si/no)
+		qPAFechaNueva     = "64d63b79-edee-464b-be56-1104efd31a46" // S1 — Fecha nueva
+
+		// Form Atención Psicosocial (antes "Seguimiento")
+		qSEGEsAtencion = "16de7674-4349-4acc-9d0d-656d1d5e5f10" // S1 — ¿Es atención o solo contacto?
+		qSEGFechaNueva = "72ce49d2-f853-4f4a-9f1a-f795f4d514c3" // S1 — Fecha nueva
+
+		// Form Cierre
+		qCIEEsAtencion     = "be185336-e025-4768-a1a2-3ab9e2281450" // S1 — ¿Es atención o solo contacto?
+		qCIEFechaNueva     = "1b4d09f0-e5ca-4b4e-9d74-428478a113c6" // S1 — Fecha nueva
+		qCIECerrarRemision = "2edd39af-45da-4d24-ac67-fdc8b9b0b6ac" // S4 — Cerrar remisión (boolean)
+	)
+
+	switch formID {
+	case constants.FormIDPrimerContacto:
+		if answerMap[qPCContinuarPA] != "true" {
+			return models.SessionTypePrimerContacto, ""
+		}
+		if answerMap[qPCConsentimiento] == "si" {
+			return models.SessionTypePrimerContactoConAtencion, ""
+		}
+		// Decisión del líder (Jul 2026): sin consentimiento avanza igual que un primer
+		// contacto regular — no queda "atrapada" en en_devolucion.
+		return models.SessionTypePrimerContactoSinConsentimiento, ""
+
+	case constants.FormIDPrimeraAtencion:
+		if answerMap[qPAEsAtencion] == "solo_contacto" {
+			return models.SessionTypeContactoSinAtencion, answerMap[qPAFechaNueva]
+		}
+		if answerMap[qPAConsentimiento] == "si" {
+			return models.SessionTypePrimeraAtencion, ""
+		}
+		return models.SessionTypeCierreNoConsentimiento, ""
+
+	case constants.FormIDAtencionPsicosocial:
+		if answerMap[qSEGEsAtencion] == "solo_contacto" {
+			return models.SessionTypeContactoSinAtencion, answerMap[qSEGFechaNueva]
+		}
+		return models.SessionTypeAtencionPsicosocial, ""
+
+	case constants.FormIDCierre:
+		if answerMap[qCIEEsAtencion] == "solo_contacto" {
+			return models.SessionTypeContactoSinAtencion, answerMap[qCIEFechaNueva]
+		}
+		if answerMap[qCIECerrarRemision] == "true" {
+			return models.SessionTypeCierre, ""
+		}
+		// "Cerrar remisión = No" → actúa como un seguimiento más dentro del Form de Cierre.
+		return models.SessionTypeAtencionPsicosocial, ""
+	}
+	return "", ""
+}
+
+// psicosocialSessionTimelineDescription construye el tipo de evento de timeline según el
+// sessionType resultante.
+func psicosocialSessionTimelineType(sessionType string) string {
+	switch sessionType {
+	case models.SessionTypeCierre:
+		return "Remisión Psicosocial Cerrada"
+	case models.SessionTypeCierreNoConsentimiento:
+		return "Cierre sin Consentimiento"
+	case models.SessionTypeContactoSinAtencion:
+		return "Contacto sin Atención"
+	default:
+		return "Sesión Psicosocial Realizada"
+	}
+}
+
+// extractFechaProximaAtencion busca la respuesta de "Fecha próxima atención"/"Fecha nueva" en el
+// formulario que se acaba de completar. Esta pregunta se repite en 2 secciones mutuamente
+// excluyentes de cada uno de los 4 formularios, según la respuesta del trigger de esa sección:
+//   - Primer Contacto: S1 "Fecha nueva" (visible si Continuar Primera Atención = No) / S4 "Fecha
+//     próxima atención" (visible si Continuar = Sí).
+//   - Primera Atención / Atención Psicosocial / Cierre: S1 "Fecha nueva" — sección Contacto,
+//     visible si "¿Es atención o solo contacto?" = Solo Contacto — / S4 "Fecha próxima
+//     atención" — sección Atención Psicosocial, visible si "Es atención" = Atención.
+//
+// BUG (corregido Jul 2026): solo se revisaban los IDs de S4 para Primera Atención/Atención
+// Psicosocial/Cierre. Cuando el agente respondía "Solo Contacto" y llenaba "Fecha nueva" en S1,
+// el formulario se guardaba correctamente (la respuesta sí queda en salvia.answer) pero no se
+// agendaba el nuevo team_contact porque esta función retornaba "" — el candidato de S1 nunca se
+// revisaba. Retorna la primera respuesta no vacía que encuentre entre los 2 candidatos.
+func extractFechaProximaAtencion(formID string, answerMap map[string]string) string {
+	const (
+		qPCFechaProximaS1 = "58ce2d34-24d2-4e73-bf95-26a2c608f8e6" // PC S1 — visible si Continuar=No
+		qPCFechaProximaS4 = "fd2fb664-de83-4069-a161-6348dfef48bf" // PC S4 — visible si Continuar=Sí
+		qPAFechaNuevaS1   = "64d63b79-edee-464b-be56-1104efd31a46" // PA S1 — visible si "Es atención"=Solo Contacto
+		qPAFechaProximaS4 = "d68c7334-74bb-47b1-a2ee-f1d3da04627b" // PA S4 — visible si "Es atención"=Atención
+		qSEGFechaNuevaS1  = "72ce49d2-f853-4f4a-9f1a-f795f4d514c3" // SEG S1 — visible si "Es atención"=Solo Contacto
+		qSEGFechaProximaS4 = "7040a37d-f346-4bf7-9b80-6286b9da62c5" // SEG S4 — Atención Psicosocial
+		qCIEFechaNuevaS1  = "1b4d09f0-e5ca-4b4e-9d74-428478a113c6" // CIE S1 — visible si "Es atención"=Solo Contacto
+		qCIEFechaProximaS4 = "3ce6ff5a-f139-4417-9255-155207e9a970" // CIE S4 — Atención Psicosocial (Cierre)
+	)
+
+	var candidates []string
+	switch formID {
+	case constants.FormIDPrimerContacto:
+		candidates = []string{qPCFechaProximaS1, qPCFechaProximaS4}
+	case constants.FormIDPrimeraAtencion:
+		candidates = []string{qPAFechaNuevaS1, qPAFechaProximaS4}
+	case constants.FormIDAtencionPsicosocial:
+		candidates = []string{qSEGFechaNuevaS1, qSEGFechaProximaS4}
+	case constants.FormIDCierre:
+		candidates = []string{qCIEFechaNuevaS1, qCIEFechaProximaS4}
+	}
+
+	for _, qID := range candidates {
+		if v := strings.TrimSpace(answerMap[qID]); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// scheduleNextPsicosocialContact crea un nuevo team_contact PENDIENTE (is_completed = false)
+// para la fecha indicada por "Fecha próxima atención". Refleja la misma asignación
+// profesional/dupla de la remisión padre (nunca ambos campos a la vez — igual que
+// applyContactAssignment en psychosocial_detail_service.go). El form_id/session_type de este
+// nuevo contacto se dejan vacíos a propósito: se resuelven en su propio evento E-01 (carga de
+// pantalla), leyendo el estado de psychosocial_support vigente en ese momento.
+func (s *formService) scheduleNextPsicosocialContact(ctx context.Context, ps *models.PsychosocialSupport, fechaStr string) error {
+	fecha, err := time.Parse("2006-01-02", fechaStr)
+	if err != nil {
+		return fmt.Errorf("fecha próxima atención no parseable %q: %w", fechaStr, err)
+	}
+
+	status := "agendada"
+	next := &models.TeamContact{
+		CaseID:         ps.CaseID,
+		PsicosocialID:  &ps.ID,
+		IsPsicoSession: true,
+		IsCompleted:    false,
+		Status:         &status,
+		ScheduledDate:  &fecha,
+	}
+	switch {
+	case ps.DuplaID != nil && *ps.DuplaID != "":
+		next.DuplaID = ps.DuplaID
+	case ps.ProfessionalID != nil && *ps.ProfessionalID != "":
+		next.ProfessionalID = ps.ProfessionalID
+	}
+
+	if err := s.teamContactRepo.Create(ctx, next); err != nil {
+		return fmt.Errorf("crear team_contact agendado: %w", err)
+	}
+	log.Printf("[scheduleNextPsicosocialContact] psicosocialId=%s fecha=%s nuevo team_contact=%s", ps.ID, fechaStr, next.ID)
+	return nil
+}
+
+// processPsicosocialSessionSubmission implementa el evento E-02 para los 4 formularios
+// psicosociales: resuelve el team_contact asociado al submission, determina el session_type
+// según las respuestas, actualiza team_contact + psychosocial_support + timeline, y crea un
+// BarrierV2 (con sus tareas/oficios derivados) por cada entrada de la sección "Identificación
+// de Barreras" — ver processPsicosocialBarrierEntries en psicosocial_barreras.go.
+//
+// Nota (Jul 2026): el procesamiento de la sección "Seguimiento a Barreras" (actualizar/cerrar
+// barreras ya existentes del caso) queda fuera de esta iteración — requiere resolver primero
+// cómo se determinan las "barreras activas" del caso para relacionar cada entry del repeater
+// por posición (en hacer_seguimiento viene de follow_up_v2.active_barrier_ids). Sus respuestas
+// ya quedan persistidas en salvia.answer/repeater_entry de todos modos.
+func (s *formService) processPsicosocialSessionSubmission(ctx context.Context, formID, submissionID, actorID string) error {
+	if s.teamContactRepo == nil || s.psychosocialSupportRepo == nil {
+		log.Printf("⚠️  [processPsicosocialSessionSubmission] teamContactRepo/psychosocialSupportRepo es nil — inyectar TeamContactRepo/PsychosocialSupportRepo en FormServiceDeps (main.go)")
+		return nil
+	}
+
+	tc, err := s.teamContactRepo.FindByFormSubmissionID(ctx, submissionID)
+	if err != nil {
+		return fmt.Errorf("processPsicosocialSessionSubmission: buscar team_contact: %w", err)
+	}
+
+	actorName := actorID
+	if s.agentLightRepo != nil && actorID != "" {
+		if agent, err := s.agentLightRepo.FindByICode(ctx, actorID); err == nil && agent != nil {
+			actorName = strings.TrimSpace(agent.Names + " " + agent.LastNames)
+		}
+	}
+
+	psID := ""
+	if tc.PsicosocialID != nil {
+		psID = *tc.PsicosocialID
+	}
+
+	// Idempotente — si ya fue procesado, solo registrar la edición y salir.
+	if tc.IsCompleted {
+		if s.caseTimelineRepo == nil {
+			log.Printf("⚠️  [processPsicosocialSessionSubmission] caseTimelineRepo es nil — evento 'Sesión Editada' NO creado para team_contact=%s", tc.ID)
+			return nil
+		}
+		now := time.Now()
+		if err := s.caseTimelineRepo.Create(ctx, &models.CaseTimelineEvent{
+			CaseID:                tc.CaseID,
+			Category:              models.TimelineCategoryPsicosocial,
+			Type:                  "Sesión Editada",
+			Icon:                  models.TimelineIconPospuesto,
+			Color:                 models.TimelineColorTeal,
+			Date:                  now,
+			Description:           "Sesión psicosocial editada después de su ejecución",
+			EventUserID:           actorID,
+			ActorName:             actorName,
+			PsychosocialSupportID: psID,
+			CreatedAt:             now,
+		}); err != nil {
+			log.Printf("[processPsicosocialSessionSubmission] advertencia: no se pudo crear evento 'Sesión Editada': %v", err)
+		}
+		return nil
+	}
+
+	if psID == "" {
+		return fmt.Errorf("processPsicosocialSessionSubmission: team_contact %s sin psicosocial_id", tc.ID)
+	}
+	ps, err := s.psychosocialSupportRepo.FindByID(ctx, psID)
+	if err != nil {
+		return fmt.Errorf("processPsicosocialSessionSubmission: buscar psychosocial_support: %w", err)
+	}
+
+	answers, err := s.answerRepo.FindDirectBySubmissionID(ctx, submissionID)
+	if err != nil {
+		return fmt.Errorf("processPsicosocialSessionSubmission: leer respuestas: %w", err)
+	}
+	answerMap := make(map[string]string, len(answers))
+	for _, a := range answers {
+		answerMap[a.QuestionID] = a.Value
+	}
+
+	sessionType, fechaNueva := resolvePsicosocialSessionType(formID, answerMap)
+	if sessionType == "" {
+		return fmt.Errorf("processPsicosocialSessionSubmission: no se pudo determinar sessionType para formID=%s", formID)
+	}
+
+	// ── Actualizar team_contact ──────────────────────────────────────────────
+	now := time.Now()
+	tc.SessionType = &sessionType
+	tc.IsCompleted = true
+	tc.CompletedAt = &now
+	if sessionType == models.SessionTypeContactoSinAtencion {
+		tc.IsPsicoSession = false
+	}
+	if err := s.teamContactRepo.Update(ctx, tc); err != nil {
+		return fmt.Errorf("processPsicosocialSessionSubmission: actualizar team_contact: %w", err)
+	}
+
+	// ── Actualizar psychosocial_support según sessionType ────────────────────
+	switch sessionType {
+	case models.SessionTypePrimerContacto, models.SessionTypePrimerContactoSinConsentimiento:
+		ps.YaHizoPrimerContacto = true
+		ps.Status = models.PsychosocialSupportStatusEnGestion
+	case models.SessionTypePrimerContactoConAtencion:
+		ps.YaHizoPrimerContacto = true
+		ps.YaHizoPrimeraAtencion = true
+		ps.SessionCount++
+		ps.Status = models.PsychosocialSupportStatusEnGestion
+	case models.SessionTypePrimeraAtencion:
+		ps.YaHizoPrimeraAtencion = true
+		ps.SessionCount++
+		ps.Status = models.PsychosocialSupportStatusEnGestion
+	case models.SessionTypeAtencionPsicosocial:
+		ps.SessionCount++
+	case models.SessionTypeCierre:
+		ps.SessionCount++
+		ps.Status = models.PsychosocialSupportStatusCerrado
+	case models.SessionTypeCierreNoConsentimiento:
+		ps.Status = models.PsychosocialSupportStatusEnDevolucion
+	case models.SessionTypeContactoSinAtencion:
+		if fechaNueva != "" {
+			if t, err := time.Parse("2006-01-02", fechaNueva); err == nil {
+				ps.ScheduledAt = &t
+			} else {
+				log.Printf("[processPsicosocialSessionSubmission] advertencia: fecha nueva no parseable %q: %v", fechaNueva, err)
+			}
+		}
+	}
+
+	if err := s.psychosocialSupportRepo.Update(ctx, ps); err != nil {
+		return fmt.Errorf("processPsicosocialSessionSubmission: actualizar psychosocial_support: %w", err)
+	}
+
+	// ── Agendar próxima sesión si se respondió "Fecha próxima atención" ──────
+	// No aplica si la remisión se está cerrando en esta misma sesión (sessionType == CIERRE):
+	// no tiene sentido agendar un contacto nuevo para una remisión que acaba de cerrarse.
+	if sessionType != models.SessionTypeCierre {
+		if fechaProxima := extractFechaProximaAtencion(formID, answerMap); fechaProxima != "" {
+			if err := s.scheduleNextPsicosocialContact(ctx, ps, fechaProxima); err != nil {
+				log.Printf("[processPsicosocialSessionSubmission] advertencia: no se pudo agendar próxima sesión: %v", err)
+			}
+		}
+	}
+
+	// ── Barreras: crear barrier_v2 + case_task/entity_letter por cada entrada del repeater
+	// "Identificación de Barreras" ────────────────────────────────────────────────────────
+	barrierCount, err := s.processPsicosocialBarrierEntries(ctx, formID, submissionID, actorID, tc.ID, ps)
+	if err != nil {
+		log.Printf("[processPsicosocialSessionSubmission] advertencia: error procesando barreras: %v", err)
+	}
+
+	// ── Timeline ──────────────────────────────────────────────────────────────
+	timelineDesc := "Sesión psicosocial registrada — tipo: " + sessionType
+	if barrierCount > 0 {
+		timelineDesc = fmt.Sprintf("%s | %d barrera(s) identificada(s)", timelineDesc, barrierCount)
+	}
+	if s.caseTimelineRepo != nil {
+		if err := s.caseTimelineRepo.Create(ctx, &models.CaseTimelineEvent{
+			CaseID:                tc.CaseID,
+			Category:              models.TimelineCategoryPsicosocial,
+			Type:                  psicosocialSessionTimelineType(sessionType),
+			Icon:                  models.TimelineIconSeguimiento,
+			Color:                 models.TimelineColorGreen,
+			Date:                  now,
+			Description:           timelineDesc,
+			EventUserID:           actorID,
+			ActorName:             actorName,
+			PsychosocialSupportID: ps.ID,
+			CreatedAt:             now,
+		}); err != nil {
+			log.Printf("[processPsicosocialSessionSubmission] advertencia: no se pudo crear evento de timeline: %v", err)
+		}
+	} else {
+		log.Printf("⚠️  [processPsicosocialSessionSubmission] caseTimelineRepo es nil — evento de timeline NO creado para psicosocialId=%s", ps.ID)
+	}
+
+	log.Printf("[processPsicosocialSessionSubmission] psicosocialId=%s sessionType=%s sessionCount=%d status=%s ya_hizo_pc=%v ya_hizo_pa=%v",
+		ps.ID, sessionType, ps.SessionCount, ps.Status, ps.YaHizoPrimerContacto, ps.YaHizoPrimeraAtencion)
+
 	return nil
 }
 

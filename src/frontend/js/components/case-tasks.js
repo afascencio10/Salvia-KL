@@ -63,6 +63,7 @@ app.component('case-tasks', {
         userId:   { type: String, default: '' },
         userRole: { type: String, default: '' },
         barrierId: { type: String, default: '' },
+        psychosocialId: { type: String, default: '' },
     },
     emits: ['task-completed'],
     data: function() {
@@ -96,6 +97,7 @@ app.component('case-tasks', {
             try {
                 var url = '/api/v1/case-tasks?caseId=' + this.caseId;
                 if (this.barrierId) url += '&barrierId=' + this.barrierId;
+                if (this.psychosocialId) url += '&psychosocialId=' + this.psychosocialId;
                 var res = await fetch(url);
                 if (!res.ok) throw new Error('Error ' + res.status);
                 this.tasks = await res.json();

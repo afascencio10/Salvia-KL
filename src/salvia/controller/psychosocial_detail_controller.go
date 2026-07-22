@@ -4,6 +4,7 @@ package controller
 
 import (
 	"bitsflow/salvia/service"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +26,8 @@ func (c *PsychosocialDetailController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.POST("/psychosocial-support/:id/contacts", c.CreateContact)
 	rg.PUT("/psychosocial-support/contacts/:contactId/reschedule", c.RescheduleContact)
 	rg.PUT("/psychosocial-support/contacts/:contactId/cancel", c.CancelContact)
+	rg.PUT("/psychosocial-support/:id/schedule-preference", c.UpdateSchedulePreference)
+	rg.GET("/psychosocial-support/:id/load", c.LoadSession)
 }
 
 // GetDetail retorna el detalle completo de una remisión psicosocial.
@@ -103,6 +106,53 @@ func (c *PsychosocialDetailController) CancelContact(ctx *gin.Context) {
 	contactID := ctx.Param("contactId")
 
 	if err := c.svc.CancelContact(ctx.Request.Context(), contactID); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// LoadSession carga la pantalla "Registrar Sesión Psicosocial" — evento E-01:
+// selecciona el formulario según el estado del proceso, resuelve el team_contact
+// y form_submission activos, y retorna la info de la víctima.
+// GET /api/v1/psychosocial-support/:id/load?agent_id=...
+func (c *PsychosocialDetailController) LoadSession(ctx *gin.Context) {
+	id := ctx.Param("id")
+	agentID := ctx.Query("agent_id")
+	if id == "" || agentID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "id y agent_id son requeridos"})
+		return
+	}
+
+	result, err := c.svc.LoadSession(ctx.Request.Context(), id, agentID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrPsicosocialSessionNotFound):
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "remisión psicosocial no encontrada"})
+		case errors.Is(err, service.ErrPsicosocialSessionNotAssigned):
+			ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Hubo un error al obtener la información del servidor, por favor verifique su conexión a internet y vuelva a intentarlo"})
+		}
+		return
+	}
+
+	ctx.JSON(http.StatusOK, result)
+}
+
+// UpdateSchedulePreference actualiza la preferencia de horario de la paciente.
+// PUT /api/v1/psychosocial-support/:id/schedule-preference
+func (c *PsychosocialDetailController) UpdateSchedulePreference(ctx *gin.Context) {
+	id := ctx.Param("id")
+	var body struct {
+		Preference string `json:"preference" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := c.svc.UpdateSchedulePreference(ctx.Request.Context(), id, body.Preference); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

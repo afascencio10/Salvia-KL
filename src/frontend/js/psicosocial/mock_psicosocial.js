@@ -34,6 +34,9 @@
     LastNames:         'Moreno Ríos',
     Phone:             '310 456 7890',
     GenderIdentity:    'Mujer',
+    SexualOrientation: 'Heterosexual',
+    ContactPhone:      '310 665 0293',
+    Age:               28,
     TownName:          'Bogotá D.C.',
     RiskLevel:         3,
     CaseICode:         'CASO-TEST-001',
@@ -398,10 +401,11 @@
   };
 
   const FORM_TYPE_LABELS = {
-    PRIMER_CONTACTO:   'Primer Contacto',
-    PRIMERA_ATENCION:  'Primera Atención',
-    SEGUIMIENTO:       'Seguimiento',
-    CIERRE:            'Cierre',
+    PRIMER_CONTACTO:       'Primer Contacto',
+    PRIMERA_ATENCION:      'Primera Atención',
+    ATENCION_PSICOSOCIAL:  'Atención Psicosocial',
+    SEGUIMIENTO:           'Atención Psicosocial', // alias legacy — mismo formulario rebautizado
+    CIERRE:                'Cierre',
   };
 
   const QUESTION_TYPE_ICONS = {

@@ -1,0 +1,265 @@
+<link rel="stylesheet" href="/static/css/administrar-duplas.css">
+
+<main class="salvia-main">
+<div class="container adp-page">
+
+    <div v-if="toast.visible" class="adp-toast" :class="'adp-toast--' + toast.type">
+        ${ toast.message }
+    </div>
+
+    <div v-if="loadError" class="adp-error-block">
+        <p>${ loadError }</p>
+        <button type="button" class="adp-btn adp-btn--secondary" @click="reloadScreen">Reintentar</button>
+    </div>
+
+    <template v-else>
+        <div class="welcome-section adp-header">
+            <div>
+                <h2 class="adp-title">Administrar duplas</h2>
+                <p class="adp-subtitle">Cada psicóloga puede pertenecer a una sola dupla; una trabajadora social puede estar en varias</p>
+            </div>
+            <button
+                type="button"
+                class="adp-btn adp-btn--primary"
+                :disabled="isLoading"
+                @click="openDuplaModal('create')"
+            >+ Nueva dupla</button>
+        </div>
+
+        <div v-if="isLoading" class="adp-loading">
+            <span class="adp-spinner" aria-hidden="true"></span>
+            <span>Cargando duplas…</span>
+        </div>
+
+        <template v-else>
+            <div class="adp-professionals">
+                <section class="adp-card">
+                    <div class="adp-card-header">
+                        <h3 class="adp-card-title">Psicólogas</h3>
+                    </div>
+                    <div class="adp-card-body">
+                        <div v-if="psychologists.length === 0" class="adp-empty">
+                            No hay psicólogas activas.
+                        </div>
+                        <div
+                            v-for="p in psychologists"
+                            :key="'ps-' + p.icode"
+                            class="adp-pro-row"
+                        >
+                            <span class="adp-avatar">${ initialOf(p.fullName) }</span>
+                            <div class="adp-pro-info">
+                                <p class="adp-pro-name">${ p.fullName }</p>
+                                <p v-if="p.enDupla" class="adp-pro-meta">${ p.duplaName }</p>
+                            </div>
+                            <span
+                                class="adp-badge"
+                                :class="p.enDupla ? 'adp-badge--assigned' : 'adp-badge--available'"
+                            >${ p.enDupla ? 'En dupla' : 'Disponible' }</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="adp-card">
+                    <div class="adp-card-header">
+                        <h3 class="adp-card-title">Trabajadoras Sociales</h3>
+                    </div>
+                    <div class="adp-card-body">
+                        <div v-if="socialWorkers.length === 0" class="adp-empty">
+                            No hay trabajadoras sociales activas.
+                        </div>
+                        <div
+                            v-for="p in socialWorkers"
+                            :key="'ts-' + p.icode"
+                            class="adp-pro-row"
+                        >
+                            <span class="adp-avatar">${ initialOf(p.fullName) }</span>
+                            <div class="adp-pro-info">
+                                <p class="adp-pro-name">${ p.fullName }</p>
+                                <p v-if="p.enDupla" class="adp-pro-meta">${ p.duplaName }</p>
+                            </div>
+                            <span
+                                class="adp-badge"
+                                :class="p.enDupla ? 'adp-badge--assigned' : 'adp-badge--available'"
+                            >${ p.enDupla ? 'En dupla' : 'Disponible' }</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <section class="adp-card adp-duplas-card">
+                <div class="adp-card-header">
+                    <h3 class="adp-card-title">Duplas activas (${ duplas.length })</h3>
+                </div>
+                <div v-if="duplas.length === 0" class="adp-empty">
+                    No hay duplas activas. Crea la primera con + Nueva dupla.
+                </div>
+                <div
+                    v-for="d in duplas"
+                    :key="d.id"
+                    class="adp-dupla-row"
+                >
+                    <span class="adp-avatar adp-avatar--dupla">D</span>
+                    <div class="adp-dupla-main">
+                        <p class="adp-dupla-name">${ d.name }</p>
+                        <div class="adp-dupla-members">
+                            <span class="adp-member">
+                                <span class="adp-avatar adp-avatar--sm">${ initialOf(d.psychologistName) }</span>
+                                <span>${ d.psychologistName } <span class="adp-member-role">(Psicóloga)</span></span>
+                            </span>
+                            <span class="adp-plus">+</span>
+                            <span class="adp-member">
+                                <span class="adp-avatar adp-avatar--sm">${ initialOf(d.socialWorkerName) }</span>
+                                <span>${ d.socialWorkerName } <span class="adp-member-role">(Trabajadora Social)</span></span>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="adp-dupla-actions">
+                        <button type="button" class="adp-btn adp-btn--ghost" @click="openDuplaModal('edit', d)">Editar</button>
+                        <button type="button" class="adp-btn adp-btn--ghost-danger" @click="openDeleteConfirm(d)">Eliminar</button>
+                    </div>
+                </div>
+            </section>
+        </template>
+    </template>
+
+    <!-- Modal: Crear / Editar -->
+    <div
+        v-if="modal.visible && modal.kind === 'form'"
+        class="adp-backdrop"
+        @click.self="closeFormModal"
+    >
+        <div class="adp-dialog" role="dialog" aria-modal="true">
+            <div class="adp-dialog-header">
+                <h3 class="adp-dialog-title">${ modal.mode === 'edit' ? 'Editar dupla' : 'Nueva dupla' }</h3>
+                <p class="adp-dialog-subtitle">Cada psicóloga solo puede pertenecer a una dupla. Una trabajadora social puede estar en varias.</p>
+            </div>
+            <div class="adp-dialog-body">
+                <div class="adp-field">
+                    <label for="adp-name">Nombre de la dupla</label>
+                    <input
+                        id="adp-name"
+                        v-model="form.name"
+                        type="text"
+                        class="adp-input"
+                        :class="{ 'adp-input--error': nameFieldError }"
+                        maxlength="36"
+                        :disabled="isSaving"
+                        placeholder="Ej. Dupla 1"
+                        @input="nameFieldError = false"
+                    >
+                </div>
+                <div class="adp-field">
+                    <label for="adp-ps">Psicóloga</label>
+                    <select
+                        id="adp-ps"
+                        v-model="form.psychologistId"
+                        class="adp-select"
+                        :disabled="isSaving || availablePsychologists.length === 0"
+                    >
+                        <option value="">Seleccionar psicóloga...</option>
+                        <option
+                            v-for="p in availablePsychologists"
+                            :key="'opt-ps-' + p.icode"
+                            :value="p.icode"
+                        >${ p.fullName }</option>
+                    </select>
+                    <p v-if="warningPs" class="adp-field-warning">${ warningPs }</p>
+                </div>
+                <div class="adp-field">
+                    <label for="adp-ts">Trabajadora Social</label>
+                    <select
+                        id="adp-ts"
+                        v-model="form.socialWorkerId"
+                        class="adp-select"
+                        :disabled="isSaving || availableSocialWorkers.length === 0"
+                    >
+                        <option value="">Seleccionar trabajadora social...</option>
+                        <option
+                            v-for="p in availableSocialWorkers"
+                            :key="'opt-ts-' + p.icode"
+                            :value="p.icode"
+                        >${ p.fullName }</option>
+                    </select>
+                    <p v-if="warningTs" class="adp-field-warning">${ warningTs }</p>
+                </div>
+                <div v-if="saveError" class="adp-save-error">
+                    <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+                    <span>${ saveError }</span>
+                </div>
+            </div>
+            <div class="adp-dialog-footer">
+                <button type="button" class="adp-btn adp-btn--secondary" :disabled="isSaving" @click="closeFormModal">Cancelar</button>
+                <button
+                    type="button"
+                    class="adp-btn adp-btn--primary"
+                    :disabled="!canSave"
+                    @click="saveDuplaModal"
+                >${ modal.mode === 'edit' ? 'Guardar cambios' : 'Crear dupla' }</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Confirmar eliminar -->
+    <div
+        v-if="modal.visible && modal.kind === 'delete'"
+        class="adp-backdrop"
+        @click.self="closeDeleteConfirm"
+    >
+        <div class="adp-dialog adp-dialog--sm" role="dialog" aria-modal="true">
+            <div class="adp-dialog-header">
+                <h3 class="adp-dialog-title">Eliminar dupla</h3>
+            </div>
+            <div class="adp-dialog-body">
+                <p>
+                    ¿Estás seguro de que deseas eliminar <strong>${ deleteTarget && deleteTarget.name }</strong>?
+                    Esta acción libera a sus miembros para ser asignados a otra dupla.
+                </p>
+                <div v-if="deleteError" class="adp-save-error">
+                    <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+                    <span>${ deleteError }</span>
+                </div>
+            </div>
+            <div class="adp-dialog-footer">
+                <button type="button" class="adp-btn adp-btn--secondary" :disabled="isDeleting" @click="closeDeleteConfirm">Cancelar</button>
+                <button type="button" class="adp-btn adp-btn--danger" :disabled="isDeleting" @click="confirmDeleteDupla">
+                    ${ isDeleting ? 'Eliminando…' : 'Eliminar' }
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Error — dupla en uso -->
+    <div
+        v-if="modal.visible && modal.kind === 'deleteBlocked'"
+        class="adp-backdrop"
+        @click.self="closeDeleteBlockedModal"
+    >
+        <div class="adp-dialog adp-dialog--sm" role="dialog" aria-modal="true">
+            <div class="adp-dialog-header">
+                <h3 class="adp-dialog-title">No se puede eliminar</h3>
+            </div>
+            <div class="adp-dialog-body">
+                <p>${ blockedMessage }</p>
+            </div>
+            <div class="adp-dialog-footer">
+                <button type="button" class="adp-btn adp-btn--primary" @click="closeDeleteBlockedModal">Entendido</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+</main>
+
+{{ template "standard_scripts.html" . }}
+{{ template "overlay.html" . }}
+
+<script>
+    /* Variables renderizadas por el servidor — consumidas por admin-duplas.js */
+    window.__AdminDuplasConfig = {
+        windowTitle: {{.windowTitle}},
+        currentUser: "{{.currentUser}}",
+        currentRole: "{{.currentRole}}",
+        menu: {{.menu}}
+    };
+</script>
+<script src="/static/js/components/admin-duplas.js"></script>

@@ -107,11 +107,54 @@ type TimelineReportDTO struct {
 	VictimDocNumber string `gorm:"column:victim_doc_number"`
 }
 
+// ContactReportDTO representa una fila del reporte consolidado de contactos (reportes).
+// Un contacto tiene exactamente un Form1 (reporte propio) o un Form2 (reporte de tercero);
+// las columnas del formulario que no aplica llegan vacías desde el SQL.
+type ContactReportDTO struct {
+	VictimContactId   int64     `gorm:"column:victim_contact_id"`
+	VictimContactICode string   `gorm:"column:victim_contact_i_code"`
+	CreationDate      time.Time `gorm:"column:victim_contact_creation_date"`
+	UpdateDate        time.Time `gorm:"column:victim_contact_update_date"`
+	StatusDescription string    `gorm:"column:victim_contact_status_description"`
+	Names             string    `gorm:"column:victim_contact_names"`
+	LastNames         string    `gorm:"column:victim_contact_last_names"`
+	Latitude          float64   `gorm:"column:victim_contact_latitude"`
+	Longitude         float64   `gorm:"column:victim_contact_longitude"`
+	FormType          string    `gorm:"column:form_type"`
+
+	Form1Nick              string `gorm:"column:f1_nick"`
+	Form1DocType           string `gorm:"column:f1_doc_type"`
+	Form1DocNumber         string `gorm:"column:f1_doc_number"`
+	Form1BirthDate         string `gorm:"column:f1_birth_date"`
+	Form1TownCode          string `gorm:"column:f1_town_code"`
+	Form1TownName          string `gorm:"column:f1_town_name"`
+	Form1Address           string `gorm:"column:f1_address"`
+	Form1Phone             string `gorm:"column:f1_phone"`
+	Form1GenderIdentity    string `gorm:"column:f1_gender_identity"`
+	Form1SexualOrientation string `gorm:"column:f1_sexual_orientation"`
+	Form1Origin            string `gorm:"column:f1_origin"`
+	Form1Occupation        string `gorm:"column:f1_occupation"`
+	Form1OccupationOther   string `gorm:"column:f1_occupation_other"`
+	Form1FactsDescription  string `gorm:"column:f1_facts_description"`
+
+	Form2ReporterNames       string `gorm:"column:f2_reporter_names"`
+	Form2ReporterPhone       string `gorm:"column:f2_reporter_phone"`
+	Form2VictimColPhone      string `gorm:"column:f2_victim_col_phone"`
+	Form2FactsDescription    string `gorm:"column:f2_facts_description"`
+	Form2BestContactTime     string `gorm:"column:f2_best_contact_time"`
+	Form2WillReceiveCall     string `gorm:"column:f2_will_receive_call"`
+	Form2HasCareRole         string `gorm:"column:f2_has_care_role"`
+	Form2VictimAware         string `gorm:"column:f2_victim_aware"`
+	Form2ReportType     string `gorm:"column:f2_report_type"`
+	Form2AdjustmentsGBV string `gorm:"column:f2_adjustments_gbv"`
+}
+
 type ReportRepository interface {
 	FindCasesInDateRange(ctx context.Context, start, end time.Time) ([]CaseReportDTO, error)
 	FindFollowUpsByCaseICodes(ctx context.Context, caseICodes []string) ([]FollowUpReportDTO, error)
 	FindAnswersByFormSubmissions(ctx context.Context, submissionIDs []string) ([]AnswerDTO, error)
 	FindTimelineEventsByCaseICodes(ctx context.Context, caseICodes []string) ([]TimelineReportDTO, error)
+	FindContactsInDateRange(ctx context.Context, start, end time.Time) ([]ContactReportDTO, error)
 }
 
 type reportRepository struct {
@@ -312,4 +355,80 @@ func (r *reportRepository) FindTimelineEventsByCaseICodes(ctx context.Context, c
 	`
 	err := r.db.WithContext(ctx).Raw(query, caseICodes).Scan(&events).Error
 	return events, err
+}
+
+func (r *reportRepository) FindContactsInDateRange(ctx context.Context, start, end time.Time) ([]ContactReportDTO, error) {
+	var contacts []ContactReportDTO
+	query := `
+		SELECT
+			vc.victim_contact_id,
+			vc.victim_contact_i_code,
+			vc.victim_contact_creation_date,
+			vc.victim_contact_update_date,
+			COALESCE(vc.victim_contact_status_description, '') AS victim_contact_status_description,
+			COALESCE(vc.victim_contact_names, '') AS victim_contact_names,
+			COALESCE(vc.victim_contact_last_names, '') AS victim_contact_last_names,
+			COALESCE(vc.victim_contact_latitude, 0) AS victim_contact_latitude,
+			COALESCE(vc.victim_contact_longitude, 0) AS victim_contact_longitude,
+			CASE
+				WHEN f1.victim_contact_form1_id IS NOT NULL THEN 'f1'
+				WHEN f2.victim_contact_form2_id IS NOT NULL THEN 'f2'
+				ELSE ''
+			END AS form_type,
+
+			COALESCE(f1.victim_contact_form1_nick, '') AS f1_nick,
+			COALESCE(f1.victim_contact_form1_doc_type, '') AS f1_doc_type,
+			COALESCE(f1.victim_contact_form1_doc_number::text, '') AS f1_doc_number,
+			COALESCE(TO_CHAR(f1.victim_contact_form1_birth_date, 'DD/MM/YYYY'), '') AS f1_birth_date,
+			COALESCE(f1.victim_contact_form1_town_code, '') AS f1_town_code,
+			COALESCE(t.town_name, '') AS f1_town_name,
+			COALESCE(f1.victim_contact_form1_address, '') AS f1_address,
+			COALESCE(f1.victim_contact_form1_phone::text, '') AS f1_phone,
+			COALESCE(f1.victim_contact_form1_gender_identity, '') AS f1_gender_identity,
+			COALESCE(f1.victim_contact_form1_sexual_orientation, '') AS f1_sexual_orientation,
+			COALESCE(f1.victim_contact_form1_origin, '') AS f1_origin,
+			COALESCE(f1.victim_contact_form1_occupation, '') AS f1_occupation,
+			COALESCE(f1.victim_contact_form1_occupation_other, '') AS f1_occupation_other,
+			COALESCE(f1.victim_contact_form1_facts_description, '') AS f1_facts_description,
+
+			COALESCE(f2.victim_contact_form2_reporter_names, '') AS f2_reporter_names,
+			COALESCE(f2.victim_contact_form2_reporter_phone::text, '') AS f2_reporter_phone,
+			COALESCE(f2.victim_contact_form2_victim_col_phone::text, '') AS f2_victim_col_phone,
+			COALESCE(f2.victim_contact_form2_facts_description, '') AS f2_facts_description,
+			COALESCE(TO_CHAR(f2.victim_contact_form2_best_contact_time, 'HH24:MI'), '') AS f2_best_contact_time,
+			COALESCE(wrc.victim_case_form2_enums_name, '') AS f2_will_receive_call,
+			COALESCE(hcr.victim_case_form2_enums_name, '') AS f2_has_care_role,
+			COALESCE(vaw.victim_case_form2_enums_name, '') AS f2_victim_aware,
+			COALESCE(rt.victim_case_form2_enums_name, '') AS f2_report_type,
+			COALESCE(rel_enums.adjustments_gbv, '') AS f2_adjustments_gbv
+
+		FROM salvia.victim_contact vc
+		LEFT JOIN (
+			SELECT DISTINCT ON (victim_contact_form1_victim_contact) *
+			FROM salvia.victim_contact_form1
+			ORDER BY victim_contact_form1_victim_contact, victim_contact_form1_id DESC
+		) f1 ON f1.victim_contact_form1_victim_contact = vc.victim_contact_id
+		LEFT JOIN (
+			SELECT DISTINCT ON (victim_contact_form2_victim_contact) *
+			FROM salvia.victim_contact_form2
+			ORDER BY victim_contact_form2_victim_contact, victim_contact_form2_id DESC
+		) f2 ON f2.victim_contact_form2_victim_contact = vc.victim_contact_id
+		LEFT JOIN security.town t ON t.town_code = f1.victim_contact_form1_town_code
+		LEFT JOIN salvia.victim_case_form2_enums wrc ON wrc.victim_case_form2_enums_id = f2.victim_contact_form2_will_receive_call
+		LEFT JOIN salvia.victim_case_form2_enums hcr ON hcr.victim_case_form2_enums_id = f2.victim_contact_form2_has_care_role
+		LEFT JOIN salvia.victim_case_form2_enums vaw ON vaw.victim_case_form2_enums_id = f2.victim_contact_form2_victim_aware_of_report
+		LEFT JOIN salvia.victim_case_form2_enums rt ON rt.victim_case_form2_enums_id = f2.victim_contact_form2_report_type
+		LEFT JOIN (
+			SELECT rel.victim_contact_form2_id AS form2_id,
+			       STRING_AGG(e.victim_case_form2_enums_name, ', ' ORDER BY e.victim_case_form2_enums_id) AS adjustments_gbv
+			FROM salvia.rel_victim_case_form2_enums_victim_contact_form2 rel
+			JOIN salvia.victim_case_form2_enums e ON e.victim_case_form2_enums_id = rel.victim_case_form2_enums_id
+			WHERE e.victim_case_form2_enums_category = 'victim_case_form2_adjustments_gbv'
+			GROUP BY rel.victim_contact_form2_id
+		) rel_enums ON rel_enums.form2_id = f2.victim_contact_form2_id
+		WHERE vc.victim_contact_creation_date BETWEEN ? AND ?
+		ORDER BY vc.victim_contact_creation_date ASC
+	`
+	err := r.db.WithContext(ctx).Raw(query, start, end).Scan(&contacts).Error
+	return contacts, err
 }

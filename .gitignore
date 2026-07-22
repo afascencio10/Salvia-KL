@@ -15,12 +15,19 @@ node_modules
 .claude/
 .gocache/
 .gopath/
+
+# Playwright (E2E)
+/test-results/
+/playwright-report/
+/playwright/.cache/
 .gocache_agent/
 .chrome_debug_profile/
 .gomodcache_agent/
 
 # Scripts y datos de migración (uso local)
 migrarCasos/
+migrarKobos/
+migrarBasesSalvia/
 *.exe
 
 # Binarios compilados
@@ -53,5 +60,6 @@ Makefile
 CONTRIBUTING.md
 .github/workflows/okf-validation.yml
 .github/workflows/playwright.yml
+package-lock.json
 # Agente de desarrollo camilo end
 

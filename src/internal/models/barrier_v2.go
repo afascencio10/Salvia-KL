@@ -14,6 +14,14 @@ type BarrierV2 struct {
 	FollowUpID  string         `gorm:"type:uuid;not null" json:"followUpId"`
 	CreatedByID string         `gorm:"type:varchar(36);index" json:"createdById"`
 	Status      string         `gorm:"type:varchar(20);default:'OPEN'" json:"status"`
+	// TeamContactID identifica el salvia.team_contact (sesión psicosocial) en el que se
+	// identificó esta barrera. Nulo para barreras creadas por hacer_seguimiento (no aplica) o
+	// por remisiones psicosociales anteriores a esta columna. Permite que la pantalla de
+	// sesión psicosocial (registrar_sesion.html) resuelva las "barreras activas" de una
+	// remisión: se buscan todos los team_contact de un psychosocial_support y luego las
+	// barreras cuyo team_contact_id esté en ese conjunto — ver
+	// DocsMD/Screens/psicosocial-sesion/Flujos/flow-E02-cuando-se-guarda-formulario.md §9.
+	TeamContactID *string `gorm:"type:varchar(36);column:team_contact_id;index" json:"teamContactId,omitempty"`
 
 	// Sector y barreras específicas del bloque condicional
 	Sector               string `gorm:"type:varchar(50)" json:"sector"`                 // Q1  dropdown

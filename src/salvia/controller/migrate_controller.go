@@ -5,11 +5,15 @@
 package controller
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
+
+	"bitsflow/internal/models"
 
 	"github.com/gin-gonic/gin"
 	"github.com/xuri/excelize/v2"
@@ -22,6 +26,18 @@ type MigrateController struct {
 	db *gorm.DB
 }
 
+// Caché en memoria de la estructura de formularios (secciones/preguntas por
+// order), usada por MigrateFollowUp — ver comentario en getFormStructure.
+type formStructureCacheEntry struct {
+	sectionIDByOrder    map[int]string
+	questionIDBySection map[string]map[int]string
+}
+
+var (
+	formStructureCache   = make(map[string]*formStructureCacheEntry)
+	formStructureCacheMu sync.RWMutex
+)
+
 func NewMigrateController(db *gorm.DB) *MigrateController {
 	return &MigrateController{db: db}
 }
@@ -33,6 +49,8 @@ func (c *MigrateController) RegisterRoutes(rg *gin.RouterGroup) {
 		admin.POST("/cases", c.MigrateCases)
 		admin.POST("/excel-seguimientos", c.MigrateFromExcel)
 		admin.POST("/excel-seguimientos/preview", c.PreviewExcel)
+		admin.POST("/follow-up", c.MigrateFollowUp)
+		admin.POST("/create-form", c.CreateForm)
 	}
 }
 
@@ -201,15 +219,15 @@ func (c *MigrateController) MigrateCases(ctx *gin.Context) {
 	log.Printf("[MIGRATE] Migración completada para cédula %s: %d/%d seguimientos creados", body.Cedula, creados, len(body.Seguimientos))
 
 	ctx.JSON(http.StatusOK, gin.H{
-		"success":       true,
-		"message":       fmt.Sprintf("Caso %s: %d seguimientos creados de %d solicitados", caso.VictimCaseICode, creados, len(body.Seguimientos)),
-		"caso":          caso.VictimCaseICode,
-		"agente":        agentID,
-		"team":          team,
-		"riesgo":        riskStatus,
-		"creados":       creados,
-		"total":         len(body.Seguimientos),
-		"seguimientos":  seguimientosCreados,
+		"success":      true,
+		"message":      fmt.Sprintf("Caso %s: %d seguimientos creados de %d solicitados", caso.VictimCaseICode, creados, len(body.Seguimientos)),
+		"caso":         caso.VictimCaseICode,
+		"agente":       agentID,
+		"team":         team,
+		"riesgo":       riskStatus,
+		"creados":      creados,
+		"total":        len(body.Seguimientos),
+		"seguimientos": seguimientosCreados,
 	})
 }
 
@@ -219,10 +237,11 @@ func (c *MigrateController) MigrateCases(ctx *gin.Context) {
 // Body: multipart/form-data con campo "file" (archivo .xlsx)
 //
 // Estructura del Excel (hoja "Riesgo nuevo"):
-//   Columnas de fecha: "Fecha primer seguimiento", "Fecha segundo seguimiento", etc.
-//   Columna "Alerta pendientes": indica cuál seguimiento es el próximo PENDIENTE (ej: "Segundo seguimiento")
-//   Columna "Caso cerrado": si dice "si" se omite la fila
-//   Columna "Documento": cédula de la víctima
+//
+//	Columnas de fecha: "Fecha primer seguimiento", "Fecha segundo seguimiento", etc.
+//	Columna "Alerta pendientes": indica cuál seguimiento es el próximo PENDIENTE (ej: "Segundo seguimiento")
+//	Columna "Caso cerrado": si dice "si" se omite la fila
+//	Columna "Documento": cédula de la víctima
 //
 // Lógica:
 //   - Seguimientos con fecha ANTES del indicado en "Alerta pendientes" → REALIZADO
@@ -893,9 +912,9 @@ func (c *MigrateController) PreviewExcel(ctx *gin.Context) {
 
 	// Devolver encabezados y primeras 3 filas de datos
 	preview := gin.H{
-		"hoja":         sheetName,
-		"total_filas":  len(rows) - 1,
-		"encabezados":  rows[0],
+		"hoja":        sheetName,
+		"total_filas": len(rows) - 1,
+		"encabezados": rows[0],
 	}
 
 	var sampleRows []map[string]string
@@ -919,4 +938,526 @@ func (c *MigrateController) PreviewExcel(ctx *gin.Context) {
 	preview["muestra_filas"] = sampleRows
 
 	ctx.JSON(http.StatusOK, preview)
+}
+
+// followUpExistente es lo mínimo que hace falta devolver cuando un external_ref
+// ya tenía un follow_up_v2 creado — ver MigrateFollowUp.
+type followUpExistente struct {
+	ID               string `gorm:"column:id"`
+	FormSubmissionID string `gorm:"column:form_submission_id"`
+}
+
+// buscarFollowUpPorExternalRef busca un follow_up_v2 ya creado para (form_id,
+// external_ref). external_ref vive dentro de la columna JSONB kobo_metadata
+// (clave "external_ref") en vez de una columna propia — se reusa el mismo campo
+// que ya existía para metadata de origen, sea o no una migración de Kobo. Único
+// por (form_id, external_ref) vía un índice parcial (ver mapeo-columnas.md /
+// migrarBasesSalvia y DocsMD — creado a mano, no por AutoMigrate, porque
+// requiere permisos de owner que el rol de la app no tiene en esta BD).
+func (c *MigrateController) buscarFollowUpPorExternalRef(formID, externalRef string) (*followUpExistente, error) {
+	var existente followUpExistente
+	err := c.db.Raw(`
+		SELECT id, form_submission_id FROM salvia.follow_up_v2
+		WHERE form_id = ? AND kobo_metadata->>'external_ref' = ?
+		LIMIT 1
+	`, formID, externalRef).Scan(&existente).Error
+	if err != nil {
+		return nil, err
+	}
+	if existente.ID == "" {
+		return nil, nil
+	}
+	return &existente, nil
+}
+
+// esErrorDeUnicidad detecta una violación del índice único de (form_id,
+// external_ref) — código de error 23505 de Postgres. Detección por texto (igual
+// que IsConnectionError en internal/db/gorm_connection.go) para no acoplarse al
+// tipo de error concreto del driver.
+func esErrorDeUnicidad(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "duplicate key") || strings.Contains(msg, "23505") || strings.Contains(msg, "already exists")
+}
+
+// getFormStructure resuelve secciones (por order) y preguntas (por sectionId+order)
+// de un form, cacheadas en memoria por form_id tras la primera resolución.
+//
+// MigrateFollowUp se usa para migraciones masivas: miles de llamadas seguidas con
+// el MISMO form_id, donde esta estructura nunca cambia dentro de la corrida. Antes
+// se volvía a pedir a la BD en cada llamada (form_exists + form_section + question
+// = 3 round-trips evitables, ~600-900ms de los ~2.5s totales medidos por llamada).
+// Cachear indefinidamente por el tiempo de vida del proceso es seguro para este
+// endpoint (admin, protegido por clave de seguridad, uso exclusivo de migraciones
+// puntuales contra forms que no se editan mientras la migración corre) — si el
+// form cambiara en caliente durante la corrida no se reflejaría hasta reiniciar
+// el proceso, trade-off aceptado para este caso de uso.
+func (c *MigrateController) getFormStructure(formID string) (map[int]string, map[string]map[int]string, error) {
+	formStructureCacheMu.RLock()
+	entry, ok := formStructureCache[formID]
+	formStructureCacheMu.RUnlock()
+	if ok {
+		return entry.sectionIDByOrder, entry.questionIDBySection, nil
+	}
+
+	formStructureCacheMu.Lock()
+	defer formStructureCacheMu.Unlock()
+	// Revalidar tras tomar el lock de escritura: otra goroutine pudo haber
+	// poblado el caché mientras esperábamos (llamadas concurrentes al mismo form_id).
+	if entry, ok := formStructureCache[formID]; ok {
+		return entry.sectionIDByOrder, entry.questionIDBySection, nil
+	}
+
+	var formExists int64
+	c.db.Raw(`SELECT COUNT(*) FROM salvia.form WHERE id = ?`, formID).Scan(&formExists)
+	if formExists == 0 {
+		return nil, nil, fmt.Errorf("no existe un form con form_id: %s", formID)
+	}
+
+	type sectionRow struct {
+		ID    string `gorm:"column:id"`
+		Order int    `gorm:"column:order"`
+	}
+	var sections []sectionRow
+	c.db.Raw(`SELECT id::text AS id, "order" FROM salvia.form_section WHERE form_id = ? AND deleted_at IS NULL`, formID).Scan(&sections)
+	sectionIDByOrder := make(map[int]string, len(sections))
+	for _, s := range sections {
+		sectionIDByOrder[s.Order] = s.ID
+	}
+
+	type questionRow struct {
+		ID            string `gorm:"column:id"`
+		FormSectionID string `gorm:"column:form_section_id"`
+		Order         int    `gorm:"column:order"`
+	}
+	var questions []questionRow
+	c.db.Raw(`SELECT id, form_section_id, "order" FROM salvia.question WHERE form_id = ? AND deleted_at IS NULL`, formID).Scan(&questions)
+	questionIDBySection := make(map[string]map[int]string, len(sections))
+	for _, q := range questions {
+		if questionIDBySection[q.FormSectionID] == nil {
+			questionIDBySection[q.FormSectionID] = make(map[int]string)
+		}
+		questionIDBySection[q.FormSectionID][q.Order] = q.ID
+	}
+
+	formStructureCache[formID] = &formStructureCacheEntry{
+		sectionIDByOrder:    sectionIDByOrder,
+		questionIDBySection: questionIDBySection,
+	}
+	return sectionIDByOrder, questionIDBySection, nil
+}
+
+// MigrateFollowUp crea un follow_up_v2 + form_submission + answers en una sola llamada,
+// pensado para el script de migración del Excel de KoBoToolbox (ver migrarKobos/).
+//
+// POST /api/v1/admin/migrate/follow-up
+// Header: X-Security-Key: SALVIA_MIGRATE_2026_PROD
+// Body JSON:
+//
+//	{
+//	  "followUp": {
+//	    "case_id": "019ea7f6-df8f-7bb4-a768-c9c9bf538945",
+//	    "form_id": "f132614c-bd11-4871-9b3d-5a85bfab9abd",
+//	    "agent_id": "",
+//	    "status": "REALIZADO",
+//	    "team": "Riesgo bajo",
+//	    "risk_status": "BAJO",
+//	    "scheduled_date": "2026-07-06",
+//	    "scheduled_time": "10:30",
+//	    "completed_at": "2026-07-06T10:45:00Z",
+//	    "sequence_number": 1,
+//	    "summary": "",
+//	    "kobo_metadata": { "_id": "753500613", "_uuid": "b8262a05-...", "_submission_time": "2026-03-14T09:20:11" }
+//	  },
+//	  "formSubmission": {
+//	    "section1": { "question1": "respuesta 1", "question2": "respuesta 2" },
+//	    "section2": { "question1": "respuesta 1", "question3": "respuesta 2" }
+//	  }
+//	}
+//
+// "sectionN"/"questionM" refieren al `order` (1-indexado) de form_section/question dentro
+// de followUp.form_id — NO al UUID real — así el script de migración solo necesita conocer
+// la posición de cada columna, no los IDs de la BD. Preguntas con valor vacío se omiten.
+// Claves que no resuelven a ninguna sección/pregunta real NO abortan la fila completa:
+// se reportan en "warnings" y el resto de respuestas válidas se crea igual.
+//
+// "kobo_metadata" es opcional y se guarda tal cual (JSONB) en follow_up_v2.kobo_metadata —
+// pensado para conservar la metadata cruda del sistema de origen (_id, _uuid,
+// _submission_time, _index, etc. de KoBoToolbox) con fines de trazabilidad/auditoría.
+func (c *MigrateController) MigrateFollowUp(ctx *gin.Context) {
+	var body struct {
+		FollowUp struct {
+			CaseID         string                 `json:"case_id" binding:"required"`
+			FormID         string                 `json:"form_id" binding:"required"`
+			AgentID        string                 `json:"agent_id"`
+			Status         string                 `json:"status"`
+			Team           string                 `json:"team"`
+			RiskStatus     string                 `json:"risk_status"`
+			ScheduledDate  string                 `json:"scheduled_date"`
+			ScheduledTime  string                 `json:"scheduled_time"`
+			CompletedAt    string                 `json:"completed_at"`
+			SequenceNumber int                    `json:"sequence_number"`
+			Summary        string                 `json:"summary"`
+			KoboMetadata   map[string]interface{} `json:"kobo_metadata"`
+		} `json:"followUp" binding:"required"`
+		FormSubmission map[string]map[string]string `json:"formSubmission"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	fu := body.FollowUp
+
+	// Idempotencia: si el llamador manda kobo_metadata.external_ref, es un
+	// identificador estable que ÉL mismo construyó de forma determinística a
+	// partir del origen (ej. el _uuid de un envío de KoBoToolbox, o
+	// "archivo::hoja::filaN::bloqueM" para un Excel legacy sin ID propio) — el
+	// mismo campo sirve para cualquier migración futura, no es específico de
+	// Kobo pese al nombre de la columna que lo aloja.
+	//
+	// Si ya existe un follow_up_v2 con el mismo (form_id, external_ref), NO se
+	// crea uno nuevo — se devuelve el existente con alreadyExisted:true. Esto
+	// es lo que hace que reintentar/reanudar una migración interrumpida a la
+	// mitad (kill -9, crash, corte de luz — cualquier cosa que el cliente no
+	// pueda registrar a tiempo) nunca duplique un seguimiento: la garantía vive
+	// en la BD, no en que el script haya alcanzado a guardar su log a tiempo.
+	externalRef, _ := fu.KoboMetadata["external_ref"].(string)
+	if externalRef != "" {
+		if existente, err := c.buscarFollowUpPorExternalRef(fu.FormID, externalRef); err == nil && existente != nil {
+			log.Printf("[MIGRATE-FOLLOWUP] external_ref=%s ya existía (followUpId=%s) — no se crea duplicado", externalRef, existente.ID)
+			ctx.JSON(http.StatusOK, gin.H{
+				"success":          true,
+				"followUpId":       existente.ID,
+				"formSubmissionId": existente.FormSubmissionID,
+				"alreadyExisted":   true,
+			})
+			return
+		}
+	}
+
+	// Validar que el caso exista (evita follow_up_v2/form_submission huérfanos) y
+	// de paso traer su fecha de creación — se usa como fallback de scheduled_date
+	// más abajo en vez de time.Now(), ver comentario ahí.
+	type caseRow struct {
+		CreationDate time.Time `gorm:"column:victim_case_creation_date"`
+	}
+	var caso caseRow
+	c.db.Raw(`SELECT victim_case_creation_date FROM salvia.victim_case WHERE victim_case_i_code = ?`, fu.CaseID).Scan(&caso)
+	if caso.CreationDate.IsZero() {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "no existe un victim_case con case_id: " + fu.CaseID})
+		return
+	}
+
+	// Estructura del form (existencia + secciones/preguntas por order) — cacheada
+	// en memoria por form_id, ver getFormStructure.
+	sectionIDByOrder, questionIDBySection, err := c.getFormStructure(fu.FormID)
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Resolver sectionN.questionM → IDs reales
+	type answerToCreate struct {
+		QuestionID string
+		Value      string
+	}
+	var answers []answerToCreate
+	var warnings []string
+
+	for sectionKey, preguntas := range body.FormSubmission {
+		if !strings.HasPrefix(strings.ToLower(sectionKey), "section") {
+			warnings = append(warnings, fmt.Sprintf("clave de sección inválida (se esperaba 'sectionN'): %s", sectionKey))
+			continue
+		}
+		secOrder := extractNumber(sectionKey)
+		sectionID, ok := sectionIDByOrder[secOrder]
+		if !ok {
+			warnings = append(warnings, fmt.Sprintf("no existe sección con order=%d en form_id=%s (clave: %s)", secOrder, fu.FormID, sectionKey))
+			continue
+		}
+
+		for questionKey, value := range preguntas {
+			if strings.TrimSpace(value) == "" {
+				continue
+			}
+			if !strings.HasPrefix(strings.ToLower(questionKey), "question") {
+				warnings = append(warnings, fmt.Sprintf("clave de pregunta inválida (se esperaba 'questionN'): %s.%s", sectionKey, questionKey))
+				continue
+			}
+			qOrder := extractNumber(questionKey)
+			questionID, ok := questionIDBySection[sectionID][qOrder]
+			if !ok {
+				warnings = append(warnings, fmt.Sprintf("no existe pregunta con order=%d en %s (clave: %s.%s)", qOrder, sectionKey, sectionKey, questionKey))
+				continue
+			}
+			answers = append(answers, answerToCreate{QuestionID: questionID, Value: value})
+		}
+	}
+
+	// Fechas: scheduled_date es NOT NULL en DB. Si no llega o no parsea (común en
+	// datos legacy migrados: la celda de fecha del origen vino vacía o corrupta,
+	// pero el resto del bloque sí tiene contenido real), se usa la fecha de
+	// creación del caso como fallback — NO time.Now(), que fabricaba una fecha
+	// falsa (la del momento de la migración) y hacía parecer que el seguimiento
+	// ocurrió el día en que se corrió el script, en vez de dejarlo aproximado a
+	// algún punto real del historial del caso.
+	scheduledDate := parseFlexibleDateTime(fu.ScheduledDate)
+	if scheduledDate.IsZero() {
+		scheduledDate = caso.CreationDate
+	}
+	var completedAt *time.Time
+	if fu.CompletedAt != "" {
+		if t := parseFlexibleDateTime(fu.CompletedAt); !t.IsZero() {
+			completedAt = &t
+		}
+	}
+
+	status := fu.Status
+	if status == "" {
+		status = "REALIZADO"
+	}
+
+	// Metadata cruda del sistema de origen (ej. _id/_uuid/_submission_time de KoBoToolbox).
+	// Se guarda tal cual llegó, sin validar su forma — es solo para trazabilidad/auditoría.
+	var koboMetadataJSON []byte
+	if len(fu.KoboMetadata) > 0 {
+		var err error
+		koboMetadataJSON, err = json.Marshal(fu.KoboMetadata)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "kobo_metadata inválido: " + err.Error()})
+			return
+		}
+	}
+
+	// Crear todo en una transacción: form_submission → follow_up_v2 → answers
+	var followUpID, formSubmissionID string
+	txErr := c.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Raw(`
+			INSERT INTO salvia.form_submission (id, form_id, created_at, updated_at)
+			VALUES (gen_random_uuid(), ?, NOW(), NOW())
+			RETURNING id
+		`, fu.FormID).Scan(&formSubmissionID).Error; err != nil {
+			return fmt.Errorf("crear form_submission: %w", err)
+		}
+
+		var koboMetadataParam interface{}
+		if koboMetadataJSON != nil {
+			koboMetadataParam = string(koboMetadataJSON)
+		}
+
+		if err := tx.Raw(`
+			INSERT INTO salvia.follow_up_v2 (
+				id, case_id, form_submission_id, form_id, agent_id, status, team, risk_status,
+				scheduled_date, scheduled_time, completed_at, sequence_number, summary,
+				kobo_metadata, attempts, is_priority, created_at, updated_at
+			) VALUES (
+				gen_random_uuid(), ?, ?, ?, ?, ?, ?, ?,
+				?, ?, ?, ?, ?,
+				?::jsonb, 0, false, NOW(), NOW()
+			) RETURNING id
+		`,
+			fu.CaseID, formSubmissionID, fu.FormID, fu.AgentID, status, fu.Team, fu.RiskStatus,
+			scheduledDate, fu.ScheduledTime, completedAt, fu.SequenceNumber, fu.Summary,
+			koboMetadataParam,
+		).Scan(&followUpID).Error; err != nil {
+			return fmt.Errorf("crear follow_up_v2: %w", err)
+		}
+
+		// Un solo INSERT multi-fila para todas las respuestas en vez de uno por
+		// respuesta — con ~7-8 respuestas típicas por llamada, esto reemplaza
+		// 7-8 round-trips secuenciales al pooler remoto por 1 solo.
+		if len(answers) > 0 {
+			valuePlaceholders := make([]string, 0, len(answers))
+			args := make([]interface{}, 0, len(answers)*3)
+			for _, a := range answers {
+				valuePlaceholders = append(valuePlaceholders, "(gen_random_uuid(), ?, ?, ?, NOW(), NOW())")
+				args = append(args, formSubmissionID, a.QuestionID, a.Value)
+			}
+			insertSQL := fmt.Sprintf(`
+				INSERT INTO salvia.answer (id, form_submission_id, question_id, value, created_at, updated_at)
+				VALUES %s
+			`, strings.Join(valuePlaceholders, ", "))
+			if err := tx.Exec(insertSQL, args...).Error; err != nil {
+				return fmt.Errorf("crear answers (batch de %d): %w", len(answers), err)
+			}
+		}
+
+		return nil
+	})
+
+	if txErr != nil {
+		// Carrera rarísima: dos requests con el mismo external_ref llegaron casi
+		// simultáneas y ambas pasaron el chequeo de arriba antes de que la otra
+		// terminara de insertar. El índice único de (form_id, external_ref) la
+		// atrapa acá — se resuelve igual que el caso normal (se busca el que sí
+		// se creó y se devuelve como "ya existía") en vez de fallar la petición.
+		if externalRef != "" && esErrorDeUnicidad(txErr) {
+			if existente, err := c.buscarFollowUpPorExternalRef(fu.FormID, externalRef); err == nil && existente != nil {
+				log.Printf("[MIGRATE-FOLLOWUP] carrera detectada en external_ref=%s — devolviendo el ya creado (followUpId=%s)", externalRef, existente.ID)
+				ctx.JSON(http.StatusOK, gin.H{
+					"success":          true,
+					"followUpId":       existente.ID,
+					"formSubmissionId": existente.FormSubmissionID,
+					"alreadyExisted":   true,
+				})
+				return
+			}
+		}
+		log.Printf("[MIGRATE-FOLLOWUP] error: %v", txErr)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": txErr.Error()})
+		return
+	}
+
+	log.Printf("[MIGRATE-FOLLOWUP] followUpId=%s formSubmissionId=%s answers=%d warnings=%d",
+		followUpID, formSubmissionID, len(answers), len(warnings))
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success":          true,
+		"followUpId":       followUpID,
+		"formSubmissionId": formSubmissionID,
+		"answersCreated":   len(answers),
+		"warnings":         warnings,
+	})
+}
+
+// CreateForm crea un form con secciones y preguntas de solo tipo texto — pensado
+// para crear en producción, de forma repetible y sin necesitar acceso directo a
+// la BD, los forms que usan los scripts de migración (Kobo, Bases Salvia, y
+// cualquier migración futura con el mismo patrón "1 fila → N respuestas de
+// texto"). El endpoint /admin/migrate/follow-up ya resuelve sectionN.questionM
+// por `order`, así que basta con que las secciones y preguntas queden creadas en
+// el mismo orden en que vienen en el body.
+//
+// POST /api/v1/admin/migrate/create-form?name=...&description=...&status=inactive
+// Header: X-Security-Key: SALVIA_MIGRATE_2026_PROD
+// Query params:
+//   - name (requerido): nombre del form.
+//   - description (opcional): descripción del form.
+//   - status (opcional, default "inactive"): forms de migración no deberían
+//     quedar seleccionables para diligenciamiento en vivo hasta confirmarse.
+//
+// Body JSON: un array de secciones, en el orden en que deben quedar (order
+// 1-indexado por posición) — NO un objeto envolvente:
+//
+//	[
+//	  { "sectionName": "Nombre Sección 1", "questions": ["Pregunta 1", "Pregunta 2"] },
+//	  { "sectionName": "Nombre Sección 2", "questions": ["Pregunta 1", "Pregunta 2"] }
+//	]
+//
+// Las preguntas dentro de cada sección también quedan con order 1-indexado por
+// posición. Todas se crean con question_type="text" y required=false.
+func (c *MigrateController) CreateForm(ctx *gin.Context) {
+	name := strings.TrimSpace(ctx.Query("name"))
+	if name == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "falta el query param 'name' (nombre del form)"})
+		return
+	}
+	description := ctx.Query("description")
+	status := ctx.Query("status")
+	if status == "" {
+		status = "inactive"
+	}
+
+	type sectionInput struct {
+		SectionName string   `json:"sectionName" binding:"required"`
+		Questions   []string `json:"questions"`
+	}
+	var body []sectionInput
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if len(body) == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "el body debe ser un array con al menos una sección"})
+		return
+	}
+
+	type questionOut struct {
+		ID          string `json:"id"`
+		Description string `json:"description"`
+		Order       int    `json:"order"`
+	}
+	type sectionOut struct {
+		ID          string        `json:"id"`
+		SectionName string        `json:"sectionName"`
+		Order       int           `json:"order"`
+		Questions   []questionOut `json:"questions"`
+	}
+
+	form := models.Form{Name: name, Description: description, Status: status}
+	var sectionsOut []sectionOut
+
+	txErr := c.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&form).Error; err != nil {
+			return fmt.Errorf("crear form: %w", err)
+		}
+
+		for i, sec := range body {
+			section := models.FormSection{
+				FormID: form.ID,
+				Name:   sec.SectionName,
+				Order:  i + 1,
+			}
+			if err := tx.Create(&section).Error; err != nil {
+				return fmt.Errorf("crear form_section %q: %w", sec.SectionName, err)
+			}
+
+			secOut := sectionOut{ID: section.ID, SectionName: sec.SectionName, Order: section.Order}
+			for j, qText := range sec.Questions {
+				question := models.Question{
+					FormID:         form.ID,
+					FormSectionID:  section.ID,
+					QuestionTypeID: "text",
+					Description:    qText,
+					Required:       false,
+					Order:          j + 1,
+				}
+				if err := tx.Create(&question).Error; err != nil {
+					return fmt.Errorf("crear question %q (sección %q): %w", qText, sec.SectionName, err)
+				}
+				secOut.Questions = append(secOut.Questions, questionOut{ID: question.ID, Description: qText, Order: question.Order})
+			}
+			sectionsOut = append(sectionsOut, secOut)
+		}
+		return nil
+	})
+
+	if txErr != nil {
+		log.Printf("[CREATE-FORM] error: %v", txErr)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": txErr.Error()})
+		return
+	}
+
+	log.Printf("[CREATE-FORM] formId=%s name=%q secciones=%d", form.ID, name, len(body))
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success":  true,
+		"formId":   form.ID,
+		"name":     name,
+		"status":   status,
+		"sections": sectionsOut,
+	})
+}
+
+// parseFlexibleDateTime intenta parsear varios formatos comunes de fecha/fecha-hora.
+// Retorna time.Time{} (zero value) si ninguno matchea.
+func parseFlexibleDateTime(s string) time.Time {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return time.Time{}
+	}
+	formatos := []string{
+		time.RFC3339,
+		"2006-01-02T15:04:05",
+		"2006-01-02 15:04:05",
+		"2006-01-02",
+	}
+	for _, layout := range formatos {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
 }

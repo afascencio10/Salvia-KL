@@ -48,6 +48,10 @@ type FollowUpV2 struct {
 	// Comma-separated UUIDs: "id1,id2,id3". Se fija en E-01 y no cambia después.
 	ActiveBarrierIDs *string `gorm:"type:text"          json:"active_barrier_ids,omitempty"`
 
+	// Metadata cruda del sistema de origen para seguimientos migrados (ej. KoBoToolbox:
+	// _id, _uuid, _submission_time, _index, etc.). Vacío para seguimientos creados en Salvia.
+	KoboMetadata *string `gorm:"type:jsonb"         json:"kobo_metadata,omitempty"`
+
 	// ── Auditoría ────────────────────────────────────────────────────────────
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`

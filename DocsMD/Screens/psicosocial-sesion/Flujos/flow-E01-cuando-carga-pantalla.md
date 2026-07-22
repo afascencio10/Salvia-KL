@@ -22,15 +22,24 @@ PASO 1 — Inicializar la app Vue
 
 PASO 2 — Llamar al backend para cargar la sesión
 
-  GET /api/v1/psicosocial-support/{psicosocialId}/load?agent_id={userICode}
+  Mientras la petición está en curso: pageLoading = true → se muestra un loader de
+  página (spinner) en lugar de la tarjeta de víctima y del formulario. Implementado.
+
+  GET /api/v1/psychosocial-support/{psicosocialId}/load?agent_id={userICode}
+
+  Nota: el endpoint real usa el prefijo "psychosocial-support" (igual que el resto
+  de la API: /detail, /contacts, etc.), no "psicosocial-support". El mock inicial
+  del frontend tenía este typo y ya fue corregido.
 
   SI respuesta no ok (status != 2xx):
     → this.loadError = data.error || 'Error al cargar la sesión psicosocial'
     → TERMINAR ejecución   // DinamicForm no se monta; se muestra ErrorAlert
 
   SI respuesta ok:
-    → data = JSON parseado { formId, submissionId, victimInfo, psicosocialState, formState }
+    → data = JSON parseado { formId, formType, submissionId, victimInfo, psicosocialState, formState }
     → CONTINÚA PASO 3
+
+  Al finalizar (éxito o error): pageLoading = false.
 
 
 PASO 3 — Poblar estado de la pantalla
@@ -75,8 +84,10 @@ PASO 5 — DinamicForm se monta con los props calculados
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  BACKEND — GET /api/v1/psicosocial-support/:id/load
+  BACKEND — GET /api/v1/psychosocial-support/:id/load
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  IMPLEMENTADO en PsychosocialDetailController.LoadSession (mismo controller que
+  /detail y /contacts) → PsychosocialDetailService.LoadSession.
 
 
 INPUT: {
@@ -93,7 +104,12 @@ PASO 6 — Cargar la remisión psicosocial
     → 404 { error: "remisión psicosocial no encontrada" }
     → TERMINAR
 
-  SI ps.ProfessionalID != agentId  Y  ps.DuplaID no contiene al agente:
+  Control de acceso (GAP resuelto — ver decisión más abajo):
+  SI ps.ProfessionalID == agentId:
+    → acceso permitido (profesional directo)
+  SINO SI ps.DuplaID existe Y agentId ∈ { dupla.PsychologistID, dupla.SocialWorkerID }:
+    → acceso permitido (miembro de la dupla asignada — psicóloga o trabajador social)
+  SINO:
     → 403 { error: "sesión no asignada a este profesional" }
     → TERMINAR
 
@@ -119,15 +135,17 @@ PASO 7 — Seleccionar el formulario según el estado del proceso
     // "Continuar = Sí" en el PC, el backend ya habrá seteado
     // ya_hizo_primera_atencion = true y este bloque no se ejecutará.
 
-  SI ps.YaHizoPrimeraAtencion == true  Y  ps.SessionCount >= 1  Y  ps.SessionCount < 3:
-    → formKey = SEGUIMIENTO
-    → formId  = FORM_ID_SEGUIMIENTO
+  SI ps.YaHizoPrimeraAtencion == true  Y  ps.SessionCount < 3:
+    → formKey = ATENCION_PSICOSOCIAL   (antes "SEGUIMIENTO" — ver rebranding Jul 2026)
+    → formId  = FORM_ID_ATENCION_PSICOSOCIAL
 
   SI ps.YaHizoPrimeraAtencion == true  Y  ps.SessionCount >= 3:
     → formKey = CIERRE
     → formId  = FORM_ID_CIERRE
     // S3 (Cierre) permanece oculta hasta que el profesional marque
     // "Cerrar remisión = Sí" en S2; DinamicForm gestiona esa visibilidad.
+
+  IMPLEMENTADO como selectPsicosocialForm(ps) en psychosocial_detail_service.go.
 
 
 PASO 8 — Resolver el team_contact activo
@@ -142,16 +160,29 @@ PASO 8 — Resolver el team_contact activo
 
   SI existe un team_contact pendiente:
     → tc = registro encontrado
+    → SI tc.FormID ya está fijado: se reutiliza SIEMPRE (no se vuelve a evaluar el
+      PASO 7), para que la sesión no cambie de formulario a mitad de camino si el
+      estado del proceso cambia mientras el contacto sigue pendiente.
+    → SI tc.FormID está vacío (contacto creado antes de esta migración): se calcula
+      con el PASO 7 y se persiste ahora.
 
   SI no existe:
-    → Crear nuevo team_contact:
+    → Se calcula formKey/formId con el PASO 7 y se crea un nuevo team_contact:
          case_id          = ps.CaseID
          psicosocial_id   = psicosocialId
-         professional_id  = agentId
-         dupla_id         = ps.DuplaID
          is_completed     = false
          is_psico_session = true
+         form_id          = formId       (NUEVO campo — fija el formulario de esta sesión)
+         session_type     = formKey      (NUEVO campo)
          created_at       = NOW()
+
+    → Asignación profesional/dupla (GAP resuelto — nunca se guardan ambos campos):
+         SI ps.DuplaID existe:      tc.dupla_id = ps.DuplaID       (tc.professional_id queda NULL)
+         SINO SI ps.ProfessionalID: tc.professional_id = ps.ProfessionalID (tc.dupla_id queda NULL)
+         SINO:                      tc.professional_id = agentId  (caso raro: remisión sin asignar)
+       Cualquier profesional de la dupla puede cargar y completar esta sesión — el
+       team_contact registra la dupla como conjunto, no a la persona específica que
+       la abrió.
     → tc = nuevo registro
 
 
@@ -181,10 +212,11 @@ PASO 10 — Cargar información de la víctima
 PASO 11 — Responder al frontend
 
   200 {
-    formId:      "{UUID del formulario seleccionado en PASO 7}",
+    formId:      "{UUID del formulario seleccionado en PASO 7 (o reutilizado del team_contact)}",
+    formType:    "{PRIMER_CONTACTO | PRIMERA_ATENCION | ATENCION_PSICOSOCIAL | CIERRE}",
     submissionId: "{UUID del form_submission}",
     victimInfo: {
-      names, lastNames, phone, genderIdentity, townName, riskLevel, caseICode
+      Names, LastNames, Phone, GenderIdentity, TownName, RiskLevel, CaseICode
     },
     psicosocialState: {
       yaHizoPrimerContacto:  ps.YaHizoPrimerContacto,
@@ -205,24 +237,34 @@ PASO 11 — Responder al frontend
   CONSTANTES DE FORMULARIO (backend Go)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Generadas al ejecutar seed_psicosocial.sql. Los UUIDs se capturan del RAISE NOTICE y
-se fijan como constantes en un archivo Go (ej: src/internal/constants/psicosocial_forms.go):
+IMPLEMENTADO en src/internal/constants/psicosocial_forms.go, con los UUIDs reales
+capturados tras ejecutar seed_psicosocial.sql contra Supabase el 2026-07-14:
 
   const (
-    FORM_ID_PRIMER_CONTACTO   = "UUID-del-seed"
-    FORM_ID_PRIMERA_ATENCION  = "UUID-del-seed"
-    FORM_ID_SEGUIMIENTO       = "UUID-del-seed"
-    FORM_ID_CIERRE            = "UUID-del-seed"
+    FormIDPrimerContacto      = "439b57e6-07ea-4da4-9721-8ed28c6ca43f"
+    FormIDPrimeraAtencion     = "501ab3d7-8382-4447-96a6-f463152693c6"
+    FormIDAtencionPsicosocial = "7a7b61b3-7bc3-4088-a74d-0974e54a3563"
+    FormIDCierre              = "c31026f8-7ce2-49b9-8990-04b44ed4513c"
   )
 
+El archivo también expone `PsicosocialFormKeyByID` / `PsicosocialFormIDByKey` para
+convertir entre el UUID y la clave legible (PRIMER_CONTACTO, etc.), usado tanto en
+la selección del formulario (PASO 7) como al reutilizar el `form_id` ya fijado en
+un team_contact existente.
+
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️  GAPS — Información pendiente
+✅  GAPS — Resueltos (Jul 2026)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-| Variable / decisión                                                                           | Paso afectado |
-|-----------------------------------------------------------------------------------------------|---------------|
-| Confirmar si un profesional de dupla puede cargar la sesión aunque no sea el `professional_id` directo | PASO 6 |
-| ¿Se muestra un loader mientras se decide el formulario? (formId llega en la misma respuesta) | PASO 2-3      |
-| Definir la ruta de "Ver remisión" al completar la sesión                                      | INTERFAZ      |
-| ¿Puede el profesional rellenar el Form de Cierre completando solo S1-S2 (Seguimiento) con "Cerrar remisión = No" y volver luego para cerrar? | PASO 7 |
+| Variable / decisión                                                                           | Paso afectado | Resolución |
+|-----------------------------------------------------------------------------------------------|---------------|------------|
+| Confirmar si un profesional de dupla puede cargar la sesión aunque no sea el `professional_id` directo | PASO 6 | Sí puede — se valida que agentId sea `dupla.psychologist_id` o `dupla.social_worker_id`. Pero un `team_contact` nunca guarda `professional_id` Y `dupla_id` a la vez: refleja el modo de asignación del `psychosocial_support` padre. |
+| ¿Se muestra un loader mientras se decide el formulario? (formId llega en la misma respuesta) | PASO 2-3 | Sí — `pageLoading` en el frontend muestra un spinner de página completa hasta que la respuesta de `/load` llega (éxito o error). |
+| Definir la ruta de "Ver remisión" al completar la sesión                                      | INTERFAZ | Ya existe: `/salvia/remision-psicosocial/:id` (pantalla "Detalle de Remisión"). Se usa como botón del overlay de completado, pero la lógica de guardado/transición de estado (incrementar `session_count`, actualizar `status`, etc.) queda pendiente para el evento de "guardar sesión" — no implementada en este evento E-01. |
+| ¿Puede el profesional rellenar el Form de Cierre completando solo S1-S4 (Contacto + Atención Psicosocial, antes "Seguimiento"; tras los ajustes de Barreras y rebranding Jul 2026) con "Cerrar remisión = No" y volver luego para cerrar? | PASO 7 | Sí — el formulario de Cierre siempre carga completo (S1-S5); la sección S5 "Cierre" permanece oculta vía `visibility_condition` hasta que el profesional marque "Cerrar remisión = Sí" en S4. Esto ya está en el seed; la lógica de qué pasa al guardar con "No" queda para el evento de guardar. |
+
+Nota: el `form_id` de un `team_contact` se fija una sola vez (la primera carga) y se
+reutiliza en cargas posteriores mientras el contacto siga pendiente, evitando que la
+sesión "salte" de formulario si `ya_hizo_primera_atencion` o `session_count` cambian
+mientras el profesional todavía no ha completado esa sesión.

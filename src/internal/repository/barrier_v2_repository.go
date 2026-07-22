@@ -13,6 +13,10 @@ type BarrierV2Repository interface {
 	FindByFollowUpID(ctx context.Context, followUpID string) ([]models.BarrierV2, error)
 	FindActiveByCaseID(ctx context.Context, caseID string) ([]models.BarrierV2, error)
 	FindByIDs(ctx context.Context, ids []string) ([]models.BarrierV2, error)
+	// FindActiveByTeamContactIDs retorna las barreras (status != MANAGED) cuyo team_contact_id
+	// esté entre los IDs dados — usado para resolver las "barreras activas" de una remisión
+	// psicosocial (ver salvia/service/psychosocial_detail_service.go → LoadSession).
+	FindActiveByTeamContactIDs(ctx context.Context, teamContactIDs []string) ([]models.BarrierV2, error)
 	UpdateStatus(ctx context.Context, id string, status string) error
 	// FindByCreatedByIDWithRelations devuelve barreras del agente enriquecidas
 	// con datos de victim_case (nombres, documento, i_code).
@@ -59,6 +63,17 @@ func (r *barrierV2Repository) FindByIDs(ctx context.Context, ids []string) ([]mo
 		return items, nil
 	}
 	return items, r.db.WithContext(ctx).Where("id IN ?", ids).Find(&items).Error
+}
+
+func (r *barrierV2Repository) FindActiveByTeamContactIDs(ctx context.Context, teamContactIDs []string) ([]models.BarrierV2, error) {
+	var items []models.BarrierV2
+	if len(teamContactIDs) == 0 {
+		return items, nil
+	}
+	return items, r.db.WithContext(ctx).
+		Where("team_contact_id IN ? AND status != ? AND deleted_at IS NULL", teamContactIDs, models.BarrierV2StatusManaged).
+		Order("created_at ASC").
+		Find(&items).Error
 }
 
 func (r *barrierV2Repository) UpdateStatus(ctx context.Context, id string, status string) error {

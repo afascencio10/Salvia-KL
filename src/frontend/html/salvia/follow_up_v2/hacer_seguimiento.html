@@ -234,6 +234,11 @@
 {{ template "standard_scripts.html" .}}
 
 <script>
+    // Form "vivo" usado para el diligenciamiento normal (no migrado). Cualquier
+    // seguimiento cuyo form_id real sea distinto (Kobo, Bases Salvia, o cualquier
+    // futura migración) se muestra siempre en solo lectura — ver canEdit más abajo.
+    const FORM_ID_DEFAULT = '2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff';
+
     var app = Vue.createApp({
         delimiters: ['${', '}'],
         data() {
@@ -241,7 +246,7 @@
                 followUpId:   '{{ .followUpId }}',
                 userICode:    '{{ .userICode }}',
                 currentUser:  '{{ .currentUser }}',
-                formId:       '2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff',
+                formId:       FORM_ID_DEFAULT,
                 submissionId: null,
                 loadError:    null,
                 canEdit:       true,
@@ -287,6 +292,7 @@
                         return;
                     }
                     const fu          = data.followUp;
+                    this.formId        = fu.form_id || this.formId;
                     this.submissionId   = fu.form_submission_id;
                     this.caseId        = fu.case_id;
                     this.caseICode     = fu.case_id;
@@ -298,8 +304,12 @@
                     console.log('[HS] followUp completo:', fu);
                     console.log('[HS] caseStatus:', data.caseStatus);
 
-                    // canEdit: false permanente si el caso está cerrado
-                    if (data.caseStatus === 'cd') {
+                    // canEdit: false permanente si el form no es el vivo por defecto
+                    // (seguimiento migrado — Kobo, Bases Salvia, o futuras migraciones)
+                    if (this.formId !== FORM_ID_DEFAULT) {
+                        this.canEdit = false;
+                    } else if (data.caseStatus === 'cd') {
+                        // canEdit: false permanente si el caso está cerrado
                         this.canEdit = false;
                     } else if (fu.status === 'REALIZADO' && fu.completed_at) {
                         // canEdit: false si REALIZADO y han pasado más de 5 días desde completed_at

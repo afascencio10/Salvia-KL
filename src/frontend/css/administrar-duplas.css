@@ -1,0 +1,487 @@
+/* ====================================================================
+   ADMINISTRAR DUPLAS
+   Prefijo: adp-
+   ==================================================================== */
+
+.adp-page {
+    font-family: 'Nunito Sans', sans-serif;
+    color: #1a1a1a;
+    position: relative;
+}
+
+.adp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.adp-title {
+    margin: 0 0 6px;
+    font-size: 1.65rem;
+    font-weight: 800;
+    color: #5106A7;
+    line-height: 1.25;
+}
+
+.adp-subtitle {
+    margin: 0;
+    font-size: 0.95rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.adp-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: 8px;
+    font-family: 'Nunito Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    padding: 10px 16px;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
+}
+
+.adp-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.adp-btn--primary {
+    background: #5106A7;
+    border-color: #5106A7;
+    color: #fff;
+}
+
+.adp-btn--primary:hover:not(:disabled) {
+    background: #42058a;
+    border-color: #42058a;
+}
+
+.adp-btn--secondary {
+    background: #fff;
+    border-color: #d1d5db;
+    color: #374151;
+}
+
+.adp-btn--secondary:hover:not(:disabled) {
+    background: #f9fafb;
+    border-color: #9ca3af;
+}
+
+.adp-btn--danger {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: #fff;
+}
+
+.adp-btn--danger:hover:not(:disabled) {
+    background: #b91c1c;
+    border-color: #b91c1c;
+}
+
+.adp-btn--ghost {
+    background: transparent;
+    border-color: transparent;
+    color: #374151;
+    padding: 8px 12px;
+}
+
+.adp-btn--ghost:hover:not(:disabled) {
+    background: #f3f4f6;
+}
+
+.adp-btn--ghost-danger {
+    background: transparent;
+    border-color: transparent;
+    color: #dc2626;
+    padding: 8px 12px;
+}
+
+.adp-btn--ghost-danger:hover:not(:disabled) {
+    background: #fef2f2;
+}
+
+.adp-error-block {
+    padding: 20px 22px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+    color: #991b1b;
+}
+
+.adp-error-block p {
+    margin: 0 0 12px;
+}
+
+.adp-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 48px 16px;
+    color: #6b7280;
+    font-size: 0.95rem;
+}
+
+.adp-spinner {
+    width: 22px;
+    height: 22px;
+    border: 2.5px solid #e5e7eb;
+    border-top-color: #5106A7;
+    border-radius: 50%;
+    animation: adp-spin 0.7s linear infinite;
+}
+
+@keyframes adp-spin {
+    to { transform: rotate(360deg); }
+}
+
+.adp-professionals {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+@media (max-width: 900px) {
+    .adp-professionals {
+        grid-template-columns: 1fr;
+    }
+}
+
+.adp-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+}
+
+.adp-card-header {
+    padding: 14px 18px 10px;
+}
+
+.adp-card-title {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #6b7280;
+}
+
+.adp-card-body {
+    padding: 4px 10px 12px;
+}
+
+.adp-empty {
+    padding: 18px 12px;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 0.88rem;
+}
+
+.adp-pro-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 8px;
+    border-radius: 10px;
+}
+
+.adp-pro-row + .adp-pro-row {
+    border-top: 1px solid #f3f4f6;
+}
+
+.adp-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-weight: 800;
+    font-size: 0.85rem;
+    color: #5106A7;
+    background: #ede9fe;
+}
+
+.adp-avatar--dupla {
+    width: 42px;
+    height: 42px;
+    font-size: 0.95rem;
+}
+
+.adp-avatar--sm {
+    width: 22px;
+    height: 22px;
+    font-size: 0.65rem;
+}
+
+.adp-pro-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.adp-pro-name {
+    margin: 0;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.adp-pro-meta {
+    margin: 2px 0 0;
+    font-size: 0.78rem;
+    color: #9ca3af;
+    font-weight: 600;
+}
+
+.adp-badge {
+    flex-shrink: 0;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.adp-badge--assigned {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+.adp-badge--available {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.adp-duplas-card .adp-card-header {
+    padding: 16px 18px 8px;
+}
+
+.adp-dupla-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border-top: 1px solid #f3f4f6;
+}
+
+.adp-dupla-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.adp-dupla-name {
+    margin: 0 0 6px;
+    font-size: 0.98rem;
+    font-weight: 800;
+    color: #111827;
+}
+
+.adp-dupla-members {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 0.82rem;
+    color: #4b5563;
+}
+
+.adp-member {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.adp-member-role {
+    color: #9ca3af;
+    font-weight: 600;
+}
+
+.adp-plus {
+    color: #9ca3af;
+    font-weight: 700;
+    margin: 0 2px;
+}
+
+.adp-dupla-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+/* ---- Modals ---- */
+
+.adp-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(17, 24, 39, 0.55);
+    backdrop-filter: blur(3px);
+}
+
+.adp-dialog {
+    width: 100%;
+    max-width: 440px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 25px 50px -12px rgba(81, 6, 167, 0.25);
+    overflow: hidden;
+    font-family: 'Nunito Sans', sans-serif;
+}
+
+.adp-dialog--sm {
+    max-width: 400px;
+}
+
+.adp-dialog-header {
+    padding: 22px 24px 0;
+}
+
+.adp-dialog-title {
+    margin: 0 0 6px;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #1a1a1a;
+}
+
+.adp-dialog-subtitle {
+    margin: 0;
+    font-size: 0.88rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.adp-dialog-body {
+    padding: 20px 24px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.adp-dialog-body p {
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: #4b5563;
+}
+
+.adp-dialog-footer {
+    padding: 16px 24px 22px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.adp-field label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #555;
+    margin-bottom: 8px;
+}
+
+.adp-input,
+.adp-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid #c4b5fd;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 0.88rem;
+    font-family: 'Nunito Sans', sans-serif;
+    color: #333;
+    box-sizing: border-box;
+}
+
+.adp-select {
+    padding-right: 32px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+}
+
+.adp-input:focus,
+.adp-select:focus {
+    outline: none;
+    border-color: #5106A7;
+    box-shadow: 0 0 0 3px rgba(81, 6, 167, 0.12);
+}
+
+.adp-input:disabled,
+.adp-select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.adp-input--error {
+    border-color: #dc2626 !important;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.adp-toast {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 50;
+    max-width: min(360px, calc(100% - 16px));
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+    pointer-events: none;
+}
+
+.adp-toast--success {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+}
+
+.adp-toast--error {
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+.adp-field-warning {
+    margin: 6px 0 0;
+    font-size: 0.8rem;
+    color: #d97706;
+    font-weight: 600;
+}
+
+.adp-save-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    color: #b91c1c;
+    font-size: 0.84rem;
+}

@@ -30,6 +30,9 @@ type CaseTaskService interface {
 	// ListByCaseIDAndBarrier devuelve las tareas de un caso filtradas por barrera.
 	ListByCaseIDAndBarrier(ctx context.Context, caseID, barrierID string) ([]models.CaseTask, error)
 
+	// ListByCaseIDAndPsychosocial devuelve las tareas de un caso filtradas por remisión psicosocial.
+	ListByCaseIDAndPsychosocial(ctx context.Context, caseID, psychosocialID string) ([]models.CaseTask, error)
+
 	// UpdateEntityLetter actualiza campos de un EntityLetter.
 	UpdateEntityLetter(ctx context.Context, entityLetterID string, fields map[string]interface{}) error
 
@@ -111,6 +114,10 @@ func (s *caseTaskService) ListByCaseID(ctx context.Context, caseID string) ([]mo
 
 func (s *caseTaskService) ListByCaseIDAndBarrier(ctx context.Context, caseID, barrierID string) ([]models.CaseTask, error) {
 	return s.repo.FindByCaseIDAndBarrier(ctx, caseID, barrierID)
+}
+
+func (s *caseTaskService) ListByCaseIDAndPsychosocial(ctx context.Context, caseID, psychosocialID string) ([]models.CaseTask, error) {
+	return s.repo.FindByCaseIDAndPsychosocial(ctx, caseID, psychosocialID)
 }
 
 func (s *caseTaskService) UpdateEntityLetter(ctx context.Context, entityLetterID string, fields map[string]interface{}) error {
