@@ -94,18 +94,16 @@ SEGÚN modal.mode:
         → 400 { "error": "Profesional inválido o inactivo" }
         → FIN SUB-FLUJO (error)
 
-  B4. Verificar unicidad de miembros en duplas activas
+  B4. Verificar unicidad de psicóloga en duplas activas
+      (la trabajadora social SÍ puede repetirse en varias duplas)
       ```sql
       SELECT id FROM salvia.dupla
       WHERE deleted_at IS NULL
-        AND (
-          psychologist_id  IN (:psychologistId, :socialWorkerId)
-          OR social_worker_id IN (:psychologistId, :socialWorkerId)
-        )
+        AND BTRIM(psychologist_id::text) = BTRIM(:psychologistId)
         AND (:editingId IS NULL OR id <> :editingId)
       ```
       SI existe conflicto:
-        → 409 { "error": "Uno o ambos profesionales ya pertenecen a otra dupla" }
+        → 409 { "error": "La psicóloga ya pertenece a otra dupla" }
         → FIN SUB-FLUJO (error)
 
   B5. Persistir

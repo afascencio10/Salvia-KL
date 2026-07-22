@@ -12,7 +12,7 @@ import (
 
 var (
 	ErrDuplaNameInUse       = errors.New("nombre de la dupla en uso")
-	ErrDuplaMembersConflict = errors.New("Uno o ambos profesionales ya pertenecen a otra dupla")
+	ErrDuplaMembersConflict = errors.New("La psicóloga ya pertenece a otra dupla")
 	ErrDuplaInvalidMember   = errors.New("Profesional inválido o inactivo")
 	ErrDuplaValidation      = errors.New("datos de dupla inválidos")
 	ErrDuplaNotFound        = errors.New("dupla no encontrada")
@@ -239,7 +239,7 @@ func (s *duplaAdminService) validateSave(ctx context.Context, excludeID string, 
 		return ErrDuplaInvalidMember
 	}
 
-	conflict, err := s.duplaRepo.ExistsActiveMemberConflict(ctx, input.PsychologistID, input.SocialWorkerID, excludeID)
+	conflict, err := s.duplaRepo.ExistsActivePsychologistConflict(ctx, input.PsychologistID, excludeID)
 	if err != nil {
 		return err
 	}

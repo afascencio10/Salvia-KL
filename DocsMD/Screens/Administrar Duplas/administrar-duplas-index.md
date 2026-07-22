@@ -1,6 +1,6 @@
 # Administrar Duplas — Index
 
-Pantalla de administración de duplas del equipo de Atención Psicosocial. Permite crear, editar y eliminar (lógico) pares psicóloga (`ps`) + trabajadora social (`ts`). Cada profesional activo solo puede pertenecer a **una** dupla activa a la vez.
+Pantalla de administración de duplas del equipo de Atención Psicosocial. Permite crear, editar y eliminar (lógico) pares psicóloga (`ps`) + trabajadora social (`ts`). Una **psicóloga** solo puede pertenecer a **una** dupla activa; una **trabajadora social** puede pertenecer a **varias**.
 
 > **Ruta:** `GET /salvia/administrar-duplas` (solo `sv`)  
 > **Prerequisito de modelo:** tabla `salvia.dupla` (ver [M-01](../../Componentes/Remisiones%20Atencion%20Psicosocial%20component/Flujos/flow-M01-migracion-schema-dupla-psychosocial-support.md)). Esta pantalla es la que **persiste** las duplas; el listado de remisiones y el modal de reasignación solo las **leen**.  
@@ -29,11 +29,12 @@ Pantalla de administración de duplas del equipo de Atención Psicosocial. Permi
 
 1. Una dupla = 1 psicóloga (`role_code = 'ps'`) + 1 trabajadora social (`role_code = 'ts'`).
 2. Solo usuarios con `general_user_status = 'e'` (activos) aparecen en listas y selects.
-3. Un profesional solo puede estar en **una** dupla con `deleted_at IS NULL`.
-4. Al editar, los miembros actuales de esa dupla siguen disponibles en los selects (aunque estén “ocupados” por sí mismos).
-5. Eliminar es **lógico** (`deleted_at`); libera a ambos miembros para otras duplas. No borra usuarios ni remisiones.
-6. El **nombre es libre** (lo escribe el supervisor); máximo `varchar(36)`. Debe ser **único entre duplas activas** (`deleted_at IS NULL`). Si ya existe → error `"nombre de la dupla en uso"`.
-7. **No se puede eliminar** una dupla si está en uso en una sesión/remisión no cerrada:
+3. Una **psicóloga** solo puede estar en **una** dupla con `deleted_at IS NULL`.
+4. Una **trabajadora social** puede pertenecer a **varias** duplas activas a la vez.
+5. Al editar, la psicóloga actual de esa dupla sigue disponible en el select (aunque esté “ocupada” por sí misma).
+6. Eliminar es **lógico** (`deleted_at`); libera a la psicóloga para otra dupla. No borra usuarios ni remisiones.
+7. El **nombre es libre** (lo escribe el supervisor); máximo `varchar(36)`. Debe ser **único entre duplas activas** (`deleted_at IS NULL`). Si ya existe → error `"nombre de la dupla en uso"`.
+8. **No se puede eliminar** una dupla si está en uso en una sesión/remisión no cerrada:
    - Existe `psychosocial_support` con `dupla_id` = esa dupla y `status <> 'cerrado'`, **o**
    - Existe `team_contact` con `dupla_id` = esa dupla cuyo `psychosocial_support` asociado (`psicosocial_id`) tiene `status <> 'cerrado'`.
    - En ese caso se muestra un **modal de error** (no se hace soft-delete).
@@ -71,7 +72,7 @@ Pantalla de administración de duplas del equipo de Atención Psicosocial. Permi
 
 **Nombre del evento:** Cuando abre modal crear o editar dupla  
 **Tipo:** User Interaction  
-**Descripción:** Disparado por “+ Nueva dupla” o “Editar”. Determina modo `create` | `edit`, precarga el formulario si edita, calcula opciones disponibles de ps/ts (excluyendo asignados a otras duplas) y muestra avisos si no hay cupos libres.  
+**Descripción:** Disparado por “+ Nueva dupla” o “Editar”. Determina modo `create` | `edit`, precarga el formulario si edita, calcula psicólogas disponibles (excluyendo las ya asignadas a otras duplas) y deja **todas** las TS seleccionables.  
 **Requerido:** Sí  
 
 📄 [Ver flujo → flow-E02-cuando-abre-modal-crear-o-editar.md](./Flujos/flow-E02-cuando-abre-modal-crear-o-editar.md)
@@ -89,7 +90,7 @@ Pantalla de administración de duplas del equipo de Atención Psicosocial. Permi
 
 **Nombre del evento:** Cuando guarda modal  
 **Tipo:** User Interaction  
-**Descripción:** Valida nombre + ps + ts. En backend verifica unicidad de miembros y unicidad de nombre entre duplas activas (`"nombre de la dupla en uso"`). Crea (`POST`) o actualiza (`PUT`) según el modo. Si ok, cierra el modal y recarga datos (E01).  
+**Descripción:** Valida nombre + ps + ts. En backend verifica unicidad de **psicóloga** (no de TS) y unicidad de nombre entre duplas activas (`"nombre de la dupla en uso"`). Crea (`POST`) o actualiza (`PUT`) según el modo. Si ok, cierra el modal y recarga datos (E01).  
 **Requerido:** Sí  
 
 📄 [Ver flujo → flow-E04-cuando-guarda-modal.md](./Flujos/flow-E04-cuando-guarda-modal.md)

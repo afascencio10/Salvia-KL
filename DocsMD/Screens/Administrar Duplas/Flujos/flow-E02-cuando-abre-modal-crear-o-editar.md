@@ -61,21 +61,19 @@ warningTs = null
 
 PASO 3 — Calcular profesionales disponibles para los selects
 
-  Regla: un profesional está "ocupado" si pertenece a una dupla activa
-  distinta de la que se está editando.
+  Regla:
+  • Psicóloga: exclusividad — ocupada si ya está en otra dupla activa (≠ la que se edita).
+  • Trabajadora social: puede estar en varias — siempre aparece en el select.
 
-  occupiedIds = set vacío
+  occupiedPsychIds = set vacío
   PARA CADA d EN duplas:
     SI editingDuplaId != null Y d.id === editingDuplaId:
-      → omitir (los miembros actuales siguen seleccionables)
+      → omitir (la psicóloga actual sigue seleccionable)
     SI NO:
-      → occupiedIds.add(d.psychologistId)
-      → occupiedIds.add(d.socialWorkerId)
+      → occupiedPsychIds.add(d.psychologistId)
 
-  availablePsychologists = psychologists.filter(p => !occupiedIds.has(p.icode))
-  availableSocialWorkers = socialWorkers.filter(p => !occupiedIds.has(p.icode))
-
-  // En edit, los miembros actuales ya están incluidos porque su dupla se omitió
+  availablePsychologists = psychologists.filter(p => !occupiedPsychIds.has(p.icode))
+  availableSocialWorkers = socialWorkers.slice()   // todas las TS activas
 
 
 PASO 4 — Avisos de disponibilidad (UI)
@@ -86,7 +84,7 @@ SI NO:
   → warningPs = null
 
 SI availableSocialWorkers.length === 0:
-  → warningTs = 'Todas las trabajadoras sociales están asignadas a una dupla.'
+  → warningTs = 'No hay trabajadoras sociales activas.'
 SI NO:
   → warningTs = null
 

@@ -152,32 +152,48 @@
                         };
                     });
 
-                    var assignedByUserId = {};
+                    var assignedPsychByUserId = {};
+                    var assignedTsByUserId = {};
                     duplas.forEach(function (d) {
                         if (d.psychologistId) {
-                            assignedByUserId[d.psychologistId] = { duplaId: d.id, duplaName: d.name };
+                            assignedPsychByUserId[d.psychologistId] = { duplaId: d.id, duplaName: d.name };
                         }
                         if (d.socialWorkerId) {
-                            assignedByUserId[d.socialWorkerId] = { duplaId: d.id, duplaName: d.name };
+                            if (!assignedTsByUserId[d.socialWorkerId]) {
+                                assignedTsByUserId[d.socialWorkerId] = [];
+                            }
+                            assignedTsByUserId[d.socialWorkerId].push({
+                                duplaId: d.id,
+                                duplaName: d.name,
+                            });
                         }
                     });
 
-                    function enrich(list) {
-                        list.forEach(function (p) {
-                            var info = assignedByUserId[p.icode];
-                            if (info) {
-                                p.enDupla = true;
-                                p.duplaId = info.duplaId;
-                                p.duplaName = info.duplaName;
-                            } else {
-                                p.enDupla = false;
-                                p.duplaId = null;
-                                p.duplaName = null;
-                            }
-                        });
-                    }
-                    enrich(psychologists);
-                    enrich(socialWorkers);
+                    psychologists.forEach(function (p) {
+                        var info = assignedPsychByUserId[p.icode];
+                        if (info) {
+                            p.enDupla = true;
+                            p.duplaId = info.duplaId;
+                            p.duplaName = info.duplaName;
+                        } else {
+                            p.enDupla = false;
+                            p.duplaId = null;
+                            p.duplaName = null;
+                        }
+                    });
+
+                    socialWorkers.forEach(function (p) {
+                        var list = assignedTsByUserId[p.icode];
+                        if (list && list.length) {
+                            p.enDupla = true;
+                            p.duplaId = list[0].duplaId;
+                            p.duplaName = list.map(function (x) { return x.duplaName; }).join(', ');
+                        } else {
+                            p.enDupla = false;
+                            p.duplaId = null;
+                            p.duplaName = null;
+                        }
+                    });
 
                     self.psychologists = psychologists;
                     self.socialWorkers = socialWorkers;
@@ -218,26 +234,25 @@
             },
 
             computeAvailableProfessionals: function () {
-                var occupied = {};
+                // Solo la psicóloga es exclusiva de una dupla.
+                // La trabajadora social puede pertenecer a varias.
+                var occupiedPsych = {};
                 var editingId = this.editingDuplaId;
                 (this.duplas || []).forEach(function (d) {
                     if (editingId && d.id === editingId) return;
-                    if (d.psychologistId) occupied[d.psychologistId] = true;
-                    if (d.socialWorkerId) occupied[d.socialWorkerId] = true;
+                    if (d.psychologistId) occupiedPsych[d.psychologistId] = true;
                 });
 
                 this.availablePsychologists = (this.psychologists || []).filter(function (p) {
-                    return !occupied[p.icode];
+                    return !occupiedPsych[p.icode];
                 });
-                this.availableSocialWorkers = (this.socialWorkers || []).filter(function (p) {
-                    return !occupied[p.icode];
-                });
+                this.availableSocialWorkers = (this.socialWorkers || []).slice();
 
                 this.warningPs = this.availablePsychologists.length === 0
                     ? 'Todas las psicólogas están asignadas a una dupla.'
                     : null;
                 this.warningTs = this.availableSocialWorkers.length === 0
-                    ? 'Todas las trabajadoras sociales están asignadas a una dupla.'
+                    ? 'No hay trabajadoras sociales activas.'
                     : null;
             },
 

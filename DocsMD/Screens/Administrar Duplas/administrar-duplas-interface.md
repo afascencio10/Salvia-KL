@@ -31,7 +31,7 @@ Pantalla: Administrar Duplas
 ├── [v-else]
 │   ├── Header
 │   │   ├── Título  "Administrar duplas"
-│   │   ├── Subtítulo  "Cada profesional puede pertenecer a una sola dupla a la vez"
+│   │   ├── Subtítulo  "Cada psicóloga puede pertenecer a una sola dupla; una trabajadora social puede estar en varias"
 │   │   └── Botón primaro "+ Nueva dupla"  → openDuplaModal('create')   [E02]
 │   │
 │   ├── [v-if isLoading] Skeleton / spinner de carga
@@ -69,7 +69,7 @@ Pantalla: Administrar Duplas
 │   │
 │   ├── Modal: Crear / Editar dupla  [v-if modal.visible && modal.kind === 'form']
 │   │   ├── Título: [create] "Nueva dupla" | [edit] "Editar dupla"
-│   │   ├── Subtítulo: "Cada profesional solo puede pertenecer a una dupla a la vez."
+│   │   ├── Subtítulo: "Cada psicóloga solo puede pertenecer a una dupla. Una trabajadora social puede estar en varias."
 │   │   ├── Campo "Nombre de la dupla"  <input text>  → form.name
 │   │   ├── Campo "Psicóloga"           <select>      → form.psychologistId
 │   │   │   └── Opciones = availablePsychologists (+ miembro actual si edit)
