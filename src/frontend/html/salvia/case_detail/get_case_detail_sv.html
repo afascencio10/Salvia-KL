@@ -80,7 +80,10 @@
       <div class="cd-header-right">
         <button class="btn-reasignar" @click="mostrarInfoCaso = true" title="Ver información completa del caso">📋 Info caso</button>
         <button v-if="puedeReasignar" class="btn-reasignar" @click="abrirModalReasignar">Reasignar</button>
-        <button v-if="puedeReasignar || userRole === 'ro'" class="btn-nuevo-seg" :disabled="followUpsV2.length >= 8" @click="abrirModalNuevoSeg">
+        <button v-if="userRole === 'op' && (!caso.agentId || caso.agentId !== userICode)" class="btn-nuevo-seg" @click="autoAsignarCaso" :disabled="autoAsignando">
+          ${ autoAsignando ? 'Asignando...' : '👤 Asignarme este caso' }
+        </button>
+        <button v-if="puedeReasignar || userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode)" class="btn-nuevo-seg" :disabled="followUpsV2.length >= 8" @click="abrirModalNuevoSeg">
           ${ followUpsV2.length >= 8 ? 'Máximo alcanzado (8)' : '+ Nuevo seguimiento' }
         </button>
       </div>
@@ -474,7 +477,7 @@
             <div v-if="!seg.is_completed && seg.status !== 'REALIZADO'" class="cd-seg-actions" @click.stop>
               <a v-if="(userRole === 'ro' || userRole === 'op') && seg.agent_id === userICode" href="#" class="btn-iniciar" style="text-decoration:none;text-align:center" @click.prevent="iniciarSeguimiento(seg)">▶ Iniciar</a>
               <button v-else-if="userRole === 'ro' || userRole === 'op'" class="btn-iniciar" disabled style="opacity:.5;cursor:not-allowed" title="Este seguimiento está asignado a otro agente">▶ Iniciar</button>
-              <button v-if="puedeReasignar || (userRole === 'ro' && caso && caso.agentId === userICode)"
+              <button v-if="puedeReasignar || ((userRole === 'ro' || userRole === 'op') && caso && caso.agentId === userICode)"
                       class="btn-reasignar-seg"
                       @click.stop="editarSeguimiento(seg)">
                 ✏️ Editar
@@ -796,6 +799,7 @@ var home = Vue.createApp({
       modalReasignar: false,
       reasignarOperador: '',
       reasignando: false,
+      autoAsignando: false,
       modalReasignarSeg: false,
       reasignarSegAgente: '',
       reasignarSegActual: null,
@@ -870,7 +874,9 @@ var home = Vue.createApp({
     agentesParaReasignarSeg() {
       // Supervisor: usa agentesRO (filtrado por team del caso)
       if (this.userRole === 'sv') return this.agentesRO;
-      // Operador: usa agentes del mismo team que el caso
+      // Operador (op): solo puede asignarse a sí mismo
+      if (this.userRole === 'op') return [{ icode: this.userICode, fullName: this.currentUser }];
+      // RO: agentes del mismo team que el caso
       var teamCaso = this.caso && this.caso.victimCaseTeam ? this.caso.victimCaseTeam : this.userTeam;
       if (teamCaso) {
         return this.todosAgentes.filter(function(ag) { return ag.team === teamCaso; });
@@ -1134,6 +1140,8 @@ var home = Vue.createApp({
       if (!ag) ag = this.agentesRO.find(function(a) { return a.icode === agentId; });
       if (!ag) ag = this.operadores.find(function(a) { return a.icode === agentId; });
       if (ag) return ag.fullName || (ag.profile ? ag.profile.names + ' ' + ag.profile.lastNames : agentId);
+      // Si es el usuario actual (op autoasignado), usar su nombre de sesión
+      if (agentId === this.userICode) return this.currentUser;
       return agentId;
     },
     labelEstado(s) {
@@ -1440,8 +1448,39 @@ var home = Vue.createApp({
     },
     reasignarSeguimiento(seg, idx) {
       this.reasignarSegActual = seg;
-      this.reasignarSegAgente = '';
+      // Si es op, auto-seleccionar su propio icode
+      this.reasignarSegAgente = this.userRole === 'op' ? this.userICode : '';
       this.modalReasignarSeg = true;
+    },
+
+    async autoAsignarCaso() {
+      if (this.autoAsignando) return;
+      this.autoAsignando = true;
+      var self = this;
+      try {
+        var res = await fetch('/api/v1/casos/' + self.caseICode + '/reasignar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ operador_icode: self.userICode })
+        });
+        if (!res.ok) throw new Error('Error ' + res.status);
+        // Registrar en timeline
+        await fetch('/api/v1/casos/' + self.caseICode + '/timeline', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_type: 'REASIGNACION',
+            description: 'Autoasignación: ' + self.currentUser + ' se asignó como agente del caso',
+            actor_name: self.currentUser
+          })
+        });
+        self.showToast('success', 'Te has asignado este caso correctamente');
+        self.cargarDatos();
+      } catch (e) {
+        self.showToast('error', 'Error al autoasignarte el caso');
+      } finally {
+        self.autoAsignando = false;
+      }
     },
     confirmarReasignarSeg() {
       var self = this;
