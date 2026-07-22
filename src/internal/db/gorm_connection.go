@@ -18,7 +18,11 @@ import (
 
 // NewGormDB construye una instancia *gorm.DB usando la misma configuración
 // que el pool pgx existente (db_config.json vía common/db.DBClientConfig).
-// El pool se limita a 2 conexiones para coexistir con el pool pgx de 80.
+// El pool se limita a 12 conexiones para coexistir con el pool pgx de 80 (antes
+// era 2 — subido para permitir concurrencia real en /admin/migrate/follow-up,
+// que hasta ahora serializaba todo el paralelismo del script de migración detrás
+// de solo 2 conexiones. Revisar si vuelve a bajarse tras terminar la migración
+// de Bases Salvia, si el presupuesto total contra Supabase lo amerita).
 // Incluye keepalive periódico para mantener la conexión activa con Supabase pooler.
 func NewGormDB(cfg commondb.DBClientConfig) (*gorm.DB, error) {
 	sslmode := cfg.SSLMode
@@ -45,8 +49,8 @@ func NewGormDB(cfg commondb.DBClientConfig) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	sqlDB.SetMaxOpenConns(2)
-	sqlDB.SetMaxIdleConns(2)
+	sqlDB.SetMaxOpenConns(12)
+	sqlDB.SetMaxIdleConns(12)
 	// No rotar conexiones — evita errores de DNS intermitentes con Supabase pooler
 	// Si la conexión se cae, GORM la recrea automáticamente en el siguiente uso
 

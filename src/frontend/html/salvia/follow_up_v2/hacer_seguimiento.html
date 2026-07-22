@@ -287,6 +287,7 @@
                         return;
                     }
                     const fu          = data.followUp;
+                    this.formId        = fu.form_id || this.formId;
                     this.submissionId   = fu.form_submission_id;
                     this.caseId        = fu.case_id;
                     this.caseICode     = fu.case_id;

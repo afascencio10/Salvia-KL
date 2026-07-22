@@ -21,6 +21,8 @@ node_modules
 
 # Scripts y datos de migración (uso local)
 migrarCasos/
+migrarKobos/
+migrarBasesSalvia/
 *.exe
 
 # Binarios compilados
