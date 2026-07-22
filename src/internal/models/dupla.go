@@ -30,3 +30,13 @@ type Dupla struct {
 }
 
 func (Dupla) TableName() string { return "salvia.dupla" }
+
+// DuplaAdminItem dupla activa enriquecida para pantalla Administrar Duplas (E01).
+type DuplaAdminItem struct {
+	ID               string `json:"id" gorm:"column:id"`
+	Name             string `json:"name" gorm:"column:name"`
+	PsychologistID   string `json:"psychologistId" gorm:"column:psychologist_id"`
+	PsychologistName string `json:"psychologistName" gorm:"column:psychologist_name"`
+	SocialWorkerID   string `json:"socialWorkerId" gorm:"column:social_worker_id"`
+	SocialWorkerName string `json:"socialWorkerName" gorm:"column:social_worker_name"`
+}

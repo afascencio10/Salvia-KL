@@ -8,11 +8,12 @@ Pantalla para gestionar duplas activas del equipo de Atención Psicosocial: list
 
 | Archivo | Rol |
 |---|---|
-| `src/frontend/html/salvia/duplas/administrar_duplas.html` | Template principal — Vue + layout |
+| `src/frontend/html/salvia/duplas/administrar_duplas.html` | Template principal — markup Vue + config servidor |
+| `src/frontend/js/components/admin-duplas.js` | Lógica Vue (E01–E08) |
 | `src/frontend/css/administrar-duplas.css` | Estilos de la pantalla (prefijo `adp-`) |
 | `src/salvia/facades/AdministrarDuplasFacade.go` | Facade GET — permiso `get_administrar_duplas` (solo `sv`) |
 | `src/internal/models/dupla.go` | Modelo `salvia.dupla` |
-| `src/internal/repository/dupla_repository.go` | Acceso a duplas (hoy solo `ListActive` para reasignación) |
+| `src/internal/repository/dupla_repository.go` | Acceso a duplas |
 
 **Ruta:** `GET /salvia/administrar-duplas`  
 **Entrada desde:** botón “Administrar duplas” en Historial de Remisiones (`/salvia/historial-remisiones`)

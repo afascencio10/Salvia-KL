@@ -276,6 +276,9 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	// ── Historial de Remisiones (Atención Psicosocial) ─────────────────────
 	"get_historial_remisiones": {"sv": true},
 
+	// ── Administrar Duplas (Atención Psicosocial — solo sv) ────────────────
+	"get_administrar_duplas": {"sv": true},
+
 	// ── Mis remisiones Psicosocial (profesional ps / ts) ────────────────────
 	"get_mis_remisiones_psicosocial": {"ps": true, "ts": true},
 
