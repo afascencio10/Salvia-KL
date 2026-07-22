@@ -1,7 +1,7 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando carga la pantalla
    Tipo: Lifecycle
-   Funciones: mounted() · cargarDatos() · cargarTodosAgentes()
+   Funciones: mounted() · cargarDatos() · cargarTodosAgentes() · cargarTareasCaso()
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 INPUT: {
@@ -94,48 +94,54 @@ PASO 2 — Disparar dos llamadas en paralelo: cargarDatos() y cargarTodosAgentes
         territorioOcurrencia = data.territorioOcurrencia
         edadCalculada    = data.edadCalculada
         tipoAgresorResumen = data.tipoAgresorResumen
+        nombreIdentitario = data.nombreIdentitario || 'No registra'
+        diversidadResumen = data.diversidadResumen
         planAtencion     = data.planAtencion
         ajusteRazonable  = data.ajusteRazonable
         hechosTimeline   = data.timelineEvents.filter(e => e.type === 'Hechos del caso')
         cargando = false
     → CONTINÚA FLUJO B
 
-  B2. Ejecutar en paralelo: cargarOperadores() y cargarAgentesRO()
+  B2. cargarTareasCaso()
+      GET /api/v1/case-tasks?caseId={caseICode}
+      → caseTasks[] (usado en banners de tareas pendientes, tab Tareas y por barrera en tab Barreras)
+
+  B3. Ejecutar en paralelo: cargarOperadores() y cargarAgentesRO()
       (ambas usan el team del caso recién cargado — caso.victimCaseTeam)
 
   ┌─────────────────────────────────────────────────────────┐
-  │  SUB-FLUJO B2a: cargarOperadores()                      │
+  │  SUB-FLUJO B3a: cargarOperadores()                      │
   └─────────────────────────────────────────────────────────┘
 
-    B2a-1. Determinar team del caso: caso.victimCaseTeam (puede ser vacío)
+    B3a-1. Determinar team del caso: caso.victimCaseTeam (puede ser vacío)
 
-    B2a-2. GET /api/v1/operadores?team={teamCaso}
+    B3a-2. GET /api/v1/operadores?team={teamCaso}
            (si teamCaso vacío: GET /api/v1/operadores sin filtro)
 
            Backend: usuarios activos con rol 'ro' filtrados por team
            Respuesta: [{ icode, fullName, team }, ...]
 
-    B2a-3. Ordenar por fullName ASC → operadores[]
+    B3a-3. Ordenar por fullName ASC → operadores[]
            (usado en modal Reasignar caso, dropdown de operadores)
 
-    → FIN SUB-FLUJO B2a
+    → FIN SUB-FLUJO B3a
 
   ┌─────────────────────────────────────────────────────────┐
-  │  SUB-FLUJO B2b: cargarAgentesRO()                       │
+  │  SUB-FLUJO B3b: cargarAgentesRO()                       │
   └─────────────────────────────────────────────────────────┘
 
-    B2b-1. Determinar team del caso: caso.victimCaseTeam (puede ser vacío)
+    B3b-1. Determinar team del caso: caso.victimCaseTeam (puede ser vacío)
 
-    B2b-2. GET /api/v1/agentes-ro?team={teamCaso}
+    B3b-2. GET /api/v1/agentes-ro?team={teamCaso}
            (si teamCaso vacío: GET /api/v1/agentes-ro sin filtro)
 
            Backend: usuarios activos con rol 'ro' filtrados por team
            Respuesta: [{ icode, fullName, team }, ...]
 
-    B2b-3. Ordenar por fullName ASC → agentesRO[]
+    B3b-3. Ordenar por fullName ASC → agentesRO[]
            (usado en modal Nuevo seguimiento y modal Reasignar seguimiento para rol sv)
 
-    → FIN SUB-FLUJO B2b
+    → FIN SUB-FLUJO B3b
 
   → FIN SUB-FLUJO B → CONTINÚA FLUJO GENERAL
 
@@ -144,7 +150,7 @@ PASO 3 — Vue renderiza la pantalla con los datos cargados
   - Computed proximoSeguimiento: primer followUpsV2 con status PENDIENTE y !is_completed
   - Computed ultimoAgente: caso.agentName → fallback victimCaseOwnerDescription (parseo texto legacy)
   - Computed puedeReasignar: userRole === 'sv'
-  - Computed agentesParaReasignarSeg: sv → agentesRO, op/ro → todosAgentes filtrado por team del caso
+  - Computed agentesParaReasignarSeg: sv → agentesRO; op → solo él mismo (un único elemento); ro → todosAgentes filtrado por team del caso
   - Tab inicial: tabActiva = 'info' (Sección Resumen abierta, Hechos y Completa cerradas)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

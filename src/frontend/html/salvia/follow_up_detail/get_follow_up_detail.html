@@ -193,6 +193,11 @@
 
 
 <script>
+    // Form "vivo" usado para el diligenciamiento normal (no migrado). Cualquier
+    // seguimiento cuyo form_id real sea distinto (Kobo, Bases Salvia, o cualquier
+    // futura migración) se muestra siempre en solo lectura — ver canEdit más abajo.
+    const FORM_ID_DEFAULT = '2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff';
+
     const app = Vue.createApp({
         delimiters: ['${', '}'],
         data() {
@@ -204,7 +209,7 @@
                     { id: 'formulario', label: 'Formulario', icono: 'fas fa-clipboard-list', count: 0 },
                 ],
                 originalRiskLevel: 'Alto',
-                formId:      '2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff',
+                formId:      FORM_ID_DEFAULT,
                 submissionId: null,
                 canEdit:      true,
                 formState: {
@@ -326,10 +331,15 @@
                     }
 
                     this.victimCase.id  = data.caseInfo.id;
+                    this.formId         = data.followUp.form_id || this.formId;
                     this.submissionId   = data.followUp.form_submission_id || null;
 
-                    // canEdit: false permanente si el caso está cerrado
-                    if (data.caseInfo.status === 'cd') {
+                    // canEdit: false permanente si el form no es el vivo por defecto
+                    // (seguimiento migrado — Kobo, Bases Salvia, o futuras migraciones)
+                    if (this.formId !== FORM_ID_DEFAULT) {
+                        this.canEdit = false;
+                    } else if (data.caseInfo.status === 'cd') {
+                        // canEdit: false permanente si el caso está cerrado
                         this.canEdit = false;
                     } else if (data.followUp.status === 'REALIZADO' && data.followUp.completed_at) {
                         // canEdit: false si REALIZADO y han pasado más de 5 días desde completed_at
