@@ -1909,16 +1909,18 @@ func (s *formService) SaveSection(ctx context.Context, input SaveSectionInput) (
 
 // IDs de formularios con lógica de end-submission.
 const (
-	seguimientoFormID    = "2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff"
-	barrierUpdateFormID  = "4d0aeb46-5af3-4c47-a0d5-c5bfc4d549ff"
-	cierreCasoFormID     = "da8423ab-1a8c-47db-96b7-d10496df571a"
+	// SeguimientoFormID es el formulario "vivo" de seguimiento; exportado para que
+	// otros paquetes (p.ej. el controller) puedan validar permisos por formId.
+	SeguimientoFormID   = "2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff"
+	barrierUpdateFormID = "4d0aeb46-5af3-4c47-a0d5-c5bfc4d549ff"
+	cierreCasoFormID    = "da8423ab-1a8c-47db-96b7-d10496df571a"
 )
 
 // OnEndFormSubmission es llamado cuando todas las secciones visibles han sido respondidas.
 // Delega a la función específica según el formID.
 func (s *formService) OnEndFormSubmission(ctx context.Context, formID, submissionID, actorID string) error {
 	switch formID {
-	case seguimientoFormID:
+	case SeguimientoFormID:
 		return s.processFollowUpSubmission(ctx, submissionID, actorID)
 	case barrierUpdateFormID:
 		return s.processBarrierUpdateSubmission(ctx, submissionID)

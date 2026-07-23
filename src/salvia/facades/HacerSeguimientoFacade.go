@@ -45,6 +45,7 @@ func HacerSeguimientoGET(c *gin.Context) {
 			"lang":        s.Lang,
 			"followUpId":  followUpID,
 			"userICode":   s.UserICode,
+			"userRole":    s.CurrentRole,
 		},
 		utils.GetFullHtmlFuncMap(),
 	)
