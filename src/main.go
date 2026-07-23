@@ -85,6 +85,7 @@ func main() {
         &models.BarrierV2{},
         &models.BarrierFollowUp{},
         &models.Directory{},
+        &models.EntityCase{},
     } {
         if err := gormDB.AutoMigrate(m); err != nil {
             log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -126,6 +127,7 @@ func main() {
     psychosocialListRepo   := repository.NewPsychosocialListRepository(gormDB)
     duplaRepo              := repository.NewDuplaRepository(gormDB)
     psychosocialReassignRepo := repository.NewPsychosocialReassignRepository(gormDB)
+    entityCaseRepo         := repository.NewEntityCaseRepository(gormDB)
 
     // Services
     casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
@@ -203,6 +205,9 @@ func main() {
     entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo, caseTaskRepo, barrierV2Repo)
     entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
 
+    entityCaseSvc          := service.NewEntityCaseService(entityCaseRepo)
+    entityCaseCtrl         := salvia_ctrl.NewEntityCaseController(entityCaseSvc)
+
     caseTaskSvc             := service.NewCaseTaskService(service.CaseTaskServiceDeps{
         CaseTaskRepo:     caseTaskRepo,
         BarrierV2Repo:    barrierV2Repo,
@@ -252,6 +257,7 @@ func main() {
     caseInfoCtrl.RegisterRoutes(api)
     reportCtrl.RegisterRoutes(api)
     entityLetterCtrl.RegisterRoutes(api)
+    entityCaseCtrl.RegisterRoutes(api)
     entityBranchAPICtrl.RegisterRoutes(api)
     barrierV2GinCtrl.RegisterRoutes(api)
     caseTaskCtrl.RegisterRoutes(api)
