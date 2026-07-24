@@ -1,3 +1,15 @@
+## 2026-07-23 — Nueva rama de detalle para `gestion_propia`
+
+Se agregó la rama `tarea.type === 'gestion_propia'` (título "Gestión Propia", ícono `fa-link`, campo "Tipo de gestión" desde `formData.subtipo`) para mostrar el detalle de las tareas creadas por el nuevo flujo "Registrar gestión propia" del Enlace Territorial (`POST /api/v1/case-tasks/gestion-propia`, ver `DocsMD/Screens/Barrera Detalle/`). A diferencia de los demás tipos, `gestion_propia` no proviene de completar una tarea existente vía `case-task-modal`.
+
+### Archivos modificados
+
+| Archivo | Cambio |
+|---|---|
+| `src/frontend/js/components/case-task-history.js` | Nueva rama de detalle + entradas en `titulo`/`iconoTipo` para `gestion_propia` |
+
+---
+
 ## 2026-07-02 — Implementación de case-task-history + enriquecimiento de GetByID
 
 Se implementó el componente `case-task-history` (modal de solo lectura para ver el detalle de una `case_task` completada), se montó en la pantalla `Detalle del Caso` junto a `case-task-modal`, y se actualizó `GetByID` para que devuelva `assignedUserName` — resolviendo el GAP documentado en el diseño inicial. También se escribieron 4 tests E2E de solo lectura (uno por tipo de tarea) que verifican el detalle sin volver a completar las tareas.

@@ -102,18 +102,18 @@ PGPASSWORD='Salvia2026@' psql \
 
 ### Formularios dinámicos
 
-| Tabla | Descripción |
-|---|---|
-| `form` | Definición de un formulario dinámico: estructura base y metadatos de configuración. |
-| `form_section` | Sección dentro de un formulario dinámico con orden y título. |
-| `question` | Pregunta de una sección: tipo, texto, validaciones y orden de presentación. |
-| `option` | Opción de respuesta para preguntas de selección simple o múltiple. |
-| `visibility_condition` | Condición que controla si una pregunta/sección/repeater se muestra según respuestas previas o estado externo (`formState`). |
-| `render_modification` | Modificación declarativa de textos visibles (labels, títulos, descripciones) según el estado externo (`formState`). Soporta `SET` (sobreescritura) y `REPLACE` (buscar y reemplazar). |
-| `repeater_group` | Grupo de preguntas repetibles dentro de un formulario dinámico. |
-| `repeater_entry` | Fila o instancia concreta de un repeater_group en un form_submission. |
-| `form_submission` | Envío de un formulario: vincula respuestas a un caso, agente y seguimiento. |
-| `answer` | Respuesta individual a una pregunta dentro de un form_submission. |
+| Tabla                  | Descripción                                                                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `form`                 | Definición de un formulario dinámico: estructura base y metadatos de configuración.                                                                                                   |
+| `form_section`         | Sección dentro de un formulario dinámico con orden y título.                                                                                                                          |
+| `question`             | Pregunta de una sección: tipo, texto, validaciones y orden de presentación.                                                                                                           |
+| `option`               | Opción de respuesta para preguntas de selección simple o múltiple.                                                                                                                    |
+| `visibility_condition` | Condición que controla si una pregunta/sección/repeater se muestra según respuestas previas o estado externo (`formState`).                                                           |
+| `render_modification`  | Modificación declarativa de textos visibles (labels, títulos, descripciones) según el estado externo (`formState`). Soporta `SET` (sobreescritura) y `REPLACE` (buscar y reemplazar). |
+| `repeater_group`       | Grupo de preguntas repetibles dentro de un formulario dinámico.                                                                                                                       |
+| `repeater_entry`       | Fila o instancia concreta de un repeater_group en un form_submission.                                                                                                                 |
+| `form_submission`      | Envío de un formulario: vincula respuestas a un caso, agente y seguimiento.                                                                                                           |
+| `answer`               | Respuesta individual a una pregunta dentro de un form_submission.                                                                                                                     |
 
 ### Gestión del caso
 

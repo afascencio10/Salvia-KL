@@ -243,6 +243,7 @@ app.component('case-task-history', {
                 proyectar_oficio: 'Proyectar Oficio',
                 comite_caso:      'Decisiones del Comité',
                 'Corregir oficio': 'Corregir Oficio',
+                gestion_propia:   'Gestión Propia',
             }[this.tarea.type] || 'Detalle de tarea';
         },
 
@@ -253,6 +254,7 @@ app.component('case-task-history', {
                 proyectar_oficio: 'fa-file-signature',
                 comite_caso:      'fa-users',
                 'Corregir oficio': 'fa-pencil-alt',
+                gestion_propia:   'fa-link',
             }[this.tarea.type] || 'fa-tasks';
         },
 
@@ -437,6 +439,15 @@ app.component('case-task-history', {
             <!-- Detalle: Corregir oficio -->
             <template v-else-if="tarea.type === 'Corregir oficio'">
                 <p class="cth-nota-corregido">El oficio fue corregido por el agente que lo proyectó</p>
+            </template>
+
+            <!-- Detalle formData: gestion_propia -->
+            <template v-else-if="tarea.type === 'gestion_propia'">
+                <p class="cth-section-title">Detalle de la gestión</p>
+                <div class="cth-field">
+                    <label class="cth-field-label">Tipo de gestión</label>
+                    <div class="cth-field-value">\${ (tarea.formData && tarea.formData.subtipo) || '—' }</div>
+                </div>
             </template>
 
         </template>

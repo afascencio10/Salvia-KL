@@ -24,10 +24,36 @@
            shadow-sm: 0 1px 2px 0 rgb(0 0 0/.05) */
 
         .df-wrapper {
+            position: relative;
             display: flex;
             gap: 24px;
             align-items: flex-start;
         }
+
+        /* ── Guardar borrador (flotante) ── */
+        .df-draft-save-btn {
+            position: absolute;
+            top: -44px;
+            right: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            background: #fff;
+            color: #7c3aed;
+            border: 1px solid #ddd6fe;
+            border-radius: 8px;
+            padding: 7px 14px;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
+            z-index: 5;
+        }
+        .df-draft-save-btn:hover:not(:disabled) { background: #f5f3ff; border-color: #a78bfa; }
+        .df-draft-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .df-draft-save-btn.df-draft-saved { color: #16a34a; border-color: #bbf7d0; background: #f0fdf4; }
+        .df-draft-save-btn.df-draft-error { color: #dc2626; border-color: #fecaca; background: #fef2f2; }
 
         /* ── Sidebar ── */
         .df-sidebar {
@@ -1010,6 +1036,10 @@ app.component('dinamic-form', {
             // ── Validación ───────────────────────────────────────────────
             showValidationError: false,
             repeaterErrors: {},
+
+            // ── Guardar borrador ─────────────────────────────────────────
+            draftSaved: false,
+            draftError: false,
         };
     },
     computed: {
@@ -1036,6 +1066,12 @@ app.component('dinamic-form', {
         isLastSection() {
             if (!this.currentSection || !this.visibleSections.length) return false;
             return this.visibleSections[this.visibleSections.length - 1].id === this.currentSection.id;
+        },
+
+        // Hay al menos una respuesta cargada en la sección actual (controla si se
+        // muestra el botón "Guardar borrador" — no tiene sentido si no hay nada que guardar).
+        hasDraftAnswers() {
+            return Object.values(this.localAnswers).some(v => v !== '' && v !== null && v !== undefined);
         },
 
         // ── Legacy (a migrar) ─────────────────────────────────────────────
@@ -1753,6 +1789,53 @@ app.component('dinamic-form', {
             }
         },
 
+        /* ── Guardar borrador: omite validación, no navega, no dispara form-completed ── */
+        async saveDraft() {
+            this.saving = true;
+            const fresh = this.collectSectionAnswers();
+            const body  = {
+                formId:           this.formId,
+                formSectionId:    this.currentSection.id,
+                formSubmissionId: this.formSubmission?.id ?? '',
+                directAnswers:    fresh.directAnswers,
+                repeaterEntries:  fresh.repeaterEntries,
+                formState:        this.formState,
+            };
+
+            console.log('[saveDraft] enviando borrador:', this.currentSection.name);
+            console.log('[saveDraft] body:', body);
+
+            try {
+                const res = await fetch('/api/v1/forms/saveSection', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify(body),
+                });
+
+                console.log('[saveDraft] response status:', res.status);
+                if (!res.ok) throw new Error('Hubo un error al guardar el borrador');
+
+                const data = await res.json();
+                console.log('[saveDraft] data recibida:', data);
+
+                // Actualizar estado con la respuesta del servidor — sin navegar ni
+                // evaluar form-completed: un borrador no significa que el usuario
+                // haya terminado la sección.
+                this.formStructure  = data.formStructure;
+                this.formSubmission = data.formSubmission ?? null;
+                this._emitAnswersUpdated();
+
+                this.draftSaved = true;
+                setTimeout(() => { this.draftSaved = false; }, 2000);
+            } catch (e) {
+                console.error('[saveDraft] error:', e);
+                this.draftError = true;
+                setTimeout(() => { this.draftError = false; }, 2000);
+            } finally {
+                this.saving = false;
+            }
+        },
+
         /* ── Navegación entre secciones ── */
         goNext() {
             const idx = this.visibleSections.findIndex(s => s.id === this.currentSection.id);
@@ -1766,6 +1849,20 @@ app.component('dinamic-form', {
     },
     template: `
 <div class="df-wrapper">
+
+    <!-- Guardar borrador -->
+    <button
+        v-if="canEdit && hasDraftAnswers"
+        type="button"
+        class="df-draft-save-btn"
+        :class="{ 'df-draft-saved': draftSaved, 'df-draft-error': draftError }"
+        :disabled="saving"
+        @click="saveDraft"
+    >
+        <span v-if="draftSaved">✓ Guardado</span>
+        <span v-else-if="draftError">⚠ Error al guardar</span>
+        <span v-else>💾 Guardar borrador</span>
+    </button>
 
     <!-- Loader -->
     <div v-if="loading" style="display:flex;align-items:center;justify-content:center;width:100%;padding:48px 0;gap:12px;color:#6b7280;font-size:14px;">

@@ -233,6 +233,7 @@ func GeneralUserLOGIN_POST(c *gin.Context) {
 					UserLogin:        usr.GeneralUserLogin,
 					SessionID:        sessionID,
 					Team:             usr.GeneralUserTeam,
+					AssignedDepartmentID: usr.GeneralUserAssignedDepartment,
 				}
 				// Se almacena la sesión común.
 				utils.AddCommonSession(sessionID, &cs)

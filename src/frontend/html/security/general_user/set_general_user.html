@@ -104,6 +104,19 @@
                 </select>
             </div>
           </div>
+          <div class="row" v-if="isUserSelected('en')">
+            <div class="tituloform">
+              <i class="fas fa-map-marker-alt fa-2x"></i><h2>Departamento asignado (Enlace Territorial)</h2>
+            </div>
+            <div class="col-4">
+              <label>Departamento</label>
+              <select :class="[errors.user && errors.user.assignedDepartment ? 'form-control is-invalid' : 'form-control']"
+                id="assigned_department" v-model="data.user.assignedDepartment">
+                <option value="">Seleccione...</option>
+                <option v-for="(dep, idx) in departamentosEnlace" :value="dep.value" :key="idx">${dep.label}</option>
+              </select>
+            </div>
+          </div>
         </div><!-- /.container-fluid -->
       </div>
       <div class="row justify-content-xl-center botones">
@@ -153,17 +166,25 @@
                 towns: [],
                 branches: [],
               },
+              departamentosEnlace: [],
               message:''
             }
           },
           created: function () {
-          
+
           },
-          
+
           mounted:  function () {
             document.title = {{.windowTitle}};
             document.getElementById('app').style.display = 'block';
             home.config.globalProperties.enums = this.enums;
+            // Catálogo de /api/v1/locations/departments — mismo value-space que
+            // barrier_v2.department_id, necesario para comparar el departamento
+            // asignado del Enlace contra el departamento de una barrera.
+            fetch('/api/v1/locations/departments')
+              .then(function(res) { return res.ok ? res.json() : []; })
+              .then((function(deps) { this.departamentosEnlace = Array.isArray(deps) ? deps : []; }).bind(this))
+              .catch(function() {});
           },
           methods: {
             logout(){

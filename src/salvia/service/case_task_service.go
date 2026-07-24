@@ -57,7 +57,20 @@ type CaseTaskService interface {
 	// proyectar_oficio, comite_caso o Corregir oficio guardando el JSON del
 	// formulario y ejecutando los efectos de lado correspondientes a cada tipo.
 	CompleteWithFormData(ctx context.Context, id string, userId string, formData datatypes.JSON) (*models.CaseTask, error)
+
+	// CreateGestionPropia crea una CaseTask ya completada (sin pasar por ToDo)
+	// para una gestión que el Enlace Territorial realizó por iniciativa propia
+	// sobre una barrera. Valida que la barrera pertenezca a enlaceDepartmentID
+	// antes de crear nada. Ver DocsMD/Otros/temp/req-registrar-gestion-propia-enlace.md.
+	CreateGestionPropia(ctx context.Context, caseID, barrierID, tipo, descripcion, userID, enlaceDepartmentID string) (*models.CaseTask, error)
 }
+
+// ErrBarrierDepartmentMismatch indica que la barrera no pertenece al
+// departamento asignado del Enlace que intenta registrar la gestión propia.
+var ErrBarrierDepartmentMismatch = errors.New("case_task: la barrera no pertenece al departamento asignado del enlace")
+
+// ErrBarrierNotFound indica que la barrera referenciada no existe.
+var ErrBarrierNotFound = errors.New("case_task: barrera no encontrada")
 
 // CaseTaskServiceDeps agrupa las dependencias necesarias para CaseTaskService.
 type CaseTaskServiceDeps struct {
@@ -334,6 +347,75 @@ func (s *caseTaskService) CompleteWithFormData(ctx context.Context, id string, u
 
 	// ── 5. Retornar tarea actualizada ─────────────────────────────────────────
 	return s.repo.FindByID(ctx, id)
+}
+
+// CreateGestionPropia crea una CaseTask ya completada para una gestión que el
+// Enlace Territorial registra por iniciativa propia sobre una barrera — a
+// diferencia de Complete/CompleteWithFormData, no existe una CaseTask "ToDo"
+// previa: se crea y se completa en un solo paso.
+//
+//  1. Verifica que la barrera exista y pertenezca a enlaceDepartmentID.
+//  2. Crea la CaseTask con status=Done directo (category=Barreras, type=gestion_propia).
+//  3. Crea un CaseTimelineEvent (fire-and-forget).
+//  4. Si la barrera estaba OPEN, la transiciona a "En Gestion" (fire-and-forget,
+//     mismo mecanismo que actualizarBarreraEnGestion).
+func (s *caseTaskService) CreateGestionPropia(ctx context.Context, caseID, barrierID, tipo, descripcion, userID, enlaceDepartmentID string) (*models.CaseTask, error) {
+	// ── 1. Verificar barrera y departamento ──────────────────────────────────
+	barrier, err := s.barrierRepo.FindByID(ctx, barrierID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrBarrierNotFound
+		}
+		return nil, fmt.Errorf("CreateGestionPropia: leer barrera: %w", err)
+	}
+	if barrier.DepartmentID != enlaceDepartmentID {
+		return nil, ErrBarrierDepartmentMismatch
+	}
+
+	// ── 2. Crear la CaseTask ya completada ───────────────────────────────────
+	now := time.Now()
+	formData, err := json.Marshal(map[string]string{"subtipo": tipo})
+	if err != nil {
+		return nil, fmt.Errorf("CreateGestionPropia: serializar formData: %w", err)
+	}
+
+	newTask := &models.CaseTask{
+		Category:       "Barreras",
+		Type:           "gestion_propia",
+		Description:    descripcion,
+		Status:         models.CaseTaskStatusDone,
+		CompletedAt:    &now,
+		AssignedUserID: userID,
+		CaseID:         caseID,
+		BarrierID:      &barrierID,
+		FormData:       datatypes.JSON(formData),
+	}
+	if err := s.repo.Create(ctx, newTask); err != nil {
+		return nil, fmt.Errorf("CreateGestionPropia: crear case_task: %w", err)
+	}
+
+	// ── 3. Timeline event (fire-and-forget) ──────────────────────────────────
+	event := &models.CaseTimelineEvent{
+		CaseID:      caseID,
+		Category:    models.TimelineCategoryBarreras,
+		Type:        models.TimelineTypeGestionPropia,
+		EventType:   models.TimelineEventGestionPropia,
+		Icon:        models.TimelineIconGestionPropia,
+		Color:       models.TimelineColorOrange,
+		Date:        now,
+		EventUserID: userID,
+		BarrierID:   barrierID,
+		TaskID:      newTask.ID,
+		Description: "Enlace territorial registró una gestión por iniciativa propia (" + tipo + "): " + descripcion,
+	}
+	if err := s.timelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[CaseTaskService.CreateGestionPropia] WARN: no se pudo crear timeline event para case %s: %v", caseID, err)
+	}
+
+	// ── 4. Barrier OPEN → En Gestion (fire-and-forget) ───────────────────────
+	go s.actualizarBarreraEnGestion(context.Background(), barrierID, newTask.ID)
+
+	return newTask, nil
 }
 
 // actualizarBarreraEnGestion transiciona barrier_v2 de OPEN a "En Gestion" si aplica.
