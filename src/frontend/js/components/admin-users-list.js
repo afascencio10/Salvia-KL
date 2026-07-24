@@ -61,6 +61,7 @@ home.component('admin-users-list', {
             pageSize: 20,
             totalUsers: 0,
             searchTimer: null,
+            confirmarAccionUsuario: null,
         };
     },
     computed: {
@@ -160,6 +161,28 @@ home.component('admin-users-list', {
             this.currentPage = 1;
             this.fetchUsers();
         },
+        inhabilitarUsuario: function(user) {
+            this.confirmarAccionUsuario = { user: user, accion: 'inhabilitar' };
+        },
+        habilitarUsuario: function(user) {
+            this.confirmarAccionUsuario = { user: user, accion: 'habilitar' };
+        },
+        ejecutarAccionUsuario: function() {
+            var self = this;
+            var user = this.confirmarAccionUsuario.user;
+            var accion = this.confirmarAccionUsuario.accion;
+            var ruta = accion === 'inhabilitar' ? '/deshabilitar_usuario' : '/habilitar_usuario';
+            self.confirmarAccionUsuario = null;
+            fetch(self.userBasePath + '/' + user.icode + ruta, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            }).then(function(res) {
+                if (res.ok) {
+                    self.fetchUsers();
+                }
+            }).catch(function() {});
+        },
     },
     template: `
 <div>
@@ -224,10 +247,10 @@ home.component('admin-users-list', {
                     <span v-else class="aul-badge aul-badge-disabled">Inhabilitado</span>
                 </td>
                 <td class="aul-actions">
-                    <a :href="userBasePath + '/' + user.icode + '/ver'">Ver</a>
+                    <a :href="userBasePath + '/' + user.icode + '/'">Ver</a>
                     <a :href="userBasePath + '/' + user.icode + '/actualizar'">Actualizar</a>
-                    <a v-if="user.status === 'e'" :href="userBasePath + '/' + user.icode + '/inhabilitar'">Inhabilitar</a>
-                    <a v-else :href="userBasePath + '/' + user.icode + '/habilitar'">Habilitar</a>
+                    <a v-if="user.status === 'e'" href="#" @click.prevent="inhabilitarUsuario(user)">Inhabilitar</a>
+                    <a v-else href="#" @click.prevent="habilitarUsuario(user)">Habilitar</a>
                 </td>
             </tr>
         </tbody>
@@ -244,6 +267,24 @@ home.component('admin-users-list', {
             <div v-else :class="['aul-page-btn', pg === currentPage ? 'active' : '']" @click="changePage(pg)">\${ pg }</div>
         </template>
         <div :class="['aul-page-btn', currentPage === totalPages ? 'disabled' : '']" @click="changePage(currentPage + 1)">&raquo;</div>
+    </div>
+
+    <!-- Modal confirmación inhabilitar/habilitar -->
+    <div v-if="confirmarAccionUsuario" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:10001;padding:16px" @click.self="confirmarAccionUsuario = null">
+        <div style="background:#fff;border-radius:16px;width:100%;max-width:400px;padding:32px;box-shadow:0 20px 40px rgba(0,0,0,.18);text-align:center">
+            <div style="width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px" :style="confirmarAccionUsuario.accion === 'inhabilitar' ? 'background:#fef2f2' : 'background:#dcfce7'">
+                <span style="font-size:1.5rem">\${ confirmarAccionUsuario.accion === 'inhabilitar' ? '⚠️' : '✓' }</span>
+            </div>
+            <p style="font-size:1.05rem;font-weight:700;color:#111827;margin:0 0 8px">\${ confirmarAccionUsuario.accion === 'inhabilitar' ? '¿Inhabilitar este usuario?' : '¿Habilitar este usuario?' }</p>
+            <p style="font-size:.85rem;color:#6b7280;margin:0 0 6px">\${ confirmarAccionUsuario.user.profile.names } \${ confirmarAccionUsuario.user.profile.lastNames }</p>
+            <p style="font-size:.78rem;color:#9ca3af;margin:0 0 24px">Login: \${ confirmarAccionUsuario.user.login }</p>
+            <div style="display:flex;gap:12px;justify-content:center">
+                <button @click="confirmarAccionUsuario = null" style="padding:10px 24px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;color:#374151;font-size:.85rem;font-weight:600;cursor:pointer">Cancelar</button>
+                <button @click="ejecutarAccionUsuario" style="padding:10px 24px;border-radius:10px;border:none;font-size:.85rem;font-weight:700;cursor:pointer" :style="confirmarAccionUsuario.accion === 'inhabilitar' ? 'background:#dc2626;color:#fff' : 'background:#16a34a;color:#fff'">
+                    \${ confirmarAccionUsuario.accion === 'inhabilitar' ? 'Sí, inhabilitar' : 'Sí, habilitar' }
+                </button>
+            </div>
+        </div>
     </div>
 </div>
     `

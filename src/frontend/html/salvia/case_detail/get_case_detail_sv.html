@@ -1075,9 +1075,9 @@ var home = Vue.createApp({
     cargarOperadores() {
       var self = this;
       var url = '/api/v1/operadores';
-      // Determinar team según nivel de riesgo del caso (no del supervisor)
-      var teamCaso = self.teamSegunRiesgo();
-      if (teamCaso) url += '?team=' + encodeURIComponent(teamCaso);
+      // TEMPORALMENTE DESHABILITADO: filtro por team para permitir reasignación entre equipos
+      // var teamCaso = self.teamSegunRiesgo();
+      // if (teamCaso) url += '?team=' + encodeURIComponent(teamCaso);
       fetch(url)
         .then(function(res) { return res.json(); })
         .then(function(data) {
@@ -1093,9 +1093,9 @@ var home = Vue.createApp({
     cargarAgentesRO() {
       var self = this;
       var url = '/api/v1/agentes-ro';
-      // Determinar team según nivel de riesgo del caso (no del supervisor)
-      var teamCaso = self.teamSegunRiesgo();
-      if (teamCaso) url += '?team=' + encodeURIComponent(teamCaso);
+      // TEMPORALMENTE DESHABILITADO: filtro por team para permitir reasignación entre equipos
+      // var teamCaso = self.teamSegunRiesgo();
+      // if (teamCaso) url += '?team=' + encodeURIComponent(teamCaso);
       fetch(url)
         .then(function(res) { return res.json(); })
         .then(function(data) {
