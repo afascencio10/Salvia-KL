@@ -38,6 +38,10 @@
         return;
     }
 
+    // CONTINGENCIA: mantener sincronizado con reasignar-casos-modal.js
+    // true = selección multi-equipo en tabla + agentes sin filtro de equipo en modal.
+    var REASSIGN_CROSS_TEAM_CONTINGENCY = true;
+
     vueApp.component('casos-component', {
     delimiters: ['${', '}'],
 
@@ -87,6 +91,7 @@
             _searchTimer:        null,
             _tableAlertTimer:    null,
             _onDocumentClick:    null,
+            crossTeamContingency: REASSIGN_CROSS_TEAM_CONTINGENCY,
         };
     },
 
@@ -134,6 +139,9 @@
         currentPageSelectableCases: function() {
             if (!this.reasignacion) {
                 return [];
+            }
+            if (REASSIGN_CROSS_TEAM_CONTINGENCY) {
+                return this.filteredCases.slice();
             }
             var team = this.selectedTeam;
             if (!team) {
@@ -458,6 +466,9 @@
         },
 
         canSelectCase: function(caseObj) {
+            if (REASSIGN_CROSS_TEAM_CONTINGENCY) {
+                return !!this.getCaseSelectionKey(caseObj);
+            }
             var team = this.getCaseTeam(caseObj);
             if (!team) {
                 return false;
@@ -477,14 +488,22 @@
             var key = this.getCaseSelectionKey(caseObj);
 
             if (checked) {
-                if (!this.getCaseTeam(caseObj)) {
-                    event.target.checked = false;
-                    return;
-                }
-                if (!this.canSelectCase(caseObj)) {
-                    event.target.checked = false;
-                    this.showTeamMismatchToast();
-                    return;
+                if (REASSIGN_CROSS_TEAM_CONTINGENCY) {
+                    if (!this.getCaseSelectionKey(caseObj)) {
+                        event.target.checked = false;
+                        return;
+                    }
+                } else {
+                    // ── MODO NORMAL: mismo equipo (E-14) ──
+                    if (!this.getCaseTeam(caseObj)) {
+                        event.target.checked = false;
+                        return;
+                    }
+                    if (!this.canSelectCase(caseObj)) {
+                        event.target.checked = false;
+                        this.showTeamMismatchToast();
+                        return;
+                    }
                 }
                 if (!this.isCaseSelected(caseObj)) {
                     this.selectedCases = this.selectedCases.concat([caseObj]);
@@ -521,6 +540,20 @@
                 return;
             }
 
+            if (REASSIGN_CROSS_TEAM_CONTINGENCY) {
+                var selfCont = this;
+                var toAddAll = pageCases.filter(function(c) {
+                    return selfCont.getCaseSelectionKey(c) && !selfCont.isCaseSelected(c);
+                });
+                if (!toAddAll.length && !this.isAllCurrentPageSelected) {
+                    event.target.checked = false;
+                    return;
+                }
+                this.selectedCases = this.selectedCases.concat(toAddAll);
+                return;
+            }
+
+            // ── MODO NORMAL: mismo equipo (E-14) ──
             var teamsOnPage = {};
             pageCases.forEach(function(c) {
                 var team = this.getCaseTeam(c);

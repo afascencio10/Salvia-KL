@@ -12,7 +12,11 @@
         </div>
 
         <div class="rcm-body">
-            <div v-if="resolvedTeam" class="rcm-team-banner">
+            <div v-if="crossTeamContingency" class="rcm-team-banner rcm-team-banner--contingency">
+                <i class="fas fa-exclamation-circle"></i>
+                <span>Modo contingencia: puede elegir agente de cualquier equipo.</span>
+            </div>
+            <div v-else-if="resolvedTeam" class="rcm-team-banner">
                 <i class="fas fa-users"></i>
                 <span>Equipo: <strong>${ resolvedTeam }</strong></span>
             </div>
@@ -69,12 +73,12 @@
                         :key="agent.icode"
                         :value="agent.icode"
                     >
-                        ${ agent.fullName }
+                        ${ agentOptionLabel(agent) }
                     </option>
                 </select>
 
                 <p v-if="!loadingAgents && agents.length === 0 && !agentsError" class="rcm-agents-empty">
-                    No hay agentes disponibles para este equipo.
+                    ${ crossTeamContingency ? 'No hay agentes disponibles.' : 'No hay agentes disponibles para este equipo.' }
                 </p>
             </section>
 

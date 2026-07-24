@@ -268,3 +268,4 @@ emit('reassigned') → padre recarga casos-component
 | Diálogo de confirmación antes del POST                          | Swal confirm |
 | Validación de rol supervisor                                    | No — solo sesión válida |
 | reload() en casos-component                                     | Implementado |
+| Reasignación cross-team (contingencia)                          | **Sin cambios en M-05** — victim_case_team solo si vacío; follow_up_v2.team = equipo del agente destino. Ver [contingencia-reasignacion-cross-team.md](../contingencia-reasignacion-cross-team.md) |

@@ -34,6 +34,12 @@ PASO 1 — Validar que el modo reasignación está activo
 
 PASO 2 — Regla de mismo equipo (caseTeam)
 
+  // ── CONTINGENCIA OPCIONAL ──
+  // Si también se requiere seleccionar casos de distintos equipos en un mismo lote,
+  // comentar PASO 2 completo con flag REASSIGN_CROSS_TEAM_CONTINGENCY en casos-component.js.
+  // Alcance mínimo de contingencia: solo relajar el modal (M-02-C); E-14 puede quedar igual.
+  // Ver: contingencia-reasignacion-cross-team.md § Selección de casos (E-14)
+
   Campo de comparación: case.caseTeam (victim_case_team)
 
   SI el usuario intenta MARCAR un caso:
@@ -99,4 +105,6 @@ PASO 4 — Mostrar u ocultar botón "Reasignar Casos"
 | reasignacion pasa de true a false | selectedCases se limpia; se oculta columna y botón |
 | Página con equipos mixtos + "Todos" sin selección previa | Toast de error; no selecciona ninguno |
 | Página con selección parcial del equipo A | "Todos" marca solo los casos del equipo A en la página |
+| Contingencia cross-team (solo modal) | E-14 sin cambios — casos mismo equipo, agente destino cualquier equipo |
+| Contingencia ampliada (implementada) | `REASSIGN_CROSS_TEAM_CONTINGENCY` en casos-component.js — permite mezcla de caseTeam en selectedCases |
 | Checkbox encabezado | Estado indeterminate si hay selección parcial en la página |

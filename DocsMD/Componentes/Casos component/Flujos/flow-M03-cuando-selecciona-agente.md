@@ -69,3 +69,4 @@ PASO 3 — Validación opcional en UI
 |---------------------------------------------------------------|---------------|
 | ¿Mostrar preview del agente seleccionado bajo el select?      | Interfaz      |
 | ¿Advertir si el agente elegido ya es el asignado en algún caso? | UX / M-05  |
+| Contingencia: mostrar agent.team en el select                   | [flow-M02-C](./flow-M02-C-cuando-carga-todos-los-agentes.md) |

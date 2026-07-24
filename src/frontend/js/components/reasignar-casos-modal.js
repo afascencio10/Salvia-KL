@@ -7,7 +7,8 @@
  *
  * Eventos internos:
  *   M-01  open              — apertura y resolución de equipo
- *   M-02  fetchAgentsByTeam — carga agentes por equipo
+ *   M-02  fetchAgentsByTeam — carga agentes por equipo (modo normal)
+ *   M-02-C fetchAllAgents     — carga todos los agentes (contingencia cross-team)
  *   M-03  onAgentChange     — selección de agente
  *   M-04  close             — cancelar / cerrar
  *
@@ -24,6 +25,10 @@
 
     // Roles incluidos al listar agentes. Para habilitar 'op': ['ro', 'op']
     var AGENT_ROLE_CODES = ['ro'];
+
+    // CONTINGENCIA: true = listar todos los agentes ro (sin filtro por equipo del caso).
+    // false = comportamiento original (M-01 resolveTeam + M-02 fetchAgentsByTeam).
+    var REASSIGN_CROSS_TEAM_CONTINGENCY = true;
 
     vueApp.component('reasignar-casos-modal', {
         delimiters: ['${', '}'],
@@ -43,6 +48,7 @@
                 saveError: null,
                 saving: false,
                 confirmVisible: false,
+                crossTeamContingency: REASSIGN_CROSS_TEAM_CONTINGENCY,
             };
         },
 
@@ -76,10 +82,16 @@
                 this.saveError = null;
                 this.loadingAgents = false;
                 this.saving = false;
+                this.resolvedTeam = '';
 
+                if (REASSIGN_CROSS_TEAM_CONTINGENCY) {
+                    this.fetchAllAgents();
+                    return;
+                }
+
+                // ── MODO NORMAL (comentar rama anterior y descomentar esto para revertir) ──
                 var team = this.resolveTeam(this.cases[0]);
                 if (!team) {
-                    this.resolvedTeam = '';
                     this.agentsError = 'No se pudo determinar el equipo del caso seleccionado.';
                     return;
                 }
@@ -121,7 +133,56 @@
             },
 
             // ------------------------------------------------------------
-            // M-02 — Cargar agentes por equipo
+            // M-02-C — Cargar todos los agentes (contingencia cross-team)
+            // ------------------------------------------------------------
+
+            fetchAllAgents: function() {
+                var self = this;
+                self.loadingAgents = true;
+                self.agentsError = null;
+                self.agents = [];
+                self.selectedAgentIcode = '';
+                self.selectedAgent = null;
+
+                var params = new URLSearchParams();
+                AGENT_ROLE_CODES.forEach(function(role) {
+                    params.append('role', role);
+                });
+
+                fetch('/api/v1/equipo-operadores?' + params.toString())
+                    .then(function(res) {
+                        return res.json().then(function(data) {
+                            return { ok: res.ok, data: data };
+                        });
+                    })
+                    .then(function(result) {
+                        if (!result.ok) {
+                            self.agentsError = 'Error al cargar los agentes';
+                            self.agents = [];
+                            return;
+                        }
+
+                        var list = Array.isArray(result.data) ? result.data : [];
+                        list.sort(function(a, b) {
+                            return (a.fullName || '').localeCompare(b.fullName || '', 'es');
+                        });
+
+                        self.agents = list;
+                        if (list.length === 0) {
+                            self.agentsError = 'No hay agentes disponibles';
+                        }
+                    })
+                    .catch(function() {
+                        self.agentsError = 'Error al cargar los agentes';
+                        self.agents = [];
+                    })
+                    .finally(function() {
+                        self.loadingAgents = false;
+                    });
+            },
+
+            // ------------------------------------------------------------
+            // M-02 — Cargar agentes por equipo (modo normal)
             // ------------------------------------------------------------
 
             fetchAgentsByTeam: function(team) {
@@ -331,6 +392,18 @@
                     return 'Sin asignar';
                 }
                 return ((caseObj.ownerNames || '') + ' ' + (caseObj.ownerLastNames || '')).trim();
+            },
+
+            agentOptionLabel: function(agent) {
+                if (!agent) {
+                    return '';
+                }
+                var name = (agent.fullName || '').trim();
+                if (REASSIGN_CROSS_TEAM_CONTINGENCY) {
+                    var team = (agent.team || '').trim() || 'Sin equipo';
+                    return name + ' — ' + team;
+                }
+                return name;
             },
 
             riskLabel: function(riskStatus) {
