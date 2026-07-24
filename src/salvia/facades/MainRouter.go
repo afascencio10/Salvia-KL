@@ -221,6 +221,11 @@ func StartRouter(router *gin.Engine) {
 		secRouter.GET("/administrar-duplas", AdministrarDuplasGET)
 
 		/*
+			Casos Entidad (solo rol et)
+		*/
+		secRouter.GET("/casos-entidad", CasosEntidadGET)
+
+		/*
 			Mis remisiones Psicosocial (roles ps, ts)
 		*/
 		secRouter.GET("/mis-remisiones-psicosocial", MisRemisionesPsicosocialGET)

@@ -1,0 +1,411 @@
+/* ====================================================================
+   CASOS ENTIDAD
+   Prefijo: ce-
+   ==================================================================== */
+
+.ce-page {
+    font-family: 'Nunito Sans', sans-serif;
+    color: #1a1a1a;
+    position: relative;
+    padding-bottom: 40px;
+}
+
+/* ── Header (welcome-section del sistema) ───────────────────────────── */
+
+.ce-welcome {
+    align-items: flex-start;
+}
+
+.ce-welcome .ce-sector {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #5106A7;
+    letter-spacing: 0.02em;
+}
+
+/* ── Filters ────────────────────────────────────────────────────────── */
+
+.ce-filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+}
+
+.ce-filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ce-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #374151;
+}
+
+.ce-input {
+    width: 100%;
+    border: 1.5px solid #d1d5db;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: 'Nunito Sans', sans-serif;
+    font-size: 0.9rem;
+    color: #1f2937;
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.ce-input::placeholder {
+    color: #9ca3af;
+}
+
+.ce-input:focus {
+    outline: none;
+    border-color: #5106A7;
+    box-shadow: 0 0 0 3px rgba(81, 6, 167, 0.12);
+}
+
+/* ── Loading / empty / error ────────────────────────────────────────── */
+
+.ce-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 48px 16px;
+    color: #6b7280;
+    font-weight: 600;
+}
+
+.ce-spinner {
+    width: 22px;
+    height: 22px;
+    border: 2.5px solid #e5e7eb;
+    border-top-color: #5106A7;
+    border-radius: 50%;
+    animation: ce-spin 0.7s linear infinite;
+}
+
+@keyframes ce-spin {
+    to { transform: rotate(360deg); }
+}
+
+.ce-empty {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 40px 24px;
+    text-align: center;
+    color: #6b7280;
+    font-weight: 600;
+}
+
+.ce-error-block {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+    padding: 20px 24px;
+    color: #991b1b;
+}
+
+.ce-error-block p {
+    margin: 0 0 12px;
+    font-weight: 600;
+}
+
+.ce-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-family: 'Nunito Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    padding: 10px 16px;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+
+.ce-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.ce-btn--secondary {
+    background: #fff;
+    border-color: #d1d5db;
+    color: #374151;
+}
+
+.ce-btn--secondary:hover:not(:disabled) {
+    background: #f9fafb;
+}
+
+/* ── List ───────────────────────────────────────────────────────────── */
+
+.ce-list {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.ce-list-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    padding: 14px 24px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #fafafa;
+}
+
+.ce-col-label {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #6b7280;
+}
+
+.ce-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    padding: 22px 24px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.ce-row:last-of-type {
+    border-bottom: none;
+}
+
+.ce-name {
+    margin: 0 0 4px;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #111827;
+}
+
+.ce-ids {
+    margin: 0 0 8px;
+    font-size: 0.85rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.ce-city {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 12px;
+    font-size: 0.88rem;
+    color: #4b5563;
+    font-weight: 600;
+}
+
+.ce-city i {
+    color: #ef4444;
+    font-size: 0.8rem;
+}
+
+.ce-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.ce-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.ce-badge--risk-bajo {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.ce-badge--risk-medio {
+    background: #fef9c3;
+    color: #a16207;
+}
+
+.ce-badge--risk-alto {
+    background: #ffedd5;
+    color: #c2410c;
+}
+
+.ce-badge--risk-extremo {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.ce-badge--status-activo {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.ce-badge--status-enseguimiento {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+.ce-badge--status-cerrado {
+    background: #f3f4f6;
+    color: #4b5563;
+}
+
+.ce-relation {
+    margin: 0 0 14px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1f2937;
+    line-height: 1.45;
+}
+
+.ce-last-action {
+    margin-bottom: 14px;
+}
+
+.ce-last-action-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #9ca3af;
+    margin-bottom: 4px;
+}
+
+.ce-last-action-text {
+    margin: 0;
+    font-size: 0.88rem;
+    color: #4b5563;
+    line-height: 1.4;
+}
+
+.ce-last-action--empty {
+    font-style: italic;
+    color: #9ca3af;
+}
+
+.ce-link {
+    display: inline-block;
+    padding: 0;
+    border: none;
+    background: none;
+    color: #5106A7;
+    font-family: 'Nunito Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.ce-link:hover {
+    text-decoration: underline;
+}
+
+/* ── Pagination ─────────────────────────────────────────────────────── */
+
+.ce-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.ce-page-btn {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 12px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 8px;
+    background: #fff;
+    color: #374151;
+    font-family: 'Nunito Sans', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.ce-page-btn:hover:not(:disabled):not(.ce-page-btn--active) {
+    background: #f9fafb;
+    border-color: #9ca3af;
+}
+
+.ce-page-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.ce-page-btn--active {
+    background: #5106A7;
+    border-color: #5106A7;
+    color: #fff;
+}
+
+/* ── Toast ──────────────────────────────────────────────────────────── */
+
+.ce-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    padding: 12px 18px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    animation: ce-toast-in 0.2s ease-out;
+}
+
+.ce-toast--info {
+    background: #f3e8ff;
+    color: #5106A7;
+}
+
+.ce-toast--success {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+@keyframes ce-toast-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .ce-filters,
+    .ce-list-header,
+    .ce-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .ce-list-header {
+        display: none;
+    }
+
+    .ce-col-relacion {
+        padding-top: 12px;
+        border-top: 1px solid #f3f4f6;
+    }
+}
