@@ -76,6 +76,7 @@ PGPASSWORD='Salvia2026@' psql \
 |---|---|
 | `entity` | Entidad institucional que atiende casos VBG: sector, interoperabilidad y tiempos de respuesta. |
 | `entity_branch` | Sede o sucursal de una entidad con dirección, municipio y coordenadas geográficas. |
+| `entity_case` | Vínculo sede (`entity_branch`)–caso: objetivo y última acción (texto). |
 | `attention_line` | Línea de atención asociada a un profesional responsable de casos. |
 | `case_owner` | Profesional responsable de casos, vinculado a una entidad y línea de atención. |
 | `directories` | Catálogo de entidades de contacto por ciudad para la app Flutter (fiscalías, comisarías, urgencias, líneas de emergencia). |
