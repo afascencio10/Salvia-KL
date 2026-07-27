@@ -4,128 +4,79 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando carga la pantalla
    Tipo: Lifecycle
-   Funciones: mounted() · reloadScreen() · loadCitiesAndCases() · loadEntityCases()
+   Funciones: mounted() · reloadScreen() · loadEntityCases()
+   Estado: planeado (ajustar código actual)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 INPUT: {
-  currentRole:  rol del usuario en sesión   → window.__CasosEntidadConfig.currentRole
-  currentUser:  nombre del usuario          → window.__CasosEntidadConfig.currentUser
+  currentRole:       rol en sesión              → __CasosEntidadConfig / CommonSession
+  entityBranchId:    sede del usuario et        → general_user.entity_branch_id (sesión)
 }
 
-PASO 1 — Mostrar el contenedor principal
-  document.getElementById('app').style.display = 'block'
-  document.title = windowTitle
+PASO 1 — Mostrar app + document.title
 
-PASO 2 — Verificar acceso por rol
+PASO 2 — Verificar rol
 
 SI currentRole !== 'et':
-  → loadError = 'Rol no autorizado para ver Casos Entidad.'
-  → isLoading = false
-  → Vue muestra el bloque de error
-  → TERMINAR ejecución
+  → loadError = 'Rol no autorizado…'
+  → TERMINAR
 
 SI currentRole === 'et':
-  → CONTINÚA FLUJO GENERAL
+  → CONTINÚA
 
-PASO 3 — Inicializar estado de pantalla
-  isLoading = true
-  loadError = null
+PASO 3 — Resolver sede del usuario
+
+SI !entityBranchId (sesión):
+  → loadError = 'Tu usuario no tiene una sede (entity_branch) asignada.'
+  → TERMINAR
+
+SI entityBranchId presente:
+  → CONTINÚA
+
+PASO 4 — Resolver organización padre para el header
+  Consultar entity_branch + entity:
+    entity_branch WHERE entity_branch_id = :entityBranchId
+    JOIN entity ON entity_id
+  → entityName  = entity.entity_name
+  → sectorName  = label(entity.entity_sector)   // Justicia, Salud, …
+  → (opcional) inyectar en config del facade o devolver en meta del listado
+
+PASO 5 — Inicializar filtros
   filters.document = ''
-  filters.city = ''
-  filters.entityId = ''
   currentPage = 0
-  items = []
-  totalItems = 0
-  sectorName = ''
-  entities = []
-  cities = []
   pageSize = 5
+  // SIN filters.city · SIN filters.entityId · SIN catálogo de entities
 
-PASO 4 — Cargar catálogo completo de entidades
-
-  GET /api/v1/entities
-  Auth: sesión + permiso get_casos_entidad
-
-  → resultado: [{ id, icode, name, sector, sectorName }, ...] o error
-
-SI status === 401:
-  → Redirigir a /static/landing.html
-  → TERMINAR
-
-SI status !== 200:
-  → loadError = 'No se pudo cargar el catálogo de entidades.'
-  → isLoading = false
-  → TERMINAR
-
-SI status === 200:
-  → entities = response
-  → CONTINÚA FLUJO GENERAL
-
-PASO 5 — Preseleccionar primera entidad (temporal)
-
-SI entities.length === 0:
-  → filters.entityId = ''
-  → isLoading = false
-  → Empty: sin entidades en catálogo
-  → TERMINAR
-
-SI entities.length > 0:
-  → filters.entityId = String(entities[0].id)
-  → sectorName = entities[0].sectorName
-  → CONTINÚA FLUJO GENERAL
-
-  // Temporal: relación usuario et ↔ entidad aún no definida.
-  // Cuando exista, reemplazar este paso por la entidad de la sesión.
-
-PASO 6 — Cargar ciudades de la entidad + listado de casos
-  → loadCitiesAndCases()
-
-  S6.1 GET /api/v1/entities/{entityId}/cities
-       → cities = [{ id, name }, ...]  (DISTINCT city desde entity_branch de esa entidad)
-
-  S6.2 Ejecutar SUB-FLUJO: Cargar listado paginado
+PASO 6 — Cargar listado
+  → SUB-FLUJO: Cargar listado paginado
 
 ┌─────────────────────────────────────────┐
 │  SUB-FLUJO: Cargar listado paginado     │
-│  (usado por E02, E03, E04, E07)         │
+│  (E01, E02, E04)                        │
 └─────────────────────────────────────────┘
 
-  S1. Validar entidad activa
-      SI !filters.entityId:
-        → items = []; totalItems = 0; isLoading = false
-        → FIN SUB-FLUJO
+  S1. isLoading = true
 
-  S2. isLoading = true; loadError = null
-
-  S3. GET /api/v1/entity-cases
+  S2. GET /api/v1/entity-cases
+      Auth: sesión + get_casos_entidad
       query: {
-        entityId:  filters.entityId,     // required
-        document:  filters.document,     // opcional — ILIKE parcial
-        city:      filters.city,         // opcional — ciudad del CASO (exacta desde select)
-        page:      currentPage,          // 0-based
+        document:  filters.document,   // opcional
+        page:      currentPage,
         pageSize:  5
       }
+      // La sede NO viene del cliente: el backend usa session.EntityBranchId
 
       Backend:
-        entity_case
-          JOIN entity_branch → entity_id = :entityId
-          JOIN victim_case (documento + ciudad del caso vía town→city)
-          LEFT JOIN victim_case_form2 (riesgo)
-        WHERE deleted_at IS NULL
-          AND document ILIKE '%doc%' si aplica
-          AND case_city.city_name ILIKE :city si aplica
-        ORDER BY entity_case.updated_at DESC
+        WHERE ec.deleted_at IS NULL
+          AND ec.entity_branch_id = :sessionEntityBranchId
+          AND [document ILIKE '%…%' si aplica]
+        ORDER BY ec.updated_at DESC
         LIMIT 5 OFFSET page*5
 
-  S4. Respuesta 200:
-      → items = response.items
-      → totalItems = response.total
-      → sectorName = response.sectorName || meta de entidad seleccionada
-      → isLoading = false
-      → Vue renderiza filas + paginación
-
-     401 → landing.html
-     otro → loadError
+  S3. items = response.items
+      totalItems = response.total
+      entityName / sectorName desde response.meta (si vienen)
+      isLoading = false
 
   → FIN SUB-FLUJO
 
@@ -134,6 +85,7 @@ PASO 6 — Cargar ciudades de la entidad + listado de casos
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 | Variable / decisión                                              | Paso afectado |
 |------------------------------------------------------------------|---------------|
-| Relación usuario et ↔ entidad (hoy: primera del catálogo)        | PASO 5        |
-| Ruta detalle caso / entidad para E05–E06                         | (otros flujos)|
+| Migración + poblar general_user.entity_branch_id                 | PASO 3        |
+| Exponer EntityBranchId en CommonSession al login                 | PASO 3        |
+| Ajustar API para filtrar por sede de sesión (no entityId query)  | PASO 6        |
 ```

@@ -1,38 +1,16 @@
-# flow-E07 — Cuando cambia entidad
+# flow-E07 — Cuando cambia entidad — ELIMINADO
 
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🟢 EVENTO: Cuando cambia entidad
-   Tipo: User Interaction
-   Funciones: onChangeEntity() · loadCitiesAndCases() · loadEntityCases()
-   Estado: implementado
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+> **Estado:** eliminado del alcance (jul 2026).
 
-INPUT: {
-  filters.entityId: valor del <select>   → v-model + @change
-  entities:         catálogo E01
-  filters.document: se CONSERVA
-  filters.city:     se limpia (las opciones de ciudad son de la entidad nueva)
-}
+## Motivo
 
-PASO 1 — filters.entityId ya actualizado por v-model; currentPage = 0
-          applySelectedEntityMeta() → sectorName
+La relación usuario `et` ↔ sede quedó definida:
 
-PASO 2 — SI !entityId:
-  → limpiar items/cities; empty “Selecciona una entidad…”
-  → TERMINAR
+- `security.general_user.entity_branch_id` → sede fija del usuario
+- Un usuario `et` **es** un `entity_branch`; no puede cambiar de entidad
 
-PASO 3 — filters.city = '' (ciudades del select son de la entidad anterior)
+El selector/dropdown de organización ya no aplica.
 
-PASO 4 — GET /api/v1/entities/{entityId}/cities → cities
-         GET /api/v1/entity-cases?entityId&document&page=0&pageSize=5
+## Reemplazo
 
-PASO 5 — Vue renderiza listado
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️  GAPS — Información pendiente
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-| Variable / decisión                                              | Paso afectado |
-|------------------------------------------------------------------|---------------|
-| Relación usuario et ↔ entidad (hoy: catálogo completo + 1ª en E01) | E01 / E07   |
-```
+La sede se resuelve en **E01** desde la sesión. El header muestra la entidad padre (`entity`) de esa sede.

@@ -5,20 +5,21 @@
 🟢 EVENTO: Cuando cambia de página
    Tipo: User Interaction
    Funciones: changePage() · loadEntityCases()
-   Estado: implementado
+   Estado: planeado (sin cambio funcional mayor; sin city/entityId)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 INPUT: {
-  page:             página destino (0-based)
-  totalPages:       computed
-  filters.*:        entidad + documento + ciudad vigentes
+  page:             destino 0-based
+  filters.document: vigente
+  entityBranchId:   sesión (API)
 }
 
-PASO 1 — Validar page ∈ [0, totalPages) y entityId presente
+PASO 1 — Validar page ∈ [0, totalPages)
 
-PASO 2 — currentPage = page; scroll al top
+PASO 2 — currentPage = page; scroll top
 
-PASO 3 — GET /api/v1/entity-cases con page = currentPage (mantiene filtros)
+PASO 3 — GET /api/v1/entity-cases?document&page&pageSize=5
+  (sede desde sesión)
 
 PASO 4 — Vue reemplaza items
 ```

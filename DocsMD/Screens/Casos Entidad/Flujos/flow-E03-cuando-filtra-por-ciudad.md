@@ -1,26 +1,11 @@
-# flow-E03 — Cuando filtra por ciudad
+# flow-E03 — Cuando filtra por ciudad — ELIMINADO
 
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🟢 EVENTO: Cuando filtra por ciudad
-   Tipo: User Interaction
-   Funciones: onFilterCity() · loadEntityCases()
-   Estado: implementado
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+> **Estado:** eliminado del alcance (jul 2026).
 
-INPUT: {
-  filters.city:     nombre de ciudad del <select>   → opciones de GET /entities/:id/cities
-  filters.document: filtro documento vigente
-  filters.entityId: entidad activa
-}
+## Motivo
 
-PASO 1 — currentPage = 0
+Cada usuario `et` es una sede (`entity_branch`) con `entity_branch_town_code` (ciudad implícita). No tiene sentido filtrar por ciudad: el listado ya está acotado a esa sede.
 
-PASO 2 — SI !filters.entityId → TERMINAR
+## Reemplazo
 
-PASO 3 — GET /api/v1/entity-cases
-  query: { entityId, document, city (nombre exacto del select), page=0, pageSize=5 }
-  Backend filtra por ciudad del CASO (victim_case → town → city).
-
-PASO 4 — Vue actualiza items / totalItems
-```
+Ninguno. El pin de ciudad en la fila del caso puede seguir mostrándose como **display** (ciudad del caso), pero no hay input/select de filtro.
