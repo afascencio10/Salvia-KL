@@ -7,6 +7,7 @@ import (
 	"bitsflow/salvia/service"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -62,10 +63,46 @@ func requireCaseDetailAccess(ctx *gin.Context) *utils.CommonSession {
 //
 //	GET  /api/v1/casos/:id/entidades   → List
 //	POST /api/v1/casos/:id/entidades   → Create
+//	GET  /api/v1/entity-cases          → ListByEntity (Casos Entidad)
 func (c *EntityCaseController) RegisterRoutes(rg *gin.RouterGroup) {
 	casos := rg.Group("/casos/:id/entidades")
 	casos.GET("", c.List)
 	casos.POST("", c.Create)
+
+	rg.GET("/entity-cases", c.ListByEntity)
+}
+
+// ListByEntity — GET /api/v1/entity-cases?entityId=&document=&city=&page=&pageSize=
+// Listado paginado de Casos Entidad (rol et).
+func (c *EntityCaseController) ListByEntity(ctx *gin.Context) {
+	if requireCasosEntidadAccess(ctx) == nil {
+		return
+	}
+
+	entityID, err := strconv.ParseInt(ctx.Query("entityId"), 10, 64)
+	if err != nil || entityID <= 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "el parámetro 'entityId' es requerido"})
+		return
+	}
+
+	page := ginQueryInt(ctx, "page", 0)
+	pageSize := ginQueryInt(ctx, "pageSize", 5)
+	if pageSize <= 0 {
+		pageSize = 5
+	}
+
+	result, err := c.svc.ListByEntity(ctx.Request.Context(), service.EntityCaseListFilter{
+		EntityID: entityID,
+		Document: ctx.Query("document"),
+		City:     ctx.Query("city"),
+		Page:     page,
+		PageSize: pageSize,
+	})
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		return
+	}
+	ctx.JSON(http.StatusOK, result)
 }
 
 // List devuelve las entidades relacionadas con un caso.

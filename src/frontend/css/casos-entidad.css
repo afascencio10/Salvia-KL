@@ -14,6 +14,8 @@
 
 .ce-welcome {
     align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
 }
 
 .ce-welcome .ce-sector {
@@ -23,6 +25,19 @@
     font-weight: 700;
     color: #5106A7;
     letter-spacing: 0.02em;
+}
+
+.ce-entity-selector {
+    min-width: 220px;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ce-select {
+    appearance: auto;
+    cursor: pointer;
 }
 
 /* ── Filters ────────────────────────────────────────────────────────── */
@@ -253,17 +268,24 @@
     color: #b91c1c;
 }
 
-.ce-badge--status-activo {
+.ce-badge--status-activo,
+.ce-badge--status-enrutadoaprobado,
+.ce-badge--status-connovedades,
+.ce-badge--status-primercontacto {
     background: #dbeafe;
     color: #1d4ed8;
 }
 
-.ce-badge--status-enseguimiento {
+.ce-badge--status-enseguimiento,
+.ce-badge--status-enrutadoporaprobar {
     background: #ede9fe;
     color: #6d28d9;
 }
 
-.ce-badge--status-cerrado {
+.ce-badge--status-cerrado,
+.ce-badge--status-completado,
+.ce-badge--status-vencido,
+.ce-badge--status-invalido {
     background: #f3f4f6;
     color: #4b5563;
 }

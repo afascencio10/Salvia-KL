@@ -207,6 +207,7 @@ func main() {
 
     entityCaseSvc          := service.NewEntityCaseService(entityCaseRepo)
     entityCaseCtrl         := salvia_ctrl.NewEntityCaseController(entityCaseSvc)
+    entityAPICtrl          := salvia_ctrl.NewEntityAPIController(entityCaseSvc)
 
     caseTaskSvc             := service.NewCaseTaskService(service.CaseTaskServiceDeps{
         CaseTaskRepo:     caseTaskRepo,
@@ -258,6 +259,7 @@ func main() {
     reportCtrl.RegisterRoutes(api)
     entityLetterCtrl.RegisterRoutes(api)
     entityCaseCtrl.RegisterRoutes(api)
+    entityAPICtrl.RegisterRoutes(api)
     entityBranchAPICtrl.RegisterRoutes(api)
     barrierV2GinCtrl.RegisterRoutes(api)
     caseTaskCtrl.RegisterRoutes(api)

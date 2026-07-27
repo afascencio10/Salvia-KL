@@ -17,7 +17,24 @@
             <div>
                 <h2><b>Casos Entidad</b></h2>
                 <p class="text-muted mb-0">Casos con víctimas referidas a tu entidad</p>
-                <span class="ce-sector">${ sectorName }</span>
+                <span v-if="sectorName" class="ce-sector">${ sectorName }</span>
+            </div>
+            <div class="ce-entity-selector">
+                <label class="ce-label" for="ce-filter-entity">Entidad</label>
+                <select
+                    id="ce-filter-entity"
+                    class="ce-input ce-select"
+                    v-model="filters.entityId"
+                    @change="onChangeEntity"
+                    :disabled="isLoading || entities.length === 0"
+                >
+                    <option v-if="entities.length === 0" value="">Sin entidades</option>
+                    <option
+                        v-for="e in entities"
+                        :key="e.id"
+                        :value="String(e.id)"
+                    >${ e.name }</option>
+                </select>
             </div>
         </div>
 
@@ -31,18 +48,25 @@
                     placeholder="Ej: 1023456780"
                     v-model="filters.document"
                     @input="onFilterDocument"
+                    :disabled="!filters.entityId"
                 >
             </div>
             <div class="ce-filter-field">
                 <label class="ce-label" for="ce-filter-city">Ciudad</label>
-                <input
+                <select
                     id="ce-filter-city"
-                    type="text"
-                    class="ce-input"
-                    placeholder="Ej: San Salvador"
+                    class="ce-input ce-select"
                     v-model="filters.city"
-                    @input="onFilterCity"
+                    @change="onFilterCity"
+                    :disabled="!filters.entityId"
                 >
+                    <option value="">Todas</option>
+                    <option
+                        v-for="c in cities"
+                        :key="c.id"
+                        :value="c.name"
+                    >${ c.name }</option>
+                </select>
             </div>
         </section>
 
@@ -51,7 +75,11 @@
             <span>Cargando casos…</span>
         </div>
 
-        <div v-else-if="pagedItems.length === 0" class="ce-empty">
+        <div v-else-if="!filters.entityId" class="ce-empty">
+            Selecciona una entidad para ver los casos referidos.
+        </div>
+
+        <div v-else-if="items.length === 0" class="ce-empty">
             No hay casos referidos a tu entidad con los filtros actuales.
         </div>
 
@@ -62,7 +90,7 @@
             </div>
 
             <article
-                v-for="item in pagedItems"
+                v-for="item in items"
                 :key="item.entityCaseId"
                 class="ce-row"
             >
@@ -71,27 +99,28 @@
                     <p class="ce-ids">${ item.caseCode } · ${ item.document }</p>
                     <p class="ce-city">
                         <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
-                        <span>${ item.city }</span>
+                        <span>${ item.city || '—' }</span>
                     </p>
                     <div class="ce-badges">
                         <span
+                            v-if="item.riskLevel"
                             class="ce-badge ce-badge--risk"
                             :class="'ce-badge--risk-' + riskClass(item.riskLevel)"
                         >${ item.riskLevel }</span>
                         <span
                             class="ce-badge ce-badge--status"
-                            :class="'ce-badge--status-' + statusClass(item.caseStatus)"
-                        >${ item.caseStatus }</span>
+                            :class="'ce-badge--status-' + statusClass(item.caseStatusLabel || item.caseStatus)"
+                        >${ item.caseStatusLabel || item.caseStatus }</span>
                     </div>
                     <button type="button" class="ce-link" @click="goToCase(item)">Ver caso →</button>
                 </div>
 
                 <div class="ce-col-relacion">
-                    <p class="ce-relation">${ item.relationDescription }</p>
+                    <p class="ce-relation">${ item.objetivo || '—' }</p>
                     <div class="ce-last-action">
                         <span class="ce-last-action-label">Última acción</span>
                         <p v-if="item.lastAction" class="ce-last-action-text">
-                            ${ item.lastAction.description } · ${ item.lastAction.date }
+                            ${ item.lastAction }
                         </p>
                         <p v-else class="ce-last-action-text ce-last-action--empty">
                             Sin acciones registradas

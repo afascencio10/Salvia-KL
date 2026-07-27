@@ -38,19 +38,56 @@ func (EntityCase) TableName() string {
 // contra entity_branch, entity, la cadena town/city/department, y los conteos
 // de entity_letter (oficios) y barrier_v2 (barreras activas).
 type EntityCaseWithRelations struct {
-	RelID              string  `gorm:"column:rel_id"                json:"relId"`
-	EntityBranchID     int64   `gorm:"column:entity_branch_id"      json:"entityBranchId"`
-	EntityBranchICode  string  `gorm:"column:entity_branch_icode"   json:"entityBranchICode"`
-	EntityBranchName   string  `gorm:"column:entity_branch_name"    json:"entityBranchName"`
-	Sector             string  `gorm:"column:sector"                json:"sector"`
-	Address            string  `gorm:"column:address"                json:"address"`
-	DepartmentName     string  `gorm:"column:department_name"       json:"departmentName"`
-	CityName           string  `gorm:"column:city_name"             json:"cityName"`
-	TownName           string  `gorm:"column:town_name"             json:"townName"`
-	Objetivo           *string `gorm:"column:objetivo"              json:"objetivo,omitempty"`
-	LastAction         *string `gorm:"column:last_action"           json:"lastAction,omitempty"`
-	OficiosCount       int64   `gorm:"column:oficios_count"         json:"oficiosCount"`
-	BarrerasActivasCount int64 `gorm:"column:barreras_activas_count" json:"barrerasActivasCount"`
-	CreatedByID        string  `gorm:"column:created_by_id"         json:"createdById"`
-	CreatedAt          time.Time `gorm:"column:created_at"          json:"createdAt"`
+	RelID                string    `gorm:"column:rel_id"                  json:"relId"`
+	EntityBranchID       int64     `gorm:"column:entity_branch_id"        json:"entityBranchId"`
+	EntityBranchICode    string    `gorm:"column:entity_branch_icode"     json:"entityBranchICode"`
+	EntityBranchName     string    `gorm:"column:entity_branch_name"      json:"entityBranchName"`
+	Sector               string    `gorm:"column:sector"                  json:"sector"`
+	Address              string    `gorm:"column:address"                 json:"address"`
+	DepartmentName       string    `gorm:"column:department_name"         json:"departmentName"`
+	CityName             string    `gorm:"column:city_name"               json:"cityName"`
+	TownName             string    `gorm:"column:town_name"               json:"townName"`
+	Objetivo             *string   `gorm:"column:objetivo"                json:"objetivo,omitempty"`
+	LastAction           *string   `gorm:"column:last_action"             json:"lastAction,omitempty"`
+	OficiosCount         int64     `gorm:"column:oficios_count"           json:"oficiosCount"`
+	BarrerasActivasCount int64     `gorm:"column:barreras_activas_count"  json:"barrerasActivasCount"`
+	CreatedByID          string    `gorm:"column:created_by_id"           json:"createdById"`
+	CreatedAt            time.Time `gorm:"column:created_at"              json:"createdAt"`
+}
+
+// EntityCaseListItem es una fila del listado Casos Entidad
+// (GET /api/v1/entity-cases) — vínculo + datos del caso/víctima.
+type EntityCaseListItem struct {
+	EntityCaseID      string    `gorm:"column:entity_case_id"       json:"entityCaseId"`
+	CaseID            string    `gorm:"column:case_id"              json:"caseId"`
+	CaseCode          string    `gorm:"column:case_code"            json:"caseCode"`
+	EntityBranchID    int64     `gorm:"column:entity_branch_id"     json:"entityBranchId"`
+	EntityBranchICode string    `gorm:"column:entity_branch_icode"  json:"entityBranchICode"`
+	VictimFullName    string    `gorm:"column:victim_full_name"     json:"victimFullName"`
+	Document          string    `gorm:"column:document"             json:"document"`
+	City              string    `gorm:"column:city"                 json:"city"`
+	RiskLevel         string    `gorm:"column:risk_level"           json:"riskLevel"`
+	CaseStatus        string    `gorm:"column:case_status"          json:"caseStatus"`
+	CaseStatusLabel   string    `gorm:"-"                           json:"caseStatusLabel"`
+	Objetivo          *string   `gorm:"column:objetivo"             json:"objetivo,omitempty"`
+	LastAction        *string   `gorm:"column:last_action"          json:"lastAction,omitempty"`
+	UpdatedAt         time.Time `gorm:"column:updated_at"           json:"updatedAt"`
+	Sector            string    `gorm:"column:sector"               json:"sector"`
+}
+
+// EntityCatalogItem es una organización del catálogo
+// (GET /api/v1/entities).
+type EntityCatalogItem struct {
+	ID         int64  `gorm:"column:entity_id"      json:"id"`
+	ICode      string `gorm:"column:entity_i_code"  json:"icode"`
+	Name       string `gorm:"column:entity_name"    json:"name"`
+	Sector     string `gorm:"column:entity_sector"  json:"sector"`
+	SectorName string `gorm:"-"                     json:"sectorName"`
+}
+
+// EntityCityOption ciudad disponible para filtrar casos de una entidad
+// (derivada de las sedes entity_branch de esa organización).
+type EntityCityOption struct {
+	ID   string `gorm:"column:city_id"   json:"id"`
+	Name string `gorm:"column:city_name" json:"name"`
 }
