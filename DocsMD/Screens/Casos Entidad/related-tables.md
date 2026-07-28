@@ -44,6 +44,7 @@ Ver script: [`migration-general-user-entity-branch-id.sql`](./migration-general-
 | `GeneralUserDAO` / DTO | Campo `GeneralUserEntityBranchId` → `entity_branch_id` |
 | Login / `CommonSession` | `EntityBranchId` en sesión |
 | Facade / API Casos Entidad | Sede desde sesión; listado `ec.entity_branch_id = ?` |
+| `main.go` → `migrateLegacyTables` | AutoMigrate de `security.general_user` crea la columna en deploy |
 | Alta/edición de usuarios `et` | **Pendiente:** UI setup para obligar sede |
 
 > Nota: `EntityBrandICode` (perfil) sigue existiendo por legado; la fuente de verdad para Casos Entidad es `general_user.entity_branch_id`.

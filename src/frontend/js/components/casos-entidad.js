@@ -3,10 +3,10 @@
  * Pantalla "Casos Entidad" (casos_entidad.html).
  *
  * E01 — Cuando carga la pantalla:
- *   GET /api/v1/entities → toma la primera entidad → carga ciudades + listado.
+ *   GET /api/v1/entity-cases → listado de la sede del usuario (sesión) + meta entidad padre.
  *
  * Requiere window.__CasosEntidadConfig:
- *   - windowTitle, currentUser, currentRole, menu
+ *   - windowTitle, currentUser, currentRole, entityBranchId, menu
  */
 
 (function () {
@@ -25,21 +25,19 @@
                 windowTitle: cfg.windowTitle || 'Casos Entidad',
                 currentUser: cfg.currentUser || '',
                 currentRole: cfg.currentRole || '',
+                entityBranchId: Number(cfg.entityBranchId) || 0,
                 menu: cfg.menu || {},
 
                 isLoading: false,
                 loadError: null,
 
-                entities: [],
-                cities: [],
+                entityName: '',
                 sectorName: '',
                 items: [],
                 totalItems: 0,
 
                 filters: {
-                    entityId: '',
-                    document: '',
-                    city: ''
+                    document: ''
                 },
                 currentPage: 0,
                 pageSize: PAGE_SIZE,
@@ -56,6 +54,10 @@
                     return 0;
                 }
                 return Math.ceil(this.totalItems / this.pageSize);
+            },
+
+            hasSede: function () {
+                return this.entityBranchId > 0;
             }
         },
 
@@ -102,18 +104,6 @@
                 }, 2800);
             },
 
-            applySelectedEntityMeta: function () {
-                var id = String(this.filters.entityId || '');
-                var found = null;
-                for (var i = 0; i < this.entities.length; i++) {
-                    if (String(this.entities[i].id) === id) {
-                        found = this.entities[i];
-                        break;
-                    }
-                }
-                this.sectorName = found ? (found.sectorName || found.sector || '') : '';
-            },
-
             // E01 — Cuando carga la pantalla
             reloadScreen: function () {
                 if (this.currentRole !== 'et') {
@@ -122,96 +112,23 @@
                     return;
                 }
 
-                this.isLoading = true;
-                this.loadError = null;
+                if (!this.hasSede) {
+                    this.loadError = 'Tu usuario no tiene una sede (entity_branch_id) asignada.';
+                    this.isLoading = false;
+                    return;
+                }
+
                 this.filters.document = '';
-                this.filters.city = '';
                 this.currentPage = 0;
                 this.items = [];
                 this.totalItems = 0;
-                this.cities = [];
-
-                var self = this;
-                fetch('/api/v1/entities', { credentials: 'same-origin' })
-                    .then(function (res) {
-                        if (res.status === 401) {
-                            window.location.href = '/static/landing.html';
-                            return null;
-                        }
-                        if (!res.ok) {
-                            throw new Error('entities');
-                        }
-                        return res.json();
-                    })
-                    .then(function (data) {
-                        if (data === null) {
-                            return;
-                        }
-                        self.entities = Array.isArray(data) ? data : [];
-
-                        if (self.entities.length === 0) {
-                            self.filters.entityId = '';
-                            self.sectorName = '';
-                            self.isLoading = false;
-                            return;
-                        }
-
-                        // Temporal: primera entidad del catálogo (relación usuario↔entidad pendiente).
-                        self.filters.entityId = String(self.entities[0].id);
-                        self.applySelectedEntityMeta();
-                        return self.loadCitiesAndCases();
-                    })
-                    .catch(function () {
-                        self.loadError = 'No se pudo cargar el catálogo de entidades.';
-                        self.isLoading = false;
-                    });
-            },
-
-            loadCitiesAndCases: function () {
-                var self = this;
-                var entityId = this.filters.entityId;
-                if (!entityId) {
-                    this.items = [];
-                    this.totalItems = 0;
-                    this.cities = [];
-                    this.isLoading = false;
-                    return Promise.resolve();
-                }
-
-                this.isLoading = true;
-                this.loadError = null;
-
-                return fetch('/api/v1/entities/' + encodeURIComponent(entityId) + '/cities', {
-                    credentials: 'same-origin'
-                })
-                    .then(function (res) {
-                        if (res.status === 401) {
-                            window.location.href = '/static/landing.html';
-                            return null;
-                        }
-                        if (!res.ok) {
-                            return [];
-                        }
-                        return res.json();
-                    })
-                    .then(function (cities) {
-                        if (cities === null) {
-                            return null;
-                        }
-                        self.cities = Array.isArray(cities) ? cities : [];
-                        return self.loadEntityCases();
-                    })
-                    .catch(function () {
-                        self.cities = [];
-                        return self.loadEntityCases();
-                    });
+                this.loadEntityCases();
             },
 
             // SUB-FLUJO: Cargar listado paginado
             loadEntityCases: function () {
                 var self = this;
-                var entityId = this.filters.entityId;
-                if (!entityId) {
+                if (!this.hasSede) {
                     this.items = [];
                     this.totalItems = 0;
                     this.isLoading = false;
@@ -222,14 +139,10 @@
                 this.loadError = null;
 
                 var params = new URLSearchParams();
-                params.set('entityId', entityId);
                 params.set('page', String(this.currentPage));
                 params.set('pageSize', String(this.pageSize));
                 if ((this.filters.document || '').trim()) {
                     params.set('document', this.filters.document.trim());
-                }
-                if ((this.filters.city || '').trim()) {
-                    params.set('city', this.filters.city.trim());
                 }
 
                 return fetch('/api/v1/entity-cases?' + params.toString(), {
@@ -239,6 +152,11 @@
                         if (res.status === 401) {
                             window.location.href = '/static/landing.html';
                             return null;
+                        }
+                        if (res.status === 400) {
+                            return res.json().then(function (body) {
+                                throw new Error((body && body.error) || 'bad_request');
+                            });
                         }
                         if (!res.ok) {
                             throw new Error('entity-cases');
@@ -251,36 +169,22 @@
                         }
                         self.items = (data && data.items) ? data.items : [];
                         self.totalItems = (data && typeof data.total === 'number') ? data.total : 0;
+                        if (data && data.entityName) {
+                            self.entityName = data.entityName;
+                        }
                         if (data && data.sectorName) {
                             self.sectorName = data.sectorName;
-                        } else {
-                            self.applySelectedEntityMeta();
+                        } else if (data && data.sector) {
+                            self.sectorName = data.sector;
                         }
                         self.isLoading = false;
                     })
-                    .catch(function () {
-                        self.loadError = 'No se pudo cargar los casos de la entidad.';
+                    .catch(function (err) {
+                        self.loadError = (err && err.message && err.message !== 'entity-cases')
+                            ? err.message
+                            : 'No se pudo cargar los casos de la entidad.';
                         self.isLoading = false;
                     });
-            },
-
-            // E07 — Cuando cambia entidad
-            onChangeEntity: function () {
-                // Conserva document/city; solo resetea página (flow-E07).
-                this.currentPage = 0;
-                this.applySelectedEntityMeta();
-
-                if (!this.filters.entityId) {
-                    this.sectorName = '';
-                    this.items = [];
-                    this.totalItems = 0;
-                    this.cities = [];
-                    return;
-                }
-
-                // Ciudad del select puede no existir en la nueva entidad → limpiar solo city.
-                this.filters.city = '';
-                this.loadCitiesAndCases();
             },
 
             // E02 — Cuando filtra por documento (parcial + debounce)
@@ -293,12 +197,6 @@
                     self.currentPage = 0;
                     self.loadEntityCases();
                 }, FILTER_DEBOUNCE_MS);
-            },
-
-            // E03 — Cuando filtra por ciudad (select de ciudades de la entidad)
-            onFilterCity: function () {
-                this.currentPage = 0;
-                this.loadEntityCases();
             },
 
             // E04 — Cuando cambia de página

@@ -220,20 +220,21 @@ func GeneralUserLOGIN_POST(c *gin.Context) {
 
 				// Se crea una sesión común con la información del usuario autenticado.
 				var cs utils.CommonSession = utils.CommonSession{
-					UserICode:        usr.GeneralUserICode,
-					Roles:            usr.GeneralUserRoleCodes,
-					CurrentRole:      currentRole,
-					Lang:             usr.GeneralUserLanguage,
-					CurrentMenu:      menu,
-					Names:            usr.GeneralUserGeneralUserProfile.GeneralUserProfileNames,
-					LastNames:        usr.GeneralUserGeneralUserProfile.GeneralUserProfileLastNames,
-					TownCode:         usr.GeneralUserGeneralUserProfile.GeneralUserProfileTown.TownCode,
-					TownICode:        usr.GeneralUserGeneralUserProfile.GeneralUserProfileTown.TownICode,
-					EntityBrandICode: usr.GeneralUserGeneralUserProfile.GeneralUserProfileEntityBranchSelected,
-					UserLogin:        usr.GeneralUserLogin,
-					SessionID:        sessionID,
-					Team:             usr.GeneralUserTeam,
+					UserICode:            usr.GeneralUserICode,
+					Roles:                usr.GeneralUserRoleCodes,
+					CurrentRole:          currentRole,
+					Lang:                 usr.GeneralUserLanguage,
+					CurrentMenu:          menu,
+					Names:                usr.GeneralUserGeneralUserProfile.GeneralUserProfileNames,
+					LastNames:            usr.GeneralUserGeneralUserProfile.GeneralUserProfileLastNames,
+					TownCode:             usr.GeneralUserGeneralUserProfile.GeneralUserProfileTown.TownCode,
+					TownICode:            usr.GeneralUserGeneralUserProfile.GeneralUserProfileTown.TownICode,
+					EntityBrandICode:     usr.GeneralUserGeneralUserProfile.GeneralUserProfileEntityBranchSelected,
+					UserLogin:            usr.GeneralUserLogin,
+					SessionID:            sessionID,
+					Team:                 usr.GeneralUserTeam,
 					AssignedDepartmentID: usr.GeneralUserAssignedDepartment,
+					EntityBranchId:       usr.GeneralUserEntityBranchId,
 				}
 				// Se almacena la sesión común.
 				utils.AddCommonSession(sessionID, &cs)

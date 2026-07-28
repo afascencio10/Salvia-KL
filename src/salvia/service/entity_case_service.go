@@ -23,23 +23,24 @@ type CreateEntityCaseInput struct {
 	CreatedByID    string
 }
 
-// EntityCaseListFilter filtros del listado Casos Entidad.
+// EntityCaseListFilter filtros del listado Casos Entidad (por sede de sesión).
 type EntityCaseListFilter struct {
-	EntityID int64
-	Document string
-	City     string
-	Page     int
-	PageSize int
+	EntityBranchID int64
+	Document       string
+	Page           int
+	PageSize       int
 }
 
 // EntityCaseListResult respuesta paginada del listado.
 type EntityCaseListResult struct {
-	Items      []models.EntityCaseListItem `json:"items"`
-	Total      int64                       `json:"total"`
-	Page       int                         `json:"page"`
-	PageSize   int                         `json:"pageSize"`
-	Sector     string                      `json:"sector,omitempty"`
-	SectorName string                      `json:"sectorName,omitempty"`
+	Items          []models.EntityCaseListItem `json:"items"`
+	Total          int64                       `json:"total"`
+	Page           int                         `json:"page"`
+	PageSize       int                         `json:"pageSize"`
+	EntityBranchID int64                       `json:"entityBranchId,omitempty"`
+	EntityName     string                      `json:"entityName,omitempty"`
+	Sector         string                      `json:"sector,omitempty"`
+	SectorName     string                      `json:"sectorName,omitempty"`
 }
 
 // EntityCaseService define las operaciones de negocio sobre EntityCase
@@ -95,26 +96,29 @@ func (s *entityCaseService) ListByEntity(ctx context.Context, filter EntityCaseL
 		page = 0
 	}
 
-	items, total, err := s.repo.FindByEntityIDPaginated(ctx, filter.EntityID, filter.Document, filter.City, page, pageSize)
+	meta, err := s.repo.GetEntityMetaByBranchID(ctx, filter.EntityBranchID)
 	if err != nil {
 		return nil, err
 	}
 
-	sector := ""
+	items, total, err := s.repo.FindByEntityBranchIDPaginated(ctx, filter.EntityBranchID, filter.Document, page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range items {
 		items[i].CaseStatusLabel = victimCaseStatusLabel(items[i].CaseStatus)
-		if sector == "" {
-			sector = items[i].Sector
-		}
 	}
 
 	return &EntityCaseListResult{
-		Items:      items,
-		Total:      total,
-		Page:       page,
-		PageSize:   pageSize,
-		Sector:     sector,
-		SectorName: entitySectorLabel(sector),
+		Items:          items,
+		Total:          total,
+		Page:           page,
+		PageSize:       pageSize,
+		EntityBranchID: filter.EntityBranchID,
+		EntityName:     meta.EntityName,
+		Sector:         meta.Sector,
+		SectorName:     entitySectorLabel(meta.Sector),
 	}, nil
 }
 

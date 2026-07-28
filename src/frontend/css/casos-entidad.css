@@ -18,6 +18,13 @@
     flex-wrap: wrap;
 }
 
+.ce-welcome .ce-entity-name {
+    margin: 6px 0 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1f2937;
+}
+
 .ce-welcome .ce-sector {
     display: inline-block;
     margin-top: 8px;
@@ -27,30 +34,18 @@
     letter-spacing: 0.02em;
 }
 
-.ce-entity-selector {
-    min-width: 220px;
-    max-width: 320px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.ce-select {
-    appearance: auto;
-    cursor: pointer;
-}
-
 /* ── Filters ────────────────────────────────────────────────────────── */
 
 .ce-filters {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 16px;
     background: #fff;
     border: 1px solid #e5e7eb;
     border-radius: 12px;
     padding: 18px 20px;
     margin-bottom: 20px;
+    max-width: 420px;
 }
 
 .ce-filter-field {

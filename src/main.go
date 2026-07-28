@@ -336,9 +336,11 @@ func main() {
 func migrateLegacyTables(db *gorm.DB) {
     // ─── security.general_user ───
     type GeneralUserSync struct {
-        ID                 uint   `gorm:"column:general_user_id;primaryKey"`
-        Team               string `gorm:"column:general_user_team;type:varchar(50)"`
-        AssignedDepartment string `gorm:"column:general_user_assigned_department;type:varchar(20)"`
+        ID                 uint    `gorm:"column:general_user_id;primaryKey"`
+        Team               string  `gorm:"column:general_user_team;type:varchar(50)"`
+        AssignedDepartment string  `gorm:"column:general_user_assigned_department;type:varchar(20)"`
+        // EntityBranchId: sede (salvia.entity_branch) del usuario rol et. Nullable.
+        EntityBranchId *int64 `gorm:"column:entity_branch_id;type:bigint;index"`
     }
     if err := db.Table("security.general_user").AutoMigrate(&GeneralUserSync{}); err != nil {
         log.Printf("[WARN] AutoMigrate security.general_user: %v", err)

@@ -91,3 +91,10 @@ type EntityCityOption struct {
 	ID   string `gorm:"column:city_id"   json:"id"`
 	Name string `gorm:"column:city_name" json:"name"`
 }
+
+// EntityBranchMeta datos de la organización padre de una sede (header Casos Entidad).
+type EntityBranchMeta struct {
+	EntityBranchID int64  `gorm:"column:entity_branch_id" json:"entityBranchId"`
+	EntityName     string `gorm:"column:entity_name"      json:"entityName"`
+	Sector         string `gorm:"column:sector"           json:"sector"`
+}
