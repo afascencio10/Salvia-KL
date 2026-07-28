@@ -22,6 +22,7 @@ import (
     _ "time/tzdata" // Embebe zonas horarias para que funcione en contenedores sin tzdata
 
     "github.com/gin-gonic/gin"
+    "gorm.io/gorm"
 )
 
 //go:embed config/*
@@ -51,12 +52,6 @@ func main() {
 
     // Asegurar que usuarios sin town tengan Bogotá por defecto (evita error 500 en reasignación)
     gormDB.Exec(`UPDATE security.general_user_profile SET general_user_profile_town = '11001000' WHERE (general_user_profile_town IS NULL OR general_user_profile_town = '') AND general_user_profile_id IN (SELECT general_user_general_user_profile FROM security.general_user WHERE general_user_status = 'e')`)
-
-    // Asegurar que la columna victim_case_team exista en victim_case (para asignación por equipo)
-    gormDB.Exec(`ALTER TABLE salvia.victim_case ADD COLUMN IF NOT EXISTS victim_case_team VARCHAR(64) DEFAULT NULL`)
-
-    // Asegurar que la columna agent_id exista en victim_case (para asignación directa de operador)
-    gormDB.Exec(`ALTER TABLE salvia.victim_case ADD COLUMN IF NOT EXISTS agent_id VARCHAR(64) DEFAULT NULL`)
 
     // AutoMigrate por tabla — warning en lugar de fatal para tablas ya existentes
     for _, m := range []interface{}{
@@ -91,6 +86,11 @@ func main() {
             log.Printf("[WARN] AutoMigrate %T: %v", m, err)
         }
     }
+
+    // ─── AutoMigrate para tablas legacy (schemas security/salvia) ───
+    // Agrega columnas faltantes sin ALTER TABLE manual.
+    // Si se necesita un campo nuevo en una tabla legacy, agregarlo aquí.
+    migrateLegacyTables(gormDB)
 
     // Repositories
     formRepo               := repository.NewFormRepository(gormDB)
@@ -326,4 +326,31 @@ func main() {
 
     log.Println("Servidor apagado correctamente ✓")
     // ─────────────────────────────────────────────────────────────────────────
+}
+
+// ─── migrateLegacyTables ─────────────────────────────────────────────────────
+// AutoMigrate para tablas legacy que no tienen modelos GORM propios.
+// Cuando se necesite agregar una columna nueva a una tabla legacy,
+// solo hay que agregarla al struct correspondiente aquí.
+// GORM detecta columnas faltantes y las crea automáticamente (ADD COLUMN).
+func migrateLegacyTables(db *gorm.DB) {
+    // ─── security.general_user ───
+    type GeneralUserSync struct {
+        ID                 uint   `gorm:"column:general_user_id;primaryKey"`
+        Team               string `gorm:"column:general_user_team;type:varchar(50)"`
+        AssignedDepartment string `gorm:"column:general_user_assigned_department;type:varchar(20)"`
+    }
+    if err := db.Table("security.general_user").AutoMigrate(&GeneralUserSync{}); err != nil {
+        log.Printf("[WARN] AutoMigrate security.general_user: %v", err)
+    }
+
+    // ─── salvia.victim_case ───
+    type VictimCaseSync struct {
+        ID       uint   `gorm:"column:victim_case_id;primaryKey"`
+        Team     string `gorm:"column:victim_case_team;type:varchar(64)"`
+        AgentID  string `gorm:"column:agent_id;type:varchar(64)"`
+    }
+    if err := db.Table("salvia.victim_case").AutoMigrate(&VictimCaseSync{}); err != nil {
+        log.Printf("[WARN] AutoMigrate salvia.victim_case: %v", err)
+    }
 }
