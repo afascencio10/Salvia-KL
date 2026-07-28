@@ -169,17 +169,35 @@
               </div>
 
               <!-- Contexto del caso -->
-              <p class="cd-section-title" v-if="tipoViolencia.length || ambitoViolencia.length || nacionalidadResumen || generoResumen || territorioOcurrencia || planAtencion.length" style="margin-top:20px">Contexto del caso</p>
-              <div class="cd-data-grid" v-if="tipoViolencia.length || ambitoViolencia.length || nacionalidadResumen || generoResumen || territorioOcurrencia || planAtencion.length">
+              <p class="cd-section-title" v-if="tipoViolencia.length || ambitoViolencia.length || nacionalidadResumen || generoResumen || territorioOcurrencia" style="margin-top:20px">Contexto del caso</p>
+              <div class="cd-data-grid" v-if="tipoViolencia.length || ambitoViolencia.length || nacionalidadResumen || generoResumen || territorioOcurrencia">
                 <div class="cd-campo" v-if="tipoViolencia.length"><div class="cd-lbl">Tipo de violencia</div><div class="cd-val">${ tipoViolencia.join(', ') }</div></div>
                 <div class="cd-campo" v-if="subtipoViolencia.length"><div class="cd-lbl">Subtipo de violencia</div><div class="cd-val"><ul v-if="subtipoViolencia.length > 1" style="margin:0;padding-left:16px;list-style:disc"><li v-for="s in subtipoViolencia" :key="s">${ s }</li></ul><span v-else>${ subtipoViolencia[0] }</span></div></div>
                 <div class="cd-campo" v-if="ambitoViolencia.length"><div class="cd-lbl">Ámbito de violencia</div><div class="cd-val">${ ambitoViolencia.join(', ') }</div></div>
                 <div class="cd-campo" v-if="nacionalidadResumen"><div class="cd-lbl">Nacionalidad</div><div class="cd-val">${ nacionalidadResumen }</div></div>
                 <div class="cd-campo" v-if="generoResumen"><div class="cd-lbl">Género</div><div class="cd-val">${ generoResumen }</div></div>
                 <div class="cd-campo" v-if="territorioOcurrencia"><div class="cd-lbl">Territorio de ocurrencia</div><div class="cd-val">${ territorioOcurrencia }</div></div>
-                <div class="cd-campo" v-if="planAtencion.length"><div class="cd-lbl">Plan de atención</div><div class="cd-val"><ul v-if="planAtencion.length > 1" style="margin:0;padding-left:16px;list-style:disc"><li v-for="p in planAtencion" :key="p">${ p }</li></ul><span v-else>${ planAtencion[0] }</span></div></div>
                 <div class="cd-campo" v-if="ajusteRazonable.length"><div class="cd-lbl">Ajuste razonable</div><div class="cd-val">${ ajusteRazonable.join(', ') }</div></div>
               </div>
+            </div>
+          </div>
+
+          <!-- ─── SECCIÓN: PLAN DE ATENCIÓN (collapsible) ─── -->
+          <div class="ci-section" v-if="planAtencion.length || planAtencionExplicacion">
+            <div :class="['ci-section-header', infoSeccion.planAtencion ? 'open' : '']" @click="infoSeccion.planAtencion = !infoSeccion.planAtencion">
+              <div class="ci-section-icon" style="background:#0ea5e9"><i class="fa fa-clipboard-check"></i></div>
+              <span class="ci-section-label">Plan de atención</span>
+              <i class="fa fa-chevron-down ci-section-chevron"></i>
+            </div>
+            <div v-if="infoSeccion.planAtencion" class="ci-section-body">
+              <div class="cd-data-grid" v-if="planAtencion.length">
+                <div class="cd-campo" style="grid-column:1/-1"><div class="cd-lbl">Plan de atención</div><div class="cd-val"><ul style="margin:0;padding-left:16px;list-style:disc"><li v-for="p in planAtencion" :key="p">${ p }</li></ul></div></div>
+              </div>
+              <div v-if="planAtencionExplicacion" style="margin-top:12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px 16px">
+                <p style="margin:0 0 4px;font-size:.7rem;font-weight:600;color:#0369a1;text-transform:uppercase">Explicación relacionada con la gestión de Salvia frente a los casos (remisión de oficios, uso de datos personales, gestión)</p>
+                <p style="margin:0;font-size:.82rem;color:#374151;line-height:1.5">${ planAtencionExplicacion }</p>
+              </div>
+              <div v-if="!planAtencion.length && !planAtencionExplicacion" style="color:#9ca3af;font-size:.82rem">No registra plan de atención</div>
             </div>
           </div>
 
@@ -196,7 +214,6 @@
                 <div class="cd-campo" v-if="subtipoViolencia.length"><div class="cd-lbl">Subtipo</div><div class="cd-val">${ subtipoViolencia.join(', ') }</div></div>
                 <div class="cd-campo" v-if="ambitoViolencia.length"><div class="cd-lbl">Ámbito</div><div class="cd-val">${ ambitoViolencia.join(', ') }</div></div>
                 <div class="cd-campo" v-if="territorioOcurrencia"><div class="cd-lbl">Lugar de los hechos</div><div class="cd-val">${ territorioOcurrencia }</div></div>
-                <div class="cd-campo" v-if="planAtencion.length"><div class="cd-lbl">Plan de atención</div><div class="cd-val"><ul v-if="planAtencion.length > 1" style="margin:0;padding-left:16px;list-style:disc"><li v-for="p in planAtencion" :key="p">${ p }</li></ul><span v-else>${ planAtencion[0] }</span></div></div>
               </div>
               <!-- Nuevos hechos reportados en seguimientos -->
               <div v-if="hechosReportados.length" style="margin-top:16px;border-top:1px solid #e5e7eb;padding-top:14px">
@@ -789,6 +806,7 @@ var home = Vue.createApp({
       tipoAgresorResumen: '',
       nombreIdentitario: '',
       planAtencion: [],
+      planAtencionExplicacion: '',
       ajusteRazonable: [],
       hechosTimeline: [],
       caseICode: CASE_ICODE,
@@ -813,7 +831,7 @@ var home = Vue.createApp({
       segExpandido: null,
       barrExpandido: null,
       mostrarInfoCaso: false,
-      infoSeccion: { resumen: true, hechos: false, completa: false },
+      infoSeccion: { resumen: true, planAtencion: true, hechos: false, completa: false },
       modalEditarSeg: false,
       editarSegActual: null,
       editarSeg: { fecha: '', hora: '' },
@@ -1056,6 +1074,7 @@ var home = Vue.createApp({
           self.tipoAgresorResumen = data.tipoAgresorResumen || '';
           self.nombreIdentitario = data.nombreIdentitario || 'No registra';
           self.planAtencion = data.planAtencion || [];
+          self.planAtencionExplicacion = data.planAtencionExplicacion || '';
           self.ajusteRazonable = data.ajusteRazonable || [];
           self.hechosTimeline = (data.timelineEvents || []).filter(function(e) { return e.type === 'Hechos del caso'; });
           self.cargando = false;
