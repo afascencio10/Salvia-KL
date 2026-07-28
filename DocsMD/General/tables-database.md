@@ -76,6 +76,7 @@ PGPASSWORD='Salvia2026@' psql \
 |---|---|
 | `entity` | Entidad institucional que atiende casos VBG: sector, interoperabilidad y tiempos de respuesta. |
 | `entity_branch` | Sede o sucursal de una entidad con dirección, municipio y coordenadas geográficas. |
+| `entity_case` | Vínculo sede (`entity_branch`)–caso: objetivo y última acción (texto). |
 | `attention_line` | Línea de atención asociada a un profesional responsable de casos. |
 | `case_owner` | Profesional responsable de casos, vinculado a una entidad y línea de atención. |
 | `directories` | Catálogo de entidades de contacto por ciudad para la app Flutter (fiscalías, comisarías, urgencias, líneas de emergencia). |
@@ -102,18 +103,18 @@ PGPASSWORD='Salvia2026@' psql \
 
 ### Formularios dinámicos
 
-| Tabla | Descripción |
-|---|---|
-| `form` | Definición de un formulario dinámico: estructura base y metadatos de configuración. |
-| `form_section` | Sección dentro de un formulario dinámico con orden y título. |
-| `question` | Pregunta de una sección: tipo, texto, validaciones y orden de presentación. |
-| `option` | Opción de respuesta para preguntas de selección simple o múltiple. |
-| `visibility_condition` | Condición que controla si una pregunta/sección/repeater se muestra según respuestas previas o estado externo (`formState`). |
-| `render_modification` | Modificación declarativa de textos visibles (labels, títulos, descripciones) según el estado externo (`formState`). Soporta `SET` (sobreescritura) y `REPLACE` (buscar y reemplazar). |
-| `repeater_group` | Grupo de preguntas repetibles dentro de un formulario dinámico. |
-| `repeater_entry` | Fila o instancia concreta de un repeater_group en un form_submission. |
-| `form_submission` | Envío de un formulario: vincula respuestas a un caso, agente y seguimiento. |
-| `answer` | Respuesta individual a una pregunta dentro de un form_submission. |
+| Tabla                  | Descripción                                                                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `form`                 | Definición de un formulario dinámico: estructura base y metadatos de configuración.                                                                                                   |
+| `form_section`         | Sección dentro de un formulario dinámico con orden y título.                                                                                                                          |
+| `question`             | Pregunta de una sección: tipo, texto, validaciones y orden de presentación.                                                                                                           |
+| `option`               | Opción de respuesta para preguntas de selección simple o múltiple.                                                                                                                    |
+| `visibility_condition` | Condición que controla si una pregunta/sección/repeater se muestra según respuestas previas o estado externo (`formState`).                                                           |
+| `render_modification`  | Modificación declarativa de textos visibles (labels, títulos, descripciones) según el estado externo (`formState`). Soporta `SET` (sobreescritura) y `REPLACE` (buscar y reemplazar). |
+| `repeater_group`       | Grupo de preguntas repetibles dentro de un formulario dinámico.                                                                                                                       |
+| `repeater_entry`       | Fila o instancia concreta de un repeater_group en un form_submission.                                                                                                                 |
+| `form_submission`      | Envío de un formulario: vincula respuestas a un caso, agente y seguimiento.                                                                                                           |
+| `answer`               | Respuesta individual a una pregunta dentro de un form_submission.                                                                                                                     |
 
 ### Gestión del caso
 
@@ -168,6 +169,38 @@ PGPASSWORD='Salvia2026@' psql \
 ---
 
 ## Schema: `security`
+
+### AutoMigrate para tablas legacy
+
+Las tablas del schema `security` fueron creadas por `postgres` (owner). Los usuarios `salvia_gorm` y `salvia_legacy` no pueden hacer `ALTER TABLE` sobre ellas directamente.
+
+Para evitar tener que ejecutar ALTERs manuales cada vez que se agrega una columna nueva a una tabla legacy, se implementó la función `migrateLegacyTables()` en `src/main.go`. Esta función usa GORM AutoMigrate sobre structs mínimos que representan solo las columnas que se necesitan sincronizar.
+
+**Requisito:** El `db_config.json` debe usar `postgres` como `gorm_user` (o un usuario que sea owner de la tabla). Con el usuario `salvia_gorm` no funciona por falta de permisos.
+
+**¿Cómo agregar una columna nueva a una tabla legacy?**
+
+1. Agregar el campo al DAO correspondiente (ej: `security/dao/GeneralUserDAO.go`)
+2. Agregar el campo al struct de sync en `migrateLegacyTables()` dentro de `main.go`:
+
+```go
+type GeneralUserSync struct {
+    ID                 uint   `gorm:"column:general_user_id;primaryKey"`
+    Team               string `gorm:"column:general_user_team;type:varchar(50)"`
+    AssignedDepartment string `gorm:"column:general_user_assigned_department;type:varchar(20)"`
+    // ← agregar nuevo campo aquí
+    NuevoCampo         string `gorm:"column:general_user_nuevo_campo;type:varchar(100)"`
+}
+```
+
+3. Al desplegar, la app crea la columna automáticamente al arrancar. No se necesita ALTER TABLE manual.
+
+**Tablas actualmente sincronizadas:**
+
+| Tabla | Columnas sincronizadas |
+|---|---|
+| `security.general_user` | `general_user_team`, `general_user_assigned_department` |
+| `salvia.victim_case` | `victim_case_team`, `agent_id` |
 
 ### Usuarios y autenticación
 

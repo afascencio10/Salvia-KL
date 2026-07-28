@@ -6,13 +6,15 @@
 |---|---|
 | Interfaz | [barrera-detalle-interface.md](barrera-detalle-interface.md) |
 
+**Changelogs:** [changelogJul2026.md](changelogJul2026.md)
+
 ## Resumen de eventos
 
 | # | Evento | Tipo | Flujo |
 |---|---|---|---|
 | E01 | Cuando carga la pantalla | Lifecycle | [📄 Ver flujo](Flujos/flow-E01-cuando-carga-pantalla.md) |
 | E02 | Cuando cambia de tab | User Interaction | — |
-| E03 | Cuando activa/desactiva el toggle de estado | User Interaction | — |
+| E03 | Cuando el Enlace registra una gestión propia | User Interaction | [📄 Ver flujo](../../Otros/temp/req-registrar-gestion-propia-enlace.md) |
 
 ---
 
@@ -22,22 +24,24 @@
 
 **Evento:** Cuando carga la pantalla
 **Tipo:** Lifecycle
-**Descripción:** `mounted()` muestra el div `#app` (oculto durante la carga del template Go). No realiza llamadas a API — los datos se leen de los valores mock en `data()`. El barrierICode está disponible como variable Vue pero no se usa aún para consultar ningún endpoint.
+**Descripción:** `mounted()` muestra el div `#app` y hace `GET /api/v1/barriers-v2/:id/detail` para cargar la barrera, datos de la víctima y ubicación. `barrierICode` viene del path param inyectado por `BarreraDetalleFacade.go`.
 **Requerido:** Sí
 
 ---
 
 **Evento:** Cuando cambia de tab
 **Tipo:** User Interaction
-**Descripción:** Actualiza `activeTab` ('info' | 'timeline'). Vue muestra u oculta los bloques correspondientes. El tab de Timeline siempre muestra el estado vacío (no hay eventos cargados).
+**Descripción:** Actualiza `activeTab` ('info' | 'tareas' | 'timeline'). El tab "Tareas" monta `<case-tasks>` (pendientes/completadas + gestión propia); el tab "Timeline" monta `<case-timeline>`.
 **Requerido:** Sí
 
 ---
 
-**Evento:** Cuando activa/desactiva el toggle de estado
+📄 [Ver flujo → req-registrar-gestion-propia-enlace.md](../../Otros/temp/req-registrar-gestion-propia-enlace.md)
+
+**Evento:** Cuando el Enlace registra una gestión propia
 **Tipo:** User Interaction
-**Descripción:** Toggle local: `barrera.active = !barrera.active`. Cambia el label y la clase visual del switch. No llama ningún endpoint — cambio solo en memoria del cliente.
-**Requerido:** No (funcionalidad pendiente de implementar contra API)
+**Descripción:** Aplica solo al rol `en` (Enlace Territorial) sobre una barrera de su mismo departamento asignado. Desde el tab "Tareas", completa tipo + descripción en el modal y confirma. El frontend llama `POST /api/v1/case-tasks/gestion-propia`, que crea la `case_task` ya en `Done` (sin pasar por `ToDo`), registra un evento de timeline, y transiciona la barrera de `OPEN` a `"En Gestion"` si aplicaba. Implementado dentro del componente reutilizable `case-tasks.js` (sin doc propio en `Componentes/`).
+**Requerido:** Sí
 
 ---
 
@@ -45,4 +49,4 @@
 
 - [x] ¿Se cubre la carga inicial de datos?
 - [x] ¿Todos los botones de la UI tienen evento?
-- [ ] ¿Hay llamadas a API? — No. Pantalla en estado mock, pendiente integración con backend.
+- [x] ¿Hay llamadas a API? — Sí, pantalla completamente integrada al backend.

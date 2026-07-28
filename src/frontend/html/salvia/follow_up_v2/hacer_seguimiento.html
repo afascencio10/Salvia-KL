@@ -246,6 +246,7 @@
                 followUpId:   '{{ .followUpId }}',
                 userICode:    '{{ .userICode }}',
                 currentUser:  '{{ .currentUser }}',
+                userRole:     '{{ .userRole }}',
                 formId:       FORM_ID_DEFAULT,
                 submissionId: null,
                 loadError:    null,
@@ -317,6 +318,12 @@
                         this.canEdit = diffDays <= 5;
                     } else {
                         this.canEdit = true;
+                    }
+
+                    // Psicólogo/a (ps) y trabajador social (ts): el seguimiento es siempre
+                    // de solo lectura para ellos, sin excepción de las reglas anteriores.
+                    if (this.userRole === 'ps' || this.userRole === 'ts') {
+                        this.canEdit = false;
                     }
 
                     console.log('[HS] followUp:', fu);

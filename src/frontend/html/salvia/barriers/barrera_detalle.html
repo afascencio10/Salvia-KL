@@ -290,7 +290,7 @@
 
         <!-- ─── Tab: Tareas ─── -->
         <div v-if="activeTab === 'tareas'" class="brd-tab-content-card">
-            <case-tasks :case-id="barrera.caseId" :barrier-id="barrierICode" :user-id="currentUserId" :user-role="currentRole"></case-tasks>
+            <case-tasks :case-id="barrera.caseId" :barrier-id="barrierICode" :user-id="currentUserId" :user-role="currentRole" :puede-gestion-propia="puedeRegistrarGestionPropia" @task-completed="onTaskCompleted"></case-tasks>
         </div>
 
         <!-- ─── Tab: Timeline ─── -->
@@ -315,6 +315,7 @@
                 currentUser:   {{.currentUser}},
                 currentRole:   {{.currentRole}},
                 currentUserId: {{.currentUserId}},
+                currentUserAssignedDepartment: {{.currentUserAssignedDepartment}},
                 barrierICode:  {{.barrierICode}},
 
                 activeTab: 'info',
@@ -339,6 +340,20 @@
         mounted() {
             document.getElementById('app').style.display = 'block';
             this.cargarDetalle();
+        },
+
+        computed: {
+            // Solo el Enlace Territorial puede registrar gestión propia, y solo
+            // sobre barreras de su mismo departamento asignado — el backend
+            // vuelve a validar esto (ver requireGestionPropiaAccess en
+            // case_task_controller.go), este computed solo controla si se
+            // muestra el botón.
+            puedeRegistrarGestionPropia() {
+                return this.currentRole === 'en'
+                    && !!this.currentUserAssignedDepartment
+                    && !!this.barrera
+                    && this.barrera.departmentId === this.currentUserAssignedDepartment;
+            },
         },
 
         methods: {

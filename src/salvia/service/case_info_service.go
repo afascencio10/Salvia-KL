@@ -194,8 +194,9 @@ func (s *caseInfoService) GetFullCaseInfo(ctx context.Context, caseICode string)
 		for i, p := range planAtencion {
 			planAtencion[i] = resolveEnum(p)
 		}
-		result.Hechos.PlanAtencion = planAtencion
+		result.PlanAtencion.Items = planAtencion
 	}
+	result.PlanAtencion.Explicacion = raw.F2ManagementExplanation
 
 	return result, nil
 }

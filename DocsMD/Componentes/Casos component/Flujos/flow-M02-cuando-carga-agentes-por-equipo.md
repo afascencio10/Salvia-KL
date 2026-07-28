@@ -1,9 +1,15 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando carga agentes por equipo
    Tipo: Lifecycle / Backend read
+   Modo: NORMAL (comentar al activar contingencia — ver M-02-C)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+> **Contingencia:** cuando `REASSIGN_CROSS_TEAM_CONTINGENCY === true`, este flujo
+> no se ejecuta. Usar [flow-M02-C-cuando-carga-todos-los-agentes.md](./flow-M02-C-cuando-carga-todos-los-agentes.md).
+> Plan: [contingencia-reasignacion-cross-team.md](../contingencia-reasignacion-cross-team.md).
+
 Disparado por: M-01 al abrir el modal, una vez resuelto resolvedTeam
+               (solo si contingencia desactivada)
 
 INPUT: {
   team:   equipo resuelto   → resolvedTeam (string)

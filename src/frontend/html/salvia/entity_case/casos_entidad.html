@@ -1,0 +1,172 @@
+<link rel="stylesheet" href="/static/css/casos-entidad.css">
+
+<main class="salvia-main">
+<div class="container ce-page">
+
+    <div v-if="toast.visible" class="ce-toast" :class="'ce-toast--' + toast.type">
+        ${ toast.message }
+    </div>
+
+    <div v-if="loadError" class="ce-error-block">
+        <p>${ loadError }</p>
+        <button type="button" class="ce-btn ce-btn--secondary" @click="reloadScreen">Reintentar</button>
+    </div>
+
+    <template v-else>
+        <div class="welcome-section ce-welcome">
+            <div>
+                <h2><b>Casos Entidad</b></h2>
+                <p class="text-muted mb-0">Casos con víctimas referidas a tu entidad</p>
+                <span v-if="sectorName" class="ce-sector">${ sectorName }</span>
+            </div>
+            <div class="ce-entity-selector">
+                <label class="ce-label" for="ce-filter-entity">Entidad</label>
+                <select
+                    id="ce-filter-entity"
+                    class="ce-input ce-select"
+                    v-model="filters.entityId"
+                    @change="onChangeEntity"
+                    :disabled="isLoading || entities.length === 0"
+                >
+                    <option v-if="entities.length === 0" value="">Sin entidades</option>
+                    <option
+                        v-for="e in entities"
+                        :key="e.id"
+                        :value="String(e.id)"
+                    >${ e.name }</option>
+                </select>
+            </div>
+        </div>
+
+        <section class="ce-filters">
+            <div class="ce-filter-field">
+                <label class="ce-label" for="ce-filter-document">Documento de identidad</label>
+                <input
+                    id="ce-filter-document"
+                    type="text"
+                    class="ce-input"
+                    placeholder="Ej: 1023456780"
+                    v-model="filters.document"
+                    @input="onFilterDocument"
+                    :disabled="!filters.entityId"
+                >
+            </div>
+            <div class="ce-filter-field">
+                <label class="ce-label" for="ce-filter-city">Ciudad</label>
+                <select
+                    id="ce-filter-city"
+                    class="ce-input ce-select"
+                    v-model="filters.city"
+                    @change="onFilterCity"
+                    :disabled="!filters.entityId"
+                >
+                    <option value="">Todas</option>
+                    <option
+                        v-for="c in cities"
+                        :key="c.id"
+                        :value="c.name"
+                    >${ c.name }</option>
+                </select>
+            </div>
+        </section>
+
+        <div v-if="isLoading" class="ce-loading">
+            <span class="ce-spinner" aria-hidden="true"></span>
+            <span>Cargando casos…</span>
+        </div>
+
+        <div v-else-if="!filters.entityId" class="ce-empty">
+            Selecciona una entidad para ver los casos referidos.
+        </div>
+
+        <div v-else-if="items.length === 0" class="ce-empty">
+            No hay casos referidos a tu entidad con los filtros actuales.
+        </div>
+
+        <section v-else class="ce-list">
+            <div class="ce-list-header">
+                <span class="ce-col-label">Caso</span>
+                <span class="ce-col-label">Relación con entidad</span>
+            </div>
+
+            <article
+                v-for="item in items"
+                :key="item.entityCaseId"
+                class="ce-row"
+            >
+                <div class="ce-col-caso">
+                    <p class="ce-name">${ item.victimFullName }</p>
+                    <p class="ce-ids">${ item.caseCode } · ${ item.document }</p>
+                    <p class="ce-city">
+                        <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+                        <span>${ item.city || '—' }</span>
+                    </p>
+                    <div class="ce-badges">
+                        <span
+                            v-if="item.riskLevel"
+                            class="ce-badge ce-badge--risk"
+                            :class="'ce-badge--risk-' + riskClass(item.riskLevel)"
+                        >${ item.riskLevel }</span>
+                        <span
+                            class="ce-badge ce-badge--status"
+                            :class="'ce-badge--status-' + statusClass(item.caseStatusLabel || item.caseStatus)"
+                        >${ item.caseStatusLabel || item.caseStatus }</span>
+                    </div>
+                    <button type="button" class="ce-link" @click="goToCase(item)">Ver caso →</button>
+                </div>
+
+                <div class="ce-col-relacion">
+                    <p class="ce-relation">${ item.objetivo || '—' }</p>
+                    <div class="ce-last-action">
+                        <span class="ce-last-action-label">Última acción</span>
+                        <p v-if="item.lastAction" class="ce-last-action-text">
+                            ${ item.lastAction }
+                        </p>
+                        <p v-else class="ce-last-action-text ce-last-action--empty">
+                            Sin acciones registradas
+                        </p>
+                    </div>
+                    <button type="button" class="ce-link" @click="goToRelationDetail(item)">Ver detalle →</button>
+                </div>
+            </article>
+
+            <nav v-if="totalPages > 1" class="ce-pagination" aria-label="Paginación">
+                <button
+                    type="button"
+                    class="ce-page-btn"
+                    :disabled="currentPage === 0"
+                    @click="changePage(currentPage - 1)"
+                >Anterior</button>
+                <button
+                    v-for="n in totalPages"
+                    :key="'p-' + (n - 1)"
+                    type="button"
+                    class="ce-page-btn"
+                    :class="{ 'ce-page-btn--active': currentPage === (n - 1) }"
+                    @click="changePage(n - 1)"
+                >${ n }</button>
+                <button
+                    type="button"
+                    class="ce-page-btn"
+                    :disabled="currentPage >= totalPages - 1"
+                    @click="changePage(currentPage + 1)"
+                >Siguiente</button>
+            </nav>
+        </section>
+    </template>
+
+</div>
+</main>
+
+{{ template "standard_scripts.html" . }}
+{{ template "overlay.html" . }}
+
+<script>
+    window.__CasosEntidadConfig = {
+        windowTitle: {{.windowTitle}},
+        currentUser: "{{.currentUser}}",
+        currentRole: "{{.currentRole}}",
+        menu: {{.menu}}
+    };
+</script>
+<script src="/static/js/components/casos-entidad.js"></script>

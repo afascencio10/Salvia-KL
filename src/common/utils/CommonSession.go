@@ -19,6 +19,7 @@ type CommonSession struct {
 	EntityBrandICode  string
 	TownCode          string
 	TownICode         string
+	AssignedDepartmentID string // Departamento asignado al Enlace Territorial (rol "en"), independiente de su residencia
 	EntityBranchICode string
 	Lang              string
 	CurrentMenu       map[string][]map[string]string

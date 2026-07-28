@@ -183,6 +183,16 @@
     color: #7c3aed;
 }
 
+.rcm-team-banner--contingency {
+    background: #fef3c7;
+    border-color: #fcd34d;
+    color: #92400e;
+}
+
+.rcm-team-banner--contingency i {
+    color: #d97706;
+}
+
 .rcm-section-title {
     margin: 0 0 10px;
     font-size: 0.78rem;

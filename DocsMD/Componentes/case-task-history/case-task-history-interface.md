@@ -85,8 +85,11 @@ case-task-history
             │       │       └── [formData.observacionesMecanismo]
             │       │           └── Campo  "Obs. mecanismo"      formData.observacionesMecanismo
             │       │
-            │       └── [tarea.type === 'Corregir oficio']
-            │           └── Nota  (.cth-nota-corregido)  "El oficio fue corregido por el agente que lo proyectó"
+            │       ├── [tarea.type === 'Corregir oficio']
+            │       │   └── Nota  (.cth-nota-corregido)  "El oficio fue corregido por el agente que lo proyectó"
+            │       │
+            │       └── [tarea.type === 'gestion_propia']
+            │           └── Campo  "Tipo de gestión"          formData.subtipo
             │
             └── Footer  (.cth-footer)
                 └── BtnCerrar  "Cerrar"  → cerrar()
@@ -102,5 +105,8 @@ case-task-history
 | `proyectar_oficio` | Ubicación, entidad, funcionario, asunto, ruta Kofax |
 | `comite_caso` | Chips de decisiones tomadas + observaciones condicionales por decisión + nivel del mecanismo articulador |
 | `Corregir oficio` | Sin campos propios (`formData` es `{}`) — se muestra la nota **"El oficio fue corregido por el agente que lo proyectó"** en vez de un desglose de campos |
+| `gestion_propia` | Solo `formData.subtipo` (Llamada / Visita presencial / Oficio a entidad / Otra gestión) — la descripción libre ya se muestra arriba de forma genérica (`tarea.description`) |
 
 > Depende directamente de los campos legibles (`departamentoNombre`, `ciudadNombre`, `municipioNombre`, `decisionesTexto`, `nivelMecanismoTexto`) agregados a `_buildFormData()` en `case-task-modal.js`. Sin esos campos, este componente tendría que re-resolver IDs contra los catálogos de ubicación vigentes, lo cual sería frágil para datos históricos.
+>
+> `gestion_propia` es distinto a los demás tipos: no proviene de completar una `case_task` ya existente vía `case-task-modal`, sino de `POST /api/v1/case-tasks/gestion-propia` (crea y completa en un solo paso, botón "+ Registrar gestión propia" del Enlace Territorial en `case-tasks.js`). Ver `DocsMD/Otros/temp/req-registrar-gestion-propia-enlace.md`.

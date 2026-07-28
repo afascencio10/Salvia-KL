@@ -115,8 +115,10 @@ func FollowUpGET(c *gin.Context) {
 	common_facades.SetHeaderNoCache(c)
 
 	var menu map[string][]map[string]string
+	var role string
 	if err == nil {
 		menu = s.CurrentMenu
+		role = s.CurrentRole
 	}
 
 	id := c.Param("id")
@@ -130,6 +132,7 @@ func FollowUpGET(c *gin.Context) {
 			"lang":        s.Lang,
 			"menu":        menu,
 			"followUpId":  id,
+			"userRole":    role,
 		}, utils.GetFullHtmlFuncMap())
 }
 

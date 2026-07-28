@@ -1,8 +1,10 @@
 # `reasignar-casos-modal` — Inventario de Eventos
 
 Componente: `ReasignarCasosModal`  
-Archivo fuente: `src/frontend/js/components/reasignar-casos-modal.js` *(pendiente de crear)*  
+Archivo fuente: `src/frontend/js/components/reasignar-casos-modal.js`  
 Usado por: Pantallas padre que consumen `casos-component` con `:reasignacion="true"` (p. ej. Lista de casos)
+
+> **Contingencia cross-team:** [contingencia-reasignacion-cross-team.md](./contingencia-reasignacion-cross-team.md)
 
 > **Nota de alcance:** Este modal es independiente de `casos-component`. Se abre desde el padre cuando recibe `reasignar-casos` (E-15). M-05 persiste la reasignación en `victim_case`, `follow_up_v2` y `case_timeline_event`.
 
@@ -20,14 +22,15 @@ Usado por: Pantallas padre que consumen `casos-component` con `:reasignacion="tr
 Evento:       Cuando abre el modal de reasignación
 Tipo:         Lifecycle / User Interaction
 Descripción:  El padre llama open(cases) tras recibir reasignar-casos (E-15).
-              El modal se hace visible, guarda los casos, resuelve el equipo
-              (caseTeam o derivado por riesgo) y dispara la carga de agentes (M-02).
+              El modal se hace visible, guarda los casos.
+              Modo normal: resuelve equipo (caseTeam o riesgo) y dispara M-02.
+              Contingencia: dispara M-02-C (todos los agentes ro).
 Requerido:    Sí
 ```
 
 ---
 
-### M-02 — Cuando carga agentes por equipo
+### M-02 — Cuando carga agentes por equipo *(modo normal)*
 
 📄 [Ver flujo → flow-M02-cuando-carga-agentes-por-equipo.md](./Flujos/flow-M02-cuando-carga-agentes-por-equipo.md)
 
@@ -38,7 +41,22 @@ Descripción:  Tras resolver resolvedTeam (M-01), consulta al backend los agente
               activos (rol ro) cuyo general_user_team coincide con el equipo.
               Obtiene el nombre desde general_user_profile. Puebla el <select>
               de "Nueva persona asignada".
-Requerido:    Sí
+              Comentar en código cuando REASSIGN_CROSS_TEAM_CONTINGENCY === true.
+Requerido:    Sí (modo normal)
+```
+
+---
+
+### M-02-C — Cuando carga todos los agentes *(contingencia)*
+
+📄 [Ver flujo → flow-M02-C-cuando-carga-todos-los-agentes.md](./Flujos/flow-M02-C-cuando-carga-todos-los-agentes.md)
+
+```
+Evento:       Cuando carga todos los agentes (sin filtro de equipo)
+Tipo:         Lifecycle / Backend read
+Descripción:  Contingencia cross-team. GET /api/v1/equipo-operadores?role=ro
+              sin param team. Lista todos los agentes ro activos.
+Requerido:    Sí (contingencia activa)
 ```
 
 ---
@@ -106,7 +124,7 @@ Requerido:    Sí
 ## Checklist de completitud
 
 - [x] ¿La apertura del modal desde E-15 está cubierta? → M-01
-- [x] ¿La carga de agentes por equipo está cubierta? → M-02
+- [x] ¿La carga de agentes por equipo está cubierta? → M-02 (normal) / M-02-C (contingencia)
 - [x] ¿La selección de agente en el select está cubierta? → M-03
 - [x] ¿La cancelación / cierre sin guardar está cubierta? → M-04
 - [x] ¿El guardado de la reasignación está cubierto? → M-05
@@ -119,9 +137,10 @@ Requerido:    Sí
 | # | Evento | Tipo | Persiste en backend |
 |---|---|---|---|
 | M-01 | Cuando abre el modal | Lifecycle | No |
-| M-02 | Cuando carga agentes por equipo | Backend read | No (solo lee) |
+| M-02 | Cuando carga agentes por equipo | Backend read | No (solo lee) | Modo normal |
+| M-02-C | Cuando carga todos los agentes | Backend read | No (solo lee) | Contingencia |
 | M-03 | Cuando selecciona un agente | User Interaction | No (estado interno) |
 | M-04 | Cuando cancela o cierra el modal | User Interaction | No |
 | M-05 | Cuando confirma la reasignación | User Interaction / Backend write | Sí |
 
-**Total: 5 eventos — 1 Lifecycle, 1 Backend read, 2 User Interaction, 1 Backend write**
+**Total: 6 eventos — 1 Lifecycle, 2 Backend read (M-02 / M-02-C mutuamente excluyentes), 2 User Interaction, 1 Backend write**

@@ -45,6 +45,7 @@ func BarreraDetalleGET(c *gin.Context) {
 			"currentUser":   s.Names + " " + s.LastNames,
 			"currentRole":   s.CurrentRole,
 			"currentUserId": s.UserICode,
+			"currentUserAssignedDepartment": s.AssignedDepartmentID,
 			"barrierICode":  barrierICode,
 			"locale":        salvia_config.Locale,
 			"lang":          s.Lang,

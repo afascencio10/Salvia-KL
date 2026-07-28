@@ -1,8 +1,6 @@
 # `Barrera Detalle` — Interfaz de la Pantalla
 
-Vista interna de una barrera: información general, estado, tareas pendientes/completadas y timeline de actuaciones.
-
-> ⚠️ **Pantalla en desarrollo temprano.** Actualmente renderiza datos mock (hardcoded en Vue data). No hay llamadas a API desde el frontend.
+Vista interna de una barrera: información general, tareas (pendientes/completadas, incluyendo gestión propia del Enlace Territorial) y timeline de actuaciones. Carga sus datos desde `GET /api/v1/barriers-v2/:id/detail`.
 
 ## Archivos relevantes
 
@@ -10,7 +8,12 @@ Vista interna de una barrera: información general, estado, tareas pendientes/co
 |---|---|
 | `src/frontend/html/salvia/barriers/barrera_detalle.html` | Template principal — lógica Vue y estructura completa |
 | `src/frontend/css/barrera_detalle.css` | Estilos de layout y estados visuales |
-| `src/salvia/facades/BarreraDetalleFacade.go` | Fachada Go que renderiza el template e inyecta barrierICode |
+| `src/salvia/facades/BarreraDetalleFacade.go` | Fachada Go que renderiza el template e inyecta sesión (rol, departamento asignado) |
+| `src/frontend/js/components/case-tasks.js` | Componente reutilizable — tab "Tareas": listado pendientes/completadas, modal de gestión propia |
+| `src/frontend/js/components/case-task-modal.js` | Modal para completar una tarea pendiente (montado dentro de `case-tasks`) |
+| `src/frontend/js/components/case-task-history.js` | Modal de solo lectura para ver una tarea completada (montado dentro de `case-tasks`) |
+| `src/frontend/js/components/case-timeline.js` | Componente reutilizable — tab "Timeline" |
+| `src/frontend/js/components/barrier-follow-up-timeline.js` | Timeline de seguimientos — tab "Información General" |
 
 ---
 
@@ -19,79 +22,72 @@ Vista interna de una barrera: información general, estado, tareas pendientes/co
 ```
 BarreraDetalle  (.brd-container)
 │
-├── Breadcrumb  (.brd-breadcrumb)
-│   └── BtnBack  (.brd-back-link)  "← {barrera.victimName}"  → history.back()
+├── [v-if cargando]
+│   └── Spinner  "Cargando información de la barrera..."
 │
-├── HeaderCard  (.brd-header-card)
-│   ├── Avatar  (.brd-victim-avatar)  inicial del nombre de la víctima
-│   └── VictimInfo  (.brd-victim-info)
-│       ├── NameRow  (.brd-victim-name-row)
-│       │   ├── Name  (.brd-victim-name)  barrera.victimName
-│       │   └── TagPrioridad  (.brd-prioridad-{slug})  barrera.priority
-│       └── Meta  (.brd-victim-meta)  "{barrera.age} años · {barrera.location}"
+├── [v-if error && !cargando]
+│   └── ErrorBox  "No se pudo cargar la barrera"  ${ error }  → BtnVolver "← Volver"
 │
-├── Tabs  (.brd-tabs-wrapper)
-│   ├── TabBtn "⚠️ Información General"  :class active si activeTab === 'info'
-│   └── TabBtn "📋 Timeline"  :class active si activeTab === 'timeline'
-│
-├── [v-if activeTab === 'info']
-│   TabContentInfo  (.brd-tab-content-card)
-│   │
-│   ├── SectionHeader "Información general"
-│   ├── Divider
-│   │
-│   ├── ToggleEstado  (.brd-info-subsection)
-│   │   └── Toggle  (.brd-toggle-switch)  :class on si barrera.active
-│   │       @click → barrera.active = !barrera.active
-│   │       Label: "Activa" | "Inactiva"
-│   │
-│   ├── Divider
-│   │
-│   ├── InfoRow  (.brd-info-row)
-│   │   ├── FechaIdentificacion "📅 Identificada el {barrera.identifiedAt}"
-│   │   └── TagStatus  (.brd-status-{slug})  barrera.status
-│   │
-│   ├── Divider
-│   │
-│   ├── BarrierDetailRow  (.brd-barrier-detail-row)
-│   │   ├── FieldSector: TagSector  (.brd-sector-{slug})  barrera.sector
-│   │   ├── FieldEntidad: barrera.org
-│   │   └── FieldDescripcion (.brd-detail-full): barrera.description
-│   │
-│   ├── Divider
-│   │
-│   ├── TareasPendientes  (.brd-tasks-block)
-│   │   ├── [v-if pendingTasks.length > 0] TaskItem × N  [v-for pendingTasks]
-│   │   │   └── icon dot pending · task.label
-│   │   └── [v-else] "No hay tareas pendientes"
-│   │
-│   └── TareasCompletadas  (.brd-tasks-block)
-│       ├── [v-if completedTasks.length > 0] TaskItem × N  [v-for completedTasks]
-│       │   └── icon check-circle completed · task.label
-│       └── [v-else] "No hay tareas completadas aún"
-│
-└── [v-if activeTab === 'timeline']
-    TabContentTimeline  (.brd-tab-content-card)
-    └── EmptyState  (.brd-empty-timeline)
-        "No hay eventos registrados en el timeline de esta barrera."
+└── [v-if barrera && !cargando]
+    │
+    ├── Breadcrumb  (.brd-breadcrumb)
+    │   ├── BtnBack  (.brd-back-link)  "← {victimName}"  → history.back()
+    │   └── Sector  barrera.sector
+    │
+    ├── HeaderCard  (.brd-header-card)
+    │   ├── Avatar  (.brd-victim-avatar)  inicial de victimName
+    │   └── VictimInfo  (.brd-victim-info)
+    │       ├── NameRow: Name  victimName  ·  BadgeRiesgo  labelRiesgo(riskLevel)
+    │       └── Meta  "{victimAge} años · {location}"
+    │
+    ├── Tabs  (.brd-tabs-wrapper)
+    │   ├── TabBtn "⚠️ Información General"  :class active si activeTab === 'info'
+    │   ├── TabBtn "📋 Tareas"  :class active si activeTab === 'tareas'
+    │   └── TabBtn "🕐 Timeline"  :class active si activeTab === 'timeline'
+    │
+    ├── [v-if activeTab === 'info']
+    │   TabContentInfo  (.brd-tab-content-card)
+    │   ├── InfoRow: FechaIdentificacion "📅 Identificada el {createdAt}"  ·  TagStatus  labelBarreraStatus(status)
+    │   ├── BarrierDetailRow  sector, entidad(es), dependencia, identificada por, agente responsable,
+    │   │   fecha, [v-if enlaceActivado] "Enlace territorial ✓ Activado", barreras identificadas, descripción...
+    │   ├── [v-if ubicación]  Ubicación de la barrera
+    │   ├── [v-if barreras estructurales]  Chips por categoría (institucional/económica/territorial/diferencial)
+    │   ├── SeguimientosBlock  (.brd-tasks-block)
+    │   │   ├── BtnVerRegistroCompleto "📋 Ver registro completo"  → mostrarRegistroCompleto = true
+    │   │   └── <barrier-follow-up-timeline>  // src/frontend/js/components/barrier-follow-up-timeline.js
+    │   └── [v-if mostrarRegistroCompleto]
+    │       └── ModalRegistroCompleto  — desglose de las 22 preguntas del registro de la barrera (solo lectura)
+    │
+    ├── [v-if activeTab === 'tareas']
+    │   TabContentTareas  (.brd-tab-content-card)
+    │   └── <case-tasks :case-id :barrier-id :user-id :user-role :puede-gestion-propia>
+    │       // src/frontend/js/components/case-tasks.js
+    │       ├── Tabs internas "Pendientes (N)" / "Completadas (N)"
+    │       ├── [pendingTask] BtnGestionar  → abre <case-task-modal>
+    │       ├── [completedTask] BtnVerDetalle  → abre <case-task-history>
+    │       └── [puedeGestionPropia]  ← rol "en" Y barrera.departmentId === currentUserAssignedDepartment
+    │           ├── BtnRegistrarGestionPropia  "+ Registrar gestión propia"  → abrirModalGestionPropia()
+    │           └── [modalGestionPropiaAbierto]
+    │               ModalGestionPropia  (.ct-modal-backdrop)
+    │               ├── <select> Tipo de gestión*  [Llamada | Visita presencial | Oficio a entidad | Otra gestión]
+    │               ├── <textarea> Descripción de la gestión*
+    │               ├── [errorGestionPropia]  ErrorMsg
+    │               ├── BtnCancelar  → cerrarModalGestionPropia()
+    │               └── BtnGuardar  "Registrar como completada"  :disabled si !descripcion.trim()
+    │                   → confirmarGestionPropia()  →  POST /api/v1/case-tasks/gestion-propia
+    │
+    └── [v-if activeTab === 'timeline']
+        TabContentTimeline  (.brd-tab-content-card)
+        └── <case-timeline :case-id :barrier-id :show-filters="false">
+            // src/frontend/js/components/case-timeline.js
 ```
 
 ---
 
-## Datos actuales (mock)
+## Acceso por rol y departamento
 
-La pantalla usa datos hardcoded en `data()`. No hay carga desde API.
+El botón "+ Registrar gestión propia" (tab Tareas) solo se muestra si:
+- `currentRole === 'en'` (Enlace Territorial), **y**
+- `barrera.departmentId === currentUserAssignedDepartment` — el departamento asignado al Enlace (`security.general_user.general_user_assigned_department`, independiente de su municipio de residencia).
 
-| Campo | Valor mock |
-|---|---|
-| victimName | 'María González' |
-| age | 32 |
-| location | 'San Salvador, San Salvador' |
-| priority | 'Alto' |
-| sector | 'Justicia' |
-| org | 'Policía Nacional' |
-| description | 'Negación de recibir denuncia formal' |
-| status | 'Por articular' |
-| identifiedAt | '15 may. 2026' |
-| active | true |
-| pendingTasks / completedTasks | [] (vacíos) |
+El backend revalida ambas condiciones en `POST /api/v1/case-tasks/gestion-propia` — el chequeo del frontend es solo para UX, no seguridad.

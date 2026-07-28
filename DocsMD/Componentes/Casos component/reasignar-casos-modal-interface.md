@@ -2,14 +2,19 @@
 
 Modal reutilizable para reasignar uno o varios casos seleccionados desde `casos-component`. Lo consume el **componente padre** de la pantalla (p. ej. Lista de casos). Se abre cuando el padre recibe el evento `reasignar-casos` (E-15) y llama al método público `open(cases)`.
 
-Permite revisar los casos a reasignar, elegir un nuevo agente del mismo equipo y confirmar (la lógica de guardado se documentará en un evento aparte).
+Permite revisar los casos a reasignar, elegir un nuevo agente y confirmar.
+
+> **Modo normal:** el agente destino pertenece al mismo equipo del caso (derivado de `caseTeam` o riesgo).
+>
+> **Modo contingencia (cross-team):** el supervisor puede elegir **cualquier agente `ro` activo**, sin filtro por equipo. Ver [contingencia-reasignacion-cross-team.md](./contingencia-reasignacion-cross-team.md).
 
 ## Archivos relevantes
 
 | Archivo | Rol |
 |---|---|
-| `src/frontend/js/components/reasignar-casos-modal.js` | Componente Vue — template y lógica *(pendiente de crear)* |
-| `src/frontend/css/reasignar-casos-modal.css` | Estilos del modal y estados visuales *(pendiente de crear)* |
+| `src/frontend/js/components/reasignar-casos-modal.js` | Componente Vue — template y lógica |
+| `src/frontend/css/reasignar-casos-modal.css` | Estilos del modal y estados visuales |
+| [contingencia-reasignacion-cross-team.md](./contingencia-reasignacion-cross-team.md) | Plan de contingencia — reasignación a cualquier agente |
 | `src/frontend/html/salvia/list-cases/reasignar_casos_modal.html` | Partial HTML con `x-template` del modal |
 
 ## Relación con otros componentes
@@ -48,9 +53,10 @@ reasignar-casos-modal
         │
         ├── ModalBody  (.rcm-body)
         │   │
-        │   ├── TeamBanner  (.rcm-team-banner)
+        │   ├── TeamBanner  (.rcm-team-banner)  [v-if !crossTeamContingency && resolvedTeam]
         │   │   └── "Equipo: { resolvedTeam }"
-        │   │   // Equipo calculado al abrir (M-01) — ver regla de resolución
+        │   │   // Modo normal: equipo calculado al abrir (M-01)
+        │   │   // Contingencia: oculto o mensaje alternativo (ver § Modo contingencia)
         │   │
         │   ├── CasesSection  (.rcm-cases-section)
         │   │   ├── SectionTitle  (.rcm-section-title)  "Casos seleccionados ({ cases.length })"
@@ -80,7 +86,8 @@ reasignar-casos-modal
         │   │       ├── <option value="">  "Seleccione un agente"
         │   │       └── <option> × N  [v-for agents]
         │   │           :value="agent.icode"
-        │   │           agent.fullName
+        │   │           Modo normal:     agent.fullName
+        │   │           Contingencia:   agent.fullName + ' — ' + agent.team
         │   │           → onAgentChange()   // → M-03
         │   │
         │   └── WarningBox  (.rcm-warning)
@@ -121,8 +128,9 @@ onReasignarCasos: function(payload) {
 |---|---|---|---|
 | `visible` | `Boolean` | `false` | Controla si el modal está abierto |
 | `cases` | `Array<Object>` | `[]` | Casos a reasignar (copia del payload E-15) |
-| `resolvedTeam` | `String` | `''` | Equipo usado para filtrar agentes |
-| `agents` | `Array<AgentOption>` | `[]` | Agentes disponibles del equipo |
+| `resolvedTeam` | `String` | `''` | Equipo del caso (modo normal: filtra agentes; contingencia: solo informativo u oculto) |
+| `agents` | `Array<AgentOption>` | `[]` | Agentes disponibles en el select |
+| `crossTeamContingency` | `Boolean` | `REASSIGN_CROSS_TEAM_CONTINGENCY` | Flag de contingencia — ver doc dedicado |
 | `selectedAgentIcode` | `String` | `''` | `icode` del agente elegido en el select |
 | `selectedAgent` | `Object \| null` | `null` | Objeto completo del agente seleccionado |
 | `loadingAgents` | `Boolean` | `false` | Carga de agentes en curso (M-02) |
@@ -139,7 +147,26 @@ onReasignarCasos: function(payload) {
 
 ---
 
-## Regla de resolución de equipo (`resolvedTeam`)
+## Modo contingencia (cross-team)
+
+Activado con `REASSIGN_CROSS_TEAM_CONTINGENCY = true` en `reasignar-casos-modal.js`.
+
+| Aspecto | Modo normal | Contingencia |
+|---|---|---|
+| Resolución de equipo (M-01 PASO 3) | Obligatoria; error si no se deriva | **Comentada** — no bloquea apertura |
+| Carga de agentes | M-02 `fetchAgentsByTeam(resolvedTeam)` | M-02-C `fetchAllAgents()` sin `?team=` |
+| TeamBanner | Visible con `resolvedTeam` | Oculto o mensaje de contingencia |
+| Opciones del select | Solo `fullName` | `fullName — team` |
+| Backend | `?team={resolvedTeam}` | Sin param `team` |
+| M-05 (guardado) | Igual | Igual — ya soporta agente de otro equipo |
+
+Plan completo: [contingencia-reasignacion-cross-team.md](./contingencia-reasignacion-cross-team.md)
+
+---
+
+## Regla de resolución de equipo (`resolvedTeam`) — modo normal
+
+> En contingencia esta sección queda **comentada** en código; se conserva aquí para reversión.
 
 Se calcula al abrir el modal (M-01) a partir del primer caso de `cases`. Todos los casos seleccionados comparten el mismo equipo (garantizado por E-14 en `casos-component`).
 
@@ -173,7 +200,17 @@ Se calcula al abrir el modal (M-01) a partir del primer caso de `cases`. Todos l
 
 ---
 
-## Fuente de datos — Agentes por equipo
+## Fuente de datos — Agentes
+
+### Contingencia (M-02-C)
+
+```
+GET /api/v1/equipo-operadores?role=ro
+```
+
+Sin `team` → todos los agentes activos con rol `ro`.
+
+### Modo normal — Agentes por equipo (M-02)
 
 ### Tablas involucradas
 
@@ -216,7 +253,8 @@ Respuesta esperada:
 | ID | Evento | Documento |
 |---|---|---|
 | M-01 | Cuando abre el modal | [flow-M01](./Flujos/flow-M01-cuando-abre-modal-reasignacion.md) |
-| M-02 | Cuando carga agentes por equipo | [flow-M02](./Flujos/flow-M02-cuando-carga-agentes-por-equipo.md) |
+| M-02 | Cuando carga agentes por equipo *(modo normal)* | [flow-M02](./Flujos/flow-M02-cuando-carga-agentes-por-equipo.md) |
+| M-02-C | Cuando carga todos los agentes *(contingencia)* | [flow-M02-C](./Flujos/flow-M02-C-cuando-carga-todos-los-agentes.md) |
 | M-03 | Cuando selecciona un agente | [flow-M03](./Flujos/flow-M03-cuando-selecciona-agente.md) |
 | M-04 | Cuando cancela o cierra el modal | [flow-M04](./Flujos/flow-M04-cuando-cancela-modal.md) |
 | M-05 | Cuando confirma reasignación (guardado) | [flow-M05](./Flujos/flow-M05-cuando-confirma-reasignacion.md) |

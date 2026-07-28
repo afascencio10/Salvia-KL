@@ -1,11 +1,13 @@
 package controller
 
 import (
+	"bitsflow/common/utils"
 	"bitsflow/internal/models"
 	"bitsflow/salvia/service"
 	"errors"
 	"net/http"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"gorm.io/datatypes"
 )
@@ -19,11 +21,45 @@ func NewCaseTaskController(svc service.CaseTaskService) *CaseTaskController {
 	return &CaseTaskController{svc: svc}
 }
 
+// gestionPropiaWriteRoles — únicos roles que pueden registrar una gestión
+// propia sobre una barrera (Enlace Territorial).
+var gestionPropiaWriteRoles = map[string]bool{"en": true}
+
+// requireGestionPropiaAccess valida la sesión (sessions.Default + utils.GetCommonSession,
+// mismo patrón que entity_case_controller.go) y exige rol "en". No reutiliza
+// salvia_config.PermissionsByRole porque la pantalla Detalle de Barrera
+// (BarreraDetalleGET) hoy no tiene ningún permiso de rol asociado — el resto
+// de /api/v1 en este repo no valida sesión en absoluto (hallazgo reportado
+// aparte); este endpoint nuevo no replica ese hueco a sabiendas. Devuelve la
+// sesión resuelta, o nil si ya respondió.
+func requireGestionPropiaAccess(ctx *gin.Context) *utils.CommonSession {
+	sessionID, ok := sessions.Default(ctx).Get("userData").(string)
+	if !ok || sessionID == "" {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "no autenticado"})
+		return nil
+	}
+	s, err := utils.GetCommonSession(sessionID)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "no autenticado"})
+		return nil
+	}
+	if !gestionPropiaWriteRoles[s.CurrentRole] {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "su rol no tiene permiso para registrar gestión propia"})
+		return nil
+	}
+	if s.AssignedDepartmentID == "" {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "su usuario no tiene un departamento asignado"})
+		return nil
+	}
+	return s
+}
+
 // RegisterRoutes registra las rutas de CaseTask en el grupo /api/v1.
 //
 //	GET  /api/v1/case-tasks?assignedUserId=<id>   → tareas con barrera asignadas al usuario
 //	POST /api/v1/case-tasks/:id/complete           → marcar tarea como completada (flujo legacy "Gestionar")
 //	PUT  /api/v1/case-tasks/:id/complete           → completar tarea con formData (case-task-modal)
+//	POST /api/v1/case-tasks/gestion-propia         → Enlace registra gestión propia (crea+completa en un paso)
 func (c *CaseTaskController) RegisterRoutes(rg *gin.RouterGroup) {
 	group := rg.Group("/case-tasks")
 	group.GET("", c.ListByAssignedUser)
@@ -31,6 +67,7 @@ func (c *CaseTaskController) RegisterRoutes(rg *gin.RouterGroup) {
 	group.POST("/:id/complete", c.Complete)
 	group.PUT("/:id/complete", c.CompleteWithFormData)
 	group.POST("/:id/reassign", c.Reassign)
+	group.POST("/gestion-propia", c.CreateGestionPropia)
 }
 
 // ListByAssignedUser devuelve las tareas con barrierId asignadas al usuario,
@@ -229,6 +266,58 @@ func (c *CaseTaskController) Reassign(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "tarea reasignada exitosamente"})
 }
 
+// tiposGestionPropiaValidos — opciones válidas para el campo "tipo" del
+// endpoint de gestión propia (mismas 4 opciones del modal ModalRegistrarGestion).
+var tiposGestionPropiaValidos = map[string]bool{
+	"Llamada":            true,
+	"Visita presencial":  true,
+	"Oficio a entidad":   true,
+	"Otra gestión":       true,
+}
+
+// CreateGestionPropia crea una CaseTask ya completada para una gestión que el
+// Enlace Territorial registró por iniciativa propia sobre una barrera — sin
+// que exista una tarea "ToDo" previa. Solo el rol "en" puede llamarlo, y solo
+// sobre barreras del departamento asignado al Enlace de la sesión.
+//
+//	POST /api/v1/case-tasks/gestion-propia
+//	Body: { "caseId": "...", "barrierId": "...", "tipo": "Llamada", "descripcion": "..." }
+func (c *CaseTaskController) CreateGestionPropia(ctx *gin.Context) {
+	s := requireGestionPropiaAccess(ctx)
+	if s == nil {
+		return
+	}
+
+	var body struct {
+		CaseID      string `json:"caseId" binding:"required"`
+		BarrierID   string `json:"barrierId" binding:"required"`
+		Tipo        string `json:"tipo" binding:"required"`
+		Descripcion string `json:"descripcion" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "campos 'caseId', 'barrierId', 'tipo' y 'descripcion' requeridos"})
+		return
+	}
+	if !tiposGestionPropiaValidos[body.Tipo] {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "tipo de gestión inválido: " + body.Tipo})
+		return
+	}
+
+	task, err := c.svc.CreateGestionPropia(ctx.Request.Context(), body.CaseID, body.BarrierID, body.Tipo, body.Descripcion, s.UserICode, s.AssignedDepartmentID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrBarrierNotFound):
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "barrera no encontrada"})
+		case errors.Is(err, service.ErrBarrierDepartmentMismatch):
+			ctx.JSON(http.StatusForbidden, gin.H{"error": "esta barrera no pertenece a tu departamento asignado"})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		}
+		return
+	}
+
+	ctx.JSON(http.StatusOK, c.enrichTaskWithName(*task))
+}
 
 // lookupUserName resuelve el nombre completo de un usuario a partir de su icode.
 // Devuelve "" si el icode está vacío o no se encuentra.

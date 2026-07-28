@@ -212,6 +212,7 @@
                 formId:      FORM_ID_DEFAULT,
                 submissionId: null,
                 canEdit:      true,
+                userRole:     '{{ .userRole }}',
                 formState: {
                     psysocialRemisionState: '',
                 },
@@ -347,6 +348,12 @@
                         this.canEdit = diffDays <= 5;
                     } else {
                         this.canEdit = true;
+                    }
+
+                    // Psicólogo/a (ps) y trabajador social (ts): el seguimiento es siempre
+                    // de solo lectura para ellos, sin excepción de las reglas anteriores.
+                    if (this.userRole === 'ps' || this.userRole === 'ts') {
+                        this.canEdit = false;
                     }
 
                     // Card víctima — viene directo del backend con todos los campos

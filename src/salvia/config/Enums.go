@@ -11,6 +11,7 @@ var HTML_Templates map[string]string = map[string]string{
 	"list_cases":               "list_cases.html",
 	"historial_remisiones":     "historial_remisiones.html",
 	"administrar_duplas":       "administrar_duplas.html",
+	"casos_entidad":            "casos_entidad.html",
 	"mis_remisiones_psicosocial": "mis_remisiones_psicosocial.html",
 	"get_victim_cases":         "get_victim_cases.html",
 	"get_victim_cases_ro":      "get_victim_cases_ro.html",

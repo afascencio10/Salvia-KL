@@ -33,6 +33,7 @@ const (
 	TimelineTypeCambioEstado          = "Cambio de Estado"
 	TimelineTypeBarreraIdentificada   = "Barrera Identificada"
 	TimelineTypeBarreraArticulada     = "Barrera Articulada"
+	TimelineTypeGestionPropia         = "Gestión propia registrada"
 	TimelineTypeNota                  = "Nota"
 
 	// Oficios (EntityLetter) — un Type por estado destino
@@ -55,6 +56,7 @@ const (
 	TimelineIconEstado       = "shuffle"
 	TimelineIconBarrera          = "triangle-exclamation"
 	TimelineIconBarreraArticulada = "circle-check"
+	TimelineIconGestionPropia     = "link"
 	TimelineIconNota         = "note-sticky"
 	TimelineIconCierre       = "circle-xmark"
 
@@ -92,6 +94,7 @@ const (
 	TimelineEventEstadoCambio    = "CAMBIO_ESTADO"
 	TimelineEventBarrera           = "BARRERA_IDENTIFICADA"
 	TimelineEventBarreraArticulada = "BARRERA_ARTICULADA"
+	TimelineEventGestionPropia     = "GESTION_PROPIA_REGISTRADA"
 	TimelineEventNota              = "NOTA"
 	TimelineEventOficioActualizado = "OFICIO_ACTUALIZADO"
 )

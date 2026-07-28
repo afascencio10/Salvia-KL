@@ -37,6 +37,14 @@ PASO 2 — Inicializar estado del modal
 
 PASO 3 — Resolver equipo (resolvedTeam)
 
+  // ── CONTINGENCIA (REASSIGN_CROSS_TEAM_CONTINGENCY === true) ──
+  SI crossTeamContingency:
+    → resolvedTeam = ''   // o calcular solo para banner informativo (opcional)
+    → NO validar caseTeam / riesgo
+    → fetchAllAgents()    // → M-02-C
+    → FIN EJECUCIÓN ✓
+
+  // ── MODO NORMAL (lógica original — comentar en código al activar contingencia) ──
   referenceCase = cases[0]
 
   SI referenceCase.caseTeam no está vacío:
@@ -54,7 +62,7 @@ PASO 3 — Resolver equipo (resolvedTeam)
         → TERMINAR ejecución
 
 
-PASO 4 — Disparar carga de agentes
+PASO 4 — Disparar carga de agentes (modo normal)
 
   → fetchAgentsByTeam(resolvedTeam)   // → M-02
 
@@ -80,3 +88,4 @@ PASO 4 — Disparar carga de agentes
 |---------------------------------------------------------------|---------------|
 | ¿Bloquear foco en el modal (trap focus) para accesibilidad?   | Interfaz      |
 | ¿Mostrar i_code de cada caso en la lista del modal?           | Interfaz      |
+| Contingencia cross-team                                       | [contingencia-reasignacion-cross-team.md](../contingencia-reasignacion-cross-team.md) |

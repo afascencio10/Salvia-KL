@@ -283,6 +283,9 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	// ── Administrar Duplas (Atención Psicosocial — solo sv) ────────────────
 	"get_administrar_duplas": {"sv": true},
 
+	// ── Casos Entidad (solo rol et) ───────────────────────────────────────
+	"get_casos_entidad": {"et": true},
+
 	// ── Mis remisiones Psicosocial (profesional ps / ts) ────────────────────
 	"get_mis_remisiones_psicosocial": {"ps": true, "ts": true},
 

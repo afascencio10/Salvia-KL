@@ -49,6 +49,12 @@ type BarrierV2 struct {
 
 	EnlaceActivado bool `gorm:"type:boolean;default:false;column:enlace_activado" json:"enlaceActivado"`
 
+	// EntityBranchID identifica la sede (salvia.entity_branch) donde se gestiona esta
+	// barrera. Nulo mientras el formulario de registro de barrera no permita elegirla —
+	// habilita el conteo de "barreras activas" por entidad en el componente case-entities
+	// (ver DocsMD/Componentes/case-entities/related-tables.md).
+	EntityBranchID *int64 `gorm:"column:entity_branch_id;index" json:"entityBranchId,omitempty"`
+
 	CreatedAt time.Time      `json:"createdAt"`
 	UpdatedAt time.Time      `json:"updatedAt"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`

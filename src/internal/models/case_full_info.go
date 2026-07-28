@@ -11,6 +11,7 @@ type CaseFullInfo struct {
 	Etnicos         CaseInfoEtnicos         `json:"etnicos"`
 	Contacto        CaseInfoContacto        `json:"contacto"`
 	Ubicacion       CaseInfoUbicacion       `json:"ubicacion"`
+	PlanAtencion    CaseInfoPlanAtencion    `json:"planAtencion"`
 	Hechos          CaseInfoHechos          `json:"hechos"`
 	Agresor         CaseInfoAgresor         `json:"agresor"`
 	Riesgo          CaseInfoRiesgo          `json:"riesgo"`
@@ -95,7 +96,11 @@ type CaseInfoHechos struct {
 	EscenarioViolencia   string   `json:"escenarioViolencia"`
 	RiesgoFeminicida     string   `json:"riesgoFeminicida"`
 	DireccionHechos      string   `json:"direccionHechos"`
-	PlanAtencion         []string `json:"planAtencion"`
+}
+
+type CaseInfoPlanAtencion struct {
+	Items       []string `json:"items"`
+	Explicacion string   `json:"explicacion"`
 }
 
 type CaseInfoAgresor struct {
