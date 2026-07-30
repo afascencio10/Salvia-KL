@@ -69,8 +69,9 @@ func GeneralUserLOGIN_POST(c *gin.Context) {
 	by := c.Param("by")
 
 	if by == "forgot" {
-		// Procesa la solicitud para recuperar la contraseña.
-		code, navStr, _ = security_ctrl.SetResetPassword(buf.String(), &db.ConnData{}, dbClientConfig, dbServerConfig)
+		// Procesa la solicitud para recuperar la contraseña. El enlace del correo
+		// se construye con el dominio del ambiente desde el que llegó la petición.
+		code, navStr, _ = security_ctrl.SetResetPassword(buf.String(), security_config.ResolveAppDomain(c.Request.Host), &db.ConnData{}, dbClientConfig, dbServerConfig)
 	} else if by == "reset" {
 		// Procesa la solicitud para actualizar la contraseña tras un reseteo.
 		code, navStr = security_ctrl.UpdateGeneralUserByReset(buf.String(), &db.ConnData{}, dbClientConfig, dbServerConfig)

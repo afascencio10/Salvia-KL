@@ -15,12 +15,13 @@ import (
 )
 
 // SetResetPassword procesa la solicitud de reinicio de contraseña para un usuario.
-// Recibe como entrada un string en formato JSON con los datos necesarios, el módulo de invocación,
+// Recibe como entrada un string en formato JSON con los datos necesarios, la URL base de la
+// aplicación para construir el enlace del correo (ver security_config.ResolveAppDomain),
 // y la configuración de la conexión y de la base de datos. La función valida los datos de entrada,
 // obtiene el usuario, verifica la existencia de solicitudes de reinicio previas, crea un nuevo registro
 // de reinicio de contraseña y envía un email con el enlace para restablecer la contraseña.
 // Retorna un código HTTP, un mensaje en formato JSON y el DTO de reinicio de contraseña generado.
-func SetResetPassword(dataInput string, connData *db.ConnData, dbClientConfig db.DBClientConfig, dbServerConfig db.DBServerConfig) (int, string, security_daos.ResetPasswordDTO) {
+func SetResetPassword(dataInput string, appDomain string, connData *db.ConnData, dbClientConfig db.DBClientConfig, dbServerConfig db.DBServerConfig) (int, string, security_daos.ResetPasswordDTO) {
 
 	// Inicialización de variable para capturar errores
 	var err error = nil
@@ -133,7 +134,7 @@ func SetResetPassword(dataInput string, connData *db.ConnData, dbClientConfig db
 		Username:     security_config.EMAIL_SERVER_HOST_USERNAME,
 		UserPassword: security_config.EMAIL_SERVER_HOST_PASS,
 		Subject:      "Reinicio de contraseña",
-		Body:         `<h1>Reinicio de contraseña</h1><p>Se ha solicitado un cambio de contraseña en su cuenta de salvia. SI usted ha solicitado el cambio, por favor haga click en el siguiente enlace para establecer una nueva contraseña: <a href="https://` + security_config.APP_DOMAIN + `/seguridad/login/` + resetPassword.ResetPasswordICode + `">Nueva contraseña</a></p>`}
+		Body:         `<h1>Reinicio de contraseña</h1><p>Se ha solicitado un cambio de contraseña en su cuenta de salvia. SI usted ha solicitado el cambio, por favor haga click en el siguiente enlace para establecer una nueva contraseña: <a href="` + appDomain + `/seguridad/login/` + resetPassword.ResetPasswordICode + `">Nueva contraseña</a></p>`}
 
 	// Se envía el correo electrónico. Si ocurre algún error durante el envío, se retorna el error correspondiente.
 	if err = mail.SendEMail(); err != nil {
