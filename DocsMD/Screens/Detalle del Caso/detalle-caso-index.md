@@ -88,7 +88,7 @@
 
 **Evento:** Cuando presiona "Ver tareas" en banner de tareas pendientes
 **Tipo:** User Interaction
-**Descripción:** Asigna `tabActiva = 'tareas'`. Existen dos banners con el mismo trigger y la misma acción: uno global (visible sobre cualquier tab, arriba de los tabs) y otro repetido dentro del tab Barreras — ambos se basan en `caseTasks` con `status === 'ToDo'`.
+**Descripción:** Asigna `tabActiva = 'tareas'`. Existen dos banners con el mismo trigger y la misma acción: uno global (visible sobre cualquier tab, arriba de los tabs) y otro repetido dentro del tab Gestión institucional — ambos se basan en `caseTasks` con `status === 'ToDo'`.
 **Requerido:** Sí
 
 ---

@@ -132,6 +132,10 @@ type FormService interface {
 	LoadForm(ctx context.Context, formID, submissionID string, formState map[string]interface{}) (*LoadFormResult, error)
 	SaveSection(ctx context.Context, input SaveSectionInput) (*LoadFormResult, error)
 	OnEndFormSubmission(ctx context.Context, formID, submissionID, actorID string) error
+	// OnSectionUpdate se dispara después de CADA guardado de sección (completo
+	// o no) -- a diferencia de OnEndFormSubmission, que solo se dispara al
+	// completar el formulario. Ver comentario en su implementación.
+	OnSectionUpdate(ctx context.Context, formID, submissionID, actorID string) error
 	TestFunction(ctx context.Context, fn, id, submissionID string) (interface{}, error)
 }
 
@@ -162,6 +166,7 @@ type FormServiceDeps struct {
 	EntityLetterRepo           repository.EntityLetterRepository
 	BarrierFollowUpRepo        repository.BarrierFollowUpRepository
 	TeamContactRepo            repository.TeamContactRepository
+	VictimCaseFormSvc          VictimCaseFormService
 }
 
 type formService struct {
@@ -191,6 +196,7 @@ type formService struct {
 	entityLetterRepo           repository.EntityLetterRepository
 	barrierFollowUpRepo        repository.BarrierFollowUpRepository
 	teamContactRepo            repository.TeamContactRepository
+	victimCaseFormSvc          VictimCaseFormService
 }
 
 func NewFormService(deps FormServiceDeps) FormService {
@@ -221,6 +227,7 @@ func NewFormService(deps FormServiceDeps) FormService {
 		entityLetterRepo:          deps.EntityLetterRepo,
 		barrierFollowUpRepo:       deps.BarrierFollowUpRepo,
 		teamContactRepo:           deps.TeamContactRepo,
+		victimCaseFormSvc:         deps.VictimCaseFormSvc,
 	}
 }
 
@@ -1877,6 +1884,15 @@ func (s *formService) SaveSection(ctx context.Context, input SaveSectionInput) (
 		}
 	}
 
+	// Hook genérico: se dispara SIEMPRE después de guardar las respuestas de
+	// una sección (no solo la primera ni la última) -- análogo a
+	// OnEndFormSubmission pero por cada saveSection en vez de solo al
+	// completar. Síncrono (no goroutine): los guardados posteriores asumen
+	// que cualquier efecto de esta sección ya se aplicó.
+	if err := s.OnSectionUpdate(ctx, input.FormID, submissionID, input.ActorID); err != nil {
+		log.Printf("[saveSection] OnSectionUpdate error para formId=%s submission=%s: %v", input.FormID, submissionID, err)
+	}
+
 	// 5. Retornar LoadForm con el estado actualizado (isAnswered/isVisible por sección)
 	result, err := s.LoadForm(ctx, input.FormID, submissionID, input.FormState)
 	if err != nil {
@@ -1905,6 +1921,25 @@ func (s *formService) SaveSection(ctx context.Context, input SaveSectionInput) (
 	return result, nil
 }
 
+// ─── OnSectionUpdate ────────────────────────────────────────────────────────────
+
+// OnSectionUpdate es llamado después de CADA guardado de sección (completo o
+// no) -- a diferencia de OnEndFormSubmission, que solo se dispara cuando el
+// formulario completo queda respondido. Delega a la función específica según
+// el formID, igual que OnEndFormSubmission. Los formularios sin lógica
+// registrada no hacen nada (no-op).
+func (s *formService) OnSectionUpdate(ctx context.Context, formID, submissionID, actorID string) error {
+	switch formID {
+	case RegistroCasoFormID:
+		if s.victimCaseFormSvc == nil {
+			return fmt.Errorf("victimCaseFormSvc no inyectado")
+		}
+		return s.victimCaseFormSvc.UpdateCaseDraft(ctx, submissionID, actorID)
+	default:
+		return nil
+	}
+}
+
 // ─── OnEndFormSubmission ──────────────────────────────────────────────────────
 
 // IDs de formularios con lógica de end-submission.
@@ -1922,6 +1957,11 @@ func (s *formService) OnEndFormSubmission(ctx context.Context, formID, submissio
 	switch formID {
 	case SeguimientoFormID:
 		return s.processFollowUpSubmission(ctx, submissionID, actorID)
+	case RegistroCasoFormID:
+		if s.victimCaseFormSvc == nil {
+			return fmt.Errorf("victimCaseFormSvc no inyectado")
+		}
+		return s.victimCaseFormSvc.Activate(ctx, submissionID, actorID)
 	case barrierUpdateFormID:
 		return s.processBarrierUpdateSubmission(ctx, submissionID)
 	case cierreCasoFormID:

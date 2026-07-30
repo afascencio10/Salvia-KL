@@ -128,6 +128,7 @@ func main() {
     duplaRepo              := repository.NewDuplaRepository(gormDB)
     psychosocialReassignRepo := repository.NewPsychosocialReassignRepository(gormDB)
     entityCaseRepo         := repository.NewEntityCaseRepository(gormDB)
+    victimCaseFormRepo     := repository.NewVictimCaseFormRepository(gormDB)
 
     // Services
     casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
@@ -141,6 +142,7 @@ func main() {
     answerSvc             := service.NewAnswerService(answerRepo)
     optionSvc             := service.NewOptionService(optionRepo)
     followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo)
+    victimCaseFormSvc     := service.NewVictimCaseFormService(victimCaseFormRepo, victimCaseLightRepo, caseTimelineRepo, followUpV2Svc)
 
     formSvc := service.NewFormService(service.FormServiceDeps{
         FormRepo:                  formRepo,
@@ -169,6 +171,7 @@ func main() {
         CaseTaskRepo:              caseTaskRepo,
         EntityLetterRepo:          entityLetterRepo,
         TeamContactRepo:           teamContactRepo,
+        VictimCaseFormSvc:         victimCaseFormSvc,
     })
     caseDetailSvc         := service.NewCaseDetailService(caseDetailRepo, gormDB)
     caseInfoSvc           := service.NewCaseInfoService(caseInfoRepo)
@@ -186,7 +189,7 @@ func main() {
     salvia_legacy.VictimCaseLightRepo = victimCaseLightRepo
 
     // Controllers
-    formCtrl               := salvia_ctrl.NewFormController(formSvc)
+    formCtrl               := salvia_ctrl.NewFormController(formSvc, victimCaseFormSvc)
     formSectionCtrl        := salvia_ctrl.NewFormSectionController(formSectionSvc)
     questionCtrl           := salvia_ctrl.NewQuestionController(questionSvc)
     repeaterGroupCtrl      := salvia_ctrl.NewRepeaterGroupController(repeaterGroupSvc)

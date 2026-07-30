@@ -83,8 +83,8 @@
         <button v-if="userRole === 'op' && (!caso.agentId || caso.agentId !== userICode)" class="btn-nuevo-seg" @click="autoAsignarCaso" :disabled="autoAsignando">
           ${ autoAsignando ? 'Asignando...' : '👤 Asignarme este caso' }
         </button>
-        <button v-if="puedeReasignar || userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode)" class="btn-nuevo-seg" :disabled="followUpsV2.length >= 8" @click="abrirModalNuevoSeg">
-          ${ followUpsV2.length >= 8 ? 'Máximo alcanzado (8)' : '+ Nuevo seguimiento' }
+        <button v-if="puedeReasignar || userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode)" class="btn-nuevo-seg" @click="abrirModalNuevoSeg">
+          + Nuevo seguimiento
         </button>
       </div>
     </div>
@@ -1328,7 +1328,6 @@ var home = Vue.createApp({
       return csv.split(',').map(function(v) { var k = v.trim(); return map[k] || k; });
     },
     abrirModalNuevoSeg() {
-      if (this.followUpsV2.length >= 8) return;
       // Si es RO, asignar a sí mismo. Si es SV, preseleccionar el agente del último seguimiento
       var agenteDefault = '';
       if (this.userRole === 'ro') {
@@ -1350,10 +1349,6 @@ var home = Vue.createApp({
     guardarSeguimiento() {
       this.segTocado = true;
       if (!this.nuevoSegValido) return;
-      if (this.followUpsV2.length >= 8) {
-        this.nuevoSegError = 'Este caso ya tiene el máximo de 8 seguimientos permitidos.';
-        return;
-      }
       var self = this;
       self.guardandoSeg = true;
       self.nuevoSegError = '';
