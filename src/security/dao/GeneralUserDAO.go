@@ -45,6 +45,7 @@ var (
 		"GeneralUserGeneralUserProfile": {Name: "GeneralUserGeneralUserProfile", DBName: "general_user_general_user_profile", Alias: "", ModelType: "uint", Required: false},
 		"GeneralUserTeam":               {Name: "GeneralUserTeam", DBName: "general_user_team", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 50, Required: false},
 		"GeneralUserAssignedDepartment": {Name: "GeneralUserAssignedDepartment", DBName: "general_user_assigned_department", Alias: "", ModelType: "string", MinSize: 0, MaxSize: 20, Required: false},
+		"GeneralUserEntityBranchId":     {Name: "GeneralUserEntityBranchId", DBName: "entity_branch_id", Alias: "", ModelType: "int64", MinSize: 0, MaxSize: 0, Required: false},
 	}
 )
 
@@ -71,6 +72,8 @@ type GeneralUserDTO struct {
 	GeneralUserCaptchaSolution    string    `json:"captchaSolution"`
 	GeneralUserTeam               string    `json:"team"`
 	GeneralUserAssignedDepartment string    `json:"assignedDepartment"`
+	// GeneralUserEntityBranchId: sede (entity_branch) del usuario rol et; 0 = NULL en BD.
+	GeneralUserEntityBranchId int64 `json:"entityBranchId"`
 }
 
 // GeneralUserPgDB es la estructura que representa el modelo de datos de GeneralUser tal
@@ -85,8 +88,9 @@ type GeneralUserPgDB struct {
 	GeneralUserStatus             sql.NullString
 	GeneralUserLanguage           sql.NullString
 	GeneralUserGeneralUserProfile sql.NullInt64
-	GeneralUserTeam              sql.NullString
+	GeneralUserTeam               sql.NullString
 	GeneralUserAssignedDepartment sql.NullString
+	GeneralUserEntityBranchId     sql.NullInt64
 	// Campos de formulario que no hacen parte del modelo en la BD
 	GeneralUserPasswordRepeat string           `json:"pass2"`
 	GeneralUserRoles          []sql.NullInt64  `json:"roles"`
@@ -167,15 +171,20 @@ func SetGeneralUser(user *GeneralUserDTO, connData *db.ConnData, clientConfig *d
 		return persistenceCtrl.Error
 	}
 
+	var entityBranchID interface{}
+	if user.GeneralUserEntityBranchId > 0 {
+		entityBranchID = user.GeneralUserEntityBranchId
+	}
+
 	// Se define la lista de campos que se insertarán en la BD.
-	var usrFieldsSlice []string = []string{"GeneralUserICode", "GeneralUserCreationDate", "GeneralUserUpdateDate", "GeneralUserLogin", "GeneralUserPassword", "GeneralUserStatus", "GeneralUserLanguage", "GeneralUserGeneralUserProfile", "GeneralUserAssignedDepartment"}
+	var usrFieldsSlice []string = []string{"GeneralUserICode", "GeneralUserCreationDate", "GeneralUserUpdateDate", "GeneralUserLogin", "GeneralUserPassword", "GeneralUserStatus", "GeneralUserLanguage", "GeneralUserGeneralUserProfile", "GeneralUserAssignedDepartment", "GeneralUserEntityBranchId"}
 	var usrFieldsAliasSlice []string = []string{}
 
 	// Se genera la query de inserción utilizando la función GetSQL.
 	var query string = common_dao.GetSQL(common_dao.SQL_INSERT, usrFieldsSlice, usrFieldsAliasSlice, GeneralUserDBName, []string{}, []string{}, []string{"GeneralUserId"}, common_dao.SQL_AND, GeneralUserDBScheme, GeneralUserFieldDefinitions, false)
 
 	// Se ejecuta la query con los parámetros correspondientes.
-	persistenceCtrl.QueryRow(context.Background(), query, user.GeneralUserICode, user.GeneralUserCreationDate.Format(common_config.DateTime.DB_DATE_TIME_FORMAT), user.GeneralUserUpdateDate.Format(common_config.DateTime.DB_DATE_TIME_FORMAT), user.GeneralUserLogin, user.GeneralUserPassword, user.GeneralUserStatus, user.GeneralUserLanguage, profileId, user.GeneralUserAssignedDepartment)
+	persistenceCtrl.QueryRow(context.Background(), query, user.GeneralUserICode, user.GeneralUserCreationDate.Format(common_config.DateTime.DB_DATE_TIME_FORMAT), user.GeneralUserUpdateDate.Format(common_config.DateTime.DB_DATE_TIME_FORMAT), user.GeneralUserLogin, user.GeneralUserPassword, user.GeneralUserStatus, user.GeneralUserLanguage, profileId, user.GeneralUserAssignedDepartment, entityBranchID)
 	persistenceCtrl.Scan(&user.GeneralUserId)
 
 	if persistenceCtrl.Error != nil {
@@ -201,8 +210,13 @@ func UpdateGeneralUserByICode(user *GeneralUserDTO, connData *db.ConnData, clien
 		return persistenceCtrl.Error
 	}
 
+	var entityBranchID interface{}
+	if user.GeneralUserEntityBranchId > 0 {
+		entityBranchID = user.GeneralUserEntityBranchId
+	}
+
 	// Se definen los campos que se actualizarán.
-	var usrFieldsSlice []string = []string{"GeneralUserUpdateDate", "GeneralUserPassword", "GeneralUserLanguage", "GeneralUserStatus", "GeneralUserAssignedDepartment"}
+	var usrFieldsSlice []string = []string{"GeneralUserUpdateDate", "GeneralUserPassword", "GeneralUserLanguage", "GeneralUserStatus", "GeneralUserAssignedDepartment", "GeneralUserEntityBranchId"}
 	var usrFieldsAliasSlice []string = []string{}
 
 	// Se genera la query de actualización utilizando la función GetSQL.
@@ -210,7 +224,7 @@ func UpdateGeneralUserByICode(user *GeneralUserDTO, connData *db.ConnData, clien
 
 	// Se ejecuta la query con los parámetros correspondientes.
 	persistenceCtrl.Exec(context.Background(), query,
-		user.GeneralUserICode, user.GeneralUserUpdateDate.Format(common_config.DateTime.DB_DATE_TIME_FORMAT), user.GeneralUserPassword, user.GeneralUserLanguage, user.GeneralUserStatus, user.GeneralUserAssignedDepartment)
+		user.GeneralUserICode, user.GeneralUserUpdateDate.Format(common_config.DateTime.DB_DATE_TIME_FORMAT), user.GeneralUserPassword, user.GeneralUserLanguage, user.GeneralUserStatus, user.GeneralUserAssignedDepartment, entityBranchID)
 
 	if persistenceCtrl.Error != nil {
 		fmt.Println("SQL Query: ", query)
@@ -357,7 +371,7 @@ func GetGeneralUser(by common_controllers.By, user *GeneralUserDTO, connData *db
 	}
 
 	// Se definen los campos a consultar para el usuario, el perfil y el municipio.
-	var usrFieldsSlice []string = []string{"GeneralUserId", "GeneralUserICode", "GeneralUserCreationDate", "GeneralUserUpdateDate", "GeneralUserLogin", "GeneralUserPassword", "GeneralUserStatus", "GeneralUserLanguage", "GeneralUserGeneralUserProfile", "GeneralUserTeam", "GeneralUserAssignedDepartment"}
+	var usrFieldsSlice []string = []string{"GeneralUserId", "GeneralUserICode", "GeneralUserCreationDate", "GeneralUserUpdateDate", "GeneralUserLogin", "GeneralUserPassword", "GeneralUserStatus", "GeneralUserLanguage", "GeneralUserGeneralUserProfile", "GeneralUserTeam", "GeneralUserAssignedDepartment", "GeneralUserEntityBranchId"}
 	var usrFieldsAliasSlice []string = []string{}
 
 	var profileFieldsSlice []string = []string{"GeneralUserProfileId", "GeneralUserProfileICode", "GeneralUserProfileCreationDate", "GeneralUserProfileUpdateDate",
@@ -400,7 +414,7 @@ func GetGeneralUser(by common_controllers.By, user *GeneralUserDTO, connData *db
 
 	// Se escanean los resultados de la query.
 	persistenceCtrl.Scan(&userPg.GeneralUserId, &userPg.GeneralUserICode, &userPg.GeneralUserCreationDate, &userPg.GeneralUserUpdateDate, &userPg.GeneralUserLogin,
-		&userPg.GeneralUserPassword, &userPg.GeneralUserStatus, &userPg.GeneralUserLanguage, &profile.GeneralUserProfileId, &userPg.GeneralUserTeam, &userPg.GeneralUserAssignedDepartment,
+		&userPg.GeneralUserPassword, &userPg.GeneralUserStatus, &userPg.GeneralUserLanguage, &profile.GeneralUserProfileId, &userPg.GeneralUserTeam, &userPg.GeneralUserAssignedDepartment, &userPg.GeneralUserEntityBranchId,
 		&profile.GeneralUserProfileId, &profile.GeneralUserProfileICode, &profile.GeneralUserProfileCreationDate, &profile.GeneralUserProfileUpdateDate,
 		&profile.GeneralUserProfileGender, &profile.GeneralUserProfileNick, &profile.GeneralUserProfileDescription, &profile.GeneralUserProfileNames,
 		&profile.GeneralUserProfileLastNames, &profile.GeneralUserProfileDocType, &profile.GeneralUserProfileDocNumber, &profile.GeneralUserProfileTown,
@@ -977,6 +991,10 @@ func (obj *GeneralUserPgDB) ToDTO() GeneralUserDTO {
 
 	if obj.GeneralUserAssignedDepartment.Valid {
 		dto.GeneralUserAssignedDepartment = obj.GeneralUserAssignedDepartment.String
+	}
+
+	if obj.GeneralUserEntityBranchId.Valid {
+		dto.GeneralUserEntityBranchId = obj.GeneralUserEntityBranchId.Int64
 	}
 
 	return dto

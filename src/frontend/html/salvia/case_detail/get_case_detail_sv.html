@@ -83,8 +83,8 @@
         <button v-if="userRole === 'op' && (!caso.agentId || caso.agentId !== userICode)" class="btn-nuevo-seg" @click="autoAsignarCaso" :disabled="autoAsignando">
           ${ autoAsignando ? 'Asignando...' : '👤 Asignarme este caso' }
         </button>
-        <button v-if="puedeReasignar || userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode)" class="btn-nuevo-seg" :disabled="followUpsV2.length >= 8" @click="abrirModalNuevoSeg">
-          ${ followUpsV2.length >= 8 ? 'Máximo alcanzado (8)' : '+ Nuevo seguimiento' }
+        <button v-if="puedeReasignar || userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode)" class="btn-nuevo-seg" @click="abrirModalNuevoSeg">
+          + Nuevo seguimiento
         </button>
       </div>
     </div>
@@ -1010,15 +1010,24 @@ var home = Vue.createApp({
         caseId: seg.case_id,
         caseName: this.caso ? this.caso.victimCaseVictimName : '',
         attempts: seg.attempts || 0,
-        follow_up_attempts: seg.follow_up_attempts || []
+        follow_up_attempts: seg.follow_up_attempts || [],
+        sequence_number: seg.sequence_number || 0,
+        scheduledTime: seg.scheduled_time || ''
       };
       this.$refs.contactModal.start(fuData);
     },
     onFollowUpContactCompleted: function(data) {
       var self = this;
-      if (data.type === 'rescheduled' || data.type === 'closed') {
+      if (data.type === 'attempt' || data.type === 'rescheduled' || data.type === 'closed') {
         self.cargarDatos();
       }
+      // TODO: Mostrar toast con info del seguimiento afectado (Seguimiento #X)
+      // Descomentar cuando se defina el diseño final del modal de confirmación:
+      // if (data.type === 'attempt' && data.followUp) {
+      //   var seqNum = data.followUp.sequence_number || data.followUp.sequenceNumber || '';
+      //   var msg = seqNum ? 'Intento registrado en Seguimiento #' + seqNum : 'Intento de contacto registrado';
+      //   setTimeout(function() { self.showToast('success', msg); }, 2200);
+      // }
     },
 
     onCaseTaskCompleted: function(tareaActualizada) {
@@ -1328,7 +1337,6 @@ var home = Vue.createApp({
       return csv.split(',').map(function(v) { var k = v.trim(); return map[k] || k; });
     },
     abrirModalNuevoSeg() {
-      if (this.followUpsV2.length >= 8) return;
       // Si es RO, asignar a sí mismo. Si es SV, preseleccionar el agente del último seguimiento
       var agenteDefault = '';
       if (this.userRole === 'ro') {
@@ -1350,10 +1358,6 @@ var home = Vue.createApp({
     guardarSeguimiento() {
       this.segTocado = true;
       if (!this.nuevoSegValido) return;
-      if (this.followUpsV2.length >= 8) {
-        this.nuevoSegError = 'Este caso ya tiene el máximo de 8 seguimientos permitidos.';
-        return;
-      }
       var self = this;
       self.guardandoSeg = true;
       self.nuevoSegError = '';

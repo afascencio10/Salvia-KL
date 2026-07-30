@@ -92,6 +92,18 @@ func main() {
     // Si se necesita un campo nuevo en una tabla legacy, agregarlo aquí.
     migrateLegacyTables(gormDB)
 
+    // Fix: asignar sequence_number a seguimientos que lo tienen en 0 (bug de buildFollowUps).
+    // Ordena por scheduled_date ASC dentro de cada caso para asignar 1, 2, 3...
+    gormDB.Exec(`
+        WITH numbered AS (
+            SELECT id, ROW_NUMBER() OVER (PARTITION BY case_id ORDER BY scheduled_date ASC, created_at ASC) AS rn
+            FROM salvia.follow_up_v2
+            WHERE deleted_at IS NULL AND sequence_number = 0
+        )
+        UPDATE salvia.follow_up_v2 SET sequence_number = numbered.rn
+        FROM numbered WHERE follow_up_v2.id = numbered.id
+    `)
+
     // Repositories
     formRepo               := repository.NewFormRepository(gormDB)
     formSectionRepo        := repository.NewFormSectionRepository(gormDB)
@@ -128,6 +140,7 @@ func main() {
     duplaRepo              := repository.NewDuplaRepository(gormDB)
     psychosocialReassignRepo := repository.NewPsychosocialReassignRepository(gormDB)
     entityCaseRepo         := repository.NewEntityCaseRepository(gormDB)
+    victimCaseFormRepo     := repository.NewVictimCaseFormRepository(gormDB)
 
     // Services
     casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
@@ -141,6 +154,7 @@ func main() {
     answerSvc             := service.NewAnswerService(answerRepo)
     optionSvc             := service.NewOptionService(optionRepo)
     followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo)
+    victimCaseFormSvc     := service.NewVictimCaseFormService(victimCaseFormRepo, victimCaseLightRepo, caseTimelineRepo, followUpV2Svc)
 
     formSvc := service.NewFormService(service.FormServiceDeps{
         FormRepo:                  formRepo,
@@ -169,6 +183,7 @@ func main() {
         CaseTaskRepo:              caseTaskRepo,
         EntityLetterRepo:          entityLetterRepo,
         TeamContactRepo:           teamContactRepo,
+        VictimCaseFormSvc:         victimCaseFormSvc,
     })
     caseDetailSvc         := service.NewCaseDetailService(caseDetailRepo, gormDB)
     caseInfoSvc           := service.NewCaseInfoService(caseInfoRepo)
@@ -186,7 +201,7 @@ func main() {
     salvia_legacy.VictimCaseLightRepo = victimCaseLightRepo
 
     // Controllers
-    formCtrl               := salvia_ctrl.NewFormController(formSvc)
+    formCtrl               := salvia_ctrl.NewFormController(formSvc, victimCaseFormSvc)
     formSectionCtrl        := salvia_ctrl.NewFormSectionController(formSectionSvc)
     questionCtrl           := salvia_ctrl.NewQuestionController(questionSvc)
     repeaterGroupCtrl      := salvia_ctrl.NewRepeaterGroupController(repeaterGroupSvc)
@@ -336,9 +351,11 @@ func main() {
 func migrateLegacyTables(db *gorm.DB) {
     // ─── security.general_user ───
     type GeneralUserSync struct {
-        ID                 uint   `gorm:"column:general_user_id;primaryKey"`
-        Team               string `gorm:"column:general_user_team;type:varchar(50)"`
-        AssignedDepartment string `gorm:"column:general_user_assigned_department;type:varchar(20)"`
+        ID                 uint    `gorm:"column:general_user_id;primaryKey"`
+        Team               string  `gorm:"column:general_user_team;type:varchar(50)"`
+        AssignedDepartment string  `gorm:"column:general_user_assigned_department;type:varchar(20)"`
+        // EntityBranchId: sede (salvia.entity_branch) del usuario rol et. Nullable.
+        EntityBranchId *int64 `gorm:"column:entity_branch_id;type:bigint;index"`
     }
     if err := db.Table("security.general_user").AutoMigrate(&GeneralUserSync{}); err != nil {
         log.Printf("[WARN] AutoMigrate security.general_user: %v", err)

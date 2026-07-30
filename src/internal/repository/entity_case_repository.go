@@ -22,9 +22,12 @@ type EntityCaseRepository interface {
 	// el caso y la sede dados.
 	ExistsActive(ctx context.Context, caseID string, entityBranchID int64) (bool, error)
 
-	// FindByEntityIDPaginated lista entity_case de todas las sedes de una
-	// organización, con filtros opcionales de documento (parcial) y ciudad del caso.
-	FindByEntityIDPaginated(ctx context.Context, entityID int64, document, city string, page, pageSize int) ([]models.EntityCaseListItem, int64, error)
+	// FindByEntityBranchIDPaginated lista entity_case de una sede concreta
+	// (usuario et), con filtro opcional de documento (parcial ILIKE).
+	FindByEntityBranchIDPaginated(ctx context.Context, entityBranchID int64, document string, page, pageSize int) ([]models.EntityCaseListItem, int64, error)
+
+	// GetEntityMetaByBranchID resuelve nombre + sector de la organización padre de una sede.
+	GetEntityMetaByBranchID(ctx context.Context, entityBranchID int64) (*models.EntityBranchMeta, error)
 
 	// ListEntities cataloga salvia.entity ordenado por nombre.
 	ListEntities(ctx context.Context) ([]models.EntityCatalogItem, error)
@@ -132,10 +135,10 @@ LEFT JOIN salvia.victim_case_form2 vf2 ON vf2.victim_case_form2_victim_case = vc
 LEFT JOIN security.town case_town ON case_town.town_code = vc.victim_case_victim_town_code
 LEFT JOIN security.city case_city ON case_city.city_id = case_town.city_id
 WHERE ec.deleted_at IS NULL
-  AND eb.entity_id = ?
+  AND ec.entity_branch_id = ?
 `
 
-func (r *entityCaseRepository) FindByEntityIDPaginated(ctx context.Context, entityID int64, document, city string, page, pageSize int) ([]models.EntityCaseListItem, int64, error) {
+func (r *entityCaseRepository) FindByEntityBranchIDPaginated(ctx context.Context, entityBranchID int64, document string, page, pageSize int) ([]models.EntityCaseListItem, int64, error) {
 	if page < 0 {
 		page = 0
 	}
@@ -143,7 +146,7 @@ func (r *entityCaseRepository) FindByEntityIDPaginated(ctx context.Context, enti
 		pageSize = 5
 	}
 
-	args := []interface{}{entityID}
+	args := []interface{}{entityBranchID}
 	whereExtra := ""
 
 	doc := strings.TrimSpace(document)
@@ -152,21 +155,12 @@ func (r *entityCaseRepository) FindByEntityIDPaginated(ctx context.Context, enti
 		args = append(args, "%"+doc+"%")
 	}
 
-	cityFilter := strings.TrimSpace(city)
-	if cityFilter != "" {
-		whereExtra += " AND case_city.city_name ILIKE ?"
-		args = append(args, cityFilter)
-	}
-
 	countSQL := `
 SELECT COUNT(*)
 FROM salvia.entity_case ec
-JOIN salvia.entity_branch eb ON eb.entity_branch_id = ec.entity_branch_id
 JOIN salvia.victim_case vc ON vc.victim_case_i_code = ec.case_id
-LEFT JOIN security.town case_town ON case_town.town_code = vc.victim_case_victim_town_code
-LEFT JOIN security.city case_city ON case_city.city_id = case_town.city_id
 WHERE ec.deleted_at IS NULL
-  AND eb.entity_id = ?` + whereExtra
+  AND ec.entity_branch_id = ?` + whereExtra
 
 	var total int64
 	if err := r.db.WithContext(ctx).Raw(countSQL, args...).Scan(&total).Error; err != nil {
@@ -183,6 +177,27 @@ LIMIT ? OFFSET ?`
 		return nil, 0, err
 	}
 	return items, total, nil
+}
+
+func (r *entityCaseRepository) GetEntityMetaByBranchID(ctx context.Context, entityBranchID int64) (*models.EntityBranchMeta, error) {
+	var meta models.EntityBranchMeta
+	err := r.db.WithContext(ctx).Raw(`
+SELECT
+    eb.entity_branch_id AS entity_branch_id,
+    COALESCE(e.entity_name, '') AS entity_name,
+    COALESCE(e.entity_sector, '') AS sector
+FROM salvia.entity_branch eb
+JOIN salvia.entity e ON e.entity_id = eb.entity_id
+WHERE eb.entity_branch_id = ?
+LIMIT 1
+`, entityBranchID).Scan(&meta).Error
+	if err != nil {
+		return nil, err
+	}
+	if meta.EntityBranchID == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &meta, nil
 }
 
 func (r *entityCaseRepository) ListEntities(ctx context.Context) ([]models.EntityCatalogItem, error) {

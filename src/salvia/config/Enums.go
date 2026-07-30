@@ -38,6 +38,7 @@ var HTML_Templates map[string]string = map[string]string{
 	"get_victim_case_us_v1":    "get_victim_case_us_v1.html",
 	"get_victim_case_do":       "get_victim_case_do.html",
 	"set_victim_case":          "set_victim_case.html",
+	"set_victim_case_v2":       "set_victim_case_v2.html",
 	"update_victim_case_v1":    "update_victim_case_v1.html",
 	"update_victim_case_v2":    "update_victim_case_v2.html",
 	"get_victim_contacts":      "get_victim_contacts.html",
@@ -313,6 +314,7 @@ var VICTIM_CASE_STATUS map[string]map[string]string = map[string]map[string]stri
 		"is": "con novedades",
 		"cd": "cerrado",
 		"iv": "inválido",
+		"bo": "borrador",
 	},
 }
 

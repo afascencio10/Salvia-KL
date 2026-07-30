@@ -69,8 +69,9 @@ func GeneralUserLOGIN_POST(c *gin.Context) {
 	by := c.Param("by")
 
 	if by == "forgot" {
-		// Procesa la solicitud para recuperar la contraseña.
-		code, navStr, _ = security_ctrl.SetResetPassword(buf.String(), &db.ConnData{}, dbClientConfig, dbServerConfig)
+		// Procesa la solicitud para recuperar la contraseña. El enlace del correo
+		// se construye con el dominio del ambiente desde el que llegó la petición.
+		code, navStr, _ = security_ctrl.SetResetPassword(buf.String(), security_config.ResolveAppDomain(c.Request.Host), &db.ConnData{}, dbClientConfig, dbServerConfig)
 	} else if by == "reset" {
 		// Procesa la solicitud para actualizar la contraseña tras un reseteo.
 		code, navStr = security_ctrl.UpdateGeneralUserByReset(buf.String(), &db.ConnData{}, dbClientConfig, dbServerConfig)
@@ -220,20 +221,21 @@ func GeneralUserLOGIN_POST(c *gin.Context) {
 
 				// Se crea una sesión común con la información del usuario autenticado.
 				var cs utils.CommonSession = utils.CommonSession{
-					UserICode:        usr.GeneralUserICode,
-					Roles:            usr.GeneralUserRoleCodes,
-					CurrentRole:      currentRole,
-					Lang:             usr.GeneralUserLanguage,
-					CurrentMenu:      menu,
-					Names:            usr.GeneralUserGeneralUserProfile.GeneralUserProfileNames,
-					LastNames:        usr.GeneralUserGeneralUserProfile.GeneralUserProfileLastNames,
-					TownCode:         usr.GeneralUserGeneralUserProfile.GeneralUserProfileTown.TownCode,
-					TownICode:        usr.GeneralUserGeneralUserProfile.GeneralUserProfileTown.TownICode,
-					EntityBrandICode: usr.GeneralUserGeneralUserProfile.GeneralUserProfileEntityBranchSelected,
-					UserLogin:        usr.GeneralUserLogin,
-					SessionID:        sessionID,
-					Team:             usr.GeneralUserTeam,
+					UserICode:            usr.GeneralUserICode,
+					Roles:                usr.GeneralUserRoleCodes,
+					CurrentRole:          currentRole,
+					Lang:                 usr.GeneralUserLanguage,
+					CurrentMenu:          menu,
+					Names:                usr.GeneralUserGeneralUserProfile.GeneralUserProfileNames,
+					LastNames:            usr.GeneralUserGeneralUserProfile.GeneralUserProfileLastNames,
+					TownCode:             usr.GeneralUserGeneralUserProfile.GeneralUserProfileTown.TownCode,
+					TownICode:            usr.GeneralUserGeneralUserProfile.GeneralUserProfileTown.TownICode,
+					EntityBrandICode:     usr.GeneralUserGeneralUserProfile.GeneralUserProfileEntityBranchSelected,
+					UserLogin:            usr.GeneralUserLogin,
+					SessionID:            sessionID,
+					Team:                 usr.GeneralUserTeam,
 					AssignedDepartmentID: usr.GeneralUserAssignedDepartment,
+					EntityBranchId:       usr.GeneralUserEntityBranchId,
 				}
 				// Se almacena la sesión común.
 				utils.AddCommonSession(sessionID, &cs)

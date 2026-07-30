@@ -1,29 +1,32 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando se completa el formulario (todas las secciones respondidas)
-   Tipo: Backend/Scheduled
-   Función: processVictimCaseSubmission(submissionId, actorId)
+   Tipo: Backend/Síncrono (no goroutine)
+   Función: Activate(submissionId, actorId)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Disparado por: mismo mecanismo que processFollowUpSubmission — goroutine
-                lanzada dentro de SaveSection cuando allAnswered == true,
-                vía el dispatch existente OnEndFormSubmission (SEGÚN formID,
-                form_service.go:1919-1923):
+Disparado por: el hook existente OnEndFormSubmission (SEGÚN formID), que ya
+                disparaba processFollowUpSubmission para Seguimiento —
+                Registro de Caso agrega su propio `case`:
 
-                  func (s *formService) OnEndFormSubmission(...) error {
+                  func (s *formService) OnEndFormSubmission(ctx, formID, submissionID, actorID string) error {
                       switch formID {
-                      case seguimientoFormID:
+                      case SeguimientoFormID:
                           return s.processFollowUpSubmission(...)
-                      case registroCasoFormID:              // NUEVO case
-                          return s.processVictimCaseSubmission(...)
+                      case service.RegistroCasoFormID:
+                          return s.victimCaseFormSvc.Activate(ctx, submissionID, actorID)
                       }
                   }
 
-Archivo:       nuevo — propuesto src/salvia/service/victim_case_form_service.go
-                (misma función mencionada en flow-E03, ahora en su etapa final)
+                A diferencia del hook OnSectionUpdate (flow-E03), este SÍ es
+                condicional: solo dispara cuando isAnswered es true para
+                TODAS las secciones (mismo mecanismo ya usado por
+                Seguimiento para decidir la redirección).
 
-A diferencia del diseño original de este flujo, el `victim_case` **ya existe**
-(creado en Borrador por flow-E03 al guardar la Sección 1). Este evento NO
-crea el caso — lo completa y lo activa.
+Archivo:       src/salvia/service/victim_case_form_service.go (Activate)
+
+El `victim_case` ya existe en estado 'bo' (creado por UpdateCaseDraft desde
+el primer saveSection — ver flow-E03) — este evento no lo crea, lo confirma
+y lo activa.
 
 INPUT: {
   submissionId:  UUID del FormSubmission   → propagado desde saveSection
@@ -32,151 +35,73 @@ INPUT: {
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  BACKEND — processVictimCaseSubmission
+  BACKEND — Activate
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+PASO 1 — Cargar el victim_case vinculado a este submission
 
-PASO 1 — Cargar el victim_case en Borrador vinculado a este submission
-
-  caseId = DB.form_submission.FindVictimCaseID({ submissionId })
-
-  SI no existe (no se creó el draft en flow-E03 — no debería pasar):
-    → Retornar error (aborta — inconsistencia grave, se loggea con severidad alta)
-
-  DB.victim_case.FindByICode({ iCode: caseId })
-  SI victim_case_status != "bo":
-    → Loggear "el caso ya fue activado o no está en borrador — se omite (idempotente)"
-    → TERMINAR ejecución  // evita reprocesar si el goroutine se reintenta
+  iCode, found = formRepo.FindICodeBySubmissionID(ctx, submissionID)
+  SI !found:
+    → Error — no debería pasar: UpdateCaseDraft (flow-E03) ya lo crea desde
+      el primer saveSection, con o sin datos dummy.
 
 
-PASO 2 — Construir answerMap completo (las 128 respuestas)
+PASO 2 — Leer TODAS las respuestas y recalcular riskScore/riskLevel
 
-  DB.answers.FindDirectBySubmissionID({ submissionId })
-  → answerMap = { [questionId]: value }
-
-
-PASO 3 — Validar completitud
-
-  (idéntico a lo ya documentado — recorre las preguntas required=true y
-  visibles según las visibility_condition ya evaluadas)
-
-  SI falta alguna respuesta requerida y visible:
-    → Loggear advertencia con la lista de questionIds faltantes
-    → TERMINAR ejecución (defensivo — dinamic-form ya no debería permitir
-      llegar aquí sin todo lo requerido respondido)
+  answers = formRepo.BuildAnswersByFieldKey(ctx, RegistroCasoFormID, submissionID)
+  wasPartner = resolveWasPartner(answers)
+  riskScore, riskLevel = computeRiskScore(answers, wasPartner)
 
 
-PASO 4 — Calcular wasPartner y riskScore/riskLevel
+PASO 3 — Re-proyectar sobre victim_case_form2 (defensivo/idempotente)
 
-  wasPartner = answerMap[qRelationshipAggressor] ∈ {'pi', 'ex'}
-  riskScore, riskLevel = getRiskScore(mapearATamizajeForm2(answerMap, wasPartner))
-
-  → Mismo gap ya señalado: fórmula duplicada entre este paso y el bloque 2
-    del frontend (flow-E02) — solo para el banner en vivo, no afecta el
-    resultado final que siempre se recalcula aquí como fuente de verdad.
+  formRepo.UpsertForm2FromAnswers(ctx, iCode, answers, riskScore, riskLevel)
+  // Ya debería estar al día (UpdateCaseDraft lo dejó así en esta misma
+  // request, justo antes de que isAnswered diera true en todas las
+  // secciones) — se repite aquí solo como defensa, es idempotente.
 
 
-PASO 5 — Proyectar las 128 respuestas sobre victim_case_form2 (UPDATE completo)
+PASO 4 — Activar el caso (bo → ra), refrescando datos de Sección 1 si cambiaron
 
-  salvia_daos.SetVictimCase({
-    VictimCaseICode:     caseId,             // UPDATE, no INSERT — el caso ya existe
-    VictimCaseNames:     answerMap[qNames],
-    VictimCaseLastNames: answerMap[qLastNames],
-    VictimCaseDocType:   answerMap[qDocType],
-    VictimCaseDocNumber: answerMap[qDocNumber],
-    VictimCaseForm2: {
-      ... mapeo 1:1 completo de las 128 respuestas a VictimCaseForm2DTO,
-          igual que la Sección 1 ya escrita en flow-E03, más las 7 secciones
-          restantes ahora disponibles ...
-      RiskScore: riskScore,
-      RiskLevel: riskLevel,
-    },
-  })
-
-  SI falla:
-    → Retornar error (aborta — el caso queda en "bo", se puede reintentar
-      manualmente o por un reintento del goroutine)
+  formRepo.MarkActive(ctx, iCode, answers)
+  // UPDATE victim_case: status='ra' ("ra" = mismo código "enrutado
+  // aprobado" ya usado por SetVictimCase hoy — no se creó un código nuevo
+  // para "Activo"). Solo sobrescribe nombres/apellidos/doc/municipio de
+  // atención (FieldKey(9,3)) si la respuesta real NO está vacía — nunca
+  // pisa un valor bueno con un dummy en este paso.
 
 
-PASO 6 — Generar usuario para la víctima
+PASO 5 — Generar calendario de seguimientos y asignar equipo/agente
 
-  newPassword = generarPasswordAleatoria()
-  hashedPassword, err = bcrypt.GenerateFromPassword([]byte(newPassword), 10)
+  followUps, err = followUpV2Svc.GenerateOrRecalculate(ctx, iCode, { RiskLevel: riskLevel })
   SI err:
-    → Retornar error (aborta — sin usuario no se activa el caso)
-
-  → DB.general_user.Create({
-        login:    generarLoginDesdeDocumento(answerMap[qDocNumber]),
-        password: hashedPassword,
-    })
-  SI falla:
-    → Retornar error (aborta)
-  → newUserID = general_user.id
+    → Loggear WARN (no aborta — el caso ya está activo)
+  SI ok Y len(followUps) > 0:
+    → team, agentID = followUps[0].Team, followUps[0].AgentID
+    → caseRepo.UpdateTeamAndAgent(ctx, iCode, team, agentID)
 
 
-PASO 7 — Activar el caso
+PASO 6 — Registrar evento en el timeline
 
-  DB.victim_case.UpdateStatus({ iCode: caseId, status: "ra" })
-  // "ra" = "enrutado aprobado" — mismo estado que SetVictimCase asigna hoy
-  // de forma atómica al crear un caso como rol "op". No se necesita un
-  // código "Activo" nuevo — "bo" (Borrador) es el único código nuevo.
-
-
-PASO 8 — Generar calendario de seguimientos
-
-  calendarInput = { RiskLevel: int(riskLevel) }
-  followUps, calErr = FollowUpSvc.GenerateOrRecalculate(ctx, caseId, calendarInput)
-  SI calErr:
-    → Loggear advertencia WARN (no aborta — el caso ya está activo)
-
-
-PASO 9 — Asignar equipo y agente
-
-  team = resolverTeamPorRiskLevel(riskLevel)
-  agentID = calcularAgente(...)  // Borda/dense-rank, igual que reasignarCaso en Seguimiento
-  DB.victim_case_light.UpdateTeamAndAgent({ iCode: caseId, team, agentID })
-  SI error:
-    → Loggear advertencia WARN (no aborta)
-
-
-PASO 10 — Registrar evento en el timeline
-
-  DB.case_timeline_events.Create({
-    case_id:  caseId,
-    category: "General",
-    type:     "Caso Activado",
-    icon:     "folder-plus",
-    color:    "#22c55e",
-    event_user_id: actorId,
-    date:     now(),
+  caseTimelineRepo.Create({
+    CaseID: iCode, Category: "General", Type: "Caso Activado",
+    Icon: "folder-plus", Color: "#22c55e", EventUserID: actorID, Date: now(),
   })
   SI falla:
-    → Loggear advertencia WARN (no aborta)
+    → Loggear WARN (no aborta)
 
-
-PASO 11 — Guardar el resultado para que el frontend lo recupere
-
-  DB.form_submission_result.Upsert({   // tabla/columna nueva — ver GAPS
-    submissionId,
-    caseId,
-    newUserLogin: login,
-    newUserPass:  newPassword,          // texto plano, uso único — ver GAPS de seguridad
-    readyAt:      now(),
-  })
-
-  → Ver flow-E05-cuando-emite-form-completed.md para cómo el frontend
-    recupera esto vía GET.
-
-  → FIN EJECUCIÓN ✓
+  → FIN EJECUCIÓN ✓ — ver flow-E05-cuando-emite-form-completed.md para
+    cómo el frontend recupera caseId/login/password vía GET
+    /api/v1/victim-case-forms/:submissionId/result (VictimCaseFormService.GetResult).
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️  GAPS — Información pendiente
+✅ GAPS del diseño original — YA RESUELTOS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-| Variable / decisión                                                                          | Paso afectado |
-|------------------------------------------------------------------------------------------------|---------------|
-| Tabla/columna para almacenar el resultado (newUser/caseId) hasta que el frontend lo pida — necesita expiración/limpieza (contraseña en texto plano de un solo uso) | PASO 11 |
-| Mapeo campo-por-campo completo de las 128 respuestas → VictimCaseForm2DTO (aquí se resume, falta el mapeo exhaustivo 1:1) | PASO 5 |
-| Rollback si falla PASO 6 después de actualizar form2 en PASO 5 (form2 completo pero sin usuario, caso sigue en "bo") | PASO 5-6 |
-| Confirmar que "ra" es semánticamente correcto para "caso activo recién completado" vs. crear un código nuevo dedicado | PASO 7 |
+| Gap original | Cómo se resolvió |
+|---|---|
+| Tabla/columna para el resultado (newUser/caseId) con expiración/limpieza | Se descartó la expiración — `victim_case.victim_case_new_user_credentials` (jsonb) guarda login+password en texto plano de forma PERMANENTE (decisión explícita del negocio: nunca se limpia). GetResult las lee de ahí, no de una tabla aparte. |
+| Mapeo campo-por-campo de las 128 respuestas → VictimCaseForm2DTO | Resuelto vía la tabla estática `victimCaseFormFields` (victim_case_form_fields.go) — FieldKey → columna + tipo de conversión (KindText/Int/Date/Time/Timestamp/Enum1/EnumN/BoolEnum/Scale), aplicada genéricamente por UpsertForm2FromAnswers. |
+| Rollback si falla generar el usuario después de actualizar form2 | Ya no aplica — el usuario/login/password se crean en flow-E03 (createDraftShell), no aquí. Activate no crea usuario nuevo. |
+| ¿"ra" es semánticamente correcto para "Activo"? | Confirmado que sí — se reutiliza tal cual, sin crear un código dedicado. |

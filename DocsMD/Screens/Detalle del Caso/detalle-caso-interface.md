@@ -1,6 +1,6 @@
 # `Detalle del Caso` — Interfaz de la Pantalla
 
-Vista completa de un caso VBG: datos de la víctima, hechos, derivaciones, gestión institucional (barreras + oficios), seguimientos, tareas y timeline histórico.
+Vista completa de un caso VBG: datos de la víctima, hechos, derivaciones, gestión institucional (entidades + barreras + oficios), seguimientos, tareas y timeline histórico.
 
 Ruta: `/salvia/casos/:id/detalle`
 Template: `src/frontend/html/salvia/case_detail/get_case_detail_sv.html`
@@ -15,10 +15,11 @@ Facade: `CaseDetailGET` (`CaseDetailFacade.go`)
 | `src/frontend/js/components/case-timeline.js` | Timeline del caso (tab Timeline) |
 | `src/frontend/js/components/case-info.js` | Info completa del caso — usado en modal y en modo inline (tab Info General) |
 | `src/frontend/js/components/follow-up-contact-modal.js` | Modal de contacto para iniciar un seguimiento |
-| `src/frontend/js/components/case-tasks.js` | Listado de tareas del caso — usado en el tab Tareas (todas) y, filtrado por barrera, dentro de cada `BarreraItem` en el tab Barreras |
+| `src/frontend/js/components/case-tasks.js` | Listado de tareas del caso — usado en el tab Tareas (todas) y, filtrado por barrera, dentro de cada `BarreraItem` en el tab Gestión institucional |
 | `src/frontend/js/components/case-task-modal.js` | Modal para completar una `CaseTask` — montado a nivel de pantalla, ver nota en sección Modales |
 | `src/frontend/js/components/case-task-history.js` | Modal de solo lectura para ver el detalle de una `CaseTask` completada — montado a nivel de pantalla, ver nota en sección Modales |
-| `src/frontend/js/components/case-oficios.js` | Oficios del caso — embebido al final del tab Barreras |
+| `src/frontend/js/components/case-oficios.js` | Oficios del caso — embebido al final del tab Gestión institucional |
+| `src/frontend/js/components/case-entities.js` | Entidades relacionadas con el caso — embebido al inicio del tab Gestión institucional, antes de la lista de barreras |
 | `src/salvia/facades/CaseDetailFacade.go` | Facade que renderiza el template e inyecta `caseICode`, `userRole`, `userTeam`, `userICode`, `currentUser` |
 
 ---
@@ -79,6 +80,8 @@ DetalleCaso  (.container)
         ├── Tabs  (.cd-tabs)
         │   └── TabBtn × 6  [v-for tabs]  :class="active"
         │       ids: info | derivaciones | barreras | seguimientos | tareas | timeline
+        │       labels: "Info General" | "Derivaciones" | "🏛️ Gestión institucional" | "Seguimientos" | "Tareas" | "Timeline"
+        │       (id interno "barreras" sin cambiar — solo el label visible pasó de "Barreras" a "Gestión institucional")
         │
         └── TabContent  (.cd-tab-content)
             │
@@ -129,7 +132,15 @@ DetalleCaso  (.container)
             │       └── Item × N  [v-for economicStabilizations]
             │           type · [institution] · [benefit] · fecha · [notes] · BadgeStatus (estilo fijo "articulando")
             │
-            ├── [tabActiva === 'barreras']  ── TAB BARRERAS (Gestión institucional) ──
+            ├── [tabActiva === 'barreras']  ── TAB GESTIÓN INSTITUCIONAL (antes "Barreras") ──
+            │   │
+            │   ├── SeccionEntidades  (borde inferior, margen 24px)
+            │   │   "🏛️ Entidades"
+            │   │   CaseEntities  // src/frontend/js/components/case-entities.js
+            │   │   :case-id="caseICode"  :user-id="userICode"  :user-role="userRole"
+            │   │   (ver DocsMD/Componentes/case-entities/ para el árbol interno completo —
+            │   │    filtros, cards, modal de agregar; lectura para cualquier rol con acceso a
+            │   │    esta pantalla, agregar solo para sv/op/ro)
             │   │
             │   ├── [v-if tareasPendientesTotal().length > 0]  BannerTareasPendientesLocal
             │   │   └── "⚠️ Tienes N tarea(s) pendiente(s) con este caso"

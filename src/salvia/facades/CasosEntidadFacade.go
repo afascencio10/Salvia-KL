@@ -37,11 +37,12 @@ func CasosEntidadGET(c *gin.Context) {
 
 	common_facades.RenderTemplate(c, "CasosEntidad", "salvia", "entity_case/", salvia_config.HTML_Templates, "casos_entidad", utils.GetFullHtmlTemplates(), utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
 		map[string]interface{}{
-			"windowTitle": "Casos Entidad",
-			"currentUser": s.Names + " " + s.LastNames,
-			"currentRole": s.CurrentRole,
-			"locale":      salvia_config.Locale,
-			"lang":        s.Lang,
-			"menu":        menu,
+			"windowTitle":    "Casos Entidad",
+			"currentUser":    s.Names + " " + s.LastNames,
+			"currentRole":    s.CurrentRole,
+			"entityBranchId": s.EntityBranchId,
+			"locale":         salvia_config.Locale,
+			"lang":           s.Lang,
+			"menu":           menu,
 		}, utils.GetFullHtmlFuncMap())
 }
