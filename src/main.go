@@ -92,6 +92,18 @@ func main() {
     // Si se necesita un campo nuevo en una tabla legacy, agregarlo aquí.
     migrateLegacyTables(gormDB)
 
+    // Fix: asignar sequence_number a seguimientos que lo tienen en 0 (bug de buildFollowUps).
+    // Ordena por scheduled_date ASC dentro de cada caso para asignar 1, 2, 3...
+    gormDB.Exec(`
+        WITH numbered AS (
+            SELECT id, ROW_NUMBER() OVER (PARTITION BY case_id ORDER BY scheduled_date ASC, created_at ASC) AS rn
+            FROM salvia.follow_up_v2
+            WHERE deleted_at IS NULL AND sequence_number = 0
+        )
+        UPDATE salvia.follow_up_v2 SET sequence_number = numbered.rn
+        FROM numbered WHERE follow_up_v2.id = numbered.id
+    `)
+
     // Repositories
     formRepo               := repository.NewFormRepository(gormDB)
     formSectionRepo        := repository.NewFormSectionRepository(gormDB)

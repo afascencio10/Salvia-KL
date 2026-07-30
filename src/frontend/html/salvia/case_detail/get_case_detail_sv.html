@@ -1010,15 +1010,24 @@ var home = Vue.createApp({
         caseId: seg.case_id,
         caseName: this.caso ? this.caso.victimCaseVictimName : '',
         attempts: seg.attempts || 0,
-        follow_up_attempts: seg.follow_up_attempts || []
+        follow_up_attempts: seg.follow_up_attempts || [],
+        sequence_number: seg.sequence_number || 0,
+        scheduledTime: seg.scheduled_time || ''
       };
       this.$refs.contactModal.start(fuData);
     },
     onFollowUpContactCompleted: function(data) {
       var self = this;
-      if (data.type === 'rescheduled' || data.type === 'closed') {
+      if (data.type === 'attempt' || data.type === 'rescheduled' || data.type === 'closed') {
         self.cargarDatos();
       }
+      // TODO: Mostrar toast con info del seguimiento afectado (Seguimiento #X)
+      // Descomentar cuando se defina el diseño final del modal de confirmación:
+      // if (data.type === 'attempt' && data.followUp) {
+      //   var seqNum = data.followUp.sequence_number || data.followUp.sequenceNumber || '';
+      //   var msg = seqNum ? 'Intento registrado en Seguimiento #' + seqNum : 'Intento de contacto registrado';
+      //   setTimeout(function() { self.showToast('success', msg); }, 2200);
+      // }
     },
 
     onCaseTaskCompleted: function(tareaActualizada) {
