@@ -40,6 +40,7 @@ type CaseTask struct {
 	EmergencyMeasureID      *string `gorm:"type:uuid;column:emergency_measure_id"                  json:"emergencyMeasureId,omitempty"`
 	PsychosocialSupportID   *string `gorm:"type:uuid;column:psychosocial_support_id"               json:"psychosocialSupportId,omitempty"`
 	EconomicStabilizationID *string `gorm:"type:uuid;column:economic_stabilization_id"             json:"economicStabilizationId,omitempty"`
+	EntityCaseID            *string `gorm:"type:varchar(36);column:entity_case_id;index"           json:"entityCaseId,omitempty"`
 
 	// Timestamps
 	CreatedAt time.Time      `json:"createdAt"`

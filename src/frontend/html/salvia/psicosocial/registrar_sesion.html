@@ -808,6 +808,56 @@
         },
     };
 
+    // ── Config de "Identificación de Entidades" por formulario ───────────
+    // Las secciones "Seguimiento a Entidades" e "Identificación de Entidades" existen
+    // clonadas en los 3 formularios en alcance (Primer Contacto queda fuera — no se
+    // incluye acá). Mismo patrón que PSICO_BARRIER_LOCATION_CONFIG: un config distinto
+    // por formId, ya que los IDs de pregunta/repeater no se comparten entre forms.
+    const PSICO_ENTIDAD_CONFIG = {
+        '501ab3d7-8382-4447-96a6-f463152693c6': { // Primera Atención Psicosocial
+            acudidas: {
+                groupId: '508260c4-b7de-4d95-ad2d-3f94cb54353a', stateKey: 'newEntidadesAcudidas',
+                qSector: '15629935-3222-40ef-be18-cab414dacdff', qDept: 'b9289ec8-0c68-43ef-9ab3-d9d39d316fd9',
+                qCity: '6f6192e1-60dd-466f-a0c7-003644780903', qTown: '0ac495ff-be8f-4443-805e-527d9f459dbd',
+                qEntidad: '98483b85-3e42-4e2a-9765-4e5b31851cf2',
+            },
+            activacion: {
+                groupId: '0a59e505-f0c4-4994-a2a5-3bcf9e7fa6da', stateKey: 'newEntidadesActivacion',
+                qSector: 'e30ff04c-9c9d-4bb5-bc2a-2d5de3c6c9c2', qDept: '9ee70bf9-d518-437d-b3fb-ca5a1d5dd91d',
+                qCity: '403f5b34-59ca-4c9b-bbf2-f3e95a271b9f', qTown: 'c190136d-4407-4f84-9e37-ab05d67eb93d',
+                qEntidad: '3941db10-f4f5-4259-aa6c-39bc49dd48ee',
+            },
+        },
+        '7a7b61b3-7bc3-4088-a74d-0974e54a3563': { // Atención Psicosocial
+            acudidas: {
+                groupId: 'd67e72d2-fd1b-4199-a261-398bddd06dbc', stateKey: 'newEntidadesAcudidas',
+                qSector: '614cd46f-dc80-4166-bac8-771e1ec548e6', qDept: 'a1be03a8-6c0c-440c-acaf-3e103a838837',
+                qCity: '98f5871b-0ba6-4095-9456-834e97acfbb9', qTown: '542eed7e-69dc-45f8-8b8c-161dbdf25371',
+                qEntidad: '9658da08-101f-4a45-9204-f8f154cf36f0',
+            },
+            activacion: {
+                groupId: '10461694-7839-442e-91ea-139af9ad7f16', stateKey: 'newEntidadesActivacion',
+                qSector: '8175e98b-a759-4403-b426-c27e790c3a8b', qDept: '7d5898aa-447d-47d2-ac6e-fdcfe061397d',
+                qCity: 'c2f51cef-ea36-42e9-8505-a0be8d2b401d', qTown: '784da3e0-83f2-472e-99e7-61ff083df353',
+                qEntidad: '45f1a39a-d212-4c2e-82a2-dbb66f6b471e',
+            },
+        },
+        'c31026f8-7ce2-49b9-8990-04b44ed4513c': { // Cierre Psicosocial
+            acudidas: {
+                groupId: 'b4d5ed2c-19a9-43c7-b36e-93a44d9c6c71', stateKey: 'newEntidadesAcudidas',
+                qSector: '74ed8a8a-3330-4e62-8788-9b84d2706d27', qDept: '6bc68182-f2d0-42f3-bb3d-0236c48cf535',
+                qCity: '4c08909d-9b5c-4ca0-bc8e-8f572cb24709', qTown: '5209d922-157a-411c-a47e-4f8d6063688b',
+                qEntidad: 'db27821c-6276-4b45-b4cd-a8ebc24896cb',
+            },
+            activacion: {
+                groupId: 'ffa24f17-9f27-4ebd-ba8b-bf4a5345ee46', stateKey: 'newEntidadesActivacion',
+                qSector: 'cad27b82-1408-432e-9c2e-dde434f9d47a', qDept: 'c4806bbf-fba7-4884-b0f8-17b71f28cf7a',
+                qCity: '2696dbe5-f50b-4d41-9364-63669ffa73ce', qTown: '3accf02b-50de-4a87-9c07-a6707559e61a',
+                qEntidad: '010cfd77-ea95-44cc-bb3d-8b0e3b484936',
+            },
+        },
+    };
+
     var app = Vue.createApp({
         delimiters: ['${', '}'],
         data() {
@@ -835,13 +885,25 @@
                     sessionCount:          0,
                     status:                'abierto',
                 },
-                formState:   { skipContact: false, statesColombia: [], newBarriers: [] },
+                formState:   {
+                    skipContact: false, statesColombia: [], newBarriers: [],
+                    currentEntities:        [],   // [{ entityCaseId, entityBranchId, nombre, sector }]
+                    hasCurrentEntities:     '',    // 'true' | '' — controla visibilidad de "Seguimiento a Entidades"
+                    newEntidadesAcudidas:   [],
+                    newEntidadesActivacion: [],
+                },
                 canEdit:     true,
 
                 // ── Ubicación de barreras (Identificación de Barreras) ────
                 allCities:      [],   // [{ label, value, departmentId }] — para filtrado local
                 _deptCityCache: {},   // { [idx]: deptId } — evita re-filtrar ciudades sin cambio
                 _townCityCache: {},   // { [idx]: cityId } — evita re-fetch redundante de municipios
+
+                // ── Cachés del repeater de Identificación de Entidades ────
+                _entRepDeptCache:      {},
+                _entRepCityCache:      {},
+                _entRepMunicipioCache: {},
+                _entRepEntidadCache:   {},
 
                 // ── Secciones del formulario (mock preview) ──────────
                 sections:        [],
@@ -938,7 +1000,6 @@
                         return;
                     }
                     this.formId           = data.formId;
-                    this.submissionId     = data.submissionId;
                     this.formType         = data.formType;
                     this.victimInfo       = data.victimInfo;
                     this.caseICode        = data.victimInfo?.CaseICode || null;
@@ -948,6 +1009,14 @@
                     // en mounted() y no hay orden garantizado de resolución).
                     this.formState        = { ...this.formState, ...(data.formState || {}) };
                     this.canEdit          = data.psicosocialState.status !== 'cerrado';
+                    // Debe resolverse ANTES de exponer submissionId (que monta <dinamic-form>):
+                    // formState.hasCurrentEntities se evalúa en el primer render server-side —
+                    // si dinamic-form monta antes de que esto responda, la sección "Seguimiento a
+                    // Entidades" se computa isVisible=false en la carga inicial y _reevaluateVisibility
+                    // (dinamic-form.js) no la vuelve a chequear después (solo re-evalúa secciones
+                    // posteriores a currentSection). Mismo fix aplicado en hacer_seguimiento.html.
+                    await this.loadCurrentEntities();
+                    this.submissionId     = data.submissionId;
                     console.log('[PSICO] Datos cargados:', data);
                     console.log('[PSICO] caseICode:', this.caseICode);
                 } catch (e) {
@@ -955,6 +1024,33 @@
                     console.error('[PSICO] error:', e);
                 } finally {
                     this.pageLoading = false;
+                }
+            },
+
+            // Entidades ya vinculadas al caso (entity_case) — reutiliza el mismo endpoint
+            // que ya consume el componente case-entities. Se carga una sola vez, igual
+            // que en hacer_seguimiento.html.
+            async loadCurrentEntities() {
+                try {
+                    const res = await fetch(`/api/v1/casos/${this.caseICode}/entidades`);
+                    if (!res.ok) {
+                        this.formState.currentEntities    = [];
+                        this.formState.hasCurrentEntities = '';
+                        return;
+                    }
+                    const data = await res.json();
+                    this.formState.currentEntities = (Array.isArray(data) ? data : []).map(e => ({
+                        entityCaseId:   e.relId,
+                        entityBranchId: e.entityBranchId,
+                        nombre:         e.entityBranchName,
+                        sector:         e.sector,
+                    }));
+                    this.formState.hasCurrentEntities = this.formState.currentEntities.length > 0 ? 'true' : '';
+                    console.log('[PSICO] currentEntities cargadas:', this.formState.currentEntities.length);
+                } catch (e) {
+                    console.warn('[PSICO] loadCurrentEntities error:', e);
+                    this.formState.currentEntities    = [];
+                    this.formState.hasCurrentEntities = '';
                 }
             },
 
@@ -979,6 +1075,7 @@
             },
             onAnswersUpdated(payload) {
                 this._updateBarreraLocationOptions(payload);
+                this._updateEntidadIdentificacionOptions(payload);
             },
             // Filtra las entries del repeater "Identificación de Barreras" (según el formId
             // actual) y va poblando formState.newBarriers[i].cities/.towns a medida que el
@@ -1022,6 +1119,95 @@
                             this.formState.newBarriers[idx].towns = [];
                         }
                     }
+                });
+            },
+            // "Seguimiento a Entidades" + "Identificación de Entidades" (ambos repeaters,
+            // uno por sub-config). Cascada de ubicación igual que barreras
+            // (_updateBarreraLocationOptions); además busca sedes disponibles (mismo
+            // mecanismo que case-entities) cuando hay municipio + sector, y el catálogo
+            // de obligaciones cuando cambia la entidad. Solo aplica a los 3 forms en
+            // PSICO_ENTIDAD_CONFIG (Primer Contacto queda fuera).
+            _updateEntidadIdentificacionOptions(payload) {
+                const formCfg = PSICO_ENTIDAD_CONFIG[this.formId];
+                if (!formCfg) return;
+
+                const configs = [formCfg.acudidas, formCfg.activacion];
+
+                configs.forEach(cfg => {
+                    const entries = (payload.answers?.repeaterEntries || [])
+                        .filter(e => e.repeaterGroupId === cfg.groupId);
+
+                    if (!Array.isArray(this.formState[cfg.stateKey])) this.formState[cfg.stateKey] = [];
+                    while (this.formState[cfg.stateKey].length < entries.length) {
+                        this.formState[cfg.stateKey].push({ cities: [], towns: [], entidadesDisponibles: [], obligacionesCatalogo: [] });
+                    }
+
+                    entries.forEach((entry, idx) => {
+                        const key = `${cfg.stateKey}:${idx}`;
+                        const getEntryVal = qId => (entry.answers.find(a => a.questionId === qId)?.value || '');
+
+                        const deptId   = getEntryVal(cfg.qDept);
+                        const cityId   = getEntryVal(cfg.qCity);
+                        const townCode = getEntryVal(cfg.qTown);
+                        const sector   = getEntryVal(cfg.qSector);
+                        const entidad  = getEntryVal(cfg.qEntidad);
+
+                        // a. Departamento → opciones de Ciudad (igual que barreras)
+                        const cachedDept = this._entRepDeptCache[key] || '';
+                        if (String(deptId) !== String(cachedDept)) {
+                            this._entRepDeptCache[key] = deptId;
+                            this.formState[cfg.stateKey][idx].cities = deptId
+                                ? this.allCities
+                                    .filter(c => String(c.departmentId) === String(deptId))
+                                    .map(c => ({ label: c.label, value: c.value }))
+                                : [];
+                        }
+
+                        // b. Ciudad → fetch de municipios (igual que barreras)
+                        const cachedCity = this._entRepCityCache[key] || '';
+                        if (String(cityId) !== String(cachedCity)) {
+                            this._entRepCityCache[key] = cityId;
+                            if (cityId) {
+                                fetch(`/api/v1/locations/towns?city_id=${cityId}`)
+                                    .then(r => r.json())
+                                    .then(towns => { this.formState[cfg.stateKey][idx].towns = towns; })
+                                    .catch(() => { this.formState[cfg.stateKey][idx].towns = []; });
+                            } else {
+                                this.formState[cfg.stateKey][idx].towns = [];
+                            }
+                        }
+
+                        // c. Municipio + Sector → buscar sedes disponibles (mismo mecanismo que case-entities)
+                        const cachedMunicipio = this._entRepMunicipioCache[key] || '';
+                        if (String(townCode + '|' + sector) !== String(cachedMunicipio)) {
+                            this._entRepMunicipioCache[key] = townCode + '|' + sector;
+                            if (townCode && sector) {
+                                fetch(`/api/v1/entity-branches?town_code=${encodeURIComponent(townCode)}&sector=${encodeURIComponent(sector)}`)
+                                    .then(r => r.json())
+                                    .then(branches => {
+                                        this.formState[cfg.stateKey][idx].entidadesDisponibles =
+                                            (Array.isArray(branches) ? branches : []).map(b => ({ label: b.name, value: b.id }));
+                                    })
+                                    .catch(() => { this.formState[cfg.stateKey][idx].entidadesDisponibles = []; });
+                            } else {
+                                this.formState[cfg.stateKey][idx].entidadesDisponibles = [];
+                            }
+                        }
+
+                        // d. Entidad → catálogo de obligaciones (con "Otra" ya agregada por el backend)
+                        const cachedEntidad = this._entRepEntidadCache[key] || '';
+                        if (String(entidad) !== String(cachedEntidad)) {
+                            this._entRepEntidadCache[key] = entidad;
+                            if (entidad) {
+                                fetch(`/api/v1/entity-branches/${entidad}/obligations`)
+                                    .then(r => r.json())
+                                    .then(opts => { this.formState[cfg.stateKey][idx].obligacionesCatalogo = Array.isArray(opts) ? opts : []; })
+                                    .catch(() => { this.formState[cfg.stateKey][idx].obligacionesCatalogo = []; });
+                            } else {
+                                this.formState[cfg.stateKey][idx].obligacionesCatalogo = [];
+                            }
+                        }
+                    });
                 });
             },
             goToRemision() {

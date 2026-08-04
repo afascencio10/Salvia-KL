@@ -81,6 +81,9 @@ func main() {
         &models.BarrierFollowUp{},
         &models.Directory{},
         &models.EntityCase{},
+        &models.EntityObligation{},
+        &models.EntityCaseObligation{},
+        &models.EntityCaseFollowUp{},
     } {
         if err := gormDB.AutoMigrate(m); err != nil {
             log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -129,6 +132,9 @@ func main() {
     psychosocialReassignRepo := repository.NewPsychosocialReassignRepository(gormDB)
     entityCaseRepo         := repository.NewEntityCaseRepository(gormDB)
     victimCaseFormRepo     := repository.NewVictimCaseFormRepository(gormDB)
+    entityObligationRepo      := repository.NewEntityObligationRepository(gormDB)
+    entityCaseObligationRepo  := repository.NewEntityCaseObligationRepository(gormDB)
+    entityCaseFollowUpRepo    := repository.NewEntityCaseFollowUpRepository(gormDB)
 
     // Services
     casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
@@ -143,6 +149,7 @@ func main() {
     optionSvc             := service.NewOptionService(optionRepo)
     followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo)
     victimCaseFormSvc     := service.NewVictimCaseFormService(victimCaseFormRepo, victimCaseLightRepo, caseTimelineRepo, followUpV2Svc)
+    entityCaseSvc         := service.NewEntityCaseService(entityCaseRepo)
 
     formSvc := service.NewFormService(service.FormServiceDeps{
         FormRepo:                  formRepo,
@@ -172,6 +179,10 @@ func main() {
         EntityLetterRepo:          entityLetterRepo,
         TeamContactRepo:           teamContactRepo,
         VictimCaseFormSvc:         victimCaseFormSvc,
+        EntityCaseSvc:             entityCaseSvc,
+        EntityObligationRepo:      entityObligationRepo,
+        EntityCaseObligationRepo:  entityCaseObligationRepo,
+        EntityCaseFollowUpRepo:    entityCaseFollowUpRepo,
     })
     caseDetailSvc         := service.NewCaseDetailService(caseDetailRepo, gormDB)
     caseInfoSvc           := service.NewCaseInfoService(caseInfoRepo)
@@ -187,6 +198,7 @@ func main() {
     salvia_legacy.FollowUpSvc = followUpV2Svc
     salvia_legacy.CaseTimelineRepo = caseTimelineRepo
     salvia_legacy.VictimCaseLightRepo = victimCaseLightRepo
+    salvia_legacy.FormSvc = formSvc
 
     // Controllers
     formCtrl               := salvia_ctrl.NewFormController(formSvc, victimCaseFormSvc)
@@ -208,7 +220,6 @@ func main() {
     entityLetterSvc        := service.NewEntityLetterService(entityLetterRepo, caseTimelineRepo, caseTaskRepo, barrierV2Repo)
     entityLetterCtrl       := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
 
-    entityCaseSvc          := service.NewEntityCaseService(entityCaseRepo)
     entityCaseCtrl         := salvia_ctrl.NewEntityCaseController(entityCaseSvc)
     entityAPICtrl          := salvia_ctrl.NewEntityAPIController(entityCaseSvc)
 

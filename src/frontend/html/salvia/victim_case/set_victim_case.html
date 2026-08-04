@@ -1147,6 +1147,201 @@
               </div>
             </div>
           </template>
+
+          <!-- ══ SECCIÓN: Identificación de Entidades ══════════════════════ -->
+          <div class="tituloform">
+            <i class="fas fa-building fa-2x"></i>
+            <h2>Identificación de Entidades</h2>
+          </div>
+          <div class="row">
+            <div class="col-sm-12">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,
+                "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+                "selectId":"victim_case_entidad_reported", "errorSpanId":"victim_case_entidad_reported_error",
+                "selectLabel":"¿Ha puesto en conocimiento de alguna entidad/institución los hechos de violencia reportados?",
+                "selectPlaceHolder":"Seleccione una opción",
+                "entityPath":"data.victimCase", "entityName":"entidadesGate", "entityAttr":"hasReportedToEntity", "enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+            </div>
+          </div>
+
+          <template v-if="data.victimCase.entidadesGate.hasReportedToEntity && data.victimCase.entidadesGate.hasReportedToEntity.code == 'y'">
+            <div class="tituloform1"><h4>Entidades a las que ya acudió</h4></div>
+
+            <div class="container mt-3 mb-3 border rounded p-3" v-for="(entry, idx) in data.victimCase.entidadesAcudidas" :key="'acudida'+idx">
+              <div class="row">
+                <div class="col-sm-6 mb-3">
+                  <label>Sector de la entidad <span class="mandatory">*</span></label>
+                  <div :class="errors.entidadesAcudidas && errors.entidadesAcudidas[idx] && errors.entidadesAcudidas[idx].sector ? 'error_input' : ''">
+                    <custom-select v-model="entry.sector" :options="data.entidadSectorOptions" mode="single"
+                      placeholder="Seleccione un sector" search-placeholder="Buscar..." value-key="value" label-key="label" :return-object="false"
+                      @update:model-value="onEntidadSectorOrMunicipioChange('entidadesAcudidas', idx)"></custom-select>
+                    <span v-if="errors.entidadesAcudidas && errors.entidadesAcudidas[idx] && errors.entidadesAcudidas[idx].sector" class="error_label">${errors.entidadesAcudidas[idx].sector}</span>
+                  </div>
+                </div>
+                <div class="col-sm-6 mb-3">
+                  <label>Departamento</label>
+                  <select class="form-control input_form" v-model="entry.departmentSelected" @change="onEntidadDeptChange('entidadesAcudidas', idx)">
+                    <option value="" selected></option>
+                    <option v-for="(dep, i2) in enums.departments" :value="dep.icode" :key="i2">${dep.name}</option>
+                  </select>
+                </div>
+                <div class="col-sm-6 mb-3" v-if="entry.cities && entry.cities.length > 0">
+                  <label>Ciudad</label>
+                  <select class="form-control input_form" v-model="entry.citySelected" @change="onEntidadCityChange('entidadesAcudidas', idx)">
+                    <option value="" selected></option>
+                    <option v-for="(c, i2) in entry.cities" :value="c.code" :key="i2">${c.name}</option>
+                  </select>
+                </div>
+                <div class="col-sm-6 mb-3" v-if="entry.towns && entry.towns.length > 0">
+                  <label>Municipio <span class="mandatory">*</span></label>
+                  <div :class="errors.entidadesAcudidas && errors.entidadesAcudidas[idx] && errors.entidadesAcudidas[idx].townCode ? 'error_input' : ''">
+                    <select class="form-control input_form" v-model="entry.townCode" @change="onEntidadSectorOrMunicipioChange('entidadesAcudidas', idx)">
+                      <option value="" selected></option>
+                      <option v-for="(t, i2) in entry.towns" :value="t.code" :key="i2">${t.name}</option>
+                    </select>
+                    <span v-if="errors.entidadesAcudidas && errors.entidadesAcudidas[idx] && errors.entidadesAcudidas[idx].townCode" class="error_label">${errors.entidadesAcudidas[idx].townCode}</span>
+                  </div>
+                </div>
+                <div class="col-sm-6 mb-3" v-if="entry.entidadesDisponibles && entry.entidadesDisponibles.length > 0">
+                  <label>Entidad <span class="mandatory">*</span></label>
+                  <div :class="errors.entidadesAcudidas && errors.entidadesAcudidas[idx] && errors.entidadesAcudidas[idx].entityBranchId ? 'error_input' : ''">
+                    <select class="form-control input_form" v-model="entry.entityBranchId" @change="onEntidadSeleccionada('entidadesAcudidas', idx)">
+                      <option value="" selected></option>
+                      <option v-for="(e, i2) in entry.entidadesDisponibles" :value="e.value" :key="i2">${e.label}</option>
+                    </select>
+                    <span v-if="errors.entidadesAcudidas && errors.entidadesAcudidas[idx] && errors.entidadesAcudidas[idx].entityBranchId" class="error_label">${errors.entidadesAcudidas[idx].entityBranchId}</span>
+                  </div>
+                </div>
+                <div class="col-sm-6 mb-3">
+                  <label>¿Cuenta con un N° de radicado, NUNC, MP, etc.?</label>
+                  <input class="form-control input_form" type="text" v-model="entry.radicado">
+                </div>
+                <div class="col-sm-6 mb-3">
+                  <label>Fecha de reporte <span class="mandatory">*</span></label>
+                  <div :class="errors.entidadesAcudidas && errors.entidadesAcudidas[idx] && errors.entidadesAcudidas[idx].fechaReporte ? 'error_input' : ''">
+                    <date-time-input v-model="entry.fechaReporte" format="DD/MM/YYYY" label="Fecha de reporte" :required="true" :id="'entidad_ac_fecha_'+idx" :iso-output="false"></date-time-input>
+                    <span v-if="errors.entidadesAcudidas && errors.entidadesAcudidas[idx] && errors.entidadesAcudidas[idx].fechaReporte" class="error_label">${errors.entidadesAcudidas[idx].fechaReporte}</span>
+                  </div>
+                </div>
+                <div class="col-sm-6 mb-3" v-if="entry.obligacionesCatalogo && entry.obligacionesCatalogo.length > 0">
+                  <label>Checklist entidad completadas</label>
+                  <custom-select v-model="entry.completadas" :options="entry.obligacionesCatalogo" mode="multiple"
+                    placeholder="Seleccione" search-placeholder="Buscar..." value-key="value" label-key="label" :return-object="false"></custom-select>
+                </div>
+                <div class="col-sm-6 mb-3" v-if="entry.completadas && entry.completadas.includes('otra')">
+                  <label>Describe el otro ítem completado del checklist entidad</label>
+                  <textarea class="form-control input_form" rows="2" v-model="entry.completadasOtra"></textarea>
+                </div>
+                <div class="col-sm-6 mb-3" v-if="entry.obligacionesCatalogo && entry.obligacionesCatalogo.length > 0">
+                  <label>Checklist entidad pendientes</label>
+                  <custom-select v-model="entry.pendientes" :options="entry.obligacionesCatalogo" mode="multiple"
+                    placeholder="Seleccione" search-placeholder="Buscar..." value-key="value" label-key="label" :return-object="false"></custom-select>
+                </div>
+                <div class="col-sm-6 mb-3" v-if="entry.pendientes && entry.pendientes.includes('otra')">
+                  <label>Describe el otro ítem pendiente del checklist entidad</label>
+                  <textarea class="form-control input_form" rows="2" v-model="entry.pendientesOtra"></textarea>
+                </div>
+                <div class="col-sm-12 mb-3">
+                  <label>Otra información asociada a la Ruta</label>
+                  <textarea class="form-control input_form" rows="2" v-model="entry.infoRuta"></textarea>
+                </div>
+              </div>
+              <div class="row justify-content-end">
+                <button type="button" class="btn btn-outline-danger btn-sm" @click="removeEntidadAcudida(idx)">Quitar entidad</button>
+              </div>
+            </div>
+            <div class="row justify-content-center mb-4">
+              <button type="button" class="btn btn-outline-primary" @click="addEntidadAcudida()">+ Agregar entidad</button>
+            </div>
+          </template>
+
+          <div class="row">
+            <div class="col-sm-12">
+              {{ template "labeled_select_entity.html" Select `{"multiple":"single", "mandatory":true,
+                "containerClass":"form-group", "class":"form-control input_form", "errorClass":"error_input",
+                "selectId":"victim_case_entidad_accepts_activation", "errorSpanId":"victim_case_entidad_accepts_activation_error",
+                "selectLabel":"¿Está usted de acuerdo con que SALVIA realice la activación de la Ruta de Atención?",
+                "selectPlaceHolder":"Seleccione una opción",
+                "entityPath":"data.victimCase", "entityName":"entidadesGate", "entityAttr":"acceptsRouteActivation", "enumsAttr":"yes_no", "entityEnumId":"icode", "entityEnumLabel":"name", "returnObject":true}` .lang .locale}}
+            </div>
+          </div>
+
+          <template v-if="data.victimCase.entidadesGate.acceptsRouteActivation && data.victimCase.entidadesGate.acceptsRouteActivation.code == 'y'">
+            <div class="tituloform1"><h4>Entidades para activación de ruta</h4></div>
+
+            <div class="container mt-3 mb-3 border rounded p-3" v-for="(entry, idx) in data.victimCase.entidadesActivacion" :key="'activacion'+idx">
+              <div class="row">
+                <div class="col-sm-6 mb-3">
+                  <label>Sector de la entidad <span class="mandatory">*</span></label>
+                  <div :class="errors.entidadesActivacion && errors.entidadesActivacion[idx] && errors.entidadesActivacion[idx].sector ? 'error_input' : ''">
+                    <custom-select v-model="entry.sector" :options="data.entidadSectorOptions" mode="single"
+                      placeholder="Seleccione un sector" search-placeholder="Buscar..." value-key="value" label-key="label" :return-object="false"
+                      @update:model-value="onEntidadSectorOrMunicipioChange('entidadesActivacion', idx)"></custom-select>
+                    <span v-if="errors.entidadesActivacion && errors.entidadesActivacion[idx] && errors.entidadesActivacion[idx].sector" class="error_label">${errors.entidadesActivacion[idx].sector}</span>
+                  </div>
+                </div>
+                <div class="col-sm-6 mb-3">
+                  <label>Departamento</label>
+                  <select class="form-control input_form" v-model="entry.departmentSelected" @change="onEntidadDeptChange('entidadesActivacion', idx)">
+                    <option value="" selected></option>
+                    <option v-for="(dep, i2) in enums.departments" :value="dep.icode" :key="i2">${dep.name}</option>
+                  </select>
+                </div>
+                <div class="col-sm-6 mb-3" v-if="entry.cities && entry.cities.length > 0">
+                  <label>Ciudad</label>
+                  <select class="form-control input_form" v-model="entry.citySelected" @change="onEntidadCityChange('entidadesActivacion', idx)">
+                    <option value="" selected></option>
+                    <option v-for="(c, i2) in entry.cities" :value="c.code" :key="i2">${c.name}</option>
+                  </select>
+                </div>
+                <div class="col-sm-6 mb-3" v-if="entry.towns && entry.towns.length > 0">
+                  <label>Municipio <span class="mandatory">*</span></label>
+                  <div :class="errors.entidadesActivacion && errors.entidadesActivacion[idx] && errors.entidadesActivacion[idx].townCode ? 'error_input' : ''">
+                    <select class="form-control input_form" v-model="entry.townCode" @change="onEntidadSectorOrMunicipioChange('entidadesActivacion', idx)">
+                      <option value="" selected></option>
+                      <option v-for="(t, i2) in entry.towns" :value="t.code" :key="i2">${t.name}</option>
+                    </select>
+                    <span v-if="errors.entidadesActivacion && errors.entidadesActivacion[idx] && errors.entidadesActivacion[idx].townCode" class="error_label">${errors.entidadesActivacion[idx].townCode}</span>
+                  </div>
+                </div>
+                <div class="col-sm-6 mb-3" v-if="entry.entidadesDisponibles && entry.entidadesDisponibles.length > 0">
+                  <label>Entidad <span class="mandatory">*</span></label>
+                  <div :class="errors.entidadesActivacion && errors.entidadesActivacion[idx] && errors.entidadesActivacion[idx].entityBranchId ? 'error_input' : ''">
+                    <select class="form-control input_form" v-model="entry.entityBranchId" @change="onEntidadSeleccionada('entidadesActivacion', idx)">
+                      <option value="" selected></option>
+                      <option v-for="(e, i2) in entry.entidadesDisponibles" :value="e.value" :key="i2">${e.label}</option>
+                    </select>
+                    <span v-if="errors.entidadesActivacion && errors.entidadesActivacion[idx] && errors.entidadesActivacion[idx].entityBranchId" class="error_label">${errors.entidadesActivacion[idx].entityBranchId}</span>
+                  </div>
+                </div>
+                <div class="col-sm-6 mb-3" v-if="entry.obligacionesCatalogo && entry.obligacionesCatalogo.length > 0">
+                  <label>Checklist entidad pendientes</label>
+                  <custom-select v-model="entry.pendientes" :options="entry.obligacionesCatalogo" mode="multiple"
+                    placeholder="Seleccione" search-placeholder="Buscar..." value-key="value" label-key="label" :return-object="false"></custom-select>
+                </div>
+                <div class="col-sm-6 mb-3" v-if="entry.pendientes && entry.pendientes.includes('otra')">
+                  <label>Describe el otro ítem pendiente del checklist entidad</label>
+                  <textarea class="form-control input_form" rows="2" v-model="entry.pendientesOtra"></textarea>
+                </div>
+                <div class="col-sm-12 mb-3">
+                  <label>Canal de activación <span class="mandatory">*</span></label>
+                  <div :class="errors.entidadesActivacion && errors.entidadesActivacion[idx] && errors.entidadesActivacion[idx].canalActivacion ? 'error_input' : ''">
+                    <custom-select v-model="entry.canalActivacion" :options="data.canalActivacionOptions" mode="multiple"
+                      placeholder="Seleccione" search-placeholder="Buscar..." value-key="value" label-key="label" :return-object="false"></custom-select>
+                    <span v-if="errors.entidadesActivacion && errors.entidadesActivacion[idx] && errors.entidadesActivacion[idx].canalActivacion" class="error_label">${errors.entidadesActivacion[idx].canalActivacion}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="row justify-content-end">
+                <button type="button" class="btn btn-outline-danger btn-sm" @click="removeEntidadActivacion(idx)">Quitar entidad</button>
+              </div>
+            </div>
+            <div class="row justify-content-center mb-4">
+              <button type="button" class="btn btn-outline-primary" @click="addEntidadActivacion()">+ Agregar entidad</button>
+            </div>
+          </template>
+          <!-- ══ FIN SECCIÓN: Identificación de Entidades ══════════════════ -->
+
           <div class="row justify-content-center botones">
             {{ template "button.html" Button `{"class":"btn btn-warning", "buttonId":"back", "buttonLabel":"victim_case_back", "buttonPlaceHolder":"victim_case_back_h", "onClickHandler":"submit('back')"}` .lang .locale}}
             {{ template "button.html" Button `{"class":"btn btn-success", "buttonId":"save", "buttonLabel":"victim_case_save", "buttonPlaceHolder":"victim_case_save_h", "onClickHandler":"submit('save')"}` .lang .locale}}
@@ -1213,14 +1408,34 @@
                 towns2: [],
                 cities3: [],
                 towns3: [],
-                victimCase:JSON.parse({{.victimCase}}),
+                victimCase: {
+                  ...JSON.parse({{.victimCase}}),
+                  // Identificación de Entidades — datos de tránsito, no vienen del GET
+                  // (pantalla de caso nuevo). Ver DocsMD/Otros/temp/agregar-identificacion-entidades-registro-caso-legacy.md.
+                  entidadesGate: { hasReportedToEntity: null, acceptsRouteActivation: null },
+                  entidadesAcudidas: [],
+                  entidadesActivacion: [],
+                },
                 entitiesByMomentAndSector: JSON.parse({{.entitiesByMomentAndSector}}),
                 wasPartner: false,
                 partnerKnown: false,
                 tamizajeAggressorCheck: false,
                 ratingValue:0,
                 workplaceSectorOccurrence: false,
-                
+                // Identificación de Entidades — catálogos estáticos y ubicaciones para
+                // la cascada Departamento→Ciudad→Municipio por fila (mismo patrón que
+                // las 3 cadenas existentes de esta pantalla).
+                entidadSectorOptions: [
+                  {value:'salud', label:'Salud'},
+                  {value:'justicia', label:'Justicia'},
+                  {value:'proteccion', label:'Protección'},
+                  {value:'otras_instituciones', label:'Otras instituciones'},
+                ],
+                canalActivacionOptions: [
+                  {value:'notificacion', label:'Notificación (tarea)'},
+                  {value:'llamada', label:'Llamada (tarea)'},
+                  {value:'mi_salvia', label:'Mi Salvia (Gestión institucional externa) (tarea)'},
+                ],
               },
               enums:{
                 
@@ -1504,23 +1719,133 @@
                         return this.enums.entities[idx].name;
                     }
                 }
-                
+
                 return "";
+            },
+
+            // ── Identificación de Entidades ─────────────────────────────
+            newEntidadRow() {
+              return {
+                sector: '', departmentSelected: '', citySelected: '', townCode: '', entityBranchId: '',
+                radicado: '', fechaReporte: '', completadas: [], completadasOtra: '',
+                pendientes: [], pendientesOtra: '', infoRuta: '', canalActivacion: [],
+                cities: [], towns: [], entidadesDisponibles: [], obligacionesCatalogo: [],
+              };
+            },
+            addEntidadAcudida() { this.data.victimCase.entidadesAcudidas.push(this.newEntidadRow()); },
+            removeEntidadAcudida(idx) {
+              this.data.victimCase.entidadesAcudidas.splice(idx, 1);
+              if (this.errors.entidadesAcudidas) this.errors.entidadesAcudidas.splice(idx, 1);
+            },
+            addEntidadActivacion() { this.data.victimCase.entidadesActivacion.push(this.newEntidadRow()); },
+            removeEntidadActivacion(idx) {
+              this.data.victimCase.entidadesActivacion.splice(idx, 1);
+              if (this.errors.entidadesActivacion) this.errors.entidadesActivacion.splice(idx, 1);
+            },
+            onEntidadDeptChange(list, idx) {
+              const entry = this.data.victimCase[list][idx];
+              entry.cities = []; entry.towns = []; entry.citySelected = ''; entry.townCode = '';
+              entry.entidadesDisponibles = []; entry.entityBranchId = ''; entry.obligacionesCatalogo = [];
+              if (!entry.departmentSelected) return;
+              getEntity("{{.securityCityFormPath}}/"+entry.departmentSelected+"/departamento", (function(status, response) {
+                if (status === 200) { entry.cities = response; }
+              }).bind(this), true);
+            },
+            onEntidadCityChange(list, idx) {
+              const entry = this.data.victimCase[list][idx];
+              entry.towns = []; entry.townCode = '';
+              entry.entidadesDisponibles = []; entry.entityBranchId = ''; entry.obligacionesCatalogo = [];
+              if (!entry.citySelected) return;
+              getEntity("{{.securityTownFormPath}}/"+entry.citySelected+"/codigo_ciudad", (function(status, response) {
+                if (status === 200) { entry.towns = response; }
+              }).bind(this), true);
+            },
+            // Municipio o Sector cambiaron: re-busca sedes disponibles (mismo mecanismo
+            // que case-entities / hacer_seguimiento.html / registrar_sesion.html).
+            onEntidadSectorOrMunicipioChange(list, idx) {
+              const entry = this.data.victimCase[list][idx];
+              entry.entidadesDisponibles = []; entry.entityBranchId = ''; entry.obligacionesCatalogo = [];
+              if (!entry.townCode || !entry.sector) return;
+              getEntity("/api/v1/entity-branches?town_code="+encodeURIComponent(entry.townCode)+"&sector="+encodeURIComponent(entry.sector), (function(status, response) {
+                if (status === 200) {
+                  entry.entidadesDisponibles = (Array.isArray(response) ? response : []).map(b => ({ label: b.name, value: b.id }));
+                }
+              }).bind(this), true);
+            },
+            onEntidadSeleccionada(list, idx) {
+              const entry = this.data.victimCase[list][idx];
+              entry.obligacionesCatalogo = [];
+              if (!entry.entityBranchId) return;
+              getEntity("/api/v1/entity-branches/"+entry.entityBranchId+"/obligations", (function(status, response) {
+                if (status === 200) { entry.obligacionesCatalogo = Array.isArray(response) ? response : []; }
+              }).bind(this), true);
+            },
+            // Validación bloqueante (G-03, decisión de Felipe): toda fila agregada por
+            // el agente debe estar completa para poder guardar el caso. Puebla
+            // this.errors.entidadesAcudidas/entidadesActivacion (array paralelo, un
+            // objeto de errores por índice) para que los inputs muestren error_input,
+            // igual que el resto del formulario.
+            validateEntidadEntries() {
+              let valid = true;
+              const validateList = (list) => {
+                const rowErrors = [];
+                this.data.victimCase[list].forEach((entry, idx) => {
+                  const e = {};
+                  if (!entry.sector) e.sector = "Este campo es requerido";
+                  if (!entry.townCode) e.townCode = "Este campo es requerido";
+                  if (!entry.entityBranchId) e.entityBranchId = "Este campo es requerido";
+                  if (list === 'entidadesAcudidas' && !entry.fechaReporte) e.fechaReporte = "Este campo es requerido";
+                  if (list === 'entidadesActivacion' && (!entry.canalActivacion || entry.canalActivacion.length === 0)) e.canalActivacion = "Este campo es requerido";
+                  rowErrors[idx] = e;
+                  if (Object.keys(e).length > 0) valid = false;
+                });
+                this.errors[list] = rowErrors;
+              };
+              validateList('entidadesAcudidas');
+              validateList('entidadesActivacion');
+              return valid;
+            },
+            // Descarta caches de UI (cities/towns/entidadesDisponibles/obligacionesCatalogo)
+            // antes de enviar — el backend no las necesita.
+            buildEntidadPayload(list) {
+              return this.data.victimCase[list].map(entry => ({
+                sector: entry.sector, townCode: entry.townCode, entityBranchId: entry.entityBranchId,
+                radicado: entry.radicado, fechaReporte: entry.fechaReporte,
+                completadas: entry.completadas, completadasOtra: entry.completadasOtra,
+                pendientes: entry.pendientes, pendientesOtra: entry.pendientesOtra,
+                infoRuta: entry.infoRuta, canalActivacion: entry.canalActivacion,
+              }));
             },
             submit(action,event) {
               if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
-                location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+                location.assign(home.config.globalProperties.enums.nav_rules["default"]);
               }else{
+                // Identificación de Entidades — validación bloqueante (G-03): si hay una
+                // fila agregada e incompleta, no se envía el POST.
+                if (!this.validateEntidadEntries()) {
+                  return;
+                }
+
                 this.data.victimCase.livingLatitude = home.config.globalProperties.latitude;
                 this.data.victimCase.livingLongitude = home.config.globalProperties.longitude;
                 this.data.victimCase.docNumber = (this.data.victimCase.docNumber || '').replace(/[^a-zA-Z0-9]/g, '');
-                
-                newEntity("{{.salviaFormPath}}", {victimCase:this.data.victimCase}, (function(status, response) {
+
+                const gate = this.data.victimCase.entidadesGate;
+                const payload = {
+                  ...this.data.victimCase,
+                  hasReportedToEntity: !!(gate.hasReportedToEntity && gate.hasReportedToEntity.code === 'y'),
+                  acceptsRouteActivation: !!(gate.acceptsRouteActivation && gate.acceptsRouteActivation.code === 'y'),
+                  entidadesAcudidas: this.buildEntidadPayload('entidadesAcudidas'),
+                  entidadesActivacion: this.buildEntidadPayload('entidadesActivacion'),
+                };
+                delete payload.entidadesGate;
+
+                newEntity("{{.salviaFormPath}}", {victimCase:payload}, (function(status, response) {
                   document.getElementById('successOverlay').style.display = 'none';
                   if (status === 200) {
                     this.data.victimCase.newUser = response;
                     document.getElementById('finishedOverlay').style.display = 'flex';
-                  } 
+                  }
                   else if (status === 400) {
                     this.errors = response;
                   }else {
@@ -1528,7 +1853,7 @@
                   }
                 }).bind(this));
               }
-              
+
             },
             finished(){
               if(home.config.globalProperties.enums.nav_rules["default"]){

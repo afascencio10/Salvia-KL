@@ -51,6 +51,11 @@ type EntityCaseService interface {
 	ListByEntity(ctx context.Context, filter EntityCaseListFilter) (*EntityCaseListResult, error)
 	ListEntities(ctx context.Context) ([]models.EntityCatalogItem, error)
 	ListCitiesByEntity(ctx context.Context, entityID int64) ([]models.EntityCityOption, error)
+
+	// UpdateLastAction sobreescribe entity_case.last_action con un resumen de
+	// texto libre. Usado por processFollowUpSubmission al registrar un
+	// entity_case_follow_up (Sección "Seguimiento a Entidades").
+	UpdateLastAction(ctx context.Context, entityCaseID, lastAction string) error
 }
 
 type entityCaseService struct {
@@ -135,6 +140,10 @@ func (s *entityCaseService) ListEntities(ctx context.Context) ([]models.EntityCa
 
 func (s *entityCaseService) ListCitiesByEntity(ctx context.Context, entityID int64) ([]models.EntityCityOption, error) {
 	return s.repo.ListCitiesByEntityID(ctx, entityID)
+}
+
+func (s *entityCaseService) UpdateLastAction(ctx context.Context, entityCaseID, lastAction string) error {
+	return s.repo.UpdateFields(ctx, entityCaseID, map[string]interface{}{"last_action": lastAction})
 }
 
 func entitySectorLabel(code string) string {

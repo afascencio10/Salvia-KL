@@ -26,6 +26,52 @@ func NewEntityBranchAPIController(db *gorm.DB) *EntityBranchAPIController {
 
 func (c *EntityBranchAPIController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/entity-branches", c.ListByTownCode)
+	rg.GET("/entity-branches/:branchId/obligations", c.ListObligationsByBranch)
+}
+
+// obligationOption es el DTO de una opción del checklist de obligaciones.
+type obligationOption struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+}
+
+// ListObligationsByBranch devuelve el catálogo de obligaciones de la organización
+// dueña de la sede indicada (resuelve branch → entity_id internamente), con la
+// opción "Otra" siempre agregada al final.
+//
+//	GET /api/v1/entity-branches/:branchId/obligations
+func (c *EntityBranchAPIController) ListObligationsByBranch(ctx *gin.Context) {
+	branchID := ctx.Param("branchId")
+	if branchID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "el parámetro 'branchId' es requerido"})
+		return
+	}
+
+	type obligationRow struct {
+		ID    string `gorm:"column:id"`
+		Label string `gorm:"column:label"`
+	}
+	rows := make([]obligationRow, 0)
+	err := c.db.WithContext(ctx.Request.Context()).
+		Raw(`SELECT eo.id, eo.label
+			FROM salvia.entity_obligation eo
+			JOIN salvia.entity_branch eb ON eb.entity_id = eo.entity_id
+			WHERE eb.entity_branch_id = ? AND eo.deleted_at IS NULL
+			ORDER BY eo."order" ASC`, branchID).
+		Scan(&rows).Error
+	if err != nil {
+		log.Printf("[ERROR] entity-branches/obligations: branchId=%q error=%v", branchID, err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		return
+	}
+
+	options := make([]obligationOption, 0, len(rows)+1)
+	for _, r := range rows {
+		options = append(options, obligationOption{Value: r.ID, Label: r.Label})
+	}
+	options = append(options, obligationOption{Value: "otra", Label: "Otra"})
+
+	ctx.JSON(http.StatusOK, options)
 }
 
 // ListByTownCode devuelve las sedes del municipio indicado, ordenadas por nombre.

@@ -137,6 +137,12 @@ type FormService interface {
 	// completar el formulario. Ver comentario en su implementación.
 	OnSectionUpdate(ctx context.Context, formID, submissionID, actorID string) error
 	TestFunction(ctx context.Context, fn, id, submissionID string) (interface{}, error)
+
+	// ProcessVictimCaseEntidadEntries procesa la sección "Identificación de
+	// Entidades" de Registro de Caso (pantalla legacy, sin dinamic-form) —
+	// llamado post-commit desde VictimCaseController.SetVictimCase. Ver
+	// DocsMD/Otros/temp/agregar-identificacion-entidades-registro-caso-legacy.md.
+	ProcessVictimCaseEntidadEntries(ctx context.Context, caseID, actorID string, acudidas, activacion []VictimCaseEntidadEntryInput) error
 }
 
 type FormServiceDeps struct {
@@ -167,6 +173,10 @@ type FormServiceDeps struct {
 	BarrierFollowUpRepo        repository.BarrierFollowUpRepository
 	TeamContactRepo            repository.TeamContactRepository
 	VictimCaseFormSvc          VictimCaseFormService
+	EntityCaseSvc              EntityCaseService
+	EntityObligationRepo       repository.EntityObligationRepository
+	EntityCaseObligationRepo   repository.EntityCaseObligationRepository
+	EntityCaseFollowUpRepo     repository.EntityCaseFollowUpRepository
 }
 
 type formService struct {
@@ -197,6 +207,10 @@ type formService struct {
 	barrierFollowUpRepo        repository.BarrierFollowUpRepository
 	teamContactRepo            repository.TeamContactRepository
 	victimCaseFormSvc          VictimCaseFormService
+	entityCaseSvc              EntityCaseService
+	entityObligationRepo       repository.EntityObligationRepository
+	entityCaseObligationRepo   repository.EntityCaseObligationRepository
+	entityCaseFollowUpRepo     repository.EntityCaseFollowUpRepository
 }
 
 func NewFormService(deps FormServiceDeps) FormService {
@@ -228,6 +242,10 @@ func NewFormService(deps FormServiceDeps) FormService {
 		barrierFollowUpRepo:       deps.BarrierFollowUpRepo,
 		teamContactRepo:           deps.TeamContactRepo,
 		victimCaseFormSvc:         deps.VictimCaseFormSvc,
+		entityCaseSvc:             deps.EntityCaseSvc,
+		entityObligationRepo:      deps.EntityObligationRepo,
+		entityCaseObligationRepo:  deps.EntityCaseObligationRepo,
+		entityCaseFollowUpRepo:    deps.EntityCaseFollowUpRepo,
 	}
 }
 
@@ -2286,6 +2304,11 @@ func (s *formService) processPsicosocialSessionSubmission(ctx context.Context, f
 		log.Printf("[processPsicosocialSessionSubmission] advertencia: error procesando barreras: %v", err)
 	}
 
+	// ── Entidades: "Seguimiento a Entidades" + "Identificación de Entidades" ──
+	if err := s.processPsicosocialEntidadEntries(ctx, formID, submissionID, actorID, tc.ID, ps); err != nil {
+		log.Printf("[processPsicosocialSessionSubmission] advertencia: error procesando entidades: %v", err)
+	}
+
 	// ── Timeline ──────────────────────────────────────────────────────────────
 	timelineDesc := "Sesión psicosocial registrada — tipo: " + sessionType
 	if barrierCount > 0 {
@@ -2579,6 +2602,32 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		qCierreAccionesInst = "0e7b61c8-9401-4429-81ed-61c8fc97808e" // boolean — ¿Realizó acciones institucionales?
 	)
 
+	// ── IDs — Sección 5: Seguimiento a Entidades (repeater controlado por estado) ──
+	const (
+		rgSeguimientoEntidades = "d4227fe1-87ce-403f-a7f8-91b221d5cb57"
+		qSegRutaActualizada    = "de2cce0d-6f33-4f08-bc64-51b96c297dfe"
+		qSegMotivo             = "084c406b-ecfe-4bfa-9627-f47294ef194b"
+		qSegRequiereActivacion = "e0403dc7-3017-49ab-be05-e19ed89301ca"
+		qSegCanalActivacion    = "32bff8d9-14c4-456d-bccf-0c2285757d31"
+	)
+
+	// ── IDs — Sección 6: Identificación de Entidades ──────────────────────────
+	const (
+		rgEntidadesAcudidas = "ee42ef36-ec09-4652-a7bd-85263297482f"
+		qAcEntidad          = "3f814a7c-9e7f-46cd-88ce-7699a00429fa"
+		qAcCompletadas      = "b85f28a6-3dd6-4904-96bb-d236501ff0c9"
+		qAcCompletadasOtra  = "b40710d4-d8d2-4292-8980-a95cb9961b0e"
+		qAcPendientes       = "0982fa51-6349-4a9b-826a-317f5f1a02cf"
+		qAcPendientesOtra   = "3fc2ce53-e83b-4d3f-9c01-2a262fa42f69"
+		qAcInfoRuta         = "ce08ba3f-a310-48f6-96af-2fb058d80b04"
+
+		rgEntidadesActivacion = "5b5b7713-03fb-4263-9dc4-ac981130878d"
+		qAvEntidad            = "4e9cf995-c891-422d-a778-8ff8d34032e7"
+		qAvPendientes         = "d2417efc-509f-4226-aaf4-d6c6b0cd9c93"
+		qAvPendientesOtra     = "001a001a-9654-4bfc-91c3-e442a5d83cb7"
+		qAvCanalActivacion    = "50ee518a-5743-4f6a-8647-d39c7a4b973c"
+	)
+
 	// Mapas sector → pregunta de barreras, instituciones y "otra barrera"
 	sectorBarrierQ := map[string]string{
 		"salud":      qBarreraSalud,
@@ -2836,6 +2885,216 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 					log.Printf("[processFollowUp] ❌ barrier_follow_up barrera %s: %v", barrierID, err)
 				} else {
 					log.Printf("[processFollowUp] ✅ barrier_follow_up creado → barrera %s", barrierID)
+				}
+			}
+		}
+	}
+
+	// 3c. Seguimiento a Entidades (Sección 5 — repeater controlado por estado)
+	// Relación entry↔entity_case por POSICIÓN, igual que PASO 3b con barreras:
+	// se re-consulta EntityCaseService.ListByCase con el mismo orden
+	// (created_at ASC) que usó E-01 para construir formState.currentEntities.
+	if s.entityCaseSvc != nil {
+		entidadesDelCaso, err := s.entityCaseSvc.ListByCase(ctx, fu.CaseID)
+		if err != nil {
+			log.Printf("[processFollowUp] WARN: no se pudo listar entity_case del caso %s: %v", fu.CaseID, err)
+		} else if len(entidadesDelCaso) > 0 {
+			segEntries, err := s.repeaterEntryRepo.FindBySubmissionIDAndGroupIDs(ctx, submissionID, []string{rgSeguimientoEntidades})
+			if err != nil {
+				return fmt.Errorf("processFollowUpSubmission: leer entradas seguimiento a entidades: %w", err)
+			}
+			log.Printf("[processFollowUp] seguimiento a entidades: %d entries encontradas (entidades del caso: %d)", len(segEntries), len(entidadesDelCaso))
+			for idx, entry := range segEntries {
+				if idx >= len(entidadesDelCaso) {
+					log.Printf("[processFollowUp] WARN: entry de seguimiento a entidades [%d] sin entity_case correspondiente — se omite", idx)
+					continue
+				}
+				entityCaseID := entidadesDelCaso[idx].RelID
+				entityBranchID := entidadesDelCaso[idx].EntityBranchID
+
+				segAnswers, err := s.answerRepo.FindByRepeaterEntryID(ctx, entry.ID)
+				if err != nil {
+					return fmt.Errorf("processFollowUpSubmission: leer respuestas seguimiento a entidad [%s]: %w", entry.ID, err)
+				}
+				segMap := make(map[string]string, len(segAnswers))
+				for _, a := range segAnswers {
+					segMap[a.QuestionID] = a.Value
+				}
+
+				rutaActualizada := segMap[qSegRutaActualizada] == "true"
+				requiereActivacion := segMap[qSegRequiereActivacion] == "true"
+				motivo := strings.TrimSpace(segMap[qSegMotivo])
+				canal := strings.TrimSpace(segMap[qSegCanalActivacion])
+
+				if s.entityCaseFollowUpRepo != nil {
+					ecfu := &models.EntityCaseFollowUp{
+						EntityCaseID:            entityCaseID,
+						FollowUpID:              fu.ID,
+						RutaActualizada:         rutaActualizada,
+						RequiereNuevaActivacion: requiereActivacion,
+						CreatedByID:             actorID,
+					}
+					if motivo != "" {
+						ecfu.MotivoActualizacion = &motivo
+					}
+					if canal != "" {
+						ecfu.CanalActivacion = &canal
+					}
+					if err := s.entityCaseFollowUpRepo.Create(ctx, ecfu); err != nil {
+						log.Printf("[processFollowUp] WARN: no se pudo crear entity_case_follow_up para entity_case %s: %v", entityCaseID, err)
+					}
+				}
+
+				resumen := "Seguimiento registrado sin cambios en la ruta"
+				if rutaActualizada && motivo != "" {
+					resumen = fmt.Sprintf("Ruta actualizada: %s", motivo)
+				}
+				if err := s.entityCaseSvc.UpdateLastAction(ctx, entityCaseID, resumen); err != nil {
+					log.Printf("[processFollowUp] WARN: no se pudo actualizar last_action de entity_case %s: %v", entityCaseID, err)
+				}
+
+				if requiereActivacion {
+					s.procesarCanalActivacion(ctx, fu.CaseID, &fu.ID, actorID, entityCaseID, entityBranchID, canal, nil)
+				}
+			}
+		}
+	}
+
+	// 3d. Identificación de Entidades (Sección 6 — dos repeaters)
+	if s.entityCaseSvc != nil {
+		type entidadRepeaterCfg struct {
+			groupID          string
+			qEntidad         string
+			qCompletadas     string
+			qCompletadasOtra string
+			qPendientes      string
+			qPendientesOtra  string
+			qObjetivo        string // "" si no aplica
+			qCanalActivacion string // "" si no aplica
+		}
+		repeaterConfigs := []entidadRepeaterCfg{
+			{
+				groupID: rgEntidadesAcudidas, qEntidad: qAcEntidad,
+				qCompletadas: qAcCompletadas, qCompletadasOtra: qAcCompletadasOtra,
+				qPendientes: qAcPendientes, qPendientesOtra: qAcPendientesOtra,
+				qObjetivo: qAcInfoRuta,
+			},
+			{
+				groupID: rgEntidadesActivacion, qEntidad: qAvEntidad,
+				qPendientes: qAvPendientes, qPendientesOtra: qAvPendientesOtra,
+				qCanalActivacion: qAvCanalActivacion,
+			},
+		}
+
+		for _, cfg := range repeaterConfigs {
+			idEntries, err := s.repeaterEntryRepo.FindBySubmissionIDAndGroupIDs(ctx, submissionID, []string{cfg.groupID})
+			if err != nil {
+				return fmt.Errorf("processFollowUpSubmission: leer entradas identificación de entidades [%s]: %w", cfg.groupID, err)
+			}
+			log.Printf("[processFollowUp] identificación de entidades [%s]: %d entries", cfg.groupID, len(idEntries))
+
+			for _, entry := range idEntries {
+				idAnswers, err := s.answerRepo.FindByRepeaterEntryID(ctx, entry.ID)
+				if err != nil {
+					return fmt.Errorf("processFollowUpSubmission: leer respuestas identificación de entidad [%s]: %w", entry.ID, err)
+				}
+				idMap := make(map[string]string, len(idAnswers))
+				for _, a := range idAnswers {
+					idMap[a.QuestionID] = a.Value
+				}
+
+				entityBranchIDStr := strings.TrimSpace(idMap[cfg.qEntidad])
+				if entityBranchIDStr == "" {
+					continue
+				}
+				entityBranchID, err := strconv.ParseInt(entityBranchIDStr, 10, 64)
+				if err != nil {
+					log.Printf("[processFollowUp] WARN: entity_branch_id inválido %q en entry [%s]: %v", entityBranchIDStr, entry.ID, err)
+					continue
+				}
+
+				var objetivo *string
+				if cfg.qObjetivo != "" {
+					if v := strings.TrimSpace(idMap[cfg.qObjetivo]); v != "" {
+						objetivo = &v
+					}
+				}
+
+				var entityCaseID string
+				created, err := s.entityCaseSvc.Create(ctx, CreateEntityCaseInput{
+					CaseID: fu.CaseID, EntityBranchID: entityBranchID,
+					Objetivo: objetivo, CreatedByID: actorID,
+				})
+				if err != nil {
+					if errors.Is(err, ErrEntityCaseDuplicate) {
+						existentes, findErr := s.entityCaseSvc.ListByCase(ctx, fu.CaseID)
+						if findErr != nil {
+							log.Printf("[processFollowUp] WARN: no se pudo resolver entity_case existente tras duplicado (caso=%s, branch=%d): %v", fu.CaseID, entityBranchID, findErr)
+							continue
+						}
+						found := false
+						for _, e := range existentes {
+							if e.EntityBranchID == entityBranchID {
+								entityCaseID = e.RelID
+								found = true
+								break
+							}
+						}
+						if !found {
+							log.Printf("[processFollowUp] WARN: entity_case duplicado no encontrado en re-consulta (caso=%s, branch=%d)", fu.CaseID, entityBranchID)
+							continue
+						}
+					} else {
+						return fmt.Errorf("processFollowUpSubmission: crear entity_case (branch=%d): %w", entityBranchID, err)
+					}
+				} else {
+					entityCaseID = created.ID
+				}
+
+				// Registrar obligaciones seleccionadas (completadas + pendientes)
+				type obligGroup struct {
+					raw     string
+					otraTxt string
+					status  string
+				}
+				var groups []obligGroup
+				if cfg.qCompletadas != "" {
+					groups = append(groups, obligGroup{
+						raw: idMap[cfg.qCompletadas], otraTxt: idMap[cfg.qCompletadasOtra],
+						status: models.EntityCaseObligationStatusCompletada,
+					})
+				}
+				groups = append(groups, obligGroup{
+					raw: idMap[cfg.qPendientes], otraTxt: idMap[cfg.qPendientesOtra],
+					status: models.EntityCaseObligationStatusPendiente,
+				})
+
+				if s.entityCaseObligationRepo != nil {
+					for _, g := range groups {
+						for _, val := range splitValues(g.raw) {
+							eco := &models.EntityCaseObligation{
+								EntityCaseID: entityCaseID,
+								Status:       g.status,
+								FollowUpID:   &fu.ID,
+								CreatedByID:  actorID,
+							}
+							if val == "otra" {
+								label := strings.TrimSpace(g.otraTxt)
+								eco.CustomLabel = &label
+							} else {
+								obligID := val
+								eco.EntityObligationID = &obligID
+							}
+							if err := s.entityCaseObligationRepo.Create(ctx, eco); err != nil {
+								log.Printf("[processFollowUp] WARN: no se pudo crear entity_case_obligation (%s) para entity_case %s: %v", g.status, entityCaseID, err)
+							}
+						}
+					}
+				}
+
+				// Canal de activación (solo aplica en el repeater de activación)
+				if cfg.qCanalActivacion != "" {
+					s.procesarCanalActivacion(ctx, fu.CaseID, &fu.ID, actorID, entityCaseID, entityBranchID, idMap[cfg.qCanalActivacion], nil)
 				}
 			}
 		}
@@ -3416,6 +3675,93 @@ func validateAnswer(answer models.Answer, question QuestionStructure) ValidateAn
 }
 
 // FormSection fue movido a form_section_service.go
+
+// splitCSVValues parsea un valor comma-separated y filtra vacíos.
+func splitCSVValues(v string) []string {
+	var out []string
+	for _, part := range strings.Split(v, ",") {
+		if t := strings.TrimSpace(part); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// procesarCanalActivacion genera tareas (y oficio si aplica) según el/los
+// canal(es) seleccionados para una entidad — reutilizado por Hacer Seguimiento
+// (processFollowUpSubmission, Secciones "Seguimiento a Entidades" e
+// "Identificación de Entidades") y por Psicosocial
+// (processPsicosocialEntidadEntries, mismas 2 secciones clonadas en cada
+// formulario). psychosocialSupportID es nil cuando se llama desde Hacer
+// Seguimiento; se fija en el case_task cuando se llama desde Psicosocial,
+// igual que ya hace processPsicosocialBarrierEntries con sus tareas.
+func (s *formService) procesarCanalActivacion(ctx context.Context, caseID string, followUpID *string, actorID, entityCaseID string, entityBranchID int64, canalRaw string, psychosocialSupportID *string) {
+	canalRaw = strings.TrimSpace(canalRaw)
+	if canalRaw == "" {
+		return
+	}
+	for _, canal := range splitCSVValues(canalRaw) {
+		ecID := entityCaseID
+		switch canal {
+		case "notificacion":
+			var entityLetterID *string
+			letter := &models.EntityLetter{
+				CaseID:         caseID,
+				State:          models.EntityLetterStatePorProyectar,
+				AgentID:        &actorID,
+				EntityBranchID: &entityBranchID,
+			}
+			if s.entityLetterRepo != nil {
+				if err := s.entityLetterRepo.Create(ctx, letter); err != nil {
+					log.Printf("[procesarCanalActivacion] WARN: no se pudo crear entity_letter para entity_case %s: %v", entityCaseID, err)
+				} else {
+					entityLetterID = &letter.ID
+				}
+			}
+			task := &models.CaseTask{
+				Category: "Entidades", Type: "proyectar_oficio",
+				Description:    "Proyectar oficio de activación de ruta",
+				AssignedUserID: actorID, Status: models.CaseTaskStatusToDo,
+				CaseID: caseID, FollowUpID: followUpID,
+				EntityCaseID: &ecID, EntityLetterID: entityLetterID,
+				PsychosocialSupportID: psychosocialSupportID,
+			}
+			if s.caseTaskRepo != nil {
+				if err := s.caseTaskRepo.Create(ctx, task); err != nil {
+					log.Printf("[procesarCanalActivacion] WARN: no se pudo crear case_task 'proyectar_oficio' para entity_case %s: %v", entityCaseID, err)
+				}
+			}
+		case "llamada":
+			task := &models.CaseTask{
+				Category: "Entidades", Type: "gestion_llamada",
+				Description:    "Llamar a la entidad para gestionar la activación",
+				AssignedUserID: actorID, Status: models.CaseTaskStatusToDo,
+				CaseID: caseID, FollowUpID: followUpID,
+				EntityCaseID:          &ecID,
+				PsychosocialSupportID: psychosocialSupportID,
+			}
+			if s.caseTaskRepo != nil {
+				if err := s.caseTaskRepo.Create(ctx, task); err != nil {
+					log.Printf("[procesarCanalActivacion] WARN: no se pudo crear case_task 'gestion_llamada' para entity_case %s: %v", entityCaseID, err)
+				}
+			}
+		case "mi_salvia":
+			task := &models.CaseTask{
+				Category: "Entidades", Type: "solicitud_entidad",
+				Description:    "Hacer solicitudes a la entidad sobre obligaciones pendientes",
+				AssignedUserID: actorID, Status: models.CaseTaskStatusToDo,
+				CaseID: caseID, FollowUpID: followUpID,
+				EntityCaseID:          &ecID,
+				PsychosocialSupportID: psychosocialSupportID,
+			}
+			if s.caseTaskRepo != nil {
+				if err := s.caseTaskRepo.Create(ctx, task); err != nil {
+					log.Printf("[procesarCanalActivacion] WARN: no se pudo crear case_task 'solicitud_entidad' para entity_case %s: %v", entityCaseID, err)
+				}
+			}
+		}
+	}
+}
 
 // buildBarrierFollowUpSummary genera un texto resumen del seguimiento a una barrera.
 func buildBarrierFollowUpSummary(persiste, respuestaInstitucional, actuaciones string) string {

@@ -265,10 +265,20 @@
                     statesColombia:         [],
                     newBarriers:            [],
                     currentBarriers:        [],
+                    currentEntities:        [],   // [{ entityCaseId, entityBranchId, nombre, sector }]
+                    hasCurrentEntities:     '',    // 'true' | '' — controla visibilidad de Sección 5
+                    newEntidadesAcudidas:   [],   // Sección 6 — repeater "Entidades a las que ya acudió"
+                    newEntidadesActivacion: [],   // Sección 6 — repeater "Entidades para activación de ruta"
                 },
                 allCities:        [],   // [{ label, value, departmentId }] — para filtrado local
                 _townCityCache:   {},   // { [idx]: cityId } — evita re-fetch redundante de municipios
                 _deptCityCache:   {},   // { [idx]: deptId } — evita re-filtrar ciudades sin cambio
+                // Cachés de los repeaters de Identificación de Entidades (Sección 6),
+                // claveadas por "stateKey:idx" para diferenciar ambos repeaters
+                _entRepDeptCache:      {},
+                _entRepCityCache:      {},
+                _entRepMunicipioCache: {},
+                _entRepEntidadCache:   {},
             };
         },
         mounted() {
@@ -294,9 +304,17 @@
                     }
                     const fu          = data.followUp;
                     this.formId        = fu.form_id || this.formId;
-                    this.submissionId   = fu.form_submission_id;
                     this.caseId        = fu.case_id;
                     this.caseICode     = fu.case_id;
+                    // Debe resolverse ANTES de exponer submissionId (que monta <dinamic-form>):
+                    // formState.hasCurrentEntities se evalúa en el primer render server-side de
+                    // GetFormStructure/LoadForm — si dinamic-form monta antes de que esto responda,
+                    // la Sección 5 se computa isVisible=false en la carga inicial y _reevaluateVisibility
+                    // (dinamic-form.js) no la vuelve a chequear después, porque solo re-evalúa
+                    // secciones posteriores a currentSection (`sec.order > ord`), y currentSection ya
+                    // habría aterrizado más adelante en el flujo al no ver la Sección 5 como visible.
+                    await this.loadCurrentEntities();
+                    this.submissionId  = fu.form_submission_id;
                     this.victimInfo    = data.victimInfo;
                     this.caseRiskLevel = data.victimInfo?.riskLevel || 0;
                     this.formState.currentBarriers = data.activeBarriers || [];
@@ -334,6 +352,32 @@
                     console.error('[HS] error:', e);
                 }
             },
+            // Entidades ya vinculadas al caso (entity_case) — reutiliza el mismo endpoint
+            // que ya consume el componente case-entities. Se carga una sola vez, igual
+            // que activeBarriers — no se re-consulta en cargas posteriores.
+            async loadCurrentEntities() {
+                try {
+                    const res = await fetch(`/api/v1/casos/${this.caseId}/entidades`);
+                    if (!res.ok) {
+                        this.formState.currentEntities    = [];
+                        this.formState.hasCurrentEntities = '';
+                        return;
+                    }
+                    const data = await res.json();
+                    this.formState.currentEntities = (Array.isArray(data) ? data : []).map(e => ({
+                        entityCaseId:   e.relId,
+                        entityBranchId: e.entityBranchId,
+                        nombre:         e.entityBranchName,
+                        sector:         e.sector,
+                    }));
+                    this.formState.hasCurrentEntities = this.formState.currentEntities.length > 0 ? 'true' : '';
+                    console.log('[HS] currentEntities cargadas:', this.formState.currentEntities.length);
+                } catch (e) {
+                    console.warn('[HS] loadCurrentEntities error:', e);
+                    this.formState.currentEntities    = [];
+                    this.formState.hasCurrentEntities = '';
+                }
+            },
             async loadLocations() {
                 try {
                     const [deptRes, cityRes] = await Promise.all([
@@ -354,6 +398,7 @@
                 this._updatePsicosocialState(getVal, splitCSV);
                 this._updateReasignacionState(getVal, splitCSV);
                 this._updateBarreraLocationOptions(payload);
+                this._updateEntidadIdentificacionOptions(payload);
             },
             _updatePsicosocialState(getVal, splitCSV) {
                 const Q_PSICO = '71c42c4a-f640-47ad-b2c1-5d4c18480449';
@@ -462,6 +507,108 @@
                             this.formState.newBarriers[idx].towns = [];
                         }
                     }
+                });
+            },
+            // Sección 6 — Identificación de Entidades (ambos repeaters). Cascada de
+            // ubicación igual que barreras (_updateBarreraLocationOptions); además
+            // busca sedes disponibles (mismo mecanismo que case-entities) cuando hay
+            // municipio + sector, y el catálogo de obligaciones cuando cambia la entidad.
+            _updateEntidadIdentificacionOptions(payload) {
+                const configs = [
+                    {
+                        groupId:  'ee42ef36-ec09-4652-a7bd-85263297482f', // rgEntidadesAcudidas
+                        stateKey: 'newEntidadesAcudidas',
+                        qSector:  '5a593c5d-d695-402f-9687-0464e9415ba7',
+                        qDept:    '1c3c0b62-8000-4959-a2f5-f2dab19a9da3',
+                        qCity:    '773173d8-45a2-4108-818f-5e884b976bf9',
+                        qTown:    'a51888dc-f9cd-4643-a41f-d37e839273f4',
+                        qEntidad: '3f814a7c-9e7f-46cd-88ce-7699a00429fa',
+                    },
+                    {
+                        groupId:  '5b5b7713-03fb-4263-9dc4-ac981130878d', // rgEntidadesActivacion
+                        stateKey: 'newEntidadesActivacion',
+                        qSector:  '53d0a178-33be-4dd3-a732-b55dbd26c1d1',
+                        qDept:    '2fad9bc2-8936-4b4c-9574-71241532235c',
+                        qCity:    '73b68d62-ab9e-44f1-be80-3cff6c7f842f',
+                        qTown:    'da682673-d73e-41e9-b09c-874745e2b213',
+                        qEntidad: '4e9cf995-c891-422d-a778-8ff8d34032e7',
+                    },
+                ];
+
+                configs.forEach(cfg => {
+                    const entries = (payload.answers?.repeaterEntries || [])
+                        .filter(e => e.repeaterGroupId === cfg.groupId);
+
+                    while (this.formState[cfg.stateKey].length < entries.length) {
+                        this.formState[cfg.stateKey].push({ cities: [], towns: [], entidadesDisponibles: [], obligacionesCatalogo: [] });
+                    }
+
+                    entries.forEach((entry, idx) => {
+                        const key = `${cfg.stateKey}:${idx}`;
+                        const getEntryVal = qId => (entry.answers.find(a => a.questionId === qId)?.value || '');
+
+                        const deptId   = getEntryVal(cfg.qDept);
+                        const cityId   = getEntryVal(cfg.qCity);
+                        const townCode = getEntryVal(cfg.qTown);
+                        const sector   = getEntryVal(cfg.qSector);
+                        const entidad  = getEntryVal(cfg.qEntidad);
+
+                        // a. Departamento → opciones de Ciudad (igual que barreras)
+                        const cachedDept = this._entRepDeptCache[key] || '';
+                        if (String(deptId) !== String(cachedDept)) {
+                            this._entRepDeptCache[key] = deptId;
+                            this.formState[cfg.stateKey][idx].cities = deptId
+                                ? this.allCities
+                                    .filter(c => String(c.departmentId) === String(deptId))
+                                    .map(c => ({ label: c.label, value: c.value }))
+                                : [];
+                        }
+
+                        // b. Ciudad → fetch de municipios (igual que barreras)
+                        const cachedCity = this._entRepCityCache[key] || '';
+                        if (String(cityId) !== String(cachedCity)) {
+                            this._entRepCityCache[key] = cityId;
+                            if (cityId) {
+                                fetch(`/api/v1/locations/towns?city_id=${cityId}`)
+                                    .then(r => r.json())
+                                    .then(towns => { this.formState[cfg.stateKey][idx].towns = towns; })
+                                    .catch(() => { this.formState[cfg.stateKey][idx].towns = []; });
+                            } else {
+                                this.formState[cfg.stateKey][idx].towns = [];
+                            }
+                        }
+
+                        // c. Municipio + Sector → buscar sedes disponibles (mismo mecanismo que case-entities)
+                        const cachedMunicipio = this._entRepMunicipioCache[key] || '';
+                        if (String(townCode + '|' + sector) !== String(cachedMunicipio)) {
+                            this._entRepMunicipioCache[key] = townCode + '|' + sector;
+                            if (townCode && sector) {
+                                fetch(`/api/v1/entity-branches?town_code=${encodeURIComponent(townCode)}&sector=${encodeURIComponent(sector)}`)
+                                    .then(r => r.json())
+                                    .then(branches => {
+                                        this.formState[cfg.stateKey][idx].entidadesDisponibles =
+                                            (Array.isArray(branches) ? branches : []).map(b => ({ label: b.name, value: b.id }));
+                                    })
+                                    .catch(() => { this.formState[cfg.stateKey][idx].entidadesDisponibles = []; });
+                            } else {
+                                this.formState[cfg.stateKey][idx].entidadesDisponibles = [];
+                            }
+                        }
+
+                        // d. Entidad → catálogo de obligaciones (con "Otra" ya agregada por el backend)
+                        const cachedEntidad = this._entRepEntidadCache[key] || '';
+                        if (String(entidad) !== String(cachedEntidad)) {
+                            this._entRepEntidadCache[key] = entidad;
+                            if (entidad) {
+                                fetch(`/api/v1/entity-branches/${entidad}/obligations`)
+                                    .then(r => r.json())
+                                    .then(opts => { this.formState[cfg.stateKey][idx].obligacionesCatalogo = Array.isArray(opts) ? opts : []; })
+                                    .catch(() => { this.formState[cfg.stateKey][idx].obligacionesCatalogo = []; });
+                            } else {
+                                this.formState[cfg.stateKey][idx].obligacionesCatalogo = [];
+                            }
+                        }
+                    });
                 });
             },
             onFormCompleted() {
