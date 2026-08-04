@@ -1,7 +1,5 @@
 # case-oficios — Index
 
-> ⚠️ Componente **no implementado aún** — MD generado antes del código para revisión previa.
-
 ## Navegación
 
 | Documento | Link |
@@ -32,7 +30,7 @@
 
 **Evento:** Cuando carga el componente
 **Tipo:** Lifecycle
-**Descripción:** Se ejecuta al montar el componente Vue (`mounted`), recibiendo `caseId` como prop. Hace `GET /api/v1/entity-letters?caseId={caseId}` y guarda el resultado. Si falla, muestra un mensaje de error con botón de reintentar; si no hay oficios, el estado vacío se muestra después de aplicar filtros (ver E02-E04).
+**Descripción:** Se ejecuta al montar el componente Vue (`mounted`), recibiendo `caseId` y/o `barrierId` como props. Si `barrierId` está presente hace `GET /api/v1/entity-letters?barrierId={barrierId}` (usado en Detalle de Barrera); si no, `GET /api/v1/entity-letters?caseId={caseId}` (usado en Detalle del Caso). Guarda el resultado. Si falla, muestra un mensaje de error con botón de reintentar; si no hay oficios, el estado vacío se muestra después de aplicar filtros (ver E02-E04).
 **Requerido:** Sí
 
 ---

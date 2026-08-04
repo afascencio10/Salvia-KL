@@ -57,6 +57,9 @@
             <button class="brd-tab" :class="{ active: activeTab === 'tareas' }" @click="activeTab = 'tareas'">
                 📋 Tareas
             </button>
+            <button class="brd-tab" :class="{ active: activeTab === 'oficios' }" @click="activeTab = 'oficios'">
+                📄 Oficios
+            </button>
             <button class="brd-tab" :class="{ active: activeTab === 'timeline' }" @click="activeTab = 'timeline'">
                 🕐 Timeline
             </button>
@@ -291,6 +294,11 @@
         <!-- ─── Tab: Tareas ─── -->
         <div v-if="activeTab === 'tareas'" class="brd-tab-content-card">
             <case-tasks :case-id="barrera.caseId" :barrier-id="barrierICode" :user-id="currentUserId" :user-role="currentRole" :puede-gestion-propia="puedeRegistrarGestionPropia" @task-completed="onTaskCompleted"></case-tasks>
+        </div>
+
+        <!-- ─── Tab: Oficios ─── -->
+        <div v-if="activeTab === 'oficios'" class="brd-tab-content-card">
+            <case-oficios :case-id="barrera.caseId" :barrier-id="barrierICode"></case-oficios>
         </div>
 
         <!-- ─── Tab: Timeline ─── -->
@@ -544,6 +552,7 @@
 <script src="/static/js/components/case-tasks.js"></script>
 <script src="/static/js/components/case-task-modal.js"></script>
 <script src="/static/js/components/case-task-history.js"></script>
+<script src="/static/js/components/case-oficios.js"></script>
 <script src="/static/js/components/dinamic-form.js"></script>
 <script>
     home.mount('#app');

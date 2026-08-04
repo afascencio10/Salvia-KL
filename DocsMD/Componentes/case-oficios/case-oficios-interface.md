@@ -1,24 +1,26 @@
 # `case-oficios` — Interfaz del Componente
 
-> ⚠️ Componente **no implementado aún**. Este MD se escribió antes del código, siguiendo el proceso de set up (`dev-docs-setup.md` → Proceso 2).
+Lista los oficios (`entity_letter`) de un caso, o de una barrera puntual, en formato de cards, con filtros (buscador de texto, chips por tema, filtro por estado) y un modal de detalle completo al hacer click en una card.
 
-Lista los oficios (`entity_letter`) de un caso en formato de cards, con filtros (buscador de texto, chips por tema, filtro por estado) y un modal de detalle completo al hacer click en una card.
+Es un componente **nuevo y separado** de `oficios-list.js` (el componente existente que hoy se usa en la pantalla de Notificaciones, en formato tabla). No lo reemplaza ni lo modifica — cubre un caso de uso distinto (vista de cards enfocada en un caso o barrera, con filtros que `oficios-list.js` no tiene).
 
-Es un componente **nuevo y separado** de `oficios-list.js` (el componente existente que hoy se usa en la pantalla de Notificaciones, en formato tabla). No lo reemplaza ni lo modifica — cubre un caso de uso distinto (vista de cards enfocada en un caso, con filtros que `oficios-list.js` no tiene).
+Usado en dos pantallas, con dos modos de filtrado (ver `case-oficios-usage.md`):
+- **Detalle del Caso** — modo `caseId`: todos los oficios del caso completo, chips de tema visibles.
+- **Detalle de Barrera** — modo `barrierId`: solo los oficios de esa barrera, chips de tema ocultos.
 
 ## Archivos relevantes
 
 | Archivo | Rol |
 |---|---|
-| `src/frontend/js/components/case-oficios.js` | Componente principal — template y lógica Vue (a implementar) |
+| `src/frontend/js/components/case-oficios.js` | Componente principal — template y lógica Vue |
 
 ---
 
-## Supuestos de diseño (a confirmar en revisión)
+## Comportamiento de carga
 
-- Recibe `caseId` como prop (String, requerido) y hace un único fetch al montar: `GET /api/v1/entity-letters?caseId={caseId}`.
-- **Todos los filtros son client-side** (computed sobre la lista ya cargada) — el endpoint real (`EntityLetterController.List`) resuelve sus query params en un `switch` mutuamente excluyente: si se manda `state`, ignora `caseId`. No se puede pedir "oficios de este caso Y en este estado" en una sola llamada al backend, así que no tiene sentido intentarlo — se filtra en el cliente sobre los datos ya traídos.
-- No pagina — asume que los oficios de un caso son un volumen manejable (igual que `case-task-history`).
+- Recibe `caseId` (String, opcional) y/o `barrierId` (String, opcional) como props; hace un único fetch al montar: `GET /api/v1/entity-letters?barrierId={barrierId}` si `barrierId` está presente, si no `GET /api/v1/entity-letters?caseId={caseId}`.
+- **Todos los filtros (buscador, chips, estado) son client-side** (computed sobre la lista ya cargada) — el endpoint real (`EntityLetterController.List`) resuelve sus query params en un `switch` mutuamente excluyente: si se manda `state`, ignora `caseId`/`barrierId`. No se puede pedir "oficios de este caso Y en este estado" en una sola llamada al backend, así que no tiene sentido intentarlo — se filtra en el cliente sobre los datos ya traídos.
+- No pagina — asume que los oficios de un caso o barrera son un volumen manejable (igual que `case-task-history`).
 - Buscador de texto: coincide contra `entidad`, `url_kofax`, y los campos de asunto disponibles (`subject`, `asunto_radicado`, `asunto_respuesta` — el que esté presente según la etapa del oficio).
 - Filtro por estado: `<select>` o chips con los 7 valores de `entity_letter.state` + opción "Todos".
 - ⚠️ **GAP de schema — chips por tema:** el mapa de requerimientos pide filtrar por 4 "temas": `barrier_id`, `emergency_measure_id`, `psychosocial_support_id`, `economic_stabilization_id`. Hoy `entity_letter` **solo tiene `barrier_id`** (obligatorio, `not null`). Las otras 3 columnas no existen en el modelo ni en la tabla — son propias de `case_task`, no de `entity_letter`. Para que el chip de tema funcione en los 4 casos, hay que:
@@ -45,11 +47,12 @@ case-oficios
     ├── Filtros  (.co-filtros)
     │   ├── <input> Buscador  "Buscar por entidad, ruta o asunto..."  (.co-buscador)
     │   │
-    │   ├── ChipsTema  (.co-chips-tema)
+    │   ├── [v-if !barrierId] ChipsTema  (.co-chips-tema)
     │   │   ├── Chip "Barreras"                    :active="temaActivo === 'barrera'"
     │   │   ├── Chip "Medidas de Emergencia"        :disabled  ⚠️ GAP — sin columna en entity_letter
     │   │   ├── Chip "Apoyo Psicosocial"            :disabled  ⚠️ GAP — sin columna en entity_letter
     │   │   └── Chip "Estabilización Económica"     :disabled  ⚠️ GAP — sin columna en entity_letter
+    │   │   (ocultos por completo en modo barrierId — ya está todo filtrado a una sola barrera)
     │   │
     │   └── <select> Estado  (.co-select-estado)
     │       opciones: Todos | Por proyectar | Para revisar | En corrección |
@@ -89,11 +92,7 @@ case-oficios
           │                               asunto respuesta, fecha respuesta, revisado por)
           ├── [si reason_correction] Sección "Corrección requerida"  (fondo warning)
           ├── [si barrier_id] Sección "Barrera relacionada"  → Link "Ver barrera →"
-          ├── [si case_id] Sección "Caso relacionado"  → Link "Ver caso →"
-          └── Acciones
-              ├── BtnDescargarPDF  → downloadPDF(oficio)
-              ├── BtnImprimir      → printOficio()
-              └── BtnCerrar        → cerrarDetalle()
+          └── BtnCerrar  "Cerrar"  → cerrarDetalle()
 ```
 
 ---
@@ -109,4 +108,4 @@ case-oficios
 | Chip "Estabilización Económica" | toggle, client-side | `economic_stabilization_id != null` | ⚠️ GAP — columna no existe |
 | Select Estado | single-select, client-side | `state === valor` | ✅ Implementable ya |
 
-> Los 3 filtros marcados como GAP dependen de la migración de schema descrita arriba en "Supuestos de diseño".
+> Los 3 filtros marcados como GAP dependen de la migración de schema descrita arriba. Además, en modo `barrierId` (Detalle de Barrera) los 4 chips de tema se ocultan por completo — ya está todo filtrado a una sola barrera, así que ni siquiera el chip "Barreras" aporta algo.

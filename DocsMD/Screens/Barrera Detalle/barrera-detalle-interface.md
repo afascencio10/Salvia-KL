@@ -14,6 +14,7 @@ Vista interna de una barrera: información general, tareas (pendientes/completad
 | `src/frontend/js/components/case-task-history.js` | Modal de solo lectura para ver una tarea completada (montado dentro de `case-tasks`) |
 | `src/frontend/js/components/case-timeline.js` | Componente reutilizable — tab "Timeline" |
 | `src/frontend/js/components/barrier-follow-up-timeline.js` | Timeline de seguimientos — tab "Información General" |
+| `src/frontend/js/components/case-oficios.js` | Componente reutilizable — tab "Oficios", filtrado por `barrierId` |
 
 ---
 
@@ -43,6 +44,7 @@ BarreraDetalle  (.brd-container)
     ├── Tabs  (.brd-tabs-wrapper)
     │   ├── TabBtn "⚠️ Información General"  :class active si activeTab === 'info'
     │   ├── TabBtn "📋 Tareas"  :class active si activeTab === 'tareas'
+    │   ├── TabBtn "📄 Oficios"  :class active si activeTab === 'oficios'
     │   └── TabBtn "🕐 Timeline"  :class active si activeTab === 'timeline'
     │
     ├── [v-if activeTab === 'info']
@@ -75,6 +77,12 @@ BarreraDetalle  (.brd-container)
     │               ├── BtnCancelar  → cerrarModalGestionPropia()
     │               └── BtnGuardar  "Registrar como completada"  :disabled si !descripcion.trim()
     │                   → confirmarGestionPropia()  →  POST /api/v1/case-tasks/gestion-propia
+    │
+    ├── [v-if activeTab === 'oficios']
+    │   TabContentOficios  (.brd-tab-content-card)
+    │   └── <case-oficios :case-id="barrera.caseId" :barrier-id="barrierICode">
+    │       // src/frontend/js/components/case-oficios.js
+    │       (filtrado por barrierId — chips de tema ocultos, ver case-oficios-interface.md)
     │
     └── [v-if activeTab === 'timeline']
         TabContentTimeline  (.brd-tab-content-card)

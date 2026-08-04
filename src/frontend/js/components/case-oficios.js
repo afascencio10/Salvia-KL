@@ -1,11 +1,13 @@
 /**
  * case-oficios
- * Lista los oficios (EntityLetter) de un caso en formato de cards, con
- * buscador, chips de tema y filtro por estado. Click en una card abre un
- * modal de solo lectura con el detalle completo del oficio.
+ * Lista los oficios (EntityLetter) de un caso o de una barrera en formato
+ * de cards, con buscador, chips de tema y filtro por estado. Click en una
+ * card abre un modal de solo lectura con el detalle completo del oficio.
  *
  * Props:
- *   caseId (String, required) — icode del caso
+ *   caseId    (String, opcional) — icode del caso. Requerido si no se pasa barrierId.
+ *   barrierId (String, opcional) — id de la barrera. Si se pasa, tiene prioridad
+ *                                   sobre caseId y los chips de tema se ocultan.
  *
  * Nota: componente nuevo y separado de oficios-list.js (que sigue usándose
  * tal cual en la pantalla de Notificaciones, en formato tabla).
@@ -259,7 +261,8 @@ app.component('case-oficios', {
     delimiters: ['${', '}'],
 
     props: {
-        caseId: { type: String, required: true },
+        caseId:    { type: String, default: null },
+        barrierId: { type: String, default: null },
     },
 
     data() {
@@ -305,13 +308,16 @@ app.component('case-oficios', {
             this.error    = null;
             this.oficios  = [];
             try {
-                const res = await fetch('/api/v1/entity-letters?caseId=' + encodeURIComponent(this.caseId));
+                const query = this.barrierId
+                    ? 'barrierId=' + encodeURIComponent(this.barrierId)
+                    : 'caseId=' + encodeURIComponent(this.caseId);
+                const res = await fetch('/api/v1/entity-letters?' + query);
                 if (res.status === 401) { window.location.href = '/static/landing.html'; return; }
                 if (!res.ok) throw new Error('Error ' + res.status);
                 const data = await res.json();
                 this.oficios = Array.isArray(data) ? data : (data.items || []);
             } catch (e) {
-                this.error = 'No se pudieron cargar los oficios de este caso.';
+                this.error = 'No se pudieron cargar los oficios de ' + (this.barrierId ? 'esta barrera.' : 'este caso.');
             } finally {
                 this.cargando = false;
             }
@@ -389,7 +395,7 @@ app.component('case-oficios', {
                 placeholder="Buscar por entidad, ruta o asunto..."
             />
             <div class="co-filtros-row">
-                <div class="co-chips-tema">
+                <div v-if="!barrierId" class="co-chips-tema">
                     <button
                         class="co-chip"
                         :class="{ 'co-chip-activo': temaActivo === 'barrera' }"
