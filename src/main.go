@@ -297,6 +297,10 @@ func main() {
     // Admin: búsqueda de usuarios
     adminUsersCtrl := salvia_ctrl.NewAdminUsersController(gormDB)
     adminUsersCtrl.RegisterRoutes(api)
+
+    // Admin: reporte Excel de usuarios
+    adminUsersReportCtrl := salvia_ctrl.NewAdminUsersReportController(gormDB)
+    adminUsersReportCtrl.RegisterRoutes(api)
     // ────────────────────────────────────────────────────────────────────────
 
     // ── Graceful shutdown ────────────────────────────────────────────────────
