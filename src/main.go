@@ -22,6 +22,7 @@ import (
     _ "time/tzdata" // Embebe zonas horarias para que funcione en contenedores sin tzdata
 
     "github.com/gin-gonic/gin"
+    "gorm.io/gorm"
 )
 
 //go:embed config/*
@@ -51,12 +52,6 @@ func main() {
 
     // Asegurar que usuarios sin town tengan Bogotá por defecto (evita error 500 en reasignación)
     gormDB.Exec(`UPDATE security.general_user_profile SET general_user_profile_town = '11001000' WHERE (general_user_profile_town IS NULL OR general_user_profile_town = '') AND general_user_profile_id IN (SELECT general_user_general_user_profile FROM security.general_user WHERE general_user_status = 'e')`)
-
-    // Asegurar que la columna victim_case_team exista en victim_case (para asignación por equipo)
-    gormDB.Exec(`ALTER TABLE salvia.victim_case ADD COLUMN IF NOT EXISTS victim_case_team VARCHAR(64) DEFAULT NULL`)
-
-    // Asegurar que la columna agent_id exista en victim_case (para asignación directa de operador)
-    gormDB.Exec(`ALTER TABLE salvia.victim_case ADD COLUMN IF NOT EXISTS agent_id VARCHAR(64) DEFAULT NULL`)
 
     // AutoMigrate por tabla — warning en lugar de fatal para tablas ya existentes
     for _, m := range []interface{}{
@@ -93,6 +88,23 @@ func main() {
             log.Printf("[WARN] AutoMigrate %T: %v", m, err)
         }
     }
+
+    // ─── AutoMigrate para tablas legacy (schemas security/salvia) ───
+    // Agrega columnas faltantes sin ALTER TABLE manual.
+    // Si se necesita un campo nuevo en una tabla legacy, agregarlo aquí.
+    migrateLegacyTables(gormDB)
+
+    // Fix: asignar sequence_number a seguimientos que lo tienen en 0 (bug de buildFollowUps).
+    // Ordena por scheduled_date ASC dentro de cada caso para asignar 1, 2, 3...
+    gormDB.Exec(`
+        WITH numbered AS (
+            SELECT id, ROW_NUMBER() OVER (PARTITION BY case_id ORDER BY scheduled_date ASC, created_at ASC) AS rn
+            FROM salvia.follow_up_v2
+            WHERE deleted_at IS NULL AND sequence_number = 0
+        )
+        UPDATE salvia.follow_up_v2 SET sequence_number = numbered.rn
+        FROM numbered WHERE follow_up_v2.id = numbered.id
+    `)
 
     // Repositories
     formRepo               := repository.NewFormRepository(gormDB)
@@ -131,6 +143,7 @@ func main() {
     psychosocialReassignRepo := repository.NewPsychosocialReassignRepository(gormDB)
     entityCaseRepo         := repository.NewEntityCaseRepository(gormDB)
     psychosocialCalendarRepo := repository.NewPsychosocialCalendarRepository(gormDB)
+    victimCaseFormRepo     := repository.NewVictimCaseFormRepository(gormDB)
 
     // Services
     casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
@@ -144,6 +157,7 @@ func main() {
     answerSvc             := service.NewAnswerService(answerRepo)
     optionSvc             := service.NewOptionService(optionRepo)
     followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo)
+    victimCaseFormSvc     := service.NewVictimCaseFormService(victimCaseFormRepo, victimCaseLightRepo, caseTimelineRepo, followUpV2Svc)
 
     formSvc := service.NewFormService(service.FormServiceDeps{
         FormRepo:                  formRepo,
@@ -172,6 +186,7 @@ func main() {
         CaseTaskRepo:              caseTaskRepo,
         EntityLetterRepo:          entityLetterRepo,
         TeamContactRepo:           teamContactRepo,
+        VictimCaseFormSvc:         victimCaseFormSvc,
     })
     caseDetailSvc         := service.NewCaseDetailService(caseDetailRepo, gormDB)
     caseInfoSvc           := service.NewCaseInfoService(caseInfoRepo)
@@ -190,7 +205,7 @@ func main() {
     salvia_legacy.VictimCaseLightRepo = victimCaseLightRepo
 
     // Controllers
-    formCtrl               := salvia_ctrl.NewFormController(formSvc)
+    formCtrl               := salvia_ctrl.NewFormController(formSvc, victimCaseFormSvc)
     formSectionCtrl        := salvia_ctrl.NewFormSectionController(formSectionSvc)
     questionCtrl           := salvia_ctrl.NewQuestionController(questionSvc)
     repeaterGroupCtrl      := salvia_ctrl.NewRepeaterGroupController(repeaterGroupSvc)
@@ -211,6 +226,7 @@ func main() {
 
     entityCaseSvc          := service.NewEntityCaseService(entityCaseRepo)
     entityCaseCtrl         := salvia_ctrl.NewEntityCaseController(entityCaseSvc)
+    entityAPICtrl          := salvia_ctrl.NewEntityAPIController(entityCaseSvc)
 
     caseTaskSvc             := service.NewCaseTaskService(service.CaseTaskServiceDeps{
         CaseTaskRepo:     caseTaskRepo,
@@ -263,6 +279,7 @@ func main() {
     reportCtrl.RegisterRoutes(api)
     entityLetterCtrl.RegisterRoutes(api)
     entityCaseCtrl.RegisterRoutes(api)
+    entityAPICtrl.RegisterRoutes(api)
     entityBranchAPICtrl.RegisterRoutes(api)
     barrierV2GinCtrl.RegisterRoutes(api)
     caseTaskCtrl.RegisterRoutes(api)
@@ -286,6 +303,10 @@ func main() {
     // Admin: búsqueda de usuarios
     adminUsersCtrl := salvia_ctrl.NewAdminUsersController(gormDB)
     adminUsersCtrl.RegisterRoutes(api)
+
+    // Admin: reporte Excel de usuarios
+    adminUsersReportCtrl := salvia_ctrl.NewAdminUsersReportController(gormDB)
+    adminUsersReportCtrl.RegisterRoutes(api)
     // ────────────────────────────────────────────────────────────────────────
 
     // ── Graceful shutdown ────────────────────────────────────────────────────
@@ -330,4 +351,33 @@ func main() {
 
     log.Println("Servidor apagado correctamente ✓")
     // ─────────────────────────────────────────────────────────────────────────
+}
+
+// ─── migrateLegacyTables ─────────────────────────────────────────────────────
+// AutoMigrate para tablas legacy que no tienen modelos GORM propios.
+// Cuando se necesite agregar una columna nueva a una tabla legacy,
+// solo hay que agregarla al struct correspondiente aquí.
+// GORM detecta columnas faltantes y las crea automáticamente (ADD COLUMN).
+func migrateLegacyTables(db *gorm.DB) {
+    // ─── security.general_user ───
+    type GeneralUserSync struct {
+        ID                 uint    `gorm:"column:general_user_id;primaryKey"`
+        Team               string  `gorm:"column:general_user_team;type:varchar(50)"`
+        AssignedDepartment string  `gorm:"column:general_user_assigned_department;type:varchar(20)"`
+        // EntityBranchId: sede (salvia.entity_branch) del usuario rol et. Nullable.
+        EntityBranchId *int64 `gorm:"column:entity_branch_id;type:bigint;index"`
+    }
+    if err := db.Table("security.general_user").AutoMigrate(&GeneralUserSync{}); err != nil {
+        log.Printf("[WARN] AutoMigrate security.general_user: %v", err)
+    }
+
+    // ─── salvia.victim_case ───
+    type VictimCaseSync struct {
+        ID       uint   `gorm:"column:victim_case_id;primaryKey"`
+        Team     string `gorm:"column:victim_case_team;type:varchar(64)"`
+        AgentID  string `gorm:"column:agent_id;type:varchar(64)"`
+    }
+    if err := db.Table("salvia.victim_case").AutoMigrate(&VictimCaseSync{}); err != nil {
+        log.Printf("[WARN] AutoMigrate salvia.victim_case: %v", err)
+    }
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // EntityCaseController maneja las rutas REST de EntityCase — entidades
@@ -62,10 +63,48 @@ func requireCaseDetailAccess(ctx *gin.Context) *utils.CommonSession {
 //
 //	GET  /api/v1/casos/:id/entidades   → List
 //	POST /api/v1/casos/:id/entidades   → Create
+//	GET  /api/v1/entity-cases          → ListByEntity (Casos Entidad)
 func (c *EntityCaseController) RegisterRoutes(rg *gin.RouterGroup) {
 	casos := rg.Group("/casos/:id/entidades")
 	casos.GET("", c.List)
 	casos.POST("", c.Create)
+
+	rg.GET("/entity-cases", c.ListByEntity)
+}
+
+// ListByEntity — GET /api/v1/entity-cases?document=&page=&pageSize=
+// Listado paginado de Casos Entidad (rol et). Filtra por entity_branch_id de sesión.
+func (c *EntityCaseController) ListByEntity(ctx *gin.Context) {
+	s := requireCasosEntidadAccess(ctx)
+	if s == nil {
+		return
+	}
+	if s.EntityBranchId <= 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "el usuario no tiene sede (entity_branch_id) asignada"})
+		return
+	}
+
+	page := ginQueryInt(ctx, "page", 0)
+	pageSize := ginQueryInt(ctx, "pageSize", 5)
+	if pageSize <= 0 {
+		pageSize = 5
+	}
+
+	result, err := c.svc.ListByEntity(ctx.Request.Context(), service.EntityCaseListFilter{
+		EntityBranchID: s.EntityBranchId,
+		Document:       ctx.Query("document"),
+		Page:           page,
+		PageSize:       pageSize,
+	})
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "la sede asignada no existe o no tiene entidad padre"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		return
+	}
+	ctx.JSON(http.StatusOK, result)
 }
 
 // List devuelve las entidades relacionadas con un caso.

@@ -2,7 +2,10 @@ package utils
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net/smtp"
+	"strings"
+	"time"
 )
 
 type EMail struct {
@@ -25,11 +28,22 @@ func (i *EMail) SendEMail() error {
 
 	// Configuración del destinatario y contenido del mensaje
 
-	// Crear el mensaje
-	message := []byte("From: " + i.FromName + "<" + i.FromEMail + ">" + "\n" +
-		//"To: " + to[0] + "\n" +
-		"Subject: " + i.Subject + "\n" +
-		"Content-Type: text/html; charset=\"UTF-8\"\n\n" +
+	// Dominio del remitente, usado para construir el Message-ID
+	var fromDomain string = i.FromEMail
+	if at := strings.LastIndex(i.FromEMail, "@"); at != -1 {
+		fromDomain = i.FromEMail[at+1:]
+	}
+
+	// Crear el mensaje. Las cabeceras To, Date y Message-ID son requeridas por
+	// los principales proveedores (Gmail/Outlook); sin ellas el correo se
+	// clasifica como spam o se rechaza. Separador de cabeceras \r\n (RFC 5322).
+	message := []byte("From: " + i.FromName + " <" + i.FromEMail + ">\r\n" +
+		"To: " + strings.Join(i.To, ", ") + "\r\n" +
+		"Subject: " + i.Subject + "\r\n" +
+		"Date: " + time.Now().Format(time.RFC1123Z) + "\r\n" +
+		"Message-ID: " + fmt.Sprintf("<%d@%s>", time.Now().UnixNano(), fromDomain) + "\r\n" +
+		"MIME-Version: 1.0\r\n" +
+		"Content-Type: text/html; charset=\"UTF-8\"\r\n\r\n" +
 		i.Body)
 
 	// Configuración para la conexión TLS

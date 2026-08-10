@@ -1,0 +1,364 @@
+<div class="container mt-4">
+    <div class="welcome-section mb-4">
+        <h2><b>Registro de Caso</b></h2>
+    </div>
+
+    <div id="registro-caso-v2-app">
+
+        <!-- Gate de autorización — fuera de dinamic-form (E-01, PASO 1) -->
+        <div v-if="!authorized" class="card rcv2-auth-card">
+            <div class="card-body">
+                <h5>Autorización de datos personales</h5>
+                <p class="rcv2-auth-text">
+                    En cumplimiento de la Ley 1581 de 2012 sobre protección de datos personales,
+                    informamos que los datos suministrados serán tratados con fines de atención,
+                    seguimiento y protección en el marco de la ruta de atención a víctimas de
+                    violencia basada en género. La persona titular tiene derecho a conocer,
+                    actualizar, rectificar y solicitar la supresión de sus datos (derechos ARCO).
+                </p>
+                <label class="rcv2-auth-label">¿La persona autoriza el tratamiento de sus datos personales?</label>
+                <select class="form-select rcv2-auth-select" v-model="authorizationAnswer">
+                    <option value="">Selecciona una opción...</option>
+                    <option value="y">Sí</option>
+                    <option value="n">No</option>
+                </select>
+                <p v-if="authorizationAnswer === 'n'" class="rcv2-auth-denied">
+                    No es posible continuar con el registro sin la autorización de la persona.
+                </p>
+            </div>
+        </div>
+
+        <template v-else>
+            <div v-if="loadError" class="alert alert-danger">${ loadError }</div>
+
+            <dinamic-form
+                v-else
+                form-id="0a24ab30-3cfc-4861-b74d-65d21524bc00"
+                :can-edit="true"
+                :form-state="formState"
+                @answers-updated="onAnswersUpdated"
+                @form-completed="onFormCompleted"
+            ></dinamic-form>
+        </template>
+
+        <!-- Overlay de caso completado -->
+        <div v-if="formCompleted" class="rcv2-completed-backdrop">
+            <div class="rcv2-completed-card">
+                <div class="rcv2-completed-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" fill="#22c55e"/>
+                        <path d="M7 12.5l3.5 3.5 6-7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h4 class="rcv2-completed-title">Caso registrado exitosamente</h4>
+
+                <div v-if="resultLoading" class="rcv2-completed-loading">
+                    <svg style="width:18px;height:18px;animation:rcv2-spin 0.8s linear infinite;flex-shrink:0" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="#e5e7eb" stroke-width="3"/>
+                        <path d="M12 2a10 10 0 0 1 10 10" stroke="#7c3aed" stroke-width="3" stroke-linecap="round"/>
+                    </svg>
+                    Generando credenciales de acceso...
+                </div>
+
+                <div v-else-if="credentials.login" class="rcv2-completed-credentials">
+                    <p class="rcv2-completed-text">Credenciales de acceso de la víctima:</p>
+                    <div class="rcv2-cred-row"><span>Usuario</span><b>${ credentials.login }</b></div>
+                    <div class="rcv2-cred-row"><span>Clave</span><b>${ credentials.pass }</b></div>
+                </div>
+
+                <p v-else class="rcv2-completed-text">
+                    El caso se registró correctamente, pero hubo un problema al mostrar las
+                    credenciales — puedes consultarlas en el detalle del caso.
+                </p>
+
+                <button class="rcv2-completed-btn" @click="goToCase">Ver caso</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.rcv2-auth-card { border: 1px solid #e0e0e0; border-radius: 12px; max-width: 640px; }
+.rcv2-auth-text { font-size: 14px; color: #4b5563; line-height: 1.6; }
+.rcv2-auth-label { font-size: 14px; font-weight: 600; display: block; margin-bottom: 8px; }
+.rcv2-auth-select { max-width: 280px; }
+.rcv2-auth-denied { color: #dc2626; font-size: 13px; margin-top: 10px; }
+
+.rcv2-completed-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+}
+.rcv2-completed-card {
+    background: #fff; border-radius: 16px; padding: 40px 48px;
+    max-width: 420px; width: 90%; text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+}
+.rcv2-completed-icon { width: 56px; height: 56px; border-radius: 50%; background: #f0fdf4; display: flex; align-items: center; justify-content: center; }
+.rcv2-completed-title { margin: 0; font-size: 18px; font-weight: 700; color: #111827; }
+.rcv2-completed-text { margin: 0; font-size: 14px; color: #6b7280; }
+.rcv2-completed-loading { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #6b7280; }
+.rcv2-completed-credentials { width: 100%; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 18px; }
+.rcv2-cred-row { display: flex; justify-content: space-between; font-size: 14px; padding: 4px 0; }
+.rcv2-completed-btn {
+    margin-top: 6px; padding: 10px 28px; background: #7c3aed; color: #fff;
+    border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s;
+}
+.rcv2-completed-btn:hover { background: #6d28d9; }
+@keyframes rcv2-spin { to { transform: rotate(360deg); } }
+</style>
+
+{{ template "standard_scripts.html" .}}
+
+<script>
+    const RCV2_FORM_ID = '0a24ab30-3cfc-4861-b74d-65d21524bc00';
+
+    // ── IDs de preguntas usados por la lógica del host (E-02) ──────────────────
+    // Ver DocsMD/Screens/Registro de Caso V2/Flujos/flow-E02-*.md
+    const RCV2_Q = {
+        // Cadenas geográficas (Departamento -> Ciudad -> Municipio)
+        residenciaDept: 'a9a86877-23a3-40a2-af98-17f7d5f7b13f', residenciaCity: '47e41a8e-b20b-4f26-ae0e-0956d3b3cccf', residenciaTown: 'b7cc3103-eeb0-46cf-8403-a50f7d4101e0',
+        hechosDept: '6913c098-6587-4424-8591-4cee44de9ad9', hechosCity: '5625bf1b-b62e-4673-b150-4136a5f2e3e4', hechosTown: 'c00ceb98-5538-4b7a-b02a-98b74c4cc573',
+        atencionDept: 'a28960c8-c666-44cb-96b2-a8b4d77563eb', atencionCity: '52536868-0f9e-41c0-bd8e-393a63173a6e', atencionTown: '207159a4-82bd-4282-9813-8910877673f5',
+
+        // Agresor / tamizaje
+        relationshipAggressor: '3fd6a16d-b383-4767-845e-e6e566854c17',
+        typeViolence: '7c2746fe-accd-44ea-bb18-6a617486cc98',
+        subtypeViolence: '529818b7-c154-442a-b8d0-a44438a83a52',
+        scopeOfViolence: '06b5609d-bdbc-4d63-8b6c-590e9537f437',
+        workplaceSector: 'fe9ed2e7-51ba-4763-9f77-6a47cd552399',
+    };
+
+    // 6 comunes + 18 pareja + 14 no-pareja (mismo orden que form-registro-caso-v2-data.md)
+    const RCV2_TAMIZAJE_COMUNES = [
+        '0405fb89-9579-444e-9d67-ed7f19c0a3e1', 'e9207239-a51f-403d-a3b7-7f20bfbba546', '47f2d306-d3eb-4463-b38d-d11ed728757e',
+        'ef67f65d-5d56-409a-996e-717531c38206', '8750d550-9c99-4ef4-8859-502d63d6141c', '6a74cc05-3439-47d9-b37d-fabd0a88af61',
+    ];
+    const RCV2_TAMIZAJE_PAREJA = [
+        '8b71aaed-9f59-4155-9e01-143c98c8e623', '7862eabd-e94b-4e71-a96c-0a47866de487', '562b5dea-900c-4192-a108-5621230188b9',
+        'ea01307d-d8a4-413a-9570-b60a935e92ff', '50012df5-11ff-4503-b250-622938b383af', '87295bed-a9a9-4e21-8c56-8b9e8b88a517',
+        'b1780496-a3a1-4b24-8514-8feba07ba2cd', 'a6cdddf7-39bf-4541-b507-c057dd565703', '1e64f85b-8598-4b53-bd9f-e6a9697adfa8',
+        'e50a3c6b-7e5e-4676-b857-43fddab3896b', 'ff3bf505-be51-43b8-a957-0e79d9487247', '457122bc-dde1-4bc2-85b4-60b92625654e',
+        '074bb412-9943-4401-af18-0bc0afa339d7', '4ad134ca-e8a2-478c-a824-8c5021bf78cc', 'ab1e1a2f-ae23-47d1-ad83-b21c5120a70d',
+        '82bdc6c1-a6ea-4337-b2aa-45fe65ed8c88', '26b6639b-d576-4661-ac8b-feb1235d4b1c', '1473741b-9837-40e8-99de-3db6a9ce0499',
+    ];
+    const RCV2_TAMIZAJE_NO_PAREJA = [
+        'b4d8cce7-755f-47f6-852f-61881deb2492', '287257e9-22ed-40a7-8dbf-c725403a5bf0', '7c09c8d7-9088-4a5a-860e-c83f7304824e',
+        'e16459f5-b203-4783-8ec0-cf43a407ff8b', '5e3083ce-54ab-4d02-af60-51cd9ef7bb1a', 'e3111758-cae7-4a72-a5ba-3622bd4aa5b0',
+        '6e5a8c6e-e32c-4968-8309-81c9247c2dbd', '3be91088-4561-43b4-ba60-91362b726234', '3dd0d955-51cf-4cb2-835e-c4cd70784575',
+        'd8328a40-5848-473e-bf75-4fd135e7575f', 'd3673ceb-80e8-4db9-bc5e-37ccc0c61f6c', '76d5bea0-b5e5-4cc6-839c-e8802cadcb0f',
+        'fd0cc9a2-5c1b-449c-bc71-9bc8772c5050', 'c059f739-8eff-40dc-aad7-0f83437e96e3',
+    ];
+
+    var app = Vue.createApp({
+        delimiters: ['${', '}'],
+        data() {
+            return {
+                authorized: false,
+                authorizationAnswer: '',
+                loadError: null,
+                formCompleted: false,
+                resultLoading: false,
+                credentials: { login: '', pass: '' },
+                caseId: null,
+                submissionId: null,
+
+                allCities: [],
+                _deptCityCache: {},
+                _townCityCache: {},
+
+                formState: {
+                    enums: {},
+                    departments: [],
+                    geo: {
+                        residencia: { cities: [], towns: [] },
+                        hechos:     { cities: [], towns: [] },
+                        atencion:   { cities: [], towns: [] },
+                    },
+                    wasPartner: '',
+                    partnerKnown: '',
+                    hasRisk: '',
+                    riskBadgeText: '',
+                    hasWorkplaceScope: '',
+                    hasSelectedViolenceTypes: '',
+                    violenceSubtypes: [],
+                },
+            };
+        },
+        watch: {
+            authorizationAnswer(val) {
+                if (val === 'y') {
+                    this.authorized = true;
+                    this.loadEnumsAndLocations();
+                }
+            },
+        },
+        methods: {
+            async loadEnumsAndLocations() {
+                try {
+                    const [enumsRes, deptRes] = await Promise.all([
+                        fetch('/api/v1/victim-case-forms/enums'),
+                        fetch('/api/v1/locations/departments'),
+                    ]);
+                    if (enumsRes.ok) this.formState.enums = await enumsRes.json();
+                    if (deptRes.ok) this.formState.departments = await deptRes.json();
+                } catch (e) {
+                    console.warn('[RegistroCasoV2] error cargando enums/ubicaciones:', e);
+                }
+                try {
+                    const cityRes = await fetch('/api/v1/locations/cities');
+                    if (cityRes.ok) this.allCities = await cityRes.json();
+                } catch (e) {
+                    console.warn('[RegistroCasoV2] error cargando ciudades:', e);
+                }
+            },
+
+            getVal(directAnswers, questionId) {
+                const a = directAnswers.find(x => x.questionId === questionId);
+                return a ? a.value : '';
+            },
+            splitCSV(v) {
+                return v ? v.split(',').map(s => s.trim()).filter(Boolean) : [];
+            },
+
+            onAnswersUpdated(payload) {
+                const directAnswers = payload.answers?.directAnswers || [];
+                this._updateAggressorRelationState(directAnswers);
+                this._updateTamizajeScore(directAnswers);
+                this._updateViolenceState(directAnswers);
+                this._updateLocationChains(directAnswers);
+                this.submissionId = payload.submissionId || this.submissionId;
+            },
+
+            _updateAggressorRelationState(directAnswers) {
+                const icode = this.getVal(directAnswers, RCV2_Q.relationshipAggressor);
+                const opt = (this.formState.enums.victim_case_form2_relationship_with_presumed_aggressor_01 || [])
+                    .find(o => o.value === icode);
+                // El "code" no viaja en {label,value} -- para wasPartner basta con
+                // detectar por label conocido de pareja/ex-pareja (mismo criterio
+                // que hoy, sin depender del code interno).
+                const label = (opt && opt.label || '').toLowerCase();
+                const wasPartner = label.includes('pareja') || label.includes('cónyuge') || label.includes('conyuge');
+                this.formState.wasPartner = wasPartner ? 'true' : 'false';
+                this.formState.partnerKnown = wasPartner ? 'true' : this.formState.partnerKnown;
+            },
+
+            _updateTamizajeScore(directAnswers) {
+                const wasPartner = this.formState.wasPartner === 'true';
+                const specific = wasPartner ? RCV2_TAMIZAJE_PAREJA : RCV2_TAMIZAJE_NO_PAREJA;
+                let total = 0;
+                for (const qId of [...RCV2_TAMIZAJE_COMUNES, ...specific]) {
+                    if (this.getVal(directAnswers, qId) === 'true') total++;
+                }
+                const thresholds = wasPartner
+                    ? [{ max: 4, level: 1, name: 'Bajo' }, { max: 8, level: 2, name: 'Moderado' }, { max: 15, level: 3, name: 'Alto' }, { max: 24, level: 4, name: 'Extremo' }]
+                    : [{ max: 2, level: 1, name: 'Bajo' }, { max: 5, level: 2, name: 'Moderado' }, { max: 8, level: 3, name: 'Alto' }, { max: 20, level: 4, name: 'Extremo' }];
+                let level = thresholds[thresholds.length - 1];
+                for (const t of thresholds) { if (total <= t.max) { level = t; break; } }
+
+                this.formState.hasRisk = total > 0 ? 'true' : 'false';
+                this.formState.riskBadgeText = `Puntaje de riesgo: ${total} — Nivel: ${level.name}`;
+            },
+
+            _updateViolenceState(directAnswers) {
+                const types = this.splitCSV(this.getVal(directAnswers, RCV2_Q.typeViolence));
+                this.formState.hasSelectedViolenceTypes = types.length > 0 ? 'true' : 'false';
+
+                const scope = this.splitCSV(this.getVal(directAnswers, RCV2_Q.scopeOfViolence));
+                const scopeLabels = (this.formState.enums.victim_case_form2_scope_of_violence || [])
+                    .filter(o => scope.includes(o.value))
+                    .map(o => o.label.toLowerCase());
+                this.formState.hasWorkplaceScope = scopeLabels.some(l => l.includes('laboral')) ? 'true' : 'false';
+
+                // Subtipos: concatena las opciones de cada tipo seleccionado (categorías subtype_violence_experienced_*)
+                const typeLabels = (this.formState.enums.victim_case_form2_type_violence_experienced || [])
+                    .filter(o => types.includes(o.value));
+                let subtypes = [];
+                for (const t of typeLabels) {
+                    // Heurística: probar cada sufijo de categoría conocido y quedarnos con los no vacíos
+                    for (const suffix of ['fi', 'pl', 'po', 'ps', 're', 'se', 'vi']) {
+                        const cat = this.formState.enums['victim_case_form2_subtype_violence_experienced_' + suffix];
+                        if (cat && cat.length) subtypes = subtypes.concat(cat);
+                    }
+                }
+                this.formState.violenceSubtypes = subtypes;
+            },
+
+            _updateLocationChains(directAnswers) {
+                const chains = [
+                    { name: 'residencia', dept: RCV2_Q.residenciaDept, city: RCV2_Q.residenciaCity },
+                    { name: 'hechos',     dept: RCV2_Q.hechosDept,     city: RCV2_Q.hechosCity },
+                    { name: 'atencion',   dept: RCV2_Q.atencionDept,   city: RCV2_Q.atencionCity },
+                ];
+                for (const chain of chains) {
+                    if (!chain.dept) continue; // residencia no tiene pregunta de depto propia mapeada aún
+                    const deptId = this.getVal(directAnswers, chain.dept);
+                    const cityId = this.getVal(directAnswers, chain.city);
+
+                    if (deptId !== this._deptCityCache[chain.name]) {
+                        this._deptCityCache[chain.name] = deptId;
+                        this.formState.geo[chain.name].cities = deptId
+                            ? this.allCities.filter(c => String(c.departmentId) === String(deptId)).map(c => ({ label: c.label, value: c.value }))
+                            : [];
+                    }
+                    if (cityId !== this._townCityCache[chain.name]) {
+                        this._townCityCache[chain.name] = cityId;
+                        if (cityId) {
+                            fetch(`/api/v1/locations/towns?city_id=${cityId}`)
+                                .then(r => r.json())
+                                .then(towns => { this.formState.geo[chain.name].towns = towns; })
+                                .catch(() => { this.formState.geo[chain.name].towns = []; });
+                        } else {
+                            this.formState.geo[chain.name].towns = [];
+                        }
+                    }
+                }
+            },
+
+            async onFormCompleted() {
+                this.formCompleted = true;
+                this.resultLoading = true;
+                await this.pollResult();
+            },
+
+            async pollResult(attempt) {
+                attempt = attempt || 0;
+                try {
+                    const res = await fetch(`/api/v1/victim-case-forms/${this.submissionId}/result`);
+                    if (res.status === 200) {
+                        const data = await res.json();
+                        this.credentials = { login: data.login, pass: data.pass };
+                        this.caseId = data.caseId;
+                        this.resultLoading = false;
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('[RegistroCasoV2] error consultando resultado:', e);
+                }
+                if (attempt < 3) {
+                    setTimeout(() => this.pollResult(attempt + 1), 1000);
+                } else {
+                    this.resultLoading = false;
+                }
+            },
+
+            goToCase() {
+                if (this.caseId) {
+                    window.location.href = `/salvia/casos/${this.caseId}/detalle`;
+                } else {
+                    window.location.href = '/salvia/lista-casos';
+                }
+            },
+        },
+    });
+</script>
+
+<script src="/static/js/components/dinamic-form.js"></script>
+
+<script>
+    document.getElementById('app').style.display = 'block';
+    app.mount('#registro-caso-v2-app');
+</script>

@@ -766,7 +766,9 @@ func GetGeneralUserByICode(id string, connData *db.ConnData, dbClientConfig db.D
 		}
 
 		if err = salvia_daos.GetCaseOwner(by, &cowner, connData, &dbClientConfig, &dbServerConfig); err != nil {
-			return http.StatusInternalServerError, "", security_daos.GeneralUserDTO{}
+			// Si no existe case_owner para este usuario, continuar con cowner vacío
+			// (usuarios nuevos o sin entidad asignada no tienen case_owner)
+			cowner = salvia_daos.CaseOwnerDTO{}
 		}
 
 		var town security_daos.TownDTO
@@ -1267,6 +1269,7 @@ func UpdateGeneralUserByICode(dataInput string, id string, s utils.CommonSession
 
 	// Manejo del CaseOwner y actualización de entidad si corresponde
 	var cowner salvia_daos.CaseOwnerDTO = salvia_daos.CaseOwnerDTO{}
+	var caseOwnerExists bool = true
 
 	by = common_controllers.By{
 		Operator:   common_dao.SQL_AND,
@@ -1275,8 +1278,9 @@ func UpdateGeneralUserByICode(dataInput string, id string, s utils.CommonSession
 	}
 
 	if err = salvia_daos.GetCaseOwner(by, &cowner, connData, &dbClientConfig, &dbServerConfig); err != nil {
-		db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
-		return http.StatusBadRequest, utils.CommMsgGetJSONErrors(collectedErrors)
+		// Si no existe case_owner, marcamos que no existe para no intentar actualizarlo
+		caseOwnerExists = false
+		cowner = salvia_daos.CaseOwnerDTO{}
 	}
 
 	salvia_daos.SetCaseOwnerDefaults(&cowner, common_dao.SQL_UPDATE)
@@ -1299,9 +1303,11 @@ func UpdateGeneralUserByICode(dataInput string, id string, s utils.CommonSession
 
 	cowner.EntityBranch = branch
 
-	if err = salvia_daos.UpdateCaseOwner(&cowner, connData, &dbClientConfig, &dbServerConfig); err != nil {
-		db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
-		return http.StatusInternalServerError, err.Error()
+	if caseOwnerExists {
+		if err = salvia_daos.UpdateCaseOwner(&cowner, connData, &dbClientConfig, &dbServerConfig); err != nil {
+			db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
+			return http.StatusInternalServerError, err.Error()
+		}
 	}
 
 	// Eliminación de teléfonos, correos y roles que ya no corresponden

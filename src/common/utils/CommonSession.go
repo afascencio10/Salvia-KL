@@ -20,14 +20,16 @@ type CommonSession struct {
 	TownCode          string
 	TownICode         string
 	AssignedDepartmentID string // Departamento asignado al Enlace Territorial (rol "en"), independiente de su residencia
-	EntityBranchICode string
-	Lang              string
-	CurrentMenu       map[string][]map[string]string
-	Names             string
-	LastNames         string
-	Emails            []string
-	UpdateTime        time.Time
-	Team              string // RIESGO_BAJO | RIESGO_ALTO | "" (para ad y otros)
+	EntityBranchICode    string
+	// EntityBranchId: sede (salvia.entity_branch) del usuario rol et; 0 si no aplica.
+	EntityBranchId int64
+	Lang           string
+	CurrentMenu    map[string][]map[string]string
+	Names          string
+	LastNames      string
+	Emails         []string
+	UpdateTime     time.Time
+	Team           string // RIESGO_BAJO | RIESGO_ALTO | "" (para ad y otros)
 }
 
 var commonSessions map[string]*CommonSession = map[string]*CommonSession{}

@@ -3,6 +3,7 @@ package controller
 
 import (
 	"bitsflow/common/utils"
+	salvia_daos "bitsflow/salvia/dao"
 	"bitsflow/salvia/service"
 	"encoding/json"
 	"errors"
@@ -15,11 +16,12 @@ import (
 
 // ─── Form ─────────────────────────────────────────────────────────────────────
 type FormController struct {
-	svc service.FormService
+	svc               service.FormService
+	victimCaseFormSvc service.VictimCaseFormService
 }
 
-func NewFormController(svc service.FormService) *FormController {
-	return &FormController{svc: svc}
+func NewFormController(svc service.FormService, victimCaseFormSvc service.VictimCaseFormService) *FormController {
+	return &FormController{svc: svc, victimCaseFormSvc: victimCaseFormSvc}
 }
 
 // RegisterRoutes registra las rutas de Form en el grupo /api/v1.
@@ -41,6 +43,8 @@ func (c *FormController) RegisterRoutes(rg *gin.RouterGroup) {
 	forms.POST("/saveSection", c.SaveSection)
 
 	rg.GET("/testEndpoint", c.TestEndpoint)
+	rg.GET("/victim-case-forms/:submissionId/result", c.GetVictimCaseFormResult)
+	rg.GET("/victim-case-forms/enums", c.GetVictimCaseFormEnums)
 }
 
 // TestEndpoint es un sandbox de pruebas.
@@ -221,6 +225,48 @@ func (c *FormController) SaveSection(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, result)
+}
+
+// GetVictimCaseFormResult (E-05): retorna las credenciales + caseId una vez
+// que processVictimCaseSubmission (E-04) activó el caso. ready=false mientras
+// el caso siga en Borrador o no exista.
+func (c *FormController) GetVictimCaseFormResult(ctx *gin.Context) {
+	submissionID := ctx.Param("submissionId")
+	if submissionID == "" || c.victimCaseFormSvc == nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "submissionId requerido"})
+		return
+	}
+	result, err := c.victimCaseFormSvc.GetResult(ctx.Request.Context(), submissionID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if !result.Ready {
+		ctx.JSON(http.StatusAccepted, result)
+		return
+	}
+	ctx.JSON(http.StatusOK, result)
+}
+
+// GetVictimCaseFormEnums expone el catálogo salvia.victim_case_form2_enums
+// (cargado en memoria al iniciar el servidor) como { label, value } por
+// categoría, para que dinamic-form lo resuelva vía state_options_path
+// ("enums.<categoria>"). Ver form-registro-caso-v2-data.md.
+type enumOption struct {
+	Label string `json:"label"`
+	Value string `json:"value"`
+}
+
+func (c *FormController) GetVictimCaseFormEnums(ctx *gin.Context) {
+	out := make(map[string][]enumOption, len(salvia_daos.VictimCaseForm2Enums))
+	for category, rows := range salvia_daos.VictimCaseForm2Enums {
+		opts := make([]enumOption, 0, len(rows))
+		for _, r := range rows {
+			opts = append(opts, enumOption{Label: r.VictimCaseForm2EnumsName, Value: r.VictimCaseForm2EnumsICode})
+		}
+		out[category] = opts
+	}
+	ctx.JSON(http.StatusOK, out)
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────

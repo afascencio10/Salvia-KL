@@ -994,6 +994,14 @@ function buildSectionRenderData(section, submission, fs, formState) {
     return { section, formItems };
 }
 
+/* ─── Reglas de negocio del formulario "vivo" de seguimiento ────────────────
+ * Pregunta "¿Cuáles equipos?" (remisión a equipos SALVIA): Medidas de Emergencia
+ * y Atención Psicosocial no se pueden remitir al mismo tiempo, se debe elegir una.
+ */
+const Q_EQUIPOS_SALVIA        = 'e0d38cf5-fe3f-45cb-9fd3-f5b8f7b2f7dc';
+const OPT_MEDIDAS_EMERGENCIA  = 'medidas_emergencia';
+const OPT_ATENCION_PSICO      = 'atencion_psico';
+
 /* ─── Componente Vue ─────────────────────────────────────────────────────── */
 app.component('dinamic-form', {
     delimiters: ['${', '}'],
@@ -1685,7 +1693,17 @@ app.component('dinamic-form', {
                         errors[this.answerKey(item.question.id)] = 'Este campo es requerido';
                         valid = false;
                     }
-                } else if (item.type === 'repeater' && item.isVisible) {
+                }
+
+                if (item.type === 'question' && item.isVisible && item.question.id === Q_EQUIPOS_SALVIA) {
+                    const selected = this.getLocalAnswer(item.question.id).split(',').map(v => v.trim());
+                    if (selected.includes(OPT_MEDIDAS_EMERGENCIA) && selected.includes(OPT_ATENCION_PSICO)) {
+                        errors[this.answerKey(item.question.id)] = 'No se pueden seleccionar Medidas de Emergencia y Apoyo Psicosocial al mismo tiempo';
+                        valid = false;
+                    }
+                }
+
+                if (item.type === 'repeater' && item.isVisible) {
                     const min = item.repeater.minRepetitions || 0;
                     if (min > 0 && item.entries.length < min) {
                         const baseName = item.repeater.itemName || item.repeater.name;

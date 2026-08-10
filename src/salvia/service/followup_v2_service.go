@@ -550,13 +550,14 @@ func buildFollowUps(caseID string, input GenerateCalendarInput, riskLevelStr str
 			agentID = &input.AgentID
 		}
 		result[i] = models.FollowUpV2{
-			CaseID:        caseID,
-			AgentID:       agentID,
-			Team:          input.Team,
-			RiskStatus:    &riskStr,
-			ScheduledDate: scheduledDate,
-			ScheduledTime: scheduledTime,
-			Status:        models.FollowUpStatusPendiente,
+			CaseID:         caseID,
+			AgentID:        agentID,
+			Team:           input.Team,
+			RiskStatus:     &riskStr,
+			ScheduledDate:  scheduledDate,
+			ScheduledTime:  scheduledTime,
+			Status:         models.FollowUpStatusPendiente,
+			SequenceNumber: startSeq + i,
 		}
 	}
 	return result

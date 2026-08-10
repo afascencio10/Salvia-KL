@@ -41,6 +41,7 @@ type CaseDetailData struct {
 	TipoAgresorResumen   string `json:"tipoAgresorResumen"`
 	NombreIdentitario    string `json:"nombreIdentitario"`
 	PlanAtencion         []string `json:"planAtencion"`
+	PlanAtencionExplicacion string `json:"planAtencionExplicacion"`
 	AjusteRazonable      []string `json:"ajusteRazonable"`
 }
 
@@ -235,6 +236,12 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 			_ = form2FactsTown
 			result.TerritorioOcurrencia = factsTown
 		}
+
+		// Explicación de gestión (salivaManagementExplanation)
+		var mgmtExplanation string
+		r.db.WithContext(ctx).Raw(`SELECT COALESCE(victim_case_form2_saliva_management_explanation, '') FROM salvia.victim_case_form2 WHERE victim_case_form2_victim_case = ?`, vc.VictimCaseId).Scan(&mgmtExplanation)
+		result.PlanAtencionExplicacion = mgmtExplanation
+
 	}
 
 	// Query 4: seguimientos v2 del caso (por icode) — ordenados por fecha programada

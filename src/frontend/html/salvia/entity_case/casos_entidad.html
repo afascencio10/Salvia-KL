@@ -16,8 +16,9 @@
         <div class="welcome-section ce-welcome">
             <div>
                 <h2><b>Casos Entidad</b></h2>
-                <p class="text-muted mb-0">Casos con víctimas referidas a tu entidad</p>
-                <span class="ce-sector">${ sectorName }</span>
+                <p class="text-muted mb-0">Casos con víctimas referidas a tu sede</p>
+                <p v-if="entityName" class="ce-entity-name">${ entityName }</p>
+                <span v-if="sectorName" class="ce-sector">${ sectorName }</span>
             </div>
         </div>
 
@@ -31,17 +32,7 @@
                     placeholder="Ej: 1023456780"
                     v-model="filters.document"
                     @input="onFilterDocument"
-                >
-            </div>
-            <div class="ce-filter-field">
-                <label class="ce-label" for="ce-filter-city">Ciudad</label>
-                <input
-                    id="ce-filter-city"
-                    type="text"
-                    class="ce-input"
-                    placeholder="Ej: San Salvador"
-                    v-model="filters.city"
-                    @input="onFilterCity"
+                    :disabled="!hasSede || isLoading"
                 >
             </div>
         </section>
@@ -51,8 +42,8 @@
             <span>Cargando casos…</span>
         </div>
 
-        <div v-else-if="pagedItems.length === 0" class="ce-empty">
-            No hay casos referidos a tu entidad con los filtros actuales.
+        <div v-else-if="items.length === 0" class="ce-empty">
+            No hay casos referidos a tu sede con los filtros actuales.
         </div>
 
         <section v-else class="ce-list">
@@ -62,7 +53,7 @@
             </div>
 
             <article
-                v-for="item in pagedItems"
+                v-for="item in items"
                 :key="item.entityCaseId"
                 class="ce-row"
             >
@@ -71,27 +62,28 @@
                     <p class="ce-ids">${ item.caseCode } · ${ item.document }</p>
                     <p class="ce-city">
                         <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
-                        <span>${ item.city }</span>
+                        <span>${ item.city || '—' }</span>
                     </p>
                     <div class="ce-badges">
                         <span
+                            v-if="item.riskLevel"
                             class="ce-badge ce-badge--risk"
                             :class="'ce-badge--risk-' + riskClass(item.riskLevel)"
                         >${ item.riskLevel }</span>
                         <span
                             class="ce-badge ce-badge--status"
-                            :class="'ce-badge--status-' + statusClass(item.caseStatus)"
-                        >${ item.caseStatus }</span>
+                            :class="'ce-badge--status-' + statusClass(item.caseStatusLabel || item.caseStatus)"
+                        >${ item.caseStatusLabel || item.caseStatus }</span>
                     </div>
                     <button type="button" class="ce-link" @click="goToCase(item)">Ver caso →</button>
                 </div>
 
                 <div class="ce-col-relacion">
-                    <p class="ce-relation">${ item.relationDescription }</p>
+                    <p class="ce-relation">${ item.objetivo || '—' }</p>
                     <div class="ce-last-action">
                         <span class="ce-last-action-label">Última acción</span>
                         <p v-if="item.lastAction" class="ce-last-action-text">
-                            ${ item.lastAction.description } · ${ item.lastAction.date }
+                            ${ item.lastAction }
                         </p>
                         <p v-else class="ce-last-action-text ce-last-action--empty">
                             Sin acciones registradas
@@ -137,6 +129,7 @@
         windowTitle: {{.windowTitle}},
         currentUser: "{{.currentUser}}",
         currentRole: "{{.currentRole}}",
+        entityBranchId: {{.entityBranchId}},
         menu: {{.menu}}
     };
 </script>

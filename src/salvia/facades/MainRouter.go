@@ -261,6 +261,11 @@ func StartRouter(router *gin.Engine) {
 		secRouter.GET("/hacer-seguimiento/:id", HacerSeguimientoGET)
 
 		/*
+			Registro de Caso V2 (dinamic-form)
+		*/
+		secRouter.GET("/casos/nuevo-v2", RegistroCasoV2GET)
+
+		/*
 			SeguimientosArea
 		*/
 		secRouter.GET("/seguimientos/area", SeguimientosAreaGET)

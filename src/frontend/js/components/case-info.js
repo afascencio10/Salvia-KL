@@ -65,6 +65,7 @@ var CI_SECTIONS = [
     { id: 'etnicos',         label: 'Étnicos y sociales',   icon: 'fa-globe',              color: '#10b981' },
     { id: 'contacto',        label: 'Contacto y familia',   icon: 'fa-phone',              color: '#f59e0b' },
     { id: 'ubicacion',       label: 'Ubicación',            icon: 'fa-map-marker-alt',     color: '#8b5cf6' },
+    { id: 'planAtencion',    label: 'Plan de atención',     icon: 'fa-clipboard-check',    color: '#0ea5e9' },
     { id: 'hechos',          label: 'Hechos',               icon: 'fa-file-alt',           color: '#ef4444' },
     { id: 'agresor',         label: 'Datos del agresor',    icon: 'fa-user-slash',         color: '#dc2626' },
     { id: 'riesgo',          label: 'Identificación riesgo',icon: 'fa-exclamation-triangle',color: '#f97316' },
@@ -119,6 +120,16 @@ var CI_SECTIONS_TPL = `
         <div class="ci-field" v-if="val(info.ubicacion.ciudad)"><span class="ci-label">Ciudad</span><span class="ci-value">\${ info.ubicacion.ciudad }</span></div>
         <div class="ci-field" v-if="val(info.ubicacion.municipio)"><span class="ci-label">Municipio</span><span class="ci-value">\${ info.ubicacion.municipio }</span></div>
     </div>
+    <div v-if="sec.id==='planAtencion'">
+        <div class="ci-grid" v-if="info.planAtencion.items && info.planAtencion.items.length">
+            <div class="ci-field" style="grid-column:1/-1"><span class="ci-label">Plan de atención</span><span class="ci-value"><ul style="margin:0;padding-left:16px;list-style:disc"><li v-for="p in info.planAtencion.items" :key="p">\${ p }</li></ul></span></div>
+        </div>
+        <div v-if="val(info.planAtencion.explicacion)" style="margin-top:12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px 16px">
+            <p style="margin:0 0 4px;font-size:.7rem;font-weight:600;color:#0369a1;text-transform:uppercase">Explicación relacionada con la gestión</p>
+            <p style="margin:0;font-size:.82rem;color:#374151;line-height:1.5">\${ info.planAtencion.explicacion }</p>
+        </div>
+        <div v-if="(!info.planAtencion.items || !info.planAtencion.items.length) && !val(info.planAtencion.explicacion)" style="color:#9ca3af;font-size:.82rem">No registra plan de atención</div>
+    </div>
     <div v-if="sec.id==='hechos'" class="ci-grid">
         <div class="ci-field" v-if="val(info.hechos.descripcion)" style="grid-column:1/-1">
             <span class="ci-label">Descripción</span>
@@ -135,7 +146,6 @@ var CI_SECTIONS_TPL = `
         <div class="ci-field" v-if="val(info.hechos.escenarioViolencia)"><span class="ci-label">Escenario de violencia</span><span class="ci-value">\${ info.hechos.escenarioViolencia }</span></div>
         <div class="ci-field" v-if="val(info.hechos.direccionHechos)"><span class="ci-label">Dirección de los hechos</span><span class="ci-value">\${ info.hechos.direccionHechos }</span></div>
         <div class="ci-field" v-if="val(info.hechos.riesgoFeminicida)"><span class="ci-label">Riesgo feminicida</span><span class="ci-value">\${ siNo(info.hechos.riesgoFeminicida) }</span></div>
-        <div class="ci-field" v-if="info.hechos.planAtencion && info.hechos.planAtencion.length"><span class="ci-label">Plan de atención</span><span class="ci-value"><ul v-if="info.hechos.planAtencion.length > 1" style="margin:0;padding-left:16px;list-style:disc"><li v-for="p in info.hechos.planAtencion" :key="p">\${ p }</li></ul><span v-else>\${ info.hechos.planAtencion[0] }</span></span></div>
     </div>
     <div v-if="sec.id==='agresor'" class="ci-grid">
         <div class="ci-field" v-if="val(info.agresor.tipoAgresor)"><span class="ci-label">Tipo agresor</span><span class="ci-value">\${ info.agresor.tipoAgresor }</span></div>
@@ -193,7 +203,7 @@ app.component('case-info', {
             error: null,
             info: null,
             sections: CI_SECTIONS,
-            openSections: { encabezado: true, victima: true, etnicos: true, contacto: true, ubicacion: true, hechos: true, agresor: true, riesgo: true },
+            openSections: { encabezado: true, victima: true, etnicos: true, contacto: true, ubicacion: true, planAtencion: true, hechos: true, agresor: true, riesgo: true },
             activeNav: 'encabezado',
             hechosExpandido: false,
             mostrarTamizaje: false,
@@ -262,6 +272,12 @@ app.component('case-info', {
         },
         fieldCount(sectionId) {
             if (!this.info || !this.info[sectionId]) return 0;
+            if (sectionId === 'planAtencion') {
+                var count = 0;
+                if (this.info.planAtencion.items && this.info.planAtencion.items.length) count++;
+                if (this.val(this.info.planAtencion.explicacion)) count++;
+                return count;
+            }
             var obj = this.info[sectionId]; var count = 0;
             for (var k in obj) { if (this.val(obj[k])) count++; }
             return count;

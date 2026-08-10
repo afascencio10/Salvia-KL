@@ -150,15 +150,10 @@ func (s *caseDetailService) CreateFollowUp(ctx context.Context, caseICode, agent
 		hora = fecha.Format("15:04")
 	}
 
-	// Calcular sequence_number: contar los existentes + 1
+	// Calcular sequence_number: contar los existentes + 1 (sin límite máximo)
 	count, err := s.repo.CountFollowUpsByCaseID(ctx, caseICode)
 	if err != nil {
 		return nil, err
-	}
-
-	// Validar máximo 8 seguimientos por caso
-	if count >= 8 {
-		return nil, errors.New("este caso ya tiene el máximo de 8 seguimientos permitidos")
 	}
 
 	nextSeq := count + 1

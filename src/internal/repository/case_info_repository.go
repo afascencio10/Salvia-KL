@@ -105,6 +105,7 @@ type CaseInfoRaw struct {
 	F2AggressorAddress string `gorm:"column:f2_aggressor_address"`
 	F2AggressorPhone   string `gorm:"column:f2_aggressor_phone"`
 	F2RelationshipAggressor string `gorm:"column:f2_relationship_aggressor"`
+	F2ManagementExplanation string `gorm:"column:f2_management_explanation"`
 
 	// Ubicación resuelta
 	CityName       string `gorm:"column:city_name"`
@@ -224,6 +225,7 @@ func (r *caseInfoRepository) GetFullInfoByICode(ctx context.Context, caseICode s
 			COALESCE(f2.victim_case_form2_aggressor_address, '')              AS f2_aggressor_address,
 			COALESCE(f2.victim_case_form2_aggressor_phone::text, '')          AS f2_aggressor_phone,
 			COALESCE(rel.victim_case_form2_enums_name, '')                    AS f2_relationship_aggressor,
+			COALESCE(f2.victim_case_form2_saliva_management_explanation, '')   AS f2_management_explanation,
 
 			-- Ubicación
 			COALESCE(c.city_name, '')                                         AS city_name,

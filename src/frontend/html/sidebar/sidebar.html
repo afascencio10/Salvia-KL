@@ -16,7 +16,7 @@
     <aside class="salvia-sidebar salvia-sidebar--drawer" id="salviaSidebar" aria-hidden="false" aria-label="Menú de navegación Salvia">
         <div class="salvia-sidebar__header">
             <div class="salvia-sidebar__brand">
-                <img src="/static/img/salvia_logo_landing.png" alt="Salvia" class="salvia-sidebar__logo">
+                <img src="/static/images/salvia-logo.svg" alt="Salvia" class="salvia-sidebar__logo">
                 <span class="salvia-sidebar__title">Salvia</span>
             </div>
             <button type="button" class="salvia-sidebar__close" id="salviaSidebarClose" aria-label="Cerrar menú de navegación">
@@ -70,6 +70,12 @@
             <a href="/salvia/barreras-departamento" class="salvia-sidebar__nav-link">
                 <i class="fas fa-map" aria-hidden="true"></i>
                 <span>Barreras Departamento</span>
+            </a>
+            {{ end }}
+            {{ if eq .currentRole "et" }}
+            <a href="/salvia/casos-entidad" class="salvia-sidebar__nav-link">
+                <i class="fas fa-building" aria-hidden="true"></i>
+                <span>Casos Entidad</span>
             </a>
             {{ end }}
         </nav>

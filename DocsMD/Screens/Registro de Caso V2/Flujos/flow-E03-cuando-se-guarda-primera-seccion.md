@@ -1,123 +1,135 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🟢 EVENTO: Cuando se guarda la primera sección
-   Tipo: Backend/Scheduled
-   Función: createDraftVictimCase(submissionID, actorID)  [NUEVA]
+🟢 EVENTO: Cuando se guarda CUALQUIER sección (no solo la primera)
+   Tipo: Backend/Síncrono
+   Hook genérico: OnSectionUpdate(formID, submissionID, actorID)
+   Función específica: UpdateCaseDraft(submissionID, actorID)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Disparado por: el mismo endpoint POST /api/v1/forms/saveSection que usa
-                dinamic-form — en el punto EXACTO donde hoy se crea un
-                FormSubmission nuevo (form_service.go:1744-1749, dentro de
-                SaveSection):
+⚠️ Este flujo cambió de diseño respecto a la versión original de este
+documento: en vez de un hook que solo dispara UNA VEZ al guardar la
+Sección 1, se implementó un hook GENÉRICO — OnSectionUpdate — análogo a
+OnEndFormSubmission pero que se dispara después de CADA saveSection, para
+cualquier formulario. Registro de Caso es simplemente el primer `case` de
+su dispatch. UpdateCaseDraft (la función específica de este formulario)
+también cambió de diseño: en vez de posponer la creación de victim_case
+hasta que Sección 1 esté completa, la crea/actualiza SIEMPRE, usando
+valores dummy para lo que aún falte — nunca se pospone.
 
-                  if submissionID == "" {
-                      fs := &models.FormSubmission{FormID: input.FormID}
-                      s.submissionRepo.Create(ctx, fs)
-                      submissionID = fs.ID
+Disparado por: SaveSection (form_service.go), incondicionalmente, justo
+                después de persistir las respuestas de la sección (no solo
+                al crear el submission):
+
+                  if err := s.OnSectionUpdate(ctx, input.FormID, submissionID, input.ActorID); err != nil {
+                      log.Printf("[saveSection] OnSectionUpdate error ...")
                   }
 
-                Se agrega un dispatch SEGÚN input.FormID justo después de
-                crear el submission — mismo patrón estructural que
-                OnEndFormSubmission (SEGÚN formID) pero en un punto distinto
-                del ciclo de vida, y de forma SÍNCRONA (no goroutine): el
-                caseId resultante debe existir antes de responder al
-                frontend, para poder devolverlo si la pantalla lo necesita
-                más adelante.
+                OnSectionUpdate (form_service.go) hace dispatch por formID:
 
-Archivo:       nuevo — propuesto src/salvia/service/victim_case_form_service.go
-Constante:     registroCasoFormID = "0a24ab30-3cfc-4861-b74d-65d21524bc00"
+                  func (s *formService) OnSectionUpdate(ctx, formID, submissionID, actorID string) error {
+                      switch formID {
+                      case service.RegistroCasoFormID:
+                          return s.victimCaseFormSvc.UpdateCaseDraft(ctx, submissionID, actorID)
+                      }
+                      return nil
+                  }
 
-INPUT: {
-  submissionId:    UUID recién creado                → fs.ID (PASO 1 de SaveSection)
-  actorId:         i_code del usuario                 → propagado desde el controller
-  directAnswers:   respuestas de la sección 1 recién enviadas → input.DirectAnswers
-}
+                Un error de OnSectionUpdate se loggea pero NO aborta
+                saveSection — el guardado de la sección ya se completó; el
+                draft del caso se pondrá al día en el siguiente saveSection.
 
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  BACKEND — createDraftVictimCase (llamado desde SaveSection, síncrono)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-
-PASO 1 — Verificar que aplica (dispatch SEGÚN formID)
-
-  SI input.FormID != registroCasoFormID:
-    → No hacer nada — comportamiento genérico de saveSection sin cambios
-    → TERMINAR
-
-  SI input.FormID == registroCasoFormID:
-    → CONTINÚA PASO 2
-
-
-PASO 2 — Verificar idempotencia
-
-  DB.form_submission.FindVictimCaseID({ submissionId })
-  SI ya tiene un victim_case_id asociado (reintento del mismo submission):
-    → Loggear "draft ya existe — se omite creación"
-    → TERMINAR ejecución (no crea un segundo caso)
-
-
-PASO 3 — Extraer los campos mínimos disponibles de la Sección 1
-
-  answerMap = { [questionId]: value }  // solo las de la sección 1 recién guardada
-
-  names       = answerMap[qNames]
-  lastNames   = answerMap[qLastNames]
-  docType     = answerMap[qDocType]
-  docNumber   = answerMap[qDocNumber]
-
-  SI falta cualquiera de estos 4 campos (deberían venir siempre, son
-  required en Sección 1, pero se valida defensivamente):
-    → Loggear advertencia y TERMINAR sin crear el draft
-    → El caso se creará en el SIGUIENTE saveSection donde ya estén completos
-      (no debería pasar en la práctica, dinamic-form ya exige estos campos
-      required antes de dejar guardar la sección)
-
-
-PASO 4 — Crear victim_case + victim_case_form2 en estado Borrador
-
-  salvia_daos.SetVictimCase({
-    VictimCaseNames:     names,
-    VictimCaseLastNames: lastNames,
-    VictimCaseDocType:   docType,
-    VictimCaseDocNumber: docNumber,
-    VictimCaseStatus:    "bo",   // NUEVO código — ver GAPS de form-registro-caso-v2-data.md (G-11)
-    VictimCaseForm2: {
-      // Resto de campos de Sección 1 ya disponibles (teléfono, residencia,
-      // accesibilidad) se mapean aquí también; el resto del form2 queda
-      // con sus defaults hasta que se completen más secciones.
-      ... mapeo de los campos restantes de Sección 1 disponibles en answerMap ...
-    },
-  })
-
-  SI falla:
-    → Retornar error (aborta — el saveSection completo falla, el usuario
-      ve el error de guardado en la Sección 1)
-  → newCaseID = victim_case.i_code
-
-
-PASO 5 — Vincular el form_submission al caso recién creado
-
-  DB.form_submission.UpdateVictimCaseID({ submissionId, caseId: newCaseID })
-  // Columna nueva necesaria en form_submission — ver GAPS
-
-
-PASO 6 — Continuar el flujo normal de SaveSection
-
-  → El resto de SaveSection sigue igual (guardar answers, responder
-    formStructure/formSubmission/currentSection al frontend)
-  → El frontend NO necesita hacer nada especial con newCaseID en este
-    punto — solo se usa internamente hasta que el formulario se completa
-
-  → FIN EJECUCIÓN ✓
+Archivo:       src/salvia/service/victim_case_form_service.go (UpdateCaseDraft, createDraftShell)
+                src/internal/repository/victim_case_form_repository.go (CreateDraft, UpdateDraftCoreFields, UpsertForm2FromAnswers)
+Constante:     RegistroCasoFormID = "0a24ab30-3cfc-4861-b74d-65d21524bc00"
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️  GAPS — Información pendiente
+  BACKEND — UpdateCaseDraft (llamada en CADA saveSection de este formulario)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-| Variable / decisión                                                                          | Paso afectado |
-|------------------------------------------------------------------------------------------------|---------------|
-| Columna nueva `form_submission.victim_case_id` (o tabla de relación) — no existe hoy | PASO 2, 5 |
-| Agregar código "bo" a VICTIM_CASE_STATUS y decidir su label exacto ("Borrador") | PASO 4 |
-| Si las secciones 2 en adelante deben re-sincronizar victim_case_form2 en cada saveSection, o solo se escribe completo al final (E-04) — este flujo asume que SOLO Sección 1 se escribe aquí, y el resto se escribe de una vez al completar | General |
-| Qué pasa si el usuario nunca vuelve a este formulario — el caso queda en "bo" indefinidamente; ¿necesita un job de limpieza/expiración? | General |
+PASO 1 — Leer TODAS las respuestas disponibles del submission
+
+  answers = formRepo.BuildAnswersByFieldKey(ctx, RegistroCasoFormID, submissionID)
+  // indexado por FieldKey ("S{sección}Q{orden}"), no por questionID — evita
+  // ambigüedad entre preguntas de Tamizaje pareja/no-pareja con texto idéntico.
+
+
+PASO 2 — ¿Ya existe un victim_case para este submission?
+
+  iCode, found = formRepo.FindICodeBySubmissionID(ctx, submissionID)
+  // busca por victim_case.victim_case_form_submission_id (columna nueva,
+  // ver form-registro-caso-v2-data.md) — no por una tabla de relación aparte.
+
+
+PASO 3a — SI NO existe: createDraftShell (primera vez, cualquier sección)
+
+  Para cada uno de los 5 campos obligatorios de Sección 1
+  (names, lastNames, docType, docNumber, residenceTown):
+    valor = answers[FieldKey(1, n)] SI no está vacío, SI NO dummy:
+      names/lastNames → "Pendiente"
+      docType         → "cc"
+      docNumber       → "0000000000"
+      residenceTown   → "00000000"
+
+  → Genera login/password aleatorios, hashea con bcrypt
+  → formRepo.CreateDraft(...) crea:
+      security.general_user_profile + general_user + rel_role_general_user (rol "us")
+      salvia.victim_case en status 'bo', con victim_case_form_submission_id = submissionID
+  → formRepo.StoreCredentials(...) guarda login/password EN TEXTO PLANO en
+    victim_case.victim_case_new_user_credentials (jsonb, nunca se limpia —
+    ver GAPS de seguridad ya resueltos como decisión consciente del negocio)
+  → iCode = recién creado
+
+  Nunca retorna vacío / nunca pospone — a diferencia del diseño original.
+
+
+PASO 3b — SI YA existe: UpdateDraftCoreFields (sincronizar, cada llamada)
+
+  formRepo.UpdateDraftCoreFields(ctx, iCode,
+    coalesce(answers[names],     "Pendiente"),
+    coalesce(answers[lastNames], "Pendiente"),
+    coalesce(answers[docType],   "cc"),
+    coalesce(answers[docNumber], "0000000000"),
+    coalesce(answers[residenceTown], "00000000"),
+  )
+  // UPDATE directo sobre victim_case — los valores reales sobrescriben el
+  // dummy en cuanto llegan, sin esperar a que el formulario se complete.
+
+
+PASO 4 — Calcular wasPartner y riskScore/riskLevel (con lo disponible hasta ahora)
+
+  wasPartner = resolveWasPartner(answers)  // FieldKey(4,3) ∈ {'pi','ex'}
+  riskScore, riskLevel = computeRiskScore(answers, wasPartner)
+  // misma fórmula que el tamizaje ya usado hoy — se recalcula en cada
+  // llamada con lo que haya, y de nuevo (como fuente de verdad) en Activate.
+
+
+PASO 5 — Proyectar TODAS las respuestas disponibles sobre victim_case_form2
+
+  formRepo.UpsertForm2FromAnswers(ctx, iCode, answers, riskScore, riskLevel)
+
+  → Crea la fila si no existe, o la actualiza si ya existe (UPDATE +
+    reinserción idempotente de relaciones multi-valor).
+  → Las 55 columnas NOT NULL de victim_case_form2 (todas enum1/bool_enum)
+    reciben el i_code "No" (categoría yes_no) como valor dummy si la
+    pregunta correspondiente aún no tiene respuesta — así el INSERT nunca
+    falla por NOT NULL y nunca se pospone. Se sobrescribe con la respuesta
+    real en la siguiente sección que la responda.
+  → Ya NO se captura ni se trata SQLSTATE 23502 como "incompleto, reintentar" —
+    con los dummies, esa violación ya no debería ocurrir; si ocurre, es un
+    bug real (columna NOT NULL sin mapear en victim_case_form_fields.go).
+
+  → FIN EJECUCIÓN ✓ (el resto de SaveSection sigue igual — responde
+    formStructure/formSubmission/currentSection al frontend sin cambios)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ GAPS del diseño original — YA RESUELTOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+| Gap original | Cómo se resolvió |
+|---|---|
+| Columna nueva `form_submission.victim_case_id` | Se descartó — en su lugar, `victim_case.victim_case_form_submission_id` (patrón análogo a follow_up_v2, pero como columna propia de victim_case, no de form_submission). |
+| Código "bo" en VICTIM_CASE_STATUS | Agregado ("borrador") en config/Enums.go. |
+| ¿Se re-sincroniza form2 en cada saveSection o solo al final? | Se re-sincroniza en CADA saveSection (UpsertForm2FromAnswers), no solo al completar. |
+| Campos mínimos faltantes → ¿posponer? | NO — valores dummy, nunca se pospone (instrucción explícita del negocio). |
+| Caso abandonado en "bo" indefinidamente | Sin cambios — no se implementó job de expiración; sigue siendo un gap abierto si se necesita a futuro. |

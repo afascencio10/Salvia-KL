@@ -3,8 +3,12 @@ package service
 import (
 	"bitsflow/internal/models"
 	"bitsflow/internal/repository"
+	salvia_config "bitsflow/salvia/config"
 	"context"
 	"errors"
+	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // ErrEntityCaseDuplicate se retorna cuando ya existe una relación activa entre
@@ -19,16 +23,34 @@ type CreateEntityCaseInput struct {
 	CreatedByID    string
 }
 
-// EntityCaseService define las operaciones de negocio sobre EntityCase
-// (componente case-entities — "Gestión institucional" de Detalle del Caso).
-type EntityCaseService interface {
-	// ListByCase devuelve las entidades relacionadas con un caso, ya enriquecidas
-	// con datos de sede, ubicación, oficios y barreras activas.
-	ListByCase(ctx context.Context, caseID string) ([]models.EntityCaseWithRelations, error)
+// EntityCaseListFilter filtros del listado Casos Entidad (por sede de sesión).
+type EntityCaseListFilter struct {
+	EntityBranchID int64
+	Document       string
+	Page           int
+	PageSize       int
+}
 
-	// Create asocia una sede de entidad a un caso. Retorna ErrEntityCaseDuplicate
-	// si ya existe una relación activa entre ambos.
+// EntityCaseListResult respuesta paginada del listado.
+type EntityCaseListResult struct {
+	Items          []models.EntityCaseListItem `json:"items"`
+	Total          int64                       `json:"total"`
+	Page           int                         `json:"page"`
+	PageSize       int                         `json:"pageSize"`
+	EntityBranchID int64                       `json:"entityBranchId,omitempty"`
+	EntityName     string                      `json:"entityName,omitempty"`
+	Sector         string                      `json:"sector,omitempty"`
+	SectorName     string                      `json:"sectorName,omitempty"`
+}
+
+// EntityCaseService define las operaciones de negocio sobre EntityCase
+// (componente case-entities y pantalla Casos Entidad).
+type EntityCaseService interface {
+	ListByCase(ctx context.Context, caseID string) ([]models.EntityCaseWithRelations, error)
 	Create(ctx context.Context, input CreateEntityCaseInput) (*models.EntityCase, error)
+	ListByEntity(ctx context.Context, filter EntityCaseListFilter) (*EntityCaseListResult, error)
+	ListEntities(ctx context.Context) ([]models.EntityCatalogItem, error)
+	ListCitiesByEntity(ctx context.Context, entityID int64) ([]models.EntityCityOption, error)
 }
 
 type entityCaseService struct {
@@ -62,4 +84,79 @@ func (s *entityCaseService) Create(ctx context.Context, input CreateEntityCaseIn
 		return nil, err
 	}
 	return ec, nil
+}
+
+func (s *entityCaseService) ListByEntity(ctx context.Context, filter EntityCaseListFilter) (*EntityCaseListResult, error) {
+	pageSize := filter.PageSize
+	if pageSize <= 0 {
+		pageSize = 5
+	}
+	page := filter.Page
+	if page < 0 {
+		page = 0
+	}
+
+	meta, err := s.repo.GetEntityMetaByBranchID(ctx, filter.EntityBranchID)
+	if err != nil {
+		return nil, err
+	}
+
+	items, total, err := s.repo.FindByEntityBranchIDPaginated(ctx, filter.EntityBranchID, filter.Document, page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range items {
+		items[i].CaseStatusLabel = victimCaseStatusLabel(items[i].CaseStatus)
+	}
+
+	return &EntityCaseListResult{
+		Items:          items,
+		Total:          total,
+		Page:           page,
+		PageSize:       pageSize,
+		EntityBranchID: filter.EntityBranchID,
+		EntityName:     meta.EntityName,
+		Sector:         meta.Sector,
+		SectorName:     entitySectorLabel(meta.Sector),
+	}, nil
+}
+
+func (s *entityCaseService) ListEntities(ctx context.Context) ([]models.EntityCatalogItem, error) {
+	items, err := s.repo.ListEntities(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for i := range items {
+		items[i].SectorName = entitySectorLabel(items[i].Sector)
+	}
+	return items, nil
+}
+
+func (s *entityCaseService) ListCitiesByEntity(ctx context.Context, entityID int64) ([]models.EntityCityOption, error) {
+	return s.repo.ListCitiesByEntityID(ctx, entityID)
+}
+
+func entitySectorLabel(code string) string {
+	key := "sector_" + strings.TrimSpace(code)
+	if label, ok := salvia_config.Locale["sp"][key]; ok {
+		return label
+	}
+	return code
+}
+
+func victimCaseStatusLabel(code string) string {
+	if label, ok := salvia_config.VICTIM_CASE_STATUS["sp"][code]; ok {
+		return capitalizeFirst(label)
+	}
+	return code
+}
+
+func capitalizeFirst(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return s
+	}
+	r, size := utf8.DecodeRuneInString(s)
+	return string(unicode.ToUpper(r)) + s[size:]
 }
