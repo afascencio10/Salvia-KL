@@ -86,6 +86,8 @@ func main() {
         &models.BarrierFollowUp{},
         &models.Directory{},
         &models.EntityCase{},
+        &models.TeamMeeting{},
+        &models.TeamMeetingAgent{},
     } {
         if err := gormDB.AutoMigrate(m); err != nil {
             log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -128,6 +130,7 @@ func main() {
     duplaRepo              := repository.NewDuplaRepository(gormDB)
     psychosocialReassignRepo := repository.NewPsychosocialReassignRepository(gormDB)
     entityCaseRepo         := repository.NewEntityCaseRepository(gormDB)
+    psychosocialCalendarRepo := repository.NewPsychosocialCalendarRepository(gormDB)
 
     // Services
     casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
@@ -179,6 +182,7 @@ func main() {
     psychosocialListSvc   := service.NewPsychosocialListService(psychosocialListRepo, duplaRepo)
     psychosocialReassignSvc := service.NewPsychosocialReassignService(psychosocialReassignRepo, gormDB)
     duplaAdminSvc         := service.NewDuplaAdminService(duplaRepo, psychosocialReassignRepo)
+    psychosocialCalendarSvc := service.NewPsychosocialCalendarService(psychosocialCalendarRepo)
 
     // Inyectar el servicio en el controller legacy para generación automática del calendario
     salvia_legacy.FollowUpSvc = followUpV2Svc
@@ -230,6 +234,7 @@ func main() {
     contactAttemptRepo      := repository.NewContactAttemptRepository(gormDB)
     psychosocial3x3Svc      := service.NewPsychosocial3x3Service(contactAttemptRepo, gormDB)
     psychosocialContactCtrl := salvia_ctrl.NewPsychosocialContactController(psychosocial3x3Svc)
+    psychosocialCalendarCtrl := salvia_ctrl.NewPsychosocialCalendarController(psychosocialCalendarSvc)
     followUpV2Repo         := repository.NewFollowUpV2Repository(gormDB)
     assignCaseSvc          := service.NewAssignCaseService(victimCaseLightRepo, agentLightRepo, followUpV2Repo)
     assignCaseCtrl         := salvia_ctrl.NewAssignCaseController(assignCaseSvc)
@@ -271,6 +276,7 @@ func main() {
     psychosocialReassignCtrl.RegisterRoutes(api)
     duplaAdminCtrl.RegisterRoutes(api)
     psychosocialContactCtrl.RegisterRoutes(api)
+    psychosocialCalendarCtrl.RegisterRoutes(api)
     assignCaseCtrl.RegisterRoutes(api)
 
     // Admin: endpoints de migración (protegidos por X-Security-Key)

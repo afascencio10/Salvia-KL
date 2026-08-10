@@ -26,6 +26,8 @@ import (
 type Directory struct {
 	ID           string    `gorm:"type:varchar(36);primaryKey;default:gen_random_uuid()" json:"id"`
 	CityID       string    `gorm:"type:varchar(36);not null;index;column:city_id" json:"cityId"`
+	DepartmentID *uint64   `gorm:"column:department_id;index" json:"departmentId,omitempty"`
+	TownICode    *string   `gorm:"type:varchar(36);column:town_i_code" json:"townICode,omitempty"`
 	CreationDate time.Time `gorm:"column:creation_date;not null" json:"creationDate"`
 	UpdateDate   time.Time `gorm:"column:update_date;not null" json:"updateDate"`
 	Name         string    `gorm:"type:varchar(128);not null" json:"name"`
@@ -34,6 +36,10 @@ type Directory struct {
 	Email        *string   `gorm:"type:varchar(128)" json:"email,omitempty"`
 	OpeningHours *string   `gorm:"type:varchar(128);column:opening_hours" json:"openingHours,omitempty"`
 	Type         string    `gorm:"type:varchar(2);not null;index" json:"type"`
+	Sector       *string   `gorm:"type:varchar(2);column:sector;index" json:"sector,omitempty"`
+	Latitude     *float64  `gorm:"column:latitude" json:"latitude,omitempty"`
+	Longitude    *float64  `gorm:"column:longitude" json:"longitude,omitempty"`
+	Active       bool      `gorm:"column:active;not null;default:true;index" json:"active"`
 }
 
 func (Directory) TableName() string { return "salvia.directories" }
@@ -81,5 +87,32 @@ var ValidDirectoryTypes = []string{
 // IsValidDirectoryType indica si el código de tipo es uno de los permitidos.
 func IsValidDirectoryType(code string) bool {
 	_, ok := DirectoryTypeLabels[code]
+	return ok
+}
+
+// Sectores agrupadores para el Directorio de Entidades (código de 2 caracteres).
+const (
+	DirectorySectorSalud      = "SA"
+	DirectorySectorJusticia   = "JU"
+	DirectorySectorProteccion = "PR"
+)
+
+// DirectorySectorLabels mapea código de sector → etiqueta para UI y respuestas API.
+var DirectorySectorLabels = map[string]string{
+	DirectorySectorSalud:      "Salud",
+	DirectorySectorJusticia:   "Justicia",
+	DirectorySectorProteccion: "Protección",
+}
+
+// ValidDirectorySectors lista los códigos de sector permitidos.
+var ValidDirectorySectors = []string{
+	DirectorySectorSalud,
+	DirectorySectorJusticia,
+	DirectorySectorProteccion,
+}
+
+// IsValidDirectorySector indica si el código de sector es uno de los permitidos.
+func IsValidDirectorySector(code string) bool {
+	_, ok := DirectorySectorLabels[code]
 	return ok
 }

@@ -11,16 +11,18 @@ func (DepartmentLight) TableName() string { return "security.department" }
 // CityLight es una proyección de solo lectura de security.city.
 type CityLight struct {
 	CityId       uint64 `gorm:"column:city_id;primaryKey"`
+	CityICode    string `gorm:"column:city_i_code"`
 	CityName     string `gorm:"column:city_name"`
 	DepartmentId uint64 `gorm:"column:department_id"`
 }
 
 func (CityLight) TableName() string { return "security.city" }
 
-// CityICodeLight proyecta city_i_code y city_name para resolver ciudades en directorios.
+// CityICodeLight proyecta city_i_code, city_name y department_id para resolver ciudades en directorios.
 type CityICodeLight struct {
-	CityICode string `gorm:"column:city_i_code"`
-	CityName  string `gorm:"column:city_name"`
+	CityICode    string `gorm:"column:city_i_code"`
+	CityName     string `gorm:"column:city_name"`
+	DepartmentId uint64 `gorm:"column:department_id"`
 }
 
 func (CityICodeLight) TableName() string { return "security.city" }
@@ -35,5 +37,6 @@ type LocationOption struct {
 type CityLocationOption struct {
 	Label        string `json:"label"`
 	Value        string `json:"value"`
+	ICode        string `json:"iCode"`
 	DepartmentId uint64 `json:"departmentId"`
 }

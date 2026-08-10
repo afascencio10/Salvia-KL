@@ -25,7 +25,7 @@ type CaseDetailData struct {
 	AgentName           string `json:"agentName"`
 	TimelineEvents []models.CaseTimelineEvent `json:"timelineEvents"`
 	EmergencyMeasures      []models.EmergencyMeasure      `json:"emergencyMeasures"`
-	PsychosocialSupports   []models.PsychosocialSupport   `json:"psychosocialSupports"`
+	PsychosocialSupports   []PsychosocialSupportView      `json:"psychosocialSupports"`
 	EconomicStabilizations []models.EconomicStabilization `json:"economicStabilizations"`
 	Barriers               []models.BarrierV2              `json:"barriers"`
 	// Campos resumen del caso (form2 enums resueltos)
@@ -42,6 +42,24 @@ type CaseDetailData struct {
 	NombreIdentitario    string `json:"nombreIdentitario"`
 	PlanAtencion         []string `json:"planAtencion"`
 	AjusteRazonable      []string `json:"ajusteRazonable"`
+}
+
+// PsychosocialSessionView — sesión programada dentro de una remisión psicosocial.
+type PsychosocialSessionView struct {
+	ID               string  `json:"id"`
+	ScheduledDate    *string `json:"scheduledDate"`
+	ScheduledTime    string  `json:"scheduledTime"`
+	Status           string  `json:"status"`
+	IsCompleted      bool    `json:"isCompleted"`
+	Summary          string  `json:"summary"`
+	ProfessionalName string  `json:"professionalName"`
+	ProfessionalID   string  `json:"professionalId"`
+}
+
+// PsychosocialSupportView — remisión + sus sesiones.
+type PsychosocialSupportView struct {
+	models.PsychosocialSupport
+	Sessions []PsychosocialSessionView `json:"sessions"`
 }
 
 type CaseDetailRepository interface {
@@ -253,7 +271,37 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 
 	var ps []models.PsychosocialSupport
 	r.db.WithContext(ctx).Where("case_id = ?", vc.VictimCaseICode).Find(&ps)
-	result.PsychosocialSupports = ps
+
+	// Cargar sesiones (team_contact) por remisión — matchea por psicosocial_id o case_id.
+	psViews := make([]PsychosocialSupportView, 0, len(ps))
+	for _, remision := range ps {
+		var sessions []PsychosocialSessionView
+		r.db.WithContext(ctx).Raw(`
+			SELECT
+				tc.id AS id,
+				TO_CHAR(tc.scheduled_date AT TIME ZONE 'America/Bogota', 'YYYY-MM-DD') AS scheduled_date,
+				COALESCE(tc.scheduled_time, '') AS scheduled_time,
+				CASE WHEN tc.is_completed THEN 'realizada' ELSE COALESCE(tc.status, 'programada') END AS status,
+				tc.is_completed AS is_completed,
+				COALESCE(tc.summary, '') AS summary,
+				COALESCE(TRIM(CONCAT(gup.general_user_profile_names, ' ', gup.general_user_profile_last_names)), '') AS professional_name,
+				COALESCE(gu.general_user_i_code::text, tc.professional_id, '') AS professional_id
+			FROM salvia.team_contact tc
+			LEFT JOIN security.general_user gu
+			       ON gu.general_user_id::text = BTRIM(COALESCE(tc.professional_id,''))
+			       OR gu.general_user_i_code::text = BTRIM(COALESCE(tc.professional_id,''))
+			LEFT JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+			WHERE tc.deleted_at IS NULL
+			  AND tc.is_psico_session = true
+			  AND (tc.psicosocial_id = ? OR tc.case_id = ?)
+			ORDER BY tc.scheduled_date DESC
+		`, remision.ID, vc.VictimCaseICode).Scan(&sessions)
+		psViews = append(psViews, PsychosocialSupportView{
+			PsychosocialSupport: remision,
+			Sessions:            sessions,
+		})
+	}
+	result.PsychosocialSupports = psViews
 
 	var es []models.EconomicStabilization
 	r.db.WithContext(ctx).Where("case_id = ?", vc.VictimCaseICode).Find(&es)

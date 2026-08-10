@@ -20,6 +20,7 @@ type LocationRepository interface {
 	FindBestCityMatchByName(ctx context.Context, cityName string) (*models.CityICodeLight, error)
 	FindCityByICode(ctx context.Context, cityICode string) (*models.CityICodeLight, error)
 	FindCityNamesByICodes(ctx context.Context, icodes []string) (map[string]string, error)
+	FindCitiesByICodes(ctx context.Context, icodes []string) (map[string]models.CityICodeLight, error)
 }
 
 type locationRepository struct {
@@ -52,7 +53,7 @@ func (r *locationRepository) GetDepartments(ctx context.Context) ([]models.Locat
 func (r *locationRepository) GetCities(ctx context.Context, departmentID *uint64) ([]models.CityLocationOption, error) {
 	var rows []models.CityLight
 	query := r.db.WithContext(ctx).
-		Select("city_id, city_name, department_id").
+		Select("city_id, city_i_code, city_name, department_id").
 		Order("city_name ASC")
 
 	if departmentID != nil {
@@ -68,6 +69,7 @@ func (r *locationRepository) GetCities(ctx context.Context, departmentID *uint64
 		out[i] = models.CityLocationOption{
 			Label:        c.CityName,
 			Value:        fmt.Sprintf("%d", c.CityId),
+			ICode:        c.CityICode,
 			DepartmentId: c.DepartmentId,
 		}
 	}
@@ -101,7 +103,7 @@ func (r *locationRepository) FindBestCityMatchByName(ctx context.Context, cityNa
 	}
 
 	var rows []models.CityICodeLight
-	query := r.db.WithContext(ctx).Select("city_i_code, city_name")
+	query := r.db.WithContext(ctx).Select("city_i_code, city_name, department_id")
 
 	if len(normalizedInput) >= 3 {
 		query = query.Where("city_name ILIKE ?", normalizedInput[:3]+"%")
@@ -113,7 +115,7 @@ func (r *locationRepository) FindBestCityMatchByName(ctx context.Context, cityNa
 
 	if len(rows) == 0 {
 		if err := r.db.WithContext(ctx).
-			Select("city_i_code, city_name").
+			Select("city_i_code, city_name, department_id").
 			Find(&rows).Error; err != nil {
 			return nil, err
 		}
@@ -149,7 +151,7 @@ func (r *locationRepository) FindBestCityMatchByName(ctx context.Context, cityNa
 func (r *locationRepository) FindCityByICode(ctx context.Context, cityICode string) (*models.CityICodeLight, error) {
 	var city models.CityICodeLight
 	err := r.db.WithContext(ctx).
-		Select("city_i_code, city_name").
+		Select("city_i_code, city_name, department_id").
 		Where("city_i_code = ?", cityICode).
 		First(&city).Error
 	if err != nil {
@@ -169,7 +171,7 @@ func (r *locationRepository) FindCityNamesByICodes(ctx context.Context, icodes [
 
 	var rows []models.CityICodeLight
 	if err := r.db.WithContext(ctx).
-		Select("city_i_code, city_name").
+		Select("city_i_code, city_name, department_id").
 		Where("city_i_code IN ?", icodes).
 		Find(&rows).Error; err != nil {
 		return nil, err
@@ -177,6 +179,25 @@ func (r *locationRepository) FindCityNamesByICodes(ctx context.Context, icodes [
 
 	for _, row := range rows {
 		out[row.CityICode] = row.CityName
+	}
+	return out, nil
+}
+
+// FindCitiesByICodes devuelve las filas completas (city_i_code, city_name, department_id) para los icodes dados.
+func (r *locationRepository) FindCitiesByICodes(ctx context.Context, icodes []string) (map[string]models.CityICodeLight, error) {
+	out := make(map[string]models.CityICodeLight, len(icodes))
+	if len(icodes) == 0 {
+		return out, nil
+	}
+	var rows []models.CityICodeLight
+	if err := r.db.WithContext(ctx).
+		Select("city_i_code, city_name, department_id").
+		Where("city_i_code IN ?", icodes).
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		out[row.CityICode] = row
 	}
 	return out, nil
 }

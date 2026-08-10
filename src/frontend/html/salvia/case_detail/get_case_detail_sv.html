@@ -2,7 +2,7 @@
 
   <!-- Breadcrumb -->
   <div class="cd-breadcrumb">
-    <a href="{{.salviaVictimCaseGETFormPath}}">← Casos reportados</a>
+    <a href="#" onclick="salviaGoBack('{{.salviaVictimCaseGETFormPath}}'); return false;">← Volver</a>
     <span>/</span>
     <span class="cd-current" v-if="caso">${ caso.victimCaseVictimName }</span>
   </div>
@@ -254,14 +254,47 @@
               <span class="cd-count" style="color:#1d4ed8">${ psychosocialSupports.length } registro${ psychosocialSupports.length !== 1 ? 's' : '' }</span>
             </div>
             <div v-if="psychosocialSupports.length === 0" class="cd-deriv-empty">Sin registros</div>
-            <div v-for="item in psychosocialSupports" :key="item.id" class="cd-deriv-item">
-              <div class="cd-deriv-desc">
-                <strong>${ item.type || '—' }</strong>
-                <span v-if="item.provider"> · ${ item.provider }</span>
-                <div class="cd-deriv-date">📅 ${ formatFecha(item.createdAt) } · Sesiones: ${ item.sessionCount || 0 }</div>
-                <div v-if="item.notes" style="font-size:.78rem;color:#6b7280;margin-top:2px">${ item.notes }</div>
+            <div v-for="item in psychosocialSupports" :key="item.id" class="cd-deriv-item" style="flex-direction:column;align-items:stretch">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;width:100%">
+                <div class="cd-deriv-desc">
+                  <strong>${ item.type || '—' }</strong>
+                  <span v-if="item.provider"> · ${ item.provider }</span>
+                  <div class="cd-deriv-date">📅 ${ formatFecha(item.createdAt) } · Sesiones: ${ (item.sessions && item.sessions.length) || item.sessionCount || 0 }</div>
+                  <div v-if="item.notes" style="font-size:.78rem;color:#6b7280;margin-top:2px">${ item.notes }</div>
+                </div>
+                <span class="cd-badge-deriv cd-bd-completado">${ item.status || 'ACTIVE' }</span>
               </div>
-              <span class="cd-badge-deriv cd-bd-completado">${ item.status || 'ACTIVE' }</span>
+              <div v-if="item.sessions && item.sessions.length > 0" style="margin-top:10px;background:#fff;border:1px solid #dbeafe;border-radius:8px;overflow:hidden">
+                <button
+                  type="button"
+                  @click="toggleSessionsExpanded(item.id)"
+                  style="width:100%;display:flex;justify-content:space-between;align-items:center;background:#eff6ff;border:none;padding:8px 12px;cursor:pointer;color:#1e3a8a;font-size:.78rem;font-weight:600">
+                  <span>Sesiones (${ item.sessions.length })</span>
+                  <span style="font-size:.75rem">${ sessionsExpanded[item.id] ? '▲' : '▼' }</span>
+                </button>
+                <table v-if="sessionsExpanded[item.id]" style="width:100%;border-collapse:collapse;font-size:.78rem">
+                  <thead>
+                    <tr style="background:#f8fafc;color:#334155;text-transform:uppercase;font-size:.68rem;letter-spacing:.04em">
+                      <th style="text-align:left;padding:6px 10px">Fecha</th>
+                      <th style="text-align:left;padding:6px 10px">Hora</th>
+                      <th style="text-align:left;padding:6px 10px">Profesional</th>
+                      <th style="text-align:left;padding:6px 10px">Estado</th>
+                      <th style="text-align:left;padding:6px 10px">Resumen</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="s in item.sessions" :key="s.id" style="border-top:1px solid #eff6ff">
+                      <td style="padding:6px 10px;color:#374151">${ s.scheduledDate || '—' }</td>
+                      <td style="padding:6px 10px;color:#374151">${ s.scheduledTime || '—' }</td>
+                      <td style="padding:6px 10px;color:#374151">${ s.professionalName || '—' }</td>
+                      <td style="padding:6px 10px">
+                        <span :style="{background: s.isCompleted ? '#dcfce7' : '#fef3c7', color: s.isCompleted ? '#166534' : '#92400e', padding:'2px 8px', borderRadius:'12px', fontSize:'.7rem', fontWeight:600}">${ s.status }</span>
+                      </td>
+                      <td style="padding:6px 10px;color:#6b7280">${ s.summary || '—' }</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
@@ -775,6 +808,7 @@ var home = Vue.createApp({
       denunciasAnteriores: 0,
       emergencyMeasures: [],
       psychosocialSupports: [],
+      sessionsExpanded: {},
       economicStabilizations: [],
       barriers: [],
       caseTasks: [],
@@ -971,6 +1005,9 @@ var home = Vue.createApp({
     },
     toggleSegExpand(segId) {
       this.segExpandido = this.segExpandido === segId ? null : segId;
+    },
+    toggleSessionsExpanded(id) {
+      this.sessionsExpanded = { ...this.sessionsExpanded, [id]: !this.sessionsExpanded[id] };
     },
     teamSegunRiesgo() {
       // Usar el team asignado directamente al caso

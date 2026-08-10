@@ -269,7 +269,7 @@
             },
             submit(action,event) {
               if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
-                location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+                salviaGoBack(home.config.globalProperties.enums.nav_rules["default"]);  
               }else if (action == "set"){
                 if(this.data.entityBranch.icode && this.data.entityBranch.icode.length > 0){
                   //Significa que es un update
