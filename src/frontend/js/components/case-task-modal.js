@@ -891,7 +891,7 @@ app.component('case-task-modal', {
 
             <div class="ctm-field">
                 <label class="ctm-label">Descripción / Notas</label>
-                <textarea class="ctm-textarea" v-model="form.descripcion" rows="3" placeholder="Resumen de la gestión..." maxlength="255"></textarea>
+                <textarea class="ctm-textarea" v-model="form.descripcion" rows="3" placeholder="Resumen de la gestión..."></textarea>
             </div>
 
             <p class="ctm-section-title">Oficio</p>

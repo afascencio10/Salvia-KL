@@ -58,10 +58,12 @@
                 <span>Calendario</span>
             </a>
             {{ end }}
+            {{ if or (eq .currentRole "op") (eq .currentRole "ro") (eq .currentRole "et") (eq .currentRole "sv") (eq .currentRole "no") (eq .currentRole "do") (eq .currentRole "us") (eq .currentRole "fo") (eq .currentRole "ad") (eq .currentRole "an") (eq .currentRole "ps") (eq .currentRole "ts") (eq .currentRole "ab") (eq .currentRole "mn") }}
             <a href="/salvia/directorio-entidades" class="salvia-sidebar__nav-link">
                 <i class="fas fa-map-marked-alt" aria-hidden="true"></i>
                 <span>Directorio</span>
             </a>
+            {{ end }}
             {{ if eq .currentRole "en" }}
             <a href="/salvia/mis-barreras" class="salvia-sidebar__nav-link">
                 <i class="fas fa-clipboard-list" aria-hidden="true"></i>

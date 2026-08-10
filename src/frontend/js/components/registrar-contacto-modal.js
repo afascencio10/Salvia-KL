@@ -166,7 +166,7 @@ app.component('registrar-contacto-modal', {
         <!-- Solo contacto → Nota -->
         <div v-if="form.tipo === 'contacto'" style="margin-bottom:16px">
             <label class="rcm-label">Nota</label>
-            <textarea class="rcm-textarea" v-model="form.nota" placeholder="Ej: Llamada breve para confirmar cita, paciente reporta estar bien..." maxlength="255"></textarea>
+            <textarea class="rcm-textarea" v-model="form.nota" placeholder="Ej: Llamada breve para confirmar cita, paciente reporta estar bien..."></textarea>
         </div>
 
         <!-- Agendé sesión → Tipo + Fecha/Hora sesión -->

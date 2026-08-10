@@ -118,6 +118,8 @@
 
                     } else if (status === 401) {
                         location.assign('/static/landing.html');
+                    } else if (status === 403) {
+                        this.loadError = 'Tu usuario no tiene un departamento asignado. Contacta a un administrador para que te lo asigne.';
                     } else {
                         this.loadError = 'No se pudo cargar la lista de barreras. Intenta de nuevo.';
                     }
