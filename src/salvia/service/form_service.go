@@ -2455,6 +2455,15 @@ func (s *formService) processPsicosocialHechosViolenciaTimeline(ctx context.Cont
 		}
 	}
 
+	// Description: incluir fecha de los hechos cuando exista (flow-E02 Aug 2026).
+	timelineDesc := descripcion
+	switch {
+	case descripcion != "" && fechaStr != "":
+		timelineDesc = fmt.Sprintf("%s (Fecha de los hechos: %s)", descripcion, fechaStr)
+	case descripcion == "" && fechaStr != "":
+		timelineDesc = "Fecha de los hechos: " + fechaStr
+	}
+
 	hechoEvent := &models.CaseTimelineEvent{
 		CaseID:                ps.CaseID,
 		FollowUpID:            ps.FollowUpID,
@@ -2462,7 +2471,7 @@ func (s *formService) processPsicosocialHechosViolenciaTimeline(ctx context.Cont
 		Type:                  models.TimelineTypeHechosCaso,
 		Icon:                  models.TimelineIconHechosCaso,
 		Color:                 "#f87171",
-		Description:           descripcion,
+		Description:           timelineDesc,
 		EventUserID:           actorID,
 		Date:                  fechaHechos,
 		PsychosocialSupportID: ps.ID,

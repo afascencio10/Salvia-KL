@@ -29,6 +29,12 @@ Cambios alineados al diagrama de lógica de negocio (barreras = form Seguimiento
 
 - Si “Hay nuevos hechos de violencia” = true → evento de timeline `Hechos del caso` (paridad PASO 7b de hacer-seguimiento).
 
+### Description del timeline de hechos incluye fecha
+
+`Description` incluye la fecha cuando existe:  
+`{descripción} (Fecha de los hechos: YYYY-MM-DD)`.  
+`Date` del evento no cambia. Ver `flow-E02`.
+
 ### Archivos principales
 
 | Área | Archivos |

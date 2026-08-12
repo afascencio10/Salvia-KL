@@ -603,6 +603,25 @@ IDs de preguntas del repeater se resuelven en runtime por `order` dentro del `re
 - Agenda: solo si ¿Agendar nueva sesión? = Sí **y** hay Fecha+Hora **y** disponibilidad OK (2h). Si ocupado → no agenda; el form igual completa.
 - Endpoint live: `GET /api/v1/psychosocial-support/:id/availability?date=&time=&mode=`.
 
+### Aug 2026 — Description del timeline de hechos incluye fecha (IMPLEMENTADO)
+
+`processPsicosocialHechosViolenciaTimeline` arma `Description` así:
+
+```
+SI hay descripción Y hay fecha:
+  Description = "{descripcion} (Fecha de los hechos: {YYYY-MM-DD})"
+SI solo descripción:
+  Description = "{descripcion}"
+SI solo fecha (descripción vacía):
+  Description = "Fecha de los hechos: {YYYY-MM-DD}"
+SI ninguna:
+  Description = ""
+```
+
+- `Date` del evento sigue usando la fecha parseada (o `now` si no hay / no parsea).
+- Preguntas por `description`: `"Descripción de los hechos"`, `"Fecha (de los hechos)"` / `"Fecha de los hechos"`.
+- Código: `form_service.go` → `processPsicosocialHechosViolenciaTimeline`.
+
 ## 10. Bug corregido — "Continuar Primera Atención = Sí" no completaba la sesión (Jul 2026)
 
 **Síntoma reportado:** en el formulario "Primer Contacto", al marcar "Continuar Primera Atención" =
