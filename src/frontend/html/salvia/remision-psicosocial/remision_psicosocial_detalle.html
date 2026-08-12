@@ -441,7 +441,8 @@
             },
 
             verSesion(contact) {
-                window.location.href = '/salvia/psicosocial/registrar/' + this.remisionID;
+                window.location.href =
+                    '/salvia/psicosocial/registrar/' + this.remisionID + '?contactId=' + contact.id;
             },
 
             async guardarPreferenciaHorario() {
@@ -493,11 +494,6 @@
             async cancelarSesion(contact) {
                 this.cancelarContact = contact;
                 this.cancelarVisible = true;
-            },
-
-            registrarSesion(contact) {
-                this.registrarContact = contact;
-                window.location.href = '/salvia/psicosocial/registrar/' + this.remisionID;
             },
 
             async confirmarCancelacion() {

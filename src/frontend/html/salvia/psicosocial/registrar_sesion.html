@@ -973,7 +973,11 @@
 
             async loadPsicosocial() {
                 try {
-                    const url  = `/api/v1/psychosocial-support/${this.psicosocialId}/load?agent_id=${this.userICode}`;
+                    const contactId = new URLSearchParams(window.location.search).get('contactId');
+                    let url = `/api/v1/psychosocial-support/${this.psicosocialId}/load?agent_id=${this.userICode}`;
+                    if (contactId) {
+                        url += `&contact_id=${encodeURIComponent(contactId)}`;
+                    }
                     const res  = await fetch(url);
                     const data = await res.json();
                     if (!res.ok) {
@@ -990,7 +994,7 @@
                     // loadLocations() puede haber poblado en paralelo (ambas se disparan juntas
                     // en mounted() y no hay orden garantizado de resolución).
                     this.formState        = { ...this.formState, ...(data.formState || {}) };
-                    this.canEdit          = data.psicosocialState.status !== 'cerrado';
+                    this.canEdit          = data.canEdit === true;
                     console.log('[PSICO] Datos cargados:', data);
                     console.log('[PSICO] caseICode:', this.caseICode);
                 } catch (e) {

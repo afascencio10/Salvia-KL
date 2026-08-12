@@ -35,6 +35,12 @@ Cambios alineados al diagrama de lógica de negocio (barreras = form Seguimiento
 `{descripción} (Fecha de los hechos: YYYY-MM-DD)`.  
 `Date` del evento no cambia. Ver `flow-E02`.
 
+### Ver sesión — respuestas en solo lectura
+
+"Ver sesión" en detalle de remisión pasa `?contactId=` al registrar. `LoadSession` carga ese
+`team_contact` + su `form_submission` (answers previas) y devuelve `canEdit: false` si el
+contacto está completado. Ver `flow-E01`.
+
 ### Archivos principales
 
 | Área | Archivos |

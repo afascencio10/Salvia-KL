@@ -116,20 +116,28 @@ func (c *PsychosocialDetailController) CancelContact(ctx *gin.Context) {
 // LoadSession carga la pantalla "Registrar Sesión Psicosocial" — evento E-01:
 // selecciona el formulario según el estado del proceso, resuelve el team_contact
 // y form_submission activos, y retorna la info de la víctima.
-// GET /api/v1/psychosocial-support/:id/load?agent_id=...
+// GET /api/v1/psychosocial-support/:id/load?agent_id=...&contact_id=... (contact_id opcional)
 func (c *PsychosocialDetailController) LoadSession(ctx *gin.Context) {
 	id := ctx.Param("id")
 	agentID := ctx.Query("agent_id")
+	contactID := ctx.Query("contact_id")
+	if contactID == "" {
+		contactID = ctx.Query("contactId")
+	}
 	if id == "" || agentID == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "id y agent_id son requeridos"})
 		return
 	}
 
-	result, err := c.svc.LoadSession(ctx.Request.Context(), id, agentID)
+	result, err := c.svc.LoadSession(ctx.Request.Context(), id, agentID, contactID)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrPsicosocialSessionNotFound):
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "remisión psicosocial no encontrada"})
+		case errors.Is(err, service.ErrPsicosocialContactNotFound):
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "contacto de sesión no encontrado"})
+		case errors.Is(err, service.ErrPsicosocialContactNoSubmission):
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "la sesión no tiene formulario asociado"})
 		case errors.Is(err, service.ErrPsicosocialSessionNotAssigned):
 			ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		default:
