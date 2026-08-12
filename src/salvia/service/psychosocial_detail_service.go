@@ -279,7 +279,7 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 			IsPsicoSession: c.IsPsicoSession,
 			Status:         c.Status,
 			Summary:        c.Summary,
-			CreatedAt:      c.CreatedAt.Format("2006-01-02 15:04"),
+			CreatedAt:      formatContactDateTimeUTC(c.CreatedAt),
 		}
 		if c.ScheduledDate != nil {
 			d := c.ScheduledDate.Format("2006-01-02")
@@ -289,7 +289,7 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 			item.ScheduledTime = c.ScheduledTime
 		}
 		if c.CompletedAt != nil {
-			d := c.CompletedAt.Format("2006-01-02 15:04")
+			d := formatContactDateTimeUTC(*c.CompletedAt)
 			item.CompletedAt = &d
 		}
 		resp.Contacts = append(resp.Contacts, item)
@@ -812,4 +812,10 @@ func (s *psychosocialDetailService) CheckSessionAvailability(ctx context.Context
 
 	ok, msg := evaluatePsicosocialAvailability(contacts, &ps, hora, mode, psychID, swID)
 	return ok, msg, nil
+}
+
+// formatContactDateTimeUTC serializa un instante como RFC3339 en UTC para que el
+// frontend lo muestre en America/Bogota sin ambigüedad de zona.
+func formatContactDateTimeUTC(t time.Time) string {
+	return t.UTC().Format(time.RFC3339)
 }

@@ -175,8 +175,7 @@
                         </div>
                         <div>
                             <div style="font-size:.72rem;color:#9ca3af;margin-bottom:3px">
-                                ${ contact.scheduledDate || contact.createdAt }
-                                <span v-if="contact.scheduledTime"> · ${ contact.scheduledTime }</span>
+                                ${ fechaContacto(contact) }
                             </div>
                             <div style="font-size:.88rem;font-weight:700;color:#111827" :style="contact.status === 'cancelada' ? 'text-decoration:line-through;color:#9ca3af' : ''">
                                 <span v-if="contact.status === 'cancelada'">Sesión ${ contarSesionesHasta(idx) } cancelada</span>
@@ -377,6 +376,49 @@
                     case 'cerrado': return { background: '#f3f4f6', color: '#6b7280', border: '1px solid #e5e7eb' };
                     default: return { background: '#f3f4f6', color: '#6b7280', border: '1px solid #e5e7eb' };
                 }
+            },
+
+            fechaContacto(contact) {
+                if (contact.isCompleted && contact.completedAt) {
+                    return this.formatearFechaHoraColombia(contact.completedAt);
+                }
+                if (contact.scheduledDate) {
+                    if (contact.scheduledTime) {
+                        return contact.scheduledDate + ' · ' + contact.scheduledTime;
+                    }
+                    return contact.scheduledDate;
+                }
+                return this.formatearFechaHoraColombia(contact.createdAt || '');
+            },
+
+            // Fechas con hora (completedAt / createdAt) se muestran en America/Bogota.
+            // scheduledDate + scheduledTime no se convierten: son hora local de agendamiento.
+            formatearFechaHoraColombia(value) {
+                if (!value) return '';
+                var s = String(value).trim();
+                if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+                var normalized = s;
+                if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(s) && !/[zZ]|[+-]\d{2}:\d{2}$/.test(s)) {
+                    normalized = s.replace(' ', 'T');
+                    if (normalized.indexOf('T') !== -1 && !/[zZ]|[+-]\d{2}:\d{2}$/.test(normalized)) {
+                        normalized += 'Z';
+                    }
+                }
+                var d = new Date(normalized);
+                if (isNaN(d.getTime())) return s;
+                var parts = new Intl.DateTimeFormat('en-CA', {
+                    timeZone: 'America/Bogota',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                    hourCycle: 'h23'
+                }).formatToParts(d);
+                var map = {};
+                parts.forEach(function(p) { map[p.type] = p.value; });
+                return map.year + '-' + map.month + '-' + map.day + ' ' + map.hour + ':' + map.minute;
             },
 
             labelSessionType(type) {
