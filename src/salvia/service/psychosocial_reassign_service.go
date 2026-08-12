@@ -56,6 +56,7 @@ type PsychosocialReassignBulkResult struct {
 	OK                  bool  `json:"ok"`
 	RemisionesUpdated   int   `json:"remisiones_updated"`
 	TeamContactsUpdated int64 `json:"team_contacts_updated"`
+	CaseTasksUpdated    int64 `json:"case_tasks_updated"`
 }
 
 // PsychosocialReassignService contrato RRM-03 y RRM-05.
@@ -139,6 +140,7 @@ func (s *psychosocialReassignService) ReassignBulk(ctx context.Context, input Ps
 
 	professionalID := strings.TrimSpace(input.ProfessionalID)
 	duplaID := strings.TrimSpace(input.DuplaID)
+	taskAssigneeID := ""
 
 	if assignMode == "professional" {
 		if professionalID == "" {
@@ -150,15 +152,21 @@ func (s *psychosocialReassignService) ReassignBulk(ctx context.Context, input Ps
 			}
 			return PsychosocialReassignBulkResult{}, err
 		}
+		taskAssigneeID = professionalID
 	} else {
 		if duplaID == "" {
 			return PsychosocialReassignBulkResult{}, errors.New("debe indicar una dupla")
 		}
-		if _, err := s.repo.FindDuplaForReassign(ctx, duplaID); err != nil {
+		dupla, err := s.repo.FindDuplaForReassign(ctx, duplaID)
+		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return PsychosocialReassignBulkResult{}, errors.New("dupla no encontrada o inactiva")
 			}
 			return PsychosocialReassignBulkResult{}, err
+		}
+		taskAssigneeID = strings.TrimSpace(dupla.PsychologistID)
+		if taskAssigneeID == "" {
+			return PsychosocialReassignBulkResult{}, errors.New("la dupla no tiene psicóloga asignada")
 		}
 	}
 
@@ -200,6 +208,11 @@ func (s *psychosocialReassignService) ReassignBulk(ctx context.Context, input Ps
 				}
 				result.TeamContactsUpdated += count
 			}
+			taskCount, err := txRepo.UpdatePendingCaseTasksAssignee(ctx, remisionID, taskAssigneeID)
+			if err != nil {
+				return err
+			}
+			result.CaseTasksUpdated += taskCount
 			result.RemisionesUpdated++
 		}
 		return nil
