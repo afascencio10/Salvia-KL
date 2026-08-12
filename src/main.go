@@ -185,7 +185,8 @@ func main() {
         FollowUpV2Svc:             followUpV2Svc,
         CaseTaskRepo:              caseTaskRepo,
         EntityLetterRepo:          entityLetterRepo,
-        TeamContactRepo:           teamContactRepo,
+		TeamContactRepo:           teamContactRepo,
+        DuplaRepo:                 duplaRepo,
         VictimCaseFormSvc:         victimCaseFormSvc,
     })
     caseDetailSvc         := service.NewCaseDetailService(caseDetailRepo, gormDB)

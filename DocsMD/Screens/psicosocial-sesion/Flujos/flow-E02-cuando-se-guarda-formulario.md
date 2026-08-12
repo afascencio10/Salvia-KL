@@ -1,15 +1,13 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando se guarda el formulario psicosocial
    Tipo: Frontend → Backend
-   Estado: IMPLEMENTADO (Jul 2026) — incluye creación de barrier_v2/case_task desde
-           "Identificación de Barreras" (sección 9) y resolución de "barreras activas" para
-           "Seguimiento a Barreras" vía barrier_v2.team_contact_id (sección 9.5).
-           ⚠️ REQUIERE ACCIÓN MANUAL: falta correr el ALTER TABLE de la columna
-           team_contact_id contra Supabase (ver sección 9.5) antes de poder guardar barreras.
-           Pendiente: actualizar/cerrar barreras desde "Seguimiento a Barreras" (sección 9.6).
-           Bug corregido: "Continuar Primera Atención = Sí" no completaba la sesión por un dato
-           de seed incorrecto (pregunta de Consentimiento como 'info' en vez de 'single' —
-           sección 10).
+   Estado: IMPLEMENTADO (Jul–Aug 2026) — incluye creación de barrier_v2/case_task desde
+           "Identificación de Barreras" (sección 9), resolución de barreras activas (§9.5),
+           Seguimiento a Barreras post-submit (§9.6), timeline de hechos, agenda condicional
+           con disponibilidad 2h, y consentimiento info+single con hide.
+           ⚠️ REQUIERE: ALTER barrier_v2.team_contact_id (si aún no) + migrate_psicosocial_aug2026.sql
+           Bug corregido Jul 2026: Consentimiento PC como 'info' (sección 10) — Aug 2026 vuelve
+           a usar info SOLO para el texto, con single aparte para Sí/No.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Equivalente psicosocial de `DocsMD/Screens/hacer-seguimiento/Flujos/flow-E04-cuando-se-procesa-submission.md`.
@@ -587,26 +585,23 @@ Hasta que se ejecute, `processPsicosocialBarrierEntries` va a fallar al crear cu
 (columna inexistente) — mismo síntoma que el error `column "form_id" of relation "team_contact"
 does not exist` que ya se vio antes con `team_contact`.
 
-## 9.6 Pendiente — actualizar/cerrar barreras desde "Seguimiento a Barreras"
+## 9.6 Seguimiento a Barreras — post-submit (Aug 2026, IMPLEMENTADO)
 
-Mostrar las barreras activas (9.5) resuelve la mitad del flujo. Falta el equivalente al PASO 3b
-de `processFollowUpSubmission`: cuando el agente responde el repeater "Seguimiento a Barreras"
-(¿persiste?, gestión, ¿se cierra?, motivo de cierre), hay que:
+Equivalente al PASO 3b de `processFollowUpSubmission`:
 
-- Relacionar cada entry del repeater con su `BarrierV2.ID` — como ahora `currentBarriers` ya
-  trae `{id, barrierName}` en el mismo orden en que se renderizan las entries (`stateItems`), la
-  relación por posición es directa (mismo mecanismo que `activeIDs[idx]` en
-  `processFollowUpSubmission`, pero ahora la fuente es `currentBarriers[idx].id` en vez de
-  `fu.ActiveBarrierIDs`).
-- Si `¿Se realiza cierre de la barrera? = true` → `BarrierV2Repository.UpdateStatus(ctx, id, MANAGED)`.
-- Crear un `BarrierFollowUp` (¿persiste?, respuesta institucional, gestión, actuaciones, cierre,
-  motivo) — el modelo ya existe (`internal/models/barrier_follow_up.go`), solo falta usarlo desde
-  el flujo psicosocial (usaría `FollowUpID: ps.FollowUpID`, igual criterio que 9.2).
-- Registrar un evento de timeline por cada seguimiento a barrera (igual que
-  `buildBarrierFollowUpSummary` en `processFollowUpSubmission`).
+- Relacionar cada entry del repeater con `BarrierV2.ID` por posición (`currentBarriers` / barreras activas vía `team_contact_id`).
+- Si `¿Se realiza cierre de la barrera? = true` → `UpdateStatus(..., MANAGED)`.
+- Crear `BarrierFollowUp` (`FollowUpID: ps.FollowUpID`).
+- Timeline “Seguimiento a Barrera” vía `buildBarrierFollowUpSummary`.
+- **No** crea `case_task` (paridad con hacer-seguimiento).
 
-No implementado todavía — queda para la siguiente iteración una vez validado el flujo de 9.5 en
-producción.
+IDs de preguntas del repeater se resuelven en runtime por `order` dentro del `repeater_group` (`FindByRepeaterGroupID`).
+
+### Aug 2026 — Hechos + Agenda
+
+- Si “Hay nuevos hechos de violencia” = true → `TimelineTypeHechosCaso`.
+- Agenda: solo si ¿Agendar nueva sesión? = Sí **y** hay Fecha+Hora **y** disponibilidad OK (2h). Si ocupado → no agenda; el form igual completa.
+- Endpoint live: `GET /api/v1/psychosocial-support/:id/availability?date=&time=&mode=`.
 
 ## 10. Bug corregido — "Continuar Primera Atención = Sí" no completaba la sesión (Jul 2026)
 

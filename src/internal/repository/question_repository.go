@@ -11,6 +11,9 @@ type QuestionRepository interface {
 	Repository[models.Question]
 	FindByFormID(ctx context.Context, formID string) ([]models.Question, error)
 	FindBySectionID(ctx context.Context, sectionID string) ([]models.Question, error)
+	// FindByRepeaterGroupID retorna las preguntas de un repeater group ordenadas por "order".
+	// Usado para resolver en runtime los IDs del repeater "Seguimiento a Barreras" (no hardcodeados).
+	FindByRepeaterGroupID(ctx context.Context, groupID string) ([]models.Question, error)
 }
 
 type questionRepository struct {
@@ -33,4 +36,12 @@ func (r *questionRepository) FindByFormID(ctx context.Context, formID string) ([
 func (r *questionRepository) FindBySectionID(ctx context.Context, sectionID string) ([]models.Question, error) {
 	var items []models.Question
 	return items, r.db.WithContext(ctx).Where("form_section_id = ?", sectionID).Order(`"order" ASC`).Find(&items).Error
+}
+
+func (r *questionRepository) FindByRepeaterGroupID(ctx context.Context, groupID string) ([]models.Question, error) {
+	var items []models.Question
+	return items, r.db.WithContext(ctx).
+		Where("repeater_group_id = ?", groupID).
+		Order(`"order" ASC`).
+		Find(&items).Error
 }

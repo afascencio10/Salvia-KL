@@ -85,6 +85,9 @@ type PsychosocialDetailService interface {
 	CancelContact(ctx context.Context, contactID string) error
 	UpdateSchedulePreference(ctx context.Context, psicosocialID, preference string) error
 	LoadSession(ctx context.Context, psicosocialID, agentID string) (*LoadPsicosocialSessionResult, error)
+	// CheckSessionAvailability valida si date+time (ventana 2h) está libre para el
+	// profesional o la dupla de la remisión. mode: "individual" | "dupla" (vacío = inferir).
+	CheckSessionAvailability(ctx context.Context, psicosocialID, date, timeStr, mode string) (available bool, message string, err error)
 }
 
 // ── Evento E-01: cargar pantalla "Registrar Sesión Psicosocial" ───────────────
@@ -758,4 +761,55 @@ func (s *psychosocialDetailService) UpdateSchedulePreference(ctx context.Context
 		Model(&models.PsychosocialSupport{}).
 		Where("id = ?", psicosocialID).
 		Update("schedule_preference", preference).Error
+}
+
+// CheckSessionAvailability GET /psychosocial-support/:id/availability
+// Valida si date (YYYY-MM-DD) + time (HH:MM) está libre en ventana de 2 horas
+// para el profesional (individual) o los miembros de la dupla.
+func (s *psychosocialDetailService) CheckSessionAvailability(ctx context.Context, psicosocialID, date, timeStr, mode string) (bool, string, error) {
+	var ps models.PsychosocialSupport
+	if err := s.db.WithContext(ctx).Where("id = ? AND deleted_at IS NULL", psicosocialID).First(&ps).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, "", ErrPsicosocialSessionNotFound
+		}
+		return false, "", err
+	}
+
+	fecha, err := parseAgendaDate(date)
+	if err != nil {
+		return false, "Fecha inválida; use formato YYYY-MM-DD", nil
+	}
+	hora := normalizeScheduledTime(timeStr)
+	if _, ok := parseTimeToMinutes(hora); !ok {
+		return false, "Hora inválida; use formato HH:MM", nil
+	}
+
+	day := fecha.Format("2006-01-02")
+	var contacts []models.TeamContact
+	if err := s.db.WithContext(ctx).
+		Where("scheduled_date IS NOT NULL AND (scheduled_date AT TIME ZONE 'UTC')::date = ?::date AND is_psico_session = true AND deleted_at IS NULL", day).
+		Find(&contacts).Error; err != nil {
+		return false, "", err
+	}
+
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if mode == "" {
+		if ps.DuplaID != nil && *ps.DuplaID != "" {
+			mode = "dupla"
+		} else {
+			mode = "individual"
+		}
+	}
+
+	var psychID, swID string
+	if mode == "dupla" && ps.DuplaID != nil && *ps.DuplaID != "" {
+		var dupla models.Dupla
+		if err := s.db.WithContext(ctx).Where("id = ? AND deleted_at IS NULL", *ps.DuplaID).First(&dupla).Error; err == nil {
+			psychID = dupla.PsychologistID
+			swID = dupla.SocialWorkerID
+		}
+	}
+
+	ok, msg := evaluatePsicosocialAvailability(contacts, &ps, hora, mode, psychID, swID)
+	return ok, msg, nil
 }
