@@ -123,7 +123,7 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 | 5 | Hay nuevos hechos de violencia | boolean | ✅ | *visible si Q2 = Sí* |
 | 6 | Descripción de los hechos | text | ❌ | *visible si Q5 = true* |
 | 7 | Fecha (de los hechos) | date | ❌ | *visible si Q5 = true* |
-| 8 | ¿Es atención o solo contacto? | multiple | ✅ | Atención / Solo Contacto — **gatillo de visibilidad de Sección 4** |
+| 8 | ¿Es atención o solo contacto? | single | ✅ | Atención / Solo Contacto — **gatillo de visibilidad de Sección 4** |
 | 9 | Observaciones del contacto | text | ❌ | Visible siempre |
 | 10 | ¿Agendar nueva sesión? | single | ✅ | Sí / No — *visible si Q8 = Solo Contacto* |
 | 11 | Fecha nueva | date | ❌ | *visible si Q10 = Sí* |
@@ -182,7 +182,7 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 | 6 | Hay nuevos hechos de violencia | boolean | ✅ | *visible si Q2 = Sí* |
 | 7 | Descripción de los hechos | text | ❌ | *visible si Q6 = true* |
 | 8 | Fecha (de los hechos) | date | ❌ | *visible si Q6 = true* |
-| 9 | ¿Es atención o solo contacto? | multiple | ✅ | Atención / Solo Contacto — **gatillo de visibilidad de Sección 4** |
+| 9 | ¿Es atención o solo contacto? | single | ✅ | Atención / Solo Contacto — **gatillo de visibilidad de Sección 4** |
 | 10 | Observaciones del contacto | text | ❌ | Visible siempre |
 | 11 | ¿Agendar nueva sesión? | single | ✅ | *visible si Q9 = Solo Contacto* |
 | 12 | Fecha nueva | date | ❌ | *visible si Q11 = Sí* |
@@ -233,7 +233,7 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 | 6 | Hay nuevos hechos de violencia | boolean | ✅ | *visible si Q2 = Sí* |
 | 7 | Descripción de los hechos | text | ❌ | *visible si Q6 = true* |
 | 8 | Fecha (de los hechos) | date | ❌ | *visible si Q6 = true* |
-| 9 | ¿Es atención o solo contacto? | multiple | ✅ | Atención / Solo Contacto — **gatillo de visibilidad de Sección 4** |
+| 9 | ¿Es atención o solo contacto? | single | ✅ | Atención / Solo Contacto — **gatillo de visibilidad de Sección 4** |
 | 10 | Observaciones del contacto | text | ❌ | Visible siempre |
 | 11 | ¿Agendar nueva sesión? | single | ✅ | *visible si Q9 = Solo Contacto* |
 | 12 | Fecha nueva | date | ❌ | *visible si Q11 = Sí* |

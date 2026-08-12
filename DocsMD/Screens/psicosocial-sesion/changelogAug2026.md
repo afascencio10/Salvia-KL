@@ -41,6 +41,12 @@ Cambios alineados al diagrama de lógica de negocio (barreras = form Seguimiento
 `team_contact` + su `form_submission` (answers previas) y devuelve `canEdit: false` si el
 contacto está completado. Ver `flow-E01`.
 
+### ¿Es atención o solo contacto? — exclusividad (single)
+
+La pregunta estaba tipada como `multiple` (PA / Atención Psicosocial / Cierre), permitiendo
+marcar ambas opciones. Pasa a `single`. Seed + migrate §4; answers CSV con ambos valores se
+normalizan a `solo_contacto`.
+
 ### Archivos principales
 
 | Área | Archivos |
