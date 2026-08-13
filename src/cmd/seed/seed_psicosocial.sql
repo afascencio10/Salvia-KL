@@ -48,6 +48,12 @@
 --     "Seguimiento (Cierre)" → "Atención Psicosocial (Cierre)". "Seguimiento a Barreras"
 --     NO se renombra en ningún formulario (nombre fijo de esa sección de barreras).
 --
+-- Ajustes Aug 2026 (diagrama):
+--   - Consentimiento PC/PA: info (texto) + single (Sí/No); hide posteriores si No
+--   - Agenda: ¿Agendar nueva sesión? + Fecha + Hora (UUIDs fijos en
+--     internal/constants/psicosocial_agenda_questions.go)
+--   - BD ya sembrada: aplicar también migrate_psicosocial_aug2026.sql
+--
 -- Formularios resultantes:
 --   Form 1 — Primer Contacto     (4 secciones: S1=14 preguntas, S2=Seguimiento a Barreras,
 --                                  S3=Identificación de Barreras, S4=12 preguntas condicional)
@@ -820,30 +826,38 @@ INSERT INTO salvia.question (id, form_id, form_section_id, question_type, descri
 VALUES (gen_random_uuid(), v_form_pc, v_pc_s1, 'boolean', 'Continuar Primera Atención', TRUE, 12)
 RETURNING id INTO v_pc_q12;
 
--- Q13: Fecha próxima atención  ← ÚLTIMA PREGUNTA DE S1
--- Visible cuando: Q5 = si (hay voluntariedad) AND Q12 = false (no continúa ahora)
--- Se inserta aquí para que DinamicForm evalúe la condición sobre Q12 antes de mostrarla.
--- Condición 1 — Q5 = si (voluntariedad)
+-- Q13–Q15: ¿Agendar? + Fecha + Hora (Aug 2026)
+-- Visible cuando: Q5 = si AND Q12 = false. Fecha/Hora solo si Agendar = si.
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_pc, v_pc_s1, 'date', 'Fecha próxima atención', TRUE, 13)
+VALUES ('a1000001-0000-4000-8000-000000000001', v_form_pc, v_pc_s1, 'single', '¿Agendar nueva sesión?', TRUE, 13);
+INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
+  (gen_random_uuid(), 'a1000001-0000-4000-8000-000000000001', 'Sí', 'si', 1),
+  (gen_random_uuid(), 'a1000001-0000-4000-8000-000000000001', 'No', 'no', 2);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', 'a1000001-0000-4000-8000-000000000001', v_pc_q5::varchar, 'si', 'EQUALS');
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', 'a1000001-0000-4000-8000-000000000001', v_pc_q12::varchar, 'false', 'EQUALS');
+
+INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+VALUES ('58ce2d34-24d2-4e73-bf95-26a2c608f8e6', v_form_pc, v_pc_s1, 'date', 'Fecha próxima atención', TRUE, 14)
 RETURNING id INTO v_pc_q13;
 INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
-VALUES (gen_random_uuid(), 'QUESTION', v_pc_q13::varchar, v_pc_q5::varchar, 'si', 'EQUALS');
--- Condición 2 — Q12 = false (no continúa con Primera Atención ahora)
-INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
-VALUES (gen_random_uuid(), 'QUESTION', v_pc_q13::varchar, v_pc_q12::varchar, 'false', 'EQUALS');
+VALUES (gen_random_uuid(), 'QUESTION', '58ce2d34-24d2-4e73-bf95-26a2c608f8e6', 'a1000001-0000-4000-8000-000000000001', 'si', 'EQUALS');
 
--- Q14: Desde la atención anterior se han identificado barreras institucionales
--- ← NUEVA (Jul 2026), ÚLTIMA pregunta de S1. Visible cuando Q12 = true (continúa la atención).
--- Gatillo de visibilidad de la Sección "Identificación de Barreras" (S3).
+INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+VALUES ('a2000001-0000-4000-8000-000000000001', v_form_pc, v_pc_s1, 'time', 'Hora próxima atención', TRUE, 15);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', 'a2000001-0000-4000-8000-000000000001', 'a1000001-0000-4000-8000-000000000001', 'si', 'EQUALS');
+
+-- Q16: Desde la atención anterior se han identificado barreras institucionales
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
 VALUES (gen_random_uuid(), v_form_pc, v_pc_s1, 'boolean',
-        'Desde la atención anterior se han identificado barreras institucionales', TRUE, 14)
+        'Desde la atención anterior se han identificado barreras institucionales', TRUE, 16)
 RETURNING id INTO v_pc_q14;
 INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
 VALUES (gen_random_uuid(), 'QUESTION', v_pc_q14::varchar, v_pc_q12::varchar, 'true', 'EQUALS');
 
-RAISE NOTICE 'Form PC S1 — preguntas insertadas. Gatillo Continuar (Q12): %, Fecha próxima (Q13): %, Barreras (Q14): %',
+RAISE NOTICE 'Form PC S1 — preguntas insertadas. Gatillo Continuar (Q12): %, Fecha próxima (Q14): %, Barreras (Q16): %',
              v_pc_q12, v_pc_q13, v_pc_q14;
 
 -- =============================================================================
@@ -862,14 +876,11 @@ RETURNING id INTO v_pc_a_q1;
 INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
 VALUES (gen_random_uuid(), 'QUESTION', v_pc_a_q1::varchar, v_pc_q3::varchar, 'si', 'EQUALS');
 
--- PC-A-Q2: Consentimiento Informado (texto largo + pregunta Sí/No)
--- (antes Q4 — Jul 2026: se eliminaron "¿Ajuste razonable?" y "¿Intérprete?", antes Q2/Q3)
--- BUG (corregido Jul 2026): estaba seedeada como 'info' (banner sin respuesta posible), lo que
--- hacía que resolvePsicosocialSessionType nunca detectara el consentimiento (answerMap siempre
--- vacío) y el flujo "Continuar Primera Atención = Sí" jamás marcara ya_hizo_primera_atencion ni
--- sumara session_count. Debe ser 'single' igual que su equivalente en Primera Atención (PA-A-Q2).
+-- PC-A-Q2: Consentimiento Informado — banner INFO (texto largo)
+-- PC-A-Q2b: ¿Acepta el consentimiento? — single Sí/No (alimenta resolvePsicosocialSessionType)
+-- Aug 2026: se separa info + single; Q3+ visibles solo si consentimiento = si.
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_pc, v_pc_s2, 'single',
+VALUES (gen_random_uuid(), v_form_pc, v_pc_s2, 'info',
         E'CONSENTIMIENTO/DESISTIMIENTO INFORMADO PARA LA ATENCIÓN PSICOSOCIAL EN LA LÍNEA 155\n\n'
         'Por medio de este documento se establecen los términos de confidencialidad, los riesgos, las excepciones de esta y los derechos de la persona usuaria durante las conversaciones que se sostengan en el marco de la atención psicosocial telefónica de la Línea 155 SALVIA.\n\n'
         '1) Es un espacio individual gratuito que tiene como objetivo propiciar una reflexión sobre las violencias que enfrentan las mujeres y personas no binarias.\n'
@@ -879,47 +890,56 @@ VALUES (gen_random_uuid(), v_form_pc, v_pc_s2, 'single',
         '5) Durante las sesiones se realizarán preguntas que nos permitan identificar sus necesidades.\n'
         '6) Se realizará un máximo de cuatro sesiones de atención psicosocial telefónica de una hora c/u.\n'
         '7) La información que brinde se usará para hacer seguimiento a su proceso.\n'
-        '8) De acuerdo con la Ley 1090 de 2006 y Ley 53 de 1977, la información podrá ser compartida en casos judiciales o de riesgo inminente.\n\n'
-        '¿Manifiesta que ha entendido la información y acepta participar en el proceso de atención psicosocial?',
-        TRUE, 2)
+        '8) De acuerdo con la Ley 1090 de 2006 y Ley 53 de 1977, la información podrá ser compartida en casos judiciales o de riesgo inminente.',
+        FALSE, 2);
+
+INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+VALUES ('c3296c87-d7e3-4ea1-8a0f-cbf77c561d0f'::uuid, v_form_pc, v_pc_s2, 'single',
+        '¿Acepta el consentimiento informado para la atención psicosocial?',
+        TRUE, 3)
 RETURNING id INTO v_pc_a_q2;
 INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
   (gen_random_uuid(), v_pc_a_q2, 'Sí', 'si', 1),
   (gen_random_uuid(), v_pc_a_q2, 'No', 'no', 2);
 
--- PC-A-Q3: Consentimiento persona de apoyo (antes Q5)
--- Jul 2026: ya NO depende de "¿Intérprete?" (pregunta eliminada) — ahora siempre visible.
+-- PC-A-Q3: Consentimiento persona de apoyo (antes Q5) — visible si consentimiento = si
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
 VALUES (gen_random_uuid(), v_form_pc, v_pc_s2, 'single',
         'Confirmación consentimiento persona de apoyo: ¿Acepta usted, como persona de apoyo, los mismos términos de confidencialidad y reserva descritos en este documento?',
-        TRUE, 3)
+        TRUE, 4)
 RETURNING id INTO v_pc_a_q3;
 INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
   (gen_random_uuid(), v_pc_a_q3, 'Sí', 'si', 1),
   (gen_random_uuid(), v_pc_a_q3, 'No', 'no', 2);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', v_pc_a_q3::varchar, v_pc_a_q2::varchar, 'si', 'EQUALS');
 
--- PC-A-Q4: Consentimiento contacto posterior para calidad (antes Q6)
+-- PC-A-Q4: Consentimiento contacto posterior para calidad
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
 VALUES (gen_random_uuid(), v_form_pc, v_pc_s2, 'single',
         '¿La persona da su consentimiento para ser contactada de manera posterior con fin de evaluar la calidad del servicio?',
-        TRUE, 4)
+        TRUE, 5)
 RETURNING id INTO v_pc_a_q4;
 INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
   (gen_random_uuid(), v_pc_a_q4, 'Sí', 'si', 1),
   (gen_random_uuid(), v_pc_a_q4, 'No', 'no', 2);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', v_pc_a_q4::varchar, v_pc_a_q2::varchar, 'si', 'EQUALS');
 
--- PC-A-Q5: Conducta suicida (antes Q7)
+-- PC-A-Q5: Conducta suicida
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
 VALUES (gen_random_uuid(), v_form_pc, v_pc_s2, 'single',
-        'Ingresa por conducta suicida asociada a VBG o VpP', TRUE, 5)
+        'Ingresa por conducta suicida asociada a VBG o VpP', TRUE, 6)
 RETURNING id INTO v_pc_a_q5;
 INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
   (gen_random_uuid(), v_pc_a_q5, 'Sí', 'si', 1),
   (gen_random_uuid(), v_pc_a_q5, 'No', 'no', 2);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', v_pc_a_q5::varchar, v_pc_a_q2::varchar, 'si', 'EQUALS');
 
--- PC-A-Q6: Tipo de conducta suicida  [visible: Q5 = si]  (antes Q8)
+-- PC-A-Q6: Tipo de conducta suicida  [visible: Q5 = si]
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_pc, v_pc_s2, 'single', 'Tipo de conducta suicida', FALSE, 6)
+VALUES (gen_random_uuid(), v_form_pc, v_pc_s2, 'single', 'Tipo de conducta suicida', FALSE, 7)
 RETURNING id INTO v_pc_a_q6;
 INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
   (gen_random_uuid(), v_pc_a_q6, 'Ideación', 'ideacion', 1),
@@ -928,14 +948,16 @@ INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
 INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
 VALUES (gen_random_uuid(), 'QUESTION', v_pc_a_q6::varchar, v_pc_a_q5::varchar, 'si', 'EQUALS');
 
--- PC-A-Q7: Contenido de la atención (antes Q9)
+-- PC-A-Q7: Contenido de la atención
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_pc, v_pc_s2, 'text', 'Contenido de la atención', TRUE, 7)
+VALUES (gen_random_uuid(), v_form_pc, v_pc_s2, 'text', 'Contenido de la atención', TRUE, 8)
 RETURNING id INTO v_pc_a_q7;
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', v_pc_a_q7::varchar, v_pc_a_q2::varchar, 'si', 'EQUALS');
 
--- PC-A-Q8: Plan de orientación (antes Q10)
+-- PC-A-Q8: Plan de orientación
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_pc, v_pc_s2, 'multiple', 'Plan de orientación', FALSE, 8)
+VALUES (gen_random_uuid(), v_form_pc, v_pc_s2, 'multiple', 'Plan de orientación', FALSE, 9)
 RETURNING id INTO v_pc_a_q8;
 INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
   (gen_random_uuid(), v_pc_a_q8, 'Enrutamiento',          'enrutamiento',       1),
@@ -943,28 +965,51 @@ INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
   (gen_random_uuid(), v_pc_a_q8, 'Seguimiento',           'seguimiento',        3),
   (gen_random_uuid(), v_pc_a_q8, 'Medidas de emergencia', 'medidas_emergencia', 4),
   (gen_random_uuid(), v_pc_a_q8, 'Plan de estabilización','plan_estabilizacion',5);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', v_pc_a_q8::varchar, v_pc_a_q2::varchar, 'si', 'EQUALS');
 
--- PC-A-Q9: Plan de trabajo y recomendaciones (antes Q11)
+-- PC-A-Q9: Plan de trabajo y recomendaciones
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_pc, v_pc_s2, 'text', 'Plan de trabajo y recomendaciones', TRUE, 9)
+VALUES (gen_random_uuid(), v_form_pc, v_pc_s2, 'text', 'Plan de trabajo y recomendaciones', TRUE, 10)
 RETURNING id INTO v_pc_a_q9;
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', v_pc_a_q9::varchar, v_pc_a_q2::varchar, 'si', 'EQUALS');
 
--- PC-A-Q10: Compromisos (antes Q12)
+-- PC-A-Q10: Compromisos
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_pc, v_pc_s2, 'text', 'Compromisos', TRUE, 10)
+VALUES (gen_random_uuid(), v_form_pc, v_pc_s2, 'text', 'Compromisos', TRUE, 11)
 RETURNING id INTO v_pc_a_q10;
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', v_pc_a_q10::varchar, v_pc_a_q2::varchar, 'si', 'EQUALS');
 
--- PC-A-Q11: Fecha próxima atención (movida aquí desde S1 cuando Continuar = Sí) (antes Q13)
+-- PC-A: ¿Agendar nueva sesión? + Fecha + Hora (UUIDs fijos Aug 2026)
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_pc, v_pc_s2, 'date', 'Fecha próxima atención', TRUE, 11)
+VALUES ('a1000002-0000-4000-8000-000000000002'::uuid, v_form_pc, v_pc_s2, 'single', '¿Agendar nueva sesión?', TRUE, 12);
+INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
+  (gen_random_uuid(), 'a1000002-0000-4000-8000-000000000002'::uuid, 'Sí', 'si', 1),
+  (gen_random_uuid(), 'a1000002-0000-4000-8000-000000000002'::uuid, 'No', 'no', 2);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', 'a1000002-0000-4000-8000-000000000002', v_pc_a_q2::varchar, 'si', 'EQUALS');
+
+INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+VALUES ('fd2fb664-de83-4069-a161-6348dfef48bf'::uuid, v_form_pc, v_pc_s2, 'date', 'Fecha próxima atención', TRUE, 13)
 RETURNING id INTO v_pc_a_q11;
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', 'fd2fb664-de83-4069-a161-6348dfef48bf', 'a1000002-0000-4000-8000-000000000002', 'si', 'EQUALS');
 
--- PC-A-Q12: Observaciones (antes Q14)
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_pc, v_pc_s2, 'text', 'Observaciones', FALSE, 12)
-RETURNING id INTO v_pc_a_q12;
+VALUES ('a2000002-0000-4000-8000-000000000002'::uuid, v_form_pc, v_pc_s2, 'time', 'Hora próxima atención', TRUE, 14);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', 'a2000002-0000-4000-8000-000000000002', 'a1000002-0000-4000-8000-000000000002', 'si', 'EQUALS');
 
-RAISE NOTICE 'Form PC S4 — preguntas insertadas (12 preguntas de Primera Atención; -2 Jul 2026: ajuste razonable/intérprete eliminadas).';
+-- PC-A observaciones
+INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+VALUES (gen_random_uuid(), v_form_pc, v_pc_s2, 'text', 'Observaciones', FALSE, 15)
+RETURNING id INTO v_pc_a_q12;
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', v_pc_a_q12::varchar, v_pc_a_q2::varchar, 'si', 'EQUALS');
+
+RAISE NOTICE 'Form PC S4 — preguntas insertadas (consentimiento info+single, agenda condicional Aug 2026).';
 
 -- =============================================================================
 -- 5. FORM 2 — PRIMERA ATENCIÓN
@@ -1031,7 +1076,7 @@ VALUES (gen_random_uuid(), 'QUESTION', v_pa_c_q7::varchar, v_pa_c_q5::varchar, '
 
 -- PA-C-Q8: ¿Es atención o solo contacto?
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_pa, v_pa_s1, 'multiple', '¿Es atención o solo contacto?', TRUE, 8)
+VALUES (gen_random_uuid(), v_form_pa, v_pa_s1, 'single', '¿Es atención o solo contacto?', TRUE, 8)
 RETURNING id INTO v_pa_c_q8;
 INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
   (gen_random_uuid(), v_pa_c_q8, 'Atención',      'atencion',      1),
@@ -1042,19 +1087,30 @@ INSERT INTO salvia.question (id, form_id, form_section_id, question_type, descri
 VALUES (gen_random_uuid(), v_form_pa, v_pa_s1, 'text', 'Observaciones del contacto', FALSE, 9)
 RETURNING id INTO v_pa_c_q9;
 
--- PA-C-Q10: Fecha nueva  [visible: Q8 = solo_contacto]
+-- PA-C: ¿Agendar? + Fecha nueva + Hora [visible: Q8 = solo_contacto]
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_pa, v_pa_s1, 'date', 'Fecha nueva', FALSE, 10)
+VALUES ('a1000003-0000-4000-8000-000000000003', v_form_pa, v_pa_s1, 'single', '¿Agendar nueva sesión?', TRUE, 10);
+INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
+  (gen_random_uuid(), 'a1000003-0000-4000-8000-000000000003', 'Sí', 'si', 1),
+  (gen_random_uuid(), 'a1000003-0000-4000-8000-000000000003', 'No', 'no', 2);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', 'a1000003-0000-4000-8000-000000000003', v_pa_c_q8::varchar, 'solo_contacto', 'EQUALS');
+
+INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+VALUES ('64d63b79-edee-464b-be56-1104efd31a46', v_form_pa, v_pa_s1, 'date', 'Fecha nueva', FALSE, 11)
 RETURNING id INTO v_pa_c_q10;
 INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
-VALUES (gen_random_uuid(), 'QUESTION', v_pa_c_q10::varchar, v_pa_c_q8::varchar, 'solo_contacto', 'EQUALS');
+VALUES (gen_random_uuid(), 'QUESTION', '64d63b79-edee-464b-be56-1104efd31a46', 'a1000003-0000-4000-8000-000000000003', 'si', 'EQUALS');
 
--- PA-C-Q11: Desde la atención anterior se han identificado barreras institucionales
--- ← NUEVA (Jul 2026), ÚLTIMA pregunta de S1. Visible cuando Q8 = atencion.
--- Gatillo de visibilidad de la Sección "Identificación de Barreras" (S3).
+INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+VALUES ('a2000003-0000-4000-8000-000000000003', v_form_pa, v_pa_s1, 'time', 'Hora próxima atención', TRUE, 12);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', 'a2000003-0000-4000-8000-000000000003', 'a1000003-0000-4000-8000-000000000003', 'si', 'EQUALS');
+
+-- PA-C-Q13: Desde la atención anterior...
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
 VALUES (gen_random_uuid(), v_form_pa, v_pa_s1, 'boolean',
-        'Desde la atención anterior se han identificado barreras institucionales', TRUE, 11)
+        'Desde la atención anterior se han identificado barreras institucionales', TRUE, 13)
 RETURNING id INTO v_pa_c_q11;
 INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
 VALUES (gen_random_uuid(), 'QUESTION', v_pa_c_q11::varchar, v_pa_c_q8::varchar, 'atencion', 'EQUALS');
@@ -1069,10 +1125,9 @@ RETURNING id INTO v_pa_a_q1;
 INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
 VALUES (gen_random_uuid(), 'QUESTION', v_pa_a_q1::varchar, v_pa_c_q4::varchar, 'si', 'EQUALS');
 
--- PA-A-Q2: Consentimiento Informado (texto largo)
--- (antes Q4 — Jul 2026: se eliminaron "¿Ajuste razonable?" y "¿Intérprete?", antes Q2/Q3)
+-- PA-A-Q2: Consentimiento — banner INFO + single (Aug 2026)
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_pa, v_pa_s2, 'single',
+VALUES (gen_random_uuid(), v_form_pa, v_pa_s2, 'info',
         E'CONSENTIMIENTO/DESISTIMIENTO INFORMADO PARA LA ATENCIÓN PSICOSOCIAL EN LA LÍNEA 155\n\n'
         'Por medio de este documento se establecen los términos de confidencialidad, los riesgos, las excepciones de esta y los derechos de la persona usuaria durante las conversaciones que se sostengan en el marco de la atención psicosocial telefónica de la Línea 155 SALVIA.\n\n'
         '1) Es un espacio individual gratuito que tiene como objetivo propiciar una reflexión sobre las violencias que enfrentan las mujeres y personas no binarias.\n'
@@ -1082,47 +1137,51 @@ VALUES (gen_random_uuid(), v_form_pa, v_pa_s2, 'single',
         '5) Durante las sesiones se realizarán preguntas que nos permitan identificar sus necesidades.\n'
         '6) Se realizará un máximo de cuatro sesiones de atención psicosocial telefónica de una hora c/u.\n'
         '7) La información que brinde se usará para hacer seguimiento a su proceso.\n'
-        '8) De acuerdo con la Ley 1090 de 2006 y Ley 53 de 1977, la información podrá ser compartida en casos judiciales o de riesgo inminente.\n\n'
-        '¿Manifiesta que ha entendido la información y acepta participar en el proceso de atención psicosocial?',
-        TRUE, 2)
+        '8) De acuerdo con la Ley 1090 de 2006 y Ley 53 de 1977, la información podrá ser compartida en casos judiciales o de riesgo inminente.',
+        FALSE, 2);
+
+INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+VALUES ('7256b91e-861b-48b3-9216-2ac13f0ae889', v_form_pa, v_pa_s2, 'single',
+        '¿Acepta el consentimiento informado para la atención psicosocial?', TRUE, 3)
 RETURNING id INTO v_pa_a_q2;
 INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
   (gen_random_uuid(), v_pa_a_q2, 'Sí', 'si', 1),
   (gen_random_uuid(), v_pa_a_q2, 'No', 'no', 2);
 
--- PA-A-Q3: Consentimiento persona de apoyo (antes Q5)
--- Jul 2026: ya NO depende de "¿Intérprete?" (pregunta eliminada) — ahora siempre visible.
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
 VALUES (gen_random_uuid(), v_form_pa, v_pa_s2, 'single',
         'Confirmación consentimiento persona de apoyo: ¿Acepta usted, como persona de apoyo, los mismos términos de confidencialidad y reserva descritos en este documento?',
-        TRUE, 3)
+        TRUE, 4)
 RETURNING id INTO v_pa_a_q3;
 INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
   (gen_random_uuid(), v_pa_a_q3, 'Sí', 'si', 1),
   (gen_random_uuid(), v_pa_a_q3, 'No', 'no', 2);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', v_pa_a_q3::varchar, v_pa_a_q2::varchar, 'si', 'EQUALS');
 
--- PA-A-Q4: Consentimiento contacto posterior para calidad (antes Q6)
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
 VALUES (gen_random_uuid(), v_form_pa, v_pa_s2, 'single',
         '¿La persona da su consentimiento para ser contactada de manera posterior con fin de evaluar la calidad del servicio?',
-        TRUE, 4)
+        TRUE, 5)
 RETURNING id INTO v_pa_a_q4;
 INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
   (gen_random_uuid(), v_pa_a_q4, 'Sí', 'si', 1),
   (gen_random_uuid(), v_pa_a_q4, 'No', 'no', 2);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', v_pa_a_q4::varchar, v_pa_a_q2::varchar, 'si', 'EQUALS');
 
--- PA-A-Q5: Conducta suicida (antes Q7)
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
 VALUES (gen_random_uuid(), v_form_pa, v_pa_s2, 'single',
-        'Ingresa por conducta suicida asociada a VBG o VpP', TRUE, 5)
+        'Ingresa por conducta suicida asociada a VBG o VpP', TRUE, 6)
 RETURNING id INTO v_pa_a_q5;
 INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
   (gen_random_uuid(), v_pa_a_q5, 'Sí', 'si', 1),
   (gen_random_uuid(), v_pa_a_q5, 'No', 'no', 2);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', v_pa_a_q5::varchar, v_pa_a_q2::varchar, 'si', 'EQUALS');
 
--- PA-A-Q6: Tipo de conducta suicida  [visible: Q5 = si]  (antes Q8)
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_pa, v_pa_s2, 'single', 'Tipo de conducta suicida', FALSE, 6)
+VALUES (gen_random_uuid(), v_form_pa, v_pa_s2, 'single', 'Tipo de conducta suicida', FALSE, 7)
 RETURNING id INTO v_pa_a_q6;
 INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
   (gen_random_uuid(), v_pa_a_q6, 'Ideación', 'ideacion', 1),
@@ -1131,14 +1190,14 @@ INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
 INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
 VALUES (gen_random_uuid(), 'QUESTION', v_pa_a_q6::varchar, v_pa_a_q5::varchar, 'si', 'EQUALS');
 
--- PA-A-Q7: Contenido de la atención (antes Q9)
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_pa, v_pa_s2, 'text', 'Contenido de la atención', TRUE, 7)
+VALUES (gen_random_uuid(), v_form_pa, v_pa_s2, 'text', 'Contenido de la atención', TRUE, 8)
 RETURNING id INTO v_pa_a_q7;
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', v_pa_a_q7::varchar, v_pa_a_q2::varchar, 'si', 'EQUALS');
 
--- PA-A-Q8: Plan de orientación (antes Q10)
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_pa, v_pa_s2, 'multiple', 'Plan de orientación', FALSE, 8)
+VALUES (gen_random_uuid(), v_form_pa, v_pa_s2, 'multiple', 'Plan de orientación', FALSE, 9)
 RETURNING id INTO v_pa_a_q8;
 INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
   (gen_random_uuid(), v_pa_a_q8, 'Enrutamiento',          'enrutamiento',       1),
@@ -1146,28 +1205,47 @@ INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
   (gen_random_uuid(), v_pa_a_q8, 'Seguimiento',           'seguimiento',        3),
   (gen_random_uuid(), v_pa_a_q8, 'Medidas de emergencia', 'medidas_emergencia', 4),
   (gen_random_uuid(), v_pa_a_q8, 'Plan de estabilización','plan_estabilizacion',5);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', v_pa_a_q8::varchar, v_pa_a_q2::varchar, 'si', 'EQUALS');
 
--- PA-A-Q9: Plan de trabajo y recomendaciones (antes Q11)
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_pa, v_pa_s2, 'text', 'Plan de trabajo y recomendaciones', TRUE, 9)
+VALUES (gen_random_uuid(), v_form_pa, v_pa_s2, 'text', 'Plan de trabajo y recomendaciones', TRUE, 10)
 RETURNING id INTO v_pa_a_q9;
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', v_pa_a_q9::varchar, v_pa_a_q2::varchar, 'si', 'EQUALS');
 
--- PA-A-Q10: Compromisos (antes Q12)
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_pa, v_pa_s2, 'text', 'Compromisos', TRUE, 10)
+VALUES (gen_random_uuid(), v_form_pa, v_pa_s2, 'text', 'Compromisos', TRUE, 11)
 RETURNING id INTO v_pa_a_q10;
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', v_pa_a_q10::varchar, v_pa_a_q2::varchar, 'si', 'EQUALS');
 
--- PA-A-Q11: Fecha próxima atención (antes Q13)
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_pa, v_pa_s2, 'date', 'Fecha próxima atención', TRUE, 11)
+VALUES ('a1000004-0000-4000-8000-000000000004', v_form_pa, v_pa_s2, 'single', '¿Agendar nueva sesión?', TRUE, 12);
+INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
+  (gen_random_uuid(), 'a1000004-0000-4000-8000-000000000004', 'Sí', 'si', 1),
+  (gen_random_uuid(), 'a1000004-0000-4000-8000-000000000004', 'No', 'no', 2);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', 'a1000004-0000-4000-8000-000000000004', v_pa_a_q2::varchar, 'si', 'EQUALS');
+
+INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+VALUES ('d68c7334-74bb-47b1-a2ee-f1d3da04627b', v_form_pa, v_pa_s2, 'date', 'Fecha próxima atención', TRUE, 13)
 RETURNING id INTO v_pa_a_q11;
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', 'd68c7334-74bb-47b1-a2ee-f1d3da04627b', 'a1000004-0000-4000-8000-000000000004', 'si', 'EQUALS');
 
--- PA-A-Q12: Observaciones (antes Q14)
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_pa, v_pa_s2, 'text', 'Observaciones', FALSE, 12)
-RETURNING id INTO v_pa_a_q12;
+VALUES ('a2000004-0000-4000-8000-000000000004', v_form_pa, v_pa_s2, 'time', 'Hora próxima atención', TRUE, 14);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', 'a2000004-0000-4000-8000-000000000004', 'a1000004-0000-4000-8000-000000000004', 'si', 'EQUALS');
 
-RAISE NOTICE 'Form PA S4 — preguntas insertadas (12 preguntas; -2 Jul 2026: ajuste razonable/intérprete eliminadas).';
+INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+VALUES (gen_random_uuid(), v_form_pa, v_pa_s2, 'text', 'Observaciones', FALSE, 15)
+RETURNING id INTO v_pa_a_q12;
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', v_pa_a_q12::varchar, v_pa_a_q2::varchar, 'si', 'EQUALS');
+
+RAISE NOTICE 'Form PA S4 — consentimiento info+single + agenda Aug 2026.';
 
 -- =============================================================================
 -- 6. FORM 3 — ATENCIÓN PSICOSOCIAL (antes "SEGUIMIENTO")
@@ -1234,7 +1312,7 @@ INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_que
 VALUES (gen_random_uuid(), 'QUESTION', v_seg_c_q8::varchar, v_seg_c_q6::varchar, 'true', 'EQUALS');
 
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_seg, v_seg_s1, 'multiple', '¿Es atención o solo contacto?', TRUE, 9)
+VALUES (gen_random_uuid(), v_form_seg, v_seg_s1, 'single', '¿Es atención o solo contacto?', TRUE, 9)
 RETURNING id INTO v_seg_c_q9;
 INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
   (gen_random_uuid(), v_seg_c_q9, 'Atención',      'atencion',      1),
@@ -1245,17 +1323,28 @@ VALUES (gen_random_uuid(), v_form_seg, v_seg_s1, 'text', 'Observaciones del cont
 RETURNING id INTO v_seg_c_q10;
 
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_seg, v_seg_s1, 'date', 'Fecha nueva', FALSE, 11)
+VALUES ('a1000005-0000-4000-8000-000000000005', v_form_seg, v_seg_s1, 'single', '¿Agendar nueva sesión?', TRUE, 11);
+INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
+  (gen_random_uuid(), 'a1000005-0000-4000-8000-000000000005', 'Sí', 'si', 1),
+  (gen_random_uuid(), 'a1000005-0000-4000-8000-000000000005', 'No', 'no', 2);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', 'a1000005-0000-4000-8000-000000000005', v_seg_c_q9::varchar, 'solo_contacto', 'EQUALS');
+
+INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+VALUES ('72ce49d2-f853-4f4a-9f1a-f795f4d514c3', v_form_seg, v_seg_s1, 'date', 'Fecha nueva', FALSE, 12)
 RETURNING id INTO v_seg_c_q11;
 INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
-VALUES (gen_random_uuid(), 'QUESTION', v_seg_c_q11::varchar, v_seg_c_q9::varchar, 'solo_contacto', 'EQUALS');
+VALUES (gen_random_uuid(), 'QUESTION', '72ce49d2-f853-4f4a-9f1a-f795f4d514c3', 'a1000005-0000-4000-8000-000000000005', 'si', 'EQUALS');
 
--- SEG-C-Q12: Desde la atención anterior se han identificado barreras institucionales
--- ← ÚLTIMA pregunta de S1 (antes Q11). Visible cuando Q9 = atencion.
--- Gatillo de visibilidad de la Sección "Identificación de Barreras" (S3).
+INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+VALUES ('a2000005-0000-4000-8000-000000000005', v_form_seg, v_seg_s1, 'time', 'Hora próxima atención', TRUE, 13);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', 'a2000005-0000-4000-8000-000000000005', 'a1000005-0000-4000-8000-000000000005', 'si', 'EQUALS');
+
+-- SEG-C-Q14: Desde la atención anterior...
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
 VALUES (gen_random_uuid(), v_form_seg, v_seg_s1, 'boolean',
-        'Desde la atención anterior se han identificado barreras institucionales', TRUE, 12)
+        'Desde la atención anterior se han identificado barreras institucionales', TRUE, 14)
 RETURNING id INTO v_seg_c_q12;
 INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
 VALUES (gen_random_uuid(), 'QUESTION', v_seg_c_q12::varchar, v_seg_c_q9::varchar, 'atencion', 'EQUALS');
@@ -1281,11 +1370,24 @@ VALUES (gen_random_uuid(), v_form_seg, v_seg_s2, 'text', 'Compromisos', TRUE, 3)
 RETURNING id INTO v_seg_s_q3;
 
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_seg, v_seg_s2, 'date', 'Fecha próxima atención', TRUE, 4)
-RETURNING id INTO v_seg_s_q4;
+VALUES ('a1000006-0000-4000-8000-000000000006', v_form_seg, v_seg_s2, 'single', '¿Agendar nueva sesión?', TRUE, 4);
+INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
+  (gen_random_uuid(), 'a1000006-0000-4000-8000-000000000006', 'Sí', 'si', 1),
+  (gen_random_uuid(), 'a1000006-0000-4000-8000-000000000006', 'No', 'no', 2);
 
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_seg, v_seg_s2, 'text', 'Observaciones', FALSE, 5)
+VALUES ('7040a37d-f346-4bf7-9b80-6286b9da62c5', v_form_seg, v_seg_s2, 'date', 'Fecha próxima atención', TRUE, 5)
+RETURNING id INTO v_seg_s_q4;
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', '7040a37d-f346-4bf7-9b80-6286b9da62c5', 'a1000006-0000-4000-8000-000000000006', 'si', 'EQUALS');
+
+INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+VALUES ('a2000006-0000-4000-8000-000000000006', v_form_seg, v_seg_s2, 'time', 'Hora próxima atención', TRUE, 6);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', 'a2000006-0000-4000-8000-000000000006', 'a1000006-0000-4000-8000-000000000006', 'si', 'EQUALS');
+
+INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+VALUES (gen_random_uuid(), v_form_seg, v_seg_s2, 'text', 'Observaciones', FALSE, 7)
 RETURNING id INTO v_seg_s_q5;
 
 RAISE NOTICE 'Form SEG — preguntas insertadas.';
@@ -1355,7 +1457,7 @@ INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_que
 VALUES (gen_random_uuid(), 'QUESTION', v_cie_c_q8::varchar, v_cie_c_q6::varchar, 'true', 'EQUALS');
 
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_cie, v_cie_s1, 'multiple', '¿Es atención o solo contacto?', TRUE, 9)
+VALUES (gen_random_uuid(), v_form_cie, v_cie_s1, 'single', '¿Es atención o solo contacto?', TRUE, 9)
 RETURNING id INTO v_cie_c_q9;
 INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
   (gen_random_uuid(), v_cie_c_q9, 'Atención',      'atencion',      1),
@@ -1366,17 +1468,27 @@ VALUES (gen_random_uuid(), v_form_cie, v_cie_s1, 'text', 'Observaciones del cont
 RETURNING id INTO v_cie_c_q10;
 
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_cie, v_cie_s1, 'date', 'Fecha nueva', FALSE, 11)
+VALUES ('a1000007-0000-4000-8000-000000000007', v_form_cie, v_cie_s1, 'single', '¿Agendar nueva sesión?', TRUE, 11);
+INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
+  (gen_random_uuid(), 'a1000007-0000-4000-8000-000000000007', 'Sí', 'si', 1),
+  (gen_random_uuid(), 'a1000007-0000-4000-8000-000000000007', 'No', 'no', 2);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', 'a1000007-0000-4000-8000-000000000007', v_cie_c_q9::varchar, 'solo_contacto', 'EQUALS');
+
+INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+VALUES ('1b4d09f0-e5ca-4b4e-9d74-428478a113c6', v_form_cie, v_cie_s1, 'date', 'Fecha nueva', FALSE, 12)
 RETURNING id INTO v_cie_c_q11;
 INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
-VALUES (gen_random_uuid(), 'QUESTION', v_cie_c_q11::varchar, v_cie_c_q9::varchar, 'solo_contacto', 'EQUALS');
+VALUES (gen_random_uuid(), 'QUESTION', '1b4d09f0-e5ca-4b4e-9d74-428478a113c6', 'a1000007-0000-4000-8000-000000000007', 'si', 'EQUALS');
 
--- CIE-C-Q12: Desde la atención anterior se han identificado barreras institucionales
--- ← ÚLTIMA pregunta de S1 (antes Q11). Visible cuando Q9 = atencion.
--- Gatillo de visibilidad de la Sección "Identificación de Barreras" (S3).
+INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+VALUES ('a2000007-0000-4000-8000-000000000007', v_form_cie, v_cie_s1, 'time', 'Hora próxima atención', TRUE, 13);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', 'a2000007-0000-4000-8000-000000000007', 'a1000007-0000-4000-8000-000000000007', 'si', 'EQUALS');
+
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
 VALUES (gen_random_uuid(), v_form_cie, v_cie_s1, 'boolean',
-        'Desde la atención anterior se han identificado barreras institucionales', TRUE, 12)
+        'Desde la atención anterior se han identificado barreras institucionales', TRUE, 14)
 RETURNING id INTO v_cie_c_q12;
 INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
 VALUES (gen_random_uuid(), 'QUESTION', v_cie_c_q12::varchar, v_cie_c_q9::varchar, 'atencion', 'EQUALS');
@@ -1402,21 +1514,32 @@ VALUES (gen_random_uuid(), v_form_cie, v_cie_s2, 'text', 'Compromisos', TRUE, 3)
 RETURNING id INTO v_cie_sv_q3;
 
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_cie, v_cie_s2, 'date', 'Fecha próxima atención', TRUE, 4)
-RETURNING id INTO v_cie_sv_q4;
+VALUES ('a1000008-0000-4000-8000-000000000008', v_form_cie, v_cie_s2, 'single', '¿Agendar nueva sesión?', TRUE, 4);
+INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
+  (gen_random_uuid(), 'a1000008-0000-4000-8000-000000000008', 'Sí', 'si', 1),
+  (gen_random_uuid(), 'a1000008-0000-4000-8000-000000000008', 'No', 'no', 2);
 
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_cie, v_cie_s2, 'text', 'Observaciones', FALSE, 5)
+VALUES ('3ce6ff5a-f139-4417-9255-155207e9a970', v_form_cie, v_cie_s2, 'date', 'Fecha próxima atención', TRUE, 5)
+RETURNING id INTO v_cie_sv_q4;
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', '3ce6ff5a-f139-4417-9255-155207e9a970', 'a1000008-0000-4000-8000-000000000008', 'si', 'EQUALS');
+
+INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+VALUES ('a2000008-0000-4000-8000-000000000008', v_form_cie, v_cie_s2, 'time', 'Hora próxima atención', TRUE, 6);
+INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+VALUES (gen_random_uuid(), 'QUESTION', 'a2000008-0000-4000-8000-000000000008', 'a1000008-0000-4000-8000-000000000008', 'si', 'EQUALS');
+
+INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+VALUES (gen_random_uuid(), v_form_cie, v_cie_s2, 'text', 'Observaciones', FALSE, 7)
 RETURNING id INTO v_cie_sv_q5;
 
--- CIE-SV-Q6: Cerrar remisión  ← GATILLO de Sección 5
--- Si = true → S5 (Cierre) se muestra y al guardar status = cerrado.
--- Si = false → S5 permanece oculta; el registro actúa como seguimiento regular.
+-- CIE-SV-Q8: Cerrar remisión  ← GATILLO de Sección 5
 INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
-VALUES (gen_random_uuid(), v_form_cie, v_cie_s2, 'boolean', 'Cerrar remisión', TRUE, 6)
+VALUES (gen_random_uuid(), v_form_cie, v_cie_s2, 'boolean', 'Cerrar remisión', TRUE, 8)
 RETURNING id INTO v_cie_sv_q6;
 
-RAISE NOTICE 'Form CIE S4 — Q6 "Cerrar remisión" (gatillo S5): %', v_cie_sv_q6;
+RAISE NOTICE 'Form CIE S4 — Q8 "Cerrar remisión" (gatillo S5): %', v_cie_sv_q6;
 
 -- ─── Sección 5: Cierre ────────────────────────────────────────────────────────
 
