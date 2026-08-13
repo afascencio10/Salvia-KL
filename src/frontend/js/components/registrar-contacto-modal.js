@@ -134,8 +134,8 @@ app.component('registrar-contacto-modal', {
     template: `
 <div v-if="visible" class="rcm-overlay" @click.self="cerrar">
     <div class="rcm-modal">
-        <p class="rcm-title">Registrar contacto</p>
-        <p class="rcm-subtitle">Registra lo que ocurrió en este contacto con la paciente.</p>
+        <p class="rcm-title">Registrar intento de contacto fallido</p>
+        <p class="rcm-subtitle">Registra un intento de contacto fallido para cumplir con el Esquema 3×3.</p>
 
         <!-- Fecha y hora -->
         <div class="rcm-row">

@@ -66,6 +66,16 @@
             <span style="font-size:.75rem;color:#9ca3af;margin-left:4px">${ sesionesRealizadas } realizadas</span>
         </div>
 
+        <!-- Banner de validación pendiente -->
+        <div v-if="remision && remision.validationPending" style="display:flex;align-items:center;gap:12px;padding:14px 20px;background:#fffbeb;border:1px solid #fde047;border-radius:10px;margin-bottom:16px">
+            <span style="font-size:1.3rem">🔍</span>
+            <div style="flex:1">
+                <p style="margin:0;font-size:.85rem;font-weight:700;color:#92400e">Validar remisión</p>
+                <p style="margin:2px 0 0;font-size:.78rem;color:#a16207">Revisar si la remisión cumple los criterios de atención psicosocial.</p>
+            </div>
+            <button @click="abrirValidarModal()" style="background:#5106A7;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer">Revisar</button>
+        </div>
+
         <!-- Tabs -->
         <div style="display:flex;gap:0;border-bottom:2px solid #e5e7eb;margin-bottom:0">
             <button v-for="tab in [{id:'info',icon:'📋',label:'Info Remisión'},{id:'contactos',icon:'📞',label:'Contactos'},{id:'tareas',icon:'✅',label:'Tareas'},{id:'timeline',icon:'📊',label:'Timeline'}]" :key="tab.id"
@@ -97,6 +107,10 @@
                 <div>
                     <span style="font-size:.68rem;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">Requiere intérprete</span>
                     <span style="font-size:.88rem;font-weight:700;color:#111827">${ remision.requiresInterpreter || 'No' }</span>
+                </div>
+                <div>
+                    <span style="font-size:.68rem;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">Ajustes razonables</span>
+                    <span style="font-size:.88rem;font-weight:700;color:#111827">${ remision.ajustesRazonables || 'No registra' }</span>
                 </div>
                 <div>
                     <span style="font-size:.68rem;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">Consentimiento informado</span>
@@ -156,7 +170,7 @@
             <!-- Header contactos -->
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
                 <span style="font-size:.82rem;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.03em">Contactos (${ remision.contacts.length })</span>
-                <button v-if="puedeGestionarContactos" @click="$refs.registrarContactoModal.open(remisionID)" style="background:#5106A7;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer">+ Registrar contacto</button>
+                <button v-if="puedeGestionarContactos" @click="$refs.registrarContactoModal.open(remisionID)" style="background:#5106A7;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer">+ Registrar intento fallido</button>
             </div>
 
             <!-- Lista de contactos -->
@@ -201,8 +215,8 @@
                 <div style="display:flex;gap:8px;margin-top:12px;padding-left:48px">
                     <!-- Ver sesión: solo si está completada Y (es ps/ts O la remisión está cerrada) -->
                     <button v-if="contact.isCompleted && (esProfesionalPsico || remision.status === 'cerrado')" @click="verSesion(contact)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #5106A7;background:#fff;color:#5106A7;cursor:pointer;font-weight:600">Ver sesión</button>
-                    <!-- Registrar sesión, reprogramar, cancelar: solo ps/ts -->
-                    <template v-if="esProfesionalPsico && contact.isPsicoSession && !contact.isCompleted && contact.status !== 'cancelada'">
+                    <!-- Registrar sesión, reprogramar, cancelar: solo ps/ts y remisión no cerrada -->
+                    <template v-if="esProfesionalPsico && contact.isPsicoSession && !contact.isCompleted && contact.status !== 'cancelada' && remision.status !== 'cerrado'">
                         <button @click="registrarSesion(contact)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:none;background:#5106A7;color:#fff;cursor:pointer;font-weight:600">Registrar sesión</button>
                         <button @click="abrirReprogramar(contact, idx)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;color:#374151;cursor:pointer;font-weight:500">Reprogramar</button>
                         <button @click="cancelarSesion(contact)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #fecaca;background:#fff;color:#dc2626;cursor:pointer;font-weight:500">Cancelar sesión</button>
@@ -271,6 +285,57 @@
     </div>
 </div>
 
+<!-- Modal Validar Remisión -->
+<div v-if="validarModalVisible" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:10002;padding:16px" @click.self="validarModalVisible = false">
+    <div style="background:#fff;border-radius:16px;width:100%;max-width:480px;padding:32px;box-shadow:0 20px 40px rgba(0,0,0,.18)">
+        <p style="font-size:1.2rem;font-weight:800;color:#111827;margin:0 0 6px">Validar remisión</p>
+        <p style="font-size:.85rem;color:#6b7280;margin:0 0 20px">Revisa si la remisión cumple los criterios de atención psicosocial.</p>
+
+        <!-- Criterios -->
+        <div v-if="remision && remision.validationCriteria && remision.validationCriteria.length" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:20px">
+            <p style="font-size:.75rem;font-weight:600;color:#6b7280;margin:0 0 8px">Criterios reportados por el agente</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <span v-for="c in remision.validationCriteria" :key="c" style="font-size:.75rem;font-weight:600;padding:4px 12px;border-radius:20px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa">${ c }</span>
+            </div>
+        </div>
+
+        <!-- Botones decisión -->
+        <div style="display:flex;gap:12px;margin-bottom:20px">
+            <button @click="validarDecision = 'valida'"
+                :style="validarDecision === 'valida' ? 'border:2px solid #10b981;background:#ecfdf5;color:#065f46' : 'border:2px solid #e5e7eb;background:#fff;color:#374151'"
+                style="flex:1;padding:14px;border-radius:10px;font-size:.9rem;font-weight:700;cursor:pointer;transition:all .15s">
+                ✓ Es válida
+            </button>
+            <button @click="validarDecision = 'no_cumple'"
+                :style="validarDecision === 'no_cumple' ? 'border:2px solid #dc2626;background:#fef2f2;color:#991b1b' : 'border:2px solid #e5e7eb;background:#fff;color:#374151'"
+                style="flex:1;padding:14px;border-radius:10px;font-size:.9rem;font-weight:700;cursor:pointer;transition:all .15s">
+                ✕ No cumple criterios
+            </button>
+        </div>
+
+        <!-- Motivo de devolución (solo si no cumple) -->
+        <div v-if="validarDecision === 'no_cumple'" style="margin-bottom:20px">
+            <label style="font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">Motivo de devolución</label>
+            <textarea v-model="validarMotivo" rows="3" placeholder="Ej: No corresponde al perfil de atención psicosocial, se sugiere remitir a..." maxlength="500" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:10px;font-size:.85rem;outline:none;resize:vertical;box-sizing:border-box"></textarea>
+        </div>
+
+        <!-- Botones acción -->
+        <div style="display:flex;gap:12px;justify-content:flex-end">
+            <button @click="validarModalVisible = false" style="padding:10px 24px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;color:#374151;font-size:.85rem;font-weight:600;cursor:pointer">Cancelar</button>
+            <button v-if="validarDecision === 'valida'" @click="confirmarValidacion" :disabled="validarGuardando"
+                style="padding:10px 24px;border-radius:10px;border:none;background:#10b981;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer"
+                :style="{ opacity: validarGuardando ? '.5' : '1' }">
+                ${ validarGuardando ? 'Validando...' : 'Confirmar validación' }
+            </button>
+            <button v-if="validarDecision === 'no_cumple'" @click="confirmarValidacion" :disabled="validarGuardando || !validarMotivo.trim()"
+                style="padding:10px 24px;border-radius:10px;border:none;background:#dc2626;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer"
+                :style="{ opacity: validarGuardando || !validarMotivo.trim() ? '.5' : '1' }">
+                ${ validarGuardando ? 'Devolviendo...' : 'Devolver remisión' }
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
     var home = Vue.createApp({
         delimiters: ['${', '}'],
@@ -301,11 +366,18 @@
                 cancelarVisible: false,
                 cancelarContact: null,
                 cancelarGuardando: false,
+                // Validación modal
+                validarModalVisible: false,
+                validarDecision: null, // 'valida' | 'no_cumple'
+                validarMotivo: '',
+                validarGuardando: false,
             };
         },
 
         computed: {
             puedeGestionarContactos() {
+                if (this.remision && this.remision.status === 'cerrado') return false;
+                if (this.remision && this.remision.validationPending) return false;
                 return this.currentRole === 'ps' || this.currentRole === 'ts' || this.currentRole === 'sv';
             },
             esProfesionalPsico() {
@@ -512,6 +584,42 @@
                     console.error('Error cancelando:', e);
                 } finally {
                     this.cancelarGuardando = false;
+                }
+            },
+
+            abrirValidarModal() {
+                this.validarModalVisible = true;
+                this.validarDecision = null;
+                this.validarMotivo = '';
+            },
+
+            async confirmarValidacion() {
+                if (this.validarGuardando) return;
+                if (!this.validarDecision) return;
+                if (this.validarDecision === 'no_cumple' && !this.validarMotivo.trim()) return;
+
+                this.validarGuardando = true;
+                try {
+                    var res = await fetch('/api/v1/psychosocial-support/' + this.remisionID + '/validate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            isValid: this.validarDecision === 'valida',
+                            reason: this.validarMotivo.trim(),
+                            actorId: this.currentUserId
+                        })
+                    });
+                    if (!res.ok) {
+                        var err = await res.json();
+                        throw new Error(err.error || 'Error');
+                    }
+                    this.validarModalVisible = false;
+                    this.cargarDetalle();
+                } catch (e) {
+                    console.error('Error validando:', e);
+                    alert(e.message || 'Error al validar la remisión');
+                } finally {
+                    this.validarGuardando = false;
                 }
             },
 

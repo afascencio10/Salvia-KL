@@ -28,6 +28,7 @@ func (c *PsychosocialDetailController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.PUT("/psychosocial-support/contacts/:contactId/cancel", c.CancelContact)
 	rg.PUT("/psychosocial-support/:id/schedule-preference", c.UpdateSchedulePreference)
 	rg.GET("/psychosocial-support/:id/load", c.LoadSession)
+	rg.POST("/psychosocial-support/:id/validate", c.ValidateRemision)
 	rg.GET("/psychosocial-support/:id/availability", c.CheckAvailability)
 }
 
@@ -192,4 +193,36 @@ func (c *PsychosocialDetailController) CheckAvailability(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"available": available, "message": message})
+}
+
+// ValidateRemision procesa la validación de una remisión psicosocial.
+// POST /api/v1/psychosocial-support/:id/validate
+// Body: { "isValid": true/false, "reason": "..." (solo si isValid=false) }
+func (c *PsychosocialDetailController) ValidateRemision(ctx *gin.Context) {
+	id := ctx.Param("id")
+	var body struct {
+		IsValid bool   `json:"isValid"`
+		Reason  string `json:"reason"`
+		ActorID string `json:"actorId" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !body.IsValid && body.Reason == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "El motivo de devolución es requerido"})
+		return
+	}
+
+	err := c.svc.ValidateRemision(ctx.Request.Context(), id, body.IsValid, body.Reason, body.ActorID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "remisión no encontrada"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"ok": true})
 }

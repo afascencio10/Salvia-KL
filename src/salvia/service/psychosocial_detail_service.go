@@ -62,9 +62,12 @@ type PsychosocialDetailResponse struct {
 
 	// Campos adicionales
 	RequiresInterpreter string  `json:"requiresInterpreter"`
+	AjustesRazonables   string  `json:"ajustesRazonables"`
 	ConsentStatus       string  `json:"consentStatus"`
 	ConsentDate         string  `json:"consentDate"`
 	SchedulePreference  *string `json:"schedulePreference"`
+	ValidationPending   bool    `json:"validationPending"`
+	ValidationCriteria  []string `json:"validationCriteria"`
 
 	// Contactos/Sesiones
 	Contacts []PsychosocialContactItem `json:"contacts"`
@@ -86,6 +89,7 @@ type PsychosocialContactItem struct {
 
 type PsychosocialDetailService interface {
 	GetDetail(ctx context.Context, id string) (*PsychosocialDetailResponse, error)
+	ValidateRemision(ctx context.Context, id string, isValid bool, reason string, actorID string) error
 	CreateContact(ctx context.Context, psicosocialID, contactType, contactDate, contactTime, summary, sessionType, scheduledDate, scheduledTime string) (*models.TeamContact, error)
 	RescheduleContact(ctx context.Context, contactID, scheduledDate, scheduledTime string) error
 	CancelContact(ctx context.Context, contactID string) error
@@ -247,7 +251,41 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 		WHERE vc.victim_case_i_code = ?
 		LIMIT 1
 	`, ps.CaseID).Scan(&requiresInterpreter)
+	// Traducir el código del enum (ej: yes_no_n → No)
+	if locale, ok := salvia_config.Locale["sp"]; ok {
+		if translated, found := locale[requiresInterpreter]; found {
+			requiresInterpreter = translated
+		}
+	}
 	resp.RequiresInterpreter = requiresInterpreter
+
+	// 5b. Ajustes razonables (multi-select del form2)
+	var ajustesRazonables string
+	s.db.WithContext(ctx).Raw(`
+		SELECT COALESCE(string_agg(e.victim_case_form2_enums_name, ', '), '')
+		FROM salvia.victim_case vc
+		JOIN salvia.victim_case_form2 f2 ON f2.victim_case_form2_victim_case = vc.victim_case_id
+		JOIN salvia.rel_victim_case_form2_enums_victim_case_form2 rel ON rel.victim_case_form2_id = f2.victim_case_form2_id
+		JOIN salvia.victim_case_form2_enums e ON e.victim_case_form2_enums_id = rel.victim_case_form2_enums_id
+		WHERE vc.victim_case_i_code = ?
+		AND e.victim_case_form2_enums_category LIKE '%adjustments_gbv%'
+	`, ps.CaseID).Scan(&ajustesRazonables)
+	// Traducir cada valor del multi-select
+	if ajustesRazonables != "" {
+		parts := strings.Split(ajustesRazonables, ", ")
+		var translated []string
+		locale := salvia_config.Locale["sp"]
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if t, ok := locale[p]; ok {
+				translated = append(translated, t)
+			} else {
+				translated = append(translated, p)
+			}
+		}
+		ajustesRazonables = strings.Join(translated, ", ")
+	}
+	resp.AjustesRazonables = ajustesRazonables
 
 	// 6. Consentimiento informado (último intento de contacto con consent_given)
 	type consentRow struct {
@@ -257,7 +295,7 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 	var consent consentRow
 	s.db.WithContext(ctx).Raw(`
 		SELECT consent_given, TO_CHAR(attempt_at, 'YYYY-MM-DD') AS attempt_at
-		FROM salvia.contact_attempt
+		FROM salvia.contact_attempts
 		WHERE psicosocial_id = ? AND consent_given IS NOT NULL AND deleted_at IS NULL
 		ORDER BY attempt_at DESC
 		LIMIT 1
@@ -306,6 +344,42 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 
 	if resp.Contacts == nil {
 		resp.Contacts = []PsychosocialContactItem{}
+	}
+
+	// 9. Validación pendiente: verificar si hay tarea validar_remision pendiente
+	var validationTaskCount int64
+	s.db.WithContext(ctx).Raw(`
+		SELECT COUNT(*) FROM salvia.case_task
+		WHERE psychosocial_support_id = ? AND type = 'validar_remision' AND status = 'ToDo' AND deleted_at IS NULL
+	`, id).Scan(&validationTaskCount)
+	resp.ValidationPending = validationTaskCount > 0
+
+	// 10. Criterios de remisión (desde Notes del psychosocial_support)
+	if ps.Notes != nil && *ps.Notes != "" {
+		criteriosRaw := strings.Split(*ps.Notes, ",")
+		criterioLabels := map[string]string{
+			"criterio_obligatorio":    "Criterio obligatorio",
+			"conducta_suicida":        "Conducta suicida",
+			"interseccionalidad":      "Interseccionalidad",
+			"sin_ruta":                "Sin ruta de atención",
+			"condiciones_territoriales": "Condiciones territoriales",
+			"sin_acceso_psico":        "Sin acceso a atención psicosocial",
+			"naturalizacion_vbg":      "Naturalización de VBG",
+		}
+		for _, c := range criteriosRaw {
+			c = strings.TrimSpace(c)
+			if c == "" || c == "criterio_obligatorio" {
+				continue
+			}
+			if label, ok := criterioLabels[c]; ok {
+				resp.ValidationCriteria = append(resp.ValidationCriteria, label)
+			} else {
+				resp.ValidationCriteria = append(resp.ValidationCriteria, c)
+			}
+		}
+	}
+	if resp.ValidationCriteria == nil {
+		resp.ValidationCriteria = []string{}
 	}
 
 	return resp, nil
@@ -811,6 +885,56 @@ func (s *psychosocialDetailService) UpdateSchedulePreference(ctx context.Context
 		Model(&models.PsychosocialSupport{}).
 		Where("id = ?", psicosocialID).
 		Update("schedule_preference", preference).Error
+}
+
+// ValidateRemision procesa la validación de una remisión psicosocial.
+// Si isValid=true: completa la tarea y deja la remisión habilitada para gestión.
+// Si isValid=false: completa la tarea y pone la remisión en estado "en_devolucion".
+func (s *psychosocialDetailService) ValidateRemision(ctx context.Context, id string, isValid bool, reason string, actorID string) error {
+	// 1. Buscar la remisión
+	var ps models.PsychosocialSupport
+	if err := s.db.WithContext(ctx).Where("id = ? AND deleted_at IS NULL", id).First(&ps).Error; err != nil {
+		return err
+	}
+
+	// 2. Completar la tarea de validación
+	s.db.WithContext(ctx).Exec(`
+		UPDATE salvia.case_task SET status = 'Done', updated_at = NOW()
+		WHERE psychosocial_support_id = ? AND type = 'validar_remision' AND status = 'ToDo' AND deleted_at IS NULL
+	`, id)
+
+	// 3. Resolver nombre del actor
+	var actorName string
+	s.db.WithContext(ctx).Raw(`
+		SELECT gup.general_user_profile_names || ' ' || gup.general_user_profile_last_names
+		FROM security.general_user gu
+		JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+		WHERE gu.general_user_i_code = ?
+	`, actorID).Scan(&actorName)
+	if actorName == "" {
+		actorName = actorID
+	}
+
+	now := time.Now()
+
+	if isValid {
+		// 4a. Remisión validada — no cambia de status (queda "abierto" para ser gestionada)
+		s.db.WithContext(ctx).Exec(`INSERT INTO salvia.case_timeline_event
+			(case_id, category, type, icon, color, description, event_user_id, actor_name, psychosocial_support_id, date, created_at)
+			VALUES (?, 'Psicosocial', 'Remisión Validada', 'circle-check', '#10b981', ?, ?, ?, ?, ?, ?)`,
+			ps.CaseID, "Remisión validada por "+actorName, actorID, actorName, id, now, now)
+	} else {
+		// 4b. Remisión devuelta — cambiar status a en_devolucion
+		s.db.WithContext(ctx).Exec(`UPDATE salvia.psychosocial_support SET status = 'en_devolucion', updated_at = NOW() WHERE id = ?`, id)
+
+		descripcion := "Remisión devuelta — Motivo: " + reason
+		s.db.WithContext(ctx).Exec(`INSERT INTO salvia.case_timeline_event
+			(case_id, category, type, icon, color, description, event_user_id, actor_name, psychosocial_support_id, date, created_at)
+			VALUES (?, 'Psicosocial', 'Remisión Devuelta', 'arrow-rotate-left', '#dc2626', ?, ?, ?, ?, ?, ?)`,
+			ps.CaseID, descripcion, actorID, actorName, id, now, now)
+	}
+
+	return nil
 }
 
 // CheckSessionAvailability GET /psychosocial-support/:id/availability
