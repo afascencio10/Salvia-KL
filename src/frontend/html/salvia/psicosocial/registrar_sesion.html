@@ -814,6 +814,7 @@
 </style>
 
 {{ template "standard_scripts.html" .}}
+{{ template "overlay.html" .}}
 <script src="/static/js/psicosocial/mock_psicosocial.js"></script>
 
 <script>
@@ -957,11 +958,12 @@
 
         mounted() {
             document.getElementById('app').style.display = 'block';
-            // El header está fuera del mount de Vue — populamos currentUser directo via DOM
             const navUserDiv = document.querySelector('.navbar.nav_banner .user');
             if (navUserDiv) {
-                navUserDiv.querySelector('div:first-child').innerHTML =
-                    '<i class="fas fa-user"></i> Hola, {{ .currentUser }}';
+                const nameEl = navUserDiv.querySelector('div:first-child');
+                if (nameEl) {
+                    nameEl.innerHTML = '<i class="fas fa-user"></i> Hola, {{ .currentUser }}';
+                }
             }
             if (IS_MOCK) {
                 this.loadMockData(mockCasoId);
@@ -1243,9 +1245,6 @@
             resetMock() {
                 window.location.href = '/salvia/test-psicosocial';
             },
-            logout() {
-                logout('/seguridad/logout');
-            },
             goBack() {
                 //Redirigir a la pagina anterior
                 window.history.back();
@@ -1261,5 +1260,16 @@
 <script src="/static/js/components/dinamic-form.js"></script>
 
 <script>
+    // El nav global está fuera de #psicosocial-app, así que v-on:click="logout()"
+    // del header nunca se enlaza. El listener nativo evita el href="#" y cierra sesión.
+    (function bindNavLogout() {
+        var logoutLink = document.querySelector('.navbar.nav_banner .user a');
+        if (!logoutLink) return;
+        logoutLink.addEventListener('click', function (e) {
+            e.preventDefault();
+            logout('/seguridad/logout');
+        });
+    })();
+
     app.mount('#psicosocial-app');
 </script>
