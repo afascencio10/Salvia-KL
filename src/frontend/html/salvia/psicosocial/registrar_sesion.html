@@ -19,6 +19,10 @@
         <!-- ── Card de información del caso ─────────────────────────────── -->
         <div v-if="victimInfo" class="card ps-card mb-4">
             <div class="card-body">
+                <a class="ps-btn-back" href="javascript:void(0)" @click="goBack">
+                    <i class="fas fa-arrow-left"></i>
+                    Regresar
+                </a>
                 <div class="ps-card-header">
                     <div class="ps-card-avatar">
                         <i class="fas fa-user"></i>
@@ -409,6 +413,23 @@
     align-items: center;
     gap: 14px;
 }
+.ps-btn-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    font-size: 14px;
+    color: #7c3aed;
+    text-decoration: none;
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+    background: #f0f0f0;
+    margin-bottom: 16px;
+}
+.ps-btn-back:hover {
+    background: #7c3aed;
+    color: #fff;
+}
 .ps-card-avatar {
     width: 48px; height: 48px;
     border-radius: 50%;
@@ -793,6 +814,7 @@
 </style>
 
 {{ template "standard_scripts.html" .}}
+{{ template "overlay.html" .}}
 <script src="/static/js/psicosocial/mock_psicosocial.js"></script>
 
 <script>
@@ -936,11 +958,12 @@
 
         mounted() {
             document.getElementById('app').style.display = 'block';
-            // El header está fuera del mount de Vue — populamos currentUser directo via DOM
             const navUserDiv = document.querySelector('.navbar.nav_banner .user');
             if (navUserDiv) {
-                navUserDiv.querySelector('div:first-child').innerHTML =
-                    '<i class="fas fa-user"></i> Hola, {{ .currentUser }}';
+                const nameEl = navUserDiv.querySelector('div:first-child');
+                if (nameEl) {
+                    nameEl.innerHTML = '<i class="fas fa-user"></i> Hola, {{ .currentUser }}';
+                }
             }
             if (IS_MOCK) {
                 this.loadMockData(mockCasoId);
@@ -1222,6 +1245,10 @@
             resetMock() {
                 window.location.href = '/salvia/test-psicosocial';
             },
+            goBack() {
+                //Redirigir a la pagina anterior
+                window.history.back();
+            },
         },
     });
 </script>
@@ -1233,5 +1260,16 @@
 <script src="/static/js/components/dinamic-form.js"></script>
 
 <script>
+    // El nav global está fuera de #psicosocial-app, así que v-on:click="logout()"
+    // del header nunca se enlaza. El listener nativo evita el href="#" y cierra sesión.
+    (function bindNavLogout() {
+        var logoutLink = document.querySelector('.navbar.nav_banner .user a');
+        if (!logoutLink) return;
+        logoutLink.addEventListener('click', function (e) {
+            e.preventDefault();
+            logout('/seguridad/logout');
+        });
+    })();
+
     app.mount('#psicosocial-app');
 </script>
