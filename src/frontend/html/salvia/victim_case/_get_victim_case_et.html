@@ -606,7 +606,7 @@
                 submit(action, momentCode, branchICode) {
                     
                     if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
-                        location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+                        salviaGoBack(home.config.globalProperties.enums.nav_rules["default"]);  
                     }else if(action == "openAttend"){
                         home.config.globalProperties.momentCode = momentCode
                         home.config.globalProperties.branchICode = branchICode

@@ -21,18 +21,20 @@ func NewCaseTaskController(svc service.CaseTaskService) *CaseTaskController {
 	return &CaseTaskController{svc: svc}
 }
 
-// gestionPropiaWriteRoles — únicos roles que pueden registrar una gestión
-// propia sobre una barrera (Enlace Territorial).
-var gestionPropiaWriteRoles = map[string]bool{"en": true}
+// enlaceTerritorialRoles — únicos roles con acceso a los endpoints
+// restringidos por departamento del Enlace Territorial.
+var enlaceTerritorialRoles = map[string]bool{"en": true}
 
-// requireGestionPropiaAccess valida la sesión (sessions.Default + utils.GetCommonSession,
-// mismo patrón que entity_case_controller.go) y exige rol "en". No reutiliza
-// salvia_config.PermissionsByRole porque la pantalla Detalle de Barrera
-// (BarreraDetalleGET) hoy no tiene ningún permiso de rol asociado — el resto
-// de /api/v1 en este repo no valida sesión en absoluto (hallazgo reportado
-// aparte); este endpoint nuevo no replica ese hueco a sabiendas. Devuelve la
-// sesión resuelta, o nil si ya respondió.
-func requireGestionPropiaAccess(ctx *gin.Context) *utils.CommonSession {
+// requireEnlaceAccess valida la sesión (sessions.Default + utils.GetCommonSession,
+// mismo patrón que entity_case_controller.go), exige rol "en" y que el usuario
+// tenga un departamento asignado. No reutiliza salvia_config.PermissionsByRole
+// porque la pantalla Detalle de Barrera (BarreraDetalleGET) hoy no tiene ningún
+// permiso de rol asociado — el resto de /api/v1 en este repo no valida sesión
+// en absoluto (hallazgo reportado aparte); estos endpoints no replican ese
+// hueco a sabiendas. Devuelve la sesión resuelta, o nil si ya respondió.
+// Usado por CreateGestionPropia (case_task_controller.go) y por el endpoint
+// de "Barreras Departamento" (barrier_v2_gin_controller.go).
+func requireEnlaceAccess(ctx *gin.Context) *utils.CommonSession {
 	sessionID, ok := sessions.Default(ctx).Get("userData").(string)
 	if !ok || sessionID == "" {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "no autenticado"})
@@ -43,8 +45,8 @@ func requireGestionPropiaAccess(ctx *gin.Context) *utils.CommonSession {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "no autenticado"})
 		return nil
 	}
-	if !gestionPropiaWriteRoles[s.CurrentRole] {
-		ctx.JSON(http.StatusForbidden, gin.H{"error": "su rol no tiene permiso para registrar gestión propia"})
+	if !enlaceTerritorialRoles[s.CurrentRole] {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "su rol no tiene permiso para acceder a este recurso"})
 		return nil
 	}
 	if s.AssignedDepartmentID == "" {
@@ -283,7 +285,7 @@ var tiposGestionPropiaValidos = map[string]bool{
 //	POST /api/v1/case-tasks/gestion-propia
 //	Body: { "caseId": "...", "barrierId": "...", "tipo": "Llamada", "descripcion": "..." }
 func (c *CaseTaskController) CreateGestionPropia(ctx *gin.Context) {
-	s := requireGestionPropiaAccess(ctx)
+	s := requireEnlaceAccess(ctx)
 	if s == nil {
 		return
 	}

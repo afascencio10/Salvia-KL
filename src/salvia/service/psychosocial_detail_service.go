@@ -25,6 +25,12 @@ var ErrPsicosocialSessionNotFound = errors.New("psicosocialSession: remisión no
 // directo ni pertenece a la dupla asignada a la remisión.
 var ErrPsicosocialSessionNotAssigned = errors.New("psicosocialSession: sesión no asignada a este profesional")
 
+// ErrPsicosocialContactNotFound se retorna cuando contact_id no existe o no pertenece a la remisión.
+var ErrPsicosocialContactNotFound = errors.New("psicosocialSession: contacto de sesión no encontrado")
+
+// ErrPsicosocialContactNoSubmission se retorna al abrir un contacto sin form_submission asociado.
+var ErrPsicosocialContactNoSubmission = errors.New("psicosocialSession: la sesión no tiene formulario asociado")
+
 // PsychosocialDetailResponse agrupa los datos para la pantalla de detalle.
 type PsychosocialDetailResponse struct {
 	// Remisión
@@ -84,7 +90,10 @@ type PsychosocialDetailService interface {
 	RescheduleContact(ctx context.Context, contactID, scheduledDate, scheduledTime string) error
 	CancelContact(ctx context.Context, contactID string) error
 	UpdateSchedulePreference(ctx context.Context, psicosocialID, preference string) error
-	LoadSession(ctx context.Context, psicosocialID, agentID string) (*LoadPsicosocialSessionResult, error)
+	LoadSession(ctx context.Context, psicosocialID, agentID, contactID string) (*LoadPsicosocialSessionResult, error)
+	// CheckSessionAvailability valida si date+time (ventana 2h) está libre para el
+	// profesional o la dupla de la remisión. mode: "individual" | "dupla" (vacío = inferir).
+	CheckSessionAvailability(ctx context.Context, psicosocialID, date, timeStr, mode string) (available bool, message string, err error)
 }
 
 // ── Evento E-01: cargar pantalla "Registrar Sesión Psicosocial" ───────────────
@@ -118,6 +127,9 @@ type LoadPsicosocialSessionResult struct {
 	FormID           string                        `json:"formId"`
 	FormType         string                        `json:"formType"`
 	SubmissionID     string                        `json:"submissionId"`
+	TeamContactID    string                        `json:"teamContactId,omitempty"`
+	IsCompleted      bool                          `json:"isCompleted"`
+	CanEdit          bool                          `json:"canEdit"`
 	VictimInfo       *PsicosocialSessionVictimInfo `json:"victimInfo"`
 	PsicosocialState PsicosocialStateInfo          `json:"psicosocialState"`
 	FormState        map[string]interface{}        `json:"formState"`
@@ -276,7 +288,7 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 			IsPsicoSession: c.IsPsicoSession,
 			Status:         c.Status,
 			Summary:        c.Summary,
-			CreatedAt:      c.CreatedAt.Format("2006-01-02 15:04"),
+			CreatedAt:      formatContactDateTimeUTC(c.CreatedAt),
 		}
 		if c.ScheduledDate != nil {
 			d := c.ScheduledDate.Format("2006-01-02")
@@ -286,7 +298,7 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 			item.ScheduledTime = c.ScheduledTime
 		}
 		if c.CompletedAt != nil {
-			d := c.CompletedAt.Format("2006-01-02 15:04")
+			d := formatContactDateTimeUTC(*c.CompletedAt)
 			item.CompletedAt = &d
 		}
 		resp.Contacts = append(resp.Contacts, item)
@@ -498,7 +510,7 @@ func (s *psychosocialDetailService) CancelContact(ctx context.Context, contactID
 //     (nunca ambos), reflejando el modo de asignación de la remisión padre.
 //  4. Resuelve (o crea) el form_submission asociado.
 //  5. Carga la información resumida de la víctima.
-func (s *psychosocialDetailService) LoadSession(ctx context.Context, psicosocialID, agentID string) (*LoadPsicosocialSessionResult, error) {
+func (s *psychosocialDetailService) LoadSession(ctx context.Context, psicosocialID, agentID, contactID string) (*LoadPsicosocialSessionResult, error) {
 	var ps models.PsychosocialSupport
 	if err := s.db.WithContext(ctx).Where("id = ?", psicosocialID).First(&ps).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -511,9 +523,26 @@ func (s *psychosocialDetailService) LoadSession(ctx context.Context, psicosocial
 		return nil, err
 	}
 
-	tc, isNewContact, err := s.findOrInitPendingContact(ctx, psicosocialID)
-	if err != nil {
-		return nil, fmt.Errorf("loadSession: resolver team_contact: %w", err)
+	var (
+		tc           models.TeamContact
+		isNewContact bool
+		viewByID     = contactID != ""
+		err          error
+	)
+
+	if viewByID {
+		tc, err = s.findSessionContactByID(ctx, psicosocialID, contactID)
+		if err != nil {
+			return nil, err
+		}
+		if tc.FormSubmissionID == nil || *tc.FormSubmissionID == "" {
+			return nil, ErrPsicosocialContactNoSubmission
+		}
+	} else {
+		tc, isNewContact, err = s.findOrInitPendingContact(ctx, psicosocialID)
+		if err != nil {
+			return nil, fmt.Errorf("loadSession: resolver team_contact: %w", err)
+		}
 	}
 
 	formKey, formID := "", ""
@@ -524,35 +553,39 @@ func (s *psychosocialDetailService) LoadSession(ctx context.Context, psicosocial
 	} else {
 		key, id := selectPsicosocialForm(ps)
 		formKey, formID = string(key), id
-		tc.FormID = &formID
-		sessionType := formKey
-		tc.SessionType = &sessionType
-	}
-
-	if isNewContact {
-		if err := s.applyContactAssignment(&tc, ps, agentID); err != nil {
-			return nil, fmt.Errorf("loadSession: asignar team_contact: %w", err)
-		}
-		if err := s.db.WithContext(ctx).Create(&tc).Error; err != nil {
-			return nil, fmt.Errorf("loadSession: crear team_contact: %w", err)
-		}
-	} else {
-		if err := s.db.WithContext(ctx).Model(&models.TeamContact{}).Where("id = ?", tc.ID).
-			Updates(map[string]interface{}{"form_id": tc.FormID, "session_type": tc.SessionType}).Error; err != nil {
-			return nil, fmt.Errorf("loadSession: actualizar team_contact: %w", err)
+		if !viewByID {
+			tc.FormID = &formID
+			sessionType := formKey
+			tc.SessionType = &sessionType
 		}
 	}
 
-	if tc.FormSubmissionID == nil || *tc.FormSubmissionID == "" {
-		fs := &models.FormSubmission{FormID: formID}
-		if err := s.db.WithContext(ctx).Create(fs).Error; err != nil {
-			return nil, fmt.Errorf("loadSession: crear form_submission: %w", err)
+	if !viewByID {
+		if isNewContact {
+			if err := s.applyContactAssignment(&tc, ps, agentID); err != nil {
+				return nil, fmt.Errorf("loadSession: asignar team_contact: %w", err)
+			}
+			if err := s.db.WithContext(ctx).Create(&tc).Error; err != nil {
+				return nil, fmt.Errorf("loadSession: crear team_contact: %w", err)
+			}
+		} else {
+			if err := s.db.WithContext(ctx).Model(&models.TeamContact{}).Where("id = ?", tc.ID).
+				Updates(map[string]interface{}{"form_id": tc.FormID, "session_type": tc.SessionType}).Error; err != nil {
+				return nil, fmt.Errorf("loadSession: actualizar team_contact: %w", err)
+			}
 		}
-		if err := s.db.WithContext(ctx).Model(&models.TeamContact{}).Where("id = ?", tc.ID).
-			Update("form_submission_id", fs.ID).Error; err != nil {
-			return nil, fmt.Errorf("loadSession: asociar form_submission a team_contact: %w", err)
+
+		if tc.FormSubmissionID == nil || *tc.FormSubmissionID == "" {
+			fs := &models.FormSubmission{FormID: formID}
+			if err := s.db.WithContext(ctx).Create(fs).Error; err != nil {
+				return nil, fmt.Errorf("loadSession: crear form_submission: %w", err)
+			}
+			if err := s.db.WithContext(ctx).Model(&models.TeamContact{}).Where("id = ?", tc.ID).
+				Update("form_submission_id", fs.ID).Error; err != nil {
+				return nil, fmt.Errorf("loadSession: asociar form_submission a team_contact: %w", err)
+			}
+			tc.FormSubmissionID = &fs.ID
 		}
-		tc.FormSubmissionID = &fs.ID
 	}
 
 	victimInfo, err := s.loadSessionVictimInfo(ctx, ps.CaseID)
@@ -561,12 +594,16 @@ func (s *psychosocialDetailService) LoadSession(ctx context.Context, psicosocial
 	}
 
 	currentBarriers := s.loadActivePsicosocialBarriers(ctx, ps.ID)
+	canEdit := !tc.IsCompleted && ps.Status != "cerrado"
 
 	return &LoadPsicosocialSessionResult{
-		FormID:       formID,
-		FormType:     formKey,
-		SubmissionID: *tc.FormSubmissionID,
-		VictimInfo:   victimInfo,
+		FormID:        formID,
+		FormType:      formKey,
+		SubmissionID:  *tc.FormSubmissionID,
+		TeamContactID: tc.ID,
+		IsCompleted:   tc.IsCompleted,
+		CanEdit:       canEdit,
+		VictimInfo:    victimInfo,
 		PsicosocialState: PsicosocialStateInfo{
 			YaHizoPrimerContacto:  ps.YaHizoPrimerContacto,
 			YaHizoPrimeraAtencion: ps.YaHizoPrimeraAtencion,
@@ -634,6 +671,22 @@ func (s *psychosocialDetailService) checkSessionAccess(ctx context.Context, ps m
 		}
 	}
 	return ErrPsicosocialSessionNotAssigned
+}
+
+// findSessionContactByID carga un team_contact por id que pertenece a la remisión
+// (flujo "Ver sesión"). No crea registros.
+func (s *psychosocialDetailService) findSessionContactByID(ctx context.Context, psicosocialID, contactID string) (models.TeamContact, error) {
+	var tc models.TeamContact
+	err := s.db.WithContext(ctx).
+		Where("id = ? AND psicosocial_id = ? AND deleted_at IS NULL", contactID, psicosocialID).
+		First(&tc).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.TeamContact{}, ErrPsicosocialContactNotFound
+		}
+		return models.TeamContact{}, fmt.Errorf("loadSession: cargar team_contact: %w", err)
+	}
+	return tc, nil
 }
 
 // findOrInitPendingContact busca un team_contact pendiente (no completado, sesión
@@ -758,4 +811,61 @@ func (s *psychosocialDetailService) UpdateSchedulePreference(ctx context.Context
 		Model(&models.PsychosocialSupport{}).
 		Where("id = ?", psicosocialID).
 		Update("schedule_preference", preference).Error
+}
+
+// CheckSessionAvailability GET /psychosocial-support/:id/availability
+// Valida si date (YYYY-MM-DD) + time (HH:MM) está libre en ventana de 2 horas
+// para el profesional (individual) o los miembros de la dupla.
+func (s *psychosocialDetailService) CheckSessionAvailability(ctx context.Context, psicosocialID, date, timeStr, mode string) (bool, string, error) {
+	var ps models.PsychosocialSupport
+	if err := s.db.WithContext(ctx).Where("id = ? AND deleted_at IS NULL", psicosocialID).First(&ps).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, "", ErrPsicosocialSessionNotFound
+		}
+		return false, "", err
+	}
+
+	fecha, err := parseAgendaDate(date)
+	if err != nil {
+		return false, "Fecha inválida; use formato YYYY-MM-DD", nil
+	}
+	hora := normalizeScheduledTime(timeStr)
+	if _, ok := parseTimeToMinutes(hora); !ok {
+		return false, "Hora inválida; use formato HH:MM", nil
+	}
+
+	day := fecha.Format("2006-01-02")
+	var contacts []models.TeamContact
+	if err := s.db.WithContext(ctx).
+		Where("scheduled_date IS NOT NULL AND (scheduled_date AT TIME ZONE 'UTC')::date = ?::date AND is_psico_session = true AND deleted_at IS NULL", day).
+		Find(&contacts).Error; err != nil {
+		return false, "", err
+	}
+
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if mode == "" {
+		if ps.DuplaID != nil && *ps.DuplaID != "" {
+			mode = "dupla"
+		} else {
+			mode = "individual"
+		}
+	}
+
+	var psychID, swID string
+	if mode == "dupla" && ps.DuplaID != nil && *ps.DuplaID != "" {
+		var dupla models.Dupla
+		if err := s.db.WithContext(ctx).Where("id = ? AND deleted_at IS NULL", *ps.DuplaID).First(&dupla).Error; err == nil {
+			psychID = dupla.PsychologistID
+			swID = dupla.SocialWorkerID
+		}
+	}
+
+	ok, msg := evaluatePsicosocialAvailability(contacts, &ps, hora, mode, psychID, swID)
+	return ok, msg, nil
+}
+
+// formatContactDateTimeUTC serializa un instante como RFC3339 en UTC para que el
+// frontend lo muestre en America/Bogota sin ambigüedad de zona.
+func formatContactDateTimeUTC(t time.Time) string {
+	return t.UTC().Format(time.RFC3339)
 }

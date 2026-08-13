@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"bitsflow/internal/repository"
 	"bitsflow/salvia/service"
 	"net/http"
 
@@ -20,11 +21,41 @@ func NewBarrierV2GinController(svc service.BarrierV2Service) *BarrierV2GinContro
 //
 //	GET /api/v1/barriers-v2?createdById=<id>    → ListByCreatedBy (enriquecido con caso)
 //	GET /api/v1/barriers-v2/:id/follow-ups      → ListFollowUps (seguimientos de una barrera)
+//	GET /api/v1/barriers-v2/department          → ListActiveByDepartment (Barreras Departamento)
 func (c *BarrierV2GinController) RegisterRoutes(rg *gin.RouterGroup) {
 	barriers := rg.Group("/barriers-v2")
 	barriers.GET("", c.List)
+	barriers.GET("/department", c.ListByDepartment)
 	barriers.GET("/:id/detail", c.GetDetail)
 	barriers.GET("/:id/follow-ups", c.ListFollowUps)
+}
+
+// ListByDepartment devuelve todas las barreras activas de los casos del
+// departamento asignado al Enlace Territorial autenticado, sin filtrar por
+// asignación de tareas — a diferencia de GET /api/v1/case-tasks (Mis
+// Barreras). El departamento se resuelve siempre desde la sesión, nunca
+// desde un parámetro del cliente.
+//
+//	GET /api/v1/barriers-v2/department?docNumber=&entidad=&cityId=
+func (c *BarrierV2GinController) ListByDepartment(ctx *gin.Context) {
+	s := requireEnlaceAccess(ctx)
+	if s == nil {
+		return
+	}
+
+	filters := repository.DepartmentBarrierFilters{
+		DocNumber: ctx.Query("docNumber"),
+		Entidad:   ctx.Query("entidad"),
+		CityID:    ctx.Query("cityId"),
+	}
+
+	items, err := c.svc.ListActiveByDepartment(ctx.Request.Context(), s.AssignedDepartmentID, filters)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, items)
 }
 
 // List devuelve las barreras filtradas por createdById enriquecidas con datos del caso.

@@ -28,6 +28,7 @@ func (c *PsychosocialDetailController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.PUT("/psychosocial-support/contacts/:contactId/cancel", c.CancelContact)
 	rg.PUT("/psychosocial-support/:id/schedule-preference", c.UpdateSchedulePreference)
 	rg.GET("/psychosocial-support/:id/load", c.LoadSession)
+	rg.GET("/psychosocial-support/:id/availability", c.CheckAvailability)
 }
 
 // GetDetail retorna el detalle completo de una remisión psicosocial.
@@ -115,20 +116,28 @@ func (c *PsychosocialDetailController) CancelContact(ctx *gin.Context) {
 // LoadSession carga la pantalla "Registrar Sesión Psicosocial" — evento E-01:
 // selecciona el formulario según el estado del proceso, resuelve el team_contact
 // y form_submission activos, y retorna la info de la víctima.
-// GET /api/v1/psychosocial-support/:id/load?agent_id=...
+// GET /api/v1/psychosocial-support/:id/load?agent_id=...&contact_id=... (contact_id opcional)
 func (c *PsychosocialDetailController) LoadSession(ctx *gin.Context) {
 	id := ctx.Param("id")
 	agentID := ctx.Query("agent_id")
+	contactID := ctx.Query("contact_id")
+	if contactID == "" {
+		contactID = ctx.Query("contactId")
+	}
 	if id == "" || agentID == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "id y agent_id son requeridos"})
 		return
 	}
 
-	result, err := c.svc.LoadSession(ctx.Request.Context(), id, agentID)
+	result, err := c.svc.LoadSession(ctx.Request.Context(), id, agentID, contactID)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrPsicosocialSessionNotFound):
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "remisión psicosocial no encontrada"})
+		case errors.Is(err, service.ErrPsicosocialContactNotFound):
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "contacto de sesión no encontrado"})
+		case errors.Is(err, service.ErrPsicosocialContactNoSubmission):
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "la sesión no tiene formulario asociado"})
 		case errors.Is(err, service.ErrPsicosocialSessionNotAssigned):
 			ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		default:
@@ -157,4 +166,30 @@ func (c *PsychosocialDetailController) UpdateSchedulePreference(ctx *gin.Context
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// CheckAvailability valida si date+time está libre (ventana 2h) para la remisión.
+// GET /api/v1/psychosocial-support/:id/availability?date=YYYY-MM-DD&time=HH:MM&mode=individual|dupla
+func (c *PsychosocialDetailController) CheckAvailability(ctx *gin.Context) {
+	id := ctx.Param("id")
+	date := ctx.Query("date")
+	timeStr := ctx.Query("time")
+	mode := ctx.Query("mode")
+	if id == "" || date == "" || timeStr == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "id, date y time son requeridos"})
+		return
+	}
+
+	available, message, err := c.svc.CheckSessionAvailability(ctx.Request.Context(), id, date, timeStr, mode)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrPsicosocialSessionNotFound):
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "remisión psicosocial no encontrada"})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"available": available, "message": message})
 }

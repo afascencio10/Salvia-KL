@@ -283,6 +283,11 @@
             @answers-updated="onAnswersUpdated">
         </dinamic-form>
 
+        <div v-if="availabilityMessage" class="ps-avail-warn">
+            <i class="fas fa-exclamation-triangle"></i>
+            ${ availabilityMessage }
+        </div>
+
         </div><!-- /v-show activeTab === 'sesion' -->
 
         <!-- ── Overlay de sesión completada ─────────────────────────────── -->
@@ -769,6 +774,22 @@
     border: 1.5px solid #7c3aed;
 }
 .ps-completed-btn--secondary:hover { background: #ede9fe; }
+
+/* ── Aviso disponibilidad agenda ─────────────────────────────────────── */
+.ps-avail-warn {
+    margin: 12px 0 0;
+    padding: 10px 14px;
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+    color: #92400e;
+    font-size: 13px;
+    line-height: 1.4;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+.ps-avail-warn i { margin-top: 2px; flex-shrink: 0; }
 </style>
 
 {{ template "standard_scripts.html" .}}
@@ -807,6 +828,23 @@
             cityQ:   '2cf2d66b-d435-4b77-8e5b-7a09b5535a05',
         },
     };
+
+    // ── Pares Agendar / Fecha / Hora (psicosocial_agenda_questions.go) ───
+    // 8 slots: S1+S4 × 4 formularios. Fechas = UUIDs seed originales.
+    const PSICO_AGENDA_SLOTS = [
+        // Primer Contacto
+        { agendar: 'a1000001-0000-4000-8000-000000000001', fecha: '58ce2d34-24d2-4e73-bf95-26a2c608f8e6', hora: 'a2000001-0000-4000-8000-000000000001' },
+        { agendar: 'a1000002-0000-4000-8000-000000000002', fecha: 'fd2fb664-de83-4069-a161-6348dfef48bf', hora: 'a2000002-0000-4000-8000-000000000002' },
+        // Primera Atención
+        { agendar: 'a1000003-0000-4000-8000-000000000003', fecha: '64d63b79-edee-464b-be56-1104efd31a46', hora: 'a2000003-0000-4000-8000-000000000003' },
+        { agendar: 'a1000004-0000-4000-8000-000000000004', fecha: 'd68c7334-74bb-47b1-a2ee-f1d3da04627b', hora: 'a2000004-0000-4000-8000-000000000004' },
+        // Atención Psicosocial (SEG)
+        { agendar: 'a1000005-0000-4000-8000-000000000005', fecha: '72ce49d2-f853-4f4a-9f1a-f795f4d514c3', hora: 'a2000005-0000-4000-8000-000000000005' },
+        { agendar: 'a1000006-0000-4000-8000-000000000006', fecha: '7040a37d-f346-4bf7-9b80-6286b9da62c5', hora: 'a2000006-0000-4000-8000-000000000006' },
+        // Cierre
+        { agendar: 'a1000007-0000-4000-8000-000000000007', fecha: '1b4d09f0-e5ca-4b4e-9d74-428478a113c6', hora: 'a2000007-0000-4000-8000-000000000007' },
+        { agendar: 'a1000008-0000-4000-8000-000000000008', fecha: '3ce6ff5a-f139-4417-9255-155207e9a970', hora: 'a2000008-0000-4000-8000-000000000008' },
+    ];
 
     var app = Vue.createApp({
         delimiters: ['${', '}'],
@@ -856,6 +894,11 @@
                 // ── Estado de completado ─────────────────────────────
                 sessionCompleted:  false,
                 completedVariant:  'default',
+
+                // ── Disponibilidad de agenda (aviso informativo) ─────
+                availabilityMessage:  '',
+                availabilityChecking: false,
+                _availabilityTimer:   null,
             };
         },
 
@@ -930,7 +973,11 @@
 
             async loadPsicosocial() {
                 try {
-                    const url  = `/api/v1/psychosocial-support/${this.psicosocialId}/load?agent_id=${this.userICode}`;
+                    const contactId = new URLSearchParams(window.location.search).get('contactId');
+                    let url = `/api/v1/psychosocial-support/${this.psicosocialId}/load?agent_id=${this.userICode}`;
+                    if (contactId) {
+                        url += `&contact_id=${encodeURIComponent(contactId)}`;
+                    }
                     const res  = await fetch(url);
                     const data = await res.json();
                     if (!res.ok) {
@@ -947,7 +994,7 @@
                     // loadLocations() puede haber poblado en paralelo (ambas se disparan juntas
                     // en mounted() y no hay orden garantizado de resolución).
                     this.formState        = { ...this.formState, ...(data.formState || {}) };
-                    this.canEdit          = data.psicosocialState.status !== 'cerrado';
+                    this.canEdit          = data.canEdit === true;
                     console.log('[PSICO] Datos cargados:', data);
                     console.log('[PSICO] caseICode:', this.caseICode);
                 } catch (e) {
@@ -979,6 +1026,7 @@
             },
             onAnswersUpdated(payload) {
                 this._updateBarreraLocationOptions(payload);
+                this._checkAgendaAvailability(payload);
             },
             // Filtra las entries del repeater "Identificación de Barreras" (según el formId
             // actual) y va poblando formState.newBarriers[i].cities/.towns a medida que el
@@ -1023,6 +1071,87 @@
                         }
                     }
                 });
+            },
+
+            // Construye mapa questionId → value desde el payload answers-updated
+            // (directAnswers + answers dentro de repeaterEntries).
+            _answersMapFromPayload(payload) {
+                const map = {};
+                const answers = payload?.answers;
+                if (!answers) return map;
+                (answers.directAnswers || []).forEach(a => {
+                    if (a?.questionId != null) map[a.questionId] = a.value ?? '';
+                });
+                (answers.repeaterEntries || []).forEach(entry => {
+                    (entry.answers || []).forEach(a => {
+                        if (a?.questionId != null) map[a.questionId] = a.value ?? '';
+                    });
+                });
+                return map;
+            },
+            _isTrueish(v) {
+                const s = String(v ?? '').toLowerCase().trim();
+                return s === 'true' || s === 'si' || s === 'sí';
+            },
+            // Infere mode desde "¿La atención es individual o en dupla?" (valor de opción).
+            _inferAgendaMode(answerMap) {
+                let mode = 'individual';
+                for (const raw of Object.values(answerMap)) {
+                    const v = String(raw ?? '').toLowerCase().trim();
+                    if (v.includes('dupla') || v.includes('dúpla')) return 'dupla';
+                    if (v === 'individual') mode = 'individual';
+                }
+                return mode;
+            },
+            // Chequeo en vivo de disponibilidad (no bloquea guardado). Debounce ~300ms.
+            _checkAgendaAvailability(payload) {
+                if (this.isMock || !this.psicosocialId) return;
+
+                clearTimeout(this._availabilityTimer);
+                this._availabilityTimer = setTimeout(() => {
+                    this._runAgendaAvailabilityCheck(payload);
+                }, 300);
+            },
+            async _runAgendaAvailabilityCheck(payload) {
+                const answerMap = this._answersMapFromPayload(payload);
+                let date = '';
+                let time = '';
+                for (const slot of PSICO_AGENDA_SLOTS) {
+                    const agendar = answerMap[slot.agendar] ?? '';
+                    const fecha   = String(answerMap[slot.fecha] ?? '').trim();
+                    const hora    = String(answerMap[slot.hora]  ?? '').trim();
+                    if (this._isTrueish(agendar) && fecha && hora) {
+                        date = fecha;
+                        time = hora;
+                        break;
+                    }
+                }
+
+                if (!date || !time) {
+                    this.availabilityMessage = '';
+                    this.availabilityChecking = false;
+                    return;
+                }
+
+                const mode = this._inferAgendaMode(answerMap);
+                this.availabilityChecking = true;
+                try {
+                    const qs = new URLSearchParams({ date, time, mode });
+                    const res = await fetch(
+                        `/api/v1/psychosocial-support/${this.psicosocialId}/availability?${qs}`
+                    );
+                    if (!res.ok) {
+                        this.availabilityMessage = '';
+                        return;
+                    }
+                    const data = await res.json();
+                    this.availabilityMessage = data.available === false ? (data.message || 'Horario no disponible') : '';
+                } catch (e) {
+                    console.warn('[PSICO] availability check error:', e);
+                    this.availabilityMessage = '';
+                } finally {
+                    this.availabilityChecking = false;
+                }
             },
             goToRemision() {
                 window.location.href = `/salvia/remision-psicosocial/${this.psicosocialId}`;

@@ -43,13 +43,35 @@
             {{ if or (eq .currentRole "sv") (eq .currentRole "ad") }}
             <a href="/salvia/kpis" class="salvia-sidebar__nav-link">
                 <i class="fas fa-chart-pie" aria-hidden="true"></i>
-                <span>Dashboard KPIs</span>
+                <span>Dashboard</span>
             </a>
             {{ end }}
             {{ if or (eq .currentRole "ro") (eq .currentRole "an") (eq .currentRole "op") }}
             <a href="/salvia/notificaciones" class="salvia-sidebar__nav-link">
                 <i class="fas fa-bell" aria-hidden="true"></i>
                 <span>Notificaciones Salvia</span>
+            </a>
+            {{ end }}
+            {{ if or (eq .currentRole "ps") (eq .currentRole "sv") }}
+            <a href="/salvia/calendario-psicosocial" class="salvia-sidebar__nav-link">
+                <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+                <span>Calendario</span>
+            </a>
+            {{ end }}
+            {{ if or (eq .currentRole "op") (eq .currentRole "ro") (eq .currentRole "et") (eq .currentRole "sv") (eq .currentRole "no") (eq .currentRole "do") (eq .currentRole "us") (eq .currentRole "fo") (eq .currentRole "ad") (eq .currentRole "an") (eq .currentRole "ps") (eq .currentRole "ts") (eq .currentRole "ab") (eq .currentRole "mn") }}
+            <a href="/salvia/directorio-entidades" class="salvia-sidebar__nav-link">
+                <i class="fas fa-map-marked-alt" aria-hidden="true"></i>
+                <span>Directorio</span>
+            </a>
+            {{ end }}
+            {{ if eq .currentRole "en" }}
+            <a href="/salvia/mis-barreras" class="salvia-sidebar__nav-link">
+                <i class="fas fa-clipboard-list" aria-hidden="true"></i>
+                <span>Mis Barreras</span>
+            </a>
+            <a href="/salvia/barreras-departamento" class="salvia-sidebar__nav-link">
+                <i class="fas fa-map" aria-hidden="true"></i>
+                <span>Barreras Departamento</span>
             </a>
             {{ end }}
             {{ if eq .currentRole "et" }}

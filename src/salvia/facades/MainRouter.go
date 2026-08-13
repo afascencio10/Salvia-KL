@@ -231,6 +231,16 @@ func StartRouter(router *gin.Engine) {
 		secRouter.GET("/mis-remisiones-psicosocial", MisRemisionesPsicosocialGET)
 
 		/*
+			Calendario Psicosocial (roles ps, ts, sv)
+		*/
+		secRouter.GET("/calendario-psicosocial", PsicosocialCalendarGET)
+
+		/*
+			Directorio de Entidades (todos internos ver; et+sv crean; sv edita/deshabilita)
+		*/
+		secRouter.GET("/directorio-entidades", DirectorioEntidadesGET)
+
+		/*
 			KPIs Dashboard (embudo analítico)
 		*/
 		secRouter.GET("/kpis", KpiDashboardGET)
@@ -276,6 +286,11 @@ func StartRouter(router *gin.Engine) {
 			Mis Barreras
 		*/
 		secRouter.GET("/mis-barreras", MisBarrerasGET)
+
+		/*
+			Barreras Departamento
+		*/
+		secRouter.GET("/barreras-departamento", BarrerasDepartamentoGET)
 
 		/*
 			Barrera Detalle — pantalla interna de una barrera

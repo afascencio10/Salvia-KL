@@ -1,7 +1,7 @@
 /**
  * dinamic-form
  * Componente reutilizable para renderizar un formulario dinámico por secciones.
- * Soporta: single, multiple, boolean, dropdown, text, date, datetime, number, repeater, info.
+ * Soporta: single, multiple, boolean, dropdown, text, date, time, datetime, number, repeater, info.
  * Estilos basados en el prototipo Salvia.
  * Props:
  *   - formId      (String, required): ID del formulario a cargar
@@ -373,6 +373,7 @@
             font-size: 14px;
             color: #1e40af;
             line-height: 1.5;
+            white-space: pre-wrap;
         }
         .df-info-banner-icon {
             flex-shrink: 0;
@@ -2043,6 +2044,15 @@ app.component('dinamic-form', {
                         @blur="onBlur(item.question.id)"
                     />
 
+                    <!-- time -->
+                    <input v-else-if="item.question.questionTypeId === 'time'"
+                        class="df-input" type="time"
+                        :disabled="!canEdit"
+                        :value="getLocalAnswer(item.question.id)"
+                        @input="onAnswer(item.question.id, $event.target.value)"
+                        @blur="onBlur(item.question.id)"
+                    />
+
                     <!-- datetime -->
                     <input v-else-if="item.question.questionTypeId === 'datetime'"
                         class="df-input" type="datetime-local"
@@ -2148,6 +2158,15 @@ app.component('dinamic-form', {
                                     <!-- date -->
                                     <input v-else-if="qData.question.questionTypeId === 'date'"
                                         class="df-input" type="date"
+                                        :disabled="!canEdit"
+                                        :value="getLocalAnswer(qData.question.id, entryData.entry.id)"
+                                        @input="onAnswer(qData.question.id, $event.target.value, entryData.entry.id)"
+                                        @blur="onBlur(qData.question.id, entryData.entry.id)"
+                                    />
+
+                                    <!-- time -->
+                                    <input v-else-if="qData.question.questionTypeId === 'time'"
+                                        class="df-input" type="time"
                                         :disabled="!canEdit"
                                         :value="getLocalAnswer(qData.question.id, entryData.entry.id)"
                                         @input="onAnswer(qData.question.id, $event.target.value, entryData.entry.id)"

@@ -207,7 +207,7 @@ var home = Vue.createApp({
     },
     submit(action) {
         if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
-            location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+            salviaGoBack(home.config.globalProperties.enums.nav_rules["default"]);  
         }else if (action == "search"){
             
             newEntity("{{.salviaReportformPath}}", this.workingPlace, (function(status, response) {

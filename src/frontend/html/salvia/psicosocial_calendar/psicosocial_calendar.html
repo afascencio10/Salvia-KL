@@ -1,0 +1,845 @@
+<link rel="stylesheet" href="/static/css/psicosocial_calendar.css">
+<link rel="stylesheet" href="/static/plugins/fullcalendar/main.min.css" onerror="this.remove()">
+<script src="/static/plugins/fullcalendar/main.min.js"></script>
+
+<main class="salvia-main">
+<div class="pc-dashboard">
+
+    <!-- ══ HEADER ═══════════════════════════════════════════════════════ -->
+    <div class="pc-header">
+        <div class="pc-header-main">
+            <div class="pc-header-left">
+                <div class="pc-header-eyebrow">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Calendario</span>
+                    <span class="pc-header-sep">·</span>
+                    <span>${ formattedDate }</span>
+                </div>
+                <h1 class="pc-header-title">Hola, <strong>${ currentUser }</strong></h1>
+                <p class="pc-header-sub">
+                    ${ isSupervisor
+                        ? 'Consulta la agenda de tu equipo y programa reuniones internas'
+                        : 'Consulta tus sesiones y reuniones asignadas' }
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="error" class="pc-error">${ error }</div>
+    <div v-if="successMsg" class="pc-success">${ successMsg }</div>
+
+    <!-- ══ TOOLBAR ══════════════════════════════════════════════════════ -->
+    <div class="pc-toolbar">
+        <div class="pc-toolbar-nav">
+            <button class="pc-nav-btn" @click="navPrev" title="Anterior"><i class="fas fa-chevron-left"></i></button>
+            <div class="pc-current-range">${ currentRange }</div>
+            <button class="pc-nav-btn" @click="navNext" title="Siguiente"><i class="fas fa-chevron-right"></i></button>
+            <button class="pc-nav-btn pc-nav-today" @click="navToday">Hoy</button>
+        </div>
+
+        <div class="pc-view-switch">
+            <button class="pc-view-btn" :class="{active: view === 'dayGridMonth'}" @click="setView('dayGridMonth')">Mes</button>
+            <button class="pc-view-btn" :class="{active: view === 'timeGridWeek'}" @click="setView('timeGridWeek')">Semana</button>
+        </div>
+
+        <div class="pc-toolbar-actions">
+            <select v-if="isSupervisor" class="pc-filter-select" v-model="filterAgentID" @change="loadEvents">
+                <option value="">Todos los agentes</option>
+                <option v-for="a in agents" :key="a.id" :value="a.id">${ a.name }</option>
+            </select>
+            <div class="pc-new-dropdown" @click.stop>
+                <button class="pc-btn-primary pc-new-btn" @click="showNewMenu = !showNewMenu">
+                    <i class="fas fa-plus"></i> Nuevo
+                    <i class="fas fa-chevron-down pc-new-caret"></i>
+                </button>
+                <div v-if="showNewMenu" class="pc-new-menu">
+                    <button class="pc-new-item" @click="pickNewSession">
+                        <i class="fas fa-user-check pc-new-item-icon"></i>
+                        <span>
+                            <span class="pc-new-item-title">Sesión con víctima</span>
+                            <span class="pc-new-item-sub">Programar sesión de seguimiento</span>
+                        </span>
+                    </button>
+                    <button v-if="isSupervisor" class="pc-new-item" @click="pickNewMeeting">
+                        <i class="fas fa-users pc-new-item-icon"></i>
+                        <span>
+                            <span class="pc-new-item-title">Reunión de equipo</span>
+                            <span class="pc-new-item-sub">Coordinación interna del equipo</span>
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ CALENDAR ═════════════════════════════════════════════════════ -->
+    <div class="pc-calendar-card">
+        <div class="pc-calendar-legend-bar">
+            <div class="pc-legend">
+                <span class="pc-legend-item"><span class="pc-legend-dot pc-dot-extreme"></span> Extremo</span>
+                <span class="pc-legend-item"><span class="pc-legend-dot pc-dot-danger"></span> Alto</span>
+                <span class="pc-legend-item"><span class="pc-legend-dot pc-dot-warning"></span> Moderado</span>
+                <span class="pc-legend-item"><span class="pc-legend-dot pc-dot-success"></span> Bajo</span>
+                <span class="pc-legend-item"><span class="pc-legend-dot pc-dot-info"></span> Sin evaluar</span>
+                <span class="pc-legend-item"><span class="pc-legend-dot pc-dot-primary"></span> Reunión</span>
+            </div>
+        </div>
+        <div v-if="loading" class="pc-loading pc-loading--floating"><i class="fas fa-spinner fa-spin"></i> Cargando…</div>
+        <div id="pc-calendar-el"></div>
+    </div>
+
+    <!-- ══ MODAL: Nueva sesión (agente) ════════════════════════════════ -->
+    <div v-if="showSessionModal" class="pc-modal-backdrop" @click.self="closeSessionModal">
+        <div class="pc-modal">
+            <div class="pc-modal-header">
+                <h3 class="pc-modal-title"><i class="fas fa-calendar-plus pc-icon--primary"></i> ${ editingSessionId ? 'Editar sesión' : 'Programar sesión' }</h3>
+                <button class="pc-modal-close" @click="closeSessionModal">&times;</button>
+            </div>
+            <div class="pc-modal-body">
+                <div v-if="isSupervisor" class="pc-form-group">
+                    <label>Agente asignado <span class="pc-required">*</span></label>
+                    <div class="pc-picker" @click.stop>
+                        <button type="button" class="pc-picker-trigger" @click="toggleAgentPicker">
+                            <i class="fas fa-user-shield pc-picker-icon"></i>
+                            <span v-if="!selectedAgent" class="pc-picker-placeholder">Selecciona un agente…</span>
+                            <span v-else class="pc-picker-value">${ capitalizeName(selectedAgent.name) }</span>
+                            <i class="fas fa-chevron-down pc-picker-caret"></i>
+                        </button>
+                        <div v-if="showAgentPicker" class="pc-picker-menu">
+                            <div class="pc-picker-search">
+                                <i class="fas fa-search"></i>
+                                <input type="text" v-model="agentPickerSearch" placeholder="Buscar agente…">
+                            </div>
+                            <div class="pc-picker-list">
+                                <button type="button"
+                                        v-for="a in filteredAgentOptions" :key="a.id"
+                                        class="pc-picker-row"
+                                        :class="{ selected: sessionForm.agentId === a.id }"
+                                        @click="selectAgentOption(a)">
+                                    <span class="pc-picker-avatar">${ initials(a.name) }</span>
+                                    <span class="pc-picker-row-main">
+                                        <span class="pc-picker-row-title">${ capitalizeName(a.name) }</span>
+                                        <span class="pc-picker-row-sub">Agente psicosocial</span>
+                                    </span>
+                                    <i v-if="sessionForm.agentId === a.id" class="fas fa-check pc-picker-check"></i>
+                                </button>
+                                <div v-if="filteredAgentOptions.length === 0" class="pc-picker-empty">Sin resultados</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pc-hint">La sesión quedará asignada al agente seleccionado.</div>
+                </div>
+                <div class="pc-form-group">
+                    <label>Víctima <span class="pc-required">*</span></label>
+                    <div class="pc-picker" @click.stop>
+                        <button type="button" class="pc-picker-trigger"
+                                :class="{ 'pc-picker-trigger--disabled': isSupervisor && !sessionForm.agentId }"
+                                :disabled="isSupervisor && !sessionForm.agentId"
+                                @click="toggleVictimPicker">
+                            <i class="fas fa-user-friends pc-picker-icon"></i>
+                            <span v-if="!selectedVictim" class="pc-picker-placeholder">Selecciona una víctima…</span>
+                            <span v-else class="pc-picker-value">
+                                <span class="pc-picker-value-text">${ capitalizeName(selectedVictim.victimName) }</span>
+                                <span class="pc-picker-value-meta">Caso ${ selectedVictim.caseICode }</span>
+                            </span>
+                            <i class="fas fa-chevron-down pc-picker-caret"></i>
+                        </button>
+                        <div v-if="showVictimPicker" class="pc-picker-menu">
+                            <div class="pc-picker-search">
+                                <i class="fas fa-search"></i>
+                                <input type="text" v-model="victimPickerSearch" placeholder="Buscar víctima o caso…">
+                            </div>
+                            <div class="pc-picker-list">
+                                <button type="button"
+                                        v-for="v in filteredVictimOptions" :key="v.remissionId"
+                                        class="pc-picker-row"
+                                        :class="{ selected: sessionForm.remissionId === v.remissionId }"
+                                        @click="selectVictimOption(v)">
+                                    <span class="pc-picker-avatar pc-picker-avatar--victim">${ initials(v.victimName) }</span>
+                                    <span class="pc-picker-row-main">
+                                        <span class="pc-picker-row-title">${ capitalizeName(v.victimName) }</span>
+                                        <span class="pc-picker-row-meta">
+                                            <span class="pc-risk-chip pc-risk-mini" :class="'pc-risk-' + v.riskLevel">${ riskLabel(v.riskLevel) }</span>
+                                            <span class="pc-picker-case-code"><i class="fas fa-folder-open pc-picker-case-icon"></i> ${ v.caseICode }</span>
+                                        </span>
+                                    </span>
+                                    <i v-if="sessionForm.remissionId === v.remissionId" class="fas fa-check pc-picker-check"></i>
+                                </button>
+                                <div v-if="filteredVictimOptions.length === 0" class="pc-picker-empty">
+                                    ${ isSupervisor && !sessionForm.agentId ? 'Selecciona primero un agente' : 'Sin víctimas asignadas' }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-if="isSupervisor && !sessionForm.agentId" class="pc-hint">
+                        Selecciona primero un agente.
+                    </div>
+                </div>
+                <div class="pc-form-row">
+                    <div class="pc-form-group">
+                        <label>Fecha <span class="pc-required">*</span></label>
+                        <input type="date" class="pc-form-input" v-model="sessionForm.scheduledDate">
+                    </div>
+                    <div class="pc-form-group">
+                        <label>Hora <span class="pc-required">*</span></label>
+                        <input type="time" class="pc-form-input" v-model="sessionForm.scheduledTime">
+                    </div>
+                </div>
+                <div class="pc-form-group">
+                    <label>Notas (opcional)</label>
+                    <textarea class="pc-form-textarea" v-model="sessionForm.summary" placeholder="Objetivo de la sesión, tema a tratar…"></textarea>
+                </div>
+            </div>
+            <div class="pc-modal-footer">
+                <button class="pc-btn-secondary" @click="closeSessionModal">Cancelar</button>
+                <button class="pc-btn-primary" @click="submitSession" :disabled="submitting">
+                    <i class="fas fa-check"></i> ${ submitting ? 'Guardando…' : 'Programar' }
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ MODAL: Nueva reunión (supervisor) ═════════════════════════════ -->
+    <div v-if="showMeetingModal" class="pc-modal-backdrop" @click.self="closeMeetingModal">
+        <div class="pc-modal">
+            <div class="pc-modal-header">
+                <h3 class="pc-modal-title"><i class="fas fa-users pc-icon--primary"></i> ${ editingMeetingId ? 'Editar reunión' : 'Programar reunión' }</h3>
+                <button class="pc-modal-close" @click="closeMeetingModal">&times;</button>
+            </div>
+            <div class="pc-modal-body">
+                <div class="pc-form-group">
+                    <label>Título <span class="pc-required">*</span></label>
+                    <input type="text" class="pc-form-input" v-model="meetingForm.title" placeholder="Ej: Reunión semanal de coordinación">
+                </div>
+                <div class="pc-form-row">
+                    <div class="pc-form-group">
+                        <label>Fecha <span class="pc-required">*</span></label>
+                        <input type="date" class="pc-form-input" v-model="meetingForm.scheduledDate">
+                    </div>
+                    <div class="pc-form-group">
+                        <label>Hora <span class="pc-required">*</span></label>
+                        <input type="time" class="pc-form-input" v-model="meetingForm.scheduledTime">
+                    </div>
+                </div>
+                <div class="pc-form-group">
+                    <label>Duración (min)</label>
+                    <input type="number" min="15" step="15" class="pc-form-input" v-model.number="meetingForm.durationMin">
+                </div>
+                <div class="pc-form-group">
+                    <label>Agentes participantes <span class="pc-required">*</span></label>
+                    <div class="pc-picker" @click.stop>
+                        <button type="button" class="pc-picker-trigger" @click="toggleParticipantsPicker">
+                            <i class="fas fa-users pc-picker-icon"></i>
+                            <span v-if="meetingForm.agentIds.length === 0" class="pc-picker-placeholder">Selecciona participantes…</span>
+                            <span v-else class="pc-picker-value">
+                                <span class="pc-picker-value-text">${ participantsSummary }</span>
+                                <span class="pc-picker-value-meta">${ meetingForm.agentIds.length } de ${ agents.length }</span>
+                            </span>
+                            <i class="fas fa-chevron-down pc-picker-caret"></i>
+                        </button>
+                        <div v-if="showParticipantsPicker" class="pc-picker-menu">
+                            <div class="pc-picker-search">
+                                <i class="fas fa-search"></i>
+                                <input type="text" v-model="agentSearch" placeholder="Buscar agente…">
+                            </div>
+                            <div class="pc-picker-toolbar">
+                                <span class="pc-picker-toolbar-count">${ meetingForm.agentIds.length } de ${ agents.length } seleccionados</span>
+                                <div class="pc-picker-toolbar-actions">
+                                    <button type="button" @click="selectAllAgents">Todos</button>
+                                    <button type="button" @click="clearAgents">Ninguno</button>
+                                </div>
+                            </div>
+                            <div class="pc-picker-list">
+                                <button type="button"
+                                        v-for="a in filteredAgents" :key="a.id"
+                                        class="pc-picker-row"
+                                        :class="{ selected: meetingForm.agentIds.includes(a.id) }"
+                                        @click="toggleAgent(a.id)">
+                                    <span class="pc-picker-avatar">${ initials(a.name) }</span>
+                                    <span class="pc-picker-row-main">
+                                        <span class="pc-picker-row-title">${ capitalizeName(a.name) }</span>
+                                        <span class="pc-picker-row-sub">Agente psicosocial</span>
+                                    </span>
+                                    <span class="pc-picker-checkbox" :class="{ checked: meetingForm.agentIds.includes(a.id) }">
+                                        <i v-if="meetingForm.agentIds.includes(a.id)" class="fas fa-check"></i>
+                                    </span>
+                                </button>
+                                <div v-if="filteredAgents.length === 0" class="pc-picker-empty">Sin resultados</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="pc-form-group">
+                    <label>Descripción (opcional)</label>
+                    <textarea class="pc-form-textarea" v-model="meetingForm.description" placeholder="Agenda, temas a tratar…"></textarea>
+                </div>
+            </div>
+            <div class="pc-modal-footer">
+                <button class="pc-btn-secondary" @click="closeMeetingModal">Cancelar</button>
+                <button class="pc-btn-primary" @click="submitMeeting" :disabled="submitting">
+                    <i class="fas fa-check"></i> ${ submitting ? 'Guardando…' : 'Programar' }
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ MODAL: Detalle evento ═════════════════════════════════════════ -->
+    <div v-if="selectedEvent" class="pc-modal-backdrop" @click.self="selectedEvent = null">
+        <div class="pc-modal pc-modal--preview">
+            <button class="pc-preview-x" @click="selectedEvent = null" aria-label="Cerrar">&times;</button>
+            <div class="pc-preview-accent" :class="selectedEvent.kind === 'meeting' ? 'pc-preview-accent--meeting' : 'pc-preview-accent--session'"></div>
+
+            <div class="pc-preview">
+                <div class="pc-preview-kindline">
+                    ${ selectedEvent.kind === 'meeting' ? 'Reunión de equipo' : 'Sesión con víctima' }
+                </div>
+                <h2 class="pc-preview-title">${ selectedEvent.kind === 'meeting' ? selectedEvent.title : capitalizeName(selectedEvent.victimName || selectedEvent.title) }</h2>
+                <div class="pc-preview-when">${ formatDateTime(selectedEvent.start) }</div>
+
+                <div class="pc-preview-tags">
+                    <span v-if="selectedEvent.kind === 'session'" class="pc-risk-chip pc-risk-mini" :class="'pc-risk-' + selectedEvent.riskLevel">
+                        ${ riskLabel(selectedEvent.riskLevel) }
+                    </span>
+                    <span v-if="selectedEvent.status" class="pc-status-chip" :class="'pc-status-' + statusSlug(selectedEvent.status)">
+                        ${ statusLabel(selectedEvent.status) }
+                    </span>
+                </div>
+
+                <div class="pc-preview-props">
+                    <div v-if="selectedEvent.caseICode && selectedEvent.kind === 'session'" class="pc-preview-prop">
+                        <span class="pc-preview-prop-label">Caso</span>
+                        <a :href="'/salvia/casos/' + selectedEvent.caseICode + '/detalle'" class="pc-preview-prop-value pc-preview-link" target="_blank">
+                            ${ selectedEvent.caseICode }
+                        </a>
+                    </div>
+                    <div v-if="selectedEvent.agentName" class="pc-preview-prop">
+                        <span class="pc-preview-prop-label">Agente</span>
+                        <span class="pc-preview-prop-value pc-preview-capitalize">${ capitalizeName(selectedEvent.agentName) }</span>
+                    </div>
+                    <div v-if="selectedEvent.kind === 'meeting' && meetingParticipants.length" class="pc-preview-prop">
+                        <span class="pc-preview-prop-label">Participantes</span>
+                        <span class="pc-preview-prop-value pc-preview-capitalize">${ meetingParticipants.map(p => capitalizeName(p.name)).join(', ') }</span>
+                    </div>
+                </div>
+
+                <div v-if="selectedEvent.description" class="pc-preview-notes-block">
+                    <div class="pc-preview-prop-label">Notas</div>
+                    <p class="pc-preview-notes-text">${ selectedEvent.description }</p>
+                </div>
+            </div>
+
+            <div class="pc-preview-actions">
+                <button v-if="isSupervisor && selectedEvent.kind === 'meeting'" class="pc-preview-action pc-preview-action--danger" @click="deleteMeetingConfirm">Eliminar</button>
+                <button v-if="isSupervisor && selectedEvent.kind === 'meeting'" class="pc-preview-action" @click="openMeetingModalForEdit">Editar</button>
+                <button v-if="canEditSession" class="pc-preview-action pc-preview-action--danger" @click="deleteSessionConfirm">Eliminar</button>
+                <button v-if="canEditSession" class="pc-preview-action" @click="openSessionModalForEdit">Editar</button>
+                <button class="pc-preview-action pc-preview-action--primary" @click="selectedEvent = null">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+</main>
+
+{{ template "standard_scripts.html" . }}
+{{ template "overlay.html" . }}
+
+<script>
+var pcApp = Vue.createApp({
+    delimiters: ['${', '}'],
+    data() {
+        return {
+            currentUser: '{{ .currentUser }}',
+            currentRole: '{{ .currentRole }}',
+            currentUserICode: '{{ .currentUserICode }}',
+            calendar: null,
+            view: 'dayGridMonth',
+            currentRange: '',
+            loading: false,
+            submitting: false,
+            error: '',
+            successMsg: '',
+            events: [],
+            agents: [],
+            myVictims: [],
+            filterAgentID: '',
+            showSessionModal: false,
+            showMeetingModal: false,
+            showNewMenu: false,
+            showAgentPicker: false,
+            showVictimPicker: false,
+            showParticipantsPicker: false,
+            agentPickerSearch: '',
+            victimPickerSearch: '',
+            editingMeetingId: '',
+            editingSessionId: '',
+            agentSearch: '',
+            selectedEvent: null,
+            meetingParticipants: [],
+            sessionForm: { agentId: '', remissionId: '', scheduledDate: '', scheduledTime: '', summary: '' },
+            meetingForm: { title: '', description: '', scheduledDate: '', scheduledTime: '', durationMin: 60, agentIds: [] },
+            formattedDate: new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+        };
+    },
+    computed: {
+        isSupervisor() { return this.currentRole === 'sv'; },
+        allAgentsSelected() {
+            return this.agents.length > 0 && this.meetingForm.agentIds.length === this.agents.length;
+        },
+        filteredAgents() {
+            const q = (this.agentSearch || '').toLowerCase().trim();
+            if (!q) return this.agents;
+            return this.agents.filter(a => (a.name || '').toLowerCase().includes(q));
+        },
+        filteredAgentOptions() {
+            const q = (this.agentPickerSearch || '').toLowerCase().trim();
+            if (!q) return this.agents;
+            return this.agents.filter(a => (a.name || '').toLowerCase().includes(q));
+        },
+        filteredVictimOptions() {
+            const q = (this.victimPickerSearch || '').toLowerCase().trim();
+            if (!q) return this.myVictims;
+            return this.myVictims.filter(v =>
+                (v.victimName || '').toLowerCase().includes(q) ||
+                (v.caseICode || '').toLowerCase().includes(q)
+            );
+        },
+        selectedAgent() {
+            return this.agents.find(a => a.id === this.sessionForm.agentId) || null;
+        },
+        selectedVictim() {
+            return this.myVictims.find(v => v.remissionId === this.sessionForm.remissionId) || null;
+        },
+        canEditSession() {
+            if (!this.selectedEvent || this.selectedEvent.kind !== 'session') return false;
+            const status = (this.selectedEvent.status || '').toUpperCase();
+            if (status && status !== 'PENDIENTE') return false;
+            return this.isSupervisor || this.selectedEvent.agentId === this.currentUserICode;
+        },
+        participantsSummary() {
+            const ids = this.meetingForm.agentIds;
+            if (!ids.length) return '';
+            const names = ids.map(id => {
+                const a = this.agents.find(x => x.id === id);
+                return a ? this.capitalizeName(a.name) : '';
+            }).filter(Boolean);
+            if (names.length <= 2) return names.join(', ');
+            return names.slice(0, 2).join(', ') + ' +' + (names.length - 2);
+        },
+    },
+    mounted() {
+        document.body.style.display = 'block';
+        this.$nextTick(() => this.initCalendar());
+        this.loadAgents();
+        if (!this.isSupervisor) this.loadMyVictims();
+        document.addEventListener('click', this.closeNewMenu);
+    },
+    beforeUnmount() {
+        document.removeEventListener('click', this.closeNewMenu);
+    },
+    methods: {
+        initCalendar() {
+            if (typeof FullCalendar === 'undefined') {
+                this.error = 'No se pudo cargar el componente de calendario';
+                return;
+            }
+            const el = document.getElementById('pc-calendar-el');
+            const self = this;
+            this.calendar = new FullCalendar.Calendar(el, {
+                initialView: this.view,
+                headerToolbar: false,
+                locale: 'es',
+                firstDay: 1,
+                height: 'auto',
+                nowIndicator: true,
+                slotMinTime: '07:00:00',
+                slotMaxTime: '20:00:00',
+                allDaySlot: false,
+                buttonText: { today: 'Hoy', month: 'Mes', week: 'Semana' },
+                datesSet: (info) => {
+                    self.currentRange = self.formatRange(info.view);
+                    self.loadEvents();
+                },
+                eventClick: (info) => {
+                    const ev = self.events.find(e => e.id === info.event.id);
+                    if (!ev) return;
+                    self.selectedEvent = ev;
+                    self.meetingParticipants = [];
+                    if (ev.kind === 'meeting') self.loadMeetingParticipants(ev.id);
+                },
+                eventContent: (arg) => {
+                    const p = arg.event.extendedProps;
+                    const wrap = document.createElement('div');
+                    wrap.className = 'pc-badge';
+                    const rawName = p.kind === 'meeting' ? arg.event.title : (p.name || arg.event.title);
+                    const name = p.kind === 'meeting' ? rawName : self.capitalizeName(rawName);
+                    wrap.innerHTML =
+                        '<span class="pc-badge-dot"></span>' +
+                        (p.time ? '<span class="pc-badge-time">' + self.escapeHtml(p.time) + '</span>' : '') +
+                        '<span class="pc-badge-name">' + self.escapeHtml(name) + '</span>';
+                    return { domNodes: [wrap] };
+                },
+                events: [],
+            });
+            this.calendar.render();
+            this.$nextTick(() => this.calendar.updateSize());
+            setTimeout(() => this.calendar && this.calendar.updateSize(), 100);
+        },
+        formatRange(view) {
+            const opts = view.type === 'dayGridMonth'
+                ? { month: 'long', year: 'numeric' }
+                : { day: 'numeric', month: 'short', year: 'numeric' };
+            if (view.type === 'dayGridMonth') {
+                return view.currentStart.toLocaleDateString('es-CO', opts);
+            }
+            const s = view.currentStart.toLocaleDateString('es-CO', opts);
+            const e = new Date(view.currentEnd.getTime() - 1).toLocaleDateString('es-CO', opts);
+            return s + ' — ' + e;
+        },
+        setView(v) {
+            this.view = v;
+            if (this.calendar) {
+                this.calendar.changeView(v);
+                this.$nextTick(() => this.calendar.updateSize());
+            }
+        },
+        navPrev() { if (this.calendar) { this.calendar.prev(); this.$nextTick(() => this.calendar.updateSize()); } },
+        navNext() { if (this.calendar) { this.calendar.next(); this.$nextTick(() => this.calendar.updateSize()); } },
+        navToday() { if (this.calendar) { this.calendar.today(); this.$nextTick(() => this.calendar.updateSize()); } },
+        async loadEvents() {
+            if (!this.calendar) return;
+            this.loading = true;
+            this.error = '';
+            try {
+                const view = this.calendar.view;
+                const from = this.toDateStr(view.activeStart);
+                const to = this.toDateStr(view.activeEnd);
+                const url = this.isSupervisor
+                    ? '/api/v1/psychosocial/calendar/team'
+                    : '/api/v1/psychosocial/calendar/mine';
+                const qs = new URLSearchParams({ from, to });
+                if (this.isSupervisor && this.filterAgentID) qs.set('agentId', this.filterAgentID);
+                const r = await fetch(url + '?' + qs.toString(), { credentials: 'same-origin' });
+                if (!r.ok) throw new Error('Error HTTP ' + r.status);
+                const data = await r.json();
+                this.events = data.events || [];
+                this.renderEvents();
+            } catch (e) {
+                this.error = e.message || 'Error cargando eventos';
+            } finally {
+                this.loading = false;
+                this.$nextTick(() => this.calendar && this.calendar.updateSize());
+            }
+        },
+        localStart(ev) {
+            const date = ev.scheduledDate || (ev.start || '').substring(0, 10);
+            const time = ev.scheduledTime || '00:00';
+            if (!date) return ev.start;
+            return date + 'T' + (time.length === 5 ? time + ':00' : time);
+        },
+        renderEvents() {
+            if (!this.calendar) return;
+            this.calendar.removeAllEvents();
+            this.events.forEach(ev => {
+                const cls = ev.kind === 'meeting' ? 'pc-event-meeting' : ('pc-event-risk-' + (ev.riskLevel || 0));
+                this.calendar.addEvent({
+                    id: ev.id,
+                    title: ev.title || 'Sesión',
+                    start: this.localStart(ev),
+                    classNames: [cls],
+                    extendedProps: {
+                        kind: ev.kind,
+                        time: ev.scheduledTime || '',
+                        name: ev.victimName || ev.title || '',
+                        riskLevel: ev.riskLevel || 0,
+                    },
+                });
+            });
+        },
+        capitalizeName(s) {
+            if (!s) return '';
+            return String(s).toLocaleLowerCase('es')
+                .split(/\s+/)
+                .map(w => w ? w.charAt(0).toLocaleUpperCase('es') + w.slice(1) : w)
+                .join(' ');
+        },
+        escapeHtml(s) {
+            if (s == null) return '';
+            return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+        },
+        initials(name) {
+            if (!name) return '?';
+            const parts = name.trim().split(/\s+/);
+            const a = parts[0] ? parts[0][0] : '';
+            const b = parts.length > 1 ? parts[parts.length - 1][0] : (parts[0][1] || '');
+            return (a + b).toUpperCase();
+        },
+        toDateStr(d) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return y + '-' + m + '-' + dd;
+        },
+        async loadAgents() {
+            try {
+                const r = await fetch('/api/v1/psychosocial/calendar/agents', { credentials: 'same-origin' });
+                if (!r.ok) return;
+                const data = await r.json();
+                this.agents = data.agents || [];
+            } catch (e) { /* noop */ }
+        },
+        async loadMyVictims(agentId) {
+            try {
+                const url = agentId
+                    ? '/api/v1/psychosocial/calendar/my-victims?agentId=' + encodeURIComponent(agentId)
+                    : '/api/v1/psychosocial/calendar/my-victims';
+                const r = await fetch(url, { credentials: 'same-origin' });
+                if (!r.ok) return;
+                const data = await r.json();
+                this.myVictims = data.victims || [];
+            } catch (e) { /* noop */ }
+        },
+        async loadSessionVictims() {
+            this.sessionForm.remissionId = '';
+            this.myVictims = [];
+            if (!this.sessionForm.agentId) return;
+            await this.loadMyVictims(this.sessionForm.agentId);
+        },
+        closeNewMenu() { this.showNewMenu = false; this.showAgentPicker = false; this.showVictimPicker = false; this.showParticipantsPicker = false; },
+        toggleAgentPicker() { this.showVictimPicker = false; this.showParticipantsPicker = false; this.showAgentPicker = !this.showAgentPicker; },
+        toggleVictimPicker() { this.showAgentPicker = false; this.showParticipantsPicker = false; this.showVictimPicker = !this.showVictimPicker; },
+        toggleParticipantsPicker() { this.showAgentPicker = false; this.showVictimPicker = false; this.showParticipantsPicker = !this.showParticipantsPicker; },
+        selectAgentOption(a) {
+            this.sessionForm.agentId = a.id;
+            this.showAgentPicker = false;
+            this.agentPickerSearch = '';
+            this.loadSessionVictims();
+        },
+        selectVictimOption(v) {
+            this.sessionForm.remissionId = v.remissionId;
+            this.showVictimPicker = false;
+            this.victimPickerSearch = '';
+        },
+        pickNewSession() { this.showNewMenu = false; this.openSessionModal(); },
+        pickNewMeeting() { this.showNewMenu = false; this.openMeetingModal(); },
+        openSessionModal() {
+            this.editingSessionId = '';
+            this.sessionForm = { agentId: '', remissionId: '', scheduledDate: this.toDateStr(new Date()), scheduledTime: '09:00', summary: '' };
+            if (!this.isSupervisor) this.loadMyVictims();
+            else this.myVictims = [];
+            this.showSessionModal = true;
+        },
+        async openSessionModalForEdit() {
+            if (!this.selectedEvent || this.selectedEvent.kind !== 'session') return;
+            const ev = this.selectedEvent;
+            this.editingSessionId = ev.id;
+            const agentIdForLoad = ev.agentId || this.currentUserICode;
+            this.sessionForm = {
+                agentId: this.isSupervisor ? (ev.agentId || '') : '',
+                remissionId: '',
+                scheduledDate: ev.scheduledDate || this.toDateStr(new Date()),
+                scheduledTime: ev.scheduledTime || '09:00',
+                summary: ev.description || '',
+            };
+            await this.loadMyVictims(agentIdForLoad);
+            const match = this.myVictims.find(v => v.caseICode === ev.caseICode);
+            if (match) this.sessionForm.remissionId = match.remissionId;
+            this.selectedEvent = null;
+            this.showSessionModal = true;
+        },
+        async deleteSessionConfirm() {
+            if (!this.selectedEvent || this.selectedEvent.kind !== 'session') return;
+            if (!confirm('¿Eliminar esta sesión? El seguimiento programado se borrará.')) return;
+            try {
+                const r = await fetch('/api/v1/psychosocial/sessions/' + this.selectedEvent.id, {
+                    method: 'DELETE',
+                    credentials: 'same-origin',
+                });
+                if (!r.ok) throw new Error('No se pudo eliminar');
+                this.successMsg = 'Sesión eliminada';
+                this.selectedEvent = null;
+                this.loadEvents();
+                setTimeout(() => this.successMsg = '', 3000);
+            } catch (e) {
+                this.error = e.message || 'Error al eliminar';
+            }
+        },
+        closeSessionModal() { this.showSessionModal = false; this.editingSessionId = ''; },
+        async submitSession() {
+            if (!this.sessionForm.remissionId || !this.sessionForm.scheduledDate || !this.sessionForm.scheduledTime) {
+                this.error = 'Complete todos los campos requeridos';
+                return;
+            }
+            const victim = this.myVictims.find(v => v.remissionId === this.sessionForm.remissionId);
+            if (!victim) return;
+            this.submitting = true;
+            this.error = '';
+            try {
+                const isEdit = !!this.editingSessionId;
+                const url = isEdit
+                    ? '/api/v1/psychosocial/sessions/' + this.editingSessionId
+                    : '/api/v1/psychosocial/sessions';
+                const r = await fetch(url, {
+                    method: isEdit ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        caseICode: victim.caseICode,
+                        followUpId: victim.followUpId,
+                        remissionId: victim.remissionId,
+                        agentId: this.sessionForm.agentId || null,
+                        scheduledDate: this.sessionForm.scheduledDate,
+                        scheduledTime: this.sessionForm.scheduledTime,
+                        summary: this.sessionForm.summary || null,
+                    }),
+                });
+                if (!r.ok) {
+                    const data = await r.json().catch(() => ({}));
+                    throw new Error(data.error || 'Error HTTP ' + r.status);
+                }
+                this.successMsg = isEdit ? 'Sesión actualizada' : 'Sesión programada correctamente';
+                this.closeSessionModal();
+                this.loadEvents();
+                setTimeout(() => this.successMsg = '', 3000);
+            } catch (e) {
+                this.error = e.message || 'Error al programar sesión';
+            } finally {
+                this.submitting = false;
+            }
+        },
+        openMeetingModal() {
+            this.editingMeetingId = '';
+            this.meetingForm = { title: '', description: '', scheduledDate: this.toDateStr(new Date()), scheduledTime: '10:00', durationMin: 60, agentIds: [] };
+            this.showMeetingModal = true;
+        },
+        async openMeetingModalForEdit() {
+            if (!this.selectedEvent || this.selectedEvent.kind !== 'meeting') return;
+            try {
+                const r = await fetch('/api/v1/psychosocial/meetings/' + this.selectedEvent.id, { credentials: 'same-origin' });
+                if (!r.ok) throw new Error('No se pudo cargar la reunión');
+                const m = await r.json();
+                this.editingMeetingId = m.id;
+                this.meetingForm = {
+                    title: m.title || '',
+                    description: m.description || '',
+                    scheduledDate: (m.scheduledDate || '').substring(0, 10),
+                    scheduledTime: m.scheduledTime || '10:00',
+                    durationMin: m.durationMin || 60,
+                    agentIds: Array.isArray(m.agentIds) ? m.agentIds.slice() : [],
+                };
+                this.selectedEvent = null;
+                this.showMeetingModal = true;
+            } catch (e) {
+                this.error = e.message || 'Error al cargar reunión';
+            }
+        },
+        async deleteMeetingConfirm() {
+            if (!this.selectedEvent || this.selectedEvent.kind !== 'meeting') return;
+            if (!confirm('¿Eliminar esta reunión? Se quitará del calendario de todos los agentes.')) return;
+            try {
+                const r = await fetch('/api/v1/psychosocial/meetings/' + this.selectedEvent.id, {
+                    method: 'DELETE',
+                    credentials: 'same-origin',
+                });
+                if (!r.ok) throw new Error('No se pudo eliminar');
+                this.successMsg = 'Reunión eliminada';
+                this.selectedEvent = null;
+                this.loadEvents();
+                setTimeout(() => this.successMsg = '', 3000);
+            } catch (e) {
+                this.error = e.message || 'Error al eliminar';
+            }
+        },
+        closeMeetingModal() { this.showMeetingModal = false; this.editingMeetingId = ''; },
+        toggleAllAgents() {
+            this.meetingForm.agentIds = this.allAgentsSelected ? [] : this.agents.map(a => a.id);
+        },
+        selectAllAgents() { this.meetingForm.agentIds = this.agents.map(a => a.id); },
+        clearAgents() { this.meetingForm.agentIds = []; },
+        toggleAgent(id) {
+            const i = this.meetingForm.agentIds.indexOf(id);
+            if (i >= 0) this.meetingForm.agentIds.splice(i, 1);
+            else this.meetingForm.agentIds.push(id);
+        },
+        async submitMeeting() {
+            if (!this.meetingForm.title || !this.meetingForm.scheduledDate || !this.meetingForm.scheduledTime || this.meetingForm.agentIds.length === 0) {
+                this.error = 'Complete todos los campos requeridos y seleccione al menos un agente';
+                return;
+            }
+            this.submitting = true;
+            this.error = '';
+            try {
+                const isEdit = !!this.editingMeetingId;
+                const url = isEdit
+                    ? '/api/v1/psychosocial/meetings/' + this.editingMeetingId
+                    : '/api/v1/psychosocial/meetings';
+                const r = await fetch(url, {
+                    method: isEdit ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(this.meetingForm),
+                });
+                if (!r.ok) {
+                    const data = await r.json().catch(() => ({}));
+                    throw new Error(data.error || 'Error HTTP ' + r.status);
+                }
+                this.successMsg = isEdit ? 'Reunión actualizada' : 'Reunión programada correctamente';
+                this.closeMeetingModal();
+                this.loadEvents();
+                setTimeout(() => this.successMsg = '', 3000);
+            } catch (e) {
+                this.error = e.message || 'Error al programar reunión';
+            } finally {
+                this.submitting = false;
+            }
+        },
+        formatDateTime(iso) {
+            if (!iso) return '';
+            const ev = this.selectedEvent || {};
+            const dateStr = ev.scheduledDate || String(iso).substring(0, 10);
+            const timeStr = ev.scheduledTime || '';
+            const [y, m, day] = dateStr.split('-').map(n => parseInt(n, 10));
+            const d = new Date(y, (m || 1) - 1, day || 1);
+            let out = d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            if (timeStr) {
+                const [hh, mm] = timeStr.split(':').map(n => parseInt(n, 10));
+                const t = new Date(y, (m || 1) - 1, day || 1, hh || 0, mm || 0);
+                out += ' · ' + t.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+            }
+            return out;
+        },
+        async loadMeetingParticipants(id) {
+            try {
+                const r = await fetch('/api/v1/psychosocial/meetings/' + id, { credentials: 'same-origin' });
+                if (!r.ok) return;
+                const m = await r.json();
+                if (Array.isArray(m.agents) && m.agents.length) {
+                    this.meetingParticipants = m.agents.map(a => ({ id: a.id, name: a.name || a.id }));
+                    return;
+                }
+                const ids = Array.isArray(m.agentIds) ? m.agentIds : [];
+                this.meetingParticipants = ids.map(aid => {
+                    const a = this.agents.find(x => x.id === aid);
+                    return { id: aid, name: a ? a.name : aid };
+                });
+            } catch (e) { /* noop */ }
+        },
+        statusSlug(s) {
+            return String(s || '').toLowerCase().replace(/[^a-z]/g, '');
+        },
+        statusLabel(s) {
+            const map = {
+                programada: 'Programada', pendiente: 'Programada', realizada: 'Realizada',
+                realizado: 'Realizada', vencido: 'Vencida', vencida: 'Vencida',
+                reprogramado: 'Reprogramada', cerrado: 'Cerrada', cancelada: 'Cancelada',
+            };
+            return map[String(s || '').toLowerCase()] || s;
+        },
+        riskLabel(level) {
+            const m = { 4: 'Extremo', 3: 'Alto', 2: 'Moderado', 1: 'Bajo', 0: 'Sin evaluar' };
+            return m[level] || 'Sin evaluar';
+        },
+    },
+});
+pcApp.mount('#app');
+</script>

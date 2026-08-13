@@ -43,6 +43,18 @@ Tabla ya existente y en uso por `remisiones-psicosocial-component`. Actúa como 
 | Primera Atención: consentimiento = No | `en_devolucion` |
 | Sesión de Cierre completada | `cerrado` |
 
+### Aug 2026 — tablas adicionales tocadas al guardar
+
+| Tabla | Uso |
+|---|---|
+| `salvia.barrier_follow_up` | Seguimiento a Barreras (§9.6) |
+| `salvia.barrier_v2` | Identificación + cierre `MANAGED`; columna `team_contact_id` |
+| `salvia.case_task` / `entity_letter` | Solo Identificación (según gestión) |
+| `salvia.case_timeline_event` | Sesión, Seguimiento a Barrera, Hechos del caso |
+| `salvia.team_contact` | Agenda: `scheduled_date` + `scheduled_time` (ventana 2h) |
+
+Migración datos form: `src/cmd/seed/migrate_psicosocial_aug2026.sql`.
+
 **Cambio en Go (`psychosocial_support.go`):**
 ```go
 // Agregar al struct PsychosocialSupport:

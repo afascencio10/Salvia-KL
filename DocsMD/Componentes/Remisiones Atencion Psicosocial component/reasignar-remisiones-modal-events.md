@@ -4,7 +4,7 @@ Componente: `ReasignarRemisionesModal`
 Archivo fuente: `src/frontend/js/components/reasignar-remisiones-modal.js` *(pendiente de crear)*  
 Usado por: Pantallas padre con `remisiones-psicosocial-component` y `:reasignacion="true"` (p. ej. Historial de Remisiones — rol `sv`)
 
-> **Nota de alcance:** Modal independiente del listado. Se abre cuando el padre recibe `reasignar-remisiones` (E-15). RRM-05 persiste en `psychosocial_support` y `team_contact` (solo contactos con `is_completed = false`).
+> **Nota de alcance:** Modal independiente del listado. Se abre cuando el padre recibe `reasignar-remisiones` (E-15). RRM-05 persiste en `psychosocial_support`, `team_contact` (solo contactos con `is_completed = false`) y `case_task` pendientes (`status = 'ToDo'`) de esas remisiones.
 
 Interfaz detallada: [reasignar-remisiones-modal-interface.md](./reasignar-remisiones-modal-interface.md)
 
@@ -78,6 +78,8 @@ Evento:       Cuando confirma la reasignación
 Tipo:         User Interaction / Backend write
 Descripción:  POST reasignar-bulk. Actualiza professional_id o dupla_id en
               psychosocial_support y en team_contact pendientes (is_completed=false).
+              Reasigna case_task ToDo de la remisión: assigned_user_id = professional_id
+              (modo individual) o dupla.psychologist_id (modo dupla).
               Emite 'reassigned'; padre recarga listado.
 Requerido:    Sí
 ```
@@ -102,7 +104,7 @@ Requerido:    Sí
 - [x] Select agrupado ps/ts (Image 2) → RRM-03
 - [x] Select duplas enriquecidas (Image 3) → RRM-03
 - [x] Cancelar sin guardar → RRM-04
-- [x] Persistencia psychosocial_support + team_contact → RRM-05
+- [x] Persistencia psychosocial_support + team_contact + case_task ToDo → RRM-05
 - [x] Recarga tabla padre → RRM-05 + reload() del componente
 
 ---

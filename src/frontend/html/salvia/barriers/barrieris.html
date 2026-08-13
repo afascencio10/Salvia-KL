@@ -56,9 +56,10 @@
         <!-- ─── Tabla de barreras ─── -->
         <div class="mb-table-wrapper">
 
-            <div class="mb-table-header" :class="currentTab === 'articuladas' ? 'mb-grid-3' : 'mb-grid-4'">
+            <div class="mb-table-header" :class="currentTab === 'articuladas' ? 'mb-grid-4' : 'mb-grid-5'">
                 <div>Caso</div>
                 <div>Barrera</div>
+                <div>Tarea (solicitud)</div>
                 <div>Gestión Realizada</div>
                 <div v-if="currentTab !== 'articuladas'">Acción</div>
             </div>
@@ -68,7 +69,7 @@
                     v-for="barrera in paginatedBarreras"
                     :key="barrera.id"
                     class="mb-row"
-                    :class="currentTab === 'articuladas' ? 'mb-grid-3' : 'mb-grid-4'">
+                    :class="currentTab === 'articuladas' ? 'mb-grid-4' : 'mb-grid-5'">
 
                     <!-- CASO -->
                     <div>
@@ -86,6 +87,12 @@
                         </div>
                         <div class="mb-barrera-desc">${ barrera.description }</div>
                         <a :href="'/salvia/barreras/' + barrera.barrierId" class="mb-link">Ver barrera →</a>
+                    </div>
+
+                    <!-- TAREA (SOLICITUD) -->
+                    <div>
+                        <div class="mb-org-tag">${ barrera.taskTypeLabel }</div>
+                        <div class="mb-barrera-desc">${ barrera.taskDescription }</div>
                     </div>
 
                     <!-- GESTIÓN REALIZADA -->

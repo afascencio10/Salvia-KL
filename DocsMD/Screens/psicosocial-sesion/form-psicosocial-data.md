@@ -28,6 +28,15 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 - El **Formulario de Seguimiento se renombra a "Atención Psicosocial"**, junto con sus secciones internas que contenían la palabra "Seguimiento": "Contacto Seguimiento" → "Contacto Atención Psicosocial", y la sección de contenido "Seguimiento" → "Atención Psicosocial". En el **Formulario de Cierre** (que mantiene su propio nombre) se aplica el mismo cambio de palabra a su sección "Seguimiento (en Cierre)" → "Atención Psicosocial (en Cierre)". La sección **"Seguimiento a Barreras" NO se renombra** en ningún formulario: mantiene su nombre fijo en los 4 formularios.
 - Implementado en `src/cmd/seed/seed_psicosocial.sql`.
 
+**Decisión del líder — ajuste 5, diagrama Aug 2026 (consentimiento + agenda):**
+- **Consentimiento PC S4 / PA S4:** el texto largo se renderiza como pregunta tipo `info` (banner `df-info-banner`). La aceptación es un `single` corto (“¿Acepta el consentimiento informado…?”). Si = **No**, se ocultan todas las preguntas posteriores de esa sección.
+- **Agenda en todos los forms:** donde antes había solo “Fecha próxima atención” / “Fecha nueva”, ahora el bloque es:
+  1. ¿Agendar nueva sesión? (`single` Sí/No)
+  2. Fecha próxima atención (`date`) — visible si Agendar = Sí
+  3. Hora próxima atención (`time`) — visible si Agendar = Sí
+- Al responder Fecha+Hora, el frontend consulta disponibilidad (ventana 2h, individual/dupla). Mensaje informativo solo si no hay cupo. Al guardar, si no hay cupo (o Agendar=No) **no** se crea `team_contact` agendado.
+- Seed/migración: `seed_psicosocial.sql` + `migrate_psicosocial_aug2026.sql`. UUIDs de Agendar/Hora en `src/internal/constants/psicosocial_agenda_questions.go`.
+
 ---
 
 ## Form 1: Primer Contacto
@@ -52,8 +61,10 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 | 10 | Descripción de los hechos | text | ❌ | *visible si Q9 = true* |
 | 11 | Fecha (de los hechos) | date | ❌ | *visible si Q9 = true* |
 | 12 | Continuar Primera Atención | boolean | ✅ | **Gatillo de visibilidad de S4**: Si = true → S4 aparece en este mismo formulario |
-| 13 | Fecha próxima atención | date | ✅ | *visible si Q5 = Sí **Y** Q12 = No* — se oculta cuando "Continuar = Sí" (aparece en S4) |
-| 14 | Desde la atención anterior se han identificado barreras institucionales | boolean | ✅ | **ÚLTIMA** (Jul 2026) — *visible si Q12 = Sí* — **gatillo de visibilidad de S3 (Identificación de Barreras)** |
+| 13 | ¿Agendar nueva sesión? | single | ✅ | Sí / No — *visible si Q5 = Sí **Y** Q12 = No* |
+| 14 | Fecha próxima atención | date | ✅ | *visible si Q13 = Sí* |
+| 15 | Hora próxima atención | time | ✅ | *visible si Q13 = Sí* |
+| 16 | Desde la atención anterior se han identificado barreras institucionales | boolean | ✅ | **ÚLTIMA** — *visible si Q12 = Sí* — **gatillo de visibilidad de S3** |
 
 ### Sección 2 — Seguimiento a Barreras *(nueva, Jul 2026)*
 
@@ -76,19 +87,22 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 | # | Pregunta | Tipo | Req | Opciones / Notas |
 |---|---|---|---|---|
 | 1 | Describa las acciones ante la situación de riesgo inminente | text | ✅ | *visible si riesgo inminente (S1-Q3) = Sí* |
-| 2 | Consentimiento Informado para la Atención Psicosocial *(texto largo + pregunta)* | single | ✅ | Sí / No — texto completo del consentimiento como label |
-| 3 | Confirmación consentimiento persona de apoyo | single | ✅ | Sí / No — *siempre visible (Jul 2026: antes dependía de "¿Intérprete?", pregunta eliminada)* |
-| 4 | ¿La persona da su consentimiento para ser contactada posteriormente para evaluar calidad? | single | ✅ | Sí / No |
-| 5 | Ingresa por conducta suicida asociada a VBG o VpP | single | ✅ | Sí / No |
-| 6 | Tipo de conducta suicida | single | ❌ | Ideación / Amenaza / Intento — *visible si Q5 = Sí* |
-| 7 | Contenido de la atención | text | ✅ | — |
-| 8 | Plan de orientación | multiple | ❌ | Enrutamiento / Activación de ruta / Seguimiento / Medidas de emergencia / Plan de estabilización |
-| 9 | Plan de trabajo y recomendaciones | text | ✅ | — |
-| 10 | Compromisos | text | ✅ | — |
-| 11 | Fecha próxima atención | date | ✅ | *Movida desde S1 — aplica cuando Continuar Primera Atención = Sí* |
-| 12 | Observaciones | text | ❌ | — |
+| 2 | Consentimiento Informado *(texto largo)* | info | ❌ | Banner `df-info-banner` — sin respuesta |
+| 3 | ¿Acepta el consentimiento informado para la atención psicosocial? | single | ✅ | Sí / No — **si No, se ocultan Q4+** |
+| 4 | Confirmación consentimiento persona de apoyo | single | ✅ | Sí / No — *visible si Q3 = Sí* |
+| 5 | ¿La persona da su consentimiento para ser contactada posteriormente para evaluar calidad? | single | ✅ | Sí / No — *visible si Q3 = Sí* |
+| 6 | Ingresa por conducta suicida asociada a VBG o VpP | single | ✅ | Sí / No — *visible si Q3 = Sí* |
+| 7 | Tipo de conducta suicida | single | ❌ | Ideación / Amenaza / Intento — *visible si Q6 = Sí* |
+| 8 | Contenido de la atención | text | ✅ | *visible si Q3 = Sí* |
+| 9 | Plan de orientación | multiple | ❌ | *visible si Q3 = Sí* |
+| 10 | Plan de trabajo y recomendaciones | text | ✅ | *visible si Q3 = Sí* |
+| 11 | Compromisos | text | ✅ | *visible si Q3 = Sí* |
+| 12 | ¿Agendar nueva sesión? | single | ✅ | Sí / No — *visible si Q3 = Sí* |
+| 13 | Fecha próxima atención | date | ✅ | *visible si Q12 = Sí* |
+| 14 | Hora próxima atención | time | ✅ | *visible si Q12 = Sí* |
+| 15 | Observaciones | text | ❌ | *visible si Q3 = Sí* |
 
-> Jul 2026: se eliminaron "¿Requiere algún ajuste razonable...?" y "¿Requiere intérprete de idiomas...?" (antes Q2/Q3). 14 → 12 preguntas.
+> Aug 2026: consentimiento = `info` + `single`; Q4+ ocultas si No. Bloque Agendar/Fecha/Hora.
 
 ---
 
@@ -109,43 +123,46 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 | 5 | Hay nuevos hechos de violencia | boolean | ✅ | *visible si Q2 = Sí* |
 | 6 | Descripción de los hechos | text | ❌ | *visible si Q5 = true* |
 | 7 | Fecha (de los hechos) | date | ❌ | *visible si Q5 = true* |
-| 8 | ¿Es atención o solo contacto? | multiple | ✅ | Atención / Solo Contacto — **gatillo de visibilidad de Sección 4** |
+| 8 | ¿Es atención o solo contacto? | single | ✅ | Atención / Solo Contacto — **gatillo de visibilidad de Sección 4** |
 | 9 | Observaciones del contacto | text | ❌ | Visible siempre |
-| 10 | Fecha nueva | date | ❌ | *visible si Q8 = Solo Contacto* — para reagendar cuando no hay atención |
-| 11 | Desde la atención anterior se han identificado barreras institucionales | boolean | ✅ | **ÚLTIMA** (Jul 2026) — *visible si Q8 = Atención* — **gatillo de visibilidad de Sección 3 (Identificación de Barreras)** |
+| 10 | ¿Agendar nueva sesión? | single | ✅ | Sí / No — *visible si Q8 = Solo Contacto* |
+| 11 | Fecha nueva | date | ❌ | *visible si Q10 = Sí* |
+| 12 | Hora próxima atención | time | ✅ | *visible si Q10 = Sí* |
+| 13 | Desde la atención anterior se han identificado barreras institucionales | boolean | ✅ | **ÚLTIMA** — *visible si Q8 = Atención* — **gatillo S3** |
 
 ### Sección 2 — Seguimiento a Barreras *(nueva, Jul 2026)*
 
-> **Visibilidad de sección:** No depende de ninguna pregunta de este formulario. Permanece habilitada sin importar la respuesta de Q11. Su visibilidad real (si el caso tiene barreras activas) queda pendiente de resolver vía formState externo, igual que en el Formulario de Seguimiento.
+> **Visibilidad de sección:** Habilitada siempre; visibilidad real vía `formState.currentBarriers` (§9.5).
 >
-> Misma estructura y funcionalidad (repeater de 7 preguntas) que la Sección "Seguimiento a Barreras" del Formulario de Seguimiento — ver `DocsMD/Screens/hacer-seguimiento/form-seguimiento-barreras-repeater.md`.
+> Misma estructura que hacer-seguimiento — ver `form-seguimiento-barreras-repeater.md`. Post-submit: `barrier_follow_up` + timeline + cierre `MANAGED` (§9.6).
 
 ### Sección 3 — Identificación de Barreras *(nueva, Jul 2026)*
 
-> **Visibilidad de sección:** Visible cuando Q11 de S1 ("Desde la atención anterior se han identificado barreras institucionales") = Sí.
+> **Visibilidad de sección:** Visible cuando la pregunta de barreras institucionales (S1) = Sí.
 >
-> Misma estructura y funcionalidad (repeater de 22 preguntas, min. 1 repetición) que la Sección "Identificación de Barreras" del Formulario de Seguimiento — ver `DocsMD/Screens/hacer-seguimiento/form-barreras-repeater.md`.
+> Misma estructura que hacer-seguimiento — ver `form-barreras-repeater.md`. Post-submit: `barrier_v2` + tareas según gestión.
 
 ### Sección 4 — Primera Atención
 
-> **Visibilidad de sección:** Solo se muestra cuando `¿Es atención o solo contacto? = Atención`. Si la respuesta es "Solo Contacto", esta sección queda oculta y el formulario termina en la Sección 1 (solo se muestran "Observaciones del contacto", "Fecha nueva" y la pregunta de barreras). `ya_hizo_primera_atencion` permanece en `false`.
+> **Visibilidad de sección:** Solo se muestra cuando `¿Es atención o solo contacto? = Atención`.
 
 | # | Pregunta | Tipo | Req | Opciones / Notas |
 |---|---|---|---|---|
-| 1 | Describa las acciones ante la situación de riesgo inminente | text | ✅ | *visible si riesgo inminente (S1-Q4) = Sí* |
-| 2 | Consentimiento Informado para la Atención Psicosocial *(texto largo + pregunta)* | single | ✅ | Sí / No — texto completo del consentimiento como label |
-| 3 | Confirmación consentimiento persona de apoyo | single | ✅ | Sí / No — *siempre visible (Jul 2026: antes dependía de "¿Intérprete?", pregunta eliminada)* |
-| 4 | ¿La persona da su consentimiento para ser contactada posteriormente para evaluar calidad? | single | ✅ | Sí / No |
-| 5 | Ingresa por conducta suicida asociada a VBG o VpP | single | ✅ | Sí / No |
-| 6 | Tipo de conducta suicida | single | ❌ | Ideación / Amenaza / Intento — *visible si Q5 = Sí* |
-| 7 | Contenido de la atención | text | ✅ | — |
-| 8 | Plan de orientación | multiple | ❌ | Enrutamiento / Activación de ruta / Seguimiento / Medidas de emergencia / Plan de estabilización |
-| 9 | Plan de trabajo y recomendaciones | text | ✅ | — |
-| 10 | Compromisos | text | ✅ | — |
-| 11 | Fecha próxima atención | date | ✅ | — |
-| 12 | Observaciones | text | ❌ | — |
-
-> Jul 2026: se eliminaron "¿Requiere algún ajuste razonable...?" y "¿Requiere intérprete de idiomas...?" (antes Q2/Q3). 14 → 12 preguntas.
+| 1 | Describa las acciones ante la situación de riesgo inminente | text | ✅ | *visible si riesgo inminente (S1) = Sí* |
+| 2 | Consentimiento Informado *(texto largo)* | info | ❌ | Banner |
+| 3 | ¿Acepta el consentimiento informado para la atención psicosocial? | single | ✅ | Sí / No — **si No, se ocultan Q4+** |
+| 4 | Confirmación consentimiento persona de apoyo | single | ✅ | *visible si Q3 = Sí* |
+| 5 | ¿La persona da su consentimiento para ser contactada posteriormente para evaluar calidad? | single | ✅ | *visible si Q3 = Sí* |
+| 6 | Ingresa por conducta suicida asociada a VBG o VpP | single | ✅ | *visible si Q3 = Sí* |
+| 7 | Tipo de conducta suicida | single | ❌ | *visible si Q6 = Sí* |
+| 8 | Contenido de la atención | text | ✅ | *visible si Q3 = Sí* |
+| 9 | Plan de orientación | multiple | ❌ | *visible si Q3 = Sí* |
+| 10 | Plan de trabajo y recomendaciones | text | ✅ | *visible si Q3 = Sí* |
+| 11 | Compromisos | text | ✅ | *visible si Q3 = Sí* |
+| 12 | ¿Agendar nueva sesión? | single | ✅ | *visible si Q3 = Sí* |
+| 13 | Fecha próxima atención | date | ✅ | *visible si Q12 = Sí* |
+| 14 | Hora próxima atención | time | ✅ | *visible si Q12 = Sí* |
+| 15 | Observaciones | text | ❌ | *visible si Q3 = Sí* |
 
 ---
 
@@ -165,36 +182,34 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 | 6 | Hay nuevos hechos de violencia | boolean | ✅ | *visible si Q2 = Sí* |
 | 7 | Descripción de los hechos | text | ❌ | *visible si Q6 = true* |
 | 8 | Fecha (de los hechos) | date | ❌ | *visible si Q6 = true* |
-| 9 | ¿Es atención o solo contacto? | multiple | ✅ | Atención / Solo Contacto — **gatillo de visibilidad de Sección 4** |
+| 9 | ¿Es atención o solo contacto? | single | ✅ | Atención / Solo Contacto — **gatillo de visibilidad de Sección 4** |
 | 10 | Observaciones del contacto | text | ❌ | Visible siempre |
-| 11 | Fecha nueva | date | ❌ | *visible si Q9 = Solo Contacto* — para reagendar cuando no hay atención |
-| 12 | Desde la atención anterior se han identificado barreras institucionales | boolean | ✅ | **ÚLTIMA** (Jul 2026) — *visible si Q9 = Atención* — **gatillo de visibilidad de Sección 3 (Identificación de Barreras)** |
+| 11 | ¿Agendar nueva sesión? | single | ✅ | *visible si Q9 = Solo Contacto* |
+| 12 | Fecha nueva | date | ❌ | *visible si Q11 = Sí* |
+| 13 | Hora próxima atención | time | ✅ | *visible si Q11 = Sí* |
+| 14 | Desde la atención anterior se han identificado barreras institucionales | boolean | ✅ | **ÚLTIMA** — *visible si Q9 = Atención* — **gatillo S3** |
 
-> Jul 2026: se agregó Q1 "¿La atención es individual o en dupla?" (antes ausente); el resto de preguntas se recorrió 1 posición (11 → 12).
+### Sección 2 — Seguimiento a Barreras *(nombre fijo)*
 
-### Sección 2 — Seguimiento a Barreras *(nueva, Jul 2026 — nombre fijo, no se renombra)*
+> Visibilidad real vía `formState.currentBarriers`. Post-submit §9.6.
 
-> **Visibilidad de sección:** No depende de ninguna pregunta de este formulario. Permanece habilitada sin importar la respuesta de Q12. Su visibilidad real (si el caso tiene barreras activas) queda pendiente de resolver vía formState externo, igual que en el Formulario de Seguimiento (hacer-seguimiento).
->
-> Misma estructura y funcionalidad (repeater de 7 preguntas) que la Sección "Seguimiento a Barreras" del Formulario de Seguimiento — ver `DocsMD/Screens/hacer-seguimiento/form-seguimiento-barreras-repeater.md`.
+### Sección 3 — Identificación de Barreras
 
-### Sección 3 — Identificación de Barreras *(nueva, Jul 2026)*
-
-> **Visibilidad de sección:** Visible cuando Q12 de S1 ("Desde la atención anterior se han identificado barreras institucionales") = Sí.
->
-> Misma estructura y funcionalidad (repeater de 22 preguntas, min. 1 repetición) que la Sección "Identificación de Barreras" del Formulario de Seguimiento — ver `DocsMD/Screens/hacer-seguimiento/form-barreras-repeater.md`.
+> Visible cuando pregunta de barreras (S1) = Sí. Post-submit: barrera + tareas.
 
 ### Sección 4 — Atención Psicosocial *(antes "Seguimiento")*
 
-> **Visibilidad de sección:** Solo se muestra cuando `¿Es atención o solo contacto? = Atención`. Si la respuesta es "Solo Contacto", esta sección queda oculta. `session_count` no incrementa.
+> Visible cuando `¿Es atención o solo contacto? = Atención`.
 
 | # | Pregunta | Tipo | Req | Opciones / Notas |
 |---|---|---|---|---|
 | 1 | Contenido de la atención | text | ✅ | — |
-| 2 | Plan de orientación | multiple | ❌ | Enrutamiento / Activación de ruta / Seguimiento / Medidas de emergencia / Plan de estabilización |
+| 2 | Plan de orientación | multiple | ❌ | — |
 | 3 | Compromisos | text | ✅ | — |
-| 4 | Fecha próxima atención | date | ✅ | — |
-| 5 | Observaciones | text | ❌ | — |
+| 4 | ¿Agendar nueva sesión? | single | ✅ | Sí / No |
+| 5 | Fecha próxima atención | date | ✅ | *visible si Q4 = Sí* |
+| 6 | Hora próxima atención | time | ✅ | *visible si Q4 = Sí* |
+| 7 | Observaciones | text | ❌ | — |
 
 ---
 
@@ -218,45 +233,43 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 | 6 | Hay nuevos hechos de violencia | boolean | ✅ | *visible si Q2 = Sí* |
 | 7 | Descripción de los hechos | text | ❌ | *visible si Q6 = true* |
 | 8 | Fecha (de los hechos) | date | ❌ | *visible si Q6 = true* |
-| 9 | ¿Es atención o solo contacto? | multiple | ✅ | Atención / Solo Contacto — **gatillo de visibilidad de Sección 4** |
+| 9 | ¿Es atención o solo contacto? | single | ✅ | Atención / Solo Contacto — **gatillo de visibilidad de Sección 4** |
 | 10 | Observaciones del contacto | text | ❌ | Visible siempre |
-| 11 | Fecha nueva | date | ❌ | *visible si Q9 = Solo Contacto* — para reagendar cuando no hay atención |
-| 12 | Desde la atención anterior se han identificado barreras institucionales | boolean | ✅ | **ÚLTIMA** (Jul 2026) — *visible si Q9 = Atención* — **gatillo de visibilidad de Sección 3 (Identificación de Barreras)** |
+| 11 | ¿Agendar nueva sesión? | single | ✅ | *visible si Q9 = Solo Contacto* |
+| 12 | Fecha nueva | date | ❌ | *visible si Q11 = Sí* |
+| 13 | Hora próxima atención | time | ✅ | *visible si Q11 = Sí* |
+| 14 | Desde la atención anterior se han identificado barreras institucionales | boolean | ✅ | **ÚLTIMA** — *visible si Q9 = Atención* — **gatillo S3** |
 
-> Jul 2026: se agregó Q1 "¿La atención es individual o en dupla?" (antes ausente); el resto de preguntas se recorrió 1 posición (11 → 12).
+### Sección 2 — Seguimiento a Barreras *(nombre fijo)*
 
-### Sección 2 — Seguimiento a Barreras *(nueva, Jul 2026 — nombre fijo, no se renombra)*
+> Visibilidad real vía `formState.currentBarriers`. Post-submit §9.6.
 
-> **Visibilidad de sección:** No depende de ninguna pregunta de este formulario. Permanece habilitada sin importar la respuesta de Q12. Su visibilidad real (si el caso tiene barreras activas) queda pendiente de resolver vía formState externo, igual que en el Formulario de Seguimiento (hacer-seguimiento).
->
-> Misma estructura y funcionalidad (repeater de 7 preguntas) que la Sección "Seguimiento a Barreras" del Formulario de Seguimiento — ver `DocsMD/Screens/hacer-seguimiento/form-seguimiento-barreras-repeater.md`.
+### Sección 3 — Identificación de Barreras
 
-### Sección 3 — Identificación de Barreras *(nueva, Jul 2026)*
+> Visible cuando pregunta de barreras (S1) = Sí.
 
-> **Visibilidad de sección:** Visible cuando Q12 de S1 ("Desde la atención anterior se han identificado barreras institucionales") = Sí.
->
-> Misma estructura y funcionalidad (repeater de 22 preguntas, min. 1 repetición) que la Sección "Identificación de Barreras" del Formulario de Seguimiento — ver `DocsMD/Screens/hacer-seguimiento/form-barreras-repeater.md`.
+### Sección 4 — Atención Psicosocial (en Cierre)
 
-### Sección 4 — Atención Psicosocial (en Cierre) *(antes "Seguimiento (en Cierre)")*
-
-> **Visibilidad de sección:** Solo se muestra cuando `¿Es atención o solo contacto? = Atención`. Si la respuesta es "Solo Contacto", esta sección y la Sección 5 quedan ocultas. `session_count` no incrementa.
+> Visible cuando `¿Es atención o solo contacto? = Atención`.
 
 | # | Pregunta | Tipo | Req | Opciones / Notas |
 |---|---|---|---|---|
 | 1 | Contenido de la atención | text | ✅ | — |
-| 2 | Plan de orientación | multiple | ❌ | Enrutamiento / Activación de ruta / Seguimiento / Medidas de emergencia / Plan de estabilización |
+| 2 | Plan de orientación | multiple | ❌ | — |
 | 3 | Compromisos | text | ✅ | — |
-| 4 | Fecha próxima atención | date | ✅ | — |
-| 5 | Observaciones | text | ❌ | — |
-| 6 | Cerrar remisión | boolean | ✅ | **Gatillo de visibilidad de S5**: Si = true → Sección de Cierre aparece. Si = false → S5 permanece oculta y el formulario actúa como un seguimiento más |
+| 4 | ¿Agendar nueva sesión? | single | ✅ | Sí / No |
+| 5 | Fecha próxima atención | date | ✅ | *visible si Q4 = Sí* |
+| 6 | Hora próxima atención | time | ✅ | *visible si Q4 = Sí* |
+| 7 | Observaciones | text | ❌ | — |
+| 8 | Cerrar remisión | boolean | ✅ | **Gatillo de S5** |
 
 ### Sección 5 — Cierre
 
 > **Visibilidad de sección:** Solo se muestra cuando **ambas** condiciones se cumplen:
-> 1. `¿Es atención o solo contacto? = Atención` (S1 — misma condición que S4)
-> 2. `Cerrar remisión = Sí` (S4-Q6)
->
-> Si "Cerrar remisión = No", el formulario termina en S4 y el registro actúa como un seguimiento regular más. `status` no cambia a `cerrado`.
+> 1. `¿Es atención o solo contacto? = Atención` (S1)
+> 2. `Cerrar remisión = Sí` (S4)
+
+> Si "Cerrar remisión = No", el formulario termina en S4. `status` no cambia a `cerrado`.
 
 | # | Pregunta | Tipo | Req | Opciones / Notas |
 |---|---|---|---|---|

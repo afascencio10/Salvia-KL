@@ -85,6 +85,73 @@ type CaseReportDTO struct {
 	AggressorSexuallyHarassment2              string `gorm:"column:aggressor_sexually_harassment_2"`
 	AggressorTakenAdvantagePhysicalVulnerabil string `gorm:"column:aggressor_taken_advantage_physical_vulnerabil"`
 	ViolenceMotivatedByGender2                string `gorm:"column:violence_motivated_by_gender_2"`
+
+	// Bloque 1: Autorización y Contacto
+	AuthorizationAnswer string `gorm:"column:authorization_answer"`
+	AdjustmentsGBV      string `gorm:"column:adjustments_gbv"`
+	RequireInterpreter  string `gorm:"column:require_interpreter"`
+	SupportContactEmail string `gorm:"column:support_contact_email"`
+
+	// Bloque 2: Hechos Victimizantes (ampliación)
+	FactsDeptName        string `gorm:"column:facts_dept_name"`
+	FactsCityName        string `gorm:"column:facts_city_name"`
+	FactsZone            string `gorm:"column:facts_zone"`
+	FactsAddressForm2    string `gorm:"column:facts_address_form2"`
+	ViolenceType         string `gorm:"column:violence_type"`
+	ViolenceSubtype      string `gorm:"column:violence_subtype"`
+	ViolenceScopeForm2   string `gorm:"column:violence_scope_form2"`
+	WorkplaceSector      string `gorm:"column:workplace_sector"`
+	RecurrenceAggression string `gorm:"column:recurrence_aggression"`
+
+	// Bloque 3: Características del Agresor (ampliación)
+	NumAggressors          string `gorm:"column:num_aggressors"`
+	ProximityAggressor     string `gorm:"column:proximity_aggressor"`
+	EconomicallyDependent  string `gorm:"column:economically_dependent"`
+	AggressorGenderIdentity string `gorm:"column:aggressor_gender_identity"`
+
+	// Bloque 4: Tamizaje (preguntas adicionales)
+	AggressorPursuesSpies      string `gorm:"column:aggressor_pursues_spies"`
+	AggressorHasAccessWeapons  string `gorm:"column:aggressor_has_access_weapons"`
+	PartnerUnemployed          string `gorm:"column:partner_unemployed"`
+	PartnerOtherDenunciations  string `gorm:"column:partner_other_denunciations"`
+	AggressorPenalBackground   string `gorm:"column:aggressor_penal_background"`
+	AggressorStrangulation     string `gorm:"column:aggressor_strangulation"`
+	AggressorConsumesDrugs     string `gorm:"column:aggressor_consumes_drugs"`
+	AggressorIsAlcoholic       string `gorm:"column:aggressor_is_alcoholic"`
+	PartnerControls            string `gorm:"column:partner_controls"`
+	PartnerThreatenedSuicide   string `gorm:"column:partner_threatened_suicide"`
+	PartnerThreatenedDamage    string `gorm:"column:partner_threatened_damage"`
+	ThoughtsOfSelfHarm         string `gorm:"column:thoughts_of_self_harm"`
+	AggressorLimitsContact     string `gorm:"column:aggressor_limits_contact"`
+	StillLivesWithAggressor    string `gorm:"column:still_lives_with_aggressor"`
+
+	// Bloque 5: Datos Personales Víctima (ampliación)
+	BirthDate                string `gorm:"column:birth_date_form2"`
+	PhysicalDifficulties     string `gorm:"column:physical_difficulties"`
+	Nationality              string `gorm:"column:nationality_form2"`
+	SpecifiedNationality     string `gorm:"column:specified_nationality"`
+	MigrationCondition       string `gorm:"column:migration_condition"`
+	GenderIdentity           string `gorm:"column:gender_identity_form2"`
+	AssignedSexAtBirth       string `gorm:"column:assigned_sex_at_birth"`
+	SpecialProtectedPop      string `gorm:"column:special_protected_pop"`
+	LastEducationLevel       string `gorm:"column:last_education_level"`
+	IncomeGenerationMethod   string `gorm:"column:income_generation_method"`
+	EmploymentRelationship   string `gorm:"column:employment_relationship"`
+	ASPMode                  string `gorm:"column:asp_mode"`
+	ApproxStartASP           string `gorm:"column:approx_start_asp"`
+	ReasonASP                string `gorm:"column:reason_asp"`
+	HousingTenancy           string `gorm:"column:housing_tenancy"`
+	HousingStratum           string `gorm:"column:housing_stratum"`
+	HasDependents            string `gorm:"column:has_dependents"`
+	CurrentlyPregnant        string `gorm:"column:currently_pregnant"`
+	ResidenceZone            string `gorm:"column:residence_zone"`
+
+	// Bloque 6: Plan de Acción, Denuncia, Operación
+	ActionPlan              string `gorm:"column:action_plan"`
+	ManagementExplanation   string `gorm:"column:management_explanation"`
+	AllowsEasyReport        string `gorm:"column:allows_easy_report"`
+	AgentResponsible        string `gorm:"column:agent_responsible"`
+	OwnerDescription        string `gorm:"column:owner_description"`
 }
 
 type FollowUpReportDTO struct {
@@ -257,7 +324,128 @@ func (r *reportRepository) FindCasesInDateRange(ctx context.Context, start, end 
 			COALESCE(NULLIF(ssh.victim_case_form2_enums_name, ''), '') AS stopped_seeking_help,
 			COALESCE(NULLIF(ash.victim_case_form2_enums_name, ''), '') AS aggressor_sexually_harassment_2,
 			COALESCE(NULLIF(avp.victim_case_form2_enums_name, ''), '') AS aggressor_taken_advantage_physical_vulnerabil,
-			COALESCE(NULLIF(vmg.victim_case_form2_enums_name, ''), '') AS violence_motivated_by_gender_2
+			COALESCE(NULLIF(vmg.victim_case_form2_enums_name, ''), '') AS violence_motivated_by_gender_2,
+
+			-- Bloque 1: Autorización y Contacto
+			'' AS authorization_answer,
+			COALESCE((
+				SELECT string_agg(adj_e.victim_case_form2_enums_name, ', ')
+				FROM salvia.rel_victim_case_form2_enums_victim_case_form2 adj_rel
+				JOIN salvia.victim_case_form2_enums adj_e ON adj_e.victim_case_form2_enums_id = adj_rel.victim_case_form2_enums_id
+				WHERE adj_rel.victim_case_form2_id = vf2.victim_case_form2_id
+				AND adj_e.victim_case_form2_enums_category LIKE '%adjustments_gbv%'
+			), '') AS adjustments_gbv,
+			COALESCE(NULLIF(interp.victim_case_form2_enums_name, ''), '') AS require_interpreter,
+			COALESCE(NULLIF(vf2.victim_case_form2_support_contact_email, ''), '') AS support_contact_email,
+
+			-- Bloque 2: Hechos Victimizantes (ampliación)
+			COALESCE(facts_dept.department_name, '') AS facts_dept_name,
+			COALESCE(facts_city.city_name, '') AS facts_city_name,
+			COALESCE(NULLIF(fzone.victim_case_form2_enums_name, ''), '') AS facts_zone,
+			COALESCE(NULLIF(vf2.victim_case_form2_facts_address, ''), '') AS facts_address_form2,
+			COALESCE((
+				SELECT string_agg(vte.victim_case_form2_enums_name, ', ')
+				FROM salvia.rel_victim_case_form2_enums_victim_case_form2 vt_rel
+				JOIN salvia.victim_case_form2_enums vte ON vte.victim_case_form2_enums_id = vt_rel.victim_case_form2_enums_id
+				WHERE vt_rel.victim_case_form2_id = vf2.victim_case_form2_id
+				AND (vte.victim_case_form2_enums_category LIKE '%violence_experienced%' OR vte.victim_case_form2_enums_category LIKE '%type_of_experienced_violence%')
+			), '') AS violence_type,
+			COALESCE((
+				SELECT string_agg(ste.victim_case_form2_enums_name, ', ')
+				FROM salvia.rel_victim_case_form2_enums_victim_case_form2 st_rel
+				JOIN salvia.victim_case_form2_enums ste ON ste.victim_case_form2_enums_id = st_rel.victim_case_form2_enums_id
+				WHERE st_rel.victim_case_form2_id = vf2.victim_case_form2_id
+				AND ste.victim_case_form2_enums_category LIKE '%subtype_violence%'
+			), '') AS violence_subtype,
+			COALESCE((
+				SELECT string_agg(soe.victim_case_form2_enums_name, ', ')
+				FROM salvia.rel_victim_case_form2_enums_victim_case_form2 so_rel
+				JOIN salvia.victim_case_form2_enums soe ON soe.victim_case_form2_enums_id = so_rel.victim_case_form2_enums_id
+				WHERE so_rel.victim_case_form2_id = vf2.victim_case_form2_id
+				AND soe.victim_case_form2_enums_category LIKE '%scope_of_violence%'
+			), '') AS violence_scope_form2,
+			COALESCE(NULLIF(wps.victim_case_form2_enums_name, ''), '') AS workplace_sector,
+			COALESCE(NULLIF(recur.victim_case_form2_enums_name, ''), '') AS recurrence_aggression,
+
+			-- Bloque 3: Características del Agresor (ampliación)
+			COALESCE(NULLIF(nag.victim_case_form2_enums_name, ''), '') AS num_aggressors,
+			COALESCE(NULLIF(prox.victim_case_form2_enums_name, ''), '') AS proximity_aggressor,
+			COALESCE(NULLIF(ecodep.victim_case_form2_enums_name, ''), '') AS economically_dependent,
+			COALESCE(NULLIF(aggi.victim_case_form2_enums_name, ''), '') AS aggressor_gender_identity,
+
+			-- Bloque 4: Tamizaje (preguntas adicionales)
+			COALESCE(NULLIF(b4_pursues.victim_case_form2_enums_name, ''), '') AS aggressor_pursues_spies,
+			COALESCE(NULLIF(b4_weapons.victim_case_form2_enums_name, ''), '') AS aggressor_has_access_weapons,
+			COALESCE(NULLIF(b4_unemp.victim_case_form2_enums_name, ''), '') AS partner_unemployed,
+			COALESCE(NULLIF(b4_denunc.victim_case_form2_enums_name, ''), '') AS partner_other_denunciations,
+			COALESCE(NULLIF(b4_penal.victim_case_form2_enums_name, ''), '') AS aggressor_penal_background,
+			COALESCE(NULLIF(b4_strang.victim_case_form2_enums_name, ''), '') AS aggressor_strangulation,
+			COALESCE(NULLIF(b4_drugs.victim_case_form2_enums_name, ''), '') AS aggressor_consumes_drugs,
+			COALESCE(NULLIF(b4_alcohol.victim_case_form2_enums_name, ''), '') AS aggressor_is_alcoholic,
+			COALESCE(NULLIF(b4_controls.victim_case_form2_enums_name, ''), '') AS partner_controls,
+			COALESCE(NULLIF(b4_suicide.victim_case_form2_enums_name, ''), '') AS partner_threatened_suicide,
+			COALESCE(NULLIF(b4_damage.victim_case_form2_enums_name, ''), '') AS partner_threatened_damage,
+			COALESCE(NULLIF(b4_selfharm.victim_case_form2_enums_name, ''), '') AS thoughts_of_self_harm,
+			COALESCE(NULLIF(b4_limits.victim_case_form2_enums_name, ''), '') AS aggressor_limits_contact,
+			COALESCE(NULLIF(b4_lives.victim_case_form2_enums_name, ''), '') AS still_lives_with_aggressor,
+
+			-- Bloque 5: Datos Personales Víctima (ampliación)
+			COALESCE(TO_CHAR(vf2.victim_case_form2_birth_date, 'YYYY-MM-DD'), '') AS birth_date_form2,
+			COALESCE(NULLIF(b5_diff.victim_case_form2_enums_name, ''), '') AS physical_difficulties,
+			COALESCE(NULLIF(b5_nat.victim_case_form2_enums_name, ''), '') AS nationality_form2,
+			COALESCE(NULLIF(b5_snat.victim_case_form2_enums_name, ''), '') AS specified_nationality,
+			COALESCE(NULLIF(b5_mig.victim_case_form2_enums_name, ''), '') AS migration_condition,
+			COALESCE(NULLIF(gi.victim_case_form2_enums_name, ''), '') AS gender_identity_form2,
+			COALESCE(NULLIF(b5_sex.victim_case_form2_enums_name, ''), '') AS assigned_sex_at_birth,
+			COALESCE((
+				SELECT string_agg(spp_e.victim_case_form2_enums_name, ', ')
+				FROM salvia.rel_victim_case_form2_enums_victim_case_form2 spp_rel
+				JOIN salvia.victim_case_form2_enums spp_e ON spp_e.victim_case_form2_enums_id = spp_rel.victim_case_form2_enums_id
+				WHERE spp_rel.victim_case_form2_id = vf2.victim_case_form2_id
+				AND spp_e.victim_case_form2_enums_category LIKE '%specially_protected%'
+			), '') AS special_protected_pop,
+			COALESCE(NULLIF(b5_edu.victim_case_form2_enums_name, ''), '') AS last_education_level,
+			COALESCE(NULLIF(b5_income.victim_case_form2_enums_name, ''), '') AS income_generation_method,
+			COALESCE(NULLIF(b5_employ.victim_case_form2_enums_name, ''), '') AS employment_relationship,
+			COALESCE((
+				SELECT string_agg(asp_e.victim_case_form2_enums_name, ', ')
+				FROM salvia.rel_victim_case_form2_enums_victim_case_form2 asp_rel
+				JOIN salvia.victim_case_form2_enums asp_e ON asp_e.victim_case_form2_enums_id = asp_rel.victim_case_form2_enums_id
+				WHERE asp_rel.victim_case_form2_id = vf2.victim_case_form2_id
+				AND asp_e.victim_case_form2_enums_category LIKE '%asp_mode%'
+			), '') AS asp_mode,
+			COALESCE(TO_CHAR(vf2.victim_case_form2_approx_start_asp, 'YYYY-MM-DD'), '') AS approx_start_asp,
+			COALESCE((
+				SELECT string_agg(rasp_e.victim_case_form2_enums_name, ', ')
+				FROM salvia.rel_victim_case_form2_enums_victim_case_form2 rasp_rel
+				JOIN salvia.victim_case_form2_enums rasp_e ON rasp_e.victim_case_form2_enums_id = rasp_rel.victim_case_form2_enums_id
+				WHERE rasp_rel.victim_case_form2_id = vf2.victim_case_form2_id
+				AND rasp_e.victim_case_form2_enums_category LIKE '%reason_asp%'
+			), '') AS reason_asp,
+			COALESCE(NULLIF(b5_housing.victim_case_form2_enums_name, ''), '') AS housing_tenancy,
+			COALESCE(NULLIF(b5_stratum.victim_case_form2_enums_name, ''), '') AS housing_stratum,
+			COALESCE((
+				SELECT string_agg(dep_e.victim_case_form2_enums_name, ', ')
+				FROM salvia.rel_victim_case_form2_enums_victim_case_form2 dep_rel
+				JOIN salvia.victim_case_form2_enums dep_e ON dep_e.victim_case_form2_enums_id = dep_rel.victim_case_form2_enums_id
+				WHERE dep_rel.victim_case_form2_id = vf2.victim_case_form2_id
+				AND dep_e.victim_case_form2_enums_category LIKE '%has_dependents%'
+			), '') AS has_dependents,
+			COALESCE(NULLIF(b5_preg.victim_case_form2_enums_name, ''), '') AS currently_pregnant,
+			'' AS residence_zone,
+
+			-- Bloque 6: Plan de Acción, Denuncia, Operación
+			COALESCE((
+				SELECT string_agg(ap_e.victim_case_form2_enums_name, ', ')
+				FROM salvia.rel_victim_case_form2_enums_victim_case_form2 ap_rel
+				JOIN salvia.victim_case_form2_enums ap_e ON ap_e.victim_case_form2_enums_id = ap_rel.victim_case_form2_enums_id
+				WHERE ap_rel.victim_case_form2_id = vf2.victim_case_form2_id
+				AND ap_e.victim_case_form2_enums_category LIKE '%action_plan%'
+			), '') AS action_plan,
+			COALESCE(NULLIF(vf2.victim_case_form2_saliva_management_explanation, ''), '') AS management_explanation,
+			COALESCE(NULLIF(b6_easy.victim_case_form2_enums_name, ''), '') AS allows_easy_report,
+			COALESCE((SELECT gup.general_user_profile_names || ' ' || gup.general_user_profile_last_names FROM security.general_user gu JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile WHERE gu.general_user_i_code = vc.agent_id LIMIT 1), '') AS agent_responsible,
+			COALESCE(vc.victim_case_owner_description, '') AS owner_description
 
 		FROM salvia.victim_case vc
 		LEFT JOIN salvia.victim_case_form1 vf1 ON vf1.victim_case_form1_victim_case = vc.victim_case_id
@@ -283,6 +471,43 @@ func (r *reportRepository) FindCasesInDateRange(ctx context.Context, start, end 
 		LEFT JOIN salvia.victim_case_form2_enums ash ON ash.victim_case_form2_enums_id = vf2.victim_case_form2_aggressor_sexually_harassment_2
 		LEFT JOIN salvia.victim_case_form2_enums avp ON avp.victim_case_form2_enums_id = vf2.victim_case_form2_aggressor_taken_advantage_physical_vulnerabil
 		LEFT JOIN salvia.victim_case_form2_enums vmg ON vmg.victim_case_form2_enums_id = vf2.victim_case_form2_violence_motivated_by_gender_2
+		LEFT JOIN salvia.victim_case_form2_enums interp ON interp.victim_case_form2_enums_id = vf2.victim_case_form2_require_language_interpreter
+		LEFT JOIN security.town facts_town ON facts_town.town_code = vf2.victim_case_form2_facts_town_code
+		LEFT JOIN security.city facts_city ON facts_city.city_id = facts_town.city_id
+		LEFT JOIN security.department facts_dept ON facts_dept.department_id = facts_city.department_id
+		LEFT JOIN salvia.victim_case_form2_enums fzone ON fzone.victim_case_form2_enums_id = vf2.victim_case_form2_facts_zone
+		LEFT JOIN salvia.victim_case_form2_enums wps ON wps.victim_case_form2_enums_id = vf2.victim_case_form2_workplace_sector_occurrence
+		LEFT JOIN salvia.victim_case_form2_enums recur ON recur.victim_case_form2_enums_id = vf2.victim_case_form2_recurrence_aggression
+		LEFT JOIN salvia.victim_case_form2_enums nag ON nag.victim_case_form2_enums_id = vf2.victim_case_form2_num_agressors
+		LEFT JOIN salvia.victim_case_form2_enums prox ON prox.victim_case_form2_enums_id = vf2.victim_case_form2_proximity_principal_aggressor
+		LEFT JOIN salvia.victim_case_form2_enums ecodep ON ecodep.victim_case_form2_enums_id = vf2.victim_case_form2_economically_dependent
+		LEFT JOIN salvia.victim_case_form2_enums aggi ON aggi.victim_case_form2_enums_id = vf2.victim_case_form2_aggressor_gender_identity
+		LEFT JOIN salvia.victim_case_form2_enums b4_pursues ON b4_pursues.victim_case_form2_enums_id = vf2.victim_case_form2_aggressor_pursues_spies_destroys
+		LEFT JOIN salvia.victim_case_form2_enums b4_weapons ON b4_weapons.victim_case_form2_enums_id = vf2.victim_case_form2_aggressor_has_access_to_weapons
+		LEFT JOIN salvia.victim_case_form2_enums b4_unemp ON b4_unemp.victim_case_form2_enums_id = vf2.victim_case_form2_partner_unemployed
+		LEFT JOIN salvia.victim_case_form2_enums b4_denunc ON b4_denunc.victim_case_form2_enums_id = vf2.victim_case_form2_partner_other_denunciations
+		LEFT JOIN salvia.victim_case_form2_enums b4_penal ON b4_penal.victim_case_form2_enums_id = vf2.victim_case_form2_aggressor_has_penal_background
+		LEFT JOIN salvia.victim_case_form2_enums b4_strang ON b4_strang.victim_case_form2_enums_id = vf2.victim_case_form2_aggressor_attempted_strangulation
+		LEFT JOIN salvia.victim_case_form2_enums b4_drugs ON b4_drugs.victim_case_form2_enums_id = vf2.victim_case_form2_aggressor_consumes_drugs
+		LEFT JOIN salvia.victim_case_form2_enums b4_alcohol ON b4_alcohol.victim_case_form2_enums_id = vf2.victim_case_form2_aggressor_is_alcoholic
+		LEFT JOIN salvia.victim_case_form2_enums b4_controls ON b4_controls.victim_case_form2_enums_id = vf2.victim_case_form2_partner_controls
+		LEFT JOIN salvia.victim_case_form2_enums b4_suicide ON b4_suicide.victim_case_form2_enums_id = vf2.victim_case_form2_partner_threatened_suicide
+		LEFT JOIN salvia.victim_case_form2_enums b4_damage ON b4_damage.victim_case_form2_enums_id = vf2.victim_case_form2_partner_threatened_damage_members
+		LEFT JOIN salvia.victim_case_form2_enums b4_selfharm ON b4_selfharm.victim_case_form2_enums_id = vf2.victim_case_form2_thoughts_of_self_harm
+		LEFT JOIN salvia.victim_case_form2_enums b4_limits ON b4_limits.victim_case_form2_enums_id = vf2.victim_case_form2_aggressor_limits_contact_support_networks
+		LEFT JOIN salvia.victim_case_form2_enums b4_lives ON b4_lives.victim_case_form2_enums_id = vf2.victim_case_form2_still_lives_with_aggressor
+		LEFT JOIN salvia.victim_case_form2_enums b5_diff ON b5_diff.victim_case_form2_enums_id = vf2.victim_case_form2_physical_mental_sensory_difficulties
+		LEFT JOIN salvia.victim_case_form2_enums b5_nat ON b5_nat.victim_case_form2_enums_id = vf2.victim_case_form2_nationality
+		LEFT JOIN salvia.victim_case_form2_enums b5_snat ON b5_snat.victim_case_form2_enums_id = vf2.victim_case_form2_specified_nationality
+		LEFT JOIN salvia.victim_case_form2_enums b5_mig ON b5_mig.victim_case_form2_enums_id = vf2.victim_case_form2_migration_condition
+		LEFT JOIN salvia.victim_case_form2_enums b5_sex ON b5_sex.victim_case_form2_enums_id = vf2.victim_case_form2_assigned_sex_at_birth
+		LEFT JOIN salvia.victim_case_form2_enums b5_edu ON b5_edu.victim_case_form2_enums_id = vf2.victim_case_form2_last_education_level
+		LEFT JOIN salvia.victim_case_form2_enums b5_income ON b5_income.victim_case_form2_enums_id = vf2.victim_case_form2_income_generation_method
+		LEFT JOIN salvia.victim_case_form2_enums b5_employ ON b5_employ.victim_case_form2_enums_id = vf2.victim_case_form2_employment_relationship
+		LEFT JOIN salvia.victim_case_form2_enums b5_housing ON b5_housing.victim_case_form2_enums_id = vf2.victim_case_form2_housing_tenancy_form
+		LEFT JOIN salvia.victim_case_form2_enums b5_stratum ON b5_stratum.victim_case_form2_enums_id = vf2.victim_case_form2_housing_stratum
+		LEFT JOIN salvia.victim_case_form2_enums b5_preg ON b5_preg.victim_case_form2_enums_id = vf2.victim_case_form2_currently_pregnant
+		LEFT JOIN salvia.victim_case_form2_enums b6_easy ON b6_easy.victim_case_form2_enums_id = vf2.victim_case_form2_allows_easy_report
 		LEFT JOIN security.town t ON t.town_code = vc.victim_case_victim_town_code
 		LEFT JOIN security.city c ON c.city_id = t.city_id
 		LEFT JOIN security.department d ON d.department_id = c.department_id
@@ -322,12 +547,22 @@ func (r *reportRepository) FindAnswersByFormSubmissions(ctx context.Context, sub
 			fu.id AS follow_up_id,
 			a.form_submission_id,
 			q.description AS question_desc,
-			a.value AS answer_value,
+			COALESCE(
+				NULLIF(opt.label, ''),
+				NULLIF(town_ans.town_name, ''),
+				NULLIF(city_ans.city_name, ''),
+				NULLIF(dept_ans.department_name, ''),
+				a.value
+			) AS answer_value,
 			vc.victim_case_victim_doc_number AS victim_doc_number,
 			fu.completed_at AS follow_up_date
 		FROM salvia.answer a
 		JOIN salvia.question q ON q.id = a.question_id
 		LEFT JOIN salvia.form_section s ON s.id = q.form_section_id::uuid
+		LEFT JOIN salvia.option opt ON opt.question_id = a.question_id AND opt.value = a.value AND opt.deleted_at IS NULL
+		LEFT JOIN security.town town_ans ON (town_ans.town_code = a.value OR town_ans.town_id::text = a.value) AND LENGTH(a.value) >= 1 AND a.value ~ '^\d+$'
+		LEFT JOIN security.city city_ans ON city_ans.city_id::text = a.value AND LENGTH(a.value) <= 5 AND a.value ~ '^\d+$' AND town_ans.town_id IS NULL
+		LEFT JOIN security.department dept_ans ON dept_ans.department_id::text = a.value AND LENGTH(a.value) <= 3 AND a.value ~ '^\d+$' AND town_ans.town_id IS NULL AND city_ans.city_id IS NULL
 		JOIN salvia.follow_up_v2 fu ON fu.form_submission_id = a.form_submission_id
 		JOIN salvia.victim_case vc ON vc.victim_case_i_code = fu.case_id
 		WHERE a.form_submission_id IN ?

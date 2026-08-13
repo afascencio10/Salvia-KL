@@ -15,7 +15,7 @@
             <p style="font-size:2.5rem;margin:0 0 12px">⚠️</p>
             <p style="font-size:1rem;font-weight:700;color:#111827;margin:0 0 8px">No se pudo cargar la remisión</p>
             <p style="font-size:.85rem;color:#6b7280;margin:0 0 20px">${ error }</p>
-            <a href="javascript:history.back()" class="btn btn-secondary" style="border-radius:8px;padding:8px 16px;font-size:.85rem">← Volver</a>
+            <a href="javascript:salviaGoBack('/salvia/mis-remisiones-psicosocial')" class="btn btn-secondary" style="border-radius:8px;padding:8px 16px;font-size:.85rem">← Volver</a>
         </div>
     </div>
 
@@ -23,7 +23,7 @@
 
         <!-- Breadcrumb -->
         <div class="brd-breadcrumb">
-            <a href="javascript:history.back()" class="brd-back-link">
+            <a href="javascript:salviaGoBack('/salvia/mis-remisiones-psicosocial')" class="brd-back-link">
                 <i class="fas fa-arrow-left"></i>
                 Remisiones
             </a>
@@ -175,8 +175,7 @@
                         </div>
                         <div>
                             <div style="font-size:.72rem;color:#9ca3af;margin-bottom:3px">
-                                ${ contact.scheduledDate || contact.createdAt }
-                                <span v-if="contact.scheduledTime"> · ${ contact.scheduledTime }</span>
+                                ${ fechaContacto(contact) }
                             </div>
                             <div style="font-size:.88rem;font-weight:700;color:#111827" :style="contact.status === 'cancelada' ? 'text-decoration:line-through;color:#9ca3af' : ''">
                                 <span v-if="contact.status === 'cancelada'">Sesión ${ contarSesionesHasta(idx) } cancelada</span>
@@ -379,6 +378,49 @@
                 }
             },
 
+            fechaContacto(contact) {
+                if (contact.isCompleted && contact.completedAt) {
+                    return this.formatearFechaHoraColombia(contact.completedAt);
+                }
+                if (contact.scheduledDate) {
+                    if (contact.scheduledTime) {
+                        return contact.scheduledDate + ' · ' + contact.scheduledTime;
+                    }
+                    return contact.scheduledDate;
+                }
+                return this.formatearFechaHoraColombia(contact.createdAt || '');
+            },
+
+            // Fechas con hora (completedAt / createdAt) se muestran en America/Bogota.
+            // scheduledDate + scheduledTime no se convierten: son hora local de agendamiento.
+            formatearFechaHoraColombia(value) {
+                if (!value) return '';
+                var s = String(value).trim();
+                if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+                var normalized = s;
+                if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(s) && !/[zZ]|[+-]\d{2}:\d{2}$/.test(s)) {
+                    normalized = s.replace(' ', 'T');
+                    if (normalized.indexOf('T') !== -1 && !/[zZ]|[+-]\d{2}:\d{2}$/.test(normalized)) {
+                        normalized += 'Z';
+                    }
+                }
+                var d = new Date(normalized);
+                if (isNaN(d.getTime())) return s;
+                var parts = new Intl.DateTimeFormat('en-CA', {
+                    timeZone: 'America/Bogota',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                    hourCycle: 'h23'
+                }).formatToParts(d);
+                var map = {};
+                parts.forEach(function(p) { map[p.type] = p.value; });
+                return map.year + '-' + map.month + '-' + map.day + ' ' + map.hour + ':' + map.minute;
+            },
+
             labelSessionType(type) {
                 var map = { 'PRIMER_CONTACTO': 'Primer contacto', 'PRIMERA_ATENCION': 'Primera atención', 'SEGUIMIENTO': 'Seguimiento', 'CIERRE': 'Cierre' };
                 return map[type] || type || '';
@@ -399,7 +441,8 @@
             },
 
             verSesion(contact) {
-                window.location.href = '/salvia/psicosocial/registrar/' + this.remisionID;
+                window.location.href =
+                    '/salvia/psicosocial/registrar/' + this.remisionID + '?contactId=' + contact.id;
             },
 
             async guardarPreferenciaHorario() {
@@ -451,11 +494,6 @@
             async cancelarSesion(contact) {
                 this.cancelarContact = contact;
                 this.cancelarVisible = true;
-            },
-
-            registrarSesion(contact) {
-                this.registrarContact = contact;
-                window.location.href = '/salvia/psicosocial/registrar/' + this.remisionID;
             },
 
             async confirmarCancelacion() {

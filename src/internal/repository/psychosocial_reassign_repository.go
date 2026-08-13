@@ -26,6 +26,7 @@ type PsychosocialReassignRepository interface {
 	UpdatePsychosocialDupla(ctx context.Context, remisionID, duplaID string) error
 	UpdateTeamContactsProfessional(ctx context.Context, remisionID, professionalID string) (int64, error)
 	UpdateTeamContactsDupla(ctx context.Context, remisionID, duplaID string) (int64, error)
+	UpdatePendingCaseTasksAssignee(ctx context.Context, remisionID, assignedUserID string) (int64, error)
 }
 
 type psychosocialReassignRepository struct {
@@ -71,7 +72,9 @@ func (r *psychosocialReassignRepository) ListActiveDuplasEnriched(ctx context.Co
 SELECT
 	d.id,
 	d.name,
+	BTRIM(d.psychologist_id::text) AS psychologist_id,
 	TRIM(COALESCE(ps_gup.general_user_profile_names, '') || ' ' || COALESCE(ps_gup.general_user_profile_last_names, '')) AS psychologist_name,
+	BTRIM(d.social_worker_id::text) AS social_worker_id,
 	TRIM(COALESCE(ts_gup.general_user_profile_names, '') || ' ' || COALESCE(ts_gup.general_user_profile_last_names, '')) AS social_worker_name
 FROM salvia.dupla d
 JOIN security.general_user ps_gu
@@ -152,7 +155,9 @@ func (r *psychosocialReassignRepository) FindDuplaForReassign(ctx context.Contex
 		SELECT
 			d.id,
 			d.name,
+			BTRIM(d.psychologist_id::text) AS psychologist_id,
 			TRIM(COALESCE(ps_gup.general_user_profile_names, '') || ' ' || COALESCE(ps_gup.general_user_profile_last_names, '')) AS psychologist_name,
+			BTRIM(d.social_worker_id::text) AS social_worker_id,
 			TRIM(COALESCE(ts_gup.general_user_profile_names, '') || ' ' || COALESCE(ts_gup.general_user_profile_last_names, '')) AS social_worker_name
 		FROM salvia.dupla d
 		JOIN security.general_user ps_gu
@@ -225,5 +230,17 @@ func (r *psychosocialReassignRepository) UpdateTeamContactsDupla(ctx context.Con
 		  AND is_completed = false
 		  AND deleted_at IS NULL
 	`, duplaID, time.Now(), remisionID)
+	return result.RowsAffected, result.Error
+}
+
+func (r *psychosocialReassignRepository) UpdatePendingCaseTasksAssignee(ctx context.Context, remisionID, assignedUserID string) (int64, error) {
+	result := r.db.WithContext(ctx).Exec(`
+		UPDATE salvia.case_task
+		SET assigned_user_id = ?,
+		    updated_at = ?
+		WHERE BTRIM(psychosocial_support_id::text) = BTRIM(?)
+		  AND status = ?
+		  AND deleted_at IS NULL
+	`, assignedUserID, time.Now(), remisionID, models.CaseTaskStatusToDo)
 	return result.RowsAffected, result.Error
 }
