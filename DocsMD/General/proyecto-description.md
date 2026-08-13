@@ -67,3 +67,4 @@ cd SOG_SALVIA/src && PORT=9090 go run . >> /tmp/salvia_server.log 2>&1 &
 | `case-timeline` | Componente reutilizable que muestra el historial cronológico de eventos de un caso. | `src/frontend/js/components/case-timeline.js` |
 
 Línea de prueba.
+Otra linea de prueba de felipe
