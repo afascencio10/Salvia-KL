@@ -65,3 +65,5 @@ cd SOG_SALVIA/src && PORT=9090 go run . >> /tmp/salvia_server.log 2>&1 &
 |---|---|---|
 | `dinamic-form` | Componente reutilizable que renderiza formularios dinámicos por secciones con guardado parcial. | `src/frontend/js/components/dinamic-form.js` |
 | `case-timeline` | Componente reutilizable que muestra el historial cronológico de eventos de un caso. | `src/frontend/js/components/case-timeline.js` |
+
+Línea de prueba.
