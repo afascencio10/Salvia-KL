@@ -57,10 +57,16 @@ type PsychosocialSessionView struct {
 	ProfessionalID   string  `json:"professionalId"`
 }
 
-// PsychosocialSupportView — remisión + sus sesiones.
+// PsychosocialSupportView — remisión + sus sesiones + asignación resuelta.
 type PsychosocialSupportView struct {
 	models.PsychosocialSupport
-	Sessions []PsychosocialSessionView `json:"sessions"`
+	Sessions          []PsychosocialSessionView `json:"sessions"`
+	SubmittedByName   string                    `json:"submittedByName"`
+	DuplaName         string                    `json:"duplaName"`
+	PsychologistName  string                    `json:"psychologistName"`
+	SocialWorkerName  string                    `json:"socialWorkerName"`
+	ProfessionalName  string                    `json:"professionalName"`
+	ProfessionalRole  string                    `json:"professionalRole"`
 }
 
 type CaseDetailRepository interface {
@@ -248,7 +254,7 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 	var followUpsV2 []models.FollowUpV2
 	r.db.WithContext(ctx).
 		Where("case_id = ?", vc.VictimCaseICode).
-		Order("sequence_number ASC").
+		Order("scheduled_date ASC").
 		Find(&followUpsV2)
 
 	// Cargar intentos de contacto para cada seguimiento (esquema 3×3)
@@ -279,9 +285,31 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 	var ps []models.PsychosocialSupport
 	r.db.WithContext(ctx).Where("case_id = ?", vc.VictimCaseICode).Find(&ps)
 
-	// Cargar sesiones (team_contact) por remisión — matchea por psicosocial_id o case_id.
+	// Cargar sesiones (team_contact) y asignación resuelta (remitente, dupla, profesional) por remisión.
 	psViews := make([]PsychosocialSupportView, 0, len(ps))
 	for _, remision := range ps {
+		var enrich struct {
+			SubmittedByNames      string `gorm:"column:submitted_by_names"`
+			SubmittedByLastNames  string `gorm:"column:submitted_by_last_names"`
+			DuplaName             string `gorm:"column:dupla_name"`
+			PsychologistName      string `gorm:"column:psychologist_name"`
+			SocialWorkerName      string `gorm:"column:social_worker_name"`
+			ProfessionalName      string `gorm:"column:professional_name"`
+			ProfessionalSpecialty string `gorm:"column:professional_specialty"`
+		}
+		r.db.WithContext(ctx).Raw(`
+			SELECT
+				COALESCE(submitter_gup.general_user_profile_names, '') AS submitted_by_names,
+				COALESCE(submitter_gup.general_user_profile_last_names, '') AS submitted_by_last_names,
+				COALESCE(d.name, '') AS dupla_name,
+				COALESCE(psych_gup.general_user_profile_names || ' ' || psych_gup.general_user_profile_last_names, '') AS psychologist_name,
+				COALESCE(sw_gup.general_user_profile_names || ' ' || sw_gup.general_user_profile_last_names, '') AS social_worker_name,
+				COALESCE(prof_gup.general_user_profile_names || ' ' || prof_gup.general_user_profile_last_names, '') AS professional_name,
+				`+psychosocialProfSpecialtySelect+` AS professional_specialty
+			`+psychosocialListBaseFrom+`
+			WHERE ps.id = ?
+		`, remision.ID).Scan(&enrich)
+
 		var sessions []PsychosocialSessionView
 		r.db.WithContext(ctx).Raw(`
 			SELECT
@@ -306,6 +334,12 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 		psViews = append(psViews, PsychosocialSupportView{
 			PsychosocialSupport: remision,
 			Sessions:            sessions,
+			SubmittedByName:     strings.TrimSpace(enrich.SubmittedByNames + " " + enrich.SubmittedByLastNames),
+			DuplaName:           enrich.DuplaName,
+			PsychologistName:    strings.TrimSpace(enrich.PsychologistName),
+			SocialWorkerName:    strings.TrimSpace(enrich.SocialWorkerName),
+			ProfessionalName:    strings.TrimSpace(enrich.ProfessionalName),
+			ProfessionalRole:    psychosocialRoleLabelFromSpecialty(enrich.ProfessionalSpecialty),
 		})
 	}
 	result.PsychosocialSupports = psViews

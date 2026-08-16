@@ -932,6 +932,21 @@ func (s *psychosocialDetailService) ValidateRemision(ctx context.Context, id str
 			(case_id, category, type, icon, color, description, event_user_id, actor_name, psychosocial_support_id, date, created_at)
 			VALUES (?, 'Psicosocial', 'Remisión Devuelta', 'arrow-rotate-left', '#dc2626', ?, ?, ?, ?, ?, ?)`,
 			ps.CaseID, descripcion, actorID, actorName, id, now, now)
+
+		// 5. Tarea "Justificar Remisión" para el agente dueño del caso — solo
+		// cuando la remisión se devuelve (no aplica si se valida como correcta,
+		// no hay nada que justificar en ese caso).
+		var caseAgentID string
+		s.db.WithContext(ctx).Raw(`SELECT COALESCE(agent_id, '') FROM salvia.victim_case WHERE victim_case_i_code = ?`, ps.CaseID).Scan(&caseAgentID)
+		if caseAgentID == "" {
+			log.Printf("[ValidateRemision] WARN: caso %s sin agente asignado — no se creó tarea Justificar Remisión", ps.CaseID)
+		} else {
+			s.db.WithContext(ctx).Exec(`
+				INSERT INTO salvia.case_task
+					(category, type, description, assigned_user_id, status, case_id, follow_up_id, psychosocial_support_id, created_at, updated_at)
+				VALUES ('Psicosocial', 'justificar_remision', ?, ?, 'ToDo', ?, ?, ?, NOW(), NOW())
+			`, "Justificar remisión devuelta — Motivo: "+reason, caseAgentID, ps.CaseID, ps.FollowUpID, id)
+		}
 	}
 
 	return nil

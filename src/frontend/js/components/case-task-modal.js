@@ -368,6 +368,7 @@ app.component('case-task-modal', {
                 proyectar_oficio: 'Proyectar Oficio',
                 comite_caso:      'Decisiones del Comité',
                 'Corregir oficio': 'Corregir Oficio',
+                justificar_remision: 'Justificar Remisión',
             }[this.tarea.type] || 'Completar tarea';
         },
 
@@ -378,6 +379,7 @@ app.component('case-task-modal', {
                 proyectar_oficio: 'fa-file-signature',
                 comite_caso:      'fa-users',
                 'Corregir oficio': 'fa-pencil-alt',
+                justificar_remision: 'fa-reply',
             }[this.tarea.type] || 'fa-tasks';
         },
 
@@ -404,6 +406,8 @@ app.component('case-task-modal', {
                 case 'Corregir oficio':
                     // Sin campos obligatorios — solo confirmación
                     return !this.cargandoOficio;
+                case 'justificar_remision':
+                    return !!(f.respuesta && f.respuesta.trim());
                 default:
                     return false;
             }
@@ -534,6 +538,9 @@ app.component('case-task-modal', {
                     this.form = {};
                     console.log('[CTM] E01 Corregir oficio — form inicializado | tarea:', this.tarea.id);
                     this._cargarOficioVinculado();
+                    break;
+                case 'justificar_remision':
+                    this.form = { respuesta: '' };
                     break;
             }
         },
@@ -715,6 +722,8 @@ app.component('case-task-modal', {
                 }
                 case 'Corregir oficio':
                     return {};
+                case 'justificar_remision':
+                    return { respuesta: f.respuesta.trim() };
             }
         },
 
@@ -879,7 +888,7 @@ app.component('case-task-modal', {
 
             <div v-if="form.entidadId === 'otra'" class="ctm-field">
                 <label class="ctm-label">Nombre de la entidad <span class="req">*</span></label>
-                <input class="ctm-input" v-model="form.entidadNombre" placeholder="Escribe el nombre de la entidad"/>
+                <input class="ctm-input" v-model="form.entidadNombre" placeholder="Escribe el nombre de la entidad" maxlength="150"/>
             </div>
 
             <p class="ctm-section-title">Contacto</p>
@@ -891,7 +900,7 @@ app.component('case-task-modal', {
 
             <div class="ctm-field">
                 <label class="ctm-label">Descripción / Notas</label>
-                <textarea class="ctm-textarea" v-model="form.descripcion" rows="3" placeholder="Resumen de la gestión..."></textarea>
+                <textarea class="ctm-textarea" v-model="form.descripcion" rows="3" placeholder="Resumen de la gestión..." maxlength="500"></textarea>
             </div>
 
             <p class="ctm-section-title">Oficio</p>
@@ -917,7 +926,7 @@ app.component('case-task-modal', {
                 </div>
                 <div class="ctm-field">
                     <label class="ctm-label">Ruta Kofax / URL del archivo <span class="req">*</span></label>
-                    <input class="ctm-input" v-model="form.rutaKofax" placeholder="\\\\servidor\\ruta\\archivo.pdf"/>
+                    <input class="ctm-input" v-model="form.rutaKofax" placeholder="\\\\servidor\\ruta\\archivo.pdf" maxlength="255"/>
                 </div>
             </template>
 
@@ -977,7 +986,7 @@ app.component('case-task-modal', {
 
             <div v-if="form.entidadId === 'otra'" class="ctm-field">
                 <label class="ctm-label">Nombre de la entidad <span class="req">*</span></label>
-                <input class="ctm-input" v-model="form.entidadNombre" placeholder="Escribe el nombre de la entidad"/>
+                <input class="ctm-input" v-model="form.entidadNombre" placeholder="Escribe el nombre de la entidad" maxlength="150"/>
             </div>
 
             <p class="ctm-section-title">Datos del oficio</p>
@@ -994,7 +1003,7 @@ app.component('case-task-modal', {
 
             <div class="ctm-field">
                 <label class="ctm-label">Ruta Kofax / URL del archivo <span class="req">*</span></label>
-                <input class="ctm-input" v-model="form.rutaKofax" placeholder="\\\\servidor\\ruta\\archivo.pdf"/>
+                <input class="ctm-input" v-model="form.rutaKofax" placeholder="\\\\servidor\\ruta\\archivo.pdf" maxlength="255"/>
             </div>
 
         </template>
@@ -1047,7 +1056,7 @@ app.component('case-task-modal', {
                 <p class="ctm-section-title" style="margin-top:16px">Oficio</p>
                 <div class="ctm-field">
                     <label class="ctm-label">Observaciones del oficio</label>
-                    <textarea class="ctm-textarea" v-model="form.observacionesOficio" rows="2" placeholder="Observaciones sobre el oficio a generar…"></textarea>
+                    <textarea class="ctm-textarea" v-model="form.observacionesOficio" rows="2" placeholder="Observaciones sobre el oficio a generar…" maxlength="500"></textarea>
                 </div>
             </template>
 
@@ -1055,7 +1064,7 @@ app.component('case-task-modal', {
                 <p class="ctm-section-title" style="margin-top:16px">Recomendaciones</p>
                 <div class="ctm-field">
                     <label class="ctm-label">Observaciones para el agente</label>
-                    <textarea class="ctm-textarea" v-model="form.observacionesRecomendaciones" rows="2" placeholder="Recomendaciones al agente del caso…"></textarea>
+                    <textarea class="ctm-textarea" v-model="form.observacionesRecomendaciones" rows="2" placeholder="Recomendaciones al agente del caso…" maxlength="500"></textarea>
                 </div>
             </template>
 
@@ -1072,9 +1081,28 @@ app.component('case-task-modal', {
                 </div>
                 <div class="ctm-field">
                     <label class="ctm-label">Observaciones del mecanismo</label>
-                    <textarea class="ctm-textarea" v-model="form.observacionesMecanismo" rows="2" placeholder="Observaciones sobre el mecanismo…"></textarea>
+                    <textarea class="ctm-textarea" v-model="form.observacionesMecanismo" rows="2" placeholder="Observaciones sobre el mecanismo…" maxlength="500"></textarea>
                 </div>
             </template>
+
+        </template>
+
+        <!-- Formulario justificar_remision -->
+        <template v-else-if="tarea && tarea.type === 'justificar_remision'">
+
+            <div style="margin-bottom:16px">
+                <p class="ctm-section-title" style="color:#b91c1c">
+                    <i class="fas fa-exclamation-circle"></i> Motivo de la devolución
+                </p>
+                <div style="padding:12px 14px;background:#fef2f2;border:1.5px solid #fecaca;border-radius:8px;color:#b91c1c;font-size:13px;line-height:1.5">
+                    \${ tarea.description }
+                </div>
+            </div>
+
+            <div class="ctm-field">
+                <label class="ctm-label">Tu respuesta <span class="req">*</span></label>
+                <textarea class="ctm-textarea" v-model="form.respuesta" rows="4" placeholder="Explica o justifica la remisión para que vuelva a revisión…" maxlength="500"></textarea>
+            </div>
 
         </template>
 

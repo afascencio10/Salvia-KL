@@ -120,17 +120,19 @@ type FilterOptions struct {
 // ── Implementación ────────────────────────────────────────────────────────────
 
 type followUpV2Service struct {
-	repo         repository.FollowUpRepository
-	fsRepo       repository.FormSubmissionRepository
-	barrierRepo  repository.BarrierV2Repository
-	caseRepo     repository.VictimCaseLightRepository
-	townRepo     repository.TownLightRepository
-	attemptRepo  repository.FollowUpAttemptRepository
-	emRepo       repository.EmergencyMeasureRepository
-	psRepo       repository.PsychosocialSupportRepository
-	esRepo       repository.EconomicStabilizationRepository
-	agentRepo    repository.AgentLightRepository
-	timelineRepo repository.CaseTimelineEventRepository
+	repo              repository.FollowUpRepository
+	fsRepo            repository.FormSubmissionRepository
+	barrierRepo       repository.BarrierV2Repository
+	caseRepo          repository.VictimCaseLightRepository
+	townRepo          repository.TownLightRepository
+	attemptRepo       repository.FollowUpAttemptRepository
+	emRepo            repository.EmergencyMeasureRepository
+	psRepo            repository.PsychosocialSupportRepository
+	esRepo            repository.EconomicStabilizationRepository
+	agentRepo         repository.AgentLightRepository
+	timelineRepo      repository.CaseTimelineEventRepository
+	answerRepo        repository.AnswerRepository
+	repeaterEntryRepo repository.RepeaterEntryRepository
 }
 
 // NewFollowUpV2Service construye el servicio inyectando los repositorios.
@@ -146,19 +148,23 @@ func NewFollowUpV2Service(
 	esRepo repository.EconomicStabilizationRepository,
 	agentRepo repository.AgentLightRepository,
 	timelineRepo repository.CaseTimelineEventRepository,
+	answerRepo repository.AnswerRepository,
+	repeaterEntryRepo repository.RepeaterEntryRepository,
 ) FollowUpV2Service {
 	return &followUpV2Service{
-		repo:         repo,
-		fsRepo:       fsRepo,
-		barrierRepo:  barrierRepo,
-		caseRepo:     caseRepo,
-		townRepo:     townRepo,
-		attemptRepo:  attemptRepo,
-		emRepo:       emRepo,
-		psRepo:       psRepo,
-		esRepo:       esRepo,
-		agentRepo:    agentRepo,
-		timelineRepo: timelineRepo,
+		repo:              repo,
+		fsRepo:            fsRepo,
+		barrierRepo:       barrierRepo,
+		caseRepo:          caseRepo,
+		townRepo:          townRepo,
+		attemptRepo:       attemptRepo,
+		emRepo:            emRepo,
+		psRepo:            psRepo,
+		esRepo:            esRepo,
+		agentRepo:         agentRepo,
+		timelineRepo:      timelineRepo,
+		answerRepo:        answerRepo,
+		repeaterEntryRepo: repeaterEntryRepo,
 	}
 }
 
@@ -450,6 +456,132 @@ func (s *followUpV2Service) GenerateOrRecalculate(ctx context.Context, caseID st
 	return s.repo.FindByCaseIDOrdered(ctx, caseID)
 }
 
+// IDs de preguntas/repeaters del formulario de seguimiento leídas para el
+// resumen de Detalle de Seguimiento (ver DocsMD/Screens/hacer-seguimiento/form-seguimiento-data.md).
+const (
+	qFollowUpRiskAnalysis     = "c2b02516-f7a5-4098-99d2-893f23390a89" // Valoración del Riesgo — análisis de factores
+	qFollowUpCaseManagement   = "bb7a2307-e461-47b4-b34e-401ca807efe7" // Seguimiento de Caso — gestión realizada
+	qFollowUpReferralEvidence = "1bdc8b52-2472-46b1-a8ab-52ea2b22f986" // Seguimiento de Caso — elementos que evidencian la remisión
+
+	rgFollowUpBarrierFollowUps  = "b536f16c-67b3-4370-810d-7cc8c9d5463e" // repeater Seguimiento a Barreras
+	qFollowUpBarrierActuaciones = "c808b590-128c-43cf-af94-c191a4bc31ac"
+	qFollowUpBarrierFUGestion   = "c785a994-3a38-4337-bd96-67329144affa"
+
+	rgFollowUpBarrierIdentified = "5fd3ecdc-2e5f-4b31-97ef-8a994580586a" // repeater Identificación de Barreras
+	qFollowUpBarrierIDGestion   = "572ad72a-8174-4ff3-9c56-5c8c65ac63ac"
+)
+
+// gestionBarreraLabels traduce los valores de "Gestión de la barrera" a texto
+// legible. Mismo catálogo de 6 opciones en ambos repeaters de barreras.
+var gestionBarreraLabels = map[string]string{
+	"orientacion_llamada":                "Orientación y enrutamiento - Llamada",
+	"gestion_llamada":                    "Gestión administrativa - Llamada",
+	"activacion_ruta_interinstitucional": "Activación de ruta interinstitucional",
+	"articulacion_institucional":         "Articulación institucional",
+	"escalamiento_organismo_control":     "Escalamiento a organismo de control",
+	"alerta_barreras":                    "Alerta por barreras",
+}
+
+// loadFormAnswers lee, desde el form_submission del seguimiento, el subconjunto
+// fijo de respuestas que se muestra en el tab Resumen de Detalle de Seguimiento.
+func (s *followUpV2Service) loadFormAnswers(ctx context.Context, submissionID string) *models.FollowUpFormAnswers {
+	result := &models.FollowUpFormAnswers{}
+
+	direct, err := s.answerRepo.FindDirectBySubmissionID(ctx, submissionID)
+	if err != nil {
+		log.Printf("[WARN] loadFormAnswers: no se pudieron leer respuestas directas: %v", err)
+	}
+	for _, a := range direct {
+		switch a.QuestionID {
+		case qFollowUpRiskAnalysis:
+			result.RiskAnalysis = a.Value
+		case qFollowUpCaseManagement:
+			result.CaseManagement = a.Value
+		case qFollowUpReferralEvidence:
+			result.ReferralEvidence = a.Value
+		}
+	}
+
+	result.BarrierFollowUps = s.loadBarrierAnswers(ctx, submissionID, rgFollowUpBarrierFollowUps, qFollowUpBarrierActuaciones, qFollowUpBarrierFUGestion)
+	result.BarrierIdentified = s.loadBarrierAnswers(ctx, submissionID, rgFollowUpBarrierIdentified, "", qFollowUpBarrierIDGestion)
+
+	return result
+}
+
+// loadBarrierAnswers lee las entries de un repeater de barreras y arma el
+// resumen legible (actuaciones + gestión con labels resueltos). qActuacionesID
+// vacío se omite (Identificación de Barreras no tiene esa pregunta). Entries
+// sin actuaciones ni gestión se descartan (nada legible que mostrar).
+func (s *followUpV2Service) loadBarrierAnswers(ctx context.Context, submissionID, groupID, qActuacionesID, qGestionID string) []models.BarrierAnswerSummary {
+	entries, err := s.repeaterEntryRepo.FindBySubmissionIDAndGroupIDs(ctx, submissionID, []string{groupID})
+	if err != nil {
+		log.Printf("[WARN] loadBarrierAnswers: no se pudieron leer entries del repeater %s: %v", groupID, err)
+		return nil
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Iteration < entries[j].Iteration })
+
+	entryIDs := make([]string, len(entries))
+	for i, e := range entries {
+		entryIDs[i] = e.ID
+	}
+
+	answers, err := s.answerRepo.FindByRepeaterEntryIDs(ctx, entryIDs)
+	if err != nil {
+		log.Printf("[WARN] loadBarrierAnswers: no se pudieron leer respuestas del repeater %s: %v", groupID, err)
+		return nil
+	}
+
+	byEntry := make(map[string]map[string]string, len(entries))
+	for _, a := range answers {
+		if a.RepeaterEntryID == nil {
+			continue
+		}
+		if byEntry[*a.RepeaterEntryID] == nil {
+			byEntry[*a.RepeaterEntryID] = map[string]string{}
+		}
+		byEntry[*a.RepeaterEntryID][a.QuestionID] = a.Value
+	}
+
+	summaries := make([]models.BarrierAnswerSummary, 0, len(entries))
+	for _, e := range entries {
+		am := byEntry[e.ID]
+		summary := models.BarrierAnswerSummary{Gestion: resolveGestionLabels(am[qGestionID])}
+		if qActuacionesID != "" {
+			summary.Actuaciones = am[qActuacionesID]
+		}
+		if summary.Actuaciones == "" && summary.Gestion == "" {
+			continue
+		}
+		summaries = append(summaries, summary)
+	}
+	return summaries
+}
+
+// resolveGestionLabels traduce el CSV de valores de "Gestión de la barrera" a
+// labels legibles separados por coma.
+func resolveGestionLabels(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		if label, ok := gestionBarreraLabels[p]; ok {
+			out = append(out, label)
+		} else {
+			out = append(out, p)
+		}
+	}
+	return strings.Join(out, ", ")
+}
+
 // GetFollowUpDetail ensambla el modelo de detalle de seguimiento (CSR para carga de pantalla)
 func (s *followUpV2Service) GetFollowUpDetail(ctx context.Context, id string, isSupervisor bool) (*models.FollowUpDetailResponse, error) {
 	// 1. Obtener los datos base del Seguimiento
@@ -518,6 +650,12 @@ func (s *followUpV2Service) GetFollowUpDetail(ctx context.Context, id string, is
 		CanEdit: isSupervisor,
 	}
 
+	// 8. Leer respuestas puntuales del formulario para el tab Resumen
+	var formAnswers *models.FollowUpFormAnswers
+	if fu.FormSubmissionID != nil && *fu.FormSubmissionID != "" {
+		formAnswers = s.loadFormAnswers(ctx, *fu.FormSubmissionID)
+	}
+
 	return &models.FollowUpDetailResponse{
 		FollowUp:               *fu,
 		CaseInfo:               *vcase,
@@ -527,6 +665,7 @@ func (s *followUpV2Service) GetFollowUpDetail(ctx context.Context, id string, is
 		EmergencyMeasures:      emergencyMeasures,
 		PsychosocialSupports:   psychosocialSupports,
 		EconomicStabilizations: economicStabilizations,
+		FormAnswers:            formAnswers,
 	}, nil
 }
 
@@ -867,6 +1006,10 @@ func (s *followUpV2Service) RescheduleFollowUp(ctx context.Context, id string, i
 		return err
 	}
 
+	// 1b. Desplazar los seguimientos posteriores (aún pendientes) el mismo número de
+	// días que se movió este, para mantener las ventanas de tiempo originales entre ellos.
+	s.shiftSubsequentFollowUps(ctx, fu, input.NuevaFecha)
+
 	// 2. Registrar evento en el timeline (HU-027 / Requerimiento adicional)
 	agentID := ""
 	if fu.AgentID != nil {
@@ -901,6 +1044,53 @@ func (s *followUpV2Service) RescheduleFollowUp(ctx context.Context, id string, i
 	}
 
 	return nil
+}
+
+// shiftSubsequentFollowUps mueve la fecha de todos los seguimientos PENDIENTE del mismo
+// caso cuya fecha programada original es posterior a la del seguimiento reagendado,
+// aplicando el mismo delta de días. Se compara por fecha y no por sequence_number,
+// porque este último puede quedar desalineado si hubo ediciones manuales previas.
+// Así se conservan las ventanas de tiempo originales entre seguimientos (ej. offsets
+// +1/+3/+15/+30 días) en vez de que solo el primero se mueva y los siguientes queden
+// con una ventana distinta a la planeada.
+func (s *followUpV2Service) shiftSubsequentFollowUps(ctx context.Context, fu *models.FollowUpV2, nuevaFechaStr string) {
+	nuevaFecha, err := time.Parse("2006-01-02", nuevaFechaStr)
+	if err != nil {
+		log.Printf("[WARN] No se pudo parsear nueva_fecha %q para desplazar seguimientos posteriores: %v", nuevaFechaStr, err)
+		return
+	}
+
+	// Comparar por los dígitos de fecha tal como quedan almacenados (UTC), sin convertir
+	// a America/Bogota: scheduled_date se trata como fecha naive en el resto del sistema
+	// (el campo principal se asigna aquí mismo como string crudo unas líneas arriba, y
+	// formatFecha en el frontend hace substring(0,10) sin conversión de zona horaria).
+	// Introducir un .In(loc) aquí desalinea el delta cuando la fecha ya almacenada es
+	// medianoche UTC exacta (ej. 00:00:00+00) en vez de medianoche Bogotá expresada en
+	// UTC (05:00:00+00) — .In(loc) la interpretaría como el día calendario anterior.
+	oldDay := time.Date(fu.ScheduledDate.Year(), fu.ScheduledDate.Month(), fu.ScheduledDate.Day(), 0, 0, 0, 0, time.UTC)
+	newDay := time.Date(nuevaFecha.Year(), nuevaFecha.Month(), nuevaFecha.Day(), 0, 0, 0, 0, time.UTC)
+	deltaDays := int(newDay.Sub(oldDay).Hours() / 24)
+	if deltaDays == 0 {
+		return
+	}
+
+	pendientes, err := s.repo.FindPendingByCaseID(ctx, fu.CaseID)
+	if err != nil {
+		log.Printf("[WARN] No se pudieron cargar seguimientos posteriores del caso %s: %v", fu.CaseID, err)
+		return
+	}
+
+	for _, siguiente := range pendientes {
+		if siguiente.ID == fu.ID || !siguiente.ScheduledDate.After(fu.ScheduledDate) {
+			continue
+		}
+		nuevaFechaSiguiente := siguiente.ScheduledDate.AddDate(0, 0, deltaDays)
+		if err := s.repo.Reschedule(ctx, siguiente.ID, map[string]interface{}{
+			"scheduled_date": nuevaFechaSiguiente,
+		}); err != nil {
+			log.Printf("[WARN] No se pudo desplazar seguimiento posterior %s: %v", siguiente.ID, err)
+		}
+	}
 }
 
 func (s *followUpV2Service) CloseCaseFollowUps(ctx context.Context, followUpID string, closureReason string) error {

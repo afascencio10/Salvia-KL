@@ -175,6 +175,56 @@
                     </div>
                 </section>
 
+                <!-- Respuestas del Formulario -->
+                <section v-if="formAnswers" class="ms-detail-section">
+                    <h3 class="ms-detail-section-title">Respuestas del Formulario</h3>
+
+                    <div v-if="formAnswers.riskAnalysis" class="ms-info-item">
+                        <p class="ms-info-label">Análisis de la situación de riesgo</p>
+                        <p class="ms-info-value">${ formAnswers.riskAnalysis }</p>
+                    </div>
+
+                    <div v-if="formAnswers.barrierFollowUps && formAnswers.barrierFollowUps.length > 0" class="ms-barriers-list">
+                        <div class="ms-barriers-header">
+                            <div class="ms-barriers-header-left">
+                                <i class="fas fa-comment-dots"></i>
+                                <span>Gestión — Seguimiento a Barreras</span>
+                            </div>
+                        </div>
+                        <div v-for="(b, idx) in formAnswers.barrierFollowUps" :key="'bfu-' + idx" class="ms-barrier-item">
+                            <div class="ms-barrier-info">
+                                <p v-if="b.actuaciones" class="ms-barrier-description">${ b.actuaciones }</p>
+                                <p v-if="b.gestion" class="ms-barrier-description"><strong>Gestión:</strong> ${ b.gestion }</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="formAnswers.barrierIdentified && formAnswers.barrierIdentified.length > 0" class="ms-barriers-list">
+                        <div class="ms-barriers-header">
+                            <div class="ms-barriers-header-left">
+                                <i class="fas fa-comment-dots"></i>
+                                <span>Gestión — Identificación de Barreras</span>
+                            </div>
+                        </div>
+                        <div v-for="(b, idx) in formAnswers.barrierIdentified" :key="'bid-' + idx" class="ms-barrier-item">
+                            <div class="ms-barrier-info">
+                                <p class="ms-barrier-description">${ b.gestion }</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ms-info-grid">
+                        <div v-if="formAnswers.caseManagement" class="ms-info-item">
+                            <p class="ms-info-label">Gestión realizada en el seguimiento</p>
+                            <p class="ms-info-value">${ formAnswers.caseManagement }</p>
+                        </div>
+                        <div v-if="formAnswers.referralEvidence" class="ms-info-item">
+                            <p class="ms-info-label">Elementos que evidencian la remisión</p>
+                            <p class="ms-info-value">${ formAnswers.referralEvidence }</p>
+                        </div>
+                    </div>
+                </section>
+
             </div>
 
             <!-- TAB FORMULARIO -->
@@ -221,6 +271,7 @@
                 emergencyMeasures: [],
                 psychosocialSupports: [],
                 economicStabilizations: [],
+                formAnswers: null,
                 victimCase: {
                     id: '',
                     name: '-',
@@ -325,6 +376,7 @@
                     this.emergencyMeasures = data.emergencyMeasures || [];
                     this.psychosocialSupports = data.psychosocialSupports || [];
                     this.economicStabilizations = data.economicStabilizations || [];
+                    this.formAnswers = data.formAnswers || null;
 
                     // Si el backend envía valores mapeados, los asignamos
                     if (data.followUpValues) {

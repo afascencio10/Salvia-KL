@@ -156,7 +156,7 @@ func main() {
     repeaterEntrySvc      := service.NewRepeaterEntryService(repeaterEntryRepo)
     answerSvc             := service.NewAnswerService(answerRepo)
     optionSvc             := service.NewOptionService(optionRepo)
-    followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo)
+    followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo, answerRepo, repeaterEntryRepo)
     victimCaseFormSvc     := service.NewVictimCaseFormService(victimCaseFormRepo, victimCaseLightRepo, caseTimelineRepo, followUpV2Svc)
 
     formSvc := service.NewFormService(service.FormServiceDeps{

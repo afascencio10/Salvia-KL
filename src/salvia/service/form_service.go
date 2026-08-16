@@ -3067,6 +3067,25 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 				}
 				log.Printf("[processFollowUp] ✅ derivacion creada -> atencion_psico (id=%s)", ps.ID)
 				remisionCount++
+
+				// Tarea para que el equipo psicosocial valide si la remisión es procedente.
+				psID := ps.ID
+				followUpID := fu.ID
+				validarTask := &models.CaseTask{
+					Category:              "Psicosocial",
+					Type:                  "validar_remision",
+					Description:           "Validar que remision a psicosocial es valida",
+					AssignedUserID:        "",
+					Status:                models.CaseTaskStatusToDo,
+					CaseID:                fu.CaseID,
+					FollowUpID:            &followUpID,
+					PsychosocialSupportID: &psID,
+				}
+				if s.caseTaskRepo != nil {
+					if err := s.caseTaskRepo.Create(ctx, validarTask); err != nil {
+						log.Printf("[processFollowUp] WARN: no se pudo crear case_task de validación psicosocial (psychosocial_support=%s): %v", ps.ID, err)
+					}
+				}
 			case "atencion_hombres":
 				// Validar criterio de remisión al equipo de hombres antes de crear la derivación.
 				// Regla: debe estar marcado "criterio_hombres".

@@ -1,6 +1,6 @@
 # `case-task-modal` — Guía de uso
 
-Componente modal para completar tareas de tipo `gestion_llamada`, `proyectar_oficio`, `comite_caso` y `Corregir oficio`. El padre lo controla mediante una referencia Vue (`ref`) y el método público `open(taskId)`.
+Componente modal para completar tareas de tipo `gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio` y `justificar_remision`. El padre lo controla mediante una referencia Vue (`ref`) y el método público `open(taskId)`.
 
 ---
 
@@ -50,6 +50,7 @@ Si la tarea abierta es de tipo `Corregir oficio`, además hace un `GET /api/v1/e
 | `proyectar_oficio` | "Proyectar Oficio" | Ubicación + Funcionario + Asunto + Ruta Kofax |
 | `comite_caso` | "Decisiones del Comité" | Checkbox group de decisiones + campos condicionales por decisión |
 | `Corregir oficio` | "Corregir Oficio" | Sin formulario editable — vista de solo lectura con la razón de corrección y la ruta Kofax del `entity_letter` vinculado (`tarea.entityLetterId`). Solo pide confirmación. |
+| `justificar_remision` | "Justificar Remisión" | Caja de solo lectura con `tarea.description` (motivo de devolución del psicólogo/a) + textarea "Tu respuesta" (required, maxlength 500) |
 
 ---
 
@@ -158,3 +159,12 @@ methods: {
 ```
 
 Objeto vacío — no hay campos que enviar. El componente solo confirma la corrección; el backend usa `case_task.entity_letter_id` (no el payload) para saber qué `entity_letter` transicionar de `en_correccion` a `para_revisar`.
+
+#### `formData` para `justificar_remision`
+```json
+{
+  "respuesta": "string — justificación del agente, requerida, máx. 500 caracteres"
+}
+```
+
+El motivo de devolución que el agente está respondiendo **no** viaja en el payload — ya está en `tarea.description` (lo dejó `sideEffectsValidateRemision`/`ValidateRemision` al crear esta `case_task`: `"Justificar remisión devuelta — Motivo: {motivo}"`). El backend, al completar esta tarea, reabre la `psychosocial_support` vinculada y crea una nueva `case_task` `validar_remision` — ver tabla "Efectos de lado por tipo de tarea" en `case-task-modal-interface.md`.

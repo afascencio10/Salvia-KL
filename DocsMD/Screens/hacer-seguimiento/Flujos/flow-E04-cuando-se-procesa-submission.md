@@ -254,6 +254,20 @@ PASO 4 — Procesar derivaciones a equipos
     → Log: "✅ derivacion creada -> atencion_psico (id=...)"
     → remisionCount++
 
+    → Crear tarea de validación de la remisión (equipo psicosocial confirma si procede)
+      DB.case_task.Create({
+        category:                "Psicosocial",
+        type:                    "validar_remision",
+        description:             "Validar que remision a psicosocial es valida",
+        assigned_user_id:        "",                        // sin asignar
+        status:                  "ToDo",
+        case_id:                 fu.case_id,
+        follow_up_id:            fu.id,
+        psychosocial_support_id: ps.id                       // id de la remisión recién creada
+      })
+      SI falla el insert:
+        → Loggear advertencia WARN (no aborta — la remisión psicosocial ya se creó)
+
   ┌─────────────────────────────────────────────────────────────┐
   │ CASO: "atencion_hombres"                                     │
   └─────────────────────────────────────────────────────────────┘
@@ -528,3 +542,4 @@ PASO 9 — Reasignación de caso
 | Agregar un criterio nuevo a qCriteriosPsico requiere cambio en código (no solo en BD)      | PASO 4        |
 | salvia_dignidad aparece como opción en qEquipos pero no tiene lógica en el switch          | PASO 4        |
 | buildBarrierFollowUpSummary no está documentada — genera el texto del evento de timeline   | PASO 3b       |
+| El type "validar_remision" de la nueva case_task no tiene manejo en `case-task-modal.js` ni `case-task-history.js` — hoy no se puede completar ni ver su detalle desde la UI | PASO 4 |

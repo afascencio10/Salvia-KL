@@ -14,6 +14,7 @@
 | [`changelogMay2025.md`](changelogMay2025.md) | Cambios realizados en mayo 2025 |
 | [`changelogMay2026.md`](changelogMay2026.md) | Cambios realizados en mayo 2026 |
 | [`changelogJun2026.md`](changelogJun2026.md) | Cambios realizados en junio 2026 |
+| [`changelogAgo2026.md`](changelogAgo2026.md) | Cambios realizados en agosto 2026 |
 
 ### Otros MDs
 
@@ -126,6 +127,10 @@ Descripción:  Goroutine disparada por dinamic-form cuando allAnswered == true.
               actuaciones), y si Q6 cierra = true → actualiza
               barrier_v2.status = MANAGED.
               (4) Procesa derivaciones a equipos según qEquipos (multi-select).
+              Si crea una remisión a atencion_psico, también crea una case_task
+              sin asignar (category: "Psicosocial", type:
+              "validar_remision") para que el equipo psicosocial
+              valide si la remisión es procedente.
               (5) Procesa medidas de emergencia → 1 EmergencyMeasure por medida.
               (6) Marca follow-up como REALIZADO y crea evento timeline.
               (7) Si qCierraCaso == "true" → CasoCierreService.CerrarCaso.

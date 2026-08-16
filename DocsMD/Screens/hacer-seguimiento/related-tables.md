@@ -49,6 +49,26 @@ Barreras institucionales identificadas en el seguimiento. Creadas en PASO 3 de `
 
 ---
 
+## `salvia.case_task`
+
+Tareas generadas por `processFollowUpSubmission`: gestión de barreras (PASO 3.2, `category: "Barreras"`) y validación de remisión psicosocial (PASO 4, `category: "Psicosocial"`, `type: "validar_remision"`, creada sin asignar cuando se deriva a `atencion_psico`).
+
+| Columna | Tipo | Nullable | Descripción |
+|---|---|---|---|
+| `id` | uuid | No | PK |
+| `case_id` | varchar | No | ICode del caso |
+| `follow_up_id` | uuid | Sí | Seguimiento que la generó |
+| `category` | varchar | No | `Barreras` / `Psicosocial` |
+| `type` | varchar | No | `gestion_llamada` / `proyectar_oficio` / `comite_caso` / `validar_remision` |
+| `description` | text | No | Texto legible de la tarea |
+| `assigned_user_id` | varchar | No | ICode del agente asignado — vacío (`''`) si queda sin asignar |
+| `status` | varchar | No | `ToDo` / `Done` |
+| `barrier_id` | uuid | Sí | Barrera asociada (solo tareas de gestión de barreras) |
+| `entity_letter_id` | uuid | Sí | Oficio asociado (solo si la gestión de la barrera generó uno) |
+| `psychosocial_support_id` | uuid | Sí | Remisión psicosocial asociada (solo tarea `validar_remision`) |
+
+---
+
 ## `salvia.psychosocial_support`
 
 Remisión al equipo de Atención Psicosocial. Creada solo si se cumplen criterios y no hay exclusión con medidas de emergencia.

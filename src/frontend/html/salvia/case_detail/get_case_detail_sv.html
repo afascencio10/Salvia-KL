@@ -277,9 +277,21 @@
                   <strong>${ item.type || '—' }</strong>
                   <span v-if="item.provider"> · ${ item.provider }</span>
                   <div class="cd-deriv-date">📅 ${ formatFecha(item.createdAt) } · Sesiones: ${ (item.sessions && item.sessions.length) || item.sessionCount || 0 }</div>
+                  <div class="cd-deriv-date">Remitido por: ${ item.submittedByName || '—' } · Equipo: ${ item.submittedByTeam || '—' }</div>
+                  <div style="margin-top:4px;font-size:.78rem;color:#374151">
+                    <template v-if="item.duplaId">
+                      <span style="font-weight:600;color:#1e3a8a">${ item.duplaName || 'Dupla' }</span>
+                      <div v-if="item.psychologistName">${ item.psychologistName } - Psicóloga</div>
+                      <div v-if="item.socialWorkerName">${ item.socialWorkerName } - Trab. Social</div>
+                    </template>
+                    <template v-else-if="item.professionalId">
+                      <div>${ item.professionalName || '—' } - ${ item.professionalRole || 'Profesional' }</div>
+                    </template>
+                    <em v-else style="color:#9ca3af">Sin asignar</em>
+                  </div>
                   <div v-if="item.notes" style="font-size:.78rem;color:#6b7280;margin-top:2px">${ item.notes }</div>
                 </div>
-                <span class="cd-badge-deriv cd-bd-completado">${ item.status || 'ACTIVE' }</span>
+                <span class="cd-badge-deriv" :style="psicosocialStatusStyle(item.status)">${ psicosocialStatusLabel(item.status) }</span>
               </div>
               <div v-if="item.sessions && item.sessions.length > 0" style="margin-top:10px;background:#fff;border:1px solid #dbeafe;border-radius:8px;overflow:hidden">
                 <button
@@ -1200,10 +1212,30 @@ var home = Vue.createApp({
     formatFecha(f) { return f ? f.substring(0, 10) : '—'; },
     formatFechaHora(f) {
       if (!f) return '—';
-      // Si tiene hora (más de 10 chars), mostrar fecha + hora
-      if (f.length > 16) return f.substring(0, 16).replace('T', ' ');
-      if (f.length > 10) return f.substring(0, f.length).replace('T', ' ');
-      return f.substring(0, 10);
+      // Si no tiene hora (solo fecha, sin 'T'), no hay timestamp real que convertir
+      if (f.indexOf('T') === -1) return f.substring(0, 10);
+      var d = new Date(f);
+      if (isNaN(d.getTime())) return f.substring(0, 10);
+      // Convertir explícitamente a hora de Colombia (el valor viene en UTC desde el backend)
+      var parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Bogota',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false
+      }).formatToParts(d).reduce(function(acc, p) { acc[p.type] = p.value; return acc; }, {});
+      return parts.year + '-' + parts.month + '-' + parts.day + ' ' + parts.hour + ':' + parts.minute;
+    },
+    psicosocialStatusLabel(status) {
+      var map = { abierto: 'Abierto', en_gestion: 'En gestión', en_devolucion: 'En devolución', cerrado: 'Cerrado' };
+      return map[status] || (status || 'Activo');
+    },
+    psicosocialStatusStyle(status) {
+      var map = {
+        abierto:       { background: '#fef9c3', color: '#854d0e' },
+        en_gestion:    { background: '#dbeafe', color: '#1e40af' },
+        en_devolucion: { background: '#ffedd5', color: '#c2410c' },
+        cerrado:       { background: '#dcfce7', color: '#166534' }
+      };
+      return map[status] || { background: '#e5e7eb', color: '#374151' };
     },
     nombreAgente(agentId) {
       // Buscar en todosAgentes (sin filtro de team) para resolver nombres siempre

@@ -336,6 +336,16 @@ func (s *caseTaskService) CompleteWithFormData(ctx context.Context, id string, u
 		}
 		go s.sideEffectsComiteCaso(context.Background(), task, fd, userId, now)
 
+	case "justificar_remision":
+		if err := s.repo.UpdateFields(ctx, id, map[string]interface{}{
+			"form_data":    formData,
+			"status":       models.CaseTaskStatusDone,
+			"completed_at": now,
+		}); err != nil {
+			return nil, fmt.Errorf("CompleteWithFormData: marcar Done: %w", err)
+		}
+		go s.sideEffectsJustificarRemision(context.Background(), task, userId, now)
+
 	default:
 		return nil, fmt.Errorf("CompleteWithFormData: tipo de tarea no soportado: %s", task.Type)
 	}
@@ -580,6 +590,70 @@ func (s *caseTaskService) sideEffectsComiteCaso(ctx context.Context, task *model
 	}
 	if err := s.timelineRepo.Create(ctx, event); err != nil {
 		log.Printf("[CaseTaskService] WARN: comite_caso no pudo crear timeline event para case %s: %v", task.CaseID, err)
+	}
+}
+
+// sideEffectsJustificarRemision se ejecuta cuando el agente responde al
+// motivo de devolución de una remisión psicosocial (case_task
+// "justificar_remision"): reabre la remisión (status → 'abierto') y crea una
+// nueva case_task "validar_remision" para que el psicólogo/a vuelva a
+// evaluarla. La nueva tarea se asigna al profesional de la dupla (o al
+// profesional individual) que tiene la remisión — si no hay ninguno asignado,
+// la tarea queda sin asignar, igual que la remisión.
+func (s *caseTaskService) sideEffectsJustificarRemision(ctx context.Context, task *models.CaseTask, userId string, now time.Time) {
+	if task.PsychosocialSupportID == nil || *task.PsychosocialSupportID == "" {
+		log.Printf("[CaseTaskService] WARN: justificar_remision sin psychosocial_support_id (tarea %s)", task.ID)
+		return
+	}
+	psID := *task.PsychosocialSupportID
+
+	var duplaID, professionalID string
+	s.db.WithContext(ctx).Raw(`
+		SELECT COALESCE(dupla_id, ''), COALESCE(professional_id, '')
+		FROM salvia.psychosocial_support WHERE id = ?
+	`, psID).Row().Scan(&duplaID, &professionalID)
+
+	assignedTo := professionalID
+	if duplaID != "" {
+		var psychologistID string
+		s.db.WithContext(ctx).Raw(`SELECT COALESCE(psychologist_id, '') FROM salvia.dupla WHERE id = ?`, duplaID).Row().Scan(&psychologistID)
+		assignedTo = psychologistID
+	}
+
+	if err := s.db.WithContext(ctx).Exec(`
+		UPDATE salvia.psychosocial_support SET status = 'abierto', updated_at = NOW() WHERE id = ?
+	`, psID).Error; err != nil {
+		log.Printf("[CaseTaskService] WARN: justificar_remision no pudo reabrir remisión %s: %v", psID, err)
+	}
+
+	newTask := &models.CaseTask{
+		Category:              "Psicosocial",
+		Type:                  "validar_remision",
+		Description:           "Validar que remision a psicosocial es valida",
+		Status:                models.CaseTaskStatusToDo,
+		AssignedUserID:        assignedTo,
+		CaseID:                task.CaseID,
+		FollowUpID:            task.FollowUpID,
+		PsychosocialSupportID: task.PsychosocialSupportID,
+	}
+	if err := s.repo.Create(ctx, newTask); err != nil {
+		log.Printf("[CaseTaskService] WARN: justificar_remision no pudo crear nueva task validar_remision para remisión %s: %v", psID, err)
+	}
+
+	event := &models.CaseTimelineEvent{
+		CaseID:                task.CaseID,
+		Category:              models.TimelineCategoryPsicosocial,
+		Type:                  "Remisión Justificada",
+		Icon:                  "reply",
+		Color:                 models.TimelineColorBlue,
+		Date:                  now,
+		Description:           "Agente respondió al motivo de devolución — remisión vuelve a validación",
+		EventUserID:           userId,
+		TaskID:                task.ID,
+		PsychosocialSupportID: psID,
+	}
+	if err := s.timelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[CaseTaskService] WARN: justificar_remision no pudo crear timeline event para remisión %s: %v", psID, err)
 	}
 }
 
