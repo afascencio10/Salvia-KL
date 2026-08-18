@@ -25,6 +25,7 @@
         </div>
 
         <nav class="salvia-sidebar__nav" aria-label="Navegación principal">
+            {{ if ne .currentRole "ps" }}
             <a href="/salvia/casos" class="salvia-sidebar__nav-link">
                 <i class="fas fa-home" aria-hidden="true"></i>
                 <span>Reportes</span>
@@ -33,10 +34,23 @@
                 <i class="fas fa-list" aria-hidden="true"></i>
                 <span>Lista Casos</span>
             </a>
+            {{ end }}
+            {{ if eq .currentRole "ps" }}
+            <a href="/salvia/mis-remisiones-psicosocial" class="salvia-sidebar__nav-link">
+                <i class="fas fa-hand-holding-heart" aria-hidden="true"></i>
+                <span>Mis remisiones</span>
+            </a>
+            {{ end }}
             {{ if eq .currentRole "ro" }}
             <a href="/salvia/mis-casos" class="salvia-sidebar__nav-link">
                 <i class="fas fa-folder-open" aria-hidden="true"></i>
                 <span>Mis Casos</span>
+            </a>
+            {{ end }}
+            {{ if eq .currentRole "op" }}
+            <a href="/salvia/mis-tareas" class="salvia-sidebar__nav-link">
+                <i class="fas fa-tasks" aria-hidden="true"></i>
+                <span>Mis Tareas</span>
             </a>
             {{ end }}
             
@@ -50,6 +64,12 @@
             <a href="/salvia/notificaciones" class="salvia-sidebar__nav-link">
                 <i class="fas fa-bell" aria-hidden="true"></i>
                 <span>Notificaciones Salvia</span>
+            </a>
+            {{ end }}
+            {{ if eq .currentRole "sv" }}
+            <a href="/salvia/historial-remisiones" class="salvia-sidebar__nav-link">
+                <i class="fas fa-history" aria-hidden="true"></i>
+                <span>Historial de Remisiones</span>
             </a>
             {{ end }}
             {{ if or (eq .currentRole "ps") (eq .currentRole "sv") }}

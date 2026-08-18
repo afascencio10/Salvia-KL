@@ -720,6 +720,21 @@
             return map[riskStatus] || 'cc-risk-badge desconocido';
         },
 
+        // Etiqueta visible del equipo. El valor almacenado ("Riesgo bajo" / "Riesgo alto")
+        // nombra el nivel de riesgo que atiende el equipo, no el equipo en sí, y se usa
+        // como identidad en la reasignación (ver reasignar-casos-modal.js), por lo que
+        // solo se traduce para mostrar. Case-insensitive: en BD el valor aparece con
+        // distinta capitalización. Cualquier otro equipo (p. ej. "Hombres") pasa igual.
+        teamLabel: function(team) {
+            var t = (team || '').trim();
+            if (!t) return '—';
+            var map = {
+                'riesgo bajo': 'Equipo de seguimiento general',
+                'riesgo alto': 'Equipo de seguimiento de riesgo',
+            };
+            return map[t.toLowerCase()] || t;
+        },
+
         riskBadgeLabel: function(riskStatus) {
             var map = {
                 'extremo':     'Extremo',

@@ -248,6 +248,10 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	// Solo el agente de seguimiento (op) puede gestionar sus barreras.
 	"get_mis_barreras": {"en": true},
 
+	// ── Módulo de Mis Tareas ─────────────────────────────────────────────────
+	// Bandeja consolidada de tareas del agente de seguimiento.
+	"get_mis_tareas": {"op": true},
+
 	// ── Módulo de Barreras Departamento ──────────────────────────────────────
 	// Solo el enlace territorial (en) puede ver el panorama de barreras de su departamento.
 	"get_barreras_departamento": {"en": true},

@@ -21,6 +21,11 @@ type CaseTaskRepository interface {
 	// Es la consulta principal para la pantalla "Mis Barreras".
 	FindByAssignedUserIDWithRelations(ctx context.Context, assignedUserID string) ([]models.CaseTaskWithRelations, error)
 
+	// FindByAssignedUserIDPaged devuelve, paginadas, todas las tareas del usuario
+	// —no solo las de barrera— con el caso de origen resuelto. Es la consulta de la
+	// pantalla "Mis Tareas". status vacío trae todos los estados.
+	FindByAssignedUserIDPaged(ctx context.Context, assignedUserID, status string, page, pageSize int) (PageResult[models.CaseTaskWithRelations], error)
+
 	// FindByCaseID devuelve todas las tareas de un caso.
 	FindByCaseID(ctx context.Context, caseID string) ([]models.CaseTask, error)
 
@@ -109,12 +114,15 @@ func (r *caseTaskRepository) FindTodoByEntityLetterID(ctx context.Context, entit
 	return &task, nil
 }
 
-// caseTaskWithRelationsSQL es la query base que enriquece case_task con datos
-// de barrier_v2 y victim_case mediante LEFT JOIN.
+// caseTaskWithRelationsBaseSQL enriquece case_task con datos de barrier_v2 y
+// victim_case mediante LEFT JOIN, sin filtrar por tipo de tarea.
 //
 //	case_task.barrier_id (UUID) → barrier_v2.id (UUID)  — comparación directa sin cast
 //	case_task.case_id  (varchar) → victim_case.victim_case_i_code (varchar)
-const caseTaskWithRelationsSQL = `
+//
+// Los campos de barrera quedan vacíos en las tareas que no nacen de una barrera:
+// el JOIN es LEFT y las columnas van con COALESCE.
+const caseTaskWithRelationsBaseSQL = `
 SELECT
     ct.id,
     ct.category,
@@ -140,6 +148,11 @@ LEFT JOIN salvia.barrier_v2 b
 LEFT JOIN salvia.victim_case vc
     ON vc.victim_case_i_code = ct.case_id
 WHERE ct.deleted_at IS NULL
+`
+
+// caseTaskWithRelationsSQL restringe la base a las tareas nacidas de una barrera:
+// es la consulta de la pantalla "Mis Barreras", no la bandeja general de tareas.
+const caseTaskWithRelationsSQL = caseTaskWithRelationsBaseSQL + `
   AND ct.barrier_id IS NOT NULL
 `
 
@@ -149,4 +162,39 @@ func (r *caseTaskRepository) FindByAssignedUserIDWithRelations(ctx context.Conte
 		Raw(caseTaskWithRelationsSQL+" AND ct.assigned_user_id = ? ORDER BY ct.created_at DESC", assignedUserID).
 		Scan(&items).Error
 	return items, err
+}
+
+func (r *caseTaskRepository) FindByAssignedUserIDPaged(ctx context.Context, assignedUserID, status string, page, pageSize int) (PageResult[models.CaseTaskWithRelations], error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+
+	where := " AND ct.assigned_user_id = ?"
+	args := []interface{}{assignedUserID}
+	if status != "" {
+		where += " AND ct.status = ?"
+		args = append(args, status)
+	}
+
+	result := PageResult[models.CaseTaskWithRelations]{
+		Items:    []models.CaseTaskWithRelations{},
+		Page:     page,
+		PageSize: pageSize,
+	}
+
+	// El COUNT va sobre case_task sola: los LEFT JOIN no cambian el número de filas
+	// y traerlos aquí solo encarece la consulta.
+	countSQL := "SELECT COUNT(*) FROM salvia.case_task ct WHERE ct.deleted_at IS NULL" + where
+	if err := r.db.WithContext(ctx).Raw(countSQL, args...).Scan(&result.Total).Error; err != nil {
+		return result, err
+	}
+
+	dataSQL := caseTaskWithRelationsBaseSQL + where + " ORDER BY ct.created_at DESC LIMIT ? OFFSET ?"
+	dataArgs := append(append([]interface{}{}, args...), pageSize, (page-1)*pageSize)
+
+	err := r.db.WithContext(ctx).Raw(dataSQL, dataArgs...).Scan(&result.Items).Error
+	return result, err
 }

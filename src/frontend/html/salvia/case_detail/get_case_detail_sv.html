@@ -2,7 +2,7 @@
 
   <!-- Breadcrumb -->
   <div class="cd-breadcrumb">
-    <a href="#" onclick="salviaGoBack('{{.salviaVictimCaseGETFormPath}}'); return false;">← Volver</a>
+    <a href="#" onclick="salviaGoBack('{{.salviaBackFallbackPath}}'); return false;">← Volver</a>
     <span>/</span>
     <span class="cd-current" v-if="caso">${ caso.victimCaseVictimName }</span>
   </div>
@@ -40,8 +40,8 @@
 
       <!-- Botones -->
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-        <a href="{{.salviaVictimCaseGETFormPath}}" class="btn btn-secondary" style="margin:0;border-radius:8px;padding:10px 20px;font-size:.85rem">
-          ← Volver al listado de casos
+        <a href="#" onclick="salviaGoBack('{{.salviaBackFallbackPath}}'); return false;" class="btn btn-secondary" style="margin:0;border-radius:8px;padding:10px 20px;font-size:.85rem">
+          ← Volver
         </a>
         <button v-if="errorTipo !== 404" class="btn btn-primary" style="margin:0;border-radius:8px;padding:10px 20px;font-size:.85rem;background:#5106A7;border-color:#5106A7" @click="reintentar">
           🔄 Reintentar
@@ -260,7 +260,7 @@
                 <div class="cd-deriv-date">📅 ${ formatFecha(item.createdAt) }</div>
                 <div v-if="item.notes" style="font-size:.78rem;color:#6b7280;margin-top:2px">${ item.notes }</div>
               </div>
-              <span class="cd-badge-deriv cd-bd-proceso">${ item.status || 'ACTIVE' }</span>
+              <span class="cd-badge-deriv cd-bd-proceso">${ labelDerivacionEstado(item.status) }</span>
             </div>
           </div>
 
@@ -382,7 +382,7 @@
                 <div class="cd-deriv-date">📅 ${ formatFecha(item.createdAt) }</div>
                 <div v-if="item.notes" style="font-size:.78rem;color:#6b7280;margin-top:2px">${ item.notes }</div>
               </div>
-              <span class="cd-badge-deriv cd-bd-articulando">${ item.status || 'ACTIVE' }</span>
+              <span class="cd-badge-deriv cd-bd-articulando">${ labelDerivacionEstado(item.status) }</span>
             </div>
           </div>
 
@@ -908,8 +908,27 @@ var home = Vue.createApp({
   mounted() {
     document.title = {{.windowTitle}};
     document.getElementById('app').style.display = 'block';
+    this.aplicarTabDeUrl();
+    window.addEventListener('hashchange', this.aplicarTabDeUrl);
     this.cargarDatos();
     this.cargarTodosAgentes();
+  },
+
+  unmounted() {
+    window.removeEventListener('hashchange', this.aplicarTabDeUrl);
+  },
+
+  watch: {
+    // La pestaña activa viaja en el hash de la URL para no perderla al volver desde
+    // otra pantalla (antes se reabría siempre en 'info').
+    // Se usa replaceState y no `location.hash =` a propósito: asignar el hash apila
+    // una entrada de historial por cada cambio de pestaña, y entonces "Volver"
+    // retrocedería de pestaña en pestaña en lugar de salir de la pantalla.
+    tabActiva(id) {
+      if (location.hash.slice(1) !== id) {
+        history.replaceState(null, '', location.pathname + location.search + '#' + id);
+      }
+    },
   },
 
   computed: {
@@ -1027,6 +1046,14 @@ var home = Vue.createApp({
   },
 
   methods: {
+    // Aplica la pestaña indicada en el hash. Se llama al montar y en cada
+    // 'hashchange', que es lo que dispara el botón atrás/adelante del navegador.
+    aplicarTabDeUrl() {
+      var id = location.hash.slice(1);
+      if (id && this.tabs.some(function(t) { return t.id === id; })) {
+        this.tabActiva = id;
+      }
+    },
     logout(){
       logout("/seguridad/logout");
     },
@@ -1225,8 +1252,13 @@ var home = Vue.createApp({
       return parts.year + '-' + parts.month + '-' + parts.day + ' ' + parts.hour + ':' + parts.minute;
     },
     psicosocialStatusLabel(status) {
-      var map = { abierto: 'Abierto', en_gestion: 'En gestión', en_devolucion: 'En devolución', cerrado: 'Cerrado' };
-      return map[status] || (status || 'Activo');
+      var map = {
+        abierto: 'Abierto', en_gestion: 'En gestión', en_devolucion: 'En devolución', cerrado: 'Cerrado',
+        // Valores heredados en BD. Sin estos, el fallback devuelve el valor crudo y
+        // la remisión vuelve a mostrarse como "Active" (bug del estado en inglés).
+        active: 'Activo', closed: 'Cerrado', inactive: 'Inactivo'
+      };
+      return map[String(status || '').toLowerCase()] || (status || 'Activo');
     },
     psicosocialStatusStyle(status) {
       var map = {
@@ -1235,7 +1267,7 @@ var home = Vue.createApp({
         en_devolucion: { background: '#ffedd5', color: '#c2410c' },
         cerrado:       { background: '#dcfce7', color: '#166534' }
       };
-      return map[status] || { background: '#e5e7eb', color: '#374151' };
+      return map[String(status || '').toLowerCase()] || { background: '#e5e7eb', color: '#374151' };
     },
     nombreAgente(agentId) {
       // Buscar en todosAgentes (sin filtro de team) para resolver nombres siempre
@@ -1250,6 +1282,22 @@ var home = Vue.createApp({
     labelEstado(s) {
       var m = { 'ra':'Activo', 'is':'Con novedad', 'cd':'Cerrado', 'ex':'Vencido', 'r':'Por aprobar', 'fc':'Recontacto' };
       return m[s] || s || '—';
+    },
+    // Estados de las derivaciones (medidas de emergencia, psicosocial, estabilización).
+    // Case-insensitive: en BD conviven valores heredados ('ACTIVE'/'Active') con los
+    // enums nuevos en español de psychosocial_support (abierto/en_gestion/...).
+    labelDerivacionEstado(s) {
+      var m = {
+        'active':        'Activa',
+        'abierto':       'Abierta',
+        'en_gestion':    'En gestión',
+        'en_devolucion': 'En devolución',
+        'cerrado':       'Cerrada',
+        'closed':        'Cerrada',
+        'inactive':      'Inactiva'
+      };
+      if (!s) return 'Activa';
+      return m[String(s).toLowerCase()] || s;
     },
     labelBarreraStatus(s) {
       var m = {

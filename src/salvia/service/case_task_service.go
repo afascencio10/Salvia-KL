@@ -47,6 +47,11 @@ type CaseTaskService interface {
 	// enriquecidas con datos de barrier_v2 y victim_case.
 	ListByAssignedUserIDWithRelations(ctx context.Context, assignedUserID string) ([]models.CaseTaskWithRelations, error)
 
+	// ListByAssignedUserIDPaged es la consulta de la pantalla "Mis Tareas":
+	// todas las tareas del agente (no solo las de barrera), paginadas y con
+	// filtro opcional por estado.
+	ListByAssignedUserIDPaged(ctx context.Context, assignedUserID, status string, page, pageSize int) (repository.PageResult[models.CaseTaskWithRelations], error)
+
 	// Complete ejecuta el flujo "Cuando Guardar Gestionar":
 	//   1. Actualiza CaseTask → status=Done, result, completedAt
 	//   2. Actualiza BarrierV2 → status=Articulada  (si la tarea tiene barrierId)
@@ -180,6 +185,10 @@ func (s *caseTaskService) Delete(ctx context.Context, id string) error {
 
 func (s *caseTaskService) ListByAssignedUserIDWithRelations(ctx context.Context, assignedUserID string) ([]models.CaseTaskWithRelations, error) {
 	return s.repo.FindByAssignedUserIDWithRelations(ctx, assignedUserID)
+}
+
+func (s *caseTaskService) ListByAssignedUserIDPaged(ctx context.Context, assignedUserID, status string, page, pageSize int) (repository.PageResult[models.CaseTaskWithRelations], error) {
+	return s.repo.FindByAssignedUserIDPaged(ctx, assignedUserID, status, page, pageSize)
 }
 
 // Complete ejecuta el flujo "Cuando Guardar Gestionar":
