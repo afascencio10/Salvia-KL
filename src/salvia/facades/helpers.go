@@ -37,6 +37,29 @@ func CheckAndGetSession(c *gin.Context, permission string) *SessionContext {
 	return &SessionContext{Session: *s, Menu: s.CurrentMenu}
 }
 
+// BackFallbackPath devuelve el destino del botón "Volver" cuando no hay historial
+// utilizable (pestaña nueva, URL pegada directo, recarga sobre el detalle).
+//
+// Debe ser el listado desde el que cada rol llega naturalmente al detalle:
+//   - El respaldo por defecto es /salvia/lista-casos ("Lista Casos"), no
+//     /salvia/casos, que es la pantalla de reportes — llegar ahí es justo el
+//     síntoma reportado ("atrás lleva al reporte en lugar de a la lista").
+//     Además /salvia/casos exige get_victim_cases, permiso más restringido que
+//     el get_list_cases del listado.
+//   - Los roles que no trabajan sobre casos vuelven a su propio listado; para
+//     ellos ambas pantallas de casos responden 401.
+func BackFallbackPath(role string) string {
+	switch role {
+	case "an":
+		return "/salvia/notificaciones"
+	case "en":
+		return "/salvia/mis-barreras"
+	case "ps", "ts":
+		return "/salvia/mis-remisiones-psicosocial"
+	}
+	return "/salvia/lista-casos"
+}
+
 // BaseTemplateVars construye el mapa base de variables que toda pantalla necesita.
 func BaseTemplateVars(sc *SessionContext, lang string) map[string]interface{} {
 	return map[string]interface{}{

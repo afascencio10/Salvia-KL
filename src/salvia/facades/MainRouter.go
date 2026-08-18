@@ -288,6 +288,11 @@ func StartRouter(router *gin.Engine) {
 		secRouter.GET("/mis-barreras", MisBarrerasGET)
 
 		/*
+			Mis Tareas — bandeja consolidada del agente
+		*/
+		secRouter.GET("/mis-tareas", MisTareasGET)
+
+		/*
 			Barreras Departamento
 		*/
 		secRouter.GET("/barreras-departamento", BarrerasDepartamentoGET)

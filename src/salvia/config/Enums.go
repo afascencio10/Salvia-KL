@@ -61,6 +61,7 @@ var HTML_Templates map[string]string = map[string]string{
 	"get_feminicide_risk":      "get_feminicide_risk.html",
 	"notificaciones":           "notificaciones.html",
 	"mis_barreras":             "barrieris.html",
+	"mis_tareas":               "mis_tareas.html",
 	"barreras_departamento":    "barreras_departamento.html",
 	"barrera_detalle":                  "barrera_detalle.html",
 	"remision_psicosocial_detalle":     "remision_psicosocial_detalle.html",

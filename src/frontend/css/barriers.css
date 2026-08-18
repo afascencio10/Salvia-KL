@@ -211,6 +211,11 @@
     grid-template-columns: 20% 12% 14% 12% 1fr 14%;
 }
 
+/* Grilla de Mis Tareas: Tarea · Caso · Estado · Fecha */
+.mb-grid-tareas {
+    grid-template-columns: 1fr 24% 14% 12%;
+}
+
 .mb-table-header {
     display: grid;
     background: #fafafa;
@@ -669,7 +674,8 @@
 @media (max-width: 768px) {
     .mb-grid-5,
     .mb-grid-4,
-    .mb-grid-dept {
+    .mb-grid-dept,
+    .mb-grid-tareas {
         grid-template-columns: 1fr;
     }
 

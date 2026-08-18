@@ -1,0 +1,113 @@
+{{/* Template: mis_tareas.html — Bandeja consolidada de tareas del agente */}}
+<link rel="stylesheet" href="/static/css/barriers.css">
+
+<div class="container mb-container">
+
+    <!-- ─── Encabezado ─── -->
+    <div class="mb-header">
+        <h2><b>Mis Tareas</b></h2>
+        <p class="mb-header-subtitle">Tareas asignadas desde los casos que gestionas</p>
+    </div>
+
+    <!-- ─── Estado de carga ─── -->
+    <div v-if="isLoading" class="mb-loading-state">
+        <div class="mb-spinner"></div>
+        <span>Cargando tareas...</span>
+    </div>
+
+    <!-- ─── Error ─── -->
+    <div v-if="loadError && !isLoading" class="mb-error-state">
+        <i class="fas fa-exclamation-triangle"></i>
+        ${ loadError }
+    </div>
+
+    <template v-if="!loadError">
+
+        <!-- ─── Filtro por estado ─── -->
+        <div class="mb-tabs-wrapper">
+            <button
+                v-for="op in estadoOpciones"
+                :key="op.value"
+                class="mb-tab"
+                :class="{ active: filtroEstado === op.value }"
+                @click="cambiarEstado(op.value)">
+                ${ op.label }
+            </button>
+        </div>
+
+        <!-- ─── Tabla de tareas ─── -->
+        <div class="mb-table-wrapper">
+
+            <div class="mb-table-header mb-grid-tareas">
+                <div>Tarea</div>
+                <div>Caso</div>
+                <div>Estado</div>
+                <div>Fecha</div>
+            </div>
+
+            <template v-if="tareas.length > 0">
+                <div v-for="t in tareas" :key="t.id" class="mb-row mb-grid-tareas">
+
+                    <!-- TAREA -->
+                    <div>
+                        <div class="mb-org-tag">${ t.tipoLabel }</div>
+                        <div class="mb-barrera-desc">${ t.descripcion }</div>
+                    </div>
+
+                    <!-- CASO -->
+                    <div>
+                        <div class="mb-caso-name">${ t.victima }</div>
+                        <div class="mb-caso-code">${ t.caseCode }</div>
+                        <a :href="'/salvia/casos/' + t.caseId + '/detalle'" class="mb-link">Ver caso →</a>
+                    </div>
+
+                    <!-- ESTADO -->
+                    <div>
+                        <span class="mb-estado-tag" :class="t.completada ? 'mb-estado-resuelto' : 'mb-estado-articulando'">
+                            ${ t.estadoLabel }
+                        </span>
+                    </div>
+
+                    <!-- FECHA -->
+                    <div class="mb-caso-code">${ t.fecha }</div>
+
+                </div>
+            </template>
+
+            <div v-else-if="!isLoading" class="mb-empty-state">
+                <i class="fas fa-inbox"></i>
+                No tienes tareas ${ filtroEstadoTexto }.
+            </div>
+
+        </div>
+
+        <!-- ─── Paginador (servidor) ─── -->
+        <nav v-if="numPages > 1" aria-label="Paginación" class="mb-pagination-wrapper">
+            <ul class="pagination justify-content-center mt-3">
+                <li class="page-item" :class="{ disabled: page === 1 }">
+                    <a class="page-link" href="#" @click.prevent="irAPagina(page - 1)">Anterior</a>
+                </li>
+                <li class="page-item disabled">
+                    <span class="page-link">${ page } de ${ numPages }</span>
+                </li>
+                <li class="page-item" :class="{ disabled: page === numPages }">
+                    <a class="page-link" href="#" @click.prevent="irAPagina(page + 1)">Siguiente</a>
+                </li>
+            </ul>
+            <p class="text-center mb-caso-code">${ total } tarea${ total !== 1 ? 's' : '' } en total</p>
+        </nav>
+
+    </template>
+
+</div>
+
+{{ template "standard_scripts.html" .}}
+{{ template "overlay.html" .}}
+
+<script>
+    window.__MisTareasConfig = {
+        currentUser: {{.currentUser}},
+        currentRole: {{.currentRole}}
+    };
+</script>
+<script src="/static/js/components/mis-tareas.js"></script>

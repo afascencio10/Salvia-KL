@@ -6,6 +6,7 @@ import (
 	"bitsflow/salvia/service"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -35,6 +36,20 @@ var enlaceTerritorialRoles = map[string]bool{"en": true}
 // Usado por CreateGestionPropia (case_task_controller.go) y por el endpoint
 // de "Barreras Departamento" (barrier_v2_gin_controller.go).
 func requireEnlaceAccess(ctx *gin.Context) *utils.CommonSession {
+	s := requireSessionRole(ctx, enlaceTerritorialRoles)
+	if s == nil {
+		return nil
+	}
+	if s.AssignedDepartmentID == "" {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "su usuario no tiene un departamento asignado"})
+		return nil
+	}
+	return s
+}
+
+// requireSessionRole resuelve la sesión y exige que el rol actual esté entre los
+// permitidos. Devuelve nil si ya respondió con 401/403.
+func requireSessionRole(ctx *gin.Context, allowed map[string]bool) *utils.CommonSession {
 	sessionID, ok := sessions.Default(ctx).Get("userData").(string)
 	if !ok || sessionID == "" {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "no autenticado"})
@@ -45,16 +60,15 @@ func requireEnlaceAccess(ctx *gin.Context) *utils.CommonSession {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "no autenticado"})
 		return nil
 	}
-	if !enlaceTerritorialRoles[s.CurrentRole] {
+	if !allowed[s.CurrentRole] {
 		ctx.JSON(http.StatusForbidden, gin.H{"error": "su rol no tiene permiso para acceder a este recurso"})
-		return nil
-	}
-	if s.AssignedDepartmentID == "" {
-		ctx.JSON(http.StatusForbidden, gin.H{"error": "su usuario no tiene un departamento asignado"})
 		return nil
 	}
 	return s
 }
+
+// misTareasRoles — roles con bandeja propia de tareas (agente de seguimiento).
+var misTareasRoles = map[string]bool{"op": true}
 
 // RegisterRoutes registra las rutas de CaseTask en el grupo /api/v1.
 //
@@ -65,6 +79,7 @@ func requireEnlaceAccess(ctx *gin.Context) *utils.CommonSession {
 func (c *CaseTaskController) RegisterRoutes(rg *gin.RouterGroup) {
 	group := rg.Group("/case-tasks")
 	group.GET("", c.ListByAssignedUser)
+	group.GET("/mine", c.ListMine)
 	group.GET("/:id", c.GetByID)
 	group.POST("/:id/complete", c.Complete)
 	group.PUT("/:id/complete", c.CompleteWithFormData)
@@ -143,6 +158,40 @@ func (c *CaseTaskController) ListByAssignedUser(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, items)
+}
+
+// ListMine devuelve, paginadas, las tareas del agente autenticado — pantalla
+// "Mis Tareas". El usuario se resuelve siempre desde la sesión y nunca desde un
+// parámetro del cliente, a diferencia de GET /api/v1/case-tasks?assignedUserId=.
+//
+//	GET /api/v1/case-tasks/mine?status=ToDo&page=1&pageSize=20
+func (c *CaseTaskController) ListMine(ctx *gin.Context) {
+	s := requireSessionRole(ctx, misTareasRoles)
+	if s == nil {
+		return
+	}
+
+	status := ctx.Query("status")
+	if status != "" && status != models.CaseTaskStatusToDo && status != models.CaseTaskStatusDone {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "estado inválido: " + status})
+		return
+	}
+
+	page, _ := strconv.Atoi(ctx.Query("page"))
+	pageSize, _ := strconv.Atoi(ctx.Query("pageSize"))
+
+	res, err := c.svc.ListByAssignedUserIDPaged(ctx.Request.Context(), s.UserICode, status, page, pageSize)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"items":    res.Items,
+		"total":    res.Total,
+		"page":     res.Page,
+		"pageSize": res.PageSize,
+	})
 }
 
 // Complete marca una CaseTask como completada registrando su resultado.

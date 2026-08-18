@@ -36,6 +36,7 @@ func CaseDetailGET(c *gin.Context) {
 	vars["userTeam"]                    = sc.Session.Team
 	vars["userICode"]                   = sc.Session.UserICode
 	vars["salviaVictimCaseGETFormPath"] = salvia_config.FormPaths[sc.Session.Lang]["VictimCaseGET"]
+	vars["salviaBackFallbackPath"]      = BackFallbackPath(sc.Session.CurrentRole)
 
 	common_facades.RenderTemplate(
 		c,

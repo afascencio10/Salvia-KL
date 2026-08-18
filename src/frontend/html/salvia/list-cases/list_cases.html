@@ -70,10 +70,12 @@
                         { value: 'r',  label: 'Por aprobar' },
                         { value: 'fc', label: 'Recontacto' },
                     ]},
+                    // El value es el equipo tal como está almacenado (no tocar: es el que
+                    // viaja al filtro); el label es el nombre real del equipo.
                     { key: 'equipo', type: 'dropdown', label: 'Por equipo', options: [
-                        { value: 'Riesgo bajo', label: 'Riesgo bajo' },
-                        { value: 'Riesgo alto', label: 'Riesgo alto' },
-                        { value: 'Hombres',     label: 'Hombres'     },
+                        { value: 'Riesgo bajo', label: 'Equipo de seguimiento general' },
+                        { value: 'Riesgo alto', label: 'Equipo de seguimiento de riesgo' },
+                        { value: 'Hombres',     label: 'Hombres' },
                     ]},
                     { key: 'seguimientos_ejecutados', type: 'dropdown', label: 'Seguimientos ejecutados', options: (function() {
                         var opts = [];
