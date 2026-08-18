@@ -6,7 +6,10 @@
  * Props:
  *   - caseId   (String, required): icode del caso
  *   - userId   (String, optional): icode del usuario logueado (para permisos)
- *   - userRole (String, optional): rol del usuario ('sv', 'ro', 'op')
+ *   - userRole (String, optional): rol del usuario ('sv', 'ro', 'op', 'ps', 'ts')
+ *   - allowPsicoManage (Boolean, optional): si true, ps/ts pueden gestionar
+ *     tareas asignadas a ellos (p. ej. detalle de remisión psicosocial).
+ *     Default false: en detalle de caso ps/ts son solo lectura.
  * Events:
  *   - @task-completed: emitido cuando se completa una tarea
  */
@@ -65,6 +68,7 @@ app.component('case-tasks', {
         barrierId: { type: String, default: '' },
         psychosocialId: { type: String, default: '' },
         puedeGestionPropia: { type: Boolean, default: false },
+        allowPsicoManage: { type: Boolean, default: false },
     },
     emits: ['task-completed'],
     data: function() {
@@ -162,9 +166,9 @@ app.component('case-tasks', {
             }
         },
         puedeCompletar: function(task) {
-            if (this.userRole === 'ps' || this.userRole === 'ts') return false;
+            if ((this.userRole === 'ps' || this.userRole === 'ts') && !this.allowPsicoManage) return false;
             if (this.userRole === 'sv') return true;
-            return task.assignedUserId === this.userId;
+            return String(task.assignedUserId || '') === String(this.userId || '');
         },
         async abrirReasignar(task) {
             this.reasignarTask = task;

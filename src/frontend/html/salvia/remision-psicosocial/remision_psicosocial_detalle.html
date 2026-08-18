@@ -227,7 +227,7 @@
 
         <!-- Tab: Tareas -->
         <div v-if="activeTab === 'tareas'" class="brd-tab-content-card">
-            <case-tasks :case-id="remision.caseId" :psychosocial-id="remisionID" :user-id="currentUserId" :user-role="currentRole"></case-tasks>
+            <case-tasks :case-id="remision.caseId" :psychosocial-id="remisionID" :user-id="currentUserId" :user-role="currentRole" :allow-psico-manage="true"></case-tasks>
         </div>
 
         <!-- Tab: Timeline -->
