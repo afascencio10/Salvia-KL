@@ -2182,7 +2182,8 @@ func (s *formService) scheduleNextPsicosocialContact(ctx context.Context, ps *mo
 	return nil
 }
 
-// checkPsicosocialSessionAvailability valida solape de 2h para el profesional o la dupla.
+// checkPsicosocialSessionAvailability valida solape de 2h para el profesional de la
+// remisión y las sesiones de sus duplas activas (mismo criterio que CheckSessionAvailability).
 func (s *formService) checkPsicosocialSessionAvailability(ctx context.Context, ps *models.PsychosocialSupport, date time.Time, timeStr, mode string) (bool, string, error) {
 	if s.teamContactRepo == nil {
 		return true, "Horario disponible", nil
@@ -2191,22 +2192,27 @@ func (s *formService) checkPsicosocialSessionAvailability(ctx context.Context, p
 	if err != nil {
 		return false, "", err
 	}
+	_ = mode // compat; el scope se arma desde la asignación de la remisión + expansión.
+
 	var psychID, swID string
-	mode = strings.ToLower(strings.TrimSpace(mode))
-	if mode == "" {
-		if ps.DuplaID != nil && *ps.DuplaID != "" {
-			mode = "dupla"
-		} else {
-			mode = "individual"
-		}
-	}
-	if mode == "dupla" && ps.DuplaID != nil && *ps.DuplaID != "" && s.duplaRepo != nil {
+	if ps.DuplaID != nil && *ps.DuplaID != "" && s.duplaRepo != nil {
 		if d, err := s.duplaRepo.FindEnrichedByID(ctx, *ps.DuplaID); err == nil && d != nil {
 			psychID = d.PsychologistID
 			swID = d.SocialWorkerID
 		}
 	}
-	ok, msg := evaluatePsicosocialAvailability(contacts, ps, timeStr, mode, psychID, swID)
+
+	personIDs, seedDuplaIDs := seedAvailabilityActors(ps, psychID, swID)
+	var expanded []string
+	if s.duplaRepo != nil && len(personIDs) > 0 {
+		expanded, err = s.duplaRepo.FindActiveIDsByMemberIDs(ctx, personIDs)
+		if err != nil {
+			return false, "", err
+		}
+	}
+	duplaIDs := mergeDuplaIDs(seedDuplaIDs, expanded)
+
+	ok, msg := evaluatePsicosocialAvailabilityWithScope(contacts, timeStr, personIDs, duplaIDs)
 	return ok, msg, nil
 }
 

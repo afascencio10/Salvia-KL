@@ -603,6 +603,21 @@ IDs de preguntas del repeater se resuelven en runtime por `order` dentro del `re
 - Agenda: solo si ¿Agendar nueva sesión? = Sí **y** hay Fecha+Hora **y** disponibilidad OK (2h). Si ocupado → no agenda; el form igual completa.
 - Endpoint live: `GET /api/v1/psychosocial-support/:id/availability?date=&time=&mode=`.
 
+### Aug 2026 — Disponibilidad incluye sesiones de dupla del profesional (IMPLEMENTADO)
+
+Criterio de conflicto (ventana 2h), live check y al guardar:
+
+1. `personIDs`: `ps.professional_id` y, si hay `ps.dupla_id`, los IDs de psicóloga + TS de esa dupla.
+2. `duplaIDs` base: `ps.dupla_id` si existe.
+3. Expandir: todas las duplas activas (`salvia.dupla`, `deleted_at IS NULL`) donde
+   `psychologist_id` o `social_worker_id` ∈ `personIDs`.
+4. Conflicto si un `team_contact` psico del día solapa y
+   (`professional_id` ∈ personIDs) O (`dupla_id` ∈ duplaIDs).
+
+Así una remisión **individual** también bloquea horarios ya ocupados por sesiones
+agendadas a nombre de la dupla del profesional. Código: `psicosocial_availability.go`,
+`CheckSessionAvailability`, `checkPsicosocialSessionAvailability`.
+
 ### Aug 2026 — Description del timeline de hechos incluye fecha (IMPLEMENTADO)
 
 `processPsicosocialHechosViolenciaTimeline` arma `Description` así:
