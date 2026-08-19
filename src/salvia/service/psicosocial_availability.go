@@ -35,29 +35,83 @@ func sessionWindowsOverlap(startA, startB, durationMin int) bool {
 	return startA < endB && startB < endA
 }
 
-// evaluatePsicosocialAvailability filtra contactos del día y determina si el slot
-// [timeStr, timeStr+2h) está libre para el profesional o la dupla.
-//
-// mode: "individual" | "dupla" (si vacío, se infiere de ps.DuplaID).
-// psychologistID / socialWorkerID solo aplican en modo dupla.
-func evaluatePsicosocialAvailability(
-	contacts []models.TeamContact,
-	ps *models.PsychosocialSupport,
-	timeStr, mode string,
-	psychologistID, socialWorkerID string,
-) (available bool, message string) {
-	mode = strings.ToLower(strings.TrimSpace(mode))
-	if mode == "" {
-		if ps.DuplaID != nil && *ps.DuplaID != "" {
-			mode = "dupla"
-		} else {
-			mode = "individual"
+// seedAvailabilityActors arma personIDs y duplaIDs base desde la remisión:
+//   - personIDs: professional_id y/o miembros (PS+TS) de ps.dupla_id
+//   - duplaIDs:  ps.dupla_id si existe
+// remisionPsychID / remisionSWID vienen de cargar la dupla de la remisión (pueden ir vacíos).
+func seedAvailabilityActors(ps *models.PsychosocialSupport, remisionPsychID, remisionSWID string) (personIDs, duplaIDs []string) {
+	seenP := map[string]struct{}{}
+	addP := func(id string) {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return
+		}
+		if _, ok := seenP[id]; ok {
+			return
+		}
+		seenP[id] = struct{}{}
+		personIDs = append(personIDs, id)
+	}
+	if ps != nil {
+		if ps.ProfessionalID != nil {
+			addP(*ps.ProfessionalID)
+		}
+		if ps.DuplaID != nil && strings.TrimSpace(*ps.DuplaID) != "" {
+			duplaIDs = append(duplaIDs, strings.TrimSpace(*ps.DuplaID))
+			addP(remisionPsychID)
+			addP(remisionSWID)
 		}
 	}
+	return personIDs, duplaIDs
+}
 
+// mergeDuplaIDs une seed + expansión (duplas activas del profesional) sin duplicados.
+func mergeDuplaIDs(seed, expanded []string) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(seed)+len(expanded))
+	for _, id := range append(append([]string{}, seed...), expanded...) {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	return out
+}
+
+// evaluatePsicosocialAvailabilityWithScope determina si [timeStr, timeStr+2h) está libre
+// frente a contactos del día, considerando:
+//   - sesiones con professional_id ∈ personIDs
+//   - sesiones con dupla_id ∈ duplaIDs
+// (duplaIDs debe incluir la dupla de la remisión y las duplas activas donde figuren
+// los personIDs — expansión hecha por el caller).
+func evaluatePsicosocialAvailabilityWithScope(
+	contacts []models.TeamContact,
+	timeStr string,
+	personIDs, duplaIDs []string,
+) (available bool, message string) {
 	reqStart, ok := parseTimeToMinutes(timeStr)
 	if !ok {
 		return false, "Hora inválida; use formato HH:MM"
+	}
+
+	personSet := map[string]struct{}{}
+	for _, id := range personIDs {
+		id = strings.TrimSpace(id)
+		if id != "" {
+			personSet[id] = struct{}{}
+		}
+	}
+	duplaSet := map[string]struct{}{}
+	for _, id := range duplaIDs {
+		id = strings.TrimSpace(id)
+		if id != "" {
+			duplaSet[id] = struct{}{}
+		}
 	}
 
 	for _, tc := range contacts {
@@ -73,19 +127,13 @@ func evaluatePsicosocialAvailability(
 		}
 
 		relevant := false
-		switch mode {
-		case "dupla":
-			if ps.DuplaID != nil && tc.DuplaID != nil && *tc.DuplaID == *ps.DuplaID {
+		if tc.ProfessionalID != nil {
+			if _, ok := personSet[strings.TrimSpace(*tc.ProfessionalID)]; ok {
 				relevant = true
 			}
-			if tc.ProfessionalID != nil {
-				pid := *tc.ProfessionalID
-				if (psychologistID != "" && pid == psychologistID) || (socialWorkerID != "" && pid == socialWorkerID) {
-					relevant = true
-				}
-			}
-		default: // individual
-			if ps.ProfessionalID != nil && tc.ProfessionalID != nil && *tc.ProfessionalID == *ps.ProfessionalID {
+		}
+		if !relevant && tc.DuplaID != nil {
+			if _, ok := duplaSet[strings.TrimSpace(*tc.DuplaID)]; ok {
 				relevant = true
 			}
 		}
