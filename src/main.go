@@ -219,6 +219,7 @@ func main() {
     caseDetailCtrl         := salvia_ctrl.NewCaseDetailController(caseDetailSvc, caseTimelineRepo)
     caseInfoCtrl           := salvia_ctrl.NewCaseInfoController(caseInfoSvc, gormDB)
     reportCtrl             := salvia_ctrl.NewReportController(reportSvc)
+    reportAsyncCtrl        := salvia_ctrl.NewReportAsyncController(reportSvc)
     barrierV2Svc           := service.NewBarrierV2Service(barrierV2Repo, barrierFollowUpRepo, agentLightRepo)
     barrierV2GinCtrl       := salvia_ctrl.NewBarrierV2GinController(barrierV2Svc)
 
@@ -278,6 +279,7 @@ func main() {
     caseDetailCtrl.RegisterRoutes(api)
     caseInfoCtrl.RegisterRoutes(api)
     reportCtrl.RegisterRoutes(api)
+    reportAsyncCtrl.RegisterRoutes(api)
     entityLetterCtrl.RegisterRoutes(api)
     entityCaseCtrl.RegisterRoutes(api)
     entityAPICtrl.RegisterRoutes(api)

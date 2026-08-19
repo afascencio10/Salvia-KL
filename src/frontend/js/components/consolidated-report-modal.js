@@ -16,7 +16,10 @@ app.component('consolidated-report-modal', {
             errorMessage: '',
             progressMessage: 'Consultando base de datos...',
             progressInterval: null,
-            elapsedSeconds: 0
+            elapsedSeconds: 0,
+            jobId: null,
+            pollingInterval: null,
+            jobReady: false
         };
     },
     methods: {
@@ -40,14 +43,21 @@ app.component('consolidated-report-modal', {
 
             this.errorMessage = '';
             this.loading = false;
+            this.jobReady = false;
             this.visible = true;
+
+            // Verificar si hay un job pendiente en localStorage
+            var savedJobId = localStorage.getItem('report_job_id');
+            if (savedJobId) {
+                this.jobId = savedJobId;
+                this.loading = true;
+                this.startPolling();
+            }
         },
         close: function() {
-            if (this.loading) {
-                return; // Bloquear cierre durante carga
-            }
             this.visible = false;
             this.stopProgressTimer();
+            this.stopPolling();
         },
         onBackdropClick: function() {
             this.close();
@@ -99,60 +109,106 @@ app.component('consolidated-report-modal', {
             }
 
             this.loading = true;
+            this.jobReady = false;
             this.startProgressTimer();
 
-            fetch('/api/v1/reportes/seguimientos-consolidado', {
+            // Iniciar generación asíncrona
+            fetch('/api/v1/reportes/iniciar', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    start_date: this.startDate,
-                    end_date: this.endDate
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ start_date: this.startDate, end_date: this.endDate })
             })
             .then(async response => {
                 if (!response.ok) {
-                    // Si falla, parseamos el error JSON
-                    const errorText = await response.text();
-                    let errMsg = 'Error interno al generar el reporte.';
-                    try {
-                        const errJson = JSON.parse(errorText);
-                        if (errJson && errJson.message) {
-                            errMsg = errJson.message;
-                        }
-                    } catch (e) {
-                        // Usar valor por defecto
-                    }
-                    throw new Error(errMsg);
+                    const err = await response.json();
+                    throw new Error(err.error || err.message || 'Error al iniciar reporte');
                 }
-                return response.blob();
+                return response.json();
             })
-            .then(blob => {
-                this.stopProgressTimer();
-                this.loading = false;
-                
-                // Forzar descarga del archivo
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `reporte-seguimientos_${this.startDate}_${this.endDate}.xlsx`;
-                document.body.appendChild(a);
-                a.click();
-                
-                // Limpieza
-                setTimeout(() => {
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
-                }, 100);
-
-                this.visible = false; // Cerrar el modal al completarse con éxito
+            .then(data => {
+                this.jobId = data.jobId;
+                localStorage.setItem('report_job_id', data.jobId);
+                this.startPolling();
             })
             .catch(error => {
                 this.stopProgressTimer();
                 this.loading = false;
                 this.errorMessage = error.message || 'Error al conectar con el servidor.';
             });
+        },
+
+        startPolling: function() {
+            this.stopPolling();
+            this.pollingInterval = setInterval(() => {
+                this.checkJobStatus();
+            }, 5000);
+            // Verificar inmediatamente
+            this.checkJobStatus();
+        },
+
+        stopPolling: function() {
+            if (this.pollingInterval) {
+                clearInterval(this.pollingInterval);
+                this.pollingInterval = null;
+            }
+        },
+
+        checkJobStatus: function() {
+            if (!this.jobId) return;
+            fetch('/api/v1/reportes/estado/' + this.jobId)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'listo') {
+                        this.stopPolling();
+                        this.stopProgressTimer();
+                        this.loading = false;
+                        this.jobReady = true;
+                        this.progressMessage = '¡Tu reporte está listo!';
+                    } else if (data.status === 'error') {
+                        this.stopPolling();
+                        this.stopProgressTimer();
+                        this.loading = false;
+                        this.jobReady = false;
+                        this.errorMessage = data.error || 'Error al generar el reporte';
+                        localStorage.removeItem('report_job_id');
+                        this.jobId = null;
+                    } else {
+                        // Sigue procesando
+                        if (data.progress) this.progressMessage = data.progress;
+                    }
+                })
+                .catch(() => {
+                    // Error de red — no detenemos el polling, reintentará
+                });
+        },
+
+        downloadReport: function() {
+            if (!this.jobId) return;
+            var self = this;
+            fetch('/api/v1/reportes/descargar/' + this.jobId)
+                .then(res => {
+                    if (!res.ok) throw new Error('Error al descargar');
+                    return res.blob();
+                })
+                .then(blob => {
+                    var url = window.URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'reporte-seguimientos_' + self.startDate + '_' + self.endDate + '.xlsx';
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(function() {
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                    }, 100);
+                    localStorage.removeItem('report_job_id');
+                    self.jobId = null;
+                    self.jobReady = false;
+                    self.visible = false;
+                })
+                .catch(err => {
+                    self.errorMessage = err.message || 'Error al descargar el reporte';
+                });
         }
     }
 });
