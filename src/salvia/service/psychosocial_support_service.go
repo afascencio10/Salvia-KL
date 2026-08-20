@@ -44,7 +44,7 @@ func (s *psychosocialSupportService) List(ctx context.Context, page, limit int) 
 
 func (s *psychosocialSupportService) Create(ctx context.Context, ps *models.PsychosocialSupport) error {
 	if ps.Status == "" {
-		ps.Status = "ACTIVE"
+		ps.Status = models.PsychosocialSupportStatusAbierto
 	}
 	return s.repo.Create(ctx, ps)
 }

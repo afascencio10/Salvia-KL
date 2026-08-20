@@ -416,7 +416,7 @@ Requerido:    Sí
 |---|---|
 | Implementar DEC-E08-01 en backend (`buildPsychosocialListWhere`) | E-08, E-01 defaultFilter, stats |
 | Implementar M-02 en código (modelos + AutoMigrate) | Prerequisito backend real |
-| Población de `submitted_by_team` al crear remisión | E-01, E-13 — fuera del componente |
+| Población de `submitted_by_team` al crear remisión desde `hacer-seguimiento` | **Cerrado 2026-08-20** — E-04 de `hacer-seguimiento` persiste `submitted_by` + `submitted_by_team` al derivar a `atencion_psico`. Otros orígenes de creación, si existen, siguen pendientes. |
 | Creación de registros `team_contact` al completar sesiones | E-01 barra de puntos, E-10 |
 | Actualizar mock frontend existente | E-01 — alinear con nueva UI |
 | Implementación `reasignar-remisiones-modal` + endpoints bulk | E-15 — padre; ver RRM-05 |

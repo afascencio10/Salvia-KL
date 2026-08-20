@@ -79,7 +79,9 @@ Remisión al equipo de Atención Psicosocial. Creada solo si se cumplen criterio
 | `case_id` | varchar | No | ICode del caso |
 | `follow_up_id` | uuid | No | Seguimiento que la generó |
 | `type` | varchar | No | `derivacion` |
-| `status` | varchar | No | `ACTIVE` |
+| `status` | varchar | No | `abierto` al crear (ciclo: `abierto` / `en_gestion` / `en_devolucion` / `cerrado`) |
+| `submitted_by` | varchar(36) | Sí | `general_user_i_code` del agente que llenó el seguimiento (`actorId`) |
+| `submitted_by_team` | varchar(50) | Sí | `general_user_team` del remitente, denormalizado. Nil si el lookup falla |
 
 ---
 

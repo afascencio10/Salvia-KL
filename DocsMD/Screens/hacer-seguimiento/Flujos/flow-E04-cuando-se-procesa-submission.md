@@ -248,7 +248,28 @@ PASO 4 — Procesar derivaciones a equipos
       → Log: "derivacion psicosocial NO cumple criterios (obligatorio=X, puntos=N)"
       → OMITIR (break)
 
-    → DB.psychosocial_support.Create({ case_id, follow_up_id, type: "derivacion", status: "ACTIVE" })
+    Resolver remitente:
+      submitted_by = actorId
+      submitted_by_team = nil
+      SI agentLightRepo disponible Y actorId != "":
+        → agent = DB.agentLight.FindByICode({ iCode: actorId })
+        SI ok Y agent.team no vacío:
+          → submitted_by_team = agent.team   // general_user_team
+        SI NO:
+          → Log WARN: no se pudo resolver equipo del remitente
+          → submitted_by_team queda nil (no aborta)
+      SI NO:
+        → Log WARN: no se pudo resolver submitted_by_team
+        → submitted_by_team queda nil (no aborta)
+
+    → DB.psychosocial_support.Create({
+          case_id:            fu.case_id,
+          follow_up_id:       fu.id,
+          type:               "derivacion",
+          status:             "abierto",
+          submitted_by:       actorId,
+          submitted_by_team:  submitted_by_team   // nil si el lookup falló o el agente no tiene team
+      })
     SI falla el insert:
       → Retornar error (aborta la ejecución)
     → Log: "✅ derivacion creada -> atencion_psico (id=...)"

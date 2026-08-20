@@ -3062,11 +3062,31 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 					break
 				}
 				log.Printf("[processFollowUp] creando derivacion -> atencion_psico (obligatorio=%v, puntos=%d)", tieneCriterioObligatorio, totalPuntos)
+				var submittedBy *string
+				if actorID != "" {
+					submittedBy = &actorID
+				}
+				var submittedByTeam *string
+				if s.agentLightRepo != nil && actorID != "" {
+					agent, err := s.agentLightRepo.FindByICode(ctx, actorID)
+					if err != nil {
+						log.Printf("[processFollowUp] WARN: no se pudo resolver equipo del remitente (actor=%s): %v", actorID, err)
+					} else if agent != nil && strings.TrimSpace(agent.Team) != "" {
+						team := strings.TrimSpace(agent.Team)
+						submittedByTeam = &team
+					} else {
+						log.Printf("[processFollowUp] WARN: agente %s sin general_user_team — submitted_by_team quedará vacío", actorID)
+					}
+				} else {
+					log.Printf("[processFollowUp] WARN: no se pudo resolver submitted_by_team (actor=%s)", actorID)
+				}
 				ps := &models.PsychosocialSupport{
-					CaseID:     fu.CaseID,
-					FollowUpID: fu.ID,
-					Type:       "derivacion",
-					Status:     "ACTIVE",
+					CaseID:          fu.CaseID,
+					FollowUpID:      fu.ID,
+					Type:            "derivacion",
+					Status:          models.PsychosocialSupportStatusAbierto,
+					SubmittedBy:     submittedBy,
+					SubmittedByTeam: submittedByTeam,
 				}
 				if err := s.psychosocialSupportRepo.Create(ctx, ps); err != nil {
 					return fmt.Errorf("processFollowUpSubmission: crear derivacion psicosocial: %w", err)
