@@ -11,6 +11,8 @@ Casos de prueba para la nueva sección "Respuestas del Formulario" del tab Resum
 | C1 | Campos poblados se leen y muestran correctamente | `formSubmissionId` con `riskAnalysis`, `caseManagement` y 3 entries de `barrierIdentified` respondidas (multi-select "Gestión de la barrera" con las 6 opciones) | El backend arma `formAnswers` con el texto exacto de cada pregunta y resuelve las 6 opciones de gestión a sus labels legibles (incluyendo `orientacion_llamada`, que no está en el mapa de labels ya existente en `form_service.go`) | Request directo al endpoint (`GET /api/v1/cases/follow-ups/detail`) + query a `salvia.answer`/`salvia.repeater_entry` |
 | C2 | Campos/listas vacías no se muestran | Mismo `formSubmissionId` de C1 — `referralEvidence` sin responder y `barrierFollowUps` (repeater Seguimiento a Barreras) sin entries | `formAnswers.referralEvidence = ""` y `formAnswers.barrierFollowUps = null` — el frontend oculta ambos bloques (`v-if`) sin afectar los campos poblados de C1 | Request directo al endpoint + Playwright (DOM) |
 | C3 | El DOM renderiza lo que devuelve el backend | Mismo seguimiento — tab Resumen (activo por defecto) | La sección "Respuestas del Formulario" es visible; el análisis de riesgo y la gestión del seguimiento muestran el texto exacto; las 3 entradas de "Gestión — Identificación de Barreras" muestran el texto de las 6 opciones resueltas; "Gestión — Seguimiento a Barreras" y "Elementos que evidencian la remisión" no están en el DOM | Playwright (DOM) |
+| C4 | Tab Formulario hidrata Seguimiento a Barreras | Follow-up REALIZADO con `active_barrier_ids` no vacío y `repeater_entry` del group `b536f16c-…` con answers (ej. `8fc695c9-cd78-4d46-afdc-77aba2b97a1e`: 2 entries, 10 answers) | `GET /api/v1/cases/follow-ups/detail` devuelve `activeBarriers` con un ítem `{ id, barrierName }` por ID del snapshot. Tab Formulario: la sección "Seguimiento a Barreras" muestra 1 entry por barrera con las 7 preguntas precargadas (no vacías) | Request al endpoint + UI tab Formulario |
+| C5 | Resumen muestra gestión de seguimiento a barreras | Mismo follow-up de C4 (entries con actuaciones/gestión) | `formAnswers.barrierFollowUps` no es null; el bloque "Gestión — Seguimiento a Barreras" aparece en el tab Resumen | Request al endpoint + UI tab Resumen |
 
 > C1 y C2 se verificaron a nivel de API/BD durante el desarrollo (no repetidas por Playwright — ver Fase 2). C3 es lo único que realmente necesita navegador: confirmar que el binding Vue (`v-if`/`v-for`/interpolación) refleja fielmente el JSON ya probado.
 
@@ -59,5 +61,6 @@ Corrido headless (`CI=1`, sin abrir navegador) contra el backend local en :9090 
 |---|---|
 | Request directo a `GET /api/v1/cases/follow-ups/detail` + query BD (Fase 2, durante desarrollo) | C1, C2 |
 | `seguimiento-detalle.spec.ts` › `tab Resumen muestra "Respuestas del Formulario"` (Playwright, headless) | C3 |
+| Follow-up REALIZADO con entries de Seguimiento a Barreras (`8fc695c9-…`) — pendiente de re-ejecutar en UI tras el fix de `currentBarriers` | C4, C5 |
 
-**Resultado:** 3/3 casos cubiertos y verdes.
+**Resultado:** C1–C3 cubiertos y verdes (2026-08-14). C4/C5 documentan el contrato nuevo del tab Formulario (`activeBarriers` → `formState.currentBarriers`); re-ejecutar contra un follow-up con entries del repeater `b536f16c-…`.

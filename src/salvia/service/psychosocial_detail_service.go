@@ -697,17 +697,17 @@ func (s *psychosocialDetailService) LoadSession(ctx context.Context, psicosocial
 // se filtra por team_contact_id: se buscan todos los team_contact de este psychosocial_support y
 // luego las barrier_v2 (no MANAGED) cuyo team_contact_id esté en ese conjunto — decisión de los
 // líderes (Jul 2026) para no depender de un campo adicional en psychosocial_support.
-// Reutiliza ActiveBarrierInfo/buildBarrierName definidos en followup_v2_service.go (mismo paquete).
-func (s *psychosocialDetailService) loadActivePsicosocialBarriers(ctx context.Context, psicosocialID string) []ActiveBarrierInfo {
+// Reutiliza models.ActiveBarrierInfo y buildBarrierName (mismo paquete service).
+func (s *psychosocialDetailService) loadActivePsicosocialBarriers(ctx context.Context, psicosocialID string) []models.ActiveBarrierInfo {
 	var contacts []models.TeamContact
 	if err := s.db.WithContext(ctx).
 		Where("psicosocial_id = ? AND deleted_at IS NULL", psicosocialID).
 		Find(&contacts).Error; err != nil {
 		log.Printf("[SVC] loadActivePsicosocialBarriers → error leyendo team_contact de psicosocialId=%s: %v", psicosocialID, err)
-		return []ActiveBarrierInfo{}
+		return []models.ActiveBarrierInfo{}
 	}
 	if len(contacts) == 0 {
-		return []ActiveBarrierInfo{}
+		return []models.ActiveBarrierInfo{}
 	}
 	contactIDs := make([]string, len(contacts))
 	for i, c := range contacts {
@@ -720,12 +720,12 @@ func (s *psychosocialDetailService) loadActivePsicosocialBarriers(ctx context.Co
 		Order("created_at ASC").
 		Find(&barriers).Error; err != nil {
 		log.Printf("[SVC] loadActivePsicosocialBarriers → error leyendo barrier_v2 de psicosocialId=%s: %v", psicosocialID, err)
-		return []ActiveBarrierInfo{}
+		return []models.ActiveBarrierInfo{}
 	}
 
-	result := make([]ActiveBarrierInfo, len(barriers))
+	result := make([]models.ActiveBarrierInfo, len(barriers))
 	for i, b := range barriers {
-		result[i] = ActiveBarrierInfo{ID: b.ID, BarrierName: buildBarrierName(b)}
+		result[i] = models.ActiveBarrierInfo{ID: b.ID, BarrierName: buildBarrierName(b)}
 	}
 	return result
 }

@@ -265,6 +265,7 @@
                 userRole:     '{{ .userRole }}',
                 formState: {
                     psysocialRemisionState: '',
+                    currentBarriers: [],
                 },
                 victimInfo: null,
                 activeBarriers: [],
@@ -385,6 +386,10 @@
 
                     this.victimCase.id  = data.caseInfo.id;
                     this.formId         = data.followUp.form_id || this.formId;
+                    // currentBarriers ANTES de submissionId: dinamic-form monta en cuanto hay
+                    // submissionId; si el array llega después, el watch crea entries temp
+                    // sin hidratar las answers guardadas (repeater stateItems).
+                    this.formState.currentBarriers = data.activeBarriers || [];
                     this.submissionId   = data.followUp.form_submission_id || null;
 
                     // canEdit: false permanente si el form no es el vivo por defecto
