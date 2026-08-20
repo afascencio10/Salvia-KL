@@ -216,7 +216,7 @@ func main() {
     answerCtrl             := salvia_ctrl.NewAnswerController(answerSvc)
     followUpV2Ctrl         := salvia_ctrl.NewFollowUpV2Controller(followUpV2Svc)
     optionCtrl             := salvia_ctrl.NewOptionController(optionSvc)
-    caseDetailCtrl         := salvia_ctrl.NewCaseDetailController(caseDetailSvc, caseTimelineRepo)
+    caseDetailCtrl         := salvia_ctrl.NewCaseDetailController(caseDetailSvc, caseTimelineRepo, casoCierreSvc)
     caseInfoCtrl           := salvia_ctrl.NewCaseInfoController(caseInfoSvc, gormDB)
     reportCtrl             := salvia_ctrl.NewReportController(reportSvc)
     reportAsyncCtrl        := salvia_ctrl.NewReportAsyncController(reportSvc)

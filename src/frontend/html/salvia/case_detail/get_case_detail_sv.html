@@ -86,6 +86,9 @@
         <button v-if="puedeReasignar || userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode)" class="btn-nuevo-seg" @click="abrirModalNuevoSeg">
           + Nuevo seguimiento
         </button>
+        <button v-if="(puedeReasignar || userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode)) && caso.victimCaseStatus === 'cd'" class="btn-nuevo-seg" @click="abrirModalReabrir">
+          Reabrir caso
+        </button>
       </div>
     </div>
 
@@ -716,6 +719,31 @@
   </div>
 </div>
 
+<!-- ══ MODAL: REABRIR CASO ══ -->
+<div v-if="modalReabrir" class="ns-backdrop" @click.self="modalReabrir = false">
+  <div class="ns-modal">
+    <div class="ns-header">
+      <div>
+        <p class="ns-title">Reabrir caso</p>
+        <p class="ns-subtitle" v-if="caso">${ caso.victimCaseVictimName }</p>
+      </div>
+      <button class="ns-close" @click="modalReabrir = false">✕</button>
+    </div>
+    <div class="ns-body">
+      <p style="margin:0;font-size:.88rem;color:#374151;line-height:1.5">
+        El caso volverá a estado <strong>Activo</strong> y podrá gestionarse de nuevo.
+        ¿Desea continuar?
+      </p>
+    </div>
+    <div class="ns-footer">
+      <button class="ns-btn-cancel" @click="modalReabrir = false">Cancelar</button>
+      <button class="ns-btn-save" :disabled="reabriendo" @click="confirmarReabrirCaso">
+        ${ reabriendo ? 'Reabriendo...' : 'Confirmar' }
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL: REASIGNAR CASO ══ -->
 <div v-if="modalReasignar" class="ns-backdrop" @click.self="modalReasignar = false">
   <div class="ns-modal">
@@ -867,6 +895,8 @@ var home = Vue.createApp({
       tabActiva: 'info',
       modalNuevoSeg: false,
       modalReasignar: false,
+      modalReabrir: false,
+      reabriendo: false,
       reasignarOperador: '',
       reasignando: false,
       autoAsignando: false,
@@ -1471,6 +1501,38 @@ var home = Vue.createApp({
     abrirModalReasignar() {
       this.reasignarOperador = '';
       this.modalReasignar = true;
+    },
+    abrirModalReabrir() {
+      this.modalReabrir = true;
+    },
+    confirmarReabrirCaso() {
+      var self = this;
+      self.reabriendo = true;
+      fetch('/api/v1/casos/' + CASE_ICODE + '/reabrir', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ actor_id: self.userICode })
+      })
+        .then(function(res) {
+          if (res.ok) {
+            self.modalReabrir = false;
+            self.reabriendo = false;
+            self.showToast('success', 'Caso reabierto correctamente');
+            self.cargarDatos();
+          } else {
+            return res.json().then(function(data) {
+              self.reabriendo = false;
+              self.showToast('error', data.error || 'Error al reabrir el caso');
+            }).catch(function() {
+              self.reabriendo = false;
+              self.showToast('error', 'Error al reabrir el caso');
+            });
+          }
+        })
+        .catch(function() {
+          self.reabriendo = false;
+          self.showToast('error', 'Error de conexión al reabrir el caso');
+        });
     },
     guardarSeguimiento() {
       this.segTocado = true;

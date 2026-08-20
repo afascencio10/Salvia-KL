@@ -62,11 +62,13 @@ DetalleCaso  (.container)
     │       ├── [v-if puedeReasignar]  BtnReasignar  "Reasignar"  → abrirModalReasignar()
     │       ├── [v-if userRole === 'op' && (!caso.agentId || caso.agentId !== userICode)]
     │       │   BtnAsignarme  "👤 Asignarme este caso" | "Asignando..."  :disabled=autoAsignando  → autoAsignarCaso()
-    │       └── [v-if puedeReasignar || userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode)]
-    │           BtnNuevoSeg
-    │               :disabled si followUpsV2.length >= 8
-    │               Label "Máximo alcanzado (8)" | "+ Nuevo seguimiento"
-    │               → abrirModalNuevoSeg()
+    │       ├── [v-if puedeReasignar || userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode)]
+    │       │   BtnNuevoSeg
+    │       │       :disabled si followUpsV2.length >= 8
+    │       │       Label "Máximo alcanzado (8)" | "+ Nuevo seguimiento"
+    │       │       → abrirModalNuevoSeg()
+    │       └── [v-if (puedeReasignar || userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode)) && caso.victimCaseStatus === 'cd']
+    │           BtnReabrirCaso  "Reabrir caso"  → abrirModalReabrir()
     │
     ├── [v-if proximoSeguimiento]  BannerProximoSeg
     │   └── "📅 Próximo seguimiento programado"  fecha · [hora si scheduled_time != '00:00'] · [👤 agente si agent_id]
@@ -243,6 +245,10 @@ CaseInfo (modo modal)  // src/frontend/js/components/case-info.js
     ├── <textarea>  Notas / Observaciones
     ├── [v-if !nuevoSegValido && segTocado]  Aviso  "Complete los campos obligatorios (fecha y agente) para guardar."
     └── Footer: BtnCancelar · BtnGuardar  :disabled si !nuevoSegValido || guardandoSeg
+
+[v-if modalReabrir]  ModalReabrirCaso  (.ns-modal)
+    ├── Texto  "El caso volverá a estado Activo y podrá gestionarse de nuevo. ¿Desea continuar?"
+    └── Footer: BtnCancelar · BtnConfirmar  :disabled si reabriendo
 
 [v-if modalReasignar]  ModalReasignarCaso  (.ns-modal)
     ├── <select>  Operador*  [v-for operadores]

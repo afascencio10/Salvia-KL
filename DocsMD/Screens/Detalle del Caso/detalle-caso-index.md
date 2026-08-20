@@ -5,6 +5,8 @@
 | Documento | Link |
 |---|---|
 | Interfaz | [detalle-caso-interface.md](detalle-caso-interface.md) |
+| Changelog ago 2026 | [changelogAgo2026.md](changelogAgo2026.md) |
+| QA reapertura | [QA/E22-reabrir-caso-qa-cases.md](QA/E22-reabrir-caso-qa-cases.md) |
 
 ## Resumen de eventos
 
@@ -30,6 +32,8 @@
 | E18 | Cuando presiona "🔄 Reintentar" | User Interaction | — |
 | E19 | Cuando el modal de contacto completa una gestión | User Interaction | — |
 | E20 | Cuando el modal de completar tarea emite "completed" | User Interaction | — |
+| E21 | Cuando presiona "Reabrir caso" | User Interaction | — |
+| E22 | Cuando confirma reapertura | User Interaction | [📄 Ver flujo](Flujos/flow-E22-cuando-confirma-reapertura.md) |
 
 ---
 
@@ -174,6 +178,22 @@
 **Tipo:** User Interaction
 **Descripción:** Callback `onCaseTaskCompleted(tarea)` cableado a `<case-task-modal ref="taskModal">` montado a nivel de pantalla. Recarga las tareas del caso (`cargarTareasCaso`). **Actualmente inactivo en la práctica**: el único control que abría este modal (`$refs.taskModal.open(testTaskId)`) vivía en un bloque de UI de desarrollo dentro del tab Derivaciones que hoy está comentado. `case-tasks.js` maneja sus propias tareas con una instancia interna independiente de `case-task-modal`.
 **Requerido:** No — código vivo pero sin disparador activo; candidato a limpieza o a reconectar si se retoma la UI de prueba.
+
+---
+
+**Evento:** Cuando presiona "Reabrir caso"
+**Tipo:** User Interaction
+**Descripción:** Visible solo si el caso está cerrado (`victimCaseStatus === 'cd'`) y con la misma regla de roles que "+ Nuevo seguimiento" (`puedeReasignar` / `ro` / `op` asignado). Pone `modalReabrir = true`.
+**Requerido:** Sí
+
+---
+
+📄 [Ver flujo → flow-E22-cuando-confirma-reapertura.md](Flujos/flow-E22-cuando-confirma-reapertura.md)
+
+**Evento:** Cuando confirma reapertura
+**Tipo:** User Interaction
+**Descripción:** POST `/api/v1/casos/:id/reabrir` con `actor_id = userICode`. El backend pasa el caso de `cd` a `ra` (Activo) y registra el evento de timeline "Reapertura de Caso". Recarga datos; el badge pasa a Activo y el botón se oculta.
+**Requerido:** Sí
 
 ---
 

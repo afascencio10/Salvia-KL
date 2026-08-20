@@ -15,6 +15,7 @@ import (
 // un caso (formulario de seguimiento, detalle del caso, etc.).
 
 const VictimCaseStatusCerrado = "cd"
+const VictimCaseStatusActivo  = "ra"
 
 // CerrarCasoInput reúne todos los datos necesarios para registrar el cierre.
 type CerrarCasoInput struct {
@@ -26,9 +27,10 @@ type CerrarCasoInput struct {
 	ActorID                 string // i_code del usuario que ejecuta el cierre
 }
 
-// CasoCierreService expone la lógica de cierre de caso.
+// CasoCierreService expone la lógica de cierre y reapertura de caso.
 type CasoCierreService interface {
 	CerrarCaso(ctx context.Context, input CerrarCasoInput) error
+	ReabrirCaso(ctx context.Context, caseICode, actorID string) error
 }
 
 type casoCierreService struct {
@@ -113,4 +115,49 @@ func buildCierreDescription(input CerrarCasoInput) string {
 		desc += fmt.Sprintf(". %s", input.Descripcion)
 	}
 	return desc
+}
+
+// ReabrirCaso actualiza el status del caso de "cd" a "ra" y registra el evento
+// en el timeline. Es idempotente: si el caso no está cerrado, solo loggea y retorna.
+func (s *casoCierreService) ReabrirCaso(ctx context.Context, caseICode, actorID string) error {
+	if caseICode == "" {
+		return fmt.Errorf("ReabrirCaso: CaseICode es requerido")
+	}
+
+	vc, err := s.victimCaseLightRepo.FindByICode(ctx, caseICode)
+	if err != nil {
+		return fmt.Errorf("ReabrirCaso: buscar caso [%s]: %w", caseICode, err)
+	}
+	if vc.Status != VictimCaseStatusCerrado {
+		log.Printf("[ReabrirCaso] caso %s no está cerrado (status=%s) — se omite la operación", caseICode, vc.Status)
+		return nil
+	}
+
+	if err := s.victimCaseLightRepo.UpdateStatus(ctx, caseICode, VictimCaseStatusActivo); err != nil {
+		return fmt.Errorf("ReabrirCaso: actualizar status [%s]: %w", caseICode, err)
+	}
+	log.Printf("[ReabrirCaso] caso %s reabierto (ra)", caseICode)
+
+	if s.caseTimelineRepo == nil {
+		log.Printf("⚠️  [ReabrirCaso] caseTimelineRepo es nil — evento de reapertura NO creado para caso %s", caseICode)
+		return nil
+	}
+
+	now := time.Now()
+	event := &models.CaseTimelineEvent{
+		CaseID:      caseICode,
+		Category:    models.TimelineCategoryGeneral,
+		Type:        models.TimelineTypeReabrirCaso,
+		Icon:        models.TimelineIconReasignacion,
+		Color:       models.TimelineColorTeal,
+		Description: "Caso reabierto",
+		EventUserID: actorID,
+		Date:        now,
+		CreatedAt:   now,
+	}
+	if err := s.caseTimelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[ReabrirCaso] advertencia: no se pudo crear evento timeline para caso %s: %v", caseICode, err)
+	}
+
+	return nil
 }

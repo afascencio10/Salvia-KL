@@ -44,10 +44,11 @@ func teamVariantsForQuery(team string) []string {
 type CaseDetailController struct {
 	svc          service.CaseDetailService
 	timelineRepo repository.CaseTimelineEventRepository
+	cierreSvc    service.CasoCierreService
 }
 
-func NewCaseDetailController(svc service.CaseDetailService, timelineRepo repository.CaseTimelineEventRepository) *CaseDetailController {
-	return &CaseDetailController{svc: svc, timelineRepo: timelineRepo}
+func NewCaseDetailController(svc service.CaseDetailService, timelineRepo repository.CaseTimelineEventRepository, cierreSvc service.CasoCierreService) *CaseDetailController {
+	return &CaseDetailController{svc: svc, timelineRepo: timelineRepo, cierreSvc: cierreSvc}
 }
 
 // RegisterRoutes registra el endpoint JSON en /api/v1.
@@ -63,6 +64,7 @@ func (c *CaseDetailController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.POST("/casos/:id/timeline", c.AddTimelineEvent)
 	rg.GET("/casos/:id/timeline-events", c.GetTimelineEvents)
 	rg.POST("/casos/:id/reasignar", c.ReasignarCaso)
+	rg.POST("/casos/:id/reabrir", c.ReabrirCaso)
 	rg.PUT("/seguimiento/:segId/reasignar", c.ReassignFollowUp)
 	rg.PUT("/seguimiento/:segId/editar", c.EditFollowUp)
 }
@@ -350,6 +352,25 @@ func (c *CaseDetailController) ReasignarCaso(ctx *gin.Context) {
 		return
 	}
 	if err := c.svc.ReasignarCaso(ctx.Request.Context(), caseICode, body.OperadorICode); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// ReabrirCaso pasa un caso cerrado (cd) a activo (ra).
+// POST /api/v1/casos/:id/reabrir
+func (c *CaseDetailController) ReabrirCaso(ctx *gin.Context) {
+	caseICode := ctx.Param("id")
+	var body struct {
+		ActorID string `json:"actor_id"`
+	}
+	_ = ctx.ShouldBindJSON(&body)
+	if c.cierreSvc == nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "servicio de cierre no disponible"})
+		return
+	}
+	if err := c.cierreSvc.ReabrirCaso(ctx.Request.Context(), caseICode, body.ActorID); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
