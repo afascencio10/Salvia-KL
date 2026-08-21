@@ -249,8 +249,11 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	"get_mis_barreras": {"en": true},
 
 	// ── Módulo de Mis Tareas ─────────────────────────────────────────────────
-	// Bandeja consolidada de tareas del agente de seguimiento.
-	"get_mis_tareas": {"op": true},
+	// Visible para todos los roles internos, no para externos — mismo set que
+	// get_directorio_entidades ("Opción A: todos los roles internos pueden ver"),
+	// que ya es la clasificación interno/externo vigente en este código. en
+	// (Enlace Territorial) queda fuera a propósito, igual que en ese permiso.
+	"get_mis_tareas": {"op": true, "ro": true, "et": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true, "mn": true},
 
 	// ── Módulo de Barreras Departamento ──────────────────────────────────────
 	// Solo el enlace territorial (en) puede ver el panorama de barreras de su departamento.
@@ -312,7 +315,9 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	"close_psychosocial_process":             {"ps": true, "ts": true},
 
 	// ── Calendario Psicosocial ─────────────────────────────────────────────
-	"get_psychosocial_calendar": {"ps": true, "sv": true},
+	// ts (trabajador social) comparte el resto de permisos psicosociales con ps y
+	// también agenda sesiones, por lo que necesita su propio cronograma.
+	"get_psychosocial_calendar": {"ps": true, "ts": true, "sv": true},
 
 	// ── Directorio de Entidades ────────────────────────────────────────────
 	// Opción A: todos los roles internos pueden ver; et + sv pueden crear;

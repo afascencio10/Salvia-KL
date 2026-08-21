@@ -178,7 +178,9 @@
                 <div class="pc-form-row">
                     <div class="pc-form-group">
                         <label>Fecha <span class="pc-required">*</span></label>
-                        <input type="date" class="pc-form-input" v-model="sessionForm.scheduledDate">
+                        <!-- min solo restringe el picker en el alta; al editar una sesión PENDIENTE
+                             cuya fecha ya venció, el valor precargado se conserva sin problema. -->
+                        <input type="date" class="pc-form-input" v-model="sessionForm.scheduledDate" :min="!editingSessionId ? toDateStr(new Date()) : null">
                     </div>
                     <div class="pc-form-group">
                         <label>Hora <span class="pc-required">*</span></label>
@@ -308,9 +310,13 @@
                 <div class="pc-preview-props">
                     <div v-if="selectedEvent.caseICode && selectedEvent.kind === 'session'" class="pc-preview-prop">
                         <span class="pc-preview-prop-label">Caso</span>
-                        <a :href="'/salvia/casos/' + selectedEvent.caseICode + '/detalle'" class="pc-preview-prop-value pc-preview-link" target="_blank">
+                        <!-- Va al detalle de la remisión, no al detalle del caso: la sesión
+                             pertenece a una remisión psicosocial puntual, y el detalle del
+                             caso no tiene contexto de sesiones/citas. -->
+                        <a v-if="selectedEvent.remissionId" :href="'/salvia/remision-psicosocial/' + selectedEvent.remissionId" class="pc-preview-prop-value pc-preview-link" target="_blank">
                             ${ selectedEvent.caseICode }
                         </a>
+                        <span v-else class="pc-preview-prop-value">${ selectedEvent.caseICode }</span>
                     </div>
                     <div v-if="selectedEvent.agentName" class="pc-preview-prop">
                         <span class="pc-preview-prop-label">Agente</span>
@@ -438,6 +444,12 @@ var pcApp = Vue.createApp({
         document.removeEventListener('click', this.closeNewMenu);
     },
     methods: {
+        // El botón "Cerrar sesión" del layout compartido (templates/layouts/header.html)
+        // invoca este método sobre la app raíz de cada pantalla; sin definirlo aquí el
+        // click no hacía nada.
+        logout() {
+            logout('/seguridad/logout');
+        },
         initCalendar() {
             if (typeof FullCalendar === 'undefined') {
                 this.error = 'No se pudo cargar el componente de calendario';
@@ -580,6 +592,38 @@ var pcApp = Vue.createApp({
             const dd = String(d.getDate()).padStart(2, '0');
             return y + '-' + m + '-' + dd;
         },
+        // Pre-chequeo de choque de horario (ventana de 2h, mismo criterio del backend
+        // en checkSessionConflict/psychosocial_calendar_service.go) contra los eventos
+        // ya cargados en el calendario. Es best-effort: solo cubre lo visible en
+        // pantalla (p. ej. si el supervisor filtró por otro agente, no lo detecta acá).
+        // El backend es la validación autoritativa; esto solo evita un viaje redondo
+        // en el caso común.
+        findSessionConflict(agentId, dateStr, timeStr, excludeId) {
+            const toMin = (hhmm) => {
+                const parts = (hhmm || '').split(':');
+                const h = Number(parts[0]), m = Number(parts[1]);
+                return (Number.isFinite(h) && Number.isFinite(m)) ? h * 60 + m : null;
+            };
+            const reqStart = toMin(timeStr);
+            if (reqStart === null) return null;
+            const DURATION = 120;
+            const conflict = this.events.find(ev => {
+                if (ev.kind !== 'session') return false;
+                if (excludeId && ev.id === excludeId) return false;
+                if ((ev.agentId || '') !== agentId) return false;
+                if ((ev.scheduledDate || '') !== dateStr) return false;
+                const existStart = toMin(ev.scheduledTime);
+                if (existStart === null) return false;
+                return reqStart < existStart + DURATION && existStart < reqStart + DURATION;
+            });
+            if (!conflict) return null;
+            const existStart = toMin(conflict.scheduledTime);
+            const pad = n => String(n).padStart(2, '0');
+            const stH = Math.floor(existStart / 60), stM = existStart % 60;
+            const endTotal = existStart + DURATION;
+            const enH = Math.floor(endTotal / 60), enM = endTotal % 60;
+            return 'El agente ya tiene una sesión de ' + pad(stH) + ':' + pad(stM) + ' a ' + pad(enH) + ':' + pad(enM) + ' (ventana de 2 horas)';
+        },
         async loadAgents() {
             try {
                 const r = await fetch('/api/v1/psychosocial/calendar/agents', { credentials: 'same-origin' });
@@ -670,12 +714,24 @@ var pcApp = Vue.createApp({
                 this.error = 'Complete todos los campos requeridos';
                 return;
             }
+            const isEdit = !!this.editingSessionId;
+            // Solo se valida en el alta: una sesión PENDIENTE ya vencida sigue siendo
+            // editable (canEditSession), y aquí no se está reprogramando su fecha.
+            if (!isEdit && this.sessionForm.scheduledDate < this.toDateStr(new Date())) {
+                this.error = 'La fecha de la sesión no puede ser anterior a hoy';
+                return;
+            }
+            const agentIdForCheck = this.sessionForm.agentId || this.currentUserICode;
+            const conflictMsg = this.findSessionConflict(agentIdForCheck, this.sessionForm.scheduledDate, this.sessionForm.scheduledTime, this.editingSessionId);
+            if (conflictMsg) {
+                this.error = conflictMsg;
+                return;
+            }
             const victim = this.myVictims.find(v => v.remissionId === this.sessionForm.remissionId);
             if (!victim) return;
             this.submitting = true;
             this.error = '';
             try {
-                const isEdit = !!this.editingSessionId;
                 const url = isEdit
                     ? '/api/v1/psychosocial/sessions/' + this.editingSessionId
                     : '/api/v1/psychosocial/sessions';

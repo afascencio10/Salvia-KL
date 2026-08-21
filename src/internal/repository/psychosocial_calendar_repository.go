@@ -19,6 +19,7 @@ type CalendarEvent struct {
 	ScheduledTime string    `json:"scheduledTime"            gorm:"column:scheduled_time"`
 	ScheduledDate string    `json:"scheduledDate"            gorm:"column:scheduled_date_str"`
 	CaseICode     string    `json:"caseICode,omitempty"      gorm:"column:case_icode"`
+	RemissionID   string    `json:"remissionId,omitempty"    gorm:"column:remission_id"`
 	VictimName    string    `json:"victimName,omitempty"     gorm:"column:victim_name"`
 	AgentID       string    `json:"agentId,omitempty"        gorm:"column:agent_id"`
 	AgentName     string    `json:"agentName,omitempty"      gorm:"column:agent_name"`
@@ -92,6 +93,12 @@ type PsychosocialCalendarRepository interface {
 	MyVictims(ctx context.Context, agentID string) ([]CalendarVictimOption, error)
 	CreateSession(ctx context.Context, in CreateSessionInput) (string, error)
 	UpdateSession(ctx context.Context, id string, in CreateSessionInput) error
+	// AgentSessionTimesOnDate devuelve los scheduled_time (HH:MM) de las sesiones
+	// psicosociales ya agendadas para el agente en la fecha dada, para que el
+	// servicio calcule el choque de horario (ventana de 2h, mismo criterio que
+	// evaluatePsicosocialAvailability). excludeID omite una sesión puntual —la
+	// propia, al editar— para que no choque consigo misma.
+	AgentSessionTimesOnDate(ctx context.Context, agentID string, date time.Time, excludeID string) ([]string, error)
 	DeleteSession(ctx context.Context, id string) error
 	CreateMeeting(ctx context.Context, in CreateMeetingInput) (string, error)
 	GetMeeting(ctx context.Context, id string) (MeetingDetail, error)
@@ -121,6 +128,9 @@ LEFT JOIN security.general_user prof_gu
        ON prof_gu.general_user_id::text = BTRIM(COALESCE(tc.professional_id, ''))
 LEFT JOIN security.general_user_profile prof_gup
        ON prof_gup.general_user_profile_id = prof_gu.general_user_general_user_profile
+LEFT JOIN salvia.dupla d
+       ON d.id = tc.dupla_id
+      AND d.deleted_at IS NULL
 `
 
 const calSessionsWhereBase = `
@@ -138,6 +148,7 @@ const calSessionsSelect = `
 	COALESCE(tc.scheduled_time, '')    AS scheduled_time,
 	TO_CHAR(tc.scheduled_date, 'YYYY-MM-DD') AS scheduled_date_str,
 	COALESCE(vc.victim_case_i_code, tc.case_id, '') AS case_icode,
+	COALESCE(tc.psicosocial_id, '')     AS remission_id,
 	COALESCE(NULLIF(TRIM(CONCAT(vc.victim_case_victim_names, ' ', vc.victim_case_victim_last_names)), ''), '') AS victim_name,
 	COALESCE(prof_gu.general_user_i_code::text, tc.professional_id, '') AS agent_id,
 	COALESCE(TRIM(CONCAT(prof_gup.general_user_profile_names, ' ', prof_gup.general_user_profile_last_names)), '') AS agent_name,
@@ -166,6 +177,7 @@ const calMeetingsSelect = `
 	COALESCE(tm.scheduled_time, '')    AS scheduled_time,
 	TO_CHAR(tm.scheduled_date, 'YYYY-MM-DD') AS scheduled_date_str,
 	''                                 AS case_icode,
+	''                                 AS remission_id,
 	''                                 AS victim_name,
 	COALESCE(tma_gu.general_user_i_code::text, tma.agent_id, '') AS agent_id,
 	''                                 AS agent_name,
@@ -184,6 +196,7 @@ const calMeetingsSelectNoAgent = `
 	COALESCE(tm.scheduled_time, '')    AS scheduled_time,
 	TO_CHAR(tm.scheduled_date, 'YYYY-MM-DD') AS scheduled_date_str,
 	''                                 AS case_icode,
+	''                                 AS remission_id,
 	''                                 AS victim_name,
 	''                                 AS agent_id,
 	''                                 AS agent_name,
@@ -198,6 +211,17 @@ const tzBogota = "America/Bogota"
 // userUUIDLookup — resuelve el UUID del general_user desde el i_code. Usado en filtros de agente.
 const userUUIDLookup = `(SELECT gu.general_user_id::text FROM security.general_user gu WHERE gu.general_user_i_code::text = ? LIMIT 1)`
 
+// calSessionsAgentMatch — una sesión "pertenece" al agente si es el professional_id
+// directo (modo individual) o si la remisión está en una dupla de la que el agente
+// es psicólogo o trabajador social. En modo dupla, professional_id se guarda NULL
+// a propósito (ver applyContactAssignment en psychosocial_detail_service.go: "nunca
+// se guardan ambos campos a la vez"), así que sin este OR la sesión no matchea con
+// ningún profesional — el bug que este cambio corrige.
+// Requiere 4 parámetros posicionales: agentICode × 4 (uuidLookup, IN literal,
+// psychologist_id, social_worker_id). dupla.psychologist_id/social_worker_id
+// guardan i_code (no UUID) — ver FindProfessionalForReassign, que los resuelve así.
+const calSessionsAgentMatch = `(tc.professional_id IN (` + userUUIDLookup + `, ?) OR d.psychologist_id = ? OR d.social_worker_id = ?)`
+
 func (r *psychosocialCalendarRepository) MineEvents(ctx context.Context, agentICode string, from, to time.Time) ([]CalendarEvent, error) {
 	// agentICode = i_code (viene de la sesión). Resolvemos a UUID via subquery.
 	// Aceptamos coincidencia contra UUID (nuevo estándar) o contra i_code (rows legacy).
@@ -206,7 +230,7 @@ func (r *psychosocialCalendarRepository) MineEvents(ctx context.Context, agentIC
 	` + calSessionsFrom + `
 	WHERE ` + calSessionsWhereBase + `
 	  AND (tc.scheduled_date AT TIME ZONE '` + tzBogota + `')::date BETWEEN ? AND ?
-	  AND tc.professional_id IN (` + userUUIDLookup + `, ?)
+	  AND ` + calSessionsAgentMatch + `
 	UNION ALL
 	SELECT ` + calMeetingsSelect + `
 	` + calMeetingsFrom + `
@@ -216,7 +240,7 @@ func (r *psychosocialCalendarRepository) MineEvents(ctx context.Context, agentIC
 	ORDER BY start ASC
 	`
 	var rows []CalendarEvent
-	if err := r.db.WithContext(ctx).Raw(sql, from, to, agentICode, agentICode, from, to, agentICode, agentICode).Scan(&rows).Error; err != nil {
+	if err := r.db.WithContext(ctx).Raw(sql, from, to, agentICode, agentICode, agentICode, agentICode, from, to, agentICode, agentICode).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	return rows, nil
@@ -226,8 +250,8 @@ func (r *psychosocialCalendarRepository) TeamEvents(ctx context.Context, filterA
 	sessionWhere := ""
 	args := []interface{}{from, to}
 	if filterAgentICode != "" {
-		sessionWhere = " AND tc.professional_id IN (" + userUUIDLookup + ", ?)"
-		args = append(args, filterAgentICode, filterAgentICode)
+		sessionWhere = " AND " + calSessionsAgentMatch
+		args = append(args, filterAgentICode, filterAgentICode, filterAgentICode, filterAgentICode)
 	}
 	args = append(args, from, to)
 
@@ -271,6 +295,11 @@ func (r *psychosocialCalendarRepository) TeamEvents(ctx context.Context, filterA
 	return rows, nil
 }
 
+// ListAgents alimenta el filtro del calendario, el selector de agente al crear
+// una sesión, y el multiselect de reuniones (una sola query, this.agents en el
+// frontend) — trae psicólogos (ps) y trabajadores sociales (ts), los dos roles
+// que agendan sesiones psicosociales. Antes solo traía psicólogos: el filtro no
+// dejaba elegir trabajadores sociales porque la query nunca los devolvía.
 func (r *psychosocialCalendarRepository) ListAgents(ctx context.Context) ([]CalendarAgentOption, error) {
 	sql := `
 	SELECT DISTINCT
@@ -280,8 +309,8 @@ func (r *psychosocialCalendarRepository) ListAgents(ctx context.Context) ([]Cale
 	LEFT JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
 	LEFT JOIN security.rel_role_general_user rr ON rr.general_user_id = gu.general_user_id
 	LEFT JOIN security.role r ON r.role_id = rr.role_id
-	WHERE (LOWER(r.role_name) LIKE '%psicolog%'
-	    OR LOWER(r.role_code) IN ('psicologia','ps'))
+	WHERE (LOWER(r.role_name) LIKE '%psicolog%' OR LOWER(r.role_code) IN ('psicologia','ps'))
+	   OR (LOWER(r.role_name) LIKE '%trabaj%social%' OR LOWER(r.role_code) = 'ts')
 	ORDER BY name ASC
 	`
 	var rows []CalendarAgentOption
@@ -352,6 +381,23 @@ func (r *psychosocialCalendarRepository) CreateSession(ctx context.Context, in C
 		return "", err
 	}
 	return rec.ID, nil
+}
+
+func (r *psychosocialCalendarRepository) AgentSessionTimesOnDate(ctx context.Context, agentID string, date time.Time, excludeID string) ([]string, error) {
+	agentUUID := r.resolveUserUUID(ctx, agentID)
+	day := date.Format("2006-01-02")
+
+	q := r.db.WithContext(ctx).Model(&models.TeamContact{}).
+		Where("professional_id = ? AND is_psico_session = true AND deleted_at IS NULL", agentUUID).
+		Where("scheduled_date IS NOT NULL AND (scheduled_date AT TIME ZONE 'UTC')::date = ?::date", day).
+		Where("scheduled_time IS NOT NULL AND scheduled_time != ''")
+	if excludeID != "" {
+		q = q.Where("id != ?", excludeID)
+	}
+
+	var times []string
+	err := q.Pluck("scheduled_time", &times).Error
+	return times, err
 }
 
 func combineDateTime(date time.Time, hhmm string) time.Time {
