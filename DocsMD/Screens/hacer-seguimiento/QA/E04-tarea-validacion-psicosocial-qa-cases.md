@@ -15,7 +15,7 @@ Backend puro, sin Playwright — contra el caso de prueba E2E ya usado por `qa-s
 3. `POST http://localhost:9090/api/v1/forms/saveSection` guardando solo la Sección 6 (Cierre del caso, con `¿Realiza cierre? = false`) para disparar `allAnswered == true` sin cerrar el caso de prueba.
 4. Verificar logs en terminal y los registros creados directamente en BD (`salvia.psychosocial_support`, `salvia.case_task`).
 
-> Las requests no llevan cookie de sesión — `actorId` se pasa directo en el payload (`019a5234-9a65-7cb0-badc-670fe28ec4eb`, agente dueño del seguimiento de prueba). El bloque `"atencion_psico"` de PASO 4 no depende de `actorId` para decidir si crea o no la remisión/tarea, así que esto no afecta lo que se está probando.
+> Las requests no llevan cookie de sesión — `actorId` se pasa directo en el payload (`019a5234-9a65-7cb0-badc-670fe28ec4eb`, agente dueño del seguimiento de prueba). El bloque `"atencion_psico"` de PASO 4 no usa `actorId` para decidir si crea o no la remisión/tarea, pero sí lo persiste en `submitted_by` y, vía `agentLightRepo.FindByICode`, en `submitted_by_team` (`general_user_team` de ese agente). Verificar esos dos campos en C1.
 
 > ⚠️ **Hallazgo de setup — `form-seguimiento-data.md` está desactualizado.** El primer intento con la Sección 6 "Cierre del caso" quedó `INCOMPLETO` porque el formulario real en BD ya tiene **8 secciones**, no 6: se agregaron `Seguimiento a Entidades` (order 5) y `Identificación de Entidades` (order 6), corriendo `Seguimiento de Caso`→7 y `Cierre del caso`→8 (mismo ID `3e03f685-…`, solo cambió el order). `Seguimiento a Entidades` quedó invisible por defecto (VC de sección sobre `formState.hasCurrentEntities`, que no se envía), pero `Identificación de Entidades` sí es visible y tiene 2 preguntas directas requeridas. Se respondieron ambas en `false` para dejar sus 2 repeaters internos (min_repetitions=0) sin necesidad de entradas:
 > - `f1be8fba-8fc0-4db6-8c4f-e6c764da3249` — "¿Ha puesto en conocimiento de alguna entidad/institución los hechos de violencia reportados?" = `false`
@@ -29,7 +29,7 @@ Backend puro, sin Playwright — contra el caso de prueba E2E ya usado por `qa-s
 
 | Caso | Descripción | Condición inicial | Resultado esperado | Método de verificación |
 |---|---|---|---|---|
-| C1 | Remisión psicosocial cumple criterios | `qEquipos` incluye `atencion_psico` (sin `medidas_emergencia`) · `qCriteriosPsico` incluye `criterio_obligatorio` + criterios que suman ≥ 3 puntos | Se crea 1 `psychosocial_support` (`status=ACTIVE`) y 1 `case_task` nueva (`category=Psicosocial`, `type=validar_remision`, `description="Validar que remision a psicosocial es valida"`, `assigned_user_id=''`, `status=ToDo`, `psychosocial_support_id` = id de la remisión creada, `case_id`/`follow_up_id` del seguimiento) | Query directo a BD + logs |
+| C1 | Remisión psicosocial cumple criterios | `qEquipos` incluye `atencion_psico` (sin `medidas_emergencia`) · `qCriteriosPsico` incluye `criterio_obligatorio` + criterios que suman ≥ 3 puntos | Se crea 1 `psychosocial_support` (`status=abierto`, `submitted_by=actorId`, `submitted_by_team=general_user_team` del agente) y 1 `case_task` nueva (`category=Psicosocial`, `type=validar_remision`, `description="Validar que remision a psicosocial es valida"`, `assigned_user_id=''`, `status=ToDo`, `psychosocial_support_id` = id de la remisión creada, `case_id`/`follow_up_id` del seguimiento) | Query directo a BD + logs |
 | C2 | Remisión psicosocial NO cumple criterios | `qEquipos` incluye `atencion_psico` · `qCriteriosPsico` NO incluye `criterio_obligatorio` (o suma < 3 puntos) | NO se crea `psychosocial_support` ni `case_task` de validación | Query directo a BD + logs |
 | C3 | Exclusión por medidas de emergencia | `qEquipos` incluye `atencion_psico` **y** `medidas_emergencia` · criterios psicosociales sí cumplen | La derivación psicosocial se omite completamente (ni `psychosocial_support` ni `case_task`) por la regla de exclusión existente — `medidas_emergencia` sí se procesa normalmente | Query directo a BD + logs |
 
@@ -38,6 +38,8 @@ Backend puro, sin Playwright — contra el caso de prueba E2E ya usado por `qa-s
 ## Cobertura
 
 Los 3 casos se ejecutaron de punta a punta contra el backend local (`go run .`, puerto 9090) el 2026-08-13, reutilizando y re-disparando el mismo `follow_up_v2`/`form_submission` de prueba en cada corrida (reset a `PENDIENTE` + edición directa de `salvia.answer` antes de cada `saveSection`).
+
+> **2026-08-20:** C1 ahora también exige `status=abierto`, `submitted_by=actorId` y `submitted_by_team=general_user_team`. La evidencia del 2026-08-13 cubre la creación de remisión + `case_task` con el payload anterior (`status=ACTIVE`, sin remitente). Re-ejecutar C1 para validar los campos nuevos.
 
 | Caso | Resultado | Evidencia |
 |---|---|---|

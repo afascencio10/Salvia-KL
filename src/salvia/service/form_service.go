@@ -2182,7 +2182,8 @@ func (s *formService) scheduleNextPsicosocialContact(ctx context.Context, ps *mo
 	return nil
 }
 
-// checkPsicosocialSessionAvailability valida solape de 2h para el profesional o la dupla.
+// checkPsicosocialSessionAvailability valida solape de 2h para el profesional de la
+// remisión y las sesiones de sus duplas activas (mismo criterio que CheckSessionAvailability).
 func (s *formService) checkPsicosocialSessionAvailability(ctx context.Context, ps *models.PsychosocialSupport, date time.Time, timeStr, mode string) (bool, string, error) {
 	if s.teamContactRepo == nil {
 		return true, "Horario disponible", nil
@@ -2191,22 +2192,27 @@ func (s *formService) checkPsicosocialSessionAvailability(ctx context.Context, p
 	if err != nil {
 		return false, "", err
 	}
+	_ = mode // compat; el scope se arma desde la asignación de la remisión + expansión.
+
 	var psychID, swID string
-	mode = strings.ToLower(strings.TrimSpace(mode))
-	if mode == "" {
-		if ps.DuplaID != nil && *ps.DuplaID != "" {
-			mode = "dupla"
-		} else {
-			mode = "individual"
-		}
-	}
-	if mode == "dupla" && ps.DuplaID != nil && *ps.DuplaID != "" && s.duplaRepo != nil {
+	if ps.DuplaID != nil && *ps.DuplaID != "" && s.duplaRepo != nil {
 		if d, err := s.duplaRepo.FindEnrichedByID(ctx, *ps.DuplaID); err == nil && d != nil {
 			psychID = d.PsychologistID
 			swID = d.SocialWorkerID
 		}
 	}
-	ok, msg := evaluatePsicosocialAvailability(contacts, ps, timeStr, mode, psychID, swID)
+
+	personIDs, seedDuplaIDs := seedAvailabilityActors(ps, psychID, swID)
+	var expanded []string
+	if s.duplaRepo != nil && len(personIDs) > 0 {
+		expanded, err = s.duplaRepo.FindActiveIDsByMemberIDs(ctx, personIDs)
+		if err != nil {
+			return false, "", err
+		}
+	}
+	duplaIDs := mergeDuplaIDs(seedDuplaIDs, expanded)
+
+	ok, msg := evaluatePsicosocialAvailabilityWithScope(contacts, timeStr, personIDs, duplaIDs)
 	return ok, msg, nil
 }
 
@@ -3056,11 +3062,31 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 					break
 				}
 				log.Printf("[processFollowUp] creando derivacion -> atencion_psico (obligatorio=%v, puntos=%d)", tieneCriterioObligatorio, totalPuntos)
+				var submittedBy *string
+				if actorID != "" {
+					submittedBy = &actorID
+				}
+				var submittedByTeam *string
+				if s.agentLightRepo != nil && actorID != "" {
+					agent, err := s.agentLightRepo.FindByICode(ctx, actorID)
+					if err != nil {
+						log.Printf("[processFollowUp] WARN: no se pudo resolver equipo del remitente (actor=%s): %v", actorID, err)
+					} else if agent != nil && strings.TrimSpace(agent.Team) != "" {
+						team := strings.TrimSpace(agent.Team)
+						submittedByTeam = &team
+					} else {
+						log.Printf("[processFollowUp] WARN: agente %s sin general_user_team — submitted_by_team quedará vacío", actorID)
+					}
+				} else {
+					log.Printf("[processFollowUp] WARN: no se pudo resolver submitted_by_team (actor=%s)", actorID)
+				}
 				ps := &models.PsychosocialSupport{
-					CaseID:     fu.CaseID,
-					FollowUpID: fu.ID,
-					Type:       "derivacion",
-					Status:     "ACTIVE",
+					CaseID:          fu.CaseID,
+					FollowUpID:      fu.ID,
+					Type:            "derivacion",
+					Status:          models.PsychosocialSupportStatusAbierto,
+					SubmittedBy:     submittedBy,
+					SubmittedByTeam: submittedByTeam,
 				}
 				if err := s.psychosocialSupportRepo.Create(ctx, ps); err != nil {
 					return fmt.Errorf("processFollowUpSubmission: crear derivacion psicosocial: %w", err)

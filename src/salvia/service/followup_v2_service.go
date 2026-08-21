@@ -60,18 +60,12 @@ type GenerateCalendarInput struct {
 
 // ── Interfaz ──────────────────────────────────────────────────────────────────
 
-// ActiveBarrierInfo es la info mínima de una barrera para el frontend.
-type ActiveBarrierInfo struct {
-	ID          string `json:"id"`
-	BarrierName string `json:"barrierName"`
-}
-
 // LoadFollowUpResult es la respuesta del endpoint hacer-seguimiento al cargar la página.
 type LoadFollowUpResult struct {
-	FollowUp       *models.FollowUpV2         `json:"followUp"`
-	VictimInfo     *repository.VictimCaseInfo `json:"victimInfo"`
-	CaseStatus     string                     `json:"caseStatus"`
-	ActiveBarriers []ActiveBarrierInfo        `json:"activeBarriers"`
+	FollowUp       *models.FollowUpV2           `json:"followUp"`
+	VictimInfo     *repository.VictimCaseInfo   `json:"victimInfo"`
+	CaseStatus     string                       `json:"caseStatus"`
+	ActiveBarriers []models.ActiveBarrierInfo   `json:"activeBarriers"`
 }
 
 // FollowUpV2Service define el contrato de negocio para FollowUpV2.
@@ -256,7 +250,7 @@ func (s *followUpV2Service) LoadFollowUp(ctx context.Context, id, agentID, formI
 // loadActiveBarriers retorna las barreras activas para el follow-up.
 // Si fu.ActiveBarrierIDs ya está fijado, usa esos IDs (no re-consulta).
 // Si es la primera carga, consulta las barreras activas del caso, guarda los IDs y retorna.
-func (s *followUpV2Service) loadActiveBarriers(ctx context.Context, fu *models.FollowUpV2) []ActiveBarrierInfo {
+func (s *followUpV2Service) loadActiveBarriers(ctx context.Context, fu *models.FollowUpV2) []models.ActiveBarrierInfo {
 	var barriers []models.BarrierV2
 	var err error
 
@@ -265,13 +259,13 @@ func (s *followUpV2Service) loadActiveBarriers(ctx context.Context, fu *models.F
 		barriers, err = s.barrierRepo.FindByIDs(ctx, ids)
 		if err != nil {
 			log.Printf("[SVC] loadActiveBarriers → error leyendo por IDs: %v", err)
-			return []ActiveBarrierInfo{}
+			return []models.ActiveBarrierInfo{}
 		}
 	} else {
 		barriers, err = s.barrierRepo.FindActiveByCaseID(ctx, fu.CaseID)
 		if err != nil {
 			log.Printf("[SVC] loadActiveBarriers → error consultando barreras activas: %v", err)
-			return []ActiveBarrierInfo{}
+			return []models.ActiveBarrierInfo{}
 		}
 		if len(barriers) > 0 {
 			ids := make([]string, len(barriers))
@@ -287,9 +281,9 @@ func (s *followUpV2Service) loadActiveBarriers(ctx context.Context, fu *models.F
 		}
 	}
 
-	result := make([]ActiveBarrierInfo, len(barriers))
+	result := make([]models.ActiveBarrierInfo, len(barriers))
 	for i, b := range barriers {
-		result[i] = ActiveBarrierInfo{ID: b.ID, BarrierName: buildBarrierName(b)}
+		result[i] = models.ActiveBarrierInfo{ID: b.ID, BarrierName: buildBarrierName(b)}
 	}
 	return result
 }
@@ -656,11 +650,17 @@ func (s *followUpV2Service) GetFollowUpDetail(ctx context.Context, id string, is
 		formAnswers = s.loadFormAnswers(ctx, *fu.FormSubmissionID)
 	}
 
+	// 9. Snapshot de barreras del follow-up (active_barrier_ids) para el repeater
+	// "Seguimiento a Barreras" vía formState.currentBarriers. Distinto de Barriers
+	// (identificadas en este follow-up).
+	activeBarriers := s.loadActiveBarriers(ctx, fu)
+
 	return &models.FollowUpDetailResponse{
 		FollowUp:               *fu,
 		CaseInfo:               *vcase,
 		VictimInfo:             victimInfo,
 		Barriers:               barriers,
+		ActiveBarriers:         activeBarriers,
 		Permissions:            perms,
 		EmergencyMeasures:      emergencyMeasures,
 		PsychosocialSupports:   psychosocialSupports,

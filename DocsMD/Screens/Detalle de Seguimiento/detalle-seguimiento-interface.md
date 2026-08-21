@@ -126,7 +126,7 @@ follow-up-detail-app  (.ms-page-wrapper)
             │       :form-id="formId"
             │       :submission-id="submissionId"
             │       :can-edit="canEdit"
-            │       :form-state="formState"
+            │       :form-state="formState"   // incluye currentBarriers (snapshot del follow-up)
             │       @answers-updated → onAnswersUpdated()
             │
             └── [v-else]  EmptyStateFormulario  (.ms-empty-state-small)
@@ -169,3 +169,6 @@ Subconjunto fijo de respuestas del formulario dinámico de seguimiento, leído d
 | Campo | Valores posibles | Cómo se calcula |
 |---|---|---|
 | `psysocialRemisionState` | `''` \| `'Remisión: SI cumple'` \| `'Remisión: NO cumple'` | `onAnswersUpdated()`: evalúa la pregunta `71c42c4a-f640-47ad-b2c1-5d4c18480449`; requiere `criterio_obligatorio` + puntaje ≥ 3 con los demás criterios |
+| `currentBarriers` | `[{ id, barrierName }, …]` \| `[]` | `GetFollowUpDetail` → `loadActiveBarriers` (snapshot `follow_up_v2.active_barrier_ids`). El frontend lo asigna **antes** de setear `submissionId` para que `dinamic-form` hidrate el repeater "Seguimiento a Barreras" (`stateItems = 'currentBarriers'`). |
+
+> **`barriers` vs `activeBarriers`:** el JSON de detalle trae ambos. `barriers` (`FindByFollowUpID`) son las barreras **identificadas en este follow-up** y alimentan la lista del tab Resumen. `activeBarriers` es el snapshot de barreras que se siguieron en "Seguimiento a Barreras" (incluye las que ya pasaron a `MANAGED`) y se copia a `formState.currentBarriers`. No son intercambiables.

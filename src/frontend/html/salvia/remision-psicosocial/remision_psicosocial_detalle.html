@@ -377,6 +377,7 @@
         computed: {
             puedeGestionarContactos() {
                 if (this.remision && this.remision.status === 'cerrado') return false;
+                if (this.remision && this.remision.status === 'en_devolucion') return false;
                 if (this.remision && this.remision.validationPending) return false;
                 return this.currentRole === 'ps' || this.currentRole === 'ts' || this.currentRole === 'sv';
             },
@@ -390,6 +391,9 @@
             // Solo ps/ts pueden registrar intentos (RBAC register_psychosocial_contact_attempt).
             // El supervisor (sv) y demás roles ven el card 3x3 en modo lectura.
             canRegister() {
+                if (this.remision && this.remision.status === 'cerrado') return false;
+                if (this.remision && this.remision.status === 'en_devolucion') return false;
+                if (this.remision && this.remision.validationPending) return false;
                 return this.currentRole === 'ps' || this.currentRole === 'ts';
             }
         },

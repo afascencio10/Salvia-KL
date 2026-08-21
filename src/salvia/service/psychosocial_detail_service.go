@@ -697,17 +697,17 @@ func (s *psychosocialDetailService) LoadSession(ctx context.Context, psicosocial
 // se filtra por team_contact_id: se buscan todos los team_contact de este psychosocial_support y
 // luego las barrier_v2 (no MANAGED) cuyo team_contact_id esté en ese conjunto — decisión de los
 // líderes (Jul 2026) para no depender de un campo adicional en psychosocial_support.
-// Reutiliza ActiveBarrierInfo/buildBarrierName definidos en followup_v2_service.go (mismo paquete).
-func (s *psychosocialDetailService) loadActivePsicosocialBarriers(ctx context.Context, psicosocialID string) []ActiveBarrierInfo {
+// Reutiliza models.ActiveBarrierInfo y buildBarrierName (mismo paquete service).
+func (s *psychosocialDetailService) loadActivePsicosocialBarriers(ctx context.Context, psicosocialID string) []models.ActiveBarrierInfo {
 	var contacts []models.TeamContact
 	if err := s.db.WithContext(ctx).
 		Where("psicosocial_id = ? AND deleted_at IS NULL", psicosocialID).
 		Find(&contacts).Error; err != nil {
 		log.Printf("[SVC] loadActivePsicosocialBarriers → error leyendo team_contact de psicosocialId=%s: %v", psicosocialID, err)
-		return []ActiveBarrierInfo{}
+		return []models.ActiveBarrierInfo{}
 	}
 	if len(contacts) == 0 {
-		return []ActiveBarrierInfo{}
+		return []models.ActiveBarrierInfo{}
 	}
 	contactIDs := make([]string, len(contacts))
 	for i, c := range contacts {
@@ -720,12 +720,12 @@ func (s *psychosocialDetailService) loadActivePsicosocialBarriers(ctx context.Co
 		Order("created_at ASC").
 		Find(&barriers).Error; err != nil {
 		log.Printf("[SVC] loadActivePsicosocialBarriers → error leyendo barrier_v2 de psicosocialId=%s: %v", psicosocialID, err)
-		return []ActiveBarrierInfo{}
+		return []models.ActiveBarrierInfo{}
 	}
 
-	result := make([]ActiveBarrierInfo, len(barriers))
+	result := make([]models.ActiveBarrierInfo, len(barriers))
 	for i, b := range barriers {
-		result[i] = ActiveBarrierInfo{ID: b.ID, BarrierName: buildBarrierName(b)}
+		result[i] = models.ActiveBarrierInfo{ID: b.ID, BarrierName: buildBarrierName(b)}
 	}
 	return result
 }
@@ -954,7 +954,7 @@ func (s *psychosocialDetailService) ValidateRemision(ctx context.Context, id str
 
 // CheckSessionAvailability GET /psychosocial-support/:id/availability
 // Valida si date (YYYY-MM-DD) + time (HH:MM) está libre en ventana de 2 horas
-// para el profesional (individual) o los miembros de la dupla.
+// para el profesional de la remisión y las sesiones de sus duplas activas.
 func (s *psychosocialDetailService) CheckSessionAvailability(ctx context.Context, psicosocialID, date, timeStr, mode string) (bool, string, error) {
 	var ps models.PsychosocialSupport
 	if err := s.db.WithContext(ctx).Where("id = ? AND deleted_at IS NULL", psicosocialID).First(&ps).Error; err != nil {
@@ -981,17 +981,10 @@ func (s *psychosocialDetailService) CheckSessionAvailability(ctx context.Context
 		return false, "", err
 	}
 
-	mode = strings.ToLower(strings.TrimSpace(mode))
-	if mode == "" {
-		if ps.DuplaID != nil && *ps.DuplaID != "" {
-			mode = "dupla"
-		} else {
-			mode = "individual"
-		}
-	}
+	_ = mode // compat API; el scope se arma desde la asignación de la remisión + expansión.
 
 	var psychID, swID string
-	if mode == "dupla" && ps.DuplaID != nil && *ps.DuplaID != "" {
+	if ps.DuplaID != nil && *ps.DuplaID != "" {
 		var dupla models.Dupla
 		if err := s.db.WithContext(ctx).Where("id = ? AND deleted_at IS NULL", *ps.DuplaID).First(&dupla).Error; err == nil {
 			psychID = dupla.PsychologistID
@@ -999,8 +992,51 @@ func (s *psychosocialDetailService) CheckSessionAvailability(ctx context.Context
 		}
 	}
 
-	ok, msg := evaluatePsicosocialAvailability(contacts, &ps, hora, mode, psychID, swID)
+	personIDs, seedDuplaIDs := seedAvailabilityActors(&ps, psychID, swID)
+	expandedDuplaIDs, err := s.findActiveDuplaIDsByMemberIDs(ctx, personIDs)
+	if err != nil {
+		return false, "", err
+	}
+	duplaIDs := mergeDuplaIDs(seedDuplaIDs, expandedDuplaIDs)
+
+	ok, msg := evaluatePsicosocialAvailabilityWithScope(contacts, hora, personIDs, duplaIDs)
 	return ok, msg, nil
+}
+
+// findActiveDuplaIDsByMemberIDs equivale a DuplaRepository.FindActiveIDsByMemberIDs
+// sin inyectar el repo (este servicio solo tiene *gorm.DB).
+func (s *psychosocialDetailService) findActiveDuplaIDsByMemberIDs(ctx context.Context, memberIDs []string) ([]string, error) {
+	cleaned := make([]string, 0, len(memberIDs))
+	seen := map[string]struct{}{}
+	for _, id := range memberIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		cleaned = append(cleaned, id)
+	}
+	if len(cleaned) == 0 {
+		return []string{}, nil
+	}
+
+	var ids []string
+	err := s.db.WithContext(ctx).
+		Table("salvia.dupla").
+		Select("id").
+		Where("deleted_at IS NULL").
+		Where("psychologist_id IN ? OR social_worker_id IN ?", cleaned, cleaned).
+		Scan(&ids).Error
+	if err != nil {
+		return nil, err
+	}
+	if ids == nil {
+		ids = []string{}
+	}
+	return ids, nil
 }
 
 // formatContactDateTimeUTC serializa un instante como RFC3339 en UTC para que el

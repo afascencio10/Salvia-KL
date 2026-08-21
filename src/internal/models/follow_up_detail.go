@@ -13,11 +13,19 @@ type FollowUpVictimInfo struct {
 	Age               *int64 `json:"Age"`
 }
 
+// ActiveBarrierInfo es la info mínima de una barrera activa para el frontend.
+// Pobla formState.currentBarriers (repeater "Seguimiento a Barreras" vía stateItems).
+type ActiveBarrierInfo struct {
+	ID          string `json:"id"`
+	BarrierName string `json:"barrierName"`
+}
+
 type FollowUpDetailResponse struct {
 	FollowUp               FollowUpV2              `json:"followUp"`
 	CaseInfo               VictimCaseLight         `json:"caseInfo"`
 	VictimInfo             *FollowUpVictimInfo     `json:"victimInfo,omitempty"`
 	Barriers               []BarrierV2             `json:"barriers"`
+	ActiveBarriers         []ActiveBarrierInfo     `json:"activeBarriers"`
 	Permissions            Permissions             `json:"permissions"`
 	EmergencyMeasures      []EmergencyMeasure      `json:"emergencyMeasures"`
 	PsychosocialSupports   []PsychosocialSupport   `json:"psychosocialSupports"`

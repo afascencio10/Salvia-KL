@@ -127,7 +127,9 @@ Descripción:  Goroutine disparada por dinamic-form cuando allAnswered == true.
               actuaciones), y si Q6 cierra = true → actualiza
               barrier_v2.status = MANAGED.
               (4) Procesa derivaciones a equipos según qEquipos (multi-select).
-              Si crea una remisión a atencion_psico, también crea una case_task
+              Si crea una remisión a atencion_psico, nace con status
+              "abierto", submitted_by = actorId y submitted_by_team =
+              general_user_team del agente; también crea una case_task
               sin asignar (category: "Psicosocial", type:
               "validar_remision") para que el equipo psicosocial
               valide si la remisión es procedente.

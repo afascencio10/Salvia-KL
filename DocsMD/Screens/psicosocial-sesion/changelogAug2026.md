@@ -19,6 +19,9 @@ Cambios alineados al diagrama de lógica de negocio (barreras = form Seguimiento
 - Si Sí → muestra **Fecha próxima atención** + **Hora próxima atención**.
 - Al responder fecha+hora → el frontend consulta `GET /api/v1/psychosocial-support/:id/availability` y muestra un mensaje informativo solo si el horario no está disponible (ventana de 2h; individual o dupla).
 - Al guardar: solo se crea `team_contact` agendado si Agendar=Sí **y** el horario está libre. Si no hay cupo, el form se completa igual pero **no** se agenda.
+- **Disponibilidad + duplas:** el chequeo también considera sesiones con `dupla_id` de
+  cualquier dupla activa donde el profesional de la remisión sea psicóloga o TS
+  (no solo `professional_id`). Ver `flow-E02`.
 
 ### Barreras
 

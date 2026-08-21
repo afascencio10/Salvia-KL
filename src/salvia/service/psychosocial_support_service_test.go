@@ -73,5 +73,5 @@ func TestPsychosocialSupportService_Create(t *testing.T) {
 	svc := service.NewPsychosocialSupportService(repo)
 	err := svc.Create(ctx, ps)
 	assert.NoError(t, err)
-	assert.Equal(t, "ACTIVE", ps.Status)
+	assert.Equal(t, models.PsychosocialSupportStatusAbierto, ps.Status)
 }

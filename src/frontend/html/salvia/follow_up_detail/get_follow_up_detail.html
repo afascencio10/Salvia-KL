@@ -265,7 +265,15 @@
                 userRole:     '{{ .userRole }}',
                 formState: {
                     psysocialRemisionState: '',
+                    currentBarriers: [],
+                    statesColombia:  [],
+                    newBarriers:     [],
                 },
+                allCities:        [],   // [{ label, value, departmentId }] — para filtrado local
+                _townCityCache:   {},   // { [idx]: cityId } — evita re-fetch redundante de municipios
+                _deptCityCache:   {},   // { [idx]: deptId } — evita re-filtrar ciudades sin cambio
+                _lastAnswers:     null, // último payload de answers-updated — para re-aplicar
+                                        // las ubicaciones cuando loadLocations() termina después
                 victimInfo: null,
                 activeBarriers: [],
                 emergencyMeasures: [],
@@ -306,6 +314,7 @@
         mounted() {
             document.getElementById('app').style.display = 'block';
             this.loadDetail('{{ .followUpId }}');
+            this.loadLocations();
         },
         methods: {
             async loadDetail(followUpId) {
@@ -385,6 +394,10 @@
 
                     this.victimCase.id  = data.caseInfo.id;
                     this.formId         = data.followUp.form_id || this.formId;
+                    // currentBarriers ANTES de submissionId: dinamic-form monta en cuanto hay
+                    // submissionId; si el array llega después, el watch crea entries temp
+                    // sin hidratar las answers guardadas (repeater stateItems).
+                    this.formState.currentBarriers = data.activeBarriers || [];
                     this.submissionId   = data.followUp.form_submission_id || null;
 
                     // canEdit: false permanente si el form no es el vivo por defecto
@@ -419,7 +432,85 @@
                     if (loadingOverlay) loadingOverlay.style.display = 'none';
                 }
             },
+            // Departamento / Ciudad / Municipio del repeater "Identificación de Barreras" no
+            // tienen opciones en BD: se resuelven desde formState vía state_options_path
+            // (statesColombia / newBarriers.{i}.cities / newBarriers.{i}.towns). Misma lógica
+            // que hacer_seguimiento.html — sin esto los 3 dropdowns salen vacíos al ver el
+            // detalle de un seguimiento ya diligenciado.
+            async loadLocations() {
+                try {
+                    const [deptRes, cityRes] = await Promise.all([
+                        fetch('/api/v1/locations/departments'),
+                        fetch('/api/v1/locations/cities'),
+                    ]);
+                    if (deptRes.ok) this.formState.statesColombia = await deptRes.json();
+                    if (cityRes.ok) this.allCities = await cityRes.json();
+                } catch (e) {
+                    console.warn('[FUD] loadLocations error:', e);
+                }
+                // El form puede haber emitido answers-updated antes de que llegara este
+                // fetch (carrera): en ese caso las ciudades quedaron vacías. Se re-aplica
+                // el último payload para poblarlas ahora que allCities ya está.
+                if (this._lastAnswers) this._updateBarreraLocationOptions(this._lastAnswers);
+            },
+            _updateBarreraLocationOptions(payload) {
+                const BARRIER_GROUP_ID = '5fd3ecdc-2e5f-4b31-97ef-8a994580586a';
+                const Q_DEPT = '31c7f8ba-880e-4c9a-89f0-1a6a1e43b7b9';
+                const Q_CITY = 'c6f2d54a-3c61-4ae7-b2bf-50a884031fa4';
+
+                const entries = (payload.answers?.repeaterEntries || [])
+                    .filter(e => e.repeaterGroupId === BARRIER_GROUP_ID);
+
+                entries.forEach((entry, pos) => {
+                    // El índice tiene que ser el mismo que dinamic-form usa para resolver
+                    // `newBarriers.{_entryIndex}` (iteration - 1), no la posición en el array.
+                    const idx = Number.isInteger(entry.iteration) && entry.iteration > 0
+                        ? entry.iteration - 1
+                        : pos;
+
+                    while (this.formState.newBarriers.length <= idx) {
+                        this.formState.newBarriers.push({ cities: [], towns: [] });
+                    }
+
+                    const getEntryVal = qId => (entry.answers.find(a => a.questionId === qId)?.value || '');
+                    const deptId = getEntryVal(Q_DEPT);
+                    const cityId = getEntryVal(Q_CITY);
+
+                    const cachedDept = this._deptCityCache[idx] || '';
+                    // Si allCities todavía no llegó, no se cachea el departamento: filtrar
+                    // ahora daría [] y el cache impediría reintentarlo. loadLocations()
+                    // vuelve a llamar a este método cuando termina.
+                    if (String(deptId) !== String(cachedDept) && (!deptId || this.allCities.length > 0)) {
+                        this._deptCityCache[idx] = deptId;
+                        this.formState.newBarriers[idx].cities = deptId
+                            ? this.allCities
+                                .filter(c => String(c.departmentId) === String(deptId))
+                                .map(c => ({ label: c.label, value: c.value }))
+                            : [];
+                    }
+
+                    const cachedCity = this._townCityCache[idx] || '';
+                    if (String(cityId) !== String(cachedCity)) {
+                        this._townCityCache[idx] = cityId;
+                        if (cityId) {
+                            fetch(`/api/v1/locations/towns?city_id=${cityId}`)
+                                .then(r => r.json())
+                                .then(towns => { this.formState.newBarriers[idx].towns = towns; })
+                                .catch(() => {
+                                    // Se libera el cache para que un próximo answers-updated reintente.
+                                    this._townCityCache[idx] = '';
+                                    this.formState.newBarriers[idx].towns = [];
+                                });
+                        } else {
+                            this.formState.newBarriers[idx].towns = [];
+                        }
+                    }
+                });
+            },
             onAnswersUpdated(payload) {
+                this._lastAnswers = payload;
+                this._updateBarreraLocationOptions(payload);
+
                 const Q_PSICO = '71c42c4a-f640-47ad-b2c1-5d4c18480449';
                 const answer = (payload.answers?.directAnswers || []).find(a => a.questionId === Q_PSICO);
                 if (!answer || !answer.value) {
