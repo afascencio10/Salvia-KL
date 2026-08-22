@@ -87,7 +87,7 @@
           + Nuevo seguimiento
         </button>
         <button v-if="(userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode))" class="btn-nuevo-seg" style="background:#5106A7;color:#fff" @click="crearEIniciarSeguimiento" :disabled="creandoEIniciando">
-          ${ creandoEIniciando ? 'Creando...' : '▶ Crear e iniciar' }
+          ${ creandoEIniciando ? 'Creando...' : '▶ Crear e iniciar seguimiento' }
         </button>
         <button v-if="(puedeReasignar || userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode)) && caso.victimCaseStatus === 'cd'" class="btn-nuevo-seg" @click="abrirModalReabrir">
           Reabrir caso
@@ -926,7 +926,7 @@ var home = Vue.createApp({
       segTocado: false,
       guardandoSeg: false,
       nuevoSegError: '',
-      fechaHoy: new Date().toISOString().substring(0, 10),
+      fechaHoy: (function() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })(),
       toast: { show: false, type: 'success', message: '' },
       tabs: [
         { id: 'info',         label: 'Info General',  icono: '👤' },
@@ -1507,7 +1507,9 @@ var home = Vue.createApp({
       var self = this;
       if (self.creandoEIniciando) return;
       self.creandoEIniciando = true;
-      var scheduledDate = this.fechaHoy;
+      // Calcular fecha de hoy en hora local (evita desfase UTC)
+      var ahora = new Date();
+      var scheduledDate = ahora.getFullYear() + '-' + String(ahora.getMonth()+1).padStart(2,'0') + '-' + String(ahora.getDate()).padStart(2,'0');
       var url = '/api/v1/casos/' + CASE_ICODE + '/seguimiento';
       fetch(url, {
         method: 'POST',
