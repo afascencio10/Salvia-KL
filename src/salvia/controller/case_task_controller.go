@@ -67,8 +67,8 @@ func requireSessionRole(ctx *gin.Context, allowed map[string]bool) *utils.Common
 	return s
 }
 
-// misTareasRoles — roles con bandeja propia de tareas (agente de seguimiento).
-var misTareasRoles = map[string]bool{"op": true}
+// misTareasRoles — roles con acceso a la bandeja de "Mis Tareas".
+var misTareasRoles = map[string]bool{"op": true, "ro": true, "et": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true, "mn": true}
 
 // RegisterRoutes registra las rutas de CaseTask en el grupo /api/v1.
 //
