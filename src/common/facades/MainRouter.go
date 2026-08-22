@@ -152,7 +152,12 @@ func ForceHTTPS() gin.HandlerFunc {
 }
 
 func home(c *gin.Context) {
-	c.Redirect(http.StatusTemporaryRedirect, staticURI+"/landing.html")
+	host := c.Request.Host
+	if strings.Contains(host, "salvia-colombia") {
+		c.Redirect(http.StatusTemporaryRedirect, "https://info.salvia-colombia.co/")
+	} else {
+		c.Redirect(http.StatusTemporaryRedirect, staticURI+"/landing.html")
+	}
 	c.Abort()
 }
 
@@ -232,8 +237,12 @@ func AuthMiddleware() gin.HandlerFunc {
 		location := c.Request.RequestURI
 
 		if !strings.Contains(location, publicURI) && !strings.Contains(location, staticURI) && !IsLoggedIn(c) && !strings.Contains(location, "login") && !strings.HasPrefix(location, "/api/") && !strings.HasPrefix(location, "/swagger") {
-			//c.Redirect(302, "/"+security_config.Locale["sp"][loginModule]+"/login")
-			c.Redirect(http.StatusTemporaryRedirect, staticURI+"/landing.html")
+			host := c.Request.Host
+			if strings.Contains(host, "salvia-colombia") {
+				c.Redirect(http.StatusTemporaryRedirect, "https://info.salvia-colombia.co/")
+			} else {
+				c.Redirect(http.StatusTemporaryRedirect, staticURI+"/landing.html")
+			}
 			c.Abort()
 			return
 		}

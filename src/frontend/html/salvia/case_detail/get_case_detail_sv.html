@@ -86,6 +86,9 @@
         <button v-if="puedeReasignar || userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode)" class="btn-nuevo-seg" @click="abrirModalNuevoSeg">
           + Nuevo seguimiento
         </button>
+        <button v-if="(userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode))" class="btn-nuevo-seg" style="background:#5106A7;color:#fff" @click="crearEIniciarSeguimiento" :disabled="creandoEIniciando">
+          ${ creandoEIniciando ? 'Creando...' : '▶ Crear e iniciar' }
+        </button>
         <button v-if="(puedeReasignar || userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode)) && caso.victimCaseStatus === 'cd'" class="btn-nuevo-seg" @click="abrirModalReabrir">
           Reabrir caso
         </button>
@@ -919,6 +922,7 @@ var home = Vue.createApp({
         agente: '',
         notas: '',
       },
+      creandoEIniciando: false,
       segTocado: false,
       guardandoSeg: false,
       nuevoSegError: '',
@@ -1484,9 +1488,9 @@ var home = Vue.createApp({
       return csv.split(',').map(function(v) { var k = v.trim(); return map[k] || k; });
     },
     abrirModalNuevoSeg() {
-      // Si es RO, asignar a sí mismo. Si es SV, preseleccionar el agente del último seguimiento
+      // Si es RO u OP, asignar a sí mismo. Si es SV, preseleccionar el agente del último seguimiento
       var agenteDefault = '';
-      if (this.userRole === 'ro') {
+      if (this.userRole === 'ro' || this.userRole === 'op') {
         agenteDefault = this.userICode;
       } else if (this.followUpsV2.length > 0) {
         var ultimo = this.followUpsV2[this.followUpsV2.length - 1];
@@ -1497,6 +1501,57 @@ var home = Vue.createApp({
       this.guardandoSeg = false;
       this.nuevoSegError = '';
       this.modalNuevoSeg = true;
+    },
+    crearEIniciarSeguimiento() {
+      // Crear seguimiento con fecha hoy, asignado a sí mismo, registrar intento exitoso y redirigir al formulario
+      var self = this;
+      if (self.creandoEIniciando) return;
+      self.creandoEIniciando = true;
+      var scheduledDate = this.fechaHoy;
+      var url = '/api/v1/casos/' + CASE_ICODE + '/seguimiento';
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_id: self.userICode,
+          scheduled_date: scheduledDate,
+          notas: '',
+          created_by: self.currentUser
+        })
+      })
+        .then(function(res) {
+          if (!res.ok) {
+            return res.json().then(function(data) {
+              throw new Error(data.error || 'Error HTTP ' + res.status);
+            }).catch(function(e) {
+              if (e.message) throw e;
+              throw new Error('Error HTTP ' + res.status + ' al crear el seguimiento');
+            });
+          }
+          return res.json();
+        })
+        .then(function(data) {
+          // Registrar intento de contacto exitoso (como si hubiera contestado)
+          return fetch('/api/v1/follow-ups/' + data.id + '/attempts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              reason: 'Sí contestó',
+              was_answered: true
+            })
+          }).then(function(attemptRes) {
+            if (!attemptRes.ok) {
+              // Si falla el intento, igual redirigimos al formulario
+              console.warn('[crearEIniciar] No se pudo registrar intento, redirigiendo igual');
+            }
+            // Redirigir al formulario de seguimiento
+            window.location.href = '/salvia/hacer-seguimiento/' + data.id;
+          });
+        })
+        .catch(function(err) {
+          self.creandoEIniciando = false;
+          self.showToast('error', err.message || 'Error al crear el seguimiento');
+        });
     },
     abrirModalReasignar() {
       this.reasignarOperador = '';
@@ -1566,7 +1621,7 @@ var home = Vue.createApp({
           }
           return res.json();
         })
-        .then(function() {
+        .then(function(data) {
           self.guardandoSeg = false;
           self.modalNuevoSeg = false;
           self.showToast('success', 'Seguimiento creado correctamente');
