@@ -318,9 +318,9 @@ func buildCasesListWhere(filters CasesListFilters) (string, []interface{}) {
 		pattern := "%" + search + "%"
 		clauses = append(clauses, `(
             vc.victim_case_victim_doc_number ILIKE ?
-            OR vc.victim_case_victim_name ILIKE ?
-            OR vc.victim_case_victim_last_name ILIKE ?
-            OR (vc.victim_case_victim_name || ' ' || vc.victim_case_victim_last_name) ILIKE ?
+            OR vc.victim_case_victim_names ILIKE ?
+            OR vc.victim_case_victim_last_names ILIKE ?
+            OR (vc.victim_case_victim_names || ' ' || vc.victim_case_victim_last_names) ILIKE ?
             OR vf2.victim_case_form2_victim_phone::text ILIKE ?
             OR EXISTS (
                 SELECT 1
