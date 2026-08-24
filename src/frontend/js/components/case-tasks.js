@@ -170,6 +170,15 @@ app.component('case-tasks', {
             if (this.userRole === 'sv') return true;
             return String(task.assignedUserId || '') === String(this.userId || '');
         },
+        esAsignadoOSv: function(task) {
+            // Para tareas de validar_remision: solo el asignado puede gestionar (el modal requiere ser el profesional)
+            if (task.type === 'validar_remision') {
+                return String(task.assignedUserId || '') === String(this.userId || '');
+            }
+            // Para las demás tareas: sv siempre puede, o ser el asignado
+            if (this.userRole === 'sv') return true;
+            return String(task.assignedUserId || '') === String(this.userId || '');
+        },
         async abrirReasignar(task) {
             this.reasignarTask = task;
             this.reasignarAgente = '';
@@ -257,7 +266,8 @@ app.component('case-tasks', {
                         <div style="font-size:.73rem;color:#9ca3af;margin-top:2px">Asignado a: \${ task.assignedUserName || 'Sin asignar' }</div>
                     </div>
                     <div style="display:flex;gap:6px;flex-shrink:0">
-                        <button v-if="puedeCompletar(task)" class="ct-btn-complete" @click="abrirModal(task)">Gestionar</button>
+                        <button v-if="puedeCompletar(task) && esAsignadoOSv(task)" class="ct-btn-complete" @click="abrirModal(task)">Gestionar</button>
+                        <button v-else-if="puedeCompletar(task) && !esAsignadoOSv(task)" class="ct-btn-complete" disabled style="opacity:.5;cursor:not-allowed" title="Solo el profesional asignado puede gestionar esta tarea">Gestionar</button>
                         <button v-if="false && userRole === 'sv'" class="ct-btn-complete" style="background:#3b82f6" @click="abrirReasignar(task)">Reasignar</button>
                     </div>
                 </div>

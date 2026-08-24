@@ -108,46 +108,9 @@ app.component('follow-up-contact-modal', {
             if (!fu || this.loading) return;
 
             this.loading = true;
-            try {
-                let customCreatedAt = null;
-                if (this.attemptDateTime) {
-                    const parts = this.attemptDateTime.split(/[-T:]/);
-                    if (parts.length >= 5) {
-                        const year = parseInt(parts[0], 10);
-                        const month = parseInt(parts[1], 10) - 1;
-                        const day = parseInt(parts[2], 10);
-                        const hours = parseInt(parts[3], 10);
-                        const minutes = parseInt(parts[4], 10);
-                        customCreatedAt = new Date(year, month, day, hours, minutes).toISOString();
-                    }
-                }
-
-                const response = await fetch(`/api/v1/follow-ups/${fu.id}/attempts`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        reason: 'Sí contestó',
-                        was_answered: true,
-                        created_at: customCreatedAt
-                    })
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Error al registrar contacto');
-                }
-
-                // Redirect to the management view of the follow-up
-                window.location.href = `/salvia/hacer-seguimiento/${fu.id}`;
-            } catch (error) {
-                console.error('Error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: error.message || 'No se pudo registrar el contacto'
-                });
-                this.loading = false;
-            }
+            // No registrar el intento aquí — se registra al completar el formulario de seguimiento.
+            // Redirigir al formulario con parámetro para que sepa que debe registrar el intento al guardar.
+            window.location.href = `/salvia/hacer-seguimiento/${fu.id}?register_attempt=true`;
         },
 
         handleNoAnswer() {

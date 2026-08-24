@@ -52,6 +52,8 @@ app.component('registrar-contacto-modal', {
             // Campos para programado
             fecha: '',
             hora: '',
+            // Fecha mínima (hoy local, impide seleccionar pasado)
+            fechaMinima: (function() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })(),
             // Validación de disponibilidad
             disponibilidadOk: null, // null = no verificado, true/false
             disponibilidadMsg: '',
@@ -65,7 +67,9 @@ app.component('registrar-contacto-modal', {
             if (!this.modo) return false;
             if (this.modo === 'inmediato') return true;
             if (this.modo === 'programado') {
-                return this.fecha && this.hora && this.disponibilidadOk === true;
+                if (!this.fecha || !this.hora) return false;
+                if (this.fecha < this.fechaMinima) return false;
+                return this.disponibilidadOk === true;
             }
             return false;
         },
@@ -200,7 +204,7 @@ app.component('registrar-contacto-modal', {
             <div class="rcm-row" style="margin-top:16px">
                 <div class="rcm-field">
                     <label class="rcm-label">Fecha</label>
-                    <input type="date" class="rcm-input" v-model="fecha" @change="disponibilidadOk = null" />
+                    <input type="date" class="rcm-input" v-model="fecha" :min="fechaMinima" @change="disponibilidadOk = null" />
                 </div>
                 <div class="rcm-field">
                     <label class="rcm-label">Hora</label>

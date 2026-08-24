@@ -49,11 +49,21 @@
                         </div>
                     </div>
                 </div>
-                <div v-if="remision.professionalName" style="display:flex;align-items:center;gap:10px">
-                    <div style="width:36px;height:36px;border-radius:50%;background:#ede9fe;color:#5106A7;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700">${ remision.professionalName.charAt(0).toUpperCase() }</div>
-                    <div>
-                        <div style="font-size:.7rem;color:#9ca3af">Psicóloga</div>
-                        <div style="font-size:.82rem;font-weight:600;color:#374151">${ remision.professionalName }</div>
+                <div style="display:flex;align-items:center;gap:20px">
+                    <div v-if="remision.submittedByName" style="display:flex;align-items:center;gap:10px">
+                        <div style="width:36px;height:36px;border-radius:50%;background:#fff7ed;color:#c2410c;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700">${ remision.submittedByName.charAt(0).toUpperCase() }</div>
+                        <div>
+                            <div style="font-size:.7rem;color:#9ca3af">Remitido por</div>
+                            <div style="font-size:.82rem;font-weight:600;color:#374151">${ remision.submittedByName }</div>
+                            <div v-if="remision.submittedByTeam" style="font-size:.7rem;color:#9ca3af">${ remision.submittedByTeam }</div>
+                        </div>
+                    </div>
+                    <div v-if="remision.professionalName" style="display:flex;align-items:center;gap:10px">
+                        <div style="width:36px;height:36px;border-radius:50%;background:#ede9fe;color:#5106A7;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700">${ remision.professionalName.charAt(0).toUpperCase() }</div>
+                        <div>
+                            <div style="font-size:.7rem;color:#9ca3af">Psicóloga</div>
+                            <div style="font-size:.82rem;font-weight:600;color:#374151">${ remision.professionalName }</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -252,7 +262,7 @@
         <div style="display:flex;gap:14px;margin-bottom:24px">
             <div style="flex:1">
                 <label style="font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">Fecha</label>
-                <input type="date" v-model="reprogramarFecha" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:10px;font-size:.85rem;outline:none" />
+                <input type="date" v-model="reprogramarFecha" :min="fechaHoy" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:10px;font-size:.85rem;outline:none" />
             </div>
             <div style="flex:1">
                 <label style="font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">Hora</label>
@@ -351,6 +361,8 @@
                 cargando: true,
                 error: null,
                 remision: null,
+                // Fecha mínima (hoy local)
+                fechaHoy: (function() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })(),
                 // Editar preferencia de horario
                 editandoHorario: false,
                 nuevoHorario: '',

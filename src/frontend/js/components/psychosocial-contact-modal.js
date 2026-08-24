@@ -144,7 +144,10 @@ app.component('psychosocial-contact-modal', {
                 self.lastSuccessAttemptId = data.attempt ? data.attempt.id : null;
                 self.$emit('completed', { type: 'contacted', psicosocialId: self.proc.id });
                 self.modalContesto = false;
-                self.modalConsentimiento = true;
+                // NOTA: Modal de consentimiento comentado — la pregunta se hace dentro del formulario de sesión.
+                // Si se necesita reactivar, descomentar la línea siguiente y comentar self.modalSesion = true:
+                // self.modalConsentimiento = true;
+                self.modalSesion = true;
             });
         },
         handleNoAnswer: function() {
@@ -327,7 +330,7 @@ app.component('psychosocial-contact-modal', {
         </div>
       </div>
 
-      <!-- Consentimiento -->
+      <!-- Consentimiento (COMENTADO — redundante con la pregunta del formulario de sesión)
       <div v-if="modalConsentimiento" class="psc-modal-overlay" @click.self="closeAll">
         <div class="psc-modal-content">
           <div class="psc-icon" style="background:#eff6ff;color:#2563eb;"><i class="fas fa-file-signature"></i></div>
@@ -340,6 +343,7 @@ app.component('psychosocial-contact-modal', {
           <button class="psc-cancel" :disabled="loading" @click="closeAll">CANCELAR</button>
         </div>
       </div>
+      -->
 
       <!-- Sesión -->
       <div v-if="modalSesion" class="psc-modal-overlay" @click.self="closeAll">
