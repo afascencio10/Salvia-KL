@@ -271,6 +271,20 @@
         .df-opt-btn:hover:not(.df-selected) { border-color: #ddd6fe; background: #f5f3ff; }
         .df-opt-btn.df-selected { background: #7c3aed; border-color: #7c3aed; color: #fff; }
 
+        /* multiple (dropdown + chips) */
+        .df-multi-select { display: flex; flex-direction: column; gap: 8px; }
+        .df-chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
+        .df-chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 10px; border-radius: 8px;
+            font-size: 14px; font-weight: 500;
+            border: 1px solid #7c3aed; background: #7c3aed; color: #fff;
+            cursor: pointer; transition: background 0.15s, border-color 0.15s;
+        }
+        .df-chip:hover { background: #6d28d9; border-color: #6d28d9; }
+        .df-chip:disabled { cursor: default; opacity: 0.85; }
+        .df-chip-remove { font-size: 12px; opacity: 0.85; }
+
         /* repeater */
         .df-repeater { display: flex; flex-direction: column; gap: 12px; }
         .df-repeater-item {
@@ -1003,6 +1017,11 @@ const Q_EQUIPOS_SALVIA        = 'e0d38cf5-fe3f-45cb-9fd3-f5b8f7b2f7dc';
 const OPT_MEDIDAS_EMERGENCIA  = 'medidas_emergencia';
 const OPT_ATENCION_PSICO      = 'atencion_psico';
 
+// Repeater "Barreras identificadas" (Sección 4 — Identificación de Barreras).
+// Único repeater donde las preguntas 'multiple' se ven como dropdown + chips
+// en lugar de la grilla de botones — la sección se veía demasiado larga.
+const BARRERAS_REPEATER_ID = '5fd3ecdc-2e5f-4b31-97ef-8a994580586a';
+
 /* ─── Componente Vue ─────────────────────────────────────────────────────── */
 app.component('dinamic-form', {
     delimiters: ['${', '}'],
@@ -1117,9 +1136,10 @@ app.component('dinamic-form', {
             return this.currentSection && section.id === this.currentSection.id;
         },
         isSectionEnabled(section) {
-            // Habilitada = respondida  O  es la primera sin responder
-            return section.isAnswered ||
-                   (this.firstUnansweredSection && section.id === this.firstUnansweredSection.id);
+            // Todas las secciones son navegables desde el inicio — el usuario
+            // puede moverse libremente entre submódulos sin tener que
+            // responder primero la sección actual.
+            return true;
         },
         sidebarSectionClass(section) {
             if (this.isSectionActive(section))  return 'active';
@@ -1133,8 +1153,20 @@ app.component('dinamic-form', {
             if (this.isSectionEnabled(section)) return 'enabled';
             return 'pending';
         },
-        goToSectionById(section) {
+        async goToSectionById(section) {
             if (!this.isSectionEnabled(section)) return;
+            if (this.currentSection && section.id === this.currentSection.id) return;
+            // Antes de salir de la sección actual, se guarda como borrador lo
+            // que se alcanzó a responder, para que no se pierda al cambiar
+            // de submódulo.
+            if (this.canEdit && this.hasDraftAnswers) {
+                await this.saveDraft();
+            }
+            this._switchSection(section);
+        },
+        // Cambia la sección activa sin guardar — usar cuando la sección que
+        // se deja ya quedó persistida (p.ej. justo después de saveSection()).
+        _switchSection(section) {
             this.currentSection       = section;
             this.currentSectionRender = buildSectionRenderData(
                 section,
@@ -1327,6 +1359,21 @@ app.component('dinamic-form', {
             const val = this.getLocalAnswer(questionId, entryId);
             return val ? val.split(',').map(v => v.trim()).includes(optionValue) : false;
         },
+        // Opciones de una pregunta 'multiple' ya elegidas / aún disponibles —
+        // alimentan la lista de chips y el dropdown "Agregar opción".
+        multipleSelectedOptions(question, formState, entryIndex, entryId = null) {
+            return resolveQuestionOptions(question, formState, entryIndex)
+                .filter(opt => this.isMultipleSelected(question.id, opt.value, entryId));
+        },
+        multipleUnselectedOptions(question, formState, entryIndex, entryId = null) {
+            return resolveQuestionOptions(question, formState, entryIndex)
+                .filter(opt => !this.isMultipleSelected(question.id, opt.value, entryId));
+        },
+        // true solo para el repeater de Identificación de Barreras — es el
+        // único que usa dropdown + chips en lugar de la grilla de botones.
+        isBarrerasRepeater(repeaterId) {
+            return repeaterId === BARRERAS_REPEATER_ID;
+        },
         toggleMultipleAnswer(questionId, optionValue, entryId = null) {
             const current = this.getLocalAnswer(questionId, entryId);
             const arr = current ? current.split(',').map(v => v.trim()).filter(Boolean) : [];
@@ -1367,6 +1414,13 @@ app.component('dinamic-form', {
         onToggleMultipleAnswer(questionId, optionValue, entryId = null) {
             this.toggleMultipleAnswer(questionId, optionValue, entryId);
             this.onAnswer(questionId, this.getLocalAnswer(questionId, entryId), entryId);
+        },
+        // Dropdown "Agregar opción" de una pregunta 'multiple' — agrega la
+        // opción elegida con la misma lógica de toggle y vuelve al placeholder.
+        onAddMultipleOption(questionId, event, entryId = null) {
+            const value = event.target.value;
+            if (value) this.onToggleMultipleAnswer(questionId, value, entryId);
+            event.target.value = '';
         },
 
         onBlur(questionId, entryId = null) {
@@ -1794,10 +1848,10 @@ app.component('dinamic-form', {
 
                 if (nextSection && (nextSection.isAnswered || this.firstUnansweredSection?.id === nextSection.id)) {
                     console.log('[saveSection] navegando a siguiente sección visible:', nextSection.name);
-                    this.goToSectionById(nextSection);
+                    this._switchSection(nextSection);
                 } else if (data.currentSection) {
                     console.log('[saveSection] fallback → currentSection del server:', data.currentSection.name);
-                    this.goToSectionById(data.currentSection);
+                    this._switchSection(data.currentSection);
                 }
 
             } catch (e) {
@@ -2127,6 +2181,26 @@ app.component('dinamic-form', {
                                     </div>
 
                                     <!-- multiple -->
+                                    <div v-else-if="qData.question.questionTypeId === 'multiple' && isBarrerasRepeater(item.repeater.id)" class="df-multi-select">
+                                        <select
+                                            class="df-select"
+                                            :disabled="!canEdit"
+                                            value=""
+                                            @change="onAddMultipleOption(qData.question.id, $event, entryData.entry.id)"
+                                        >
+                                            <option value="">+ Agregar opción...</option>
+                                            <option v-for="opt in multipleUnselectedOptions(qData.question, formState, entryData.entry.iteration - 1, entryData.entry.id)" :key="opt.id" :value="opt.value">\${ opt.label }</option>
+                                        </select>
+                                        <div class="df-chip-list" v-if="multipleSelectedOptions(qData.question, formState, entryData.entry.iteration - 1, entryData.entry.id).length">
+                                            <button v-for="opt in multipleSelectedOptions(qData.question, formState, entryData.entry.iteration - 1, entryData.entry.id)" :key="opt.id"
+                                                type="button" class="df-chip"
+                                                :disabled="!canEdit"
+                                                @click="onToggleMultipleAnswer(qData.question.id, opt.value, entryData.entry.id)"
+                                            >\${ opt.label } <span class="df-chip-remove">✕</span></button>
+                                        </div>
+                                    </div>
+
+                                    <!-- multiple: grilla de botones (resto de repeaters) -->
                                     <div v-else-if="qData.question.questionTypeId === 'multiple'" class="df-btn-group">
                                         <button v-for="opt in resolveQuestionOptions(qData.question, formState, entryData.entry.iteration - 1)" :key="opt.id"
                                             type="button" class="df-opt-btn"

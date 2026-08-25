@@ -32,13 +32,14 @@ var ErrFollowUpNotAssigned = errors.New("followup: este seguimiento no está asi
 var ErrFollowUpNotYetDue = errors.New("followup: la fecha programada aún no ha llegado")
 
 // ── Matriz de riesgo (HU-027) ─────────────────────────────────────────────────
-// Días desde HOY para cada nivel. Extremo tiene 5 seguimientos (S1 = mismo día a las 4h).
-// Los demás niveles tienen 4 seguimientos.
+// Días desde HOY para cada nivel (offset absoluto desde la creación del caso,
+// no acumulado entre seguimientos). Actualizada agosto 2026 según nuevo
+// cronograma acordado con el equipo psicosocial.
 var riskMatrix = map[int][]int{
-	4: {0, 1, 2, 3, 15, 30}, // Extremo — 6 seguimientos (S1=+4h/hoy, S2=+1d, S3=+2d, S4=+3d, S5=+15d, S6=+30d)
-	3: {1, 3, 15, 30},       // Alto    — 4 seguimientos
-	2: {2, 15, 30, 45},      // Moderado — 4 seguimientos
-	1: {5, 15, 30, 60},      // Bajo    — 4 seguimientos
+	4: {1, 3, 8, 15, 30, 60, 60}, // Extremo  — 7 seguimientos (24h, 72h, 8d, 15d, 30d, 2m, 2m)
+	3: {2, 5, 15, 30, 60, 60},    // Alto     — 6 seguimientos (48h, 5d, 15d, 1m, 2m, 2m)
+	2: {3, 15, 30, 60, 60},       // Moderado — 5 seguimientos (72h, 15d, 1m, 2m, 2m)
+	1: {5, 20, 60, 60},           // Bajo     — 4 seguimientos (5d, 20d, 2m, 2m)
 }
 
 // maxFollowUps retorna la cantidad máxima de seguimientos para un nivel de riesgo.
