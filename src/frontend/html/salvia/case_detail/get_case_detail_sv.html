@@ -926,7 +926,9 @@ var home = Vue.createApp({
       segTocado: false,
       guardandoSeg: false,
       nuevoSegError: '',
-      fechaHoy: (function() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })(),
+      // Calculada en el servidor (America/Bogota) para no depender del reloj/zona
+      // horaria del dispositivo del cliente, que puede estar mal configurado.
+      fechaHoy: "{{.fechaHoy}}",
       toast: { show: false, type: 'success', message: '' },
       tabs: [
         { id: 'info',         label: 'Info General',  icono: '👤' },
