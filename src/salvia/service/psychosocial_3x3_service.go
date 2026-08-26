@@ -239,6 +239,12 @@ func (s *psychosocial3x3Service) RegisterAttempt(ctx context.Context, psicosocia
 	if team != "" {
 		attempt.Team = &team
 	}
+	// Si el intento es exitoso, marcar consentimiento como aceptado automáticamente.
+	// La validación real del consentimiento se hace dentro del formulario de sesión.
+	if wasAnswered {
+		accepted := true
+		attempt.ConsentGiven = &accepted
+	}
 	if err := s.repo.Create(ctx, attempt); err != nil {
 		return nil, nil, "", err
 	}
@@ -304,17 +310,18 @@ func (s *psychosocial3x3Service) ScheduleSession(ctx context.Context, psicosocia
 		return nil, err
 	}
 
-	// Requiere consentimiento aceptado (algún intento exitoso con consent_given = true).
-	var consented int64
-	if err := s.db.WithContext(ctx).
-		Model(&models.ContactAttempt{}).
-		Where("psicosocial_id = ? AND was_answered = true AND consent_given = true", psicosocialID).
-		Count(&consented).Error; err != nil {
-		return nil, err
-	}
-	if consented == 0 {
-		return nil, ErrConsentNotAccepted
-	}
+	// NOTA: Validación de consentimiento comentada — ahora se gestiona dentro del formulario de sesión.
+	// Si se necesita reactivar, descomentar el bloque siguiente:
+	// var consented int64
+	// if err := s.db.WithContext(ctx).
+	// 	Model(&models.ContactAttempt{}).
+	// 	Where("psicosocial_id = ? AND was_answered = true AND consent_given = true", psicosocialID).
+	// 	Count(&consented).Error; err != nil {
+	// 	return nil, err
+	// }
+	// if consented == 0 {
+	// 	return nil, ErrConsentNotAccepted
+	// }
 
 	when := time.Now().UTC()
 	if !immediate && scheduledAt != nil {

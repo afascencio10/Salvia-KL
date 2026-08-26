@@ -51,6 +51,7 @@ func (c *MigrateController) RegisterRoutes(rg *gin.RouterGroup) {
 		admin.POST("/excel-seguimientos/preview", c.PreviewExcel)
 		admin.POST("/follow-up", c.MigrateFollowUp)
 		admin.POST("/create-form", c.CreateForm)
+		admin.POST("/assign-agents-excel", c.AssignAgentsFromExcel)
 	}
 }
 
@@ -1460,4 +1461,298 @@ func parseFlexibleDateTime(s string) time.Time {
 		}
 	}
 	return time.Time{}
+}
+
+// AssignAgentsFromExcel asigna agentes a casos masivamente desde un Excel.
+// El Excel debe tener columnas "Documento" (doc de la víctima) y "Agente" (nombre del agente).
+// Busca el agente por similitud en el login del usuario y actualiza agent_id en victim_case.
+// Procesa en lotes de 100 para no sobrecargar la BD en producción.
+//
+// POST /api/v1/admin/migrate/assign-agents-excel
+// Header: X-Security-Key
+// Body: multipart/form-data con campo "file" (xlsx)
+func (c *MigrateController) AssignAgentsFromExcel(ctx *gin.Context) {
+	file, _, err := ctx.Request.FormFile("file")
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Se requiere un archivo Excel en el campo 'file': " + err.Error()})
+		return
+	}
+	defer file.Close()
+
+	f, err := excelize.OpenReader(file)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Archivo Excel inválido: " + err.Error()})
+		return
+	}
+	defer f.Close()
+
+	// Usar la primera hoja
+	sheetName := f.GetSheetList()[0]
+	rows, err := f.GetRows(sheetName)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Error leyendo filas: " + err.Error()})
+		return
+	}
+	if len(rows) < 2 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "El archivo no tiene datos (solo encabezado o vacío)"})
+		return
+	}
+
+	// Mapear encabezados
+	header := rows[0]
+	colIndex := make(map[string]int)
+	for i, h := range header {
+		normalized := strings.ToLower(strings.TrimSpace(h))
+		colIndex[normalized] = i
+	}
+
+	colDocumento := -1
+	for _, key := range []string{"documento", "doc", "cedula", "cédula", "numero documento"} {
+		if idx, ok := colIndex[key]; ok {
+			colDocumento = idx
+			break
+		}
+	}
+	if colDocumento == -1 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "No se encontró columna 'Documento'", "encabezados": header})
+		return
+	}
+
+	colAgente := -1
+	for _, key := range []string{"agente", "operador", "asignado", "responsable"} {
+		if idx, ok := colIndex[key]; ok {
+			colAgente = idx
+			break
+		}
+	}
+	if colAgente == -1 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "No se encontró columna 'Agente'", "encabezados": header})
+		return
+	}
+
+	// Preparar filas de datos
+	type assignRow struct {
+		Documento string
+		Agente    string
+	}
+	var dataRows []assignRow
+	for _, row := range rows[1:] {
+		doc := ""
+		agente := ""
+		if colDocumento < len(row) {
+			doc = strings.TrimSpace(row[colDocumento])
+		}
+		if colAgente < len(row) {
+			agente = strings.TrimSpace(row[colAgente])
+		}
+		if doc != "" && agente != "" {
+			dataRows = append(dataRows, assignRow{Documento: doc, Agente: agente})
+		}
+	}
+
+	if len(dataRows) == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "No se encontraron filas válidas con Documento y Agente"})
+		return
+	}
+
+	// Cache de agentes ya resueltos para no repetir queries
+	agentCache := make(map[string]string) // nombre → icode
+
+	// Procesar en lotes de 100 para no saturar producción
+	batchSize := 100
+	totalUpdated := 0
+	totalSkipped := 0
+	totalNotFound := 0
+	totalAgentNotFound := 0
+	var errores []string
+
+	for i := 0; i < len(dataRows); i += batchSize {
+		end := i + batchSize
+		if end > len(dataRows) {
+			end = len(dataRows)
+		}
+		batch := dataRows[i:end]
+
+		for _, row := range batch {
+			// Buscar agente en cache o en BD
+			agentICode, cached := agentCache[strings.ToLower(row.Agente)]
+			if !cached {
+				agentICode = c.findAgentBySimilarity(row.Agente)
+				agentCache[strings.ToLower(row.Agente)] = agentICode
+			}
+
+			if agentICode == "" {
+				totalAgentNotFound++
+				if len(errores) < 50 {
+					errores = append(errores, fmt.Sprintf("Agente no encontrado: '%s' (doc: %s)", row.Agente, row.Documento))
+				}
+				continue
+			}
+
+			// Buscar caso por documento
+			var caseICode string
+			var currentAgentID *string
+			c.db.Raw(`
+				SELECT victim_case_i_code, agent_id FROM salvia.victim_case
+				WHERE victim_case_victim_doc_number = ?
+				LIMIT 1
+			`, row.Documento).Row().Scan(&caseICode, &currentAgentID)
+
+			if caseICode == "" {
+				totalNotFound++
+				if len(errores) < 50 {
+					errores = append(errores, fmt.Sprintf("Caso no encontrado para doc: '%s'", row.Documento))
+				}
+				continue
+			}
+
+			// Validar: si el caso ya tiene asignado al mismo agente, saltar
+			if currentAgentID != nil && *currentAgentID == agentICode {
+				totalSkipped++
+				continue
+			}
+
+			// Actualizar agent_id y team
+			team := c.getAgentTeam(agentICode)
+			if team != "" {
+				c.db.Exec(`UPDATE salvia.victim_case SET agent_id = ?, victim_case_team = ? WHERE victim_case_i_code = ?`, agentICode, team, caseICode)
+			} else {
+				c.db.Exec(`UPDATE salvia.victim_case SET agent_id = ? WHERE victim_case_i_code = ?`, agentICode, caseICode)
+			}
+			totalUpdated++
+
+			// Registrar evento en timeline
+			c.db.Exec(`
+				INSERT INTO salvia.case_timeline_event (id, case_id, event_type, category, type, icon, color, date, description, actor_name, created_at)
+				VALUES (gen_random_uuid(), ?, 'REASIGNACION', 'general', 'Reasignación de caso', 'reasignacion', 'blue', NOW(), ?, 'Sistema (asignación masiva)', NOW())
+			`, caseICode, fmt.Sprintf("Caso asignado a %s mediante proceso masivo", row.Agente))
+		}
+
+		// Pausa entre lotes para no saturar la BD en producción
+		if end < len(dataRows) {
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+
+	log.Printf("[ASSIGN-AGENTS] Completado: %d actualizados, %d omitidos (ya asignados), %d caso no encontrado, %d agente no encontrado, %d filas totales",
+		totalUpdated, totalSkipped, totalNotFound, totalAgentNotFound, len(dataRows))
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message":              "Proceso completado",
+		"total_filas":          len(dataRows),
+		"casos_actualizados":   totalUpdated,
+		"casos_omitidos":       totalSkipped,
+		"caso_no_encontrado":   totalNotFound,
+		"agente_no_encontrado": totalAgentNotFound,
+		"errores_muestra":      errores,
+	})
+}
+
+// findAgentBySimilarity busca un agente por similitud en login o nombre completo.
+// Estrategia progresiva: exacto login → ILIKE login → ILIKE nombre completo → ILIKE por cada palabra.
+// Usa unaccent() para ignorar tildes en la comparación.
+func (c *MigrateController) findAgentBySimilarity(agentName string) string {
+	agentName = strings.TrimSpace(agentName)
+	if agentName == "" || strings.ToLower(agentName) == "na" || strings.ToLower(agentName) == "n/a" {
+		return ""
+	}
+
+	// Asegurar que la extensión unaccent existe (idempotente)
+	c.db.Exec("CREATE EXTENSION IF NOT EXISTS unaccent")
+
+	// 1. Match exacto por login
+	var icode string
+	c.db.Raw(`
+		SELECT general_user_i_code FROM security.general_user
+		WHERE LOWER(general_user_login) = LOWER(?)
+		  AND general_user_status = 'e'
+		LIMIT 1
+	`, agentName).Scan(&icode)
+	if icode != "" {
+		return icode
+	}
+
+	// 2. ILIKE parcial en login (el nombre puede ser parte del email/login)
+	pattern := "%" + strings.ToLower(agentName) + "%"
+	c.db.Raw(`
+		SELECT general_user_i_code FROM security.general_user
+		WHERE LOWER(general_user_login) ILIKE ?
+		  AND general_user_status = 'e'
+		LIMIT 1
+	`, pattern).Scan(&icode)
+	if icode != "" {
+		return icode
+	}
+
+	// 3. Buscar por nombre completo en el perfil con unaccent (names + last_names, ambos órdenes)
+	c.db.Raw(`
+		SELECT gu.general_user_i_code
+		FROM security.general_user gu
+		JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+		WHERE (unaccent(LOWER(gup.general_user_profile_names || ' ' || gup.general_user_profile_last_names)) ILIKE unaccent(?)
+		    OR unaccent(LOWER(gup.general_user_profile_last_names || ' ' || gup.general_user_profile_names)) ILIKE unaccent(?))
+		  AND gu.general_user_status = 'e'
+		LIMIT 1
+	`, pattern, pattern).Scan(&icode)
+	if icode != "" {
+		log.Printf("[ASSIGN-AGENTS] Agente '%s' encontrado por nombre completo → %s", agentName, icode)
+		return icode
+	}
+
+	// 4. Buscar por TODAS las palabras del nombre (cada palabra debe aparecer, ignorando tildes)
+	words := strings.Fields(strings.ToLower(agentName))
+	if len(words) >= 2 {
+		conditions := make([]string, len(words))
+		queryArgs := make([]interface{}, len(words))
+		for i, w := range words {
+			conditions[i] = "unaccent(LOWER(gup.general_user_profile_names || ' ' || gup.general_user_profile_last_names)) ILIKE unaccent(?)"
+			queryArgs[i] = "%" + w + "%"
+		}
+		query := `
+			SELECT gu.general_user_i_code
+			FROM security.general_user gu
+			JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+			WHERE ` + strings.Join(conditions, " AND ") + `
+			  AND gu.general_user_status = 'e'
+			LIMIT 1
+		`
+		c.db.Raw(query, queryArgs...).Scan(&icode)
+		if icode != "" {
+			log.Printf("[ASSIGN-AGENTS] Agente '%s' encontrado por palabras → %s", agentName, icode)
+			return icode
+		}
+
+		// 4b. Si no encontró con todas las palabras, intentar con N-1 palabras (quitar una cada vez)
+		if len(words) >= 3 {
+			for skip := len(words) - 1; skip >= 0; skip-- {
+				subset := make([]string, 0, len(words)-1)
+				for j, w := range words {
+					if j != skip {
+						subset = append(subset, w)
+					}
+				}
+				conditions2 := make([]string, len(subset))
+				queryArgs2 := make([]interface{}, len(subset))
+				for i, w := range subset {
+					conditions2[i] = "unaccent(LOWER(gup.general_user_profile_names || ' ' || gup.general_user_profile_last_names)) ILIKE unaccent(?)"
+					queryArgs2[i] = "%" + w + "%"
+				}
+				query2 := `
+					SELECT gu.general_user_i_code
+					FROM security.general_user gu
+					JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+					WHERE ` + strings.Join(conditions2, " AND ") + `
+					  AND gu.general_user_status = 'e'
+					LIMIT 1
+				`
+				c.db.Raw(query2, queryArgs2...).Scan(&icode)
+				if icode != "" {
+					log.Printf("[ASSIGN-AGENTS] Agente '%s' encontrado por palabras parciales (%v) → %s", agentName, subset, icode)
+					return icode
+				}
+			}
+		}
+	}
+
+	return ""
 }

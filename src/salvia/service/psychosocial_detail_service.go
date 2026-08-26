@@ -57,6 +57,12 @@ type PsychosocialDetailResponse struct {
 	ProfessionalName string  `json:"professionalName"`
 	ProfessionalRole string  `json:"professionalRole"`
 
+	// Dupla asignada
+	DuplaID          *string `json:"duplaId"`
+	DuplaName        string  `json:"duplaName"`
+	PsychologistName string  `json:"psychologistName"`
+	SocialWorkerName string  `json:"socialWorkerName"`
+
 	// Remitente
 	SubmittedByName string `json:"submittedByName"`
 
@@ -227,6 +233,37 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 			LIMIT 1
 		`, *ps.ProfessionalID).Scan(&roleName)
 		resp.ProfessionalRole = roleName
+	}
+
+	// 3b. Dupla asignada (si existe)
+	if ps.DuplaID != nil && *ps.DuplaID != "" {
+		resp.DuplaID = ps.DuplaID
+		var dupla models.Dupla
+		if err := s.db.WithContext(ctx).Where("id = ?", *ps.DuplaID).First(&dupla).Error; err == nil {
+			resp.DuplaName = dupla.Name
+			// Resolver nombre de la psicóloga
+			if dupla.PsychologistID != "" {
+				var psyName string
+				s.db.WithContext(ctx).Raw(`
+					SELECT COALESCE(gup.general_user_profile_names || ' ' || gup.general_user_profile_last_names, '')
+					FROM security.general_user gu
+					JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+					WHERE gu.general_user_i_code = ?
+				`, dupla.PsychologistID).Scan(&psyName)
+				resp.PsychologistName = strings.TrimSpace(psyName)
+			}
+			// Resolver nombre de la trabajadora social
+			if dupla.SocialWorkerID != "" {
+				var swName string
+				s.db.WithContext(ctx).Raw(`
+					SELECT COALESCE(gup.general_user_profile_names || ' ' || gup.general_user_profile_last_names, '')
+					FROM security.general_user gu
+					JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+					WHERE gu.general_user_i_code = ?
+				`, dupla.SocialWorkerID).Scan(&swName)
+				resp.SocialWorkerName = strings.TrimSpace(swName)
+			}
+		}
 	}
 
 	// 4. Nombre del remitente

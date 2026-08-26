@@ -58,13 +58,42 @@
                             <div v-if="remision.submittedByTeam" style="font-size:.7rem;color:#9ca3af">${ remision.submittedByTeam }</div>
                         </div>
                     </div>
-                    <div v-if="remision.professionalName" style="display:flex;align-items:center;gap:10px">
-                        <div style="width:36px;height:36px;border-radius:50%;background:#ede9fe;color:#5106A7;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700">${ remision.professionalName.charAt(0).toUpperCase() }</div>
-                        <div>
-                            <div style="font-size:.7rem;color:#9ca3af">Psicóloga</div>
-                            <div style="font-size:.82rem;font-weight:600;color:#374151">${ remision.professionalName }</div>
+                    <!-- Asignación: Dupla o Profesional individual -->
+                    <template v-if="remision.duplaId">
+                        <div style="display:flex;align-items:center;gap:10px;background:#f5f3ff;border:1px solid #e9d5ff;border-radius:12px;padding:10px 14px">
+                            <div>
+                                <div style="font-size:.68rem;font-weight:700;color:#7c3aed;text-transform:uppercase;margin-bottom:4px">${ remision.duplaName || 'Dupla' }</div>
+                                <div v-if="remision.psychologistName" style="font-size:.78rem;color:#374151;display:flex;align-items:center;gap:6px">
+                                    <span style="width:22px;height:22px;border-radius:50%;background:#ede9fe;color:#5106A7;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700">${ remision.psychologistName.charAt(0).toUpperCase() }</span>
+                                    <span style="font-weight:600">${ remision.psychologistName }</span>
+                                    <span style="font-size:.68rem;color:#9ca3af">— Psicóloga</span>
+                                </div>
+                                <div v-if="remision.socialWorkerName" style="font-size:.78rem;color:#374151;display:flex;align-items:center;gap:6px;margin-top:3px">
+                                    <span style="width:22px;height:22px;border-radius:50%;background:#dbeafe;color:#1d4ed8;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700">${ remision.socialWorkerName.charAt(0).toUpperCase() }</span>
+                                    <span style="font-weight:600">${ remision.socialWorkerName }</span>
+                                    <span style="font-size:.68rem;color:#9ca3af">— Trab. Social</span>
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    </template>
+                    <template v-else-if="remision.professionalName">
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <div style="width:36px;height:36px;border-radius:50%;background:#ede9fe;color:#5106A7;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700">${ remision.professionalName.charAt(0).toUpperCase() }</div>
+                            <div>
+                                <div style="font-size:.7rem;color:#9ca3af">${ remision.professionalRole || 'Profesional' }</div>
+                                <div style="font-size:.82rem;font-weight:600;color:#374151">${ remision.professionalName }</div>
+                            </div>
+                        </div>
+                    </template>
+                    <template v-else>
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <div style="width:36px;height:36px;border-radius:50%;background:#f3f4f6;color:#9ca3af;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700">?</div>
+                            <div>
+                                <div style="font-size:.7rem;color:#9ca3af">Asignado a</div>
+                                <div style="font-size:.82rem;font-weight:600;color:#9ca3af;font-style:italic">Sin asignar</div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </div>
         </div>
