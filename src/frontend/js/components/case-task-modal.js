@@ -319,6 +319,16 @@
     document.head.appendChild(style);
 })();
 
+// Sectores para el filtro de entidades de "Proyectar oficio" — GET /api/v1/entity-branches
+// espera estas palabras (no códigos de 2 letras). Mismo catálogo que case-entities.js /
+// notifications.js.
+const CTM_SECTORES_MODAL = [
+    { value: 'salud', label: 'Salud' },
+    { value: 'justicia', label: 'Justicia' },
+    { value: 'proteccion', label: 'Protección' },
+    { value: 'otras_instituciones', label: 'Otras instituciones' },
+];
+
 /* ─── Componente Vue ──────────────────────────────────────────────────────── */
 app.component('case-task-modal', {
     delimiters: ['${', '}'],
@@ -345,6 +355,7 @@ app.component('case-task-modal', {
             entidades:     [],
             entidadBusqueda: '',
             entidadDropdownOpen: false,
+            sectoresModal: CTM_SECTORES_MODAL,
 
             // Formulario (shape varía según tarea.type)
             form: {},
@@ -395,9 +406,9 @@ app.component('case-task-modal', {
                     if (f.generaOficio === true && (!f.asunto || !f.rutaKofax)) return false;
                     return true;
                 case 'proyectar_oficio':
+                    // Nombre de la entidad, Funcionario, Asunto, Ruta Kofax y Prioridad son
+                    // opcionales — solo la ubicación y la entidad elegida son obligatorias.
                     if (!f.departamentoId || !f.ciudadId || !f.municipioId || !f.entidadId) return false;
-                    if (f.entidadId === 'otra' && !f.entidadNombre) return false;
-                    if (!f.funcionario || !f.asunto || !f.rutaKofax) return false;
                     return true;
                 case 'comite_caso':
                     if (!f.decisiones || f.decisiones.length === 0) return false;
@@ -518,11 +529,16 @@ app.component('case-task-modal', {
                         departamentoId: null,
                         ciudadId:       null,
                         municipioId:    null,
+                        // Precarga el sector de la barrera vinculada cuando coincide con el
+                        // catálogo del buscador — el usuario puede cambiarlo si necesita otro.
+                        sector:         this.sectoresModal.some(s => s.value === this.tarea.barrierSector)
+                                          ? this.tarea.barrierSector : '',
                         entidadId:      null,
                         entidadNombre:  '',
                         funcionario:    '',
                         asunto:         '',
                         rutaKofax:      '',
+                        prioridad:      'normal',
                     };
                     break;
                 case 'comite_caso':
@@ -581,17 +597,34 @@ app.component('case-task-modal', {
         },
 
         async onSelectMunicipio() {
-            const townCode  = this.form.municipioId;
             this.form.entidadId   = null;
             this.form.entidadNombre = '';
             this.entidades  = []; this.entidadBusqueda = ""; this.entidadDropdownOpen = false;
+            await this._buscarEntidadesProyectar();
+        },
+
+        // Cuando selecciona sector (solo formulario proyectar_oficio) — el sector filtra
+        // las entidades del municipio elegido, igual que en case-entities.js.
+        async onSelectSector() {
+            this.form.entidadId   = null;
+            this.form.entidadNombre = '';
+            this.entidades  = []; this.entidadBusqueda = ""; this.entidadDropdownOpen = false;
+            await this._buscarEntidadesProyectar();
+        },
+
+        async _buscarEntidadesProyectar() {
+            const townCode = this.form.municipioId;
             if (!townCode) return;
-            // Construir URL con filtro por sector si la tarea tiene barrera con sector
-            var url = '/api/v1/entity-branches?town_code=' + encodeURIComponent(townCode);
-            if (this.tarea && this.tarea.barrierSector) {
-                url += '&sector=' + encodeURIComponent(this.tarea.barrierSector);
-            }
-            console.log('[CTM] E04 municipio seleccionado:', townCode, '— cargando entidades...');
+            // proyectar_oficio tiene su propio campo Sector (form.sector, siempre presente
+            // como propiedad aunque esté vacío) y lo exige antes de listar entidades —
+            // igual que el buscador de case-entities.js. gestion_llamada no tiene campo
+            // propio: conserva el comportamiento previo, cargando igual con el filtro
+            // automático e invisible de tarea.barrierSector si existe, sin bloquear.
+            const tieneCampoSector = Object.prototype.hasOwnProperty.call(this.form, 'sector');
+            const sector = tieneCampoSector ? this.form.sector : ((this.tarea && this.tarea.barrierSector) || '');
+            if (tieneCampoSector && !sector) return;
+            const url = '/api/v1/entity-branches?town_code=' + encodeURIComponent(townCode) + (sector ? '&sector=' + encodeURIComponent(sector) : '');
+            console.log('[CTM] E04 municipio=' + townCode + ' sector=' + sector + ' — cargando entidades...');
             try {
                 const res = await fetch(url);
                 if (res.ok) {
@@ -694,9 +727,10 @@ app.component('case-task-modal', {
                         municipioNombre:    lookupLabel(this.municipios, f.municipioId),
                         entidadId:          f.entidadId !== 'otra' ? Number(f.entidadId) : null,
                         entidadNombre:      entidadNombreLabel,
-                        funcionario:        f.funcionario,
-                        asunto:             f.asunto,
-                        rutaKofax:          f.rutaKofax,
+                        funcionario:        f.funcionario || null,
+                        asunto:             f.asunto || null,
+                        rutaKofax:          f.rutaKofax || null,
+                        prioridad:          f.prioridad || 'normal',
                     };
                 case 'comite_caso': {
                     const DECISION_LABELS = {
@@ -968,9 +1002,19 @@ app.component('case-task-modal', {
                 </div>
             </div>
 
+            <div class="ctm-field">
+                <label class="ctm-label">Sector <span class="req">*</span></label>
+                <select class="ctm-select" v-model="form.sector" @change="onSelectSector" :disabled="!form.municipioId">
+                    <option value="">Selecciona sector</option>
+                    <option v-for="s in sectoresModal" :key="s.value" :value="s.value">
+                        \${ s.label }
+                    </option>
+                </select>
+            </div>
+
             <div class="ctm-field" style="position:relative">
                 <label class="ctm-label">Sede / Entidad <span class="req">*</span></label>
-                <input class="ctm-input" v-model="entidadBusqueda" :disabled="!form.municipioId" placeholder="Buscar entidad..." @focus="entidadDropdownOpen = true" @input="entidadDropdownOpen = true; form.entidadId = null" autocomplete="off"/>
+                <input class="ctm-input" v-model="entidadBusqueda" :disabled="!form.municipioId || !form.sector" placeholder="Buscar entidad..." @focus="entidadDropdownOpen = true" @input="entidadDropdownOpen = true; form.entidadId = null" autocomplete="off"/>
                 <div v-if="entidadDropdownOpen && form.municipioId" style="position:absolute;z-index:100;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);margin-top:4px">
                     <div v-for="e in entidadesFiltradas" :key="e.id" @mousedown.prevent="selectEntidad(e)" style="padding:8px 12px;font-size:.82rem;cursor:pointer;border-bottom:1px solid #f3f4f6" :style="form.entidadId === e.id ? 'background:#ede9fe;color:#5106A7;font-weight:600' : ''" @mouseover="$event.target.style.background='#f9fafb'" @mouseout="$event.target.style.background=form.entidadId === e.id ? '#ede9fe' : ''">
                         \${ e.name }
@@ -985,25 +1029,33 @@ app.component('case-task-modal', {
             </div>
 
             <div v-if="form.entidadId === 'otra'" class="ctm-field">
-                <label class="ctm-label">Nombre de la entidad <span class="req">*</span></label>
+                <label class="ctm-label">Nombre de la entidad</label>
                 <input class="ctm-input" v-model="form.entidadNombre" placeholder="Escribe el nombre de la entidad" maxlength="150"/>
             </div>
 
             <p class="ctm-section-title">Datos del oficio</p>
 
             <div class="ctm-field">
-                <label class="ctm-label">Dependencia del funcionario <span class="req">*</span></label>
+                <label class="ctm-label">Dependencia del funcionario</label>
                 <input class="ctm-input" v-model="form.funcionario" placeholder="Ej. Departamento de Protección Social" maxlength="50"/>
             </div>
 
             <div class="ctm-field">
-                <label class="ctm-label">Asunto <span class="req">*</span></label>
+                <label class="ctm-label">Asunto</label>
                 <input class="ctm-input" v-model="form.asunto" placeholder="Asunto del oficio…" maxlength="80"/>
             </div>
 
             <div class="ctm-field">
-                <label class="ctm-label">Ruta Kofax / URL del archivo <span class="req">*</span></label>
+                <label class="ctm-label">Ruta Kofax / URL del archivo</label>
                 <input class="ctm-input" v-model="form.rutaKofax" placeholder="\\\\servidor\\ruta\\archivo.pdf" maxlength="255"/>
+            </div>
+
+            <div class="ctm-field">
+                <label class="ctm-label">Prioridad del oficio</label>
+                <select class="ctm-select" v-model="form.prioridad">
+                    <option value="normal">Normal</option>
+                    <option value="alta">Alta</option>
+                </select>
             </div>
 
         </template>

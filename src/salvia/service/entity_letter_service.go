@@ -256,25 +256,25 @@ func (s *entityLetterService) PerformAction(ctx context.Context, id string, inpu
 		if input.TownID == nil || *input.TownID == "" {
 			return nil, fmt.Errorf("entity_letter: el campo 'townId' es requerido para proyectar")
 		}
-		if input.EntityName == nil || *input.EntityName == "" {
-			return nil, fmt.Errorf("entity_letter: el campo 'entityName' es requerido para proyectar")
+		// EntityName, OfficialDependency, Subject y UrlKofax son opcionales — el agente
+		// puede no tener todavía el dato completo al proyectar el oficio (decisión de
+		// negocio, unificada entre el modal de Notificaciones y case-task-modal, que
+		// comparten esta misma acción). Solo se escriben si vienen con valor.
+		fields["department_id"] = *input.DepartmentID
+		fields["city_id"]       = *input.CityID
+		fields["town_id"]       = *input.TownID
+		if input.EntityName != nil && *input.EntityName != "" {
+			fields["entidad"] = *input.EntityName
 		}
-		if input.OfficialDependency == nil || *input.OfficialDependency == "" {
-			return nil, fmt.Errorf("entity_letter: el campo 'officialDependency' es requerido para proyectar")
+		if input.OfficialDependency != nil && *input.OfficialDependency != "" {
+			fields["official_dependency"] = *input.OfficialDependency
 		}
-		if input.Subject == nil || *input.Subject == "" {
-			return nil, fmt.Errorf("entity_letter: el campo 'subject' es requerido para proyectar")
+		if input.Subject != nil && *input.Subject != "" {
+			fields["subject"] = *input.Subject
 		}
-		if input.UrlKofax == nil || *input.UrlKofax == "" {
-			return nil, fmt.Errorf("entity_letter: el campo 'urlKofax' es requerido para proyectar")
+		if input.UrlKofax != nil && *input.UrlKofax != "" {
+			fields["url_kofax"] = *input.UrlKofax
 		}
-		fields["department_id"]       = *input.DepartmentID
-		fields["city_id"]             = *input.CityID
-		fields["town_id"]             = *input.TownID
-		fields["entidad"]             = *input.EntityName
-		fields["official_dependency"] = *input.OfficialDependency
-		fields["subject"]             = *input.Subject
-		fields["url_kofax"]           = *input.UrlKofax
 		if input.EntityBranchID != nil {
 			fields["entity_branch_id"] = *input.EntityBranchID
 		}
@@ -287,7 +287,7 @@ func (s *entityLetterService) PerformAction(ctx context.Context, id string, inpu
 		fields["state"] = models.EntityLetterStateParaRevisar
 		log.Printf("[DEBUG] proyectar: id=%s dept=%s city=%s town=%s entity=%q dep=%q subj=%q",
 			id, *input.DepartmentID, *input.CityID, *input.TownID,
-			*input.EntityName, *input.OfficialDependency, *input.Subject)
+			stringOrEmpty(input.EntityName), stringOrEmpty(input.OfficialDependency), stringOrEmpty(input.Subject))
 
 	case "revisar":
 		// para_revisar → aprobacion_juridica
@@ -725,4 +725,12 @@ func (s *entityLetterService) UpdateState(ctx context.Context, id string, input 
 	}
 
 	return s.repo.FindByID(ctx, id)
+}
+
+// stringOrEmpty deref-ea un *string opcional para logging, sin arriesgar nil pointer.
+func stringOrEmpty(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

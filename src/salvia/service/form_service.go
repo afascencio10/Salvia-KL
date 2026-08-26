@@ -1415,6 +1415,8 @@ func checkVisibility(
 				condFailed = stateVal != trigVal
 			case "includes", "contains":
 				condFailed = !strings.Contains(stateVal, trigVal)
+			case "not_contains":
+				condFailed = strings.Contains(stateVal, trigVal)
 			}
 			if condFailed {
 				failed = append(failed, FailedCondition{
@@ -1452,6 +1454,8 @@ func checkVisibility(
 				condFailed = answer.Value != trigVal
 			case "includes", "contains":
 				condFailed = !strings.Contains(answer.Value, trigVal)
+			case "not_contains":
+				condFailed = strings.Contains(answer.Value, trigVal)
 			}
 		}
 
@@ -1991,15 +1995,18 @@ func resolvePsicosocialSessionType(formID string, answerMap map[string]string) (
 		// Form Primer Contacto
 		qPCContinuarPA    = "aa46351a-f6c0-4666-af3e-e0f1f7b6dc8c" // S1 — Continuar Primera Atención (boolean)
 		qPCConsentimiento = "c3296c87-d7e3-4ea1-8a0f-cbf77c561d0f" // S4 — Consentimiento Informado (si/no)
+		qPCCerrarRemision = "8393d19a-a862-4e92-b987-94b763ba4ee6" // S4 — Cerrar remisión (boolean) — visible si Consentimiento = si
 
 		// Form Primera Atención
 		qPAEsAtencion     = "3117fd01-6a31-4595-9888-dcdcc96d84e7" // S1 — ¿Es atención o solo contacto?
 		qPAConsentimiento = "7256b91e-861b-48b3-9216-2ac13f0ae889" // S4 — Consentimiento Informado (si/no)
 		qPAFechaNueva     = "64d63b79-edee-464b-be56-1104efd31a46" // S1 — Fecha nueva
+		qPACerrarRemision = "2af6bff2-4aa2-4974-9e13-5e7176007a87" // S4 — Cerrar remisión (boolean) — visible si Consentimiento = si
 
 		// Form Atención Psicosocial (antes "Seguimiento")
-		qSEGEsAtencion = "16de7674-4349-4acc-9d0d-656d1d5e5f10" // S1 — ¿Es atención o solo contacto?
-		qSEGFechaNueva = "72ce49d2-f853-4f4a-9f1a-f795f4d514c3" // S1 — Fecha nueva
+		qSEGEsAtencion     = "16de7674-4349-4acc-9d0d-656d1d5e5f10" // S1 — ¿Es atención o solo contacto?
+		qSEGFechaNueva     = "72ce49d2-f853-4f4a-9f1a-f795f4d514c3" // S1 — Fecha nueva
+		qSEGCerrarRemision = "fdea65a5-f49a-46bf-b564-646bdf077290" // S4 — Cerrar remisión (boolean)
 
 		// Form Cierre
 		qCIEEsAtencion     = "be185336-e025-4768-a1a2-3ab9e2281450" // S1 — ¿Es atención o solo contacto?
@@ -2013,6 +2020,9 @@ func resolvePsicosocialSessionType(formID string, answerMap map[string]string) (
 			return models.SessionTypePrimerContacto, ""
 		}
 		if answerMap[qPCConsentimiento] == "si" {
+			if answerMap[qPCCerrarRemision] == "true" {
+				return models.SessionTypeCierre, ""
+			}
 			return models.SessionTypePrimerContactoConAtencion, ""
 		}
 		// Decisión del líder (Jul 2026): sin consentimiento avanza igual que un primer
@@ -2024,6 +2034,9 @@ func resolvePsicosocialSessionType(formID string, answerMap map[string]string) (
 			return models.SessionTypeContactoSinAtencion, answerMap[qPAFechaNueva]
 		}
 		if answerMap[qPAConsentimiento] == "si" {
+			if answerMap[qPACerrarRemision] == "true" {
+				return models.SessionTypeCierre, ""
+			}
 			return models.SessionTypePrimeraAtencion, ""
 		}
 		return models.SessionTypeCierreNoConsentimiento, ""
@@ -2031,6 +2044,9 @@ func resolvePsicosocialSessionType(formID string, answerMap map[string]string) (
 	case constants.FormIDAtencionPsicosocial:
 		if answerMap[qSEGEsAtencion] == "solo_contacto" {
 			return models.SessionTypeContactoSinAtencion, answerMap[qSEGFechaNueva]
+		}
+		if answerMap[qSEGCerrarRemision] == "true" {
+			return models.SessionTypeCierre, ""
 		}
 		return models.SessionTypeAtencionPsicosocial, ""
 
@@ -2320,6 +2336,11 @@ func (s *formService) processPsicosocialSessionSubmission(ctx context.Context, f
 	case models.SessionTypeAtencionPsicosocial:
 		ps.SessionCount++
 	case models.SessionTypeCierre:
+		// El cierre ahora puede ocurrir desde Primer Contacto o Primera Atención (no solo
+		// desde el form de Cierre, session_count >= 3) — si aún no estaban en true, quedan
+		// marcados para que el historial refleje que la atención sí llegó a ocurrir.
+		ps.YaHizoPrimerContacto = true
+		ps.YaHizoPrimeraAtencion = true
 		ps.SessionCount++
 		ps.Status = models.PsychosocialSupportStatusCerrado
 	case models.SessionTypeCierreNoConsentimiento:

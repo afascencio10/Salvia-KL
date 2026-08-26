@@ -11,21 +11,29 @@ import (
 
 // CalendarEvent evento normalizado para el frontend (sesión con víctima o reunión de equipo).
 type CalendarEvent struct {
-	ID            string    `json:"id"                       gorm:"column:id"`
-	Kind          string    `json:"kind"                     gorm:"column:kind"` // "session" | "meeting"
-	Title         string    `json:"title"                    gorm:"column:title"`
-	Start         time.Time `json:"start"                    gorm:"column:start"`
-	End           time.Time `json:"end"                      gorm:"column:end"`
-	ScheduledTime string    `json:"scheduledTime"            gorm:"column:scheduled_time"`
-	ScheduledDate string    `json:"scheduledDate"            gorm:"column:scheduled_date_str"`
-	CaseICode     string    `json:"caseICode,omitempty"      gorm:"column:case_icode"`
-	RemissionID   string    `json:"remissionId,omitempty"    gorm:"column:remission_id"`
-	VictimName    string    `json:"victimName,omitempty"     gorm:"column:victim_name"`
-	AgentID       string    `json:"agentId,omitempty"        gorm:"column:agent_id"`
-	AgentName     string    `json:"agentName,omitempty"      gorm:"column:agent_name"`
-	RiskLevel     int       `json:"riskLevel"                gorm:"column:risk_level"`
-	Status        string    `json:"status,omitempty"         gorm:"column:status"`
-	Description   string    `json:"description,omitempty"    gorm:"column:description"`
+	ID              string    `json:"id"                       gorm:"column:id"`
+	Kind            string    `json:"kind"                     gorm:"column:kind"` // "session" | "meeting"
+	Title           string    `json:"title"                    gorm:"column:title"`
+	Start           time.Time `json:"start"                    gorm:"column:start"`
+	End             time.Time `json:"end"                      gorm:"column:end"`
+	ScheduledTime   string    `json:"scheduledTime"            gorm:"column:scheduled_time"`
+	ScheduledDate   string    `json:"scheduledDate"            gorm:"column:scheduled_date_str"`
+	CaseICode       string    `json:"caseICode,omitempty"      gorm:"column:case_icode"`
+	RemissionID     string    `json:"remissionId,omitempty"    gorm:"column:remission_id"`
+	VictimName      string    `json:"victimName,omitempty"     gorm:"column:victim_name"`
+	VictimDocType   string    `json:"victimDocType,omitempty"    gorm:"column:victim_doc_type"`
+	VictimDocNumber string    `json:"victimDocNumber,omitempty"  gorm:"column:victim_doc_number"`
+	AgentID         string    `json:"agentId,omitempty"        gorm:"column:agent_id"`
+	AgentName       string    `json:"agentName,omitempty"      gorm:"column:agent_name"`
+	// PsychologistName / SocialWorkerName solo vienen pobladas cuando la sesión está
+	// asignada a una dupla (tc.dupla_id set); en modo individual viajan vacías y el
+	// frontend usa AgentName. Ver comentario en calSessionsAgentMatch: professional_id
+	// y dupla_id nunca conviven en el mismo registro.
+	PsychologistName string `json:"psychologistName,omitempty" gorm:"column:psychologist_name"`
+	SocialWorkerName string `json:"socialWorkerName,omitempty" gorm:"column:social_worker_name"`
+	RiskLevel        int    `json:"riskLevel"                gorm:"column:risk_level"`
+	Status           string `json:"status,omitempty"         gorm:"column:status"`
+	Description      string `json:"description,omitempty"    gorm:"column:description"`
 }
 
 // CalendarAgentOption ítem para dropdown filtro por agente (supervisor).
@@ -36,11 +44,11 @@ type CalendarAgentOption struct {
 
 // CalendarVictimOption víctima con remisión activa del agente (para programar sesión).
 type CalendarVictimOption struct {
-	CaseICode    string `json:"caseICode"    gorm:"column:case_icode"`
-	FollowUpID   string `json:"followUpId"   gorm:"column:follow_up_id"`
-	VictimName   string `json:"victimName"   gorm:"column:victim_name"`
-	RiskLevel    int    `json:"riskLevel"    gorm:"column:risk_level"`
-	RemissionID  string `json:"remissionId"  gorm:"column:remission_id"`
+	CaseICode   string `json:"caseICode"    gorm:"column:case_icode"`
+	FollowUpID  string `json:"followUpId"   gorm:"column:follow_up_id"`
+	VictimName  string `json:"victimName"   gorm:"column:victim_name"`
+	RiskLevel   int    `json:"riskLevel"    gorm:"column:risk_level"`
+	RemissionID string `json:"remissionId"  gorm:"column:remission_id"`
 }
 
 // CreateSessionInput registro de sesión con víctima.
@@ -131,6 +139,14 @@ LEFT JOIN security.general_user_profile prof_gup
 LEFT JOIN salvia.dupla d
        ON d.id = tc.dupla_id
       AND d.deleted_at IS NULL
+LEFT JOIN security.general_user psy_gu
+       ON psy_gu.general_user_i_code = BTRIM(COALESCE(d.psychologist_id, ''))
+LEFT JOIN security.general_user_profile psy_gup
+       ON psy_gup.general_user_profile_id = psy_gu.general_user_general_user_profile
+LEFT JOIN security.general_user sw_gu
+       ON sw_gu.general_user_i_code = BTRIM(COALESCE(d.social_worker_id, ''))
+LEFT JOIN security.general_user_profile sw_gup
+       ON sw_gup.general_user_profile_id = sw_gu.general_user_general_user_profile
 `
 
 const calSessionsWhereBase = `
@@ -150,8 +166,12 @@ const calSessionsSelect = `
 	COALESCE(vc.victim_case_i_code, tc.case_id, '') AS case_icode,
 	COALESCE(tc.psicosocial_id, '')     AS remission_id,
 	COALESCE(NULLIF(TRIM(CONCAT(vc.victim_case_victim_names, ' ', vc.victim_case_victim_last_names)), ''), '') AS victim_name,
+	COALESCE(vc.victim_case_victim_doc_type, '')   AS victim_doc_type,
+	COALESCE(vc.victim_case_victim_doc_number, '') AS victim_doc_number,
 	COALESCE(prof_gu.general_user_i_code::text, tc.professional_id, '') AS agent_id,
 	COALESCE(TRIM(CONCAT(prof_gup.general_user_profile_names, ' ', prof_gup.general_user_profile_last_names)), '') AS agent_name,
+	COALESCE(TRIM(CONCAT(psy_gup.general_user_profile_names, ' ', psy_gup.general_user_profile_last_names)), '') AS psychologist_name,
+	COALESCE(TRIM(CONCAT(sw_gup.general_user_profile_names, ' ', sw_gup.general_user_profile_last_names)), '')  AS social_worker_name,
 	COALESCE(vf2.victim_case_form2_risk_level, 0) AS risk_level,
 	CASE WHEN tc.is_completed THEN 'realizada' ELSE COALESCE(tc.status, 'programada') END AS status,
 	COALESCE(tc.summary, '')           AS description
@@ -179,8 +199,12 @@ const calMeetingsSelect = `
 	''                                 AS case_icode,
 	''                                 AS remission_id,
 	''                                 AS victim_name,
+	''                                 AS victim_doc_type,
+	''                                 AS victim_doc_number,
 	COALESCE(tma_gu.general_user_i_code::text, tma.agent_id, '') AS agent_id,
 	''                                 AS agent_name,
+	''                                 AS psychologist_name,
+	''                                 AS social_worker_name,
 	0                                  AS risk_level,
 	'programada'                       AS status,
 	COALESCE(tm.description, '')       AS description
@@ -198,8 +222,12 @@ const calMeetingsSelectNoAgent = `
 	''                                 AS case_icode,
 	''                                 AS remission_id,
 	''                                 AS victim_name,
+	''                                 AS victim_doc_type,
+	''                                 AS victim_doc_number,
 	''                                 AS agent_id,
 	''                                 AS agent_name,
+	''                                 AS psychologist_name,
+	''                                 AS social_worker_name,
 	0                                  AS risk_level,
 	'programada'                       AS status,
 	COALESCE(tm.description, '')       AS description

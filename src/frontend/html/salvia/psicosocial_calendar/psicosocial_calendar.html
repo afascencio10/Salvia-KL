@@ -56,7 +56,7 @@
                     <button class="pc-new-item" @click="pickNewSession">
                         <i class="fas fa-user-check pc-new-item-icon"></i>
                         <span>
-                            <span class="pc-new-item-title">Sesión con víctima</span>
+                            <span class="pc-new-item-title">Sesión con ciudadana</span>
                             <span class="pc-new-item-sub">Programar sesión de seguimiento</span>
                         </span>
                     </button>
@@ -293,7 +293,7 @@
 
             <div class="pc-preview">
                 <div class="pc-preview-kindline">
-                    ${ selectedEvent.kind === 'meeting' ? 'Reunión de equipo' : 'Sesión con víctima' }
+                    ${ selectedEvent.kind === 'meeting' ? 'Reunión de equipo' : 'Sesión con ciudadana' }
                 </div>
                 <h2 class="pc-preview-title">${ selectedEvent.kind === 'meeting' ? selectedEvent.title : capitalizeName(selectedEvent.victimName || selectedEvent.title) }</h2>
                 <div class="pc-preview-when">${ formatDateTime(selectedEvent.start) }</div>
@@ -308,17 +308,28 @@
                 </div>
 
                 <div class="pc-preview-props">
-                    <div v-if="selectedEvent.caseICode && selectedEvent.kind === 'session'" class="pc-preview-prop">
-                        <span class="pc-preview-prop-label">Caso</span>
-                        <!-- Va al detalle de la remisión, no al detalle del caso: la sesión
-                             pertenece a una remisión psicosocial puntual, y el detalle del
-                             caso no tiene contexto de sesiones/citas. -->
-                        <a v-if="selectedEvent.remissionId" :href="'/salvia/remision-psicosocial/' + selectedEvent.remissionId" class="pc-preview-prop-value pc-preview-link" target="_blank">
-                            ${ selectedEvent.caseICode }
-                        </a>
-                        <span v-else class="pc-preview-prop-value">${ selectedEvent.caseICode }</span>
+                    <div v-if="selectedEvent.kind === 'session'" class="pc-preview-prop">
+                        <span class="pc-preview-prop-label">Nombre</span>
+                        <span class="pc-preview-prop-value pc-preview-capitalize">${ capitalizeName(selectedEvent.victimName || selectedEvent.title) }</span>
                     </div>
-                    <div v-if="selectedEvent.agentName" class="pc-preview-prop">
+                    <div v-if="selectedEvent.kind === 'session' && (selectedEvent.victimDocType || selectedEvent.victimDocNumber)" class="pc-preview-prop">
+                        <span class="pc-preview-prop-label">Documento</span>
+                        <span class="pc-preview-prop-value">${ [selectedEvent.victimDocType, selectedEvent.victimDocNumber].filter(Boolean).join(' ') }</span>
+                    </div>
+                    <!-- Una sesión queda asignada a un solo profesional (agente) o a una dupla
+                         (psicóloga + trabajadora social), nunca a ambos — ver comentario de
+                         calSessionsAgentMatch en psychosocial_calendar_repository.go. -->
+                    <template v-if="selectedEvent.kind === 'session' && (selectedEvent.psychologistName || selectedEvent.socialWorkerName)">
+                        <div class="pc-preview-prop">
+                            <span class="pc-preview-prop-label">Psicóloga</span>
+                            <span class="pc-preview-prop-value pc-preview-capitalize">${ selectedEvent.psychologistName ? capitalizeName(selectedEvent.psychologistName) : 'Sin asignar' }</span>
+                        </div>
+                        <div class="pc-preview-prop">
+                            <span class="pc-preview-prop-label">Trabajadora social</span>
+                            <span class="pc-preview-prop-value pc-preview-capitalize">${ selectedEvent.socialWorkerName ? capitalizeName(selectedEvent.socialWorkerName) : 'Sin asignar' }</span>
+                        </div>
+                    </template>
+                    <div v-else-if="selectedEvent.agentName" class="pc-preview-prop">
                         <span class="pc-preview-prop-label">Agente</span>
                         <span class="pc-preview-prop-value pc-preview-capitalize">${ capitalizeName(selectedEvent.agentName) }</span>
                     </div>

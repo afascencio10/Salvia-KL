@@ -10,6 +10,15 @@
 
     const cfg = window.NotifConfig || {};
 
+    // Sectores para el filtro de entidades del modal Proyectar — GET /api/v1/entity-branches
+    // espera estas palabras (no códigos de 2 letras). Mismo catálogo que case-entities.js.
+    var NF_SECTORES_MODAL = [
+        { value: 'salud', label: 'Salud' },
+        { value: 'justicia', label: 'Justicia' },
+        { value: 'proteccion', label: 'Protección' },
+        { value: 'otras_instituciones', label: 'Otras instituciones' },
+    ];
+
     var home = Vue.createApp({
         delimiters: ['${', '}'],
         data() {
@@ -49,12 +58,14 @@
                 // Locaciones cargadas al montar (E05 background)
                 allDepartments: [],
                 allCities:      [],
+                sectoresModal:  NF_SECTORES_MODAL,
 
                 modalForm: {
                     // Campos del modal proyectar v2
                     departmentId:         '',
                     cityId:               '',
                     townId:               '',
+                    sector:               '',
                     entityBranchId:       '',
                     entityName:           '',
                     officialDependency:   '',
@@ -420,6 +431,10 @@
                     departmentId:         '',
                     cityId:               '',
                     townId:               '',
+                    // Precarga el sector de la barrera cuando coincide con el catálogo del
+                    // buscador — el usuario puede cambiarlo si necesita otro sector.
+                    sector:               this.sectoresModal.some(function (s) { return s.value === oficio.barrierSector; })
+                                            ? oficio.barrierSector : '',
                     entityBranchId:       '',
                     entityName:           '',
                     officialDependency:   '',
@@ -524,30 +539,16 @@
                         alert('El campo "Entidad" es requerido.');
                         return;
                     }
+                    // Nombre de la entidad, Funcionario, Asunto y Ruta Kofax son opcionales:
+                    // el agente puede no tener todavía el dato completo al proyectar el oficio.
                     var entityName = '';
                     if (this.modalForm.entityBranchId === 'otra') {
-                        if (!this.modalForm.entityName) {
-                            alert('El campo "Nombre de la entidad" es requerido.');
-                            return;
-                        }
-                        entityName = this.modalForm.entityName;
+                        entityName = this.modalForm.entityName || '';
                     } else {
                         var selected = this.modalForm.entityBranches.find(function (e) {
                             return e.id === this.modalForm.entityBranchId;
                         }.bind(this));
                         entityName = selected ? selected.name : '';
-                    }
-                    if (!this.modalForm.officialDependency) {
-                        alert('El campo "Funcionario" es requerido.');
-                        return;
-                    }
-                    if (!this.modalForm.subject) {
-                        alert('El campo "Asunto" es requerido.');
-                        return;
-                    }
-                    if (!this.modalForm.kofaxPath) {
-                        alert('El campo "Ruta del oficio en el Kofax" es requerido.');
-                        return;
                     }
                     payload.departmentId       = this.modalForm.departmentId;
                     payload.cityId             = this.modalForm.cityId;
@@ -678,18 +679,34 @@
             /* ── E10: Cuando selecciona municipio en modal proyectar ────────────── */
 
             onTownChange() {
-                var townId = this.modalForm.townId;
                 this.modalForm.entityBranchId = '';
                 this.modalForm.entityName     = '';
                 this.modalForm.entityBranches = [];
+                this.buscarEntidadesProyectar();
+            },
 
-                if (!townId) return;
+            /* ── Cuando selecciona sector en modal proyectar ─────────────────────
+               El sector filtra las entidades del municipio elegido (igual que el
+               buscador de case-entities.js) — requerido junto con Municipio antes
+               de consultar /api/v1/entity-branches. */
+            onSectorChange() {
+                this.modalForm.entityBranchId = '';
+                this.modalForm.entityName     = '';
+                this.modalForm.entityBranches = [];
+                this.buscarEntidadesProyectar();
+            },
+
+            buscarEntidadesProyectar() {
+                var townId = this.modalForm.townId;
+                var sector = this.modalForm.sector;
+                if (!townId || !sector) return;
 
                 var self = this;
-                getData('/api/v1/entity-branches?town_code=' + encodeURIComponent(townId), function (status, response) {
+                var url = '/api/v1/entity-branches?town_code=' + encodeURIComponent(townId) + '&sector=' + encodeURIComponent(sector);
+                getData(url, function (status, response) {
                     if (status === 200) {
                         self.modalForm.entityBranches = Array.isArray(response) ? response : [];
-                        console.log('[NF] entityBranches town_code=' + townId + ' count=' + self.modalForm.entityBranches.length + ' first=' + JSON.stringify(self.modalForm.entityBranches[0]));
+                        console.log('[NF] entityBranches town_code=' + townId + ' sector=' + sector + ' count=' + self.modalForm.entityBranches.length + ' first=' + JSON.stringify(self.modalForm.entityBranches[0]));
                     }
                 }, true);
             },

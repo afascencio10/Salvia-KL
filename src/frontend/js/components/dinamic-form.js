@@ -850,6 +850,7 @@ function checkVisibility(fs, submission, entryAnswers, item, formState) {
                 case 'equals':             condFailed = stateVal !== trigVal; break;
                 case 'includes':
                 case 'contains':           condFailed = !stateVal.includes(trigVal); break;
+                case 'not_contains':       condFailed = stateVal.includes(trigVal); break;
                 default:                   condFailed = false;
             }
             if (condFailed) failedConditions.push({ ...cond });
@@ -863,6 +864,7 @@ function checkVisibility(fs, submission, entryAnswers, item, formState) {
                     case 'equals':             condFailed = answer.value !== trigVal; break;
                     case 'includes':
                     case 'contains':           condFailed = !answer.value.includes(trigVal); break;
+                    case 'not_contains':       condFailed = answer.value.includes(trigVal); break;
                     default:                   condFailed = false;
                 }
             }

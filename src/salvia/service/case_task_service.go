@@ -495,6 +495,9 @@ func (s *caseTaskService) buildProyectarInput(userId string, fd map[string]inter
 		id64 := int64(v)
 		input.EntityBranchID = &id64
 	}
+	if v, ok := fd["prioridad"].(string); ok {
+		input.Priority = &v
+	}
 	return input
 }
 
