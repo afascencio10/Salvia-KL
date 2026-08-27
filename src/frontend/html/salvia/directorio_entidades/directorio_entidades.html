@@ -1,0 +1,597 @@
+<link rel="stylesheet" href="/static/css/directorio_entidades.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<main class="salvia-main">
+<div class="de-dashboard">
+
+    <!-- ══ HEADER ═══════════════════════════════════════════════════════ -->
+    <div class="de-header">
+        <div class="de-header-titles">
+            <h1 class="de-header-title">Directorio de entidades</h1>
+            <p class="de-header-sub">Fiscalías, comisarías de familia, red de urgencias y líneas de emergencia disponibles para derivación.</p>
+        </div>
+        <button v-if="canCreate" class="de-btn-primary" @click="openCreate">
+            <i class="fas fa-plus"></i> Agregar entidad
+        </button>
+    </div>
+
+    <div v-if="error" class="de-error"><i class="fas fa-circle-exclamation"></i>${ error }</div>
+    <div v-if="successMsg" class="de-success"><i class="fas fa-circle-check"></i>${ successMsg }</div>
+
+    <!-- ══ FILTROS ══════════════════════════════════════════════════════ -->
+    <div class="de-toolbar">
+        <div class="de-search">
+            <i class="fas fa-magnifying-glass"></i>
+            <input type="text" v-model="filters.name" @input="onNameInput" placeholder="Buscar entidad por nombre…"/>
+        </div>
+        <select class="de-select-sm" v-model="filters.sector" @change="loadEntities">
+            <option value="">Todos los sectores</option>
+            <option v-for="s in sectors" :key="s.code" :value="s.code">${ s.label }</option>
+        </select>
+        <select class="de-select-sm" v-model="filters.type" @change="loadEntities">
+            <option value="">Todos los tipos</option>
+            <option v-for="t in types" :key="t.code" :value="t.code">${ t.label }</option>
+        </select>
+        <select class="de-select-sm" v-model="filters.departmentId" @change="onDepartmentChange">
+            <option value="">Departamento</option>
+            <option v-for="d in departments" :key="d.value" :value="d.value">${ d.label }</option>
+        </select>
+        <select class="de-select-sm" v-model="filters.cityICode" @change="loadEntities" :disabled="!filters.departmentId">
+            <option value="">Ciudad</option>
+            <option v-for="c in filteredCities" :key="c.iCode" :value="c.iCode">${ c.label }</option>
+        </select>
+        <button v-if="hasActiveFilters" class="de-link-clear" @click="clearFilters">
+            <i class="fas fa-xmark"></i> Limpiar
+        </button>
+    </div>
+
+    <!-- ══ SPLIT: LISTA + MAPA ══════════════════════════════════════════ -->
+    <div class="de-body">
+        <div class="de-list-wrap">
+            <div class="de-list-header">
+                <span class="de-list-count">
+                    <strong>${ total }</strong> entidad${ total === 1 ? '' : 'es' } encontrada${ total === 1 ? '' : 's' }
+                </span>
+                <span v-if="loading" class="de-list-loading"><span class="de-spinner"></span>Cargando</span>
+            </div>
+            <div class="de-list">
+                <div v-if="!loading && entities.length === 0" class="de-empty">
+                    <i class="fas fa-map-location-dot"></i>
+                    <p>No hay entidades con esos filtros.</p>
+                    <button v-if="hasActiveFilters" class="de-link-clear" @click="clearFilters">Limpiar filtros</button>
+                </div>
+                <div v-for="e in entities" :key="e.id"
+                     class="de-item" :class="[{active: selectedId === e.id}, 'accent-' + (e.sector || 'none')]"
+                     @click="selectEntity(e)">
+                    <div class="de-item-icon" :class="'icon-' + (e.sector || 'none')">
+                        <i :class="typeIcons[e.type] || 'fas fa-building'"></i>
+                    </div>
+                    <div class="de-item-body">
+                        <div class="de-item-top">
+                            <span class="de-item-name">${ e.name }</span>
+                            <span v-if="e.sectorLabel" class="de-tag" :class="'tag-' + e.sector">${ e.sectorLabel }</span>
+                        </div>
+                        <div class="de-item-type">${ e.typeLabel }</div>
+                        <div class="de-item-meta">
+                            <span><i class="fas fa-location-dot"></i>${ e.address || 'Sin dirección' }${ e.cityName ? ', ' + e.cityName : '' }</span>
+                            <span v-if="e.phone"><i class="fas fa-phone"></i>${ e.phone }</span>
+                            <span v-if="e.email"><i class="fas fa-envelope"></i>${ e.email }</span>
+                        </div>
+                        <div class="de-item-actions" v-if="canEdit || canDisable">
+                            <button v-if="canEdit" class="de-item-action" @click.stop="openEdit(e)">
+                                <i class="fas fa-pen"></i> Editar
+                            </button>
+                            <button v-if="canDisable" class="de-item-action danger" @click.stop="confirmDisable(e)">
+                                <i class="fas fa-ban"></i> Deshabilitar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="de-map-wrap">
+            <div class="de-map-info" v-if="entitiesWithGeo === 0">
+                <i class="fas fa-info-circle"></i>
+                Las entidades sin coordenadas no aparecen en el mapa.
+            </div>
+            <div id="de-map"></div>
+        </div>
+    </div>
+
+    <!-- ══ MODAL AGREGAR/EDITAR ═════════════════════════════════════════ -->
+    <div v-if="showModal" class="de-modal-backdrop" @click.self="closeModal">
+        <div class="de-modal">
+            <div class="de-modal-header">
+                <h3 class="de-modal-title">${ isEditing ? 'Editar entidad' : 'Agregar entidad' }</h3>
+                <button class="de-modal-close" @click="closeModal">×</button>
+            </div>
+            <div class="de-modal-body">
+                <div class="de-field full">
+                    <label>Nombre *</label>
+                    <input type="text" v-model="form.name" placeholder="Nombre de la entidad"/>
+                </div>
+
+                <div class="de-field">
+                    <label>Sector</label>
+                    <select v-model="form.sector">
+                        <option value="">Sin sector</option>
+                        <option v-for="s in sectors" :key="s.code" :value="s.code">${ s.label }</option>
+                    </select>
+                </div>
+                <div class="de-field">
+                    <label>Tipo *</label>
+                    <select v-model="form.type">
+                        <option value="">Seleccionar…</option>
+                        <option v-for="t in types" :key="t.code" :value="t.code">${ t.label }</option>
+                    </select>
+                </div>
+
+                <div class="de-field">
+                    <label>Departamento *</label>
+                    <select v-model="form.departmentId" @change="onFormDepartmentChange">
+                        <option value="">Seleccionar…</option>
+                        <option v-for="d in departments" :key="d.value" :value="d.value">${ d.label }</option>
+                    </select>
+                </div>
+                <div class="de-field">
+                    <label>Ciudad *</label>
+                    <select v-model="form.cityICode" @change="onFormCityChange" :disabled="!form.departmentId">
+                        <option value="">Seleccionar…</option>
+                        <option v-for="c in formCities" :key="c.iCode" :value="c.iCode">${ c.label }</option>
+                    </select>
+                </div>
+
+                <div class="de-field">
+                    <label>Municipio</label>
+                    <select v-model="form.townICode" :disabled="!form.cityICode">
+                        <option value="">Sin municipio</option>
+                        <option v-for="m in formTowns" :key="m.value" :value="m.value">${ m.label }</option>
+                    </select>
+                </div>
+                <div class="de-field">
+                    <label>Teléfono</label>
+                    <input type="text" v-model="form.phone" placeholder="Ej. 601 555 1234"/>
+                </div>
+
+                <div class="de-field full">
+                    <label>Dirección *</label>
+                    <input type="text" v-model="form.address" placeholder="Calle, número, barrio…"/>
+                </div>
+
+                <div class="de-field full">
+                    <label>Correo</label>
+                    <input type="email" v-model="form.email" placeholder="contacto@entidad.gov.co"/>
+                </div>
+
+                <div class="de-field full">
+                    <label>Horario de atención</label>
+                    <input type="text" v-model="form.openingHours" placeholder="Ej. Lun-Vie 8am-5pm"/>
+                </div>
+
+                <div class="de-field full">
+                    <label>Geolocalización</label>
+                    <div class="de-geo-row">
+                        <div class="de-field" style="margin:0;">
+                            <input type="number" step="any" v-model.number="form.latitude" placeholder="Latitud"/>
+                        </div>
+                        <div class="de-field" style="margin:0;">
+                            <input type="number" step="any" v-model.number="form.longitude" placeholder="Longitud"/>
+                        </div>
+                        <button type="button" class="de-btn-geo" @click="useCurrentLocation" :disabled="gettingGeo">
+                            <i class="fas fa-crosshairs"></i>
+                            ${ gettingGeo ? 'Buscando…' : 'Usar ubicación actual' }
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="de-modal-footer">
+                <button class="de-btn-secondary" @click="closeModal" :disabled="submitting">Cancelar</button>
+                <button class="de-btn-primary" @click="submitForm" :disabled="submitting">
+                    ${ submitting ? 'Guardando…' : (isEditing ? 'Guardar cambios' : 'Crear entidad') }
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ MODAL CONFIRMAR DESHABILITAR ═════════════════════════════════ -->
+    <div v-if="showDisableModal" class="de-modal-backdrop" @click.self="showDisableModal = false">
+        <div class="de-modal" style="max-width:420px;">
+            <div class="de-modal-header">
+                <h3 class="de-modal-title">Deshabilitar entidad</h3>
+                <button class="de-modal-close" @click="showDisableModal = false">×</button>
+            </div>
+            <div class="de-modal-body" style="display:block;">
+                <p>¿Seguro que quieres deshabilitar <strong>${ disableTarget?.name }</strong>?</p>
+                <p style="font-size:12px;color:var(--de-text-muted);">La entidad no aparecerá en el mapa ni en el listado, pero se conservará su información.</p>
+            </div>
+            <div class="de-modal-footer">
+                <button class="de-btn-secondary" @click="showDisableModal = false" :disabled="submitting">Cancelar</button>
+                <button class="de-btn-danger" @click="doDisable" :disabled="submitting">
+                    ${ submitting ? 'Deshabilitando…' : 'Sí, deshabilitar' }
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+</main>
+
+{{ template "standard_scripts.html" . }}
+{{ template "overlay.html" . }}
+
+<script>
+var deApp = Vue.createApp({
+    delimiters: ['${', '}'],
+    data() {
+        return {
+            currentRole: '{{ .currentRole }}',
+            currentUserICode: '{{ .currentUserICode }}',
+            loading: false,
+            submitting: false,
+            error: '',
+            successMsg: '',
+            entities: [],
+            total: 0,
+            selectedId: '',
+            filters: {
+                sector: '',
+                type: '',
+                departmentId: '',
+                cityICode: '',
+                name: ''
+            },
+            departments: [],
+            allCities: [],
+            filteredCities: [],
+            formCities: [],
+            formTowns: [],
+            sectors: [
+                { code: 'SA', label: 'Salud' },
+                { code: 'JU', label: 'Justicia' },
+                { code: 'PR', label: 'Protección' }
+            ],
+            types: [
+                { code: 'FI', label: 'Fiscalías' },
+                { code: 'CF', label: 'Comisarías de familia' },
+                { code: 'RU', label: 'Red de Urgencias' },
+                { code: 'LE', label: 'Líneas de Emergencia' }
+            ],
+            typeIcons: {
+                FI: 'fas fa-scale-balanced',
+                CF: 'fas fa-people-roof',
+                RU: 'fas fa-notes-medical',
+                LE: 'fas fa-phone-volume'
+            },
+            showModal: false,
+            isEditing: false,
+            editingId: '',
+            form: this.emptyForm(),
+            gettingGeo: false,
+            showDisableModal: false,
+            disableTarget: null,
+            map: null,
+            markers: {},
+            markerLayer: null,
+            searchTimer: null
+        };
+    },
+    computed: {
+        canCreate() { return this.currentRole === 'et' || this.currentRole === 'sv'; },
+        canEdit()   { return this.currentRole === 'sv'; },
+        canDisable(){ return this.currentRole === 'sv'; },
+        entitiesWithGeo() {
+            return this.entities.filter(function(e){ return e.latitude != null && e.longitude != null; }).length;
+        },
+        hasActiveFilters() {
+            const f = this.filters;
+            return !!(f.sector || f.type || f.departmentId || f.cityICode || f.name);
+        }
+    },
+    methods: {
+        emptyForm() {
+            return {
+                name: '', sector: '', type: '',
+                departmentId: '', cityICode: '', townICode: '',
+                address: '', phone: '', email: '', openingHours: '',
+                latitude: null, longitude: null
+            };
+        },
+        flash(msg, isError) {
+            if (isError) { this.error = msg; this.successMsg = ''; }
+            else         { this.successMsg = msg; this.error = ''; }
+            var self = this;
+            setTimeout(function(){ self.error = ''; self.successMsg = ''; }, 4000);
+        },
+        async loadDepartments() {
+            try {
+                const r = await fetch('/api/v1/locations/departments');
+                if (r.ok) this.departments = await r.json();
+            } catch (e) { console.error(e); }
+        },
+        async loadCitiesByDepartment(depId, target) {
+            if (!depId) { this[target] = []; return; }
+            try {
+                const r = await fetch('/api/v1/locations/cities?department_id=' + encodeURIComponent(depId));
+                if (!r.ok) return;
+                const data = await r.json();
+                const cityByICode = data.map(c => ({ label: c.label, value: c.value, iCode: c.iCode }));
+                this[target] = cityByICode;
+            } catch (e) { console.error(e); }
+        },
+        async loadTownsByCity(cityId) {
+            if (!cityId) { this.formTowns = []; return; }
+            try {
+                const r = await fetch('/api/v1/locations/towns?city_id=' + encodeURIComponent(cityId));
+                if (r.ok) this.formTowns = await r.json();
+            } catch (e) { console.error(e); }
+        },
+        async onDepartmentChange() {
+            this.filters.cityICode = '';
+            await this.loadCitiesByDepartment(this.filters.departmentId, 'filteredCities');
+            this.loadEntities();
+        },
+        async onFormDepartmentChange() {
+            this.form.cityICode = '';
+            this.form.townICode = '';
+            this.formTowns = [];
+            await this.loadCitiesByDepartment(this.form.departmentId, 'formCities');
+        },
+        async onFormCityChange() {
+            this.form.townICode = '';
+            const city = this.formCities.find(c => c.iCode === this.form.cityICode);
+            await this.loadTownsByCity(city ? city.value : '');
+        },
+        onNameInput() {
+            var self = this;
+            clearTimeout(this.searchTimer);
+            this.searchTimer = setTimeout(function(){ self.loadEntities(); }, 350);
+        },
+        clearFilters() {
+            this.filters = { sector: '', type: '', departmentId: '', cityICode: '', name: '' };
+            this.filteredCities = [];
+            this.loadEntities();
+        },
+        async loadEntities() {
+            this.loading = true;
+            try {
+                const params = new URLSearchParams();
+                if (this.filters.sector)       params.set('sector', this.filters.sector);
+                if (this.filters.type)         params.set('type', this.filters.type);
+                if (this.filters.departmentId) params.set('departmentId', this.filters.departmentId);
+                if (this.filters.cityICode)    params.set('cityICode', this.filters.cityICode);
+                if (this.filters.name)         params.set('name', this.filters.name);
+                params.set('limit', '500');
+                const r = await fetch('/api/v1/directories?' + params.toString());
+                if (!r.ok) {
+                    const body = await r.json().catch(() => ({}));
+                    this.flash(body.error || 'Error al cargar entidades', true);
+                    this.entities = []; this.total = 0;
+                    return;
+                }
+                const data = await r.json();
+                this.entities = data.items || [];
+                this.total = data.total || 0;
+                this.renderMarkers();
+            } catch (e) {
+                console.error(e);
+                this.flash('Error al cargar entidades', true);
+            } finally {
+                this.loading = false;
+            }
+        },
+        selectEntity(e) {
+            this.selectedId = e.id;
+            if (e.latitude != null && e.longitude != null && this.map) {
+                this.map.setView([e.latitude, e.longitude], 15);
+                const m = this.markers[e.id];
+                if (m) m.openPopup();
+            }
+        },
+        openCreate() {
+            this.isEditing = false;
+            this.editingId = '';
+            this.form = this.emptyForm();
+            this.formCities = [];
+            this.formTowns = [];
+            this.showModal = true;
+        },
+        openEdit(e) {
+            this.isEditing = true;
+            this.editingId = e.id;
+            this.form = {
+                name: e.name || '',
+                sector: e.sector || '',
+                type: e.type || '',
+                departmentId: e.departmentId ? String(e.departmentId) : '',
+                cityICode: e.cityId || '',
+                townICode: e.townICode || '',
+                address: e.address || '',
+                phone: e.phone || '',
+                email: e.email || '',
+                openingHours: e.openingHours || '',
+                latitude: e.latitude,
+                longitude: e.longitude
+            };
+            var self = this;
+            (async function(){
+                if (self.form.departmentId) {
+                    await self.loadCitiesByDepartment(self.form.departmentId, 'formCities');
+                }
+                if (self.form.cityICode) {
+                    const city = self.formCities.find(c => c.iCode === self.form.cityICode);
+                    await self.loadTownsByCity(city ? city.value : '');
+                }
+            })();
+            this.showModal = true;
+        },
+        closeModal() {
+            if (this.submitting) return;
+            this.showModal = false;
+        },
+        validateForm() {
+            if (!this.form.name.trim())    return 'El nombre es obligatorio';
+            if (!this.form.type)           return 'Selecciona un tipo';
+            if (!this.form.departmentId)   return 'Selecciona un departamento';
+            if (!this.form.cityICode)      return 'Selecciona una ciudad';
+            if (!this.form.address.trim()) return 'La dirección es obligatoria';
+            return '';
+        },
+        buildPayload() {
+            return {
+                name: this.form.name.trim(),
+                type: this.form.type,
+                sector: this.form.sector || null,
+                departmentId: this.form.departmentId ? Number(this.form.departmentId) : null,
+                cityICode: this.form.cityICode,
+                townICode: this.form.townICode || null,
+                address: this.form.address.trim(),
+                phone: this.form.phone || null,
+                email: this.form.email || null,
+                openingHours: this.form.openingHours || null,
+                latitude: (this.form.latitude === '' || this.form.latitude == null) ? null : Number(this.form.latitude),
+                longitude: (this.form.longitude === '' || this.form.longitude == null) ? null : Number(this.form.longitude)
+            };
+        },
+        async submitForm() {
+            const err = this.validateForm();
+            if (err) { this.flash(err, true); return; }
+            this.submitting = true;
+            try {
+                const payload = this.buildPayload();
+                let url = '/api/v1/directories';
+                let method = 'POST';
+                if (this.isEditing) {
+                    url += '/' + this.editingId;
+                    method = 'PUT';
+                }
+                const r = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!r.ok) {
+                    const body = await r.json().catch(() => ({}));
+                    this.flash(body.error || 'Error al guardar', true);
+                    return;
+                }
+                this.flash(this.isEditing ? 'Entidad actualizada' : 'Entidad creada');
+                this.showModal = false;
+                await this.loadEntities();
+            } catch (e) {
+                console.error(e);
+                this.flash('Error al guardar', true);
+            } finally {
+                this.submitting = false;
+            }
+        },
+        useCurrentLocation() {
+            if (!navigator.geolocation) {
+                this.flash('El navegador no soporta geolocalización', true);
+                return;
+            }
+            var self = this;
+            this.gettingGeo = true;
+            navigator.geolocation.getCurrentPosition(function(pos){
+                self.form.latitude = pos.coords.latitude;
+                self.form.longitude = pos.coords.longitude;
+                self.gettingGeo = false;
+            }, function(err){
+                self.gettingGeo = false;
+                self.flash('No se pudo obtener la ubicación: ' + err.message, true);
+            }, { enableHighAccuracy: true, timeout: 10000 });
+        },
+        confirmDisable(e) {
+            this.disableTarget = e;
+            this.showDisableModal = true;
+        },
+        async doDisable() {
+            if (!this.disableTarget) return;
+            this.submitting = true;
+            try {
+                const r = await fetch('/api/v1/directories/' + this.disableTarget.id + '/disable', { method: 'PATCH' });
+                if (!r.ok) {
+                    const body = await r.json().catch(() => ({}));
+                    this.flash(body.error || 'Error al deshabilitar', true);
+                    return;
+                }
+                this.flash('Entidad deshabilitada');
+                this.showDisableModal = false;
+                this.disableTarget = null;
+                await this.loadEntities();
+            } catch (e) {
+                console.error(e);
+                this.flash('Error al deshabilitar', true);
+            } finally {
+                this.submitting = false;
+            }
+        },
+        initMap() {
+            if (this.map) return;
+            this.map = L.map('de-map').setView([4.5709, -74.2973], 6);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(this.map);
+            this.markerLayer = L.layerGroup().addTo(this.map);
+            var self = this;
+            setTimeout(function(){ self.map.invalidateSize(); }, 200);
+            setTimeout(function(){ self.map.invalidateSize(); }, 800);
+            window.addEventListener('resize', function(){
+                if (self.map) self.map.invalidateSize();
+            });
+        },
+        renderMarkers() {
+            if (!this.map) return;
+            this.markerLayer.clearLayers();
+            this.markers = {};
+            const bounds = [];
+            for (const e of this.entities) {
+                if (e.latitude == null || e.longitude == null) continue;
+                const m = L.marker([e.latitude, e.longitude]).addTo(this.markerLayer);
+                m.bindPopup(
+                    '<div class="de-popup-name">' + this.escapeHtml(e.name) + '</div>' +
+                    '<div class="de-popup-meta">' +
+                        (e.typeLabel ? '<div>' + this.escapeHtml(e.typeLabel) + '</div>' : '') +
+                        (e.address ? '<div>' + this.escapeHtml(e.address) + '</div>' : '') +
+                        (e.phone ? '<div>Tel: ' + this.escapeHtml(e.phone) + '</div>' : '') +
+                    '</div>'
+                );
+                var self = this;
+                var eid = e.id;
+                m.on('click', function(){ self.selectedId = eid; });
+                this.markers[e.id] = m;
+                bounds.push([e.latitude, e.longitude]);
+            }
+            if (bounds.length > 0) {
+                var self = this;
+                setTimeout(function(){
+                    self.map.invalidateSize();
+                    self.map.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
+                }, 100);
+            } else {
+                this.map.invalidateSize();
+            }
+        },
+        escapeHtml(s) {
+            if (s == null) return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+    },
+    async mounted() {
+        document.body.style.display = 'block';
+        this.initMap();
+        await this.loadDepartments();
+        await this.loadEntities();
+    }
+});
+deApp.mount('#app');
+</script>

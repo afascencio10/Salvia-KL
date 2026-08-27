@@ -59,13 +59,25 @@
                 </select>
             </div>
 
+            <!-- Sector -->
+            <div class="nf-modal-form-group">
+                <label class="nf-modal-label">
+                    Sector <span class="nf-required">*</span>
+                </label>
+                <select v-model="modalForm.sector" class="form-control nf-modal-input"
+                    :disabled="!modalForm.townId" @change="onSectorChange">
+                    <option value="">Selecciona el sector...</option>
+                    <option v-for="s in sectoresModal" :key="s.value" :value="s.value">${ s.label }</option>
+                </select>
+            </div>
+
             <!-- Entidad -->
             <div class="nf-modal-form-group">
                 <label class="nf-modal-label">
                     Entidad <span class="nf-required">*</span>
                 </label>
                 <select v-model="modalForm.entityBranchId" class="form-control nf-modal-input"
-                    :disabled="!modalForm.townId">
+                    :disabled="!modalForm.sector">
                     <option value="">Selecciona la entidad...</option>
                     <option v-for="e in modalForm.entityBranches" :key="e.id" :value="e.id">${ e.name }</option>
                     <option value="otra">Otra entidad</option>
@@ -75,7 +87,7 @@
             <!-- Nombre libre si "Otra entidad" -->
             <div v-if="modalForm.entityBranchId === 'otra'" class="nf-modal-form-group">
                 <label class="nf-modal-label">
-                    Nombre de la entidad <span class="nf-required">*</span>
+                    Nombre de la entidad
                 </label>
                 <input
                     v-model="modalForm.entityName"
@@ -87,7 +99,7 @@
             <!-- Funcionario -->
             <div class="nf-modal-form-group">
                 <label class="nf-modal-label">
-                    Funcionario <span class="nf-required">*</span>
+                    Funcionario
                 </label>
                 <input
                     v-model="modalForm.officialDependency"
@@ -99,7 +111,7 @@
             <!-- Asunto -->
             <div class="nf-modal-form-group">
                 <label class="nf-modal-label">
-                    Asunto <span class="nf-required">*</span>
+                    Asunto
                 </label>
                 <input
                     v-model="modalForm.subject"
@@ -111,7 +123,7 @@
             <!-- Ruta Kofax -->
             <div class="nf-modal-form-group">
                 <label class="nf-modal-label">
-                    Ruta del oficio en el Kofax <span class="nf-required">*</span>
+                    Ruta del oficio en el Kofax
                 </label>
                 <input
                     v-model="modalForm.kofaxPath"
@@ -123,7 +135,7 @@
             <!-- Prioridad -->
             <div class="nf-modal-form-group">
                 <label class="nf-modal-label">
-                    Prioridad del oficio <span class="nf-required">*</span>
+                    Prioridad del oficio
                 </label>
                 <select v-model="modalForm.prioridad" class="form-control nf-modal-input">
                     <option value="normal">Normal</option>

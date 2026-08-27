@@ -4,6 +4,7 @@ import (
 	internaldb "bitsflow/internal/db"
 	"bitsflow/internal/models"
 	"context"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,6 +23,9 @@ type DuplaRepository interface {
 	ExistsActiveByID(ctx context.Context, id string) (bool, error)
 	IsInUseNonClosed(ctx context.Context, duplaID string) (bool, error)
 	SoftDelete(ctx context.Context, id string) error
+	// FindActiveIDsByMemberIDs retorna IDs de duplas activas donde el profesional
+	// figura como psychologist_id o social_worker_id (disponibilidad de agenda).
+	FindActiveIDsByMemberIDs(ctx context.Context, memberIDs []string) ([]string, error)
 }
 
 type duplaRepository struct {
@@ -238,4 +242,40 @@ WHERE id = ?
 		return gorm.ErrRecordNotFound
 	}
 	return nil
+}
+
+// FindActiveIDsByMemberIDs retorna IDs de duplas activas donde alguno de memberIDs
+// es psychologist_id o social_worker_id.
+func (r *duplaRepository) FindActiveIDsByMemberIDs(ctx context.Context, memberIDs []string) ([]string, error) {
+	cleaned := make([]string, 0, len(memberIDs))
+	seen := map[string]struct{}{}
+	for _, id := range memberIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		cleaned = append(cleaned, id)
+	}
+	if len(cleaned) == 0 {
+		return []string{}, nil
+	}
+
+	var ids []string
+	err := r.db.WithContext(ctx).
+		Table("salvia.dupla").
+		Select("id").
+		Where("deleted_at IS NULL").
+		Where("psychologist_id IN ? OR social_worker_id IN ?", cleaned, cleaned).
+		Scan(&ids).Error
+	if err != nil {
+		return nil, err
+	}
+	if ids == nil {
+		ids = []string{}
+	}
+	return ids, nil
 }

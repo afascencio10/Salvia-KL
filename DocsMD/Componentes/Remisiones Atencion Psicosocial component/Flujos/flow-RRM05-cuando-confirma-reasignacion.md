@@ -94,7 +94,8 @@ Response 200:
 {
   "ok": true,
   "remisiones_updated": 2,
-  "team_contacts_updated": 5
+  "team_contacts_updated": 5,
+  "case_tasks_updated": 3
 }
 ```
 
@@ -113,6 +114,11 @@ PASO B2 — Transacción
   Iniciar transacción
   remisionesUpdated = 0
   teamContactsUpdated = 0
+  caseTasksUpdated = 0
+
+  taskAssigneeId:
+    SI assign_mode === 'professional' → professional_id
+    SI assign_mode === 'dupla'        → dupla.psychologist_id
 
   Para cada remisionId en remision_ids:
 
@@ -164,6 +170,23 @@ PASO B2 — Transacción
 
     teamContactsUpdated += filas afectadas
 
+    ── B2.4 — Reasignar case_task pendientes de la remisión ──
+    Tabla: salvia.case_task
+    Modelo: models.CaseTask
+
+    Criterio: psychosocial_support_id = remisionId AND status = 'ToDo'
+
+    UPDATE salvia.case_task
+    SET assigned_user_id = $taskAssigneeId,
+        updated_at       = NOW()
+    WHERE BTRIM(psychosocial_support_id::text) = BTRIM($remisionId)
+      AND status = 'ToDo'
+      AND deleted_at IS NULL
+
+    caseTasksUpdated += filas afectadas
+
+    No se tocan case_task con status = 'Done' (historial de tareas ya realizadas).
+
   Commit transacción
   SI falla → Rollback completo
 
@@ -176,7 +199,8 @@ PASO B2 — Transacción
 |---|---|---|
 | salvia.psychosocial_support | PsychosocialSupport | UPDATE professional_id / dupla_id (exclusivos) |
 | salvia.team_contact | TeamContact | UPDATE solo WHERE is_completed = false |
-| salvia.dupla | Dupla | READ (validación modo dupla) |
+| salvia.case_task | CaseTask | UPDATE assigned_user_id solo WHERE status = 'ToDo' |
+| salvia.dupla | Dupla | READ (validación modo dupla + psychologist_id para B2.4) |
 | security.general_user | — | READ (validación profesional) |
 
 Nota: `team_contact.psicosocial_id` es VARCHAR; comparar con `psychosocial_support.id::text`.
@@ -189,6 +213,7 @@ Nota: `team_contact.psicosocial_id` es VARCHAR; comparar con `psychosocial_suppo
 | Entidad | Motivo |
 |---|---|
 | team_contact con is_completed = true | Conservar asignación histórica de sesiones realizadas |
+| case_task con status = 'Done' | Conservar asignación histórica de tareas ya realizadas |
 | psychosocial_support.status | La reasignación no cambia el estado del flujo |
 | victim_case / follow_up_v2 | Fuera de alcance de este modal |
 
@@ -203,10 +228,13 @@ Nota: `team_contact.psicosocial_id` es VARCHAR; comparar con `psychosocial_suppo
        ▼
 POST /api/v1/psychosocial-support/reasignar-bulk
        │
-       ├── Por cada remisionId ──────────────────────────────┐
-       │    1. UPDATE psychosocial_support (prof OR dupla)   │
-       │    2. UPDATE team_contact (is_completed = false)    │
-       └─────────────────────────────────────────────────────┘
+       ├── Por cada remisionId ──────────────────────────────────────┐
+       │    1. UPDATE psychosocial_support (prof OR dupla)           │
+       │    2. UPDATE team_contact (is_completed = false)            │
+       │    3. UPDATE case_task ToDo → assigned_user_id              │
+       │       professional: professional_id                         │
+       │       dupla:        dupla.psychologist_id                   │
+       └─────────────────────────────────────────────────────────────┘
        │
        ▼
 emit('reassigned') → padre reload() remisiones-psicosocial-component

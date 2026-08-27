@@ -378,7 +378,7 @@
             },
             submit(action, iCode) {
                 if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
-                    location.assign(home.config.globalProperties.enums.nav_rules["default"]);
+                    salviaGoBack(home.config.globalProperties.enums.nav_rules["default"]);
                 }else if(action == "openAssign"){
                     home.config.globalProperties.currentCase = iCode
                     document.getElementById('assignOperatorOverlay').style.display = 'flex';

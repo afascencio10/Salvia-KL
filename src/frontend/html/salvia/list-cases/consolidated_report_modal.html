@@ -232,10 +232,11 @@
         </div>
 
         <div class="rcm-footer">
-            <button type="button" class="rcm-btn rcm-btn--secondary" :disabled="loading" @click="close">
+            <button type="button" class="rcm-btn rcm-btn--secondary" @click="close">
                 Cancelar
             </button>
             <button
+                v-if="!jobReady"
                 type="button"
                 class="rcm-btn rcm-btn--primary"
                 :disabled="loading || !startDate || !endDate"
@@ -243,7 +244,16 @@
                 aria-busy="loading"
                 style="background-color: #6d28d9; border-color: #6d28d9;"
             >
-                ${ loading ? 'Procesando...' : 'Descargar' }
+                ${ loading ? 'Generando...' : 'Generar reporte' }
+            </button>
+            <button
+                v-if="jobReady"
+                type="button"
+                class="rcm-btn rcm-btn--primary"
+                @click="downloadReport"
+                style="background-color: #16a34a; border-color: #16a34a;"
+            >
+                ⬇ Descargar reporte
             </button>
         </div>
     </div>

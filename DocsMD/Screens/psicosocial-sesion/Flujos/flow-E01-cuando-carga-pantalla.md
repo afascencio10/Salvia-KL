@@ -6,6 +6,7 @@
 INPUT: {
   psicosocialId:  UUID de la remisión psicosocial  → route param :psicosocial_id
   userICode:      i_code del profesional           → plantilla Go ({{ .userICode }})
+  contactId:      UUID opcional del team_contact   → query ?contactId= (desde "Ver sesión")
 }
 
 
@@ -25,7 +26,10 @@ PASO 2 — Llamar al backend para cargar la sesión
   Mientras la petición está en curso: pageLoading = true → se muestra un loader de
   página (spinner) en lugar de la tarjeta de víctima y del formulario. Implementado.
 
+  contactId = URLSearchParams.get('contactId')   // desde "Ver sesión" en detalle remisión
+
   GET /api/v1/psychosocial-support/{psicosocialId}/load?agent_id={userICode}
+      [&contact_id={contactId}]   // opcional — ver PASO 8
 
   Nota: el endpoint real usa el prefijo "psychosocial-support" (igual que el resto
   de la API: /detail, /contacts, etc.), no "psicosocial-support". El mock inicial
@@ -36,7 +40,8 @@ PASO 2 — Llamar al backend para cargar la sesión
     → TERMINAR ejecución   // DinamicForm no se monta; se muestra ErrorAlert
 
   SI respuesta ok:
-    → data = JSON parseado { formId, formType, submissionId, victimInfo, psicosocialState, formState }
+    → data = JSON parseado { formId, formType, submissionId, victimInfo,
+                              psicosocialState, formState, canEdit, teamContactId, isCompleted }
     → CONTINÚA PASO 3
 
   Al finalizar (éxito o error): pageLoading = false.
@@ -45,34 +50,34 @@ PASO 2 — Llamar al backend para cargar la sesión
 PASO 3 — Poblar estado de la pantalla
 
   formId           = data.formId           // UUID del formulario seleccionado por el backend
-  submissionId     = data.submissionId     // UUID del form_submission activo
+  submissionId     = data.submissionId     // UUID del form_submission del team_contact resuelto
   victimInfo       = data.victimInfo
   psicosocialState = data.psicosocialState  // { yaHizoPrimerContacto, yaHizoPrimeraAtencion, sessionCount, status }
-  formState        = data.formState         // {} — objeto vacío; skipContact ya no se usa
-
-  // psicosocialState se usa para:
-  //   - Calcular el label del badge "Sesión X de 6" en la PsicosocialCard
-  //   - Mostrar el FormTypeBadge con el nombre del formulario cargado
-  //   - Derivar el texto del CompletedOverlay al terminar
+  formState        = data.formState         // incluye currentBarriers, etc.
+  canEdit          = data.canEdit           // lo calcula el backend (PASO 4 / 11)
 
 
-PASO 4 — Calcular canEdit
+PASO 4 — canEdit (fuente de verdad: backend)
 
-  SI psicosocialState.status === 'cerrado':
-    → canEdit = false
-    → TERMINAR cálculo   // La remisión está cerrada: solo lectura
+  El frontend NO recalcula canEdit. Usa `data.canEdit` del backend:
 
-  SI cualquier otro status:
-    → canEdit = true
+  canEdit = false SI:
+    - team_contact.is_completed == true   (vista "Ver sesión" de sesión ya guardada)
+    - O psicosocial_support.status == 'cerrado'
+  canEdit = true en caso contrario (contacto pendiente / en curso)
+
+  Entrada desde detalle remisión:
+    - "Ver sesión" → /salvia/psicosocial/registrar/{id}?contactId={tc.id}
+    - "Registrar sesión" → /salvia/psicosocial/registrar/{id}  (sin contactId → pendiente)
 
 
 PASO 5 — DinamicForm se monta con los props calculados
 
   DinamicForm recibe:
     :form-id       = formId        (UUID devuelto por el backend — varía por sesión)
-    :submission-id = submissionId  (del team_contact activo)
-    :can-edit      = canEdit       (calculado en PASO 4)
-    :form-state    = formState     (objeto reactivo — actualmente vacío, reservado para extensiones futuras)
+    :submission-id = submissionId  (del team_contact resuelto — con answers si ya se guardó)
+    :can-edit      = canEdit       (desde data.canEdit del backend)
+    :form-state    = formState
 
   Nota: La visibilidad de S2 en el Form de Primer Contacto (Primera Atención) y de S3 en el
   Form de Cierre es gestionada internamente por DinamicForm a través de visibility_conditions
@@ -93,6 +98,7 @@ PASO 5 — DinamicForm se monta con los props calculados
 INPUT: {
   psicosocialId:  UUID de la remisión  → path param :id
   agentId:        i_code del usuario   → query param agent_id
+  contactId:      UUID opcional        → query param contact_id  (team_contact a reabrir)
 }
 
 
@@ -150,6 +156,26 @@ PASO 7 — Seleccionar el formulario según el estado del proceso
 
 PASO 8 — Resolver el team_contact activo
 
+  ── Rama A: contact_id presente (flujo "Ver sesión") ──
+
+  DB.team_contact.FindOne({ id = contactId, psicosocial_id = psicosocialId })
+
+  SI no existe o no pertenece a la remisión:
+    → 404 { error: "contacto de sesión no encontrado" }
+    → TERMINAR
+
+  → tc = registro encontrado
+  → NO crear team_contact nuevo
+  → formId / formKey: reutilizar tc.FormID (si vacío, calcular PASO 7 solo para respuesta;
+    no reescribir el contacto completado de forma agresiva)
+  → SI tc.FormSubmissionID vacío:
+    → 400/404 { error: "la sesión no tiene formulario asociado" }
+    → TERMINAR
+  → submissionId = tc.FormSubmissionID  (contiene las answers ya guardadas)
+  → canEdit = false SI tc.IsCompleted O ps.Status == 'cerrado'; else true
+
+  ── Rama B: sin contact_id (flujo "Registrar sesión" / carga normal) ──
+
   Buscar un team_contact pendiente para este psicosocial_id:
     DB.team_contact.FindOne({
       psicosocial_id   = psicosocialId,
@@ -172,29 +198,27 @@ PASO 8 — Resolver el team_contact activo
          psicosocial_id   = psicosocialId
          is_completed     = false
          is_psico_session = true
-         form_id          = formId       (NUEVO campo — fija el formulario de esta sesión)
-         session_type     = formKey      (NUEVO campo)
+         form_id          = formId
+         session_type     = formKey
          created_at       = NOW()
 
-    → Asignación profesional/dupla (GAP resuelto — nunca se guardan ambos campos):
-         SI ps.DuplaID existe:      tc.dupla_id = ps.DuplaID       (tc.professional_id queda NULL)
-         SINO SI ps.ProfessionalID: tc.professional_id = ps.ProfessionalID (tc.dupla_id queda NULL)
-         SINO:                      tc.professional_id = agentId  (caso raro: remisión sin asignar)
-       Cualquier profesional de la dupla puede cargar y completar esta sesión — el
-       team_contact registra la dupla como conjunto, no a la persona específica que
-       la abrió.
-    → tc = nuevo registro
+    → Asignación profesional/dupla (nunca se guardan ambos campos):
+         SI ps.DuplaID existe:      tc.dupla_id = ps.DuplaID
+         SINO SI ps.ProfessionalID: tc.professional_id = ps.ProfessionalID
+         SINO:                      tc.professional_id = agentId
 
 
 PASO 9 — Resolver o crear el FormSubmission
 
-  SI tc.FormSubmissionID existe:
-    → submissionId = tc.FormSubmissionID
+  SI Rama A (contact_id): ya resuelto en PASO 8 — no crear submission nuevo.
 
-  SI tc.FormSubmissionID está vacío:
-    → Crear nueva FormSubmission en DB ({ formId })
-    → submissionId = nuevo ID
-    → Actualizar tc.FormSubmissionID = submissionId en DB
+  SI Rama B:
+    SI tc.FormSubmissionID existe:
+      → submissionId = tc.FormSubmissionID
+    SI tc.FormSubmissionID está vacío:
+      → Crear nueva FormSubmission en DB ({ formId })
+      → submissionId = nuevo ID
+      → Actualizar tc.FormSubmissionID = submissionId en DB
 
 
 PASO 10 — Cargar información de la víctima
@@ -211,23 +235,20 @@ PASO 10 — Cargar información de la víctima
 
 PASO 11 — Responder al frontend
 
+  canEdit = !(tc.IsCompleted || ps.Status == 'cerrado')
+
   200 {
-    formId:      "{UUID del formulario seleccionado en PASO 7 (o reutilizado del team_contact)}",
-    formType:    "{PRIMER_CONTACTO | PRIMERA_ATENCION | ATENCION_PSICOSOCIAL | CIERRE}",
-    submissionId: "{UUID del form_submission}",
-    victimInfo: {
-      Names, LastNames, Phone, GenderIdentity, TownName, RiskLevel, CaseICode
-    },
+    formId:         "{UUID del formulario del team_contact}",
+    formType:       "{PRIMER_CONTACTO | PRIMERA_ATENCION | ATENCION_PSICOSOCIAL | CIERRE}",
+    submissionId:   "{UUID del form_submission}",
+    teamContactId:  "{UUID del team_contact resuelto}",
+    isCompleted:    tc.IsCompleted,
+    canEdit:        canEdit,
+    victimInfo: { ... },
     psicosocialState: {
-      yaHizoPrimerContacto:  ps.YaHizoPrimerContacto,
-      yaHizoPrimeraAtencion: ps.YaHizoPrimeraAtencion,
-      sessionCount:          ps.SessionCount,
-      status:                ps.Status
+      yaHizoPrimerContacto, yaHizoPrimeraAtencion, sessionCount, status
     },
-    formState: {}
-    // formState ya no incluye skipContact. La visibilidad de secciones
-    // es gestionada completamente por DinamicForm a través de
-    // salvia.visibility_condition.
+    formState: { currentBarriers: [...] }
   }
 
   → FIN EJECUCIÓN ✓

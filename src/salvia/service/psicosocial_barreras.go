@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 )
 
 // ─── Formularios Psicosociales — Barreras (sección "Identificación de Barreras") ─────────────
@@ -338,4 +339,180 @@ func (s *formService) processPsicosocialBarrierEntries(ctx context.Context, form
 	}
 
 	return created, nil
+}
+
+// ─── Seguimiento a Barreras (§9.6) ─────────────────────────────────────────────
+//
+// Repeater group IDs capturados de Supabase (sección "Seguimiento a Barreras Activas").
+// Las 7 preguntas del repeater NO tienen IDs fijos en Go — se resuelven en runtime por Order:
+//
+//	1 = info (nombre de barrera)
+//	2 = Persiste
+//	3 = Respuesta institucional
+//	4 = Gestión
+//	5 = Actuaciones
+//	6 = Cierra
+//	7 = Motivo de cierre
+
+var psicosocialSeguimientoBarrerasByForm = map[string]string{
+	constants.FormIDPrimerContacto:      "94718173-b809-41e4-86d5-378de3434dca",
+	constants.FormIDPrimeraAtencion:     "3cb23f26-af5a-4052-8987-28294f68e5dc",
+	constants.FormIDAtencionPsicosocial: "cb2fb8b8-0431-4088-b626-06e1069432fa",
+	constants.FormIDCierre:              "10122569-e6c2-4449-a7ff-add378815eb8",
+}
+
+// psicosocialSeguimientoBarreraQIDs agrupa los IDs resueltos por Order del repeater.
+type psicosocialSeguimientoBarreraQIDs struct {
+	Persiste              string // order 2
+	RespuestaInstitucional string // order 3
+	Gestion               string // order 4
+	Actuaciones           string // order 5
+	Cierra                string // order 6
+	MotivoCierre          string // order 7
+}
+
+func resolveSeguimientoBarreraQIDs(questions []models.Question) psicosocialSeguimientoBarreraQIDs {
+	var q psicosocialSeguimientoBarreraQIDs
+	for _, qu := range questions {
+		switch qu.Order {
+		case 2:
+			q.Persiste = qu.ID
+		case 3:
+			q.RespuestaInstitucional = qu.ID
+		case 4:
+			q.Gestion = qu.ID
+		case 5:
+			q.Actuaciones = qu.ID
+		case 6:
+			q.Cierra = qu.ID
+		case 7:
+			q.MotivoCierre = qu.ID
+		}
+	}
+	return q
+}
+
+func answerIsTrueish(v string) bool {
+	v = strings.ToLower(strings.TrimSpace(v))
+	return v == "true" || v == "si" || v == "sí"
+}
+
+// processPsicosocialBarrierFollowUps implementa §9.6: por cada entry del repeater
+// "Seguimiento a Barreras", relaciona por índice con las barreras activas de la remisión,
+// actualiza status a MANAGED si cierra, crea BarrierFollowUp y evento de timeline.
+func (s *formService) processPsicosocialBarrierFollowUps(ctx context.Context, formID, submissionID, actorID string, ps *models.PsychosocialSupport) error {
+	groupID, ok := psicosocialSeguimientoBarrerasByForm[formID]
+	if !ok {
+		return nil
+	}
+	if s.repeaterEntryRepo == nil || s.answerRepo == nil || s.barrierV2Repo == nil {
+		log.Printf("⚠️  [processPsicosocialBarrierFollowUps] repos nil — seguimiento a barreras NO procesado")
+		return nil
+	}
+	if s.questionRepo == nil || s.teamContactRepo == nil {
+		log.Printf("⚠️  [processPsicosocialBarrierFollowUps] questionRepo/teamContactRepo nil — seguimiento a barreras NO procesado")
+		return nil
+	}
+
+	// Barreras activas: mismos criterios que loadActivePsicosocialBarriers
+	// (team_contacts de la remisión → barrier_v2 status != MANAGED).
+	contacts, err := s.teamContactRepo.FindByPsicosocialID(ctx, ps.ID)
+	if err != nil {
+		return fmt.Errorf("processPsicosocialBarrierFollowUps: team_contacts: %w", err)
+	}
+	if len(contacts) == 0 {
+		return nil
+	}
+	contactIDs := make([]string, len(contacts))
+	for i, c := range contacts {
+		contactIDs[i] = c.ID
+	}
+	activeBarriers, err := s.barrierV2Repo.FindActiveByTeamContactIDs(ctx, contactIDs)
+	if err != nil {
+		return fmt.Errorf("processPsicosocialBarrierFollowUps: barreras activas: %w", err)
+	}
+	if len(activeBarriers) == 0 {
+		return nil
+	}
+
+	questions, err := s.questionRepo.FindByRepeaterGroupID(ctx, groupID)
+	if err != nil {
+		return fmt.Errorf("processPsicosocialBarrierFollowUps: preguntas del repeater: %w", err)
+	}
+	qIDs := resolveSeguimientoBarreraQIDs(questions)
+
+	entries, err := s.repeaterEntryRepo.FindBySubmissionIDAndGroupIDs(ctx, submissionID, []string{groupID})
+	if err != nil {
+		return fmt.Errorf("processPsicosocialBarrierFollowUps: leer entries: %w", err)
+	}
+	log.Printf("[processPsicosocialBarrierFollowUps] formID=%s psicosocialId=%s entries=%d activeBarriers=%d",
+		formID, ps.ID, len(entries), len(activeBarriers))
+
+	for idx, entry := range entries {
+		sbAnswers, err := s.answerRepo.FindByRepeaterEntryID(ctx, entry.ID)
+		if err != nil {
+			return fmt.Errorf("processPsicosocialBarrierFollowUps: respuestas entry [%s]: %w", entry.ID, err)
+		}
+		sbMap := make(map[string]string, len(sbAnswers))
+		for _, a := range sbAnswers {
+			sbMap[a.QuestionID] = a.Value
+		}
+
+		barrierID := ""
+		if idx < len(activeBarriers) {
+			barrierID = activeBarriers[idx].ID
+		}
+		cierra := answerIsTrueish(sbMap[qIDs.Cierra])
+		log.Printf("[processPsicosocialBarrierFollowUps] [%d] barrierID=%s persiste=%s cierra=%v",
+			idx, barrierID, sbMap[qIDs.Persiste], cierra)
+
+		if cierra && barrierID != "" {
+			if err := s.barrierV2Repo.UpdateStatus(ctx, barrierID, models.BarrierV2StatusManaged); err != nil {
+				log.Printf("[processPsicosocialBarrierFollowUps] ❌ no se pudo cerrar barrera %s: %v", barrierID, err)
+			} else {
+				log.Printf("[processPsicosocialBarrierFollowUps] ✅ barrera cerrada → id=%s", barrierID)
+			}
+		}
+
+		if s.barrierFollowUpRepo != nil && barrierID != "" {
+			bfu := &models.BarrierFollowUp{
+				BarrierID:             barrierID,
+				FollowUpID:            ps.FollowUpID,
+				CreatedByID:           actorID,
+				Persists:              answerIsTrueish(sbMap[qIDs.Persiste]),
+				InstitutionalResponse: sbMap[qIDs.RespuestaInstitucional],
+				ManagementActions:     sbMap[qIDs.Gestion],
+				Actions:               sbMap[qIDs.Actuaciones],
+				ClosesBarrier:         cierra,
+				ClosureReason:         sbMap[qIDs.MotivoCierre],
+			}
+			if err := s.barrierFollowUpRepo.Create(ctx, bfu); err != nil {
+				log.Printf("[processPsicosocialBarrierFollowUps] ❌ barrier_follow_up barrera %s: %v", barrierID, err)
+			} else {
+				log.Printf("[processPsicosocialBarrierFollowUps] ✅ barrier_follow_up creado → barrera %s", barrierID)
+			}
+		}
+
+		if s.caseTimelineRepo != nil {
+			resumen := buildBarrierFollowUpSummary(sbMap[qIDs.Persiste], sbMap[qIDs.RespuestaInstitucional], sbMap[qIDs.Actuaciones])
+			tlEvent := &models.CaseTimelineEvent{
+				CaseID:                ps.CaseID,
+				FollowUpID:            ps.FollowUpID,
+				Category:              "Barreras",
+				Type:                  "Seguimiento a Barrera",
+				Icon:                  "shield-halved",
+				Color:                 "#6366f1",
+				Description:           resumen,
+				EventUserID:           actorID,
+				Date:                  time.Now(),
+				PsychosocialSupportID: ps.ID,
+				CreatedAt:             time.Now(),
+			}
+			if err := s.caseTimelineRepo.Create(ctx, tlEvent); err != nil {
+				log.Printf("[processPsicosocialBarrierFollowUps] ❌ timeline barrera %s: %v", barrierID, err)
+			}
+		}
+	}
+
+	return nil
 }

@@ -934,7 +934,7 @@
             },
             submit(action,event) {
               if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
-                location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+                salviaGoBack(home.config.globalProperties.enums.nav_rules["default"]);  
               }else{
                 this.res.victimCase.form.livingLatitude = home.config.globalProperties.latitude;
                 this.res.victimCase.form.livingLongitude = home.config.globalProperties.longitude;

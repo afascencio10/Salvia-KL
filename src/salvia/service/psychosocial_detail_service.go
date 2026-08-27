@@ -25,6 +25,12 @@ var ErrPsicosocialSessionNotFound = errors.New("psicosocialSession: remisión no
 // directo ni pertenece a la dupla asignada a la remisión.
 var ErrPsicosocialSessionNotAssigned = errors.New("psicosocialSession: sesión no asignada a este profesional")
 
+// ErrPsicosocialContactNotFound se retorna cuando contact_id no existe o no pertenece a la remisión.
+var ErrPsicosocialContactNotFound = errors.New("psicosocialSession: contacto de sesión no encontrado")
+
+// ErrPsicosocialContactNoSubmission se retorna al abrir un contacto sin form_submission asociado.
+var ErrPsicosocialContactNoSubmission = errors.New("psicosocialSession: la sesión no tiene formulario asociado")
+
 // PsychosocialDetailResponse agrupa los datos para la pantalla de detalle.
 type PsychosocialDetailResponse struct {
 	// Remisión
@@ -51,14 +57,23 @@ type PsychosocialDetailResponse struct {
 	ProfessionalName string  `json:"professionalName"`
 	ProfessionalRole string  `json:"professionalRole"`
 
+	// Dupla asignada
+	DuplaID          *string `json:"duplaId"`
+	DuplaName        string  `json:"duplaName"`
+	PsychologistName string  `json:"psychologistName"`
+	SocialWorkerName string  `json:"socialWorkerName"`
+
 	// Remitente
 	SubmittedByName string `json:"submittedByName"`
 
 	// Campos adicionales
 	RequiresInterpreter string  `json:"requiresInterpreter"`
+	AjustesRazonables   string  `json:"ajustesRazonables"`
 	ConsentStatus       string  `json:"consentStatus"`
 	ConsentDate         string  `json:"consentDate"`
 	SchedulePreference  *string `json:"schedulePreference"`
+	ValidationPending   bool    `json:"validationPending"`
+	ValidationCriteria  []string `json:"validationCriteria"`
 
 	// Contactos/Sesiones
 	Contacts []PsychosocialContactItem `json:"contacts"`
@@ -80,11 +95,15 @@ type PsychosocialContactItem struct {
 
 type PsychosocialDetailService interface {
 	GetDetail(ctx context.Context, id string) (*PsychosocialDetailResponse, error)
+	ValidateRemision(ctx context.Context, id string, isValid bool, reason string, actorID string) error
 	CreateContact(ctx context.Context, psicosocialID, contactType, contactDate, contactTime, summary, sessionType, scheduledDate, scheduledTime string) (*models.TeamContact, error)
 	RescheduleContact(ctx context.Context, contactID, scheduledDate, scheduledTime string) error
 	CancelContact(ctx context.Context, contactID string) error
 	UpdateSchedulePreference(ctx context.Context, psicosocialID, preference string) error
-	LoadSession(ctx context.Context, psicosocialID, agentID string) (*LoadPsicosocialSessionResult, error)
+	LoadSession(ctx context.Context, psicosocialID, agentID, contactID string) (*LoadPsicosocialSessionResult, error)
+	// CheckSessionAvailability valida si date+time (ventana 2h) está libre para el
+	// profesional o la dupla de la remisión. mode: "individual" | "dupla" (vacío = inferir).
+	CheckSessionAvailability(ctx context.Context, psicosocialID, date, timeStr, mode string) (available bool, message string, err error)
 }
 
 // ── Evento E-01: cargar pantalla "Registrar Sesión Psicosocial" ───────────────
@@ -118,6 +137,9 @@ type LoadPsicosocialSessionResult struct {
 	FormID           string                        `json:"formId"`
 	FormType         string                        `json:"formType"`
 	SubmissionID     string                        `json:"submissionId"`
+	TeamContactID    string                        `json:"teamContactId,omitempty"`
+	IsCompleted      bool                          `json:"isCompleted"`
+	CanEdit          bool                          `json:"canEdit"`
 	VictimInfo       *PsicosocialSessionVictimInfo `json:"victimInfo"`
 	PsicosocialState PsicosocialStateInfo          `json:"psicosocialState"`
 	FormState        map[string]interface{}        `json:"formState"`
@@ -213,6 +235,37 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 		resp.ProfessionalRole = roleName
 	}
 
+	// 3b. Dupla asignada (si existe)
+	if ps.DuplaID != nil && *ps.DuplaID != "" {
+		resp.DuplaID = ps.DuplaID
+		var dupla models.Dupla
+		if err := s.db.WithContext(ctx).Where("id = ?", *ps.DuplaID).First(&dupla).Error; err == nil {
+			resp.DuplaName = dupla.Name
+			// Resolver nombre de la psicóloga
+			if dupla.PsychologistID != "" {
+				var psyName string
+				s.db.WithContext(ctx).Raw(`
+					SELECT COALESCE(gup.general_user_profile_names || ' ' || gup.general_user_profile_last_names, '')
+					FROM security.general_user gu
+					JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+					WHERE gu.general_user_i_code = ?
+				`, dupla.PsychologistID).Scan(&psyName)
+				resp.PsychologistName = strings.TrimSpace(psyName)
+			}
+			// Resolver nombre de la trabajadora social
+			if dupla.SocialWorkerID != "" {
+				var swName string
+				s.db.WithContext(ctx).Raw(`
+					SELECT COALESCE(gup.general_user_profile_names || ' ' || gup.general_user_profile_last_names, '')
+					FROM security.general_user gu
+					JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+					WHERE gu.general_user_i_code = ?
+				`, dupla.SocialWorkerID).Scan(&swName)
+				resp.SocialWorkerName = strings.TrimSpace(swName)
+			}
+		}
+	}
+
 	// 4. Nombre del remitente
 	if ps.SubmittedBy != nil && *ps.SubmittedBy != "" {
 		var submitterName string
@@ -235,7 +288,41 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 		WHERE vc.victim_case_i_code = ?
 		LIMIT 1
 	`, ps.CaseID).Scan(&requiresInterpreter)
+	// Traducir el código del enum (ej: yes_no_n → No)
+	if locale, ok := salvia_config.Locale["sp"]; ok {
+		if translated, found := locale[requiresInterpreter]; found {
+			requiresInterpreter = translated
+		}
+	}
 	resp.RequiresInterpreter = requiresInterpreter
+
+	// 5b. Ajustes razonables (multi-select del form2)
+	var ajustesRazonables string
+	s.db.WithContext(ctx).Raw(`
+		SELECT COALESCE(string_agg(e.victim_case_form2_enums_name, ', '), '')
+		FROM salvia.victim_case vc
+		JOIN salvia.victim_case_form2 f2 ON f2.victim_case_form2_victim_case = vc.victim_case_id
+		JOIN salvia.rel_victim_case_form2_enums_victim_case_form2 rel ON rel.victim_case_form2_id = f2.victim_case_form2_id
+		JOIN salvia.victim_case_form2_enums e ON e.victim_case_form2_enums_id = rel.victim_case_form2_enums_id
+		WHERE vc.victim_case_i_code = ?
+		AND e.victim_case_form2_enums_category LIKE '%adjustments_gbv%'
+	`, ps.CaseID).Scan(&ajustesRazonables)
+	// Traducir cada valor del multi-select
+	if ajustesRazonables != "" {
+		parts := strings.Split(ajustesRazonables, ", ")
+		var translated []string
+		locale := salvia_config.Locale["sp"]
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if t, ok := locale[p]; ok {
+				translated = append(translated, t)
+			} else {
+				translated = append(translated, p)
+			}
+		}
+		ajustesRazonables = strings.Join(translated, ", ")
+	}
+	resp.AjustesRazonables = ajustesRazonables
 
 	// 6. Consentimiento informado (último intento de contacto con consent_given)
 	type consentRow struct {
@@ -245,7 +332,7 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 	var consent consentRow
 	s.db.WithContext(ctx).Raw(`
 		SELECT consent_given, TO_CHAR(attempt_at, 'YYYY-MM-DD') AS attempt_at
-		FROM salvia.contact_attempt
+		FROM salvia.contact_attempts
 		WHERE psicosocial_id = ? AND consent_given IS NOT NULL AND deleted_at IS NULL
 		ORDER BY attempt_at DESC
 		LIMIT 1
@@ -276,7 +363,7 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 			IsPsicoSession: c.IsPsicoSession,
 			Status:         c.Status,
 			Summary:        c.Summary,
-			CreatedAt:      c.CreatedAt.Format("2006-01-02 15:04"),
+			CreatedAt:      formatContactDateTimeUTC(c.CreatedAt),
 		}
 		if c.ScheduledDate != nil {
 			d := c.ScheduledDate.Format("2006-01-02")
@@ -286,7 +373,7 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 			item.ScheduledTime = c.ScheduledTime
 		}
 		if c.CompletedAt != nil {
-			d := c.CompletedAt.Format("2006-01-02 15:04")
+			d := formatContactDateTimeUTC(*c.CompletedAt)
 			item.CompletedAt = &d
 		}
 		resp.Contacts = append(resp.Contacts, item)
@@ -294,6 +381,42 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 
 	if resp.Contacts == nil {
 		resp.Contacts = []PsychosocialContactItem{}
+	}
+
+	// 9. Validación pendiente: verificar si hay tarea validar_remision pendiente
+	var validationTaskCount int64
+	s.db.WithContext(ctx).Raw(`
+		SELECT COUNT(*) FROM salvia.case_task
+		WHERE psychosocial_support_id = ? AND type = 'validar_remision' AND status = 'ToDo' AND deleted_at IS NULL
+	`, id).Scan(&validationTaskCount)
+	resp.ValidationPending = validationTaskCount > 0
+
+	// 10. Criterios de remisión (desde Notes del psychosocial_support)
+	if ps.Notes != nil && *ps.Notes != "" {
+		criteriosRaw := strings.Split(*ps.Notes, ",")
+		criterioLabels := map[string]string{
+			"criterio_obligatorio":    "Criterio obligatorio",
+			"conducta_suicida":        "Conducta suicida",
+			"interseccionalidad":      "Interseccionalidad",
+			"sin_ruta":                "Sin ruta de atención",
+			"condiciones_territoriales": "Condiciones territoriales",
+			"sin_acceso_psico":        "Sin acceso a atención psicosocial",
+			"naturalizacion_vbg":      "Naturalización de VBG",
+		}
+		for _, c := range criteriosRaw {
+			c = strings.TrimSpace(c)
+			if c == "" || c == "criterio_obligatorio" {
+				continue
+			}
+			if label, ok := criterioLabels[c]; ok {
+				resp.ValidationCriteria = append(resp.ValidationCriteria, label)
+			} else {
+				resp.ValidationCriteria = append(resp.ValidationCriteria, c)
+			}
+		}
+	}
+	if resp.ValidationCriteria == nil {
+		resp.ValidationCriteria = []string{}
 	}
 
 	return resp, nil
@@ -498,7 +621,7 @@ func (s *psychosocialDetailService) CancelContact(ctx context.Context, contactID
 //     (nunca ambos), reflejando el modo de asignación de la remisión padre.
 //  4. Resuelve (o crea) el form_submission asociado.
 //  5. Carga la información resumida de la víctima.
-func (s *psychosocialDetailService) LoadSession(ctx context.Context, psicosocialID, agentID string) (*LoadPsicosocialSessionResult, error) {
+func (s *psychosocialDetailService) LoadSession(ctx context.Context, psicosocialID, agentID, contactID string) (*LoadPsicosocialSessionResult, error) {
 	var ps models.PsychosocialSupport
 	if err := s.db.WithContext(ctx).Where("id = ?", psicosocialID).First(&ps).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -511,9 +634,26 @@ func (s *psychosocialDetailService) LoadSession(ctx context.Context, psicosocial
 		return nil, err
 	}
 
-	tc, isNewContact, err := s.findOrInitPendingContact(ctx, psicosocialID)
-	if err != nil {
-		return nil, fmt.Errorf("loadSession: resolver team_contact: %w", err)
+	var (
+		tc           models.TeamContact
+		isNewContact bool
+		viewByID     = contactID != ""
+		err          error
+	)
+
+	if viewByID {
+		tc, err = s.findSessionContactByID(ctx, psicosocialID, contactID)
+		if err != nil {
+			return nil, err
+		}
+		if tc.FormSubmissionID == nil || *tc.FormSubmissionID == "" {
+			return nil, ErrPsicosocialContactNoSubmission
+		}
+	} else {
+		tc, isNewContact, err = s.findOrInitPendingContact(ctx, psicosocialID)
+		if err != nil {
+			return nil, fmt.Errorf("loadSession: resolver team_contact: %w", err)
+		}
 	}
 
 	formKey, formID := "", ""
@@ -524,35 +664,39 @@ func (s *psychosocialDetailService) LoadSession(ctx context.Context, psicosocial
 	} else {
 		key, id := selectPsicosocialForm(ps)
 		formKey, formID = string(key), id
-		tc.FormID = &formID
-		sessionType := formKey
-		tc.SessionType = &sessionType
-	}
-
-	if isNewContact {
-		if err := s.applyContactAssignment(&tc, ps, agentID); err != nil {
-			return nil, fmt.Errorf("loadSession: asignar team_contact: %w", err)
-		}
-		if err := s.db.WithContext(ctx).Create(&tc).Error; err != nil {
-			return nil, fmt.Errorf("loadSession: crear team_contact: %w", err)
-		}
-	} else {
-		if err := s.db.WithContext(ctx).Model(&models.TeamContact{}).Where("id = ?", tc.ID).
-			Updates(map[string]interface{}{"form_id": tc.FormID, "session_type": tc.SessionType}).Error; err != nil {
-			return nil, fmt.Errorf("loadSession: actualizar team_contact: %w", err)
+		if !viewByID {
+			tc.FormID = &formID
+			sessionType := formKey
+			tc.SessionType = &sessionType
 		}
 	}
 
-	if tc.FormSubmissionID == nil || *tc.FormSubmissionID == "" {
-		fs := &models.FormSubmission{FormID: formID}
-		if err := s.db.WithContext(ctx).Create(fs).Error; err != nil {
-			return nil, fmt.Errorf("loadSession: crear form_submission: %w", err)
+	if !viewByID {
+		if isNewContact {
+			if err := s.applyContactAssignment(&tc, ps, agentID); err != nil {
+				return nil, fmt.Errorf("loadSession: asignar team_contact: %w", err)
+			}
+			if err := s.db.WithContext(ctx).Create(&tc).Error; err != nil {
+				return nil, fmt.Errorf("loadSession: crear team_contact: %w", err)
+			}
+		} else {
+			if err := s.db.WithContext(ctx).Model(&models.TeamContact{}).Where("id = ?", tc.ID).
+				Updates(map[string]interface{}{"form_id": tc.FormID, "session_type": tc.SessionType}).Error; err != nil {
+				return nil, fmt.Errorf("loadSession: actualizar team_contact: %w", err)
+			}
 		}
-		if err := s.db.WithContext(ctx).Model(&models.TeamContact{}).Where("id = ?", tc.ID).
-			Update("form_submission_id", fs.ID).Error; err != nil {
-			return nil, fmt.Errorf("loadSession: asociar form_submission a team_contact: %w", err)
+
+		if tc.FormSubmissionID == nil || *tc.FormSubmissionID == "" {
+			fs := &models.FormSubmission{FormID: formID}
+			if err := s.db.WithContext(ctx).Create(fs).Error; err != nil {
+				return nil, fmt.Errorf("loadSession: crear form_submission: %w", err)
+			}
+			if err := s.db.WithContext(ctx).Model(&models.TeamContact{}).Where("id = ?", tc.ID).
+				Update("form_submission_id", fs.ID).Error; err != nil {
+				return nil, fmt.Errorf("loadSession: asociar form_submission a team_contact: %w", err)
+			}
+			tc.FormSubmissionID = &fs.ID
 		}
-		tc.FormSubmissionID = &fs.ID
 	}
 
 	victimInfo, err := s.loadSessionVictimInfo(ctx, ps.CaseID)
@@ -561,12 +705,16 @@ func (s *psychosocialDetailService) LoadSession(ctx context.Context, psicosocial
 	}
 
 	currentBarriers := s.loadActivePsicosocialBarriers(ctx, ps.ID)
+	canEdit := !tc.IsCompleted && ps.Status != "cerrado"
 
 	return &LoadPsicosocialSessionResult{
-		FormID:       formID,
-		FormType:     formKey,
-		SubmissionID: *tc.FormSubmissionID,
-		VictimInfo:   victimInfo,
+		FormID:        formID,
+		FormType:      formKey,
+		SubmissionID:  *tc.FormSubmissionID,
+		TeamContactID: tc.ID,
+		IsCompleted:   tc.IsCompleted,
+		CanEdit:       canEdit,
+		VictimInfo:    victimInfo,
 		PsicosocialState: PsicosocialStateInfo{
 			YaHizoPrimerContacto:  ps.YaHizoPrimerContacto,
 			YaHizoPrimeraAtencion: ps.YaHizoPrimeraAtencion,
@@ -586,17 +734,17 @@ func (s *psychosocialDetailService) LoadSession(ctx context.Context, psicosocial
 // se filtra por team_contact_id: se buscan todos los team_contact de este psychosocial_support y
 // luego las barrier_v2 (no MANAGED) cuyo team_contact_id esté en ese conjunto — decisión de los
 // líderes (Jul 2026) para no depender de un campo adicional en psychosocial_support.
-// Reutiliza ActiveBarrierInfo/buildBarrierName definidos en followup_v2_service.go (mismo paquete).
-func (s *psychosocialDetailService) loadActivePsicosocialBarriers(ctx context.Context, psicosocialID string) []ActiveBarrierInfo {
+// Reutiliza models.ActiveBarrierInfo y buildBarrierName (mismo paquete service).
+func (s *psychosocialDetailService) loadActivePsicosocialBarriers(ctx context.Context, psicosocialID string) []models.ActiveBarrierInfo {
 	var contacts []models.TeamContact
 	if err := s.db.WithContext(ctx).
 		Where("psicosocial_id = ? AND deleted_at IS NULL", psicosocialID).
 		Find(&contacts).Error; err != nil {
 		log.Printf("[SVC] loadActivePsicosocialBarriers → error leyendo team_contact de psicosocialId=%s: %v", psicosocialID, err)
-		return []ActiveBarrierInfo{}
+		return []models.ActiveBarrierInfo{}
 	}
 	if len(contacts) == 0 {
-		return []ActiveBarrierInfo{}
+		return []models.ActiveBarrierInfo{}
 	}
 	contactIDs := make([]string, len(contacts))
 	for i, c := range contacts {
@@ -609,12 +757,12 @@ func (s *psychosocialDetailService) loadActivePsicosocialBarriers(ctx context.Co
 		Order("created_at ASC").
 		Find(&barriers).Error; err != nil {
 		log.Printf("[SVC] loadActivePsicosocialBarriers → error leyendo barrier_v2 de psicosocialId=%s: %v", psicosocialID, err)
-		return []ActiveBarrierInfo{}
+		return []models.ActiveBarrierInfo{}
 	}
 
-	result := make([]ActiveBarrierInfo, len(barriers))
+	result := make([]models.ActiveBarrierInfo, len(barriers))
 	for i, b := range barriers {
-		result[i] = ActiveBarrierInfo{ID: b.ID, BarrierName: buildBarrierName(b)}
+		result[i] = models.ActiveBarrierInfo{ID: b.ID, BarrierName: buildBarrierName(b)}
 	}
 	return result
 }
@@ -634,6 +782,22 @@ func (s *psychosocialDetailService) checkSessionAccess(ctx context.Context, ps m
 		}
 	}
 	return ErrPsicosocialSessionNotAssigned
+}
+
+// findSessionContactByID carga un team_contact por id que pertenece a la remisión
+// (flujo "Ver sesión"). No crea registros.
+func (s *psychosocialDetailService) findSessionContactByID(ctx context.Context, psicosocialID, contactID string) (models.TeamContact, error) {
+	var tc models.TeamContact
+	err := s.db.WithContext(ctx).
+		Where("id = ? AND psicosocial_id = ? AND deleted_at IS NULL", contactID, psicosocialID).
+		First(&tc).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.TeamContact{}, ErrPsicosocialContactNotFound
+		}
+		return models.TeamContact{}, fmt.Errorf("loadSession: cargar team_contact: %w", err)
+	}
+	return tc, nil
 }
 
 // findOrInitPendingContact busca un team_contact pendiente (no completado, sesión
@@ -758,4 +922,162 @@ func (s *psychosocialDetailService) UpdateSchedulePreference(ctx context.Context
 		Model(&models.PsychosocialSupport{}).
 		Where("id = ?", psicosocialID).
 		Update("schedule_preference", preference).Error
+}
+
+// ValidateRemision procesa la validación de una remisión psicosocial.
+// Si isValid=true: completa la tarea y deja la remisión habilitada para gestión.
+// Si isValid=false: completa la tarea y pone la remisión en estado "en_devolucion".
+func (s *psychosocialDetailService) ValidateRemision(ctx context.Context, id string, isValid bool, reason string, actorID string) error {
+	// 1. Buscar la remisión
+	var ps models.PsychosocialSupport
+	if err := s.db.WithContext(ctx).Where("id = ? AND deleted_at IS NULL", id).First(&ps).Error; err != nil {
+		return err
+	}
+
+	// 2. Completar la tarea de validación
+	s.db.WithContext(ctx).Exec(`
+		UPDATE salvia.case_task SET status = 'Done', updated_at = NOW()
+		WHERE psychosocial_support_id = ? AND type = 'validar_remision' AND status = 'ToDo' AND deleted_at IS NULL
+	`, id)
+
+	// 3. Resolver nombre del actor
+	var actorName string
+	s.db.WithContext(ctx).Raw(`
+		SELECT gup.general_user_profile_names || ' ' || gup.general_user_profile_last_names
+		FROM security.general_user gu
+		JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+		WHERE gu.general_user_i_code = ?
+	`, actorID).Scan(&actorName)
+	if actorName == "" {
+		actorName = actorID
+	}
+
+	now := time.Now()
+
+	if isValid {
+		// 4a. Remisión validada — no cambia de status (queda "abierto" para ser gestionada)
+		s.db.WithContext(ctx).Exec(`INSERT INTO salvia.case_timeline_event
+			(case_id, category, type, icon, color, description, event_user_id, actor_name, psychosocial_support_id, date, created_at)
+			VALUES (?, 'Psicosocial', 'Remisión Validada', 'circle-check', '#10b981', ?, ?, ?, ?, ?, ?)`,
+			ps.CaseID, "Remisión validada por "+actorName, actorID, actorName, id, now, now)
+	} else {
+		// 4b. Remisión devuelta — cambiar status a en_devolucion
+		s.db.WithContext(ctx).Exec(`UPDATE salvia.psychosocial_support SET status = 'en_devolucion', updated_at = NOW() WHERE id = ?`, id)
+
+		descripcion := "Remisión devuelta — Motivo: " + reason
+		s.db.WithContext(ctx).Exec(`INSERT INTO salvia.case_timeline_event
+			(case_id, category, type, icon, color, description, event_user_id, actor_name, psychosocial_support_id, date, created_at)
+			VALUES (?, 'Psicosocial', 'Remisión Devuelta', 'arrow-rotate-left', '#dc2626', ?, ?, ?, ?, ?, ?)`,
+			ps.CaseID, descripcion, actorID, actorName, id, now, now)
+
+		// 5. Tarea "Justificar Remisión" para el agente dueño del caso — solo
+		// cuando la remisión se devuelve (no aplica si se valida como correcta,
+		// no hay nada que justificar en ese caso).
+		var caseAgentID string
+		s.db.WithContext(ctx).Raw(`SELECT COALESCE(agent_id, '') FROM salvia.victim_case WHERE victim_case_i_code = ?`, ps.CaseID).Scan(&caseAgentID)
+		if caseAgentID == "" {
+			log.Printf("[ValidateRemision] WARN: caso %s sin agente asignado — no se creó tarea Justificar Remisión", ps.CaseID)
+		} else {
+			s.db.WithContext(ctx).Exec(`
+				INSERT INTO salvia.case_task
+					(category, type, description, assigned_user_id, status, case_id, follow_up_id, psychosocial_support_id, created_at, updated_at)
+				VALUES ('Psicosocial', 'justificar_remision', ?, ?, 'ToDo', ?, ?, ?, NOW(), NOW())
+			`, "Justificar remisión devuelta — Motivo: "+reason, caseAgentID, ps.CaseID, ps.FollowUpID, id)
+		}
+	}
+
+	return nil
+}
+
+// CheckSessionAvailability GET /psychosocial-support/:id/availability
+// Valida si date (YYYY-MM-DD) + time (HH:MM) está libre en ventana de 2 horas
+// para el profesional de la remisión y las sesiones de sus duplas activas.
+func (s *psychosocialDetailService) CheckSessionAvailability(ctx context.Context, psicosocialID, date, timeStr, mode string) (bool, string, error) {
+	var ps models.PsychosocialSupport
+	if err := s.db.WithContext(ctx).Where("id = ? AND deleted_at IS NULL", psicosocialID).First(&ps).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, "", ErrPsicosocialSessionNotFound
+		}
+		return false, "", err
+	}
+
+	fecha, err := parseAgendaDate(date)
+	if err != nil {
+		return false, "Fecha inválida; use formato YYYY-MM-DD", nil
+	}
+	hora := normalizeScheduledTime(timeStr)
+	if _, ok := parseTimeToMinutes(hora); !ok {
+		return false, "Hora inválida; use formato HH:MM", nil
+	}
+
+	day := fecha.Format("2006-01-02")
+	var contacts []models.TeamContact
+	if err := s.db.WithContext(ctx).
+		Where("scheduled_date IS NOT NULL AND (scheduled_date AT TIME ZONE 'UTC')::date = ?::date AND is_psico_session = true AND deleted_at IS NULL", day).
+		Find(&contacts).Error; err != nil {
+		return false, "", err
+	}
+
+	_ = mode // compat API; el scope se arma desde la asignación de la remisión + expansión.
+
+	var psychID, swID string
+	if ps.DuplaID != nil && *ps.DuplaID != "" {
+		var dupla models.Dupla
+		if err := s.db.WithContext(ctx).Where("id = ? AND deleted_at IS NULL", *ps.DuplaID).First(&dupla).Error; err == nil {
+			psychID = dupla.PsychologistID
+			swID = dupla.SocialWorkerID
+		}
+	}
+
+	personIDs, seedDuplaIDs := seedAvailabilityActors(&ps, psychID, swID)
+	expandedDuplaIDs, err := s.findActiveDuplaIDsByMemberIDs(ctx, personIDs)
+	if err != nil {
+		return false, "", err
+	}
+	duplaIDs := mergeDuplaIDs(seedDuplaIDs, expandedDuplaIDs)
+
+	ok, msg := evaluatePsicosocialAvailabilityWithScope(contacts, hora, personIDs, duplaIDs)
+	return ok, msg, nil
+}
+
+// findActiveDuplaIDsByMemberIDs equivale a DuplaRepository.FindActiveIDsByMemberIDs
+// sin inyectar el repo (este servicio solo tiene *gorm.DB).
+func (s *psychosocialDetailService) findActiveDuplaIDsByMemberIDs(ctx context.Context, memberIDs []string) ([]string, error) {
+	cleaned := make([]string, 0, len(memberIDs))
+	seen := map[string]struct{}{}
+	for _, id := range memberIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		cleaned = append(cleaned, id)
+	}
+	if len(cleaned) == 0 {
+		return []string{}, nil
+	}
+
+	var ids []string
+	err := s.db.WithContext(ctx).
+		Table("salvia.dupla").
+		Select("id").
+		Where("deleted_at IS NULL").
+		Where("psychologist_id IN ? OR social_worker_id IN ?", cleaned, cleaned).
+		Scan(&ids).Error
+	if err != nil {
+		return nil, err
+	}
+	if ids == nil {
+		ids = []string{}
+	}
+	return ids, nil
+}
+
+// formatContactDateTimeUTC serializa un instante como RFC3339 en UTC para que el
+// frontend lo muestre en America/Bogota sin ambigüedad de zona.
+func formatContactDateTimeUTC(t time.Time) string {
+	return t.UTC().Format(time.RFC3339)
 }

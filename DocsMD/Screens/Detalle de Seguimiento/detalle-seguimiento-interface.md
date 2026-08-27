@@ -62,7 +62,7 @@ follow-up-detail-app  (.ms-page-wrapper)
         │   │       ├── FechaRealizacion  followUp.completedAt
         │   │       └── Agente            followUp.agent
         │   │
-        │   └── SeccionPlanAtencion  (.ms-detail-section)
+        │   ├── SeccionPlanAtencion  (.ms-detail-section)
         │       └── CarePlan  (.ms-care-plan)
         │           │
         │           ├── [v-if activeBarriers.length > 0]  ListaBarreras  (.ms-barriers-list)
@@ -100,6 +100,25 @@ follow-up-detail-app  (.ms-page-wrapper)
         │           └── [v-else]  EmptyStateRemisiones  (.ms-empty-state-small)
         │               └── Texto  "No se registraron remisiones a equipos Salvia en este seguimiento."
         │
+        │   └── [v-if formAnswers]  SeccionRespuestasFormulario  (.ms-detail-section)
+        │       ├── [formAnswers.riskAnalysis]
+        │       │   AnalisisRiesgo  (.ms-info-item)  formAnswers.riskAnalysis
+        │       │
+        │       ├── [formAnswers.barrierFollowUps.length > 0]
+        │       │   GestionSeguimientoBarreras  (.ms-barriers-list)  "Gestión — Seguimiento a Barreras"
+        │       │   └── BarreraFU × N  [v-for barrierFollowUps]  (.ms-barrier-item)
+        │       │       ├── [b.actuaciones]  Actuaciones  b.actuaciones
+        │       │       └── [b.gestion]      Gestion      "Gestión: " + b.gestion
+        │       │
+        │       ├── [formAnswers.barrierIdentified.length > 0]
+        │       │   GestionIdentificacionBarreras  (.ms-barriers-list)  "Gestión — Identificación de Barreras"
+        │       │   └── BarreraID × N  [v-for barrierIdentified]  (.ms-barrier-item)
+        │       │       └── Gestion  b.gestion
+        │       │
+        │       └── InfoGrid  (.ms-info-grid)
+        │           ├── [formAnswers.caseManagement]    GestionSeguimiento  formAnswers.caseManagement
+        │           └── [formAnswers.referralEvidence]  EvidenciaRemision   formAnswers.referralEvidence
+        │
         └── [v-if activeTab === 'formulario']  ── TAB FORMULARIO ──────────
             │
             ├── [v-if formId && submissionId]
@@ -107,12 +126,31 @@ follow-up-detail-app  (.ms-page-wrapper)
             │       :form-id="formId"
             │       :submission-id="submissionId"
             │       :can-edit="canEdit"
-            │       :form-state="formState"
+            │       :form-state="formState"   // incluye currentBarriers (snapshot del follow-up)
             │       @answers-updated → onAnswersUpdated()
             │
             └── [v-else]  EmptyStateFormulario  (.ms-empty-state-small)
                 └── Texto  "Este seguimiento no tiene un formulario asociado."
 ```
+
+---
+
+## `formAnswers` — respuestas del formulario leídas por `formSubmissionId`
+
+Subconjunto fijo de respuestas del formulario dinámico de seguimiento, leído directamente de `salvia.answer`/`salvia.repeater_entry` por el backend (`GetFollowUpDetail` → `loadFormAnswers`, en `followup_v2_service.go`) usando `followUp.form_submission_id`. No pasa por `dinamic-form` — es una lectura de solo texto para el tab Resumen.
+
+| Campo en `formAnswers` | Pregunta origen | ID | Sección del formulario |
+|---|---|---|---|
+| `riskAnalysis` | "Describa de manera analítica cómo la integración de los factores protectores y riesgos..." | `c2b02516-f7a5-4098-99d2-893f23390a89` | Valoración del Riesgo (directa) |
+| `barrierFollowUps[].actuaciones` | "Actuaciones realizadas y descripción de la gestión realizada con relación a las barreras" | `c808b590-128c-43cf-af94-c191a4bc31ac` | Seguimiento a Barreras (repeater `b536f16c-…`) |
+| `barrierFollowUps[].gestion` | "Gestión de la barrera" (multi-select, resuelto a labels) | `c785a994-3a38-4337-bd96-67329144affa` | Seguimiento a Barreras (repeater `b536f16c-…`) |
+| `barrierIdentified[].gestion` | "Gestión de la barrera" (multi-select, resuelto a labels) | `572ad72a-8174-4ff3-9c56-5c8c65ac63ac` | Identificación de Barreras (repeater `5fd3ecdc-…`) |
+| `caseManagement` | "Gestión realizada en el seguimiento" | `bb7a2307-e461-47b4-b34e-401ca807efe7` | Seguimiento de Caso (directa) |
+| `referralEvidence` | "Describa los elementos que evidencia para realizar la remisión" | `1bdc8b52-2472-46b1-a8ab-52ea2b22f986` | Seguimiento de Caso (directa) |
+
+> Las 3 preguntas directas se leen tal cual (texto libre). Las 2 preguntas "Gestión de la barrera" son `multiple` (CSV de valores) — el backend resuelve cada valor a su label legible (mismo catálogo de 6 opciones en ambos repeaters: orientación y enrutamiento, gestión administrativa, activación de ruta, articulación institucional, escalamiento a organismo de control, alerta por barreras) y los une con coma.
+>
+> Cada campo/lista se oculta en la UI si viene vacío — no hay estado de error propio, si `formSubmissionId` no existe o la lectura falla, `formAnswers` llega `null` y toda la sección `SeccionRespuestasFormulario` no se renderiza.
 
 ---
 
@@ -131,3 +169,6 @@ follow-up-detail-app  (.ms-page-wrapper)
 | Campo | Valores posibles | Cómo se calcula |
 |---|---|---|
 | `psysocialRemisionState` | `''` \| `'Remisión: SI cumple'` \| `'Remisión: NO cumple'` | `onAnswersUpdated()`: evalúa la pregunta `71c42c4a-f640-47ad-b2c1-5d4c18480449`; requiere `criterio_obligatorio` + puntaje ≥ 3 con los demás criterios |
+| `currentBarriers` | `[{ id, barrierName }, …]` \| `[]` | `GetFollowUpDetail` → `loadActiveBarriers` (snapshot `follow_up_v2.active_barrier_ids`). El frontend lo asigna **antes** de setear `submissionId` para que `dinamic-form` hidrate el repeater "Seguimiento a Barreras" (`stateItems = 'currentBarriers'`). |
+
+> **`barriers` vs `activeBarriers`:** el JSON de detalle trae ambos. `barriers` (`FindByFollowUpID`) son las barreras **identificadas en este follow-up** y alimentan la lista del tab Resumen. `activeBarriers` es el snapshot de barreras que se siguieron en "Seguimiento a Barreras" (incluye las que ya pasaron a `MANAGED`) y se copia a `formState.currentBarriers`. No son intercambiables.

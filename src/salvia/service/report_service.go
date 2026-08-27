@@ -28,10 +28,20 @@ func NewReportService(repo repository.ReportRepository) ReportService {
 }
 
 func (s *reportService) GenerateConsolidatedFollowUpsReport(ctx context.Context, r FollowUpsReportRange) (*excelize.File, error) {
-	// 1. Consultar casos creados en el rango
-	cases, err := s.repo.FindCasesInDateRange(ctx, r.StartDate, r.EndDate)
-	if err != nil {
-		return nil, err
+	// 1. Consultar casos creados en el rango — por chunks de 2 meses para evitar timeout del pooler
+	var cases []repository.CaseReportDTO
+	chunkStart := r.StartDate
+	for chunkStart.Before(r.EndDate) {
+		chunkEnd := chunkStart.AddDate(0, 2, 0)
+		if chunkEnd.After(r.EndDate) {
+			chunkEnd = r.EndDate
+		}
+		chunk, err := s.repo.FindCasesInDateRange(ctx, chunkStart, chunkEnd)
+		if err != nil {
+			return nil, err
+		}
+		cases = append(cases, chunk...)
+		chunkStart = chunkEnd.Add(time.Second)
 	}
 
 	var caseICodes []string
@@ -44,13 +54,21 @@ func (s *reportService) GenerateConsolidatedFollowUpsReport(ctx context.Context,
 		return nil, errors.New("no_cases_found")
 	}
 
-	// 3. Consultar los seguimientos asociados en lote
-	followUps, err := s.repo.FindFollowUpsByCaseICodes(ctx, caseICodes)
-	if err != nil {
-		return nil, err
+	// 3. Consultar los seguimientos asociados — por chunks de 500 caseICodes
+	var followUps []repository.FollowUpReportDTO
+	for i := 0; i < len(caseICodes); i += 500 {
+		end := i + 500
+		if end > len(caseICodes) {
+			end = len(caseICodes)
+		}
+		chunk, err := s.repo.FindFollowUpsByCaseICodes(ctx, caseICodes[i:end])
+		if err != nil {
+			return nil, err
+		}
+		followUps = append(followUps, chunk...)
 	}
 
-	// 4. Consultar las respuestas del formulario asociadas
+	// 4. Consultar las respuestas del formulario asociadas — por chunks de 500
 	var submissionIDs []string
 	for _, fu := range followUps {
 		if fu.FormSubmissionID != nil && *fu.FormSubmissionID != "" {
@@ -59,17 +77,30 @@ func (s *reportService) GenerateConsolidatedFollowUpsReport(ctx context.Context,
 	}
 
 	var answers []repository.AnswerDTO
-	if len(submissionIDs) > 0 {
-		answers, err = s.repo.FindAnswersByFormSubmissions(ctx, submissionIDs)
+	for i := 0; i < len(submissionIDs); i += 500 {
+		end := i + 500
+		if end > len(submissionIDs) {
+			end = len(submissionIDs)
+		}
+		chunk, err := s.repo.FindAnswersByFormSubmissions(ctx, submissionIDs[i:end])
 		if err != nil {
 			return nil, err
 		}
+		answers = append(answers, chunk...)
 	}
 
-	// 5. Consultar los eventos del timeline en lote
-	events, err := s.repo.FindTimelineEventsByCaseICodes(ctx, caseICodes)
-	if err != nil {
-		return nil, err
+	// 5. Consultar los eventos del timeline — por chunks de 500
+	var events []repository.TimelineReportDTO
+	for i := 0; i < len(caseICodes); i += 500 {
+		end := i + 500
+		if end > len(caseICodes) {
+			end = len(caseICodes)
+		}
+		chunk, err := s.repo.FindTimelineEventsByCaseICodes(ctx, caseICodes[i:end])
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, chunk...)
 	}
 
 	// 6. Construir el Excel consolidado con los datos enriquecidos

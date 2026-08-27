@@ -245,7 +245,7 @@
             submit(action) {
                 console.log(home.config.globalProperties.enums.nav_rules);
                 if(action == "back" && home.config.globalProperties.enums.nav_rules["home"]){
-                    location.assign(home.config.globalProperties.enums.nav_rules["home"]);  
+                    salviaGoBack(home.config.globalProperties.enums.nav_rules["home"]);  
                 }
             }
           }

@@ -248,6 +248,17 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	// Solo el agente de seguimiento (op) puede gestionar sus barreras.
 	"get_mis_barreras": {"en": true},
 
+	// ── Módulo de Mis Tareas ─────────────────────────────────────────────────
+	// Visible para todos los roles internos, no para externos — mismo set que
+	// get_directorio_entidades ("Opción A: todos los roles internos pueden ver"),
+	// que ya es la clasificación interno/externo vigente en este código. en
+	// (Enlace Territorial) queda fuera a propósito, igual que en ese permiso.
+	"get_mis_tareas": {"op": true, "ro": true, "et": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true, "mn": true},
+
+	// ── Módulo de Barreras Departamento ──────────────────────────────────────
+	// Solo el enlace territorial (en) puede ver el panorama de barreras de su departamento.
+	"get_barreras_departamento": {"en": true},
+
 	// ── Módulo de Seguimiento (HU-027) ──────────────────────────────────────
 	"get_seguimiento_detalle_caso":    {"ad": true, "sv": true, "op": true, },
 	"get_seguimiento_detalle":         {"ad": true, "sv": true, "op": true},
@@ -302,6 +313,20 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	"set_psychosocial_next_attempt":          {"ps": true, "ts": true},
 	"init_psychosocial_closure_form":         {"ps": true, "ts": true},
 	"close_psychosocial_process":             {"ps": true, "ts": true},
+
+	// ── Calendario Psicosocial ─────────────────────────────────────────────
+	// ts (trabajador social) comparte el resto de permisos psicosociales con ps y
+	// también agenda sesiones, por lo que necesita su propio cronograma.
+	"get_psychosocial_calendar": {"ps": true, "ts": true, "sv": true},
+
+	// ── Directorio de Entidades ────────────────────────────────────────────
+	// Opción A: todos los roles internos pueden ver; et + sv pueden crear;
+	// solo sv puede editar/deshabilitar. Los permisos de escritura se validan
+	// en el frontend (botones ocultos) y también deben validarse en el backend.
+	"get_directorio_entidades":    {"op": true, "ro": true, "et": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true, "mn": true},
+	"set_directorio_entidad":      {"et": true, "sv": true},
+	"update_directorio_entidad":   {"sv": true},
+	"disable_directorio_entidad":  {"sv": true},
 }
 
 // Menús del sistema. Se filtra por el tipo de menú (ie/ default) y luego por la sección principal repesentada por el locale.

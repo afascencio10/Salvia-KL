@@ -1818,7 +1818,7 @@
             },
             submit(action,event) {
               if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
-                location.assign(home.config.globalProperties.enums.nav_rules["default"]);
+                salviaGoBack(home.config.globalProperties.enums.nav_rules["default"]);
               }else{
                 // Identificación de Entidades — validación bloqueante (G-03): si hay una
                 // fila agregada e incompleta, no se envía el POST.

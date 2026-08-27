@@ -2,7 +2,7 @@
 
   <!-- Breadcrumb -->
   <div class="cd-breadcrumb">
-    <a href="{{.salviaVictimCaseGETFormPath}}">← Casos reportados</a>
+    <a href="#" onclick="salviaGoBack('{{.salviaBackFallbackPath}}'); return false;">← Volver</a>
     <span>/</span>
     <span class="cd-current" v-if="caso">${ caso.victimCaseVictimName }</span>
   </div>
@@ -40,8 +40,8 @@
 
       <!-- Botones -->
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-        <a href="{{.salviaVictimCaseGETFormPath}}" class="btn btn-secondary" style="margin:0;border-radius:8px;padding:10px 20px;font-size:.85rem">
-          ← Volver al listado de casos
+        <a href="#" onclick="salviaGoBack('{{.salviaBackFallbackPath}}'); return false;" class="btn btn-secondary" style="margin:0;border-radius:8px;padding:10px 20px;font-size:.85rem">
+          ← Volver
         </a>
         <button v-if="errorTipo !== 404" class="btn btn-primary" style="margin:0;border-radius:8px;padding:10px 20px;font-size:.85rem;background:#5106A7;border-color:#5106A7" @click="reintentar">
           🔄 Reintentar
@@ -85,6 +85,12 @@
         </button>
         <button v-if="puedeReasignar || userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode)" class="btn-nuevo-seg" @click="abrirModalNuevoSeg">
           + Nuevo seguimiento
+        </button>
+        <button v-if="(userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode))" class="btn-nuevo-seg" style="background:#5106A7;color:#fff" @click="crearEIniciarSeguimiento" :disabled="creandoEIniciando">
+          ${ creandoEIniciando ? 'Creando...' : '▶ Crear e iniciar seguimiento' }
+        </button>
+        <button v-if="(puedeReasignar || userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode)) && caso.victimCaseStatus === 'cd'" class="btn-nuevo-seg" @click="abrirModalReabrir">
+          Reabrir caso
         </button>
       </div>
     </div>
@@ -260,7 +266,7 @@
                 <div class="cd-deriv-date">📅 ${ formatFecha(item.createdAt) }</div>
                 <div v-if="item.notes" style="font-size:.78rem;color:#6b7280;margin-top:2px">${ item.notes }</div>
               </div>
-              <span class="cd-badge-deriv cd-bd-proceso">${ item.status || 'ACTIVE' }</span>
+              <span class="cd-badge-deriv cd-bd-proceso">${ labelDerivacionEstado(item.status) }</span>
             </div>
           </div>
 
@@ -271,14 +277,59 @@
               <span class="cd-count" style="color:#1d4ed8">${ psychosocialSupports.length } registro${ psychosocialSupports.length !== 1 ? 's' : '' }</span>
             </div>
             <div v-if="psychosocialSupports.length === 0" class="cd-deriv-empty">Sin registros</div>
-            <div v-for="item in psychosocialSupports" :key="item.id" class="cd-deriv-item">
-              <div class="cd-deriv-desc">
-                <strong>${ item.type || '—' }</strong>
-                <span v-if="item.provider"> · ${ item.provider }</span>
-                <div class="cd-deriv-date">📅 ${ formatFecha(item.createdAt) } · Sesiones: ${ item.sessionCount || 0 }</div>
-                <div v-if="item.notes" style="font-size:.78rem;color:#6b7280;margin-top:2px">${ item.notes }</div>
+            <div v-for="item in psychosocialSupports" :key="item.id" class="cd-deriv-item" style="flex-direction:column;align-items:stretch">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;width:100%">
+                <div class="cd-deriv-desc">
+                  <strong>${ item.type || '—' }</strong>
+                  <span v-if="item.provider"> · ${ item.provider }</span>
+                  <div class="cd-deriv-date">📅 ${ formatFecha(item.createdAt) } · Sesiones: ${ (item.sessions && item.sessions.length) || item.sessionCount || 0 }</div>
+                  <div class="cd-deriv-date">Remitido por: ${ item.submittedByName || '—' } · Equipo: ${ item.submittedByTeam || '—' }</div>
+                  <div style="margin-top:4px;font-size:.78rem;color:#374151">
+                    <template v-if="item.duplaId">
+                      <span style="font-weight:600;color:#1e3a8a">${ item.duplaName || 'Dupla' }</span>
+                      <div v-if="item.psychologistName">${ item.psychologistName } - Psicóloga</div>
+                      <div v-if="item.socialWorkerName">${ item.socialWorkerName } - Trab. Social</div>
+                    </template>
+                    <template v-else-if="item.professionalId">
+                      <div>${ item.professionalName || '—' } - ${ item.professionalRole || 'Profesional' }</div>
+                    </template>
+                    <em v-else style="color:#9ca3af">Sin asignar</em>
+                  </div>
+                  <div v-if="item.notes" style="font-size:.78rem;color:#6b7280;margin-top:2px">${ item.notes }</div>
+                </div>
+                <span class="cd-badge-deriv" :style="psicosocialStatusStyle(item.status)">${ psicosocialStatusLabel(item.status) }</span>
               </div>
-              <span class="cd-badge-deriv cd-bd-completado">${ item.status || 'ACTIVE' }</span>
+              <div v-if="item.sessions && item.sessions.length > 0" style="margin-top:10px;background:#fff;border:1px solid #dbeafe;border-radius:8px;overflow:hidden">
+                <button
+                  type="button"
+                  @click="toggleSessionsExpanded(item.id)"
+                  style="width:100%;display:flex;justify-content:space-between;align-items:center;background:#eff6ff;border:none;padding:8px 12px;cursor:pointer;color:#1e3a8a;font-size:.78rem;font-weight:600">
+                  <span>Sesiones (${ item.sessions.length })</span>
+                  <span style="font-size:.75rem">${ sessionsExpanded[item.id] ? '▲' : '▼' }</span>
+                </button>
+                <table v-if="sessionsExpanded[item.id]" style="width:100%;border-collapse:collapse;font-size:.78rem">
+                  <thead>
+                    <tr style="background:#f8fafc;color:#334155;text-transform:uppercase;font-size:.68rem;letter-spacing:.04em">
+                      <th style="text-align:left;padding:6px 10px">Fecha</th>
+                      <th style="text-align:left;padding:6px 10px">Hora</th>
+                      <th style="text-align:left;padding:6px 10px">Profesional</th>
+                      <th style="text-align:left;padding:6px 10px">Estado</th>
+                      <th style="text-align:left;padding:6px 10px">Resumen</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="s in item.sessions" :key="s.id" style="border-top:1px solid #eff6ff">
+                      <td style="padding:6px 10px;color:#374151">${ s.scheduledDate || '—' }</td>
+                      <td style="padding:6px 10px;color:#374151">${ s.scheduledTime || '—' }</td>
+                      <td style="padding:6px 10px;color:#374151">${ s.professionalName || '—' }</td>
+                      <td style="padding:6px 10px">
+                        <span :style="{background: s.isCompleted ? '#dcfce7' : '#fef3c7', color: s.isCompleted ? '#166534' : '#92400e', padding:'2px 8px', borderRadius:'12px', fontSize:'.7rem', fontWeight:600}">${ s.status }</span>
+                      </td>
+                      <td style="padding:6px 10px;color:#6b7280">${ s.summary || '—' }</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
@@ -337,7 +388,7 @@
                 <div class="cd-deriv-date">📅 ${ formatFecha(item.createdAt) }</div>
                 <div v-if="item.notes" style="font-size:.78rem;color:#6b7280;margin-top:2px">${ item.notes }</div>
               </div>
-              <span class="cd-badge-deriv cd-bd-articulando">${ item.status || 'ACTIVE' }</span>
+              <span class="cd-badge-deriv cd-bd-articulando">${ labelDerivacionEstado(item.status) }</span>
             </div>
           </div>
 
@@ -671,6 +722,31 @@
   </div>
 </div>
 
+<!-- ══ MODAL: REABRIR CASO ══ -->
+<div v-if="modalReabrir" class="ns-backdrop" @click.self="modalReabrir = false">
+  <div class="ns-modal">
+    <div class="ns-header">
+      <div>
+        <p class="ns-title">Reabrir caso</p>
+        <p class="ns-subtitle" v-if="caso">${ caso.victimCaseVictimName }</p>
+      </div>
+      <button class="ns-close" @click="modalReabrir = false">✕</button>
+    </div>
+    <div class="ns-body">
+      <p style="margin:0;font-size:.88rem;color:#374151;line-height:1.5">
+        El caso volverá a estado <strong>Activo</strong> y podrá gestionarse de nuevo.
+        ¿Desea continuar?
+      </p>
+    </div>
+    <div class="ns-footer">
+      <button class="ns-btn-cancel" @click="modalReabrir = false">Cancelar</button>
+      <button class="ns-btn-save" :disabled="reabriendo" @click="confirmarReabrirCaso">
+        ${ reabriendo ? 'Reabriendo...' : 'Confirmar' }
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL: REASIGNAR CASO ══ -->
 <div v-if="modalReasignar" class="ns-backdrop" @click.self="modalReasignar = false">
   <div class="ns-modal">
@@ -792,6 +868,7 @@ var home = Vue.createApp({
       denunciasAnteriores: 0,
       emergencyMeasures: [],
       psychosocialSupports: [],
+      sessionsExpanded: {},
       economicStabilizations: [],
       barriers: [],
       caseTasks: [],
@@ -821,6 +898,8 @@ var home = Vue.createApp({
       tabActiva: 'info',
       modalNuevoSeg: false,
       modalReasignar: false,
+      modalReabrir: false,
+      reabriendo: false,
       reasignarOperador: '',
       reasignando: false,
       autoAsignando: false,
@@ -843,10 +922,13 @@ var home = Vue.createApp({
         agente: '',
         notas: '',
       },
+      creandoEIniciando: false,
       segTocado: false,
       guardandoSeg: false,
       nuevoSegError: '',
-      fechaHoy: new Date().toISOString().substring(0, 10),
+      // Calculada en el servidor (America/Bogota) para no depender del reloj/zona
+      // horaria del dispositivo del cliente, que puede estar mal configurado.
+      fechaHoy: "{{.fechaHoy}}",
       toast: { show: false, type: 'success', message: '' },
       tabs: [
         { id: 'info',         label: 'Info General',  icono: '👤' },
@@ -862,8 +944,27 @@ var home = Vue.createApp({
   mounted() {
     document.title = {{.windowTitle}};
     document.getElementById('app').style.display = 'block';
+    this.aplicarTabDeUrl();
+    window.addEventListener('hashchange', this.aplicarTabDeUrl);
     this.cargarDatos();
     this.cargarTodosAgentes();
+  },
+
+  unmounted() {
+    window.removeEventListener('hashchange', this.aplicarTabDeUrl);
+  },
+
+  watch: {
+    // La pestaña activa viaja en el hash de la URL para no perderla al volver desde
+    // otra pantalla (antes se reabría siempre en 'info').
+    // Se usa replaceState y no `location.hash =` a propósito: asignar el hash apila
+    // una entrada de historial por cada cambio de pestaña, y entonces "Volver"
+    // retrocedería de pestaña en pestaña en lugar de salir de la pantalla.
+    tabActiva(id) {
+      if (location.hash.slice(1) !== id) {
+        history.replaceState(null, '', location.pathname + location.search + '#' + id);
+      }
+    },
   },
 
   computed: {
@@ -981,6 +1082,14 @@ var home = Vue.createApp({
   },
 
   methods: {
+    // Aplica la pestaña indicada en el hash. Se llama al montar y en cada
+    // 'hashchange', que es lo que dispara el botón atrás/adelante del navegador.
+    aplicarTabDeUrl() {
+      var id = location.hash.slice(1);
+      if (id && this.tabs.some(function(t) { return t.id === id; })) {
+        this.tabActiva = id;
+      }
+    },
     logout(){
       logout("/seguridad/logout");
     },
@@ -989,6 +1098,9 @@ var home = Vue.createApp({
     },
     toggleSegExpand(segId) {
       this.segExpandido = this.segExpandido === segId ? null : segId;
+    },
+    toggleSessionsExpanded(id) {
+      this.sessionsExpanded = { ...this.sessionsExpanded, [id]: !this.sessionsExpanded[id] };
     },
     teamSegunRiesgo() {
       // Usar el team asignado directamente al caso
@@ -1010,15 +1122,24 @@ var home = Vue.createApp({
         caseId: seg.case_id,
         caseName: this.caso ? this.caso.victimCaseVictimName : '',
         attempts: seg.attempts || 0,
-        follow_up_attempts: seg.follow_up_attempts || []
+        follow_up_attempts: seg.follow_up_attempts || [],
+        sequence_number: seg.sequence_number || 0,
+        scheduledTime: seg.scheduled_time || ''
       };
       this.$refs.contactModal.start(fuData);
     },
     onFollowUpContactCompleted: function(data) {
       var self = this;
-      if (data.type === 'rescheduled' || data.type === 'closed') {
+      if (data.type === 'attempt' || data.type === 'rescheduled' || data.type === 'closed') {
         self.cargarDatos();
       }
+      // TODO: Mostrar toast con info del seguimiento afectado (Seguimiento #X)
+      // Descomentar cuando se defina el diseño final del modal de confirmación:
+      // if (data.type === 'attempt' && data.followUp) {
+      //   var seqNum = data.followUp.sequence_number || data.followUp.sequenceNumber || '';
+      //   var msg = seqNum ? 'Intento registrado en Seguimiento #' + seqNum : 'Intento de contacto registrado';
+      //   setTimeout(function() { self.showToast('success', msg); }, 2200);
+      // }
     },
 
     onCaseTaskCompleted: function(tareaActualizada) {
@@ -1154,10 +1275,35 @@ var home = Vue.createApp({
     formatFecha(f) { return f ? f.substring(0, 10) : '—'; },
     formatFechaHora(f) {
       if (!f) return '—';
-      // Si tiene hora (más de 10 chars), mostrar fecha + hora
-      if (f.length > 16) return f.substring(0, 16).replace('T', ' ');
-      if (f.length > 10) return f.substring(0, f.length).replace('T', ' ');
-      return f.substring(0, 10);
+      // Si no tiene hora (solo fecha, sin 'T'), no hay timestamp real que convertir
+      if (f.indexOf('T') === -1) return f.substring(0, 10);
+      var d = new Date(f);
+      if (isNaN(d.getTime())) return f.substring(0, 10);
+      // Convertir explícitamente a hora de Colombia (el valor viene en UTC desde el backend)
+      var parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Bogota',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false
+      }).formatToParts(d).reduce(function(acc, p) { acc[p.type] = p.value; return acc; }, {});
+      return parts.year + '-' + parts.month + '-' + parts.day + ' ' + parts.hour + ':' + parts.minute;
+    },
+    psicosocialStatusLabel(status) {
+      var map = {
+        abierto: 'Abierto', en_gestion: 'En gestión', en_devolucion: 'En devolución', cerrado: 'Cerrado',
+        // Valores heredados en BD. Sin estos, el fallback devuelve el valor crudo y
+        // la remisión vuelve a mostrarse como "Active" (bug del estado en inglés).
+        active: 'Activo', closed: 'Cerrado', inactive: 'Inactivo'
+      };
+      return map[String(status || '').toLowerCase()] || (status || 'Activo');
+    },
+    psicosocialStatusStyle(status) {
+      var map = {
+        abierto:       { background: '#fef9c3', color: '#854d0e' },
+        en_gestion:    { background: '#dbeafe', color: '#1e40af' },
+        en_devolucion: { background: '#ffedd5', color: '#c2410c' },
+        cerrado:       { background: '#dcfce7', color: '#166534' }
+      };
+      return map[String(status || '').toLowerCase()] || { background: '#e5e7eb', color: '#374151' };
     },
     nombreAgente(agentId) {
       // Buscar en todosAgentes (sin filtro de team) para resolver nombres siempre
@@ -1172,6 +1318,22 @@ var home = Vue.createApp({
     labelEstado(s) {
       var m = { 'ra':'Activo', 'is':'Con novedad', 'cd':'Cerrado', 'ex':'Vencido', 'r':'Por aprobar', 'fc':'Recontacto' };
       return m[s] || s || '—';
+    },
+    // Estados de las derivaciones (medidas de emergencia, psicosocial, estabilización).
+    // Case-insensitive: en BD conviven valores heredados ('ACTIVE'/'Active') con los
+    // enums nuevos en español de psychosocial_support (abierto/en_gestion/...).
+    labelDerivacionEstado(s) {
+      var m = {
+        'active':        'Activa',
+        'abierto':       'Abierta',
+        'en_gestion':    'En gestión',
+        'en_devolucion': 'En devolución',
+        'cerrado':       'Cerrada',
+        'closed':        'Cerrada',
+        'inactive':      'Inactiva'
+      };
+      if (!s) return 'Activa';
+      return m[String(s).toLowerCase()] || s;
     },
     labelBarreraStatus(s) {
       var m = {
@@ -1328,9 +1490,9 @@ var home = Vue.createApp({
       return csv.split(',').map(function(v) { var k = v.trim(); return map[k] || k; });
     },
     abrirModalNuevoSeg() {
-      // Si es RO, asignar a sí mismo. Si es SV, preseleccionar el agente del último seguimiento
+      // Si es RO u OP, asignar a sí mismo. Si es SV, preseleccionar el agente del último seguimiento
       var agenteDefault = '';
-      if (this.userRole === 'ro') {
+      if (this.userRole === 'ro' || this.userRole === 'op') {
         agenteDefault = this.userICode;
       } else if (this.followUpsV2.length > 0) {
         var ultimo = this.followUpsV2[this.followUpsV2.length - 1];
@@ -1342,9 +1504,94 @@ var home = Vue.createApp({
       this.nuevoSegError = '';
       this.modalNuevoSeg = true;
     },
+    crearEIniciarSeguimiento() {
+      // Crear seguimiento con fecha hoy, asignado a sí mismo, registrar intento exitoso y redirigir al formulario
+      var self = this;
+      if (self.creandoEIniciando) return;
+      self.creandoEIniciando = true;
+      // Calcular fecha de hoy en hora local (evita desfase UTC)
+      var ahora = new Date();
+      var scheduledDate = ahora.getFullYear() + '-' + String(ahora.getMonth()+1).padStart(2,'0') + '-' + String(ahora.getDate()).padStart(2,'0');
+      var url = '/api/v1/casos/' + CASE_ICODE + '/seguimiento';
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_id: self.userICode,
+          scheduled_date: scheduledDate,
+          notas: '',
+          created_by: self.currentUser
+        })
+      })
+        .then(function(res) {
+          if (!res.ok) {
+            return res.json().then(function(data) {
+              throw new Error(data.error || 'Error HTTP ' + res.status);
+            }).catch(function(e) {
+              if (e.message) throw e;
+              throw new Error('Error HTTP ' + res.status + ' al crear el seguimiento');
+            });
+          }
+          return res.json();
+        })
+        .then(function(data) {
+          // Registrar intento de contacto exitoso (como si hubiera contestado)
+          return fetch('/api/v1/follow-ups/' + data.id + '/attempts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              reason: 'Sí contestó',
+              was_answered: true
+            })
+          }).then(function(attemptRes) {
+            if (!attemptRes.ok) {
+              // Si falla el intento, igual redirigimos al formulario
+              console.warn('[crearEIniciar] No se pudo registrar intento, redirigiendo igual');
+            }
+            // Redirigir al formulario de seguimiento
+            window.location.href = '/salvia/hacer-seguimiento/' + data.id;
+          });
+        })
+        .catch(function(err) {
+          self.creandoEIniciando = false;
+          self.showToast('error', err.message || 'Error al crear el seguimiento');
+        });
+    },
     abrirModalReasignar() {
       this.reasignarOperador = '';
       this.modalReasignar = true;
+    },
+    abrirModalReabrir() {
+      this.modalReabrir = true;
+    },
+    confirmarReabrirCaso() {
+      var self = this;
+      self.reabriendo = true;
+      fetch('/api/v1/casos/' + CASE_ICODE + '/reabrir', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ actor_id: self.userICode })
+      })
+        .then(function(res) {
+          if (res.ok) {
+            self.modalReabrir = false;
+            self.reabriendo = false;
+            self.showToast('success', 'Caso reabierto correctamente');
+            self.cargarDatos();
+          } else {
+            return res.json().then(function(data) {
+              self.reabriendo = false;
+              self.showToast('error', data.error || 'Error al reabrir el caso');
+            }).catch(function() {
+              self.reabriendo = false;
+              self.showToast('error', 'Error al reabrir el caso');
+            });
+          }
+        })
+        .catch(function() {
+          self.reabriendo = false;
+          self.showToast('error', 'Error de conexión al reabrir el caso');
+        });
     },
     guardarSeguimiento() {
       this.segTocado = true;
@@ -1378,7 +1625,7 @@ var home = Vue.createApp({
           }
           return res.json();
         })
-        .then(function() {
+        .then(function(data) {
           self.guardandoSeg = false;
           self.modalNuevoSeg = false;
           self.showToast('success', 'Seguimiento creado correctamente');

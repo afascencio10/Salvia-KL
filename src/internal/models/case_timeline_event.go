@@ -30,6 +30,7 @@ const (
 	TimelineTypeSeguimientoEjecutado  = "Seguimiento Ejecutado"
 	TimelineTypeSeguimientoEditado    = "Seguimiento Editado"
 	TimelineTypeCierreCaso            = "Cierre de Caso"
+	TimelineTypeReabrirCaso           = "Reapertura de Caso"
 	TimelineTypeCambioEstado          = "Cambio de Estado"
 	TimelineTypeBarreraIdentificada   = "Barrera Identificada"
 	TimelineTypeBarreraArticulada     = "Barrera Articulada"

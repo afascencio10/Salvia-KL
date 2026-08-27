@@ -4,6 +4,7 @@ import (
 	"bitsflow/internal/models"
 	"context"
 	"errors"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -20,6 +21,9 @@ type TeamContactRepository interface {
 	// psicosocial — usado para resolver las "barreras activas" de la sección "Seguimiento a
 	// Barreras" (se buscan las barrier_v2 cuyo team_contact_id esté entre estos IDs).
 	FindByPsicosocialID(ctx context.Context, psicosocialID string) ([]models.TeamContact, error)
+	// FindScheduledOnDate retorna team_contact de sesión psicosocial agendados en la fecha
+	// indicada (is_psico_session, no eliminados) — usado para validar disponibilidad (ventana 2h).
+	FindScheduledOnDate(ctx context.Context, date time.Time) ([]models.TeamContact, error)
 }
 
 type teamContactRepository struct {
@@ -54,6 +58,15 @@ func (r *teamContactRepository) FindByPsicosocialID(ctx context.Context, psicoso
 	err := r.db.WithContext(ctx).
 		Where("psicosocial_id = ? AND deleted_at IS NULL", psicosocialID).
 		Order("created_at ASC").
+		Find(&items).Error
+	return items, err
+}
+
+func (r *teamContactRepository) FindScheduledOnDate(ctx context.Context, date time.Time) ([]models.TeamContact, error) {
+	var items []models.TeamContact
+	day := date.Format("2006-01-02")
+	err := r.db.WithContext(ctx).
+		Where("scheduled_date IS NOT NULL AND (scheduled_date AT TIME ZONE 'UTC')::date = ?::date AND is_psico_session = true AND deleted_at IS NULL", day).
 		Find(&items).Error
 	return items, err
 }

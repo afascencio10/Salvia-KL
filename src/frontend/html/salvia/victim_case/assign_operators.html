@@ -104,7 +104,7 @@
       submit(action) {
         
         if(action == "back" && home.config.globalProperties.enums.nav_rules["default"]){
-          location.assign(home.config.globalProperties.enums.nav_rules["default"]);  
+          salviaGoBack(home.config.globalProperties.enums.nav_rules["default"]);  
         }else if (action == "assign_operator_service"){
           newEntity("{{.salviaFormPath}}/all/"+this.workingSpace.users.oldUserICode+"/"+this.workingSpace.users.newUserICode, "", (function(status, response) {
             if (status === 200) {

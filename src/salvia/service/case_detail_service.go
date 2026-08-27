@@ -130,13 +130,13 @@ func (s *caseDetailService) CreateFollowUp(ctx context.Context, caseICode, agent
 	}
 
 	// Validar que la fecha no sea del pasado (en zona horaria de Colombia)
-	hoy := time.Now().In(loc).Truncate(24 * time.Hour)
+	ahora := time.Now().In(loc)
+	hoy := time.Date(ahora.Year(), ahora.Month(), ahora.Day(), 0, 0, 0, 0, loc)
 	if fecha.Before(hoy) {
 		return nil, errors.New("no se permiten seguimientos con fecha anterior a hoy")
 	}
 
 	// Si es hoy y tiene hora, validar que la hora no haya pasado
-	ahora := time.Now().In(loc)
 	if len(scheduledDate) > 10 && fecha.Year() == ahora.Year() && fecha.Month() == ahora.Month() && fecha.Day() == ahora.Day() {
 		if fecha.Before(ahora) {
 			return nil, errors.New("la hora programada ya pasó, seleccione una hora futura")

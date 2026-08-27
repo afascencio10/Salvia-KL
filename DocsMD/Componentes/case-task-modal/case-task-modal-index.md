@@ -7,6 +7,8 @@
 | Interfaz | [case-task-modal-interface.md](case-task-modal-interface.md) |
 | Uso | [case-task-modal-usage.md](case-task-modal-usage.md) |
 
+**Changelogs:** [changelogAgo2026.md](changelogAgo2026.md)
+
 ---
 
 ## Resumen de eventos

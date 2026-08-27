@@ -15,7 +15,7 @@
             <p style="font-size:2.5rem;margin:0 0 12px">⚠️</p>
             <p style="font-size:1rem;font-weight:700;color:#111827;margin:0 0 8px">No se pudo cargar la remisión</p>
             <p style="font-size:.85rem;color:#6b7280;margin:0 0 20px">${ error }</p>
-            <a href="javascript:history.back()" class="btn btn-secondary" style="border-radius:8px;padding:8px 16px;font-size:.85rem">← Volver</a>
+            <a href="javascript:salviaGoBack('/salvia/mis-remisiones-psicosocial')" class="btn btn-secondary" style="border-radius:8px;padding:8px 16px;font-size:.85rem">← Volver</a>
         </div>
     </div>
 
@@ -23,7 +23,7 @@
 
         <!-- Breadcrumb -->
         <div class="brd-breadcrumb">
-            <a href="javascript:history.back()" class="brd-back-link">
+            <a href="javascript:salviaGoBack('/salvia/mis-remisiones-psicosocial')" class="brd-back-link">
                 <i class="fas fa-arrow-left"></i>
                 Remisiones
             </a>
@@ -49,12 +49,51 @@
                         </div>
                     </div>
                 </div>
-                <div v-if="remision.professionalName" style="display:flex;align-items:center;gap:10px">
-                    <div style="width:36px;height:36px;border-radius:50%;background:#ede9fe;color:#5106A7;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700">${ remision.professionalName.charAt(0).toUpperCase() }</div>
-                    <div>
-                        <div style="font-size:.7rem;color:#9ca3af">Psicóloga</div>
-                        <div style="font-size:.82rem;font-weight:600;color:#374151">${ remision.professionalName }</div>
+                <div style="display:flex;align-items:center;gap:20px">
+                    <div v-if="remision.submittedByName" style="display:flex;align-items:center;gap:10px">
+                        <div style="width:36px;height:36px;border-radius:50%;background:#fff7ed;color:#c2410c;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700">${ remision.submittedByName.charAt(0).toUpperCase() }</div>
+                        <div>
+                            <div style="font-size:.7rem;color:#9ca3af">Remitido por</div>
+                            <div style="font-size:.82rem;font-weight:600;color:#374151">${ remision.submittedByName }</div>
+                            <div v-if="remision.submittedByTeam" style="font-size:.7rem;color:#9ca3af">${ remision.submittedByTeam }</div>
+                        </div>
                     </div>
+                    <!-- Asignación: Dupla o Profesional individual -->
+                    <template v-if="remision.duplaId">
+                        <div style="display:flex;align-items:center;gap:10px;background:#f5f3ff;border:1px solid #e9d5ff;border-radius:12px;padding:10px 14px">
+                            <div>
+                                <div style="font-size:.68rem;font-weight:700;color:#7c3aed;text-transform:uppercase;margin-bottom:4px">${ remision.duplaName || 'Dupla' }</div>
+                                <div v-if="remision.psychologistName" style="font-size:.78rem;color:#374151;display:flex;align-items:center;gap:6px">
+                                    <span style="width:22px;height:22px;border-radius:50%;background:#ede9fe;color:#5106A7;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700">${ remision.psychologistName.charAt(0).toUpperCase() }</span>
+                                    <span style="font-weight:600">${ remision.psychologistName }</span>
+                                    <span style="font-size:.68rem;color:#9ca3af">— Psicóloga</span>
+                                </div>
+                                <div v-if="remision.socialWorkerName" style="font-size:.78rem;color:#374151;display:flex;align-items:center;gap:6px;margin-top:3px">
+                                    <span style="width:22px;height:22px;border-radius:50%;background:#dbeafe;color:#1d4ed8;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700">${ remision.socialWorkerName.charAt(0).toUpperCase() }</span>
+                                    <span style="font-weight:600">${ remision.socialWorkerName }</span>
+                                    <span style="font-size:.68rem;color:#9ca3af">— Trab. Social</span>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                    <template v-else-if="remision.professionalName">
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <div style="width:36px;height:36px;border-radius:50%;background:#ede9fe;color:#5106A7;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700">${ remision.professionalName.charAt(0).toUpperCase() }</div>
+                            <div>
+                                <div style="font-size:.7rem;color:#9ca3af">${ remision.professionalRole || 'Profesional' }</div>
+                                <div style="font-size:.82rem;font-weight:600;color:#374151">${ remision.professionalName }</div>
+                            </div>
+                        </div>
+                    </template>
+                    <template v-else>
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <div style="width:36px;height:36px;border-radius:50%;background:#f3f4f6;color:#9ca3af;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700">?</div>
+                            <div>
+                                <div style="font-size:.7rem;color:#9ca3af">Asignado a</div>
+                                <div style="font-size:.82rem;font-weight:600;color:#9ca3af;font-style:italic">Sin asignar</div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </div>
         </div>
@@ -64,6 +103,16 @@
             <span style="font-size:.78rem;color:#6b7280">Sesiones (4–6)</span>
             <span v-for="n in 6" :key="'s'+n" style="width:10px;height:10px;border-radius:50%" :style="n <= sesionesRealizadas ? 'background:#5106A7' : 'background:#e5e7eb'"></span>
             <span style="font-size:.75rem;color:#9ca3af;margin-left:4px">${ sesionesRealizadas } realizadas</span>
+        </div>
+
+        <!-- Banner de validación pendiente -->
+        <div v-if="remision && remision.validationPending" style="display:flex;align-items:center;gap:12px;padding:14px 20px;background:#fffbeb;border:1px solid #fde047;border-radius:10px;margin-bottom:16px">
+            <span style="font-size:1.3rem">🔍</span>
+            <div style="flex:1">
+                <p style="margin:0;font-size:.85rem;font-weight:700;color:#92400e">Validar remisión</p>
+                <p style="margin:2px 0 0;font-size:.78rem;color:#a16207">Revisar si la remisión cumple los criterios de atención psicosocial.</p>
+            </div>
+            <button @click="abrirValidarModal()" style="background:#5106A7;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer">Revisar</button>
         </div>
 
         <!-- Tabs -->
@@ -97,6 +146,10 @@
                 <div>
                     <span style="font-size:.68rem;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">Requiere intérprete</span>
                     <span style="font-size:.88rem;font-weight:700;color:#111827">${ remision.requiresInterpreter || 'No' }</span>
+                </div>
+                <div>
+                    <span style="font-size:.68rem;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">Ajustes razonables</span>
+                    <span style="font-size:.88rem;font-weight:700;color:#111827">${ remision.ajustesRazonables || 'No registra' }</span>
                 </div>
                 <div>
                     <span style="font-size:.68rem;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">Consentimiento informado</span>
@@ -175,8 +228,7 @@
                         </div>
                         <div>
                             <div style="font-size:.72rem;color:#9ca3af;margin-bottom:3px">
-                                ${ contact.scheduledDate || contact.createdAt }
-                                <span v-if="contact.scheduledTime"> · ${ contact.scheduledTime }</span>
+                                ${ fechaContacto(contact) }
                             </div>
                             <div style="font-size:.88rem;font-weight:700;color:#111827" :style="contact.status === 'cancelada' ? 'text-decoration:line-through;color:#9ca3af' : ''">
                                 <span v-if="contact.status === 'cancelada'">Sesión ${ contarSesionesHasta(idx) } cancelada</span>
@@ -202,8 +254,8 @@
                 <div style="display:flex;gap:8px;margin-top:12px;padding-left:48px">
                     <!-- Ver sesión: solo si está completada Y (es ps/ts O la remisión está cerrada) -->
                     <button v-if="contact.isCompleted && (esProfesionalPsico || remision.status === 'cerrado')" @click="verSesion(contact)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #5106A7;background:#fff;color:#5106A7;cursor:pointer;font-weight:600">Ver sesión</button>
-                    <!-- Registrar sesión, reprogramar, cancelar: solo ps/ts -->
-                    <template v-if="esProfesionalPsico && contact.isPsicoSession && !contact.isCompleted && contact.status !== 'cancelada'">
+                    <!-- Registrar sesión, reprogramar, cancelar: solo ps/ts y remisión no cerrada -->
+                    <template v-if="esProfesionalPsico && contact.isPsicoSession && !contact.isCompleted && contact.status !== 'cancelada' && remision.status !== 'cerrado'">
                         <button @click="registrarSesion(contact)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:none;background:#5106A7;color:#fff;cursor:pointer;font-weight:600">Registrar sesión</button>
                         <button @click="abrirReprogramar(contact, idx)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;color:#374151;cursor:pointer;font-weight:500">Reprogramar</button>
                         <button @click="cancelarSesion(contact)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #fecaca;background:#fff;color:#dc2626;cursor:pointer;font-weight:500">Cancelar sesión</button>
@@ -214,7 +266,7 @@
 
         <!-- Tab: Tareas -->
         <div v-if="activeTab === 'tareas'" class="brd-tab-content-card">
-            <case-tasks :case-id="remision.caseId" :psychosocial-id="remisionID" :user-id="currentUserId" :user-role="currentRole"></case-tasks>
+            <case-tasks :case-id="remision.caseId" :psychosocial-id="remisionID" :user-id="currentUserId" :user-role="currentRole" :allow-psico-manage="true"></case-tasks>
         </div>
 
         <!-- Tab: Timeline -->
@@ -239,7 +291,7 @@
         <div style="display:flex;gap:14px;margin-bottom:24px">
             <div style="flex:1">
                 <label style="font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">Fecha</label>
-                <input type="date" v-model="reprogramarFecha" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:10px;font-size:.85rem;outline:none" />
+                <input type="date" v-model="reprogramarFecha" :min="fechaHoy" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:10px;font-size:.85rem;outline:none" />
             </div>
             <div style="flex:1">
                 <label style="font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">Hora</label>
@@ -272,6 +324,57 @@
     </div>
 </div>
 
+<!-- Modal Validar Remisión -->
+<div v-if="validarModalVisible" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:10002;padding:16px" @click.self="validarModalVisible = false">
+    <div style="background:#fff;border-radius:16px;width:100%;max-width:480px;padding:32px;box-shadow:0 20px 40px rgba(0,0,0,.18)">
+        <p style="font-size:1.2rem;font-weight:800;color:#111827;margin:0 0 6px">Validar remisión</p>
+        <p style="font-size:.85rem;color:#6b7280;margin:0 0 20px">Revisa si la remisión cumple los criterios de atención psicosocial.</p>
+
+        <!-- Criterios -->
+        <div v-if="remision && remision.validationCriteria && remision.validationCriteria.length" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:20px">
+            <p style="font-size:.75rem;font-weight:600;color:#6b7280;margin:0 0 8px">Criterios reportados por el agente</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <span v-for="c in remision.validationCriteria" :key="c" style="font-size:.75rem;font-weight:600;padding:4px 12px;border-radius:20px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa">${ c }</span>
+            </div>
+        </div>
+
+        <!-- Botones decisión -->
+        <div style="display:flex;gap:12px;margin-bottom:20px">
+            <button @click="validarDecision = 'valida'"
+                :style="validarDecision === 'valida' ? 'border:2px solid #10b981;background:#ecfdf5;color:#065f46' : 'border:2px solid #e5e7eb;background:#fff;color:#374151'"
+                style="flex:1;padding:14px;border-radius:10px;font-size:.9rem;font-weight:700;cursor:pointer;transition:all .15s">
+                ✓ Es válida
+            </button>
+            <button @click="validarDecision = 'no_cumple'"
+                :style="validarDecision === 'no_cumple' ? 'border:2px solid #dc2626;background:#fef2f2;color:#991b1b' : 'border:2px solid #e5e7eb;background:#fff;color:#374151'"
+                style="flex:1;padding:14px;border-radius:10px;font-size:.9rem;font-weight:700;cursor:pointer;transition:all .15s">
+                ✕ No cumple criterios
+            </button>
+        </div>
+
+        <!-- Motivo de devolución (solo si no cumple) -->
+        <div v-if="validarDecision === 'no_cumple'" style="margin-bottom:20px">
+            <label style="font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">Motivo de devolución</label>
+            <textarea v-model="validarMotivo" rows="3" placeholder="Ej: No corresponde al perfil de atención psicosocial, se sugiere remitir a..." maxlength="500" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:10px;font-size:.85rem;outline:none;resize:vertical;box-sizing:border-box"></textarea>
+        </div>
+
+        <!-- Botones acción -->
+        <div style="display:flex;gap:12px;justify-content:flex-end">
+            <button @click="validarModalVisible = false" style="padding:10px 24px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;color:#374151;font-size:.85rem;font-weight:600;cursor:pointer">Cancelar</button>
+            <button v-if="validarDecision === 'valida'" @click="confirmarValidacion" :disabled="validarGuardando"
+                style="padding:10px 24px;border-radius:10px;border:none;background:#10b981;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer"
+                :style="{ opacity: validarGuardando ? '.5' : '1' }">
+                ${ validarGuardando ? 'Validando...' : 'Confirmar validación' }
+            </button>
+            <button v-if="validarDecision === 'no_cumple'" @click="confirmarValidacion" :disabled="validarGuardando || !validarMotivo.trim()"
+                style="padding:10px 24px;border-radius:10px;border:none;background:#dc2626;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer"
+                :style="{ opacity: validarGuardando || !validarMotivo.trim() ? '.5' : '1' }">
+                ${ validarGuardando ? 'Devolviendo...' : 'Devolver remisión' }
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
     var home = Vue.createApp({
         delimiters: ['${', '}'],
@@ -287,6 +390,8 @@
                 cargando: true,
                 error: null,
                 remision: null,
+                // Fecha mínima (hoy local)
+                fechaHoy: (function() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })(),
                 // Editar preferencia de horario
                 editandoHorario: false,
                 nuevoHorario: '',
@@ -302,11 +407,19 @@
                 cancelarVisible: false,
                 cancelarContact: null,
                 cancelarGuardando: false,
+                // Validación modal
+                validarModalVisible: false,
+                validarDecision: null, // 'valida' | 'no_cumple'
+                validarMotivo: '',
+                validarGuardando: false,
             };
         },
 
         computed: {
             puedeGestionarContactos() {
+                if (this.remision && this.remision.status === 'cerrado') return false;
+                if (this.remision && this.remision.status === 'en_devolucion') return false;
+                if (this.remision && this.remision.validationPending) return false;
                 return this.currentRole === 'ps' || this.currentRole === 'ts' || this.currentRole === 'sv';
             },
             esProfesionalPsico() {
@@ -319,6 +432,9 @@
             // Solo ps/ts pueden registrar intentos (RBAC register_psychosocial_contact_attempt).
             // El supervisor (sv) y demás roles ven el card 3x3 en modo lectura.
             canRegister() {
+                if (this.remision && this.remision.status === 'cerrado') return false;
+                if (this.remision && this.remision.status === 'en_devolucion') return false;
+                if (this.remision && this.remision.validationPending) return false;
                 return this.currentRole === 'ps' || this.currentRole === 'ts';
             }
         },
@@ -379,6 +495,49 @@
                 }
             },
 
+            fechaContacto(contact) {
+                if (contact.isCompleted && contact.completedAt) {
+                    return this.formatearFechaHoraColombia(contact.completedAt);
+                }
+                if (contact.scheduledDate) {
+                    if (contact.scheduledTime) {
+                        return contact.scheduledDate + ' · ' + contact.scheduledTime;
+                    }
+                    return contact.scheduledDate;
+                }
+                return this.formatearFechaHoraColombia(contact.createdAt || '');
+            },
+
+            // Fechas con hora (completedAt / createdAt) se muestran en America/Bogota.
+            // scheduledDate + scheduledTime no se convierten: son hora local de agendamiento.
+            formatearFechaHoraColombia(value) {
+                if (!value) return '';
+                var s = String(value).trim();
+                if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+                var normalized = s;
+                if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(s) && !/[zZ]|[+-]\d{2}:\d{2}$/.test(s)) {
+                    normalized = s.replace(' ', 'T');
+                    if (normalized.indexOf('T') !== -1 && !/[zZ]|[+-]\d{2}:\d{2}$/.test(normalized)) {
+                        normalized += 'Z';
+                    }
+                }
+                var d = new Date(normalized);
+                if (isNaN(d.getTime())) return s;
+                var parts = new Intl.DateTimeFormat('en-CA', {
+                    timeZone: 'America/Bogota',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                    hourCycle: 'h23'
+                }).formatToParts(d);
+                var map = {};
+                parts.forEach(function(p) { map[p.type] = p.value; });
+                return map.year + '-' + map.month + '-' + map.day + ' ' + map.hour + ':' + map.minute;
+            },
+
             labelSessionType(type) {
                 var map = { 'PRIMER_CONTACTO': 'Primer contacto', 'PRIMERA_ATENCION': 'Primera atención', 'SEGUIMIENTO': 'Seguimiento', 'CIERRE': 'Cierre' };
                 return map[type] || type || '';
@@ -399,7 +558,8 @@
             },
 
             verSesion(contact) {
-                window.location.href = '/salvia/psicosocial/registrar/' + this.remisionID;
+                window.location.href =
+                    '/salvia/psicosocial/registrar/' + this.remisionID + '?contactId=' + contact.id;
             },
 
             async guardarPreferenciaHorario() {
@@ -453,11 +613,6 @@
                 this.cancelarVisible = true;
             },
 
-            registrarSesion(contact) {
-                this.registrarContact = contact;
-                window.location.href = '/salvia/psicosocial/registrar/' + this.remisionID;
-            },
-
             async confirmarCancelacion() {
                 if (this.cancelarGuardando) return;
                 this.cancelarGuardando = true;
@@ -474,6 +629,42 @@
                     console.error('Error cancelando:', e);
                 } finally {
                     this.cancelarGuardando = false;
+                }
+            },
+
+            abrirValidarModal() {
+                this.validarModalVisible = true;
+                this.validarDecision = null;
+                this.validarMotivo = '';
+            },
+
+            async confirmarValidacion() {
+                if (this.validarGuardando) return;
+                if (!this.validarDecision) return;
+                if (this.validarDecision === 'no_cumple' && !this.validarMotivo.trim()) return;
+
+                this.validarGuardando = true;
+                try {
+                    var res = await fetch('/api/v1/psychosocial-support/' + this.remisionID + '/validate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            isValid: this.validarDecision === 'valida',
+                            reason: this.validarMotivo.trim(),
+                            actorId: this.currentUserId
+                        })
+                    });
+                    if (!res.ok) {
+                        var err = await res.json();
+                        throw new Error(err.error || 'Error');
+                    }
+                    this.validarModalVisible = false;
+                    this.cargarDetalle();
+                } catch (e) {
+                    console.error('Error validando:', e);
+                    alert(e.message || 'Error al validar la remisión');
+                } finally {
+                    this.validarGuardando = false;
                 }
             },
 

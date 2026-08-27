@@ -15,7 +15,7 @@
             <p style="font-size:2.5rem;margin:0 0 12px">⚠️</p>
             <p style="font-size:1rem;font-weight:700;color:#111827;margin:0 0 8px">No se pudo cargar la barrera</p>
             <p style="font-size:.85rem;color:#6b7280;margin:0 0 20px">${ error }</p>
-            <a href="javascript:history.back()" class="btn btn-secondary" style="border-radius:8px;padding:8px 16px;font-size:.85rem">← Volver</a>
+            <a href="javascript:salviaGoBack('/salvia/mis-barreras')" class="btn btn-secondary" style="border-radius:8px;padding:8px 16px;font-size:.85rem">← Volver</a>
         </div>
     </div>
 
@@ -23,7 +23,7 @@
 
         <!-- ─── Breadcrumb ─── -->
         <div class="brd-breadcrumb">
-            <a href="javascript:history.back()" class="brd-back-link">
+            <a href="javascript:salviaGoBack('/salvia/mis-barreras')" class="brd-back-link">
                 <i class="fas fa-arrow-left"></i>
                 ${ victimName || 'Caso' }
             </a>

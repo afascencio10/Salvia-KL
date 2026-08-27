@@ -1,6 +1,10 @@
 /**
  * registrar-contacto-modal
  * Modal para registrar un contacto/sesión en una remisión psicosocial.
+ * Ofrece dos caminos:
+ *   1. Contacto inmediato → crea con fecha actual y redirige al formulario psicosocial
+ *   2. Programar contacto → pide fecha/hora, valida disponibilidad (2h) y crea agendado
+ *
  * Se abre vía: this.$refs.registrarContactoModal.open(psicosocialId)
  * Emite @saved cuando se guarda exitosamente.
  */
@@ -17,20 +21,20 @@
         .rcm-row { display:flex;gap:14px;margin-bottom:20px }
         .rcm-field { flex:1 }
         .rcm-label { font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:6px }
-        .rcm-input { width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:10px;font-size:.85rem;outline:none }
+        .rcm-input { width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:10px;font-size:.85rem;outline:none;box-sizing:border-box }
         .rcm-input:focus { border-color:#5106A7 }
-        .rcm-select { width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:10px;font-size:.85rem;outline:none;appearance:auto }
-        .rcm-textarea { width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:10px;font-size:.85rem;outline:none;resize:vertical;min-height:80px }
-        .rcm-toggle-group { display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap }
-        .rcm-toggle-btn { padding:10px 18px;border-radius:10px;border:1.5px solid #e5e7eb;background:#fff;font-size:.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .15s;color:#374151 }
-        .rcm-toggle-btn:hover { border-color:#c4b5fd }
-        .rcm-toggle-btn.active-contacto { border-color:#5106A7;background:#ede9fe;color:#5106A7 }
-        .rcm-toggle-btn.active-agendar { border-color:#5106A7;background:#f3e8ff;color:#5106A7 }
-        .rcm-toggle-btn.active-realizar { border-color:#16a34a;background:#dcfce7;color:#15803d }
         .rcm-footer { display:flex;gap:12px;justify-content:flex-end;margin-top:28px }
         .rcm-btn-cancel { padding:10px 24px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;color:#374151;font-size:.85rem;font-weight:600;cursor:pointer }
-        .rcm-btn-save { padding:10px 24px;border-radius:10px;border:none;background:#c4b5fd;color:#1f2937;font-size:.85rem;font-weight:700;cursor:pointer }
-        .rcm-btn-save:hover { background:#a78bfa }
+        .rcm-btn-save { padding:10px 24px;border-radius:10px;border:none;background:#5106A7;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer }
+        .rcm-btn-save:hover { background:#3b0764 }
+        .rcm-btn-save:disabled { opacity:.5;cursor:not-allowed }
+        .rcm-option-card { border:2px solid #e5e7eb;border-radius:12px;padding:16px 20px;cursor:pointer;transition:all .15s;margin-bottom:12px }
+        .rcm-option-card:hover { border-color:#c4b5fd }
+        .rcm-option-card.active { border-color:#5106A7;background:#f5f3ff }
+        .rcm-option-title { font-size:.9rem;font-weight:700;color:#111827;margin:0 0 4px }
+        .rcm-option-desc { font-size:.78rem;color:#6b7280;margin:0 }
+        .rcm-alert { background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;font-size:.8rem;color:#dc2626;margin-bottom:16px }
+        .rcm-success { background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;font-size:.8rem;color:#15803d;margin-bottom:16px }
     `;
     document.head.appendChild(style);
 })();
@@ -44,26 +48,30 @@ app.component('registrar-contacto-modal', {
             visible: false,
             psicosocialId: null,
             guardando: false,
-
-            form: {
-                fecha: '',
-                hora: '',
-                tipo: null, // 'contacto' | 'agendar' | 'realizar'
-                nota: '',
-                sessionType: '',
-                sessionFecha: '',
-                sessionHora: '',
-            },
+            modo: null, // 'inmediato' | 'programado'
+            // Campos para programado
+            fecha: '',
+            hora: '',
+            // Fecha mínima (hoy local, impide seleccionar pasado)
+            fechaMinima: (function() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })(),
+            // Validación de disponibilidad
+            disponibilidadOk: null, // null = no verificado, true/false
+            disponibilidadMsg: '',
+            verificando: false,
+            errorMsg: '',
         };
     },
 
     computed: {
         puedeGuardar() {
-            if (!this.form.fecha || !this.form.hora || !this.form.tipo) return false;
-            if (this.form.tipo === 'contacto' && !this.form.nota) return false;
-            if (this.form.tipo === 'agendar' && (!this.form.sessionType || !this.form.sessionFecha || !this.form.sessionHora)) return false;
-            if (this.form.tipo === 'realizar' && !this.form.sessionType) return false;
-            return true;
+            if (!this.modo) return false;
+            if (this.modo === 'inmediato') return true;
+            if (this.modo === 'programado') {
+                if (!this.fecha || !this.hora) return false;
+                if (this.fecha < this.fechaMinima) return false;
+                return this.disponibilidadOk === true;
+            }
+            return false;
         },
     },
 
@@ -72,16 +80,13 @@ app.component('registrar-contacto-modal', {
             this.psicosocialId = psicosocialId;
             this.visible = true;
             this.guardando = false;
-            var now = new Date();
-            this.form = {
-                fecha: now.toISOString().substring(0, 10),
-                hora: now.toTimeString().substring(0, 5),
-                tipo: null,
-                nota: '',
-                sessionType: '',
-                sessionFecha: now.toISOString().substring(0, 10),
-                sessionHora: now.toTimeString().substring(0, 5),
-            };
+            this.modo = null;
+            this.fecha = '';
+            this.hora = '';
+            this.disponibilidadOk = null;
+            this.disponibilidadMsg = '';
+            this.verificando = false;
+            this.errorMsg = '';
         },
 
         cerrar() {
@@ -89,29 +94,58 @@ app.component('registrar-contacto-modal', {
             this.psicosocialId = null;
         },
 
-        selectTipo(tipo) {
-            this.form.tipo = tipo;
+        seleccionarModo(modo) {
+            this.modo = modo;
+            this.disponibilidadOk = null;
+            this.disponibilidadMsg = '';
+            this.errorMsg = '';
+        },
+
+        async verificarDisponibilidad() {
+            if (!this.fecha || !this.hora) return;
+            this.verificando = true;
+            this.disponibilidadOk = null;
+            this.disponibilidadMsg = '';
+            try {
+                var params = new URLSearchParams({
+                    date: this.fecha,
+                    time: this.hora,
+                    mode: 'individual'
+                });
+                var res = await fetch('/api/v1/psychosocial-support/' + this.psicosocialId + '/availability?' + params.toString());
+                var data = await res.json();
+                this.disponibilidadOk = data.available;
+                this.disponibilidadMsg = data.message || (data.available ? 'Horario disponible' : 'Conflicto de horario');
+            } catch (e) {
+                this.disponibilidadOk = false;
+                this.disponibilidadMsg = 'Error al verificar disponibilidad';
+            } finally {
+                this.verificando = false;
+            }
         },
 
         async guardar() {
             if (!this.puedeGuardar || this.guardando) return;
             this.guardando = true;
+            this.errorMsg = '';
 
-            var payload = {
-                psicosocialId: this.psicosocialId,
-                contactDate: this.form.fecha,
-                contactTime: this.form.hora,
-                type: this.form.tipo,
-            };
+            var payload = { psicosocialId: this.psicosocialId };
 
-            if (this.form.tipo === 'contacto') {
-                payload.summary = this.form.nota;
-            } else if (this.form.tipo === 'agendar') {
-                payload.sessionType = this.form.sessionType;
-                payload.scheduledDate = this.form.sessionFecha;
-                payload.scheduledTime = this.form.sessionHora;
-            } else if (this.form.tipo === 'realizar') {
-                payload.sessionType = this.form.sessionType;
+            if (this.modo === 'inmediato') {
+                // Contacto inmediato: fecha/hora actual, tipo "realizar"
+                var now = new Date();
+                payload.contactDate = now.toISOString().substring(0, 10);
+                payload.contactTime = now.toTimeString().substring(0, 5);
+                payload.type = 'realizar';
+                payload.sessionType = 'PRIMER_CONTACTO';
+            } else {
+                // Programado: agendar con fecha/hora seleccionada
+                payload.contactDate = this.fecha;
+                payload.contactTime = this.hora;
+                payload.type = 'agendar';
+                payload.sessionType = 'PRIMER_CONTACTO';
+                payload.scheduledDate = this.fecha;
+                payload.scheduledTime = this.hora;
             }
 
             try {
@@ -120,10 +154,28 @@ app.component('registrar-contacto-modal', {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
                 });
-                if (!res.ok) throw new Error('Error ' + res.status);
-                this.$emit('saved');
-                this.cerrar();
+                if (!res.ok) {
+                    var err = await res.json();
+                    throw new Error(err.error || 'Error al guardar');
+                }
+                var data = await res.json();
+
+                if (this.modo === 'inmediato') {
+                    // Solo redirigir al formulario si es ps/ts (profesional que atiende)
+                    var role = this.$root ? (this.$root.currentRole || '') : '';
+                    if ((role === 'ps' || role === 'ts') && data && data.id) {
+                        window.location.href = '/salvia/psicosocial/registrar/' + this.psicosocialId + '?contact_id=' + data.id;
+                        return;
+                    }
+                    // Si es sv u otro rol, solo confirmar y cerrar
+                    this.$emit('saved');
+                    this.cerrar();
+                } else {
+                    this.$emit('saved');
+                    this.cerrar();
+                }
             } catch (e) {
+                this.errorMsg = e.message || 'Error al registrar contacto';
                 console.error('[registrar-contacto-modal] Error:', e);
             } finally {
                 this.guardando = false;
@@ -135,81 +187,47 @@ app.component('registrar-contacto-modal', {
 <div v-if="visible" class="rcm-overlay" @click.self="cerrar">
     <div class="rcm-modal">
         <p class="rcm-title">Registrar contacto</p>
-        <p class="rcm-subtitle">Registra lo que ocurrió en este contacto con la paciente.</p>
+        <p class="rcm-subtitle">Selecciona cómo deseas registrar este contacto con la paciente.</p>
 
-        <!-- Fecha y hora -->
-        <div class="rcm-row">
-            <div class="rcm-field">
-                <label class="rcm-label">Fecha del contacto</label>
-                <input type="date" class="rcm-input" v-model="form.fecha" />
-            </div>
-            <div class="rcm-field">
-                <label class="rcm-label">Hora</label>
-                <input type="time" class="rcm-input" v-model="form.hora" />
-            </div>
+        <!-- Opciones -->
+        <div :class="['rcm-option-card', modo === 'inmediato' ? 'active' : '']" @click="seleccionarModo('inmediato')">
+            <p class="rcm-option-title">⚡ Contacto inmediato</p>
+            <p class="rcm-option-desc">Registrar un contacto ahora y comenzar el formulario psicosocial de inmediato.</p>
+        </div>
+        <div :class="['rcm-option-card', modo === 'programado' ? 'active' : '']" @click="seleccionarModo('programado')">
+            <p class="rcm-option-title">📅 Programar contacto</p>
+            <p class="rcm-option-desc">Agendar una sesión para una fecha y hora específica (se valida disponibilidad).</p>
         </div>
 
-        <!-- Toggle: ¿Qué ocurrió? -->
-        <p class="rcm-label" style="margin-bottom:10px">¿Qué ocurrió en este contacto?</p>
-        <div class="rcm-toggle-group">
-            <button type="button" :class="['rcm-toggle-btn', form.tipo === 'contacto' ? 'active-contacto' : '']" @click="selectTipo('contacto')">
-                💬 Solo contacto
-            </button>
-            <button type="button" :class="['rcm-toggle-btn', form.tipo === 'agendar' ? 'active-agendar' : '']" @click="selectTipo('agendar')">
-                📅 Agendé sesión
-            </button>
-            <button type="button" :class="['rcm-toggle-btn', form.tipo === 'realizar' ? 'active-realizar' : '']" @click="selectTipo('realizar')">
-                ✅ Realicé sesión
-            </button>
-        </div>
-
-        <!-- Solo contacto → Nota -->
-        <div v-if="form.tipo === 'contacto'" style="margin-bottom:16px">
-            <label class="rcm-label">Nota</label>
-            <textarea class="rcm-textarea" v-model="form.nota" placeholder="Ej: Llamada breve para confirmar cita, paciente reporta estar bien..." maxlength="255"></textarea>
-        </div>
-
-        <!-- Agendé sesión → Tipo + Fecha/Hora sesión -->
-        <template v-if="form.tipo === 'agendar'">
-            <div style="margin-bottom:16px">
-                <label class="rcm-label">Tipo de sesión</label>
-                <select class="rcm-select" v-model="form.sessionType">
-                    <option value="" disabled>Seleccione...</option>
-                    <option value="PRIMER_CONTACTO">Primer contacto</option>
-                    <option value="PRIMERA_ATENCION">Primera atención</option>
-                    <option value="SEGUIMIENTO">Seguimiento</option>
-                    <option value="CIERRE">Cierre</option>
-                </select>
-            </div>
-            <div class="rcm-row">
+        <!-- Campos para programado -->
+        <template v-if="modo === 'programado'">
+            <div class="rcm-row" style="margin-top:16px">
                 <div class="rcm-field">
-                    <label class="rcm-label">Fecha de la sesión</label>
-                    <input type="date" class="rcm-input" v-model="form.sessionFecha" />
+                    <label class="rcm-label">Fecha</label>
+                    <input type="date" class="rcm-input" v-model="fecha" :min="fechaMinima" @change="disponibilidadOk = null" />
                 </div>
                 <div class="rcm-field">
-                    <label class="rcm-label">Hora de la sesión</label>
-                    <input type="time" class="rcm-input" v-model="form.sessionHora" />
+                    <label class="rcm-label">Hora</label>
+                    <input type="time" class="rcm-input" v-model="hora" @change="disponibilidadOk = null" />
                 </div>
             </div>
+            <button type="button" @click="verificarDisponibilidad" :disabled="!fecha || !hora || verificando"
+                style="width:100%;padding:10px;border-radius:8px;border:1px solid #5106A7;background:#fff;color:#5106A7;font-size:.82rem;font-weight:600;cursor:pointer;margin-bottom:12px"
+                :style="{ opacity: (!fecha || !hora || verificando) ? '.5' : '1' }">
+                \${ verificando ? 'Verificando...' : '🔍 Verificar disponibilidad' }
+            </button>
+            <div v-if="disponibilidadOk === true" class="rcm-success">\${ disponibilidadMsg }</div>
+            <div v-if="disponibilidadOk === false" class="rcm-alert">\${ disponibilidadMsg }</div>
         </template>
 
-        <!-- Realicé sesión → Solo tipo -->
-        <div v-if="form.tipo === 'realizar'" style="margin-bottom:16px">
-            <label class="rcm-label">Tipo de sesión</label>
-            <select class="rcm-select" v-model="form.sessionType">
-                <option value="" disabled>Seleccione...</option>
-                <option value="PRIMER_CONTACTO">Primer contacto</option>
-                <option value="PRIMERA_ATENCION">Primera atención</option>
-                <option value="SEGUIMIENTO">Seguimiento</option>
-                <option value="CIERRE">Cierre</option>
-            </select>
-        </div>
+        <!-- Error -->
+        <div v-if="errorMsg" class="rcm-alert">\${ errorMsg }</div>
 
         <!-- Footer -->
         <div class="rcm-footer">
             <button class="rcm-btn-cancel" @click="cerrar">Cancelar</button>
-            <button class="rcm-btn-save" :disabled="!puedeGuardar || guardando" :style="{ opacity: puedeGuardar && !guardando ? '1' : '.5' }" @click="guardar">
-                \${ guardando ? 'Guardando...' : 'Guardar' }
+            <button class="rcm-btn-save" :disabled="!puedeGuardar || guardando" @click="guardar">
+                \${ guardando ? 'Guardando...' : (modo === 'inmediato' ? 'Iniciar atención' : 'Agendar sesión') }
             </button>
         </div>
     </div>

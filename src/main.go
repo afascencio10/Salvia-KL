@@ -84,6 +84,8 @@ func main() {
         &models.EntityObligation{},
         &models.EntityCaseObligation{},
         &models.EntityCaseFollowUp{},
+        &models.TeamMeeting{},
+        &models.TeamMeetingAgent{},
     } {
         if err := gormDB.AutoMigrate(m); err != nil {
             log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -94,6 +96,18 @@ func main() {
     // Agrega columnas faltantes sin ALTER TABLE manual.
     // Si se necesita un campo nuevo en una tabla legacy, agregarlo aquí.
     migrateLegacyTables(gormDB)
+
+    // Fix: asignar sequence_number a seguimientos que lo tienen en 0 (bug de buildFollowUps).
+    // Ordena por scheduled_date ASC dentro de cada caso para asignar 1, 2, 3...
+    gormDB.Exec(`
+        WITH numbered AS (
+            SELECT id, ROW_NUMBER() OVER (PARTITION BY case_id ORDER BY scheduled_date ASC, created_at ASC) AS rn
+            FROM salvia.follow_up_v2
+            WHERE deleted_at IS NULL AND sequence_number = 0
+        )
+        UPDATE salvia.follow_up_v2 SET sequence_number = numbered.rn
+        FROM numbered WHERE follow_up_v2.id = numbered.id
+    `)
 
     // Repositories
     formRepo               := repository.NewFormRepository(gormDB)
@@ -131,6 +145,7 @@ func main() {
     duplaRepo              := repository.NewDuplaRepository(gormDB)
     psychosocialReassignRepo := repository.NewPsychosocialReassignRepository(gormDB)
     entityCaseRepo         := repository.NewEntityCaseRepository(gormDB)
+    psychosocialCalendarRepo := repository.NewPsychosocialCalendarRepository(gormDB)
     victimCaseFormRepo     := repository.NewVictimCaseFormRepository(gormDB)
     entityObligationRepo      := repository.NewEntityObligationRepository(gormDB)
     entityCaseObligationRepo  := repository.NewEntityCaseObligationRepository(gormDB)
@@ -147,7 +162,7 @@ func main() {
     repeaterEntrySvc      := service.NewRepeaterEntryService(repeaterEntryRepo)
     answerSvc             := service.NewAnswerService(answerRepo)
     optionSvc             := service.NewOptionService(optionRepo)
-    followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo)
+    followUpV2Svc         := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo, answerRepo, repeaterEntryRepo)
     victimCaseFormSvc     := service.NewVictimCaseFormService(victimCaseFormRepo, victimCaseLightRepo, caseTimelineRepo, followUpV2Svc)
     entityCaseSvc         := service.NewEntityCaseService(entityCaseRepo)
 
@@ -177,7 +192,8 @@ func main() {
         FollowUpV2Svc:             followUpV2Svc,
         CaseTaskRepo:              caseTaskRepo,
         EntityLetterRepo:          entityLetterRepo,
-        TeamContactRepo:           teamContactRepo,
+		TeamContactRepo:           teamContactRepo,
+        DuplaRepo:                 duplaRepo,
         VictimCaseFormSvc:         victimCaseFormSvc,
         EntityCaseSvc:             entityCaseSvc,
         EntityObligationRepo:      entityObligationRepo,
@@ -193,6 +209,7 @@ func main() {
     psychosocialListSvc   := service.NewPsychosocialListService(psychosocialListRepo, duplaRepo)
     psychosocialReassignSvc := service.NewPsychosocialReassignService(psychosocialReassignRepo, gormDB)
     duplaAdminSvc         := service.NewDuplaAdminService(duplaRepo, psychosocialReassignRepo)
+    psychosocialCalendarSvc := service.NewPsychosocialCalendarService(psychosocialCalendarRepo)
 
     // Inyectar el servicio en el controller legacy para generación automática del calendario
     salvia_legacy.FollowUpSvc = followUpV2Svc
@@ -211,9 +228,10 @@ func main() {
     answerCtrl             := salvia_ctrl.NewAnswerController(answerSvc)
     followUpV2Ctrl         := salvia_ctrl.NewFollowUpV2Controller(followUpV2Svc)
     optionCtrl             := salvia_ctrl.NewOptionController(optionSvc)
-    caseDetailCtrl         := salvia_ctrl.NewCaseDetailController(caseDetailSvc, caseTimelineRepo)
+    caseDetailCtrl         := salvia_ctrl.NewCaseDetailController(caseDetailSvc, caseTimelineRepo, casoCierreSvc)
     caseInfoCtrl           := salvia_ctrl.NewCaseInfoController(caseInfoSvc, gormDB)
     reportCtrl             := salvia_ctrl.NewReportController(reportSvc)
+    reportAsyncCtrl        := salvia_ctrl.NewReportAsyncController(reportSvc)
     barrierV2Svc           := service.NewBarrierV2Service(barrierV2Repo, barrierFollowUpRepo, agentLightRepo)
     barrierV2GinCtrl       := salvia_ctrl.NewBarrierV2GinController(barrierV2Svc)
 
@@ -245,6 +263,7 @@ func main() {
     contactAttemptRepo      := repository.NewContactAttemptRepository(gormDB)
     psychosocial3x3Svc      := service.NewPsychosocial3x3Service(contactAttemptRepo, gormDB)
     psychosocialContactCtrl := salvia_ctrl.NewPsychosocialContactController(psychosocial3x3Svc)
+    psychosocialCalendarCtrl := salvia_ctrl.NewPsychosocialCalendarController(psychosocialCalendarSvc)
     followUpV2Repo         := repository.NewFollowUpV2Repository(gormDB)
     assignCaseSvc          := service.NewAssignCaseService(victimCaseLightRepo, agentLightRepo, followUpV2Repo)
     assignCaseCtrl         := salvia_ctrl.NewAssignCaseController(assignCaseSvc)
@@ -271,6 +290,7 @@ func main() {
     caseDetailCtrl.RegisterRoutes(api)
     caseInfoCtrl.RegisterRoutes(api)
     reportCtrl.RegisterRoutes(api)
+    reportAsyncCtrl.RegisterRoutes(api)
     entityLetterCtrl.RegisterRoutes(api)
     entityCaseCtrl.RegisterRoutes(api)
     entityAPICtrl.RegisterRoutes(api)
@@ -287,6 +307,7 @@ func main() {
     psychosocialReassignCtrl.RegisterRoutes(api)
     duplaAdminCtrl.RegisterRoutes(api)
     psychosocialContactCtrl.RegisterRoutes(api)
+    psychosocialCalendarCtrl.RegisterRoutes(api)
     assignCaseCtrl.RegisterRoutes(api)
 
     // Admin: endpoints de migración (protegidos por X-Security-Key)
@@ -296,6 +317,10 @@ func main() {
     // Admin: búsqueda de usuarios
     adminUsersCtrl := salvia_ctrl.NewAdminUsersController(gormDB)
     adminUsersCtrl.RegisterRoutes(api)
+
+    // Admin: reporte Excel de usuarios
+    adminUsersReportCtrl := salvia_ctrl.NewAdminUsersReportController(gormDB)
+    adminUsersReportCtrl.RegisterRoutes(api)
     // ────────────────────────────────────────────────────────────────────────
 
     // ── Graceful shutdown ────────────────────────────────────────────────────

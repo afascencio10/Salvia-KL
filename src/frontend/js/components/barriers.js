@@ -156,19 +156,35 @@
                     .join(' ') || '—';
 
                 return {
-                    id:          ct.id,
-                    barrierId:   ct.barrierId || '',
-                    victimName:  victimFull,
-                    caseCode:    ct.caseCode || ct.caseId || '—',
-                    docNumber:   ct.victimDocNumber || '—',
-                    caseId:      ct.caseId || '',
-                    priority:    'Alto',
-                    sector:      ct.barrierSector || '—',
-                    description: ct.barrierDescription || ct.description || '—',
-                    gestion:     ct.result || null,
-                    articulada:  ct.status === 'Done',
-                    canManage:   ct.status === 'ToDo'
+                    id:              ct.id,
+                    barrierId:       ct.barrierId || '',
+                    victimName:      victimFull,
+                    caseCode:        ct.caseCode || ct.caseId || '—',
+                    docNumber:       ct.victimDocNumber || '—',
+                    caseId:          ct.caseId || '',
+                    priority:        'Alto',
+                    sector:          ct.barrierSector || '—',
+                    description:     ct.barrierDescription || ct.description || '—',
+                    taskTypeLabel:   this.taskTypeLabel(ct.type),
+                    taskDescription: ct.description || '—',
+                    gestion:         ct.result || null,
+                    articulada:      ct.status === 'Done',
+                    canManage:       ct.status === 'ToDo'
                 };
+            },
+
+            /* Traduce el código interno de tipo de tarea a una etiqueta legible */
+            taskTypeLabel(type) {
+                const labels = {
+                    orientacion_llamada: 'Orientación llamada',
+                    gestion_llamada:     'Gestión llamada',
+                    gestion_propia:      'Gestión propia',
+                    proyectar_oficio:    'Proyectar oficio',
+                    comite_caso:         'Comité de caso'
+                };
+                if (!type) return '—';
+                if (labels[type]) return labels[type];
+                return type.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
             },
 
             /* ── Utilidades ─────────────────────────────────────────────── */

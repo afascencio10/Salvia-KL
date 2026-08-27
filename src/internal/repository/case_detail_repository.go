@@ -25,7 +25,7 @@ type CaseDetailData struct {
 	AgentName           string `json:"agentName"`
 	TimelineEvents []models.CaseTimelineEvent `json:"timelineEvents"`
 	EmergencyMeasures      []models.EmergencyMeasure      `json:"emergencyMeasures"`
-	PsychosocialSupports   []models.PsychosocialSupport   `json:"psychosocialSupports"`
+	PsychosocialSupports   []PsychosocialSupportView      `json:"psychosocialSupports"`
 	EconomicStabilizations []models.EconomicStabilization `json:"economicStabilizations"`
 	Barriers               []models.BarrierV2              `json:"barriers"`
 	// Campos resumen del caso (form2 enums resueltos)
@@ -43,6 +43,30 @@ type CaseDetailData struct {
 	PlanAtencion         []string `json:"planAtencion"`
 	PlanAtencionExplicacion string `json:"planAtencionExplicacion"`
 	AjusteRazonable      []string `json:"ajusteRazonable"`
+}
+
+// PsychosocialSessionView — sesión programada dentro de una remisión psicosocial.
+type PsychosocialSessionView struct {
+	ID               string  `json:"id"`
+	ScheduledDate    *string `json:"scheduledDate"`
+	ScheduledTime    string  `json:"scheduledTime"`
+	Status           string  `json:"status"`
+	IsCompleted      bool    `json:"isCompleted"`
+	Summary          string  `json:"summary"`
+	ProfessionalName string  `json:"professionalName"`
+	ProfessionalID   string  `json:"professionalId"`
+}
+
+// PsychosocialSupportView — remisión + sus sesiones + asignación resuelta.
+type PsychosocialSupportView struct {
+	models.PsychosocialSupport
+	Sessions          []PsychosocialSessionView `json:"sessions"`
+	SubmittedByName   string                    `json:"submittedByName"`
+	DuplaName         string                    `json:"duplaName"`
+	PsychologistName  string                    `json:"psychologistName"`
+	SocialWorkerName  string                    `json:"socialWorkerName"`
+	ProfessionalName  string                    `json:"professionalName"`
+	ProfessionalRole  string                    `json:"professionalRole"`
 }
 
 type CaseDetailRepository interface {
@@ -230,7 +254,7 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 	var followUpsV2 []models.FollowUpV2
 	r.db.WithContext(ctx).
 		Where("case_id = ?", vc.VictimCaseICode).
-		Order("sequence_number ASC").
+		Order("scheduled_date ASC").
 		Find(&followUpsV2)
 
 	// Cargar intentos de contacto para cada seguimiento (esquema 3×3)
@@ -260,7 +284,65 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 
 	var ps []models.PsychosocialSupport
 	r.db.WithContext(ctx).Where("case_id = ?", vc.VictimCaseICode).Find(&ps)
-	result.PsychosocialSupports = ps
+
+	// Cargar sesiones (team_contact) y asignación resuelta (remitente, dupla, profesional) por remisión.
+	psViews := make([]PsychosocialSupportView, 0, len(ps))
+	for _, remision := range ps {
+		var enrich struct {
+			SubmittedByNames      string `gorm:"column:submitted_by_names"`
+			SubmittedByLastNames  string `gorm:"column:submitted_by_last_names"`
+			DuplaName             string `gorm:"column:dupla_name"`
+			PsychologistName      string `gorm:"column:psychologist_name"`
+			SocialWorkerName      string `gorm:"column:social_worker_name"`
+			ProfessionalName      string `gorm:"column:professional_name"`
+			ProfessionalSpecialty string `gorm:"column:professional_specialty"`
+		}
+		r.db.WithContext(ctx).Raw(`
+			SELECT
+				COALESCE(submitter_gup.general_user_profile_names, '') AS submitted_by_names,
+				COALESCE(submitter_gup.general_user_profile_last_names, '') AS submitted_by_last_names,
+				COALESCE(d.name, '') AS dupla_name,
+				COALESCE(psych_gup.general_user_profile_names || ' ' || psych_gup.general_user_profile_last_names, '') AS psychologist_name,
+				COALESCE(sw_gup.general_user_profile_names || ' ' || sw_gup.general_user_profile_last_names, '') AS social_worker_name,
+				COALESCE(prof_gup.general_user_profile_names || ' ' || prof_gup.general_user_profile_last_names, '') AS professional_name,
+				`+psychosocialProfSpecialtySelect+` AS professional_specialty
+			`+psychosocialListBaseFrom+`
+			WHERE ps.id = ?
+		`, remision.ID).Scan(&enrich)
+
+		var sessions []PsychosocialSessionView
+		r.db.WithContext(ctx).Raw(`
+			SELECT
+				tc.id AS id,
+				TO_CHAR(tc.scheduled_date AT TIME ZONE 'America/Bogota', 'YYYY-MM-DD') AS scheduled_date,
+				COALESCE(tc.scheduled_time, '') AS scheduled_time,
+				CASE WHEN tc.is_completed THEN 'realizada' ELSE COALESCE(tc.status, 'programada') END AS status,
+				tc.is_completed AS is_completed,
+				COALESCE(tc.summary, '') AS summary,
+				COALESCE(TRIM(CONCAT(gup.general_user_profile_names, ' ', gup.general_user_profile_last_names)), '') AS professional_name,
+				COALESCE(gu.general_user_i_code::text, tc.professional_id, '') AS professional_id
+			FROM salvia.team_contact tc
+			LEFT JOIN security.general_user gu
+			       ON gu.general_user_id::text = BTRIM(COALESCE(tc.professional_id,''))
+			       OR gu.general_user_i_code::text = BTRIM(COALESCE(tc.professional_id,''))
+			LEFT JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+			WHERE tc.deleted_at IS NULL
+			  AND tc.is_psico_session = true
+			  AND (tc.psicosocial_id = ? OR tc.case_id = ?)
+			ORDER BY tc.scheduled_date DESC
+		`, remision.ID, vc.VictimCaseICode).Scan(&sessions)
+		psViews = append(psViews, PsychosocialSupportView{
+			PsychosocialSupport: remision,
+			Sessions:            sessions,
+			SubmittedByName:     strings.TrimSpace(enrich.SubmittedByNames + " " + enrich.SubmittedByLastNames),
+			DuplaName:           enrich.DuplaName,
+			PsychologistName:    strings.TrimSpace(enrich.PsychologistName),
+			SocialWorkerName:    strings.TrimSpace(enrich.SocialWorkerName),
+			ProfessionalName:    strings.TrimSpace(enrich.ProfessionalName),
+			ProfessionalRole:    psychosocialRoleLabelFromSpecialty(enrich.ProfessionalSpecialty),
+		})
+	}
+	result.PsychosocialSupports = psViews
 
 	var es []models.EconomicStabilization
 	r.db.WithContext(ctx).Where("case_id = ?", vc.VictimCaseICode).Find(&es)

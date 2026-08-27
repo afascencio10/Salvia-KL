@@ -1,8 +1,8 @@
 # `psicosocial-sesion` — Índice de Documentación
 
-Pantalla para que el agente psicosocial registre una sesión realizada. Comparte arquitectura con `hacer-seguimiento`: tarjeta de la víctima + componente `DinamicForm`. A diferencia de `hacer-seguimiento`, usa **4 formularios independientes** (uno por tipo de sesión) en lugar de un único formulario con secciones condicionales.
+Pantalla para que el agente psicosocial registre una sesión realizada. Comparte arquitectura con `hacer-seguimiento`: tarjeta de la víctima + componente `DinamicForm`. Usa **4 formularios independientes** (uno por tipo de sesión).
 
-**Ruta planificada:** `/salvia/psicosocial/registrar/:psicosocial_id`  
+**Ruta:** `/salvia/psicosocial/registrar/:psicosocial_id`  
 **Fuente de preguntas:** Google Sheet — _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`
 
 ---
@@ -11,61 +11,44 @@ Pantalla para que el agente psicosocial registre una sesión realizada. Comparte
 
 | Archivo | Descripción |
 |---|---|
-| [`interfaz.md`](interfaz.md) | Árbol de interfaz: componentes, estados visuales, variantes del overlay de completado |
-| [`flujo-psicosocial.md`](flujo-psicosocial.md) | Máquina de estados: 4 escenarios, qué formulario se carga y cómo cambia el estado del caso |
-| [`related-tables.md`](related-tables.md) | Tablas de BD involucradas: tablas existentes reutilizadas + campos nuevos a migrar |
-| [`form-psicosocial-data.md`](form-psicosocial-data.md) | Estructura de los 4 formularios: secciones, preguntas, opciones y condiciones de visibilidad |
-| [`Flujos/flow-E01-cuando-carga-pantalla.md`](Flujos/flow-E01-cuando-carga-pantalla.md) | Evento E-01: carga inicial — selección de formulario, resolución de team_contact, formState |
+| [`interfaz.md`](interfaz.md) | Árbol de interfaz, overlay de completado |
+| [`flujo-psicosocial.md`](flujo-psicosocial.md) | Máquina de estados A–D, formularios, efectos al completar |
+| [`related-tables.md`](related-tables.md) | Tablas BD + migraciones |
+| [`form-psicosocial-data.md`](form-psicosocial-data.md) | Secciones, preguntas, visibilidad (incl. Aug 2026) |
+| [`changelogAug2026.md`](changelogAug2026.md) | Barreras §9.6, consentimiento info+hide, hechos, agenda |
+| [`Flujos/flow-E01-cuando-carga-pantalla.md`](Flujos/flow-E01-cuando-carga-pantalla.md) | Carga + selección de formulario |
+| [`Flujos/flow-E02-cuando-se-guarda-formulario.md`](Flujos/flow-E02-cuando-se-guarda-formulario.md) | Guardado: session_type, agenda, barreras, hechos, timeline |
 
 ---
 
-## Decisión arquitectural: 4 formularios independientes
+## Formularios según estado (`psychosocial_support`)
 
-Recomendado por el líder técnico de `hacer-seguimiento`. Cada tipo de sesión tiene su propio formulario, lo que facilita el mantenimiento, la evolución independiente y la claridad de cada estado del proceso.
+| Escenario | Condición | Formulario |
+|---|---|---|
+| A | `ya_hizo_primer_contacto = false` | Primer Contacto (S4 Primera Atención si Continuar=Sí, **mismo form**) |
+| B | PC hecho, PA no | Primera Atención |
+| C | PA hecho, `session_count < 3` | Atención Psicosocial |
+| D | PA hecho, `session_count >= 3` | Cierre |
 
-| # | Formulario | Escenario de uso | Secciones |
-|---|---|---|---|
-| 1 | **Primer Contacto** | `ya_hizo_primer_contacto = false` | 1 — Primer contacto |
-| 2 | **Primera Atención** | `ya_hizo_primer_contacto = true`, `ya_hizo_primera_atencion = false` | 1 — Contacto · 2 — Primera atención |
-| 3 | **Seguimiento** | `ya_hizo_primera_atencion = true`, `session_count` entre 1 y 2 | 1 — Contacto · 2 — Seguimiento |
-| 4 | **Cierre** | `ya_hizo_primera_atencion = true`, `session_count >= 3` | 1 — Contacto · 2 — Seguimiento · 3 — Cierre |
+> No hay `skip_contact` ni redirección a otro form al Continuar PA: todo queda en Form PC.
 
-**Variante del Escenario A:** Al completar el Formulario de Primer Contacto con "Continuar Primera Atención = Sí", el sistema carga el Formulario de Primera Atención omitiendo la sección de Contacto (`formState.skip_contact = true`).
+| Form | Secciones |
+|---|---|
+| 1 Primer Contacto | Contacto · Seg. Barreras · Identif. Barreras · Primera Atención |
+| 2 Primera Atención | Contacto · Seg. Barreras · Identif. Barreras · Primera Atención |
+| 3 Atención Psicosocial | Contacto · Seg. Barreras · Identif. Barreras · Atención Psicosocial |
+| 4 Cierre | Contacto · Seg. Barreras · Identif. Barreras · Atención (Cierre) · Cierre |
 
 ---
 
-## Tablas de BD involucradas
+## Cambios Aug 2026 (diagrama)
 
-### Tablas existentes (reutilizadas con nuevos campos)
+- Consentimiento PC/PA: `info` (texto) + `single` (Sí/No); si No → oculta resto de la sección.
+- Agenda: ¿Agendar? → Fecha + Hora; chequeo disponibilidad 2h; skip schedule si ocupado.
+- Seguimiento a Barreras §9.6: `barrier_follow_up` + timeline + `MANAGED`.
+- Hechos de violencia → timeline `Hechos del caso`.
 
-| Tabla | Operación | Campos nuevos |
-|---|---|---|
-| `salvia.psychosocial_support` | SELECT al cargar, UPDATE al completar | `ya_hizo_primer_contacto`, `ya_hizo_primera_atencion` |
-| `salvia.team_contact` | INSERT por cada sesión registrada | `session_type` |
-
-### Tablas del sistema DinamicForm (nuevos registros vía seed)
-
-| Tabla | Tipo | Operación |
-|---|---|---|
-| `salvia.form` | Existente | INSERT 4 formularios nuevos |
-| `salvia.form_section` | Existente | INSERT 8 secciones |
-| `salvia.question` | Existente | INSERT ~74 preguntas |
-| `salvia.option` | Existente | INSERT ~71 opciones |
-| `salvia.visibility_condition` | Existente | INSERT ~15 condiciones de visibilidad |
-| `salvia.form_submission` | Existente | INSERT por cada sesión iniciada |
-| `salvia.answer` | Existente | INSERT por cada respuesta |
-| `salvia.case_timeline_event` | Existente | INSERT al completar |
-
----
-
-## Estado en `psychosocial_support` que maneja el flujo
-
-| Campo | Tipo | Determina |
-|---|---|---|
-| `ya_hizo_primer_contacto` | boolean | Si se usa el Form 1 o Form 2+ |
-| `ya_hizo_primera_atencion` | boolean | Si se usa el Form 3 o Form 4 |
-| `session_count` | int | Diferencia entre Form 3 (Seguimiento) y Form 4 (Cierre) |
-| `status` | varchar | Estado visible en el componente de remisiones |
+Seed/migración: [`src/cmd/seed/seed_psicosocial.sql`](../../../src/cmd/seed/seed_psicosocial.sql), [`migrate_psicosocial_aug2026.sql`](../../../src/cmd/seed/migrate_psicosocial_aug2026.sql).
 
 ---
 
@@ -73,6 +56,6 @@ Recomendado por el líder técnico de `hacer-seguimiento`. Cada tipo de sesión 
 
 | Componente | Relación |
 |---|---|
-| `remisiones-psicosocial-component` | Lista las remisiones y permite acceder a esta pantalla vía evento `ver-remision` |
-| `DinamicForm` | Componente que renderiza el formulario seleccionado según el escenario |
-| `hacer-seguimiento` | Pantalla de referencia — misma arquitectura de tarjeta + DinamicForm |
+| `remisiones-psicosocial-component` | Acceso vía remisión |
+| `DinamicForm` | Render del formulario (tipos incl. `time`, `info`) |
+| `hacer-seguimiento` | Referencia de barreras / hechos / tareas |

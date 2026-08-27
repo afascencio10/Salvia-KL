@@ -42,6 +42,13 @@ func (m *MockQuestionRepo) FindBySectionID(ctx context.Context, sectionID string
 	args := m.Called(ctx, sectionID)
 	return args.Get(0).([]models.Question), args.Error(1)
 }
+func (m *MockQuestionRepo) FindByRepeaterGroupID(ctx context.Context, groupID string) ([]models.Question, error) {
+	args := m.Called(ctx, groupID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.Question), args.Error(1)
+}
 
 func TestQuestionService_GetByID(t *testing.T) {
 	ctx := context.Background()

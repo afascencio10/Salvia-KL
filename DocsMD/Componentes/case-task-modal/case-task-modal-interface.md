@@ -1,6 +1,6 @@
 # `case-task-modal` — Interfaz del Componente
 
-Modal reutilizable para completar tareas (`case_task`). El padre lo activa vía `open(taskId)`, el componente carga la tarea del API, renderiza el formulario específico según `case_task.type` (`gestion_llamada`, `proyectar_oficio`, `comite_caso` o `Corregir oficio`) y al confirmar la marca como completada ejecutando los efectos de lado correspondientes en el backend.
+Modal reutilizable para completar tareas (`case_task`). El padre lo activa vía `open(taskId)`, el componente carga la tarea del API, renderiza el formulario específico según `case_task.type` (`gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio` o `justificar_remision`) y al confirmar la marca como completada ejecutando los efectos de lado correspondientes en el backend.
 
 ## Archivos relevantes
 
@@ -24,9 +24,11 @@ case-task-modal
         ├── Header  (.ctm-header)
         │   ├── Title  (.ctm-title)
         │   │   SEGÚN tarea.type:
-        │   │     'gestion_llamada'  → "Gestión de Llamada"
-        │   │     'proyectar_oficio' → "Proyectar Oficio"
-        │   │     'comite_caso'      → "Decisiones del Comité"
+        │   │     'gestion_llamada'     → "Gestión de Llamada"
+        │   │     'proyectar_oficio'    → "Proyectar Oficio"
+        │   │     'comite_caso'         → "Decisiones del Comité"
+        │   │     'Corregir oficio'     → "Corregir Oficio"
+        │   │     'justificar_remision' → "Justificar Remisión"
         │   └── BtnCerrar  "✕"  → cancelar()
         │
         ├── [v-if cargandoTarea]
@@ -88,6 +90,13 @@ case-task-modal
             │           │   opciones: Municipal | Departamental | Nacional
             │           └── <textarea> Observaciones del mecanismo  (.ctm-textarea)
             │
+            │   [tarea.type === 'justificar_remision']
+            │   FormJustificarRemision  (.ctm-form)
+            │   ├── MotivoDevolucion  (fondo rojo claro)
+            │   │   ├── Label  "⚠ Motivo de la devolución"
+            │   │   └── Texto  tarea.description   // "Justificar remisión devuelta — Motivo: {motivo}"
+            │   └── <textarea> Tu respuesta*  (.ctm-textarea)  maxlength=500
+            │
             │   [tarea.type === 'Corregir oficio']
             │   FormCorregirOficio  (.ctm-form)  // solo lectura, sin campos editables
             │   │
@@ -133,23 +142,41 @@ case-task-modal
 | `comite_caso` | `decisiones.includes('activar_enlace')` | Activa flag booleano de enlace territorial en el registro + guarda JSON + Done |
 | `comite_caso` | `decisiones.includes('oficio')` | Crea `entity_letter` (estado `por_proyectar`) + nueva `case_task` de tipo `proyectar_oficio` asignada al agente del caso + guarda JSON + Done |
 | `Corregir oficio` | — | Transiciona el `entity_letter` vinculado (`case_task.entity_letter_id`) de `en_correccion` → `para_revisar` + marca la tarea `Done`. No hay `form_data` que guardar — es solo confirmación. |
+| `justificar_remision` | — | Guarda JSON (`respuesta`) + Done. Reabre la `psychosocial_support` vinculada (`status → 'abierto'`) y crea una nueva `case_task` `validar_remision` (`ToDo`) para que el psicólogo/a vuelva a evaluarla — asignada al `psychologist_id` de la `dupla` si la remisión tiene una, si no al `professional_id` individual, si no queda sin asignar (igual que la remisión). Crea `case_timeline_event` "Remisión Justificada". Ver `DocsMD/Screens/Remision Psicosocial Detalle/QA/validar-remision-justificar-qa-cases.md`. |
 
 ---
 
 ## Validaciones por tipo de tarea
 
-| Campo | `gestion_llamada` | `proyectar_oficio` | `comite_caso` | `Corregir oficio` |
-|---|---|---|---|---|
-| Departamento | required | required | — | — |
-| Ciudad | required | required | — | — |
-| Municipio | required | required | — | — |
-| Entidad | required | required | — | — |
-| Nombre entidad (si "otra") | required | required | — | — |
-| Funcionario | required | required | — | — |
-| Descripción | opcional | — | — | — |
-| Asunto | required si `generaOficio` | required | — | — |
-| Ruta al archivo en Kofax | required si `generaOficio` | required | — | — |
-| Decisiones del comité | — | — | min 1 requerida | — |
-| Nivel (mecanismo articulador) | — | — | required si decisión activa | — |
+| Campo | `gestion_llamada` | `proyectar_oficio` | `comite_caso` | `Corregir oficio` | `justificar_remision` |
+|---|---|---|---|---|---|
+| Departamento | required | required | — | — | — |
+| Ciudad | required | required | — | — | — |
+| Municipio | required | required | — | — | — |
+| Entidad | required | required | — | — | — |
+| Nombre entidad (si "otra") | required | required | — | — | — |
+| Funcionario | required | required | — | — | — |
+| Descripción | opcional | — | — | — | — |
+| Asunto | required si `generaOficio` | required | — | — | — |
+| Ruta al archivo en Kofax | required si `generaOficio` | required | — | — | — |
+| Decisiones del comité | — | — | min 1 requerida | — | — |
+| Nivel (mecanismo articulador) | — | — | required si decisión activa | — | — |
+| Tu respuesta | — | — | — | — | required |
 
 > `Corregir oficio` no tiene campos editables. `formularioValido` solo exige que `cargandoOficio === false` (que haya terminado de cargar el `entity_letter` vinculado en modo lectura).
+
+---
+
+## Límite de caracteres por campo
+
+Todos los `<input>`/`<textarea>` de texto libre tienen `maxlength` (atributo HTML nativo — el navegador bloquea escribir/pegar más allá del límite). Los `<select>` no aplican.
+
+| Campo | `maxlength` |
+|---|---|
+| Funcionario contactado / Dependencia del funcionario | 50 |
+| Asunto (del oficio) | 80 |
+| Nombre de la entidad (si "otra") | 150 |
+| Ruta Kofax / URL del archivo | 255 |
+| Descripción / Notas (`gestion_llamada`) | 500 |
+| Observaciones del oficio / para el agente / del mecanismo (`comite_caso`) | 500 |
+| Tu respuesta (`justificar_remision`) | 500 |

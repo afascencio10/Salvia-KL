@@ -2,7 +2,7 @@
 
 Modal para reasignar una o varias remisiones de Atención Psicosocial seleccionadas desde `remisiones-psicosocial-component`. Lo consume la **pantalla padre** (p. ej. Historial de Remisiones, rol `sv`). Se abre cuando el padre recibe el evento `reasignar-remisiones` (E-15) y llama al método público `open(remisiones)`.
 
-Permite elegir asignación **individual** (profesional `ps` o `ts`) o **en dupla**, y al confirmar actualiza `psychosocial_support` y los `team_contact` pendientes vinculados.
+Permite elegir asignación **individual** (profesional `ps` o `ts`) o **en dupla**, y al confirmar actualiza `psychosocial_support`, los `team_contact` pendientes vinculados y las `case_task` pendientes (`ToDo`) de esas remisiones.
 
 ## Archivos relevantes (implementación futura)
 
@@ -227,7 +227,8 @@ Persiste la reasignación (RRM-05).
 {
   "ok": true,
   "remisiones_updated": 2,
-  "team_contacts_updated": 5
+  "team_contacts_updated": 5,
+  "case_tasks_updated": 3
 }
 ```
 
@@ -276,6 +277,25 @@ WHERE psicosocial_id = $remisionId::text
 ```
 
 > No modificar `team_contact` con `is_completed = true` (sesiones ya realizadas conservan asignación histórica).
+
+### 3. Reasignar `salvia.case_task` (solo pendientes)
+
+Solo tareas **no realizadas** (`status = 'ToDo'`) vinculadas a esa remisión vía `psychosocial_support_id`.
+
+`$taskAssigneeId`:
+- Modo profesional → `professional_id` del request
+- Modo dupla → `dupla.psychologist_id` (la TS de la dupla no recibe las tareas)
+
+```sql
+UPDATE salvia.case_task
+SET assigned_user_id = $taskAssigneeId,
+    updated_at       = NOW()
+WHERE BTRIM(psychosocial_support_id::text) = BTRIM($remisionId)
+  AND status = 'ToDo'
+  AND deleted_at IS NULL
+```
+
+> No modificar `case_task` con `status = 'Done'` (tareas ya realizadas conservan asignación histórica).
 
 ### Transacción
 

@@ -161,6 +161,31 @@ home.component('admin-users-list', {
             this.currentPage = 1;
             this.fetchUsers();
         },
+        descargarReporte: function() {
+            // Mostrar loader
+            var overlay = document.getElementById('loadingOverlay');
+            if (overlay) overlay.style.display = 'flex';
+            
+            fetch('/api/v1/admin/users/report')
+                .then(function(res) {
+                    if (!res.ok) throw new Error('Error al generar reporte');
+                    return res.blob();
+                })
+                .then(function(blob) {
+                    var url = window.URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'usuarios-salvia_' + new Date().toISOString().substring(0, 10) + '.xlsx';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(function(err) { alert(err.message || 'Error descargando reporte'); })
+                .finally(function() {
+                    if (overlay) overlay.style.display = 'none';
+                });
+        },
         inhabilitarUsuario: function(user) {
             this.confirmarAccionUsuario = { user: user, accion: 'inhabilitar' };
         },
@@ -215,6 +240,9 @@ home.component('admin-users-list', {
     <!-- Header with count -->
     <div class="aul-header">
         <p class="aul-count">\${ totalUsers } usuario(s) encontrado(s)</p>
+        <button @click="descargarReporte()" style="background:#5106A7;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
+            <i class="fa fa-file-excel"></i> Descargar Excel
+        </button>
     </div>
 
     <!-- Loading -->

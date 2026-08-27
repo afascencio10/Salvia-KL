@@ -611,8 +611,23 @@
                     });
                 });
             },
-            onFormCompleted() {
+            async onFormCompleted() {
                 this.formCompleted = true;
+
+                // Si se llegó desde "Sí contestó" (register_attempt=true), registrar el intento efectivo ahora
+                var params = new URLSearchParams(window.location.search);
+                if (params.get('register_attempt') === 'true') {
+                    try {
+                        await fetch('/api/v1/follow-ups/' + this.followUpId + '/attempts', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ reason: 'Sí contestó', was_answered: true })
+                        });
+                    } catch (e) {
+                        console.warn('[HS] No se pudo registrar intento efectivo:', e);
+                    }
+                }
+
                 setTimeout(() => this.goToCase(), 3000);
             },
             goToCase() {

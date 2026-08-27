@@ -9,7 +9,9 @@ import (
 	"bitsflow/common/utils"
 	salvia_config "bitsflow/salvia/config"
 	salvia_daos "bitsflow/salvia/dao"
+	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -36,6 +38,17 @@ func CaseDetailGET(c *gin.Context) {
 	vars["userTeam"]                    = sc.Session.Team
 	vars["userICode"]                   = sc.Session.UserICode
 	vars["salviaVictimCaseGETFormPath"] = salvia_config.FormPaths[sc.Session.Lang]["VictimCaseGET"]
+	vars["salviaBackFallbackPath"]      = BackFallbackPath(sc.Session.CurrentRole)
+
+	// fechaHoy: se calcula en el servidor (America/Bogota) en vez de confiar en el
+	// reloj/zona horaria del dispositivo del cliente, que puede estar mal configurado
+	// y desfasar el mínimo habilitado del calendario de "Nuevo seguimiento".
+	loc, err := time.LoadLocation("America/Bogota")
+	if err != nil {
+		log.Printf("[CaseDetailGET] WARN: no se pudo cargar America/Bogota, usando UTC para fechaHoy: %v", err)
+		loc = time.UTC
+	}
+	vars["fechaHoy"] = time.Now().In(loc).Format("2006-01-02")
 
 	common_facades.RenderTemplate(
 		c,
