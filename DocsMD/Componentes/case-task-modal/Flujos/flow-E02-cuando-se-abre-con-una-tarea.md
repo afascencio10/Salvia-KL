@@ -89,6 +89,10 @@ PASO 2 — Cargar la tarea del API
       form = { items: [], seleccion: {} }
       → Llamar SUB-FLUJO: Cargar obligaciones pendientes
 
+    CASO 'respuesta_entidad':
+      form = { radicado: "", ampliacion: "", estadoInstitucional: "" }
+      // contexto (label, descripcionSolicitud) se lee de tarea.formData — sin fetch extra
+
     CASO 'Corregir oficio':
       form = {}   // sin campos — es una vista de solo lectura
       → Llamar SUB-FLUJO: Cargar oficio vinculado

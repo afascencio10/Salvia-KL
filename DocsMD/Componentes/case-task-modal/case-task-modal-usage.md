@@ -1,6 +1,6 @@
 # `case-task-modal` — Guía de uso
 
-Componente modal para completar tareas de tipo `gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio`, `justificar_remision` y `solicitud_entidad`. El padre lo controla mediante una referencia Vue (`ref`) y el método público `open(taskId)`.
+Componente modal para completar tareas de tipo `gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio`, `justificar_remision`, `solicitud_entidad` y `respuesta_entidad`. El padre lo controla mediante una referencia Vue (`ref`) y el método público `open(taskId)`.
 
 ---
 
@@ -54,6 +54,7 @@ Si la tarea abierta es de tipo `solicitud_entidad`, además hace un `GET /api/v1
 | `Corregir oficio` | "Corregir Oficio" | Sin formulario editable — vista de solo lectura con la razón de corrección y la ruta Kofax del `entity_letter` vinculado (`tarea.entityLetterId`). Solo pide confirmación. |
 | `justificar_remision` | "Justificar Remisión" | Caja de solo lectura con `tarea.description` (motivo de devolución del psicólogo/a) + textarea "Tu respuesta" (required, maxlength 500) |
 | `solicitud_entidad` | "Solicitudes a {entityName}" | Checklist de obligaciones pendientes (`entity_case_obligation`); cada ítem seleccionado exige una descripción (maxlength 500). Botón "Enviar solicitudes". |
+| `respuesta_entidad` | "Respuesta institucional" | Caja de solo lectura (obligación + solicitud del agente) + radicado opcional + ampliación opcional + select de estado institucional required. Botón "Enviar respuesta". |
 
 ---
 
@@ -188,3 +189,19 @@ El motivo de devolución que el agente está respondiendo **no** viaja en el pay
 ```
 
 El backend crea una `case_task` `respuesta_entidad` por cada elemento de `solicitudes`, asignada al único usuario de `security.general_user` con la `entity_branch_id` de la sede. Si no hay exactamente un usuario, responde 400 y no completa la tarea original.
+
+#### `formData` para `respuesta_entidad`
+```json
+{
+  "solicitudTaskId": "uuid de la solicitud_entidad origen",
+  "obligationId": "uuid de entity_case_obligation",
+  "label": "string — obligación (heredado)",
+  "descripcionSolicitud": "string — texto que escribió el agente (heredado)",
+  "radicado": "string | null — opcional, máx. 80",
+  "ampliacion": "string | null — opcional, máx. 500",
+  "estadoInstitucional": "iniciado | en_proceso | concluido",
+  "estadoInstitucionalTexto": "Iniciado | En proceso | Concluido"
+}
+```
+
+El backend solo valida el estado, guarda el JSON y marca `Done`. No cambia `entity_case_obligation.status`.

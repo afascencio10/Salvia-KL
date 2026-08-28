@@ -245,6 +245,7 @@ app.component('case-task-history', {
                 'Corregir oficio': 'Corregir Oficio',
                 gestion_propia:   'Gestión Propia',
                 solicitud_entidad: 'Solicitud a entidad',
+                respuesta_entidad: 'Respuesta institucional',
             }[this.tarea.type] || 'Detalle de tarea';
         },
 
@@ -257,6 +258,7 @@ app.component('case-task-history', {
                 'Corregir oficio': 'fa-pencil-alt',
                 gestion_propia:   'fa-link',
                 solicitud_entidad: 'fa-folder',
+                respuesta_entidad: 'fa-reply',
             }[this.tarea.type] || 'fa-tasks';
         },
 
@@ -462,6 +464,31 @@ app.component('case-task-history', {
                 <div v-for="(s, idx) in ((tarea.formData && tarea.formData.solicitudes) || [])" :key="s.obligationId || idx" class="cth-field">
                     <label class="cth-field-label">\${ s.label || ('Ítem ' + (idx + 1)) }</label>
                     <div class="cth-field-value">\${ s.descripcion || '—' }</div>
+                </div>
+            </template>
+
+            <!-- Detalle formData: respuesta_entidad -->
+            <template v-else-if="tarea.type === 'respuesta_entidad'">
+                <p class="cth-section-title">Respuesta institucional</p>
+                <div class="cth-field">
+                    <label class="cth-field-label">Obligación</label>
+                    <div class="cth-field-value">\${ (tarea.formData && tarea.formData.label) || '—' }</div>
+                </div>
+                <div class="cth-field">
+                    <label class="cth-field-label">Solicitud</label>
+                    <div class="cth-field-value">\${ (tarea.formData && tarea.formData.descripcionSolicitud) || '—' }</div>
+                </div>
+                <div class="cth-field" v-if="tarea.formData && tarea.formData.radicado">
+                    <label class="cth-field-label">Nº de radicado / NUNC / MP</label>
+                    <div class="cth-field-value">\${ tarea.formData.radicado }</div>
+                </div>
+                <div class="cth-field" v-if="tarea.formData && tarea.formData.ampliacion">
+                    <label class="cth-field-label">Ampliación</label>
+                    <div class="cth-field-value">\${ tarea.formData.ampliacion }</div>
+                </div>
+                <div class="cth-field">
+                    <label class="cth-field-label">Estado institucional</label>
+                    <div class="cth-field-value">\${ (tarea.formData && (tarea.formData.estadoInstitucionalTexto || tarea.formData.estadoInstitucional)) || '—' }</div>
                 </div>
             </template>
 

@@ -363,6 +363,37 @@ func (s *caseTaskService) CompleteWithFormData(ctx context.Context, id string, u
 			return nil, err
 		}
 
+	case "respuesta_entidad":
+		estado, _ := fd["estadoInstitucional"].(string)
+		estado = strings.TrimSpace(estado)
+		if estado != "iniciado" && estado != "en_proceso" && estado != "concluido" {
+			return nil, fmt.Errorf("CompleteWithFormData: estado institucional inválido")
+		}
+		if err := s.repo.UpdateFields(ctx, id, map[string]interface{}{
+			"form_data":    formData,
+			"status":       models.CaseTaskStatusDone,
+			"completed_at": now,
+		}); err != nil {
+			return nil, fmt.Errorf("CompleteWithFormData: marcar Done: %w", err)
+		}
+		label, _ := fd["label"].(string)
+		label = strings.TrimSpace(label)
+		if label == "" {
+			label = "obligación institucional"
+		}
+		estadoTxt := map[string]string{
+			"iniciado":    "Iniciado",
+			"en_proceso":  "En proceso",
+			"concluido":   "Concluido",
+		}[estado]
+		s.createEntidadTimelineEvent(ctx, task, userId, now,
+			models.TimelineEventRespuestaEntidad,
+			models.TimelineTypeRespuestaEntidad,
+			models.TimelineIconRespuestaEntidad,
+			models.TimelineColorGreen,
+			fmt.Sprintf("Respuesta sobre: %s (%s)", label, estadoTxt),
+		)
+
 	default:
 		return nil, fmt.Errorf("CompleteWithFormData: tipo de tarea no soportado: %s", task.Type)
 	}
@@ -432,7 +463,7 @@ func (s *caseTaskService) findUsersByEntityBranchID(ctx context.Context, branchI
 // completeSolicitudEntidad valida el checklist, resuelve el único usuario de
 // la sede y, en la misma transacción, marca la tarea Done y crea una
 // respuesta_entidad por ítem seleccionado.
-func (s *caseTaskService) completeSolicitudEntidad(ctx context.Context, task *models.CaseTask, _ string, formData datatypes.JSON, fd map[string]interface{}, now time.Time) error {
+func (s *caseTaskService) completeSolicitudEntidad(ctx context.Context, task *models.CaseTask, userId string, formData datatypes.JSON, fd map[string]interface{}, now time.Time) error {
 	if task.EntityCaseID == nil || *task.EntityCaseID == "" {
 		return fmt.Errorf("CompleteWithFormData: solicitud_entidad sin entity_case_id")
 	}
@@ -464,7 +495,7 @@ func (s *caseTaskService) completeSolicitudEntidad(ctx context.Context, task *mo
 	}
 	assignedTo := users[0]
 
-	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&models.CaseTask{}).Where("id = ?", task.ID).Updates(map[string]interface{}{
 			"form_data":    formData,
 			"status":       models.CaseTaskStatusDone,
@@ -505,7 +536,53 @@ func (s *caseTaskService) completeSolicitudEntidad(ctx context.Context, task *mo
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+
+	entityName, _ := fd["entityName"].(string)
+	entityName = strings.TrimSpace(entityName)
+	desc := "Solicitudes enviadas a la entidad"
+	if entityName != "" {
+		desc = "Solicitudes enviadas a " + entityName
+	}
+	n := len(solicitudes)
+	if n == 1 {
+		desc += " (1 ítem)"
+	} else {
+		desc += fmt.Sprintf(" (%d ítems)", n)
+	}
+	s.createEntidadTimelineEvent(ctx, task, userId, now,
+		models.TimelineEventSolicitudEntidad,
+		models.TimelineTypeSolicitudEntidad,
+		models.TimelineIconSolicitudEntidad,
+		models.TimelineColorPurple,
+		desc,
+	)
+	return nil
+}
+
+func (s *caseTaskService) createEntidadTimelineEvent(ctx context.Context, task *models.CaseTask, userId string, now time.Time, eventType, typeLabel, icon, color, description string) {
+	followUpID := ""
+	if task.FollowUpID != nil {
+		followUpID = *task.FollowUpID
+	}
+	event := &models.CaseTimelineEvent{
+		CaseID:      task.CaseID,
+		Category:    models.TimelineCategoryEntidades,
+		Type:        typeLabel,
+		EventType:   eventType,
+		Icon:        icon,
+		Color:       color,
+		Date:        now,
+		EventUserID: userId,
+		TaskID:      task.ID,
+		FollowUpID:  followUpID,
+		Description: description,
+	}
+	if err := s.timelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[CaseTaskService] WARN: no se pudo crear timeline event entidad para case %s task %s: %v", task.CaseID, task.ID, err)
+	}
 }
 
 // CreateGestionPropia crea una CaseTask ya completada para una gestión que el

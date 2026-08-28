@@ -97,6 +97,13 @@ case-task-history
             │               Label  s.label
             │               Valor  s.descripcion
             │
+            │       └── [tarea.type === 'respuesta_entidad']
+            │           ├── Campo  "Obligación"               formData.label
+            │           ├── Campo  "Solicitud"                formData.descripcionSolicitud
+            │           ├── [formData.radicado]  Campo        formData.radicado
+            │           ├── [formData.ampliacion] Campo       formData.ampliacion
+            │           └── Campo  "Estado institucional"     formData.estadoInstitucionalTexto
+            │
             └── Footer  (.cth-footer)
                 └── BtnCerrar  "Cerrar"  → cerrar()
 ```
@@ -113,6 +120,7 @@ case-task-history
 | `Corregir oficio` | Sin campos propios (`formData` es `{}`) — se muestra la nota **"El oficio fue corregido por el agente que lo proyectó"** en vez de un desglose de campos |
 | `gestion_propia` | Solo `formData.subtipo` (Llamada / Visita presencial / Oficio a entidad / Otra gestión) — la descripción libre ya se muestra arriba de forma genérica (`tarea.description`) |
 | `solicitud_entidad` | Nombre de la entidad + lista de ítems enviados (`label` + `descripcion`) |
+| `respuesta_entidad` | Obligación, solicitud del agente, radicado (si hay), ampliación (si hay), estado institucional |
 
 > Depende directamente de los campos legibles (`departamentoNombre`, `ciudadNombre`, `municipioNombre`, `decisionesTexto`, `nivelMecanismoTexto`) agregados a `_buildFormData()` en `case-task-modal.js`. Sin esos campos, este componente tendría que re-resolver IDs contra los catálogos de ubicación vigentes, lo cual sería frágil para datos históricos.
 >

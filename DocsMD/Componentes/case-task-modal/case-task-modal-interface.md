@@ -1,6 +1,6 @@
 # `case-task-modal` — Interfaz del Componente
 
-Modal reutilizable para completar tareas (`case_task`). El padre lo activa vía `open(taskId)`, el componente carga la tarea del API, renderiza el formulario específico según `case_task.type` (`gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio`, `justificar_remision` o `solicitud_entidad`) y al confirmar la marca como completada ejecutando los efectos de lado correspondientes en el backend.
+Modal reutilizable para completar tareas (`case_task`). El padre lo activa vía `open(taskId)`, el componente carga la tarea del API, renderiza el formulario específico según `case_task.type` (`gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio`, `justificar_remision`, `solicitud_entidad` o `respuesta_entidad`) y al confirmar la marca como completada ejecutando los efectos de lado correspondientes en el backend.
 
 ## Archivos relevantes
 
@@ -30,6 +30,7 @@ case-task-modal
         │   │     'Corregir oficio'     → "Corregir Oficio"
         │   │     'justificar_remision' → "Justificar Remisión"
         │   │     'solicitud_entidad'   → "Solicitudes a {entityName}"
+        │   │     'respuesta_entidad'   → "Respuesta institucional"
         │   └── BtnCerrar  "✕"  → cancelar()
         │
         ├── [v-if cargandoTarea]
@@ -108,6 +109,15 @@ case-task-modal
             │           └── [v-if seleccionado]
             │               └── <textarea> Describe la solicitud*  maxlength=500
             │
+            │   [tarea.type === 'respuesta_entidad']
+            │   FormRespuestaEntidad  (.ctm-form)
+            │   ├── ContextBox  (solo lectura)
+            │   │   ├── Campo  "Obligación"  tarea.formData.label
+            │   │   └── Campo  "Solicitud"   tarea.formData.descripcionSolicitud
+            │   ├── <input> Nº de radicado / NUNC / MP  maxlength=80  (opcional)
+            │   ├── <textarea> Ampliar información  maxlength=500  (opcional)
+            │   └── <select> Estado institucional*  iniciado | en_proceso | concluido
+            │
             │   [tarea.type === 'justificar_remision']
             │   FormJustificarRemision  (.ctm-form)
             │   ├── MotivoDevolucion  (fondo rojo claro)
@@ -144,6 +154,7 @@ case-task-modal
                     │   SEGÚN tarea.type:
                     │     'Corregir oficio'     → "Marcar como corregido"
                     │     'solicitud_entidad'   → "Enviar solicitudes"
+                    │     'respuesta_entidad'   → "Enviar respuesta"
                     │     default               → "Completar tarea"
                     :disabled si !formularioValido || guardando || cargandoTarea
                     → confirmar()
@@ -162,7 +173,8 @@ case-task-modal
 | `comite_caso` | `decisiones.includes('oficio')` | Crea `entity_letter` (estado `por_proyectar`) + nueva `case_task` de tipo `proyectar_oficio` asignada al agente del caso + guarda JSON + Done |
 | `Corregir oficio` | — | Transiciona el `entity_letter` vinculado (`case_task.entity_letter_id`) de `en_correccion` → `para_revisar` + marca la tarea `Done`. No hay `form_data` que guardar — es solo confirmación. |
 | `justificar_remision` | — | Guarda JSON (`respuesta`) + Done. Reabre la `psychosocial_support` vinculada (`status → 'abierto'`) y crea una nueva `case_task` `validar_remision` (`ToDo`) para que el psicólogo/a vuelva a evaluarla — asignada al `psychologist_id` de la `dupla` si la remisión tiene una, si no al `professional_id` individual, si no queda sin asignar (igual que la remisión). Crea `case_timeline_event` "Remisión Justificada". Ver `DocsMD/Screens/Remision Psicosocial Detalle/QA/validar-remision-justificar-qa-cases.md`. |
-| `solicitud_entidad` | — | Valida ≥1 ítem con descripción. Resuelve exactamente un `general_user` con `entity_branch_id` = sede del `entity_case`. Si hay 0 o N usuarios, **no** marca Done y responde 400. Si hay uno: transacción — marca esta tarea Done + `form_data` y crea N `case_task` `respuesta_entidad` (`ToDo`) asignadas a ese usuario, una por ítem. No cambia el status de `entity_case_obligation`. |
+| `solicitud_entidad` | — | Valida ≥1 ítem con descripción. Resuelve exactamente un `general_user` con `entity_branch_id` = sede del `entity_case`. Si hay 0 o N usuarios, **no** marca Done y responde 400. Si hay uno: transacción — marca esta tarea Done + `form_data` y crea N `case_task` `respuesta_entidad` (`ToDo`) asignadas a ese usuario, una por ítem. Tras éxito, crea `case_timeline_event` categoría Entidades, type "Solicitud a entidad" (si el insert falla, WARN; la tarea permanece Done). No cambia el status de `entity_case_obligation`. |
+| `respuesta_entidad` | — | Guarda JSON fusionado (contexto de la solicitud + radicado, ampliación, estado) + `Done`. Crea `case_timeline_event` categoría Entidades, type "Respuesta institucional" (si el insert falla, WARN; la tarea permanece Done). No cambia `entity_case_obligation` ni crea más tareas. |
 
 ---
 
@@ -186,6 +198,8 @@ case-task-modal
 | Descripción por ítem | — | — | — | — | — | required en cada seleccionado |
 
 > `Corregir oficio` no tiene campos editables. `formularioValido` solo exige que `cargandoOficio === false` (que haya terminado de cargar el `entity_letter` vinculado en modo lectura).
+>
+> `respuesta_entidad`: radicado y ampliación opcionales; `estadoInstitucional` required (`iniciado` | `en_proceso` | `concluido`).
 
 ---
 
@@ -203,3 +217,5 @@ Todos los `<input>`/`<textarea>` de texto libre tienen `maxlength` (atributo HTM
 | Observaciones del oficio / para el agente / del mecanismo (`comite_caso`) | 500 |
 | Tu respuesta (`justificar_remision`) | 500 |
 | Descripción por ítem (`solicitud_entidad`) | 500 |
+| Nº de radicado / NUNC / MP (`respuesta_entidad`) | 80 |
+| Ampliar información (`respuesta_entidad`) | 500 |

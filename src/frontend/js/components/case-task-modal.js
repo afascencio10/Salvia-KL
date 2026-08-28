@@ -248,6 +248,15 @@
         .ctm-ob-desc { margin-top: 10px; }
         .ctm-ob-desc .ctm-textarea { background: #fff; color: #111827; }
 
+        .ctm-context-box {
+            padding: 12px 14px;
+            background: #f9fafb;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 10px;
+            margin-bottom: 16px;
+        }
+        .ctm-context-box .ctm-field:last-child { margin-bottom: 0; }
+
         /* Radio Sí/No para generaOficio */
         .ctm-radio-group {
             display: flex;
@@ -415,6 +424,7 @@ app.component('case-task-modal', {
                 comite_caso:      'Decisiones del Comité',
                 'Corregir oficio': 'Corregir Oficio',
                 justificar_remision: 'Justificar Remisión',
+                respuesta_entidad: 'Respuesta institucional',
             }[this.tarea.type] || 'Completar tarea';
         },
 
@@ -427,7 +437,17 @@ app.component('case-task-modal', {
                 'Corregir oficio': 'fa-pencil-alt',
                 justificar_remision: 'fa-reply',
                 solicitud_entidad: 'fa-folder',
+                respuesta_entidad: 'fa-reply',
             }[this.tarea.type] || 'fa-tasks';
+        },
+
+        tareaFormData() {
+            var fd = this.tarea && this.tarea.formData;
+            if (!fd) return {};
+            if (typeof fd === 'string') {
+                try { return JSON.parse(fd) || {}; } catch (e) { return {}; }
+            }
+            return fd;
         },
 
         formularioValido() {
@@ -465,6 +485,8 @@ app.component('case-task-modal', {
                         var d = f.seleccion[item.id] && f.seleccion[item.id].descripcion;
                         return d && String(d).trim();
                     });
+                case 'respuesta_entidad':
+                    return !!(f.estadoInstitucional);
                 default:
                     return false;
             }
@@ -650,6 +672,9 @@ app.component('case-task-modal', {
                 case 'solicitud_entidad':
                     this.form = { items: [], seleccion: {} };
                     this._cargarObligacionesPendientes();
+                    break;
+                case 'respuesta_entidad':
+                    this.form = { radicado: '', ampliacion: '', estadoInstitucional: '' };
                     break;
             }
         },
@@ -866,6 +891,20 @@ app.component('case-task-modal', {
                         solicitudes: solicitudes,
                     };
                 }
+                case 'respuesta_entidad': {
+                    const prev = this.tareaFormData;
+                    const ESTADOS = { iniciado: 'Iniciado', en_proceso: 'En proceso', concluido: 'Concluido' };
+                    return {
+                        solicitudTaskId: prev.solicitudTaskId || null,
+                        obligationId: prev.obligationId || null,
+                        label: prev.label || '',
+                        descripcionSolicitud: prev.descripcionSolicitud || '',
+                        radicado: (f.radicado || '').trim() || null,
+                        ampliacion: (f.ampliacion || '').trim() || null,
+                        estadoInstitucional: f.estadoInstitucional,
+                        estadoInstitucionalTexto: ESTADOS[f.estadoInstitucional] || f.estadoInstitucional,
+                    };
+                }
             }
         },
 
@@ -934,7 +973,7 @@ app.component('case-task-modal', {
             </div>
             <div>
                 <p class="ctm-header-title">\${ titulo }</p>
-                <p v-if="tarea && tarea.type !== 'solicitud_entidad'" class="ctm-header-sub">ID \${ tarea.id.substring(0,8) }…</p>
+                <p v-if="tarea && tarea.type !== 'solicitud_entidad' && tarea.type !== 'respuesta_entidad'" class="ctm-header-sub">ID \${ tarea.id.substring(0,8) }…</p>
                 <p v-else-if="tarea && tarea.type === 'solicitud_entidad'" class="ctm-header-sub">Selecciona los ítems pendientes del checklist entidad sobre los que deseas hacer una solicitud y describe cada uno.</p>
             </div>
         </div>
@@ -1350,6 +1389,40 @@ app.component('case-task-modal', {
 
         </template>
 
+        <!-- Formulario respuesta_entidad -->
+        <template v-else-if="tarea && tarea.type === 'respuesta_entidad'">
+            <div class="ctm-context-box">
+                <div class="ctm-field">
+                    <label class="ctm-label">Obligación</label>
+                    <div style="font-size:13px;color:#111827;line-height:1.45">\${ tareaFormData.label || '—' }</div>
+                </div>
+                <div class="ctm-field">
+                    <label class="ctm-label">Solicitud</label>
+                    <div style="font-size:13px;color:#374151;line-height:1.45;white-space:pre-wrap">\${ tareaFormData.descripcionSolicitud || '—' }</div>
+                </div>
+            </div>
+
+            <div class="ctm-field">
+                <label class="ctm-label">En línea con las acciones adelantadas, ¿cuenta con un Nº de radicado, NUNC, MP, etc.?</label>
+                <input class="ctm-input" v-model="form.radicado" placeholder="Ej: NUNC 123456789012" maxlength="80"/>
+            </div>
+
+            <div class="ctm-field">
+                <label class="ctm-label">¿Desea ampliar información sobre la gestión y atención del caso?</label>
+                <textarea class="ctm-textarea" v-model="form.ampliacion" rows="4" maxlength="500" placeholder="Describe cómo se atendió esta acción institucional..."></textarea>
+            </div>
+
+            <div class="ctm-field">
+                <label class="ctm-label">Estado general de la Respuesta Institucional <span class="req">*</span></label>
+                <select class="ctm-select" v-model="form.estadoInstitucional">
+                    <option value="">Selecciona una opción...</option>
+                    <option value="iniciado">Iniciado</option>
+                    <option value="en_proceso">En proceso</option>
+                    <option value="concluido">Concluido</option>
+                </select>
+            </div>
+        </template>
+
         <!-- Error al guardar -->
         <div v-if="saveError" class="ctm-error-banner">
             <i class="fas fa-exclamation-circle"></i> \${ saveError }
@@ -1373,6 +1446,9 @@ app.component('case-task-modal', {
                 </template>
                 <template v-else-if="tarea && tarea.type === 'solicitud_entidad'">
                     Enviar solicitudes
+                </template>
+                <template v-else-if="tarea && tarea.type === 'respuesta_entidad'">
+                    Enviar respuesta
                 </template>
                 <template v-else>
                     Completar tarea

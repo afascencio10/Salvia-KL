@@ -57,6 +57,12 @@ INPUT: {
       • descripcion: required (trim) en cada ítem seleccionado
       • cargandoObligaciones === false
 
+  CASO 'respuesta_entidad':
+    Validar formulario:
+      • estadoInstitucional: required (iniciado | en_proceso | concluido)
+      • radicado: opcional
+      • ampliacion: opcional
+
   SI validación con errores:
     → saveError = mensaje descriptivo del campo faltante
     → TERMINAR ejecución  // modal permanece abierto
@@ -160,6 +166,15 @@ INPUT: {
         })),
     }
 
+  CASO 'respuesta_entidad':
+    formData = {
+      solicitudTaskId, obligationId, label, descripcionSolicitud,  // heredados de tarea.formData
+      radicado:                   form.radicado.trim() || null,
+      ampliacion:                 form.ampliacion.trim() || null,
+      estadoInstitucional:        form.estadoInstitucional,
+      estadoInstitucionalTexto:   Iniciado | En proceso | Concluido,
+    }
+
   → FIN SUB-FLUJO → CONTINÚA FLUJO GENERAL
 
 
@@ -224,6 +239,8 @@ BACK 2 — Guardar form_data y marcar Done (según tipo — no es uniforme)
       → NO marca Done todavía. Primero valida solicitudes y resuelve el usuario
         único de la sede. Si falla, 400 y la tarea queda ToDo.
       → Si ok: transacción — Done + form_data + N case_task respuesta_entidad
+      → Tras la transacción: INSERT case_timeline_event "Solicitud a entidad"
+        (WARN si falla; no revierte Done)
 
 BACK 3 — Ejecutar efectos de lado según tarea.type
 
@@ -409,7 +426,39 @@ BACK 3 — Ejecutar efectos de lado según tarea.type
        • Crear N case_task type=respuesta_entidad, category=Entidades,
          assigned_user_id = ese usuario, entity_case_id heredado,
          form_data = { solicitudTaskId, obligationId, label, descripcionSolicitud }
-    5. No cambia entity_case_obligation.status
+    5. Tras éxito de la transacción: INSERT case_timeline_event
+         category = Entidades
+         type     = "Solicitud a entidad"
+         icon     = folder
+         color    = #5106A7
+         description = "Solicitudes enviadas a {entityName} (N ítems)"
+         event_user_id = userId del complete
+       SI el INSERT falla → WARN; la tarea permanece Done
+    6. No cambia entity_case_obligation.status
+
+  └──────────────────────────────────────────────────────────────┘
+
+
+  ┌── 'respuesta_entidad' ────────────────────────────────────────┐
+
+    Síncrono. Valida estadoInstitucional ∈ {iniciado, en_proceso, concluido}.
+    SI inválido → 400, la tarea permanece ToDo.
+
+    SI ok:
+      DB.case_tasks.UpdateFields({
+          form_data:    JSON(formData),   // incluye contexto heredado + respuesta
+          status:       'Done',
+          completed_at: now(),
+      })
+      INSERT case_timeline_event
+        category = Entidades
+        type     = "Respuesta institucional"
+        icon     = reply
+        color    = #15803d
+        description = "Respuesta sobre: {label} ({estado legible})"
+        event_user_id = userId del complete
+      SI el INSERT falla → WARN; la tarea permanece Done
+      No cambia entity_case_obligation.status. No crea más tareas.
 
   └──────────────────────────────────────────────────────────────┘
 

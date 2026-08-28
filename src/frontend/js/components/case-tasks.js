@@ -224,6 +224,7 @@ app.component('case-tasks', {
                 'gestion_enlace_territorial': 'Gestión barrera enlace territorial',
                 'gestion_propia': 'Gestión propia',
                 'solicitud_entidad': 'Hacer solicitudes a la entidad',
+                'respuesta_entidad': 'Responder solicitud de la entidad',
             };
             return labels[type] || type || task.category || 'Tarea';
         },
@@ -263,6 +264,9 @@ app.component('case-tasks', {
                 <div v-for="task in pendingTasks" :key="task.id" class="ct-task" style="flex-direction:row;align-items:center;gap:12px;padding:14px 20px">
                     <div v-if="task.type === 'solicitud_entidad'" style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#dbeafe">
                         <i class="fa fa-folder" style="color:#2563eb;font-size:.82rem"></i>
+                    </div>
+                    <div v-else-if="task.type === 'respuesta_entidad'" style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#ecfdf5">
+                        <i class="fa fa-reply" style="color:#059669;font-size:.82rem"></i>
                     </div>
                     <div v-else style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0" :style="task.type && task.type.indexOf('oficio') !== -1 ? 'background:#f3f4f6' : task.type && (task.type.indexOf('llamar') !== -1 || task.type.indexOf('llamada') !== -1) ? 'background:#fce7f3' : task.type && task.type.indexOf('comite') !== -1 ? 'background:#fef9c3' : 'background:#ede9fe'">
                         <i :class="task.type && task.type.indexOf('oficio') !== -1 ? 'fa fa-file-alt' : task.type && (task.type.indexOf('llamar') !== -1 || task.type.indexOf('llamada') !== -1) ? 'fa fa-phone' : task.type && task.type.indexOf('comite') !== -1 ? 'fa fa-clipboard-list' : 'fa fa-tasks'" :style="task.type && task.type.indexOf('oficio') !== -1 ? 'color:#1f2937' : task.type && (task.type.indexOf('llamar') !== -1 || task.type.indexOf('llamada') !== -1) ? 'color:#db2777' : task.type && task.type.indexOf('comite') !== -1 ? 'color:#92400e' : 'color:#7c3aed'" style="font-size:.82rem"></i>

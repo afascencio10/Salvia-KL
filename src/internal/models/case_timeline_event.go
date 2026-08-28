@@ -14,6 +14,7 @@ const (
 	TimelineCategoryBarreras       = "Barreras"
 	TimelineCategorySeguimientos   = "Seguimientos"
 	TimelineCategoryOficios        = "Oficios"
+	TimelineCategoryEntidades      = "Entidades"
 	TimelineCategoryMedidas        = "Medidas"
 	TimelineCategoryPsicosocial    = "Psicosocial"
 	TimelineCategoryEstabilizacion = "Estabilización"
@@ -46,6 +47,9 @@ const (
 	TimelineTypeOficioRespondido         = "Oficio respondido"
 
 	TimelineTypeHechosCaso = "Hechos del caso"
+
+	TimelineTypeSolicitudEntidad = "Solicitud a entidad"
+	TimelineTypeRespuestaEntidad = "Respuesta institucional"
 )
 
 // ─── Iconos ──────────────────────────────────────────────────────────────────
@@ -69,6 +73,9 @@ const (
 	TimelineIconOficioJuridica   = "scale-balanced"
 	TimelineIconOficioRadicar    = "paper-plane"
 	TimelineIconOficioRespondido = "envelope-open"
+
+	TimelineIconSolicitudEntidad = "folder"
+	TimelineIconRespuestaEntidad = "reply"
 )
 
 // ─── Colores ─────────────────────────────────────────────────────────────────
@@ -98,6 +105,8 @@ const (
 	TimelineEventGestionPropia     = "GESTION_PROPIA_REGISTRADA"
 	TimelineEventNota              = "NOTA"
 	TimelineEventOficioActualizado = "OFICIO_ACTUALIZADO"
+	TimelineEventSolicitudEntidad  = "SOLICITUD_ENTIDAD"
+	TimelineEventRespuestaEntidad  = "RESPUESTA_ENTIDAD"
 )
 
 // CaseTimelineEvent registra un evento en la vida de un caso.

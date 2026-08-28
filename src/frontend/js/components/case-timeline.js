@@ -202,6 +202,7 @@ var CT_CATEGORIAS = [
     { value: 'Barreras',       label: 'Barreras' },
     { value: 'Seguimientos',   label: 'Seguimientos' },
     { value: 'Oficios',        label: 'Oficios' },
+    { value: 'Entidades',      label: 'Entidades' },
     { value: 'Medidas',        label: 'Medidas' },
     { value: 'Psicosocial',    label: 'Psicosocial' },
     { value: 'Estabilización', label: 'Estabilización' },
@@ -216,6 +217,7 @@ function ctDefaultColor(category) {
         'Psicosocial':    '#5106A7',
         'Estabilización': '#15803d',
         'Oficios':        '#0f766e',
+        'Entidades':      '#5106A7',
         'General':        '#4b5563',
     };
     return map[category] || '#4b5563';

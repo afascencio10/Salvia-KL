@@ -104,7 +104,7 @@
 
 **Evento:** Cuando confirma el formulario
 **Tipo:** User Interaction
-**Descripción:** El usuario presiona "Completar tarea" (o "Marcar como corregido" si `tarea.type === 'Corregir oficio'`, o "Enviar solicitudes" si `solicitud_entidad`). Valida los campos requeridos según `tarea.type` (ver tabla en interface). Si válido, construye el payload con `formData` como JSON y llama `PUT /api/v1/case-tasks/:taskId/complete`. Si responde 200, cierra el modal y emite `@completed` con la tarea actualizada. Si error (incl. 0/N usuarios de sede en `solicitud_entidad`), muestra `saveError` sin cerrar el modal.
+**Descripción:** El usuario presiona "Completar tarea" (o "Marcar como corregido" si `Corregir oficio`, "Enviar solicitudes" si `solicitud_entidad`, "Enviar respuesta" si `respuesta_entidad`). Valida los campos requeridos según `tarea.type` (ver tabla en interface). Si válido, construye el payload con `formData` como JSON y llama `PUT /api/v1/case-tasks/:taskId/complete`. Si responde 200, cierra el modal y emite `@completed` con la tarea actualizada. Si error (incl. 0/N usuarios de sede en `solicitud_entidad`), muestra `saveError` sin cerrar el modal.
 **Requerido:** Sí
 
 ---
