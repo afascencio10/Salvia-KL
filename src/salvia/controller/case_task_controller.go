@@ -130,7 +130,7 @@ func (c *CaseTaskController) ListByAssignedUser(ctx *gin.Context) {
 				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
 				return
 			}
-			ctx.JSON(http.StatusOK, c.enrichTasksWithNames(items))
+			ctx.JSON(http.StatusOK, c.enrichTasksWithNames(c.filterTasksForEntityRole(ctx, items)))
 			return
 		}
 		psychosocialID := ctx.Query("psychosocialId")
@@ -140,7 +140,7 @@ func (c *CaseTaskController) ListByAssignedUser(ctx *gin.Context) {
 				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
 				return
 			}
-			ctx.JSON(http.StatusOK, c.enrichTasksWithNames(items))
+			ctx.JSON(http.StatusOK, c.enrichTasksWithNames(c.filterTasksForEntityRole(ctx, items)))
 			return
 		}
 		items, err := c.svc.ListByCaseID(ctx.Request.Context(), caseID)
@@ -148,7 +148,7 @@ func (c *CaseTaskController) ListByAssignedUser(ctx *gin.Context) {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
 			return
 		}
-		ctx.JSON(http.StatusOK, c.enrichTasksWithNames(items))
+		ctx.JSON(http.StatusOK, c.enrichTasksWithNames(c.filterTasksForEntityRole(ctx, items)))
 		return
 	}
 
@@ -159,6 +159,36 @@ func (c *CaseTaskController) ListByAssignedUser(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, items)
+}
+
+// optionalSession lee la sesión si existe; no responde 401 cuando falta
+// (GET /case-tasks por caseId sigue abierto para otros roles).
+func optionalSession(ctx *gin.Context) *utils.CommonSession {
+	sessionID, ok := sessions.Default(ctx).Get("userData").(string)
+	if !ok || sessionID == "" {
+		return nil
+	}
+	s, err := utils.GetCommonSession(sessionID)
+	if err != nil {
+		return nil
+	}
+	return s
+}
+
+// filterTasksForEntityRole deja solo las asignadas al usuario si el rol de
+// sesión es et. Otros roles y ausencia de sesión no filtran.
+func (c *CaseTaskController) filterTasksForEntityRole(ctx *gin.Context, items []models.CaseTask) []models.CaseTask {
+	s := optionalSession(ctx)
+	if s == nil || s.CurrentRole != "et" {
+		return items
+	}
+	out := make([]models.CaseTask, 0, len(items))
+	for _, t := range items {
+		if t.AssignedUserID == s.UserICode {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 // ListMine devuelve, paginadas, las tareas del agente autenticado — pantalla

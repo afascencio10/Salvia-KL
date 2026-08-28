@@ -74,9 +74,10 @@ DetalleCaso  (.container)
     │   └── "📅 Próximo seguimiento programado"  fecha · [hora si scheduled_time != '00:00'] · [👤 agente si agent_id]
     │       BtnVerSeg "Ver →"  → tabActiva = 'seguimientos'
     │
-    ├── [v-if caseTasks.filter(status === 'ToDo').length > 0]  BannerTareasPendientesGlobal
+    ├── [v-if tareasPendientesTotal().length > 0]  BannerTareasPendientesGlobal
     │   └── "Tienes N tarea(s) pendiente(s) con este caso"
     │       BtnVerTareas "Ver tareas"  → tabActiva = 'tareas'
+    │       (rol et: N y visibilidad solo de ToDo asignadas al usuario autenticado)
     │
     └── Panel  (.cd-panel)
         ├── Tabs  (.cd-tabs)
@@ -147,7 +148,7 @@ DetalleCaso  (.container)
             │   ├── [v-if tareasPendientesTotal().length > 0]  BannerTareasPendientesLocal
             │   │   └── "⚠️ Tienes N tarea(s) pendiente(s) con este caso"
             │   │       BtnVerTareas "Ver tareas"  → tabActiva = 'tareas'
-            │   │       (misma condición y acción que BannerTareasPendientesGlobal, repetido dentro del tab)
+            │   │       (misma función y criterio que BannerTareasPendientesGlobal; rol et: solo asignadas al usuario)
             │   │
             │   ├── Stats (4): Total barreras · Abiertas (status === 'OPEN') · En gestión (barrerasEnGestionCount: status === 'En Gestion') · Resueltas (barreraEsResuelta: Articulada|MANAGED|CLOSED|FINISH|CLOSE|RESOLVED)
             │   │
@@ -204,7 +205,8 @@ DetalleCaso  (.container)
             ├── [tabActiva === 'tareas']  ── TAB TAREAS ─────────────────────
             │   └── CaseTasks  // src/frontend/js/components/case-tasks.js
             │       :case-id="caseICode"  :user-id="userICode"  :user-role="userRole"
-            │       (sin filtro de barrera — muestra todas las tareas del caso)
+            │       (sin filtro de barrera. Rol et: solo tareas con assignedUserId === userICode
+            │        en Pendientes y Completadas. Otros roles: todas las del caso.)
             │       Para type === 'solicitud_entidad' el subtítulo es
             │       "Hacer solicitudes a {entityName}" (la categoría sigue siendo ENTIDADES).
             │       Gestionar abre case-task-modal.

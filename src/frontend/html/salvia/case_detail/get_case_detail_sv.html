@@ -110,8 +110,8 @@
     </div>
 
     <!-- ── Banner tareas pendientes global ── -->
-    <div v-if="caseTasks.filter(t => t.status === 'ToDo').length > 0" style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
-      <span style="font-size:.82rem;color:#92400e"><i class="fa fa-bell" style="margin-right:6px"></i>Tienes <strong>${ caseTasks.filter(t => t.status === 'ToDo').length }</strong> tarea(s) pendiente(s) con este caso</span>
+    <div v-if="tareasPendientesTotal().length > 0" style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:.82rem;color:#92400e"><i class="fa fa-bell" style="margin-right:6px"></i>Tienes <strong>${ tareasPendientesTotal().length }</strong> tarea(s) pendiente(s) con este caso</span>
       <button @click="tabActiva = 'tareas'" style="background:#5106A7;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:.75rem;font-weight:600;cursor:pointer">Ver tareas</button>
     </div>
 
@@ -1270,7 +1270,14 @@ var home = Vue.createApp({
       return this.caseTasks.filter(function(t) { return t.barrierId === barrierId && t.status === 'ToDo'; });
     },
     tareasPendientesTotal() {
-      return this.caseTasks.filter(function(t) { return t.status === 'ToDo'; });
+      var self = this;
+      return this.caseTasks.filter(function(t) {
+        if (t.status !== 'ToDo') return false;
+        if (self.userRole === 'et') {
+          return String(t.assignedUserId || '') === String(self.userICode || '');
+        }
+        return true;
+      });
     },
     formatFecha(f) { return f ? f.substring(0, 10) : '—'; },
     formatFechaHora(f) {

@@ -6,7 +6,7 @@
  * Props:
  *   - caseId   (String, required): icode del caso
  *   - userId   (String, optional): icode del usuario logueado (para permisos)
- *   - userRole (String, optional): rol del usuario ('sv', 'ro', 'op', 'ps', 'ts')
+ *   - userRole (String, optional): rol del usuario ('sv', 'ro', 'op', 'ps', 'ts', 'et')
  *   - allowPsicoManage (Boolean, optional): si true, ps/ts pueden gestionar
  *     tareas asignadas a ellos (p. ej. detalle de remisión psicosocial).
  *     Default false: en detalle de caso ps/ts son solo lectura.
@@ -89,11 +89,18 @@ app.component('case-tasks', {
         };
     },
     computed: {
+        scopedTasks: function() {
+            var self = this;
+            if (this.userRole !== 'et') return this.tasks;
+            return this.tasks.filter(function(t) {
+                return String(t.assignedUserId || '') === String(self.userId || '');
+            });
+        },
         pendingTasks: function() {
-            return this.tasks.filter(function(t) { return t.status === 'ToDo'; });
+            return this.scopedTasks.filter(function(t) { return t.status === 'ToDo'; });
         },
         completedTasks: function() {
-            return this.tasks.filter(function(t) { return t.status === 'Done'; });
+            return this.scopedTasks.filter(function(t) { return t.status === 'Done'; });
         },
         visibleTasks: function() {
             return this.activeTab === 'pending' ? this.pendingTasks : this.completedTasks;
