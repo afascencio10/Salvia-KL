@@ -1,3 +1,20 @@
+## 2026-08-27 — Tipo `solicitud_entidad`: checklist de obligaciones y spawn de `respuesta_entidad`
+
+El agente de seguimiento (ro) puede gestionar las tareas `solicitud_entidad` (creadas por canal Mi Salvia). El modal carga las obligaciones pendientes de `entity_case_obligation`, el agente selecciona ítems y describe cada uno, y al enviar se completa la tarea y se crea una `respuesta_entidad` por ítem asignada al único usuario de la sede.
+
+### Archivos modificados
+
+| Archivo | Cambio |
+|---|---|
+| `src/frontend/js/components/case-task-modal.js` | Formulario checklist + textarea, botón Enviar solicitudes |
+| `src/frontend/js/components/case-tasks.js` | Tarjeta mock para `solicitud_entidad` |
+| `src/frontend/js/components/case-task-history.js` | Detalle de solicitudes enviadas |
+| `src/salvia/controller/entity_case_controller.go` | GET obligaciones pendientes + entityName |
+| `src/salvia/service/case_task_service.go` | Complete síncrono + spawn `respuesta_entidad` |
+| `src/salvia/controller/case_task_controller.go` | JSON con `entityCaseId` y `entityName` |
+
+---
+
 ## 2026-08-14 — Nuevo tipo de tarea `justificar_remision`
 
 Cuando el psicólogo/a devuelve una remisión psicosocial (`ValidateRemision`, `isValid=false`), la `case_task` `justificar_remision` que se crea (ver changelog de `hacer-seguimiento` del 2026-08-13 y de `Remision Psicosocial Detalle`) ahora se puede completar desde este modal: el agente ve el motivo de la devolución (`tarea.description`, de solo lectura) y escribe su respuesta en un campo requerido (máx. 500 caracteres).

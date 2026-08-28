@@ -64,12 +64,37 @@ func requireCaseDetailAccess(ctx *gin.Context) *utils.CommonSession {
 //	GET  /api/v1/casos/:id/entidades   → List
 //	POST /api/v1/casos/:id/entidades   → Create
 //	GET  /api/v1/entity-cases          → ListByEntity (Casos Entidad)
+//	GET  /api/v1/entity-cases/:entityCaseId/obligations → ListObligations
 func (c *EntityCaseController) RegisterRoutes(rg *gin.RouterGroup) {
 	casos := rg.Group("/casos/:id/entidades")
 	casos.GET("", c.List)
 	casos.POST("", c.Create)
 
 	rg.GET("/entity-cases", c.ListByEntity)
+	rg.GET("/entity-cases/:entityCaseId/obligations", c.ListObligations)
+}
+
+// ListObligations — GET /api/v1/entity-cases/:entityCaseId/obligations?status=pendiente
+// Checklist de entity_case_obligation (labels resueltos) + nombre de la organización.
+func (c *EntityCaseController) ListObligations(ctx *gin.Context) {
+	if requireCaseDetailAccess(ctx) == nil {
+		return
+	}
+	entityCaseID := ctx.Param("entityCaseId")
+	if entityCaseID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "entityCaseId requerido"})
+		return
+	}
+	result, err := c.svc.ListObligations(ctx.Request.Context(), entityCaseID, ctx.Query("status"))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "relación entidad-caso no encontrada"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		return
+	}
+	ctx.JSON(http.StatusOK, result)
 }
 
 // ListByEntity — GET /api/v1/entity-cases?document=&page=&pageSize=

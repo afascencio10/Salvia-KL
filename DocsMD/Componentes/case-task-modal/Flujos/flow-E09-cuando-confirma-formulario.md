@@ -47,6 +47,16 @@ INPUT: {
     Validar formulario:
       • Sin campos que validar — solo requiere cargandoOficio === false
 
+  CASO 'justificar_remision':
+    Validar formulario:
+      • respuesta: required (trim)
+
+  CASO 'solicitud_entidad':
+    Validar formulario:
+      • ítems seleccionados: min 1
+      • descripcion: required (trim) en cada ítem seleccionado
+      • cargandoObligaciones === false
+
   SI validación con errores:
     → saveError = mensaje descriptivo del campo faltante
     → TERMINAR ejecución  // modal permanece abierto
@@ -135,6 +145,21 @@ INPUT: {
   CASO 'Corregir oficio':
     formData = {}   // objeto vacío, sin campos
 
+  CASO 'justificar_remision':
+    formData = { respuesta: form.respuesta.trim() }
+
+  CASO 'solicitud_entidad':
+    formData = {
+      entityName: entityName,
+      solicitudes: form.items
+        .filter(item => form.seleccion[item.id].selected)
+        .map(item => ({
+          obligationId: item.id,
+          label:        item.label,
+          descripcion:  form.seleccion[item.id].descripcion.trim(),
+        })),
+    }
+
   → FIN SUB-FLUJO → CONTINÚA FLUJO GENERAL
 
 
@@ -187,7 +212,7 @@ BACK 2 — Guardar form_data y marcar Done (según tipo — no es uniforme)
       → No guarda form_data (formData siempre es {} — nada que persistir)
         Status se marca Done más abajo, vía PerformAction → completarCaseTask()
 
-    CASO 'gestion_llamada' / 'comite_caso':
+    CASO 'gestion_llamada' / 'comite_caso' / 'justificar_remision':
       → Guarda form_data Y marca Done en la misma escritura
         DB.case_tasks.UpdateFields({
             form_data:    JSON(formData),
@@ -195,6 +220,10 @@ BACK 2 — Guardar form_data y marcar Done (según tipo — no es uniforme)
             completed_at: now(),
         })
 
+    CASO 'solicitud_entidad':
+      → NO marca Done todavía. Primero valida solicitudes y resuelve el usuario
+        único de la sede. Si falla, 400 y la tarea queda ToDo.
+      → Si ok: transacción — Done + form_data + N case_task respuesta_entidad
 
 BACK 3 — Ejecutar efectos de lado según tarea.type
 
@@ -359,6 +388,28 @@ BACK 3 — Ejecutar efectos de lado según tarea.type
         nunca se ejecuta (la función retorna antes, en la validación).
         No hay ningún cambio persistido en BACK 2 para este tipo (form_data
         no se guarda), así que en un error la tarea queda exactamente como estaba.
+
+  └──────────────────────────────────────────────────────────────┘
+
+
+  ┌── 'solicitud_entidad' ────────────────────────────────────────┐
+
+    ⚡ Síncrono — si falla, el cliente recibe 400 y la tarea original
+    permanece ToDo.
+
+    1. Parsear formData.solicitudes[] (obligationId, label, descripcion)
+       SI length < 1 o alguna descripcion vacía → 400
+    2. Cargar entity_case.entity_branch_id desde tarea.entity_case_id
+    3. SELECT general_user_i_code FROM security.general_user
+         WHERE entity_branch_id = sede
+       SI 0 usuarios → 400 "no hay usuario de entidad asociado a esta sede"
+       SI >1 usuario → 400 "hay más de un usuario de entidad para esta sede"
+    4. Transacción:
+       • Marcar solicitud_entidad Done + form_data
+       • Crear N case_task type=respuesta_entidad, category=Entidades,
+         assigned_user_id = ese usuario, entity_case_id heredado,
+         form_data = { solicitudTaskId, obligationId, label, descripcionSolicitud }
+    5. No cambia entity_case_obligation.status
 
   └──────────────────────────────────────────────────────────────┘
 

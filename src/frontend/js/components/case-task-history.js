@@ -244,6 +244,7 @@ app.component('case-task-history', {
                 comite_caso:      'Decisiones del Comité',
                 'Corregir oficio': 'Corregir Oficio',
                 gestion_propia:   'Gestión Propia',
+                solicitud_entidad: 'Solicitud a entidad',
             }[this.tarea.type] || 'Detalle de tarea';
         },
 
@@ -255,6 +256,7 @@ app.component('case-task-history', {
                 comite_caso:      'fa-users',
                 'Corregir oficio': 'fa-pencil-alt',
                 gestion_propia:   'fa-link',
+                solicitud_entidad: 'fa-folder',
             }[this.tarea.type] || 'fa-tasks';
         },
 
@@ -447,6 +449,19 @@ app.component('case-task-history', {
                 <div class="cth-field">
                     <label class="cth-field-label">Tipo de gestión</label>
                     <div class="cth-field-value">\${ (tarea.formData && tarea.formData.subtipo) || '—' }</div>
+                </div>
+            </template>
+
+            <!-- Detalle formData: solicitud_entidad -->
+            <template v-else-if="tarea.type === 'solicitud_entidad'">
+                <p class="cth-section-title">Solicitudes enviadas</p>
+                <div v-if="tarea.formData && tarea.formData.entityName" class="cth-field">
+                    <label class="cth-field-label">Entidad</label>
+                    <div class="cth-field-value">\${ tarea.formData.entityName }</div>
+                </div>
+                <div v-for="(s, idx) in ((tarea.formData && tarea.formData.solicitudes) || [])" :key="s.obligationId || idx" class="cth-field">
+                    <label class="cth-field-label">\${ s.label || ('Ítem ' + (idx + 1)) }</label>
+                    <div class="cth-field-value">\${ s.descripcion || '—' }</div>
                 </div>
             </template>
 

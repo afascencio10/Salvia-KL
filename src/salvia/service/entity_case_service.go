@@ -52,6 +52,10 @@ type EntityCaseService interface {
 	ListEntities(ctx context.Context) ([]models.EntityCatalogItem, error)
 	ListCitiesByEntity(ctx context.Context, entityID int64) ([]models.EntityCityOption, error)
 
+	// ListObligations lista las obligaciones de un entity_case, con labels
+	// resueltos y el nombre de la organización. status vacío = todas.
+	ListObligations(ctx context.Context, entityCaseID, status string) (*models.EntityCaseObligationsResponse, error)
+
 	// UpdateLastAction sobreescribe entity_case.last_action con un resumen de
 	// texto libre. Usado por processFollowUpSubmission al registrar un
 	// entity_case_follow_up (Sección "Seguimiento a Entidades").
@@ -59,11 +63,12 @@ type EntityCaseService interface {
 }
 
 type entityCaseService struct {
-	repo repository.EntityCaseRepository
+	repo           repository.EntityCaseRepository
+	obligationRepo repository.EntityCaseObligationRepository
 }
 
-func NewEntityCaseService(repo repository.EntityCaseRepository) EntityCaseService {
-	return &entityCaseService{repo: repo}
+func NewEntityCaseService(repo repository.EntityCaseRepository, obligationRepo repository.EntityCaseObligationRepository) EntityCaseService {
+	return &entityCaseService{repo: repo, obligationRepo: obligationRepo}
 }
 
 func (s *entityCaseService) ListByCase(ctx context.Context, caseID string) ([]models.EntityCaseWithRelations, error) {
@@ -140,6 +145,27 @@ func (s *entityCaseService) ListEntities(ctx context.Context) ([]models.EntityCa
 
 func (s *entityCaseService) ListCitiesByEntity(ctx context.Context, entityID int64) ([]models.EntityCityOption, error) {
 	return s.repo.ListCitiesByEntityID(ctx, entityID)
+}
+
+func (s *entityCaseService) ListObligations(ctx context.Context, entityCaseID, status string) (*models.EntityCaseObligationsResponse, error) {
+	if _, err := s.repo.FindByID(ctx, entityCaseID); err != nil {
+		return nil, err
+	}
+	entityName, err := s.repo.GetEntityNameByEntityCaseID(ctx, entityCaseID)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.obligationRepo.FindByEntityCaseIDWithLabels(ctx, entityCaseID, status)
+	if err != nil {
+		return nil, err
+	}
+	if items == nil {
+		items = []models.EntityCaseObligationItem{}
+	}
+	return &models.EntityCaseObligationsResponse{
+		EntityName: entityName,
+		Items:      items,
+	}, nil
 }
 
 func (s *entityCaseService) UpdateLastAction(ctx context.Context, entityCaseID, lastAction string) error {

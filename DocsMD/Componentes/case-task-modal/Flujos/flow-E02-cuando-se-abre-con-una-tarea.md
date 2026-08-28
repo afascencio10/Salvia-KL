@@ -82,6 +82,13 @@ PASO 2 — Cargar la tarea del API
         observacionesMecanismo:      "",
       }
 
+    CASO 'justificar_remision':
+      form = { respuesta: "" }
+
+    CASO 'solicitud_entidad':
+      form = { items: [], seleccion: {} }
+      → Llamar SUB-FLUJO: Cargar obligaciones pendientes
+
     CASO 'Corregir oficio':
       form = {}   // sin campos — es una vista de solo lectura
       → Llamar SUB-FLUJO: Cargar oficio vinculado
@@ -113,6 +120,34 @@ PASO 2 — Cargar la tarea del API
       → oficioVinculado permanece null
 
     → cargandoOficio = false
+
+  → FIN SUB-FLUJO → CONTINÚA FLUJO GENERAL
+
+
+┌─────────────────────────────────────────────────────────────────┐
+│  SUB-FLUJO: Cargar obligaciones pendientes                       │
+│  Solo aplica si tarea.type === 'solicitud_entidad'               │
+└─────────────────────────────────────────────────────────────────┘
+
+  entityCaseId = tarea.entityCaseId
+
+  SI !entityCaseId:
+    → errorObligaciones = "Esta tarea no está vinculada a una entidad del caso."
+    → FIN SUB-FLUJO
+
+  cargandoObligaciones = true
+
+  GET /api/v1/entity-cases/{entityCaseId}/obligations?status=pendiente
+  → { entityName, items: [{ id, entityObligationId, label, status }] }
+
+  SI ok:
+    → entityName = resultado.entityName
+    → form.items = resultado.items
+    → form.seleccion[id] = { selected: false, descripcion: "" } para cada ítem
+  SI error:
+    → errorObligaciones = mensaje de carga
+
+  → cargandoObligaciones = false
 
   → FIN SUB-FLUJO → CONTINÚA FLUJO GENERAL
 

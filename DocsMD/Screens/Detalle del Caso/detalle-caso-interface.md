@@ -205,6 +205,9 @@ DetalleCaso  (.container)
             │   └── CaseTasks  // src/frontend/js/components/case-tasks.js
             │       :case-id="caseICode"  :user-id="userICode"  :user-role="userRole"
             │       (sin filtro de barrera — muestra todas las tareas del caso)
+            │       Para type === 'solicitud_entidad' el subtítulo es
+            │       "Hacer solicitudes a {entityName}" (la categoría sigue siendo ENTIDADES).
+            │       Gestionar abre case-task-modal.
             │
             └── [tabActiva === 'timeline']  ── TAB TIMELINE ──────────────────
                 └── CaseTimeline  // src/frontend/js/components/case-timeline.js

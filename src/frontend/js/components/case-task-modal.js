@@ -73,6 +73,8 @@
             font-size: 12px;
             color: #9ca3af;
             margin: 2px 0 0;
+            max-width: 380px;
+            line-height: 1.4;
         }
         .ctm-close-btn {
             background: none;
@@ -219,6 +221,33 @@
         .ctm-checkbox-text { font-size: 13px; color: #374151; }
         .ctm-checkbox-item.checked .ctm-checkbox-text { color: #1d4ed8; font-weight: 500; }
 
+        .ctm-ob-list { display: flex; flex-direction: column; gap: 8px; }
+        .ctm-ob-item {
+            border: 1.5px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 12px 14px;
+            cursor: pointer;
+            background: #fff;
+            transition: background .15s, border-color .15s, color .15s;
+        }
+        .ctm-ob-item.selected {
+            background: #5106A7;
+            border-color: #5106A7;
+            color: #fff;
+        }
+        .ctm-ob-item-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .ctm-ob-item-label { font-size: 13px; font-weight: 500; line-height: 1.4; }
+        .ctm-ob-item.selected .ctm-ob-item-label { color: #fff; }
+        .ctm-ob-check { font-size: 13px; flex-shrink: 0; opacity: 0; }
+        .ctm-ob-item.selected .ctm-ob-check { opacity: 1; color: #fff; }
+        .ctm-ob-desc { margin-top: 10px; }
+        .ctm-ob-desc .ctm-textarea { background: #fff; color: #111827; }
+
         /* Radio Sí/No para generaOficio */
         .ctm-radio-group {
             display: flex;
@@ -363,6 +392,9 @@ app.component('case-task-modal', {
             // Datos del entity_letter vinculado (para Corregir oficio)
             oficioVinculado: null,
             cargandoOficio:  false,
+            cargandoObligaciones: false,
+            errorObligaciones: null,
+            entityName: '',
         };
     },
 
@@ -374,6 +406,9 @@ app.component('case-task-modal', {
         },
         titulo() {
             if (!this.tarea) return 'Completar tarea';
+            if (this.tarea.type === 'solicitud_entidad') {
+                return 'Solicitudes a ' + (this.entityName || this.tarea.entityName || 'la entidad');
+            }
             return {
                 gestion_llamada:  'Gestión de Llamada',
                 proyectar_oficio: 'Proyectar Oficio',
@@ -391,6 +426,7 @@ app.component('case-task-modal', {
                 comite_caso:      'fa-users',
                 'Corregir oficio': 'fa-pencil-alt',
                 justificar_remision: 'fa-reply',
+                solicitud_entidad: 'fa-folder',
             }[this.tarea.type] || 'fa-tasks';
         },
 
@@ -419,6 +455,16 @@ app.component('case-task-modal', {
                     return !this.cargandoOficio;
                 case 'justificar_remision':
                     return !!(f.respuesta && f.respuesta.trim());
+                case 'solicitud_entidad':
+                    if (this.cargandoObligaciones || !f.items || !f.seleccion) return false;
+                    var seleccionados = f.items.filter(function(item) {
+                        return f.seleccion[item.id] && f.seleccion[item.id].selected;
+                    });
+                    if (seleccionados.length < 1) return false;
+                    return seleccionados.every(function(item) {
+                        var d = f.seleccion[item.id] && f.seleccion[item.id].descripcion;
+                        return d && String(d).trim();
+                    });
                 default:
                     return false;
             }
@@ -451,7 +497,10 @@ app.component('case-task-modal', {
             this.ciudades      = [];
             this.municipios    = [];
             this.entidades     = []; this.entidadBusqueda = ""; this.entidadDropdownOpen = false;
-            this.form          = {};
+            this.oficioVinculado = null;
+            this.cargandoObligaciones = false;
+            this.errorObligaciones = null;
+            this.entityName = '';
 
             try {
                 const res = await fetch('/api/v1/case-tasks/' + taskId);
@@ -478,6 +527,9 @@ app.component('case-task-modal', {
             this.municipios      = [];
             this.entidades       = [];
             this.oficioVinculado = null;
+            this.cargandoObligaciones = false;
+            this.errorObligaciones = null;
+            this.entityName = '';
         },
 
         async _cargarOficioVinculado() {
@@ -502,6 +554,43 @@ app.component('case-task-modal', {
                 console.warn('[CTM] E01b error de red cargando entity_letter:', e);
             } finally {
                 this.cargandoOficio = false;
+            }
+        },
+
+        async _cargarObligacionesPendientes() {
+            const entityCaseId = this.tarea && this.tarea.entityCaseId;
+            if (!entityCaseId) {
+                this.errorObligaciones = 'Esta tarea no está vinculada a una entidad del caso.';
+                return;
+            }
+            this.cargandoObligaciones = true;
+            this.errorObligaciones = null;
+            try {
+                const res = await fetch('/api/v1/entity-cases/' + entityCaseId + '/obligations?status=pendiente');
+                if (res.status === 401) { window.location.href = '/static/landing.html'; return; }
+                if (!res.ok) throw new Error('Error ' + res.status);
+                const data = await res.json();
+                this.entityName = data.entityName || this.tarea.entityName || '';
+                const items = Array.isArray(data.items) ? data.items : [];
+                const seleccion = {};
+                items.forEach(function(item) {
+                    seleccion[item.id] = { selected: false, descripcion: '' };
+                });
+                this.form = { items: items, seleccion: seleccion };
+            } catch (e) {
+                this.errorObligaciones = 'No se pudieron cargar las obligaciones pendientes.';
+            } finally {
+                this.cargandoObligaciones = false;
+            }
+        },
+
+        toggleObligacion(itemId) {
+            if (!this.form.seleccion[itemId]) {
+                this.form.seleccion[itemId] = { selected: false, descripcion: '' };
+            }
+            this.form.seleccion[itemId].selected = !this.form.seleccion[itemId].selected;
+            if (!this.form.seleccion[itemId].selected) {
+                this.form.seleccion[itemId].descripcion = '';
             }
         },
 
@@ -557,6 +646,10 @@ app.component('case-task-modal', {
                     break;
                 case 'justificar_remision':
                     this.form = { respuesta: '' };
+                    break;
+                case 'solicitud_entidad':
+                    this.form = { items: [], seleccion: {} };
+                    this._cargarObligacionesPendientes();
                     break;
             }
         },
@@ -758,6 +851,21 @@ app.component('case-task-modal', {
                     return {};
                 case 'justificar_remision':
                     return { respuesta: f.respuesta.trim() };
+                case 'solicitud_entidad': {
+                    const solicitudes = (f.items || []).filter(function(item) {
+                        return f.seleccion[item.id] && f.seleccion[item.id].selected;
+                    }).map(function(item) {
+                        return {
+                            obligationId: item.id,
+                            label: item.label,
+                            descripcion: String(f.seleccion[item.id].descripcion || '').trim(),
+                        };
+                    });
+                    return {
+                        entityName: this.entityName || (this.tarea && this.tarea.entityName) || '',
+                        solicitudes: solicitudes,
+                    };
+                }
             }
         },
 
@@ -826,7 +934,8 @@ app.component('case-task-modal', {
             </div>
             <div>
                 <p class="ctm-header-title">\${ titulo }</p>
-                <p v-if="tarea" class="ctm-header-sub">ID \${ tarea.id.substring(0,8) }…</p>
+                <p v-if="tarea && tarea.type !== 'solicitud_entidad'" class="ctm-header-sub">ID \${ tarea.id.substring(0,8) }…</p>
+                <p v-else-if="tarea && tarea.type === 'solicitud_entidad'" class="ctm-header-sub">Selecciona los ítems pendientes del checklist entidad sobre los que deseas hacer una solicitud y describe cada uno.</p>
             </div>
         </div>
         <button class="ctm-close-btn" @click="cancelar" :disabled="guardando">✕</button>
@@ -1204,6 +1313,43 @@ app.component('case-task-modal', {
 
         </template>
 
+        <!-- Formulario solicitud_entidad -->
+        <template v-else-if="tarea && tarea.type === 'solicitud_entidad'">
+
+            <div v-if="cargandoObligaciones" class="ctm-loading">
+                <svg class="ctm-spinner" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="#e5e7eb" stroke-width="3"/>
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke="#1d4ed8" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+                Cargando obligaciones...
+            </div>
+
+            <div v-else-if="errorObligaciones" class="ctm-error-banner">
+                <i class="fas fa-exclamation-circle"></i> \${ errorObligaciones }
+            </div>
+
+            <template v-else>
+                <p class="ctm-section-title">Checklist entidad pendientes</p>
+                <div v-if="!form.items || form.items.length === 0" style="color:#6b7280;font-size:13px;margin:8px 0">
+                    No hay obligaciones pendientes
+                </div>
+                <div v-else class="ctm-ob-list">
+                    <div v-for="item in form.items" :key="item.id">
+                        <div class="ctm-ob-item" :class="{ selected: form.seleccion[item.id] && form.seleccion[item.id].selected }" @click="toggleObligacion(item.id)">
+                            <div class="ctm-ob-item-row">
+                                <span class="ctm-ob-item-label">\${ item.label }</span>
+                                <i class="fas fa-check ctm-ob-check"></i>
+                            </div>
+                        </div>
+                        <div v-if="form.seleccion[item.id] && form.seleccion[item.id].selected" class="ctm-ob-desc" @click.stop>
+                            <textarea class="ctm-textarea" v-model="form.seleccion[item.id].descripcion" rows="3" maxlength="500" placeholder="Describe la solicitud para este ítem del checklist entidad..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+        </template>
+
         <!-- Error al guardar -->
         <div v-if="saveError" class="ctm-error-banner">
             <i class="fas fa-exclamation-circle"></i> \${ saveError }
@@ -1224,6 +1370,9 @@ app.component('case-task-modal', {
             <template v-else>
                 <template v-if="tarea && tarea.type === 'Corregir oficio'">
                     Marcar como corregido
+                </template>
+                <template v-else-if="tarea && tarea.type === 'solicitud_entidad'">
+                    Enviar solicitudes
                 </template>
                 <template v-else>
                     Completar tarea

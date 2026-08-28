@@ -7,7 +7,7 @@
 | Interfaz | [case-task-history-interface.md](case-task-history-interface.md) |
 | Uso | [case-task-history-usage.md](case-task-history-usage.md) |
 
-**Changelogs:** [changelogJul2026.md](changelogJul2026.md)
+**Changelogs:** [changelogAgo2026.md](changelogAgo2026.md) · [changelogJul2026.md](changelogJul2026.md)
 
 ---
 

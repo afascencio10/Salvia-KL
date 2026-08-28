@@ -25,6 +25,22 @@ type EntityCaseObligation struct {
 
 func (EntityCaseObligation) TableName() string { return "salvia.entity_case_obligation" }
 
+// EntityCaseObligationItem es el shape enriquecido para el checklist del
+// modal de solicitud_entidad (label resuelto: custom_label o catálogo).
+type EntityCaseObligationItem struct {
+	ID                 string  `gorm:"column:id" json:"id"`
+	EntityObligationID *string `gorm:"column:entity_obligation_id" json:"entityObligationId,omitempty"`
+	Label              string  `gorm:"column:label" json:"label"`
+	Status             string  `gorm:"column:status" json:"status"`
+}
+
+// EntityCaseObligationsResponse envuelve las obligaciones de un entity_case
+// junto con el nombre de la organización (entity), para el título del modal.
+type EntityCaseObligationsResponse struct {
+	EntityName string                     `json:"entityName"`
+	Items      []EntityCaseObligationItem `json:"items"`
+}
+
 // Valores válidos de Status.
 const (
 	EntityCaseObligationStatusCompletada = "completada"

@@ -223,8 +223,15 @@ app.component('case-tasks', {
                 'llamar_entidad_barrera': 'Llamar a entidad barrera',
                 'gestion_enlace_territorial': 'Gestión barrera enlace territorial',
                 'gestion_propia': 'Gestión propia',
+                'solicitud_entidad': 'Hacer solicitudes a la entidad',
             };
             return labels[type] || type || task.category || 'Tarea';
+        },
+        tituloTarea: function(task) {
+            if (task.type === 'solicitud_entidad') {
+                return 'Hacer solicitudes a ' + (task.entityName || 'la entidad');
+            }
+            return task.description || this.labelTipo(task);
         },
     },
     template: `
@@ -254,7 +261,10 @@ app.component('case-tasks', {
             </div>
             <div v-else class="ct-list">
                 <div v-for="task in pendingTasks" :key="task.id" class="ct-task" style="flex-direction:row;align-items:center;gap:12px;padding:14px 20px">
-                    <div style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0" :style="task.type && task.type.indexOf('oficio') !== -1 ? 'background:#f3f4f6' : task.type && (task.type.indexOf('llamar') !== -1 || task.type.indexOf('llamada') !== -1) ? 'background:#fce7f3' : task.type && task.type.indexOf('comite') !== -1 ? 'background:#fef9c3' : 'background:#ede9fe'">
+                    <div v-if="task.type === 'solicitud_entidad'" style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#dbeafe">
+                        <i class="fa fa-folder" style="color:#2563eb;font-size:.82rem"></i>
+                    </div>
+                    <div v-else style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0" :style="task.type && task.type.indexOf('oficio') !== -1 ? 'background:#f3f4f6' : task.type && (task.type.indexOf('llamar') !== -1 || task.type.indexOf('llamada') !== -1) ? 'background:#fce7f3' : task.type && task.type.indexOf('comite') !== -1 ? 'background:#fef9c3' : 'background:#ede9fe'">
                         <i :class="task.type && task.type.indexOf('oficio') !== -1 ? 'fa fa-file-alt' : task.type && (task.type.indexOf('llamar') !== -1 || task.type.indexOf('llamada') !== -1) ? 'fa fa-phone' : task.type && task.type.indexOf('comite') !== -1 ? 'fa fa-clipboard-list' : 'fa fa-tasks'" :style="task.type && task.type.indexOf('oficio') !== -1 ? 'color:#1f2937' : task.type && (task.type.indexOf('llamar') !== -1 || task.type.indexOf('llamada') !== -1) ? 'color:#db2777' : task.type && task.type.indexOf('comite') !== -1 ? 'color:#92400e' : 'color:#7c3aed'" style="font-size:.82rem"></i>
                     </div>
                     <div style="flex:1;min-width:0">
@@ -262,7 +272,7 @@ app.component('case-tasks', {
                             <span style="font-size:.7rem;font-weight:800;color:#1f2937;text-transform:uppercase;letter-spacing:.04em">\${ task.category }</span>
                             <span class="ct-badge ct-badge-todo">Pendiente</span>
                         </div>
-                        <div style="font-size:.84rem;font-weight:700;color:#1f2937">\${ task.description || labelTipo(task) }</div>
+                        <div style="font-size:.84rem;font-weight:700;color:#1f2937">\${ tituloTarea(task) }</div>
                         <div style="font-size:.73rem;color:#9ca3af;margin-top:2px">Asignado a: \${ task.assignedUserName || 'Sin asignar' }</div>
                     </div>
                     <div style="display:flex;gap:6px;flex-shrink:0">
@@ -289,7 +299,7 @@ app.component('case-tasks', {
                             <span style="font-size:.7rem;font-weight:800;color:#1f2937;text-transform:uppercase;letter-spacing:.04em">\${ task.category }</span>
                             <span class="ct-badge ct-badge-done">Completada</span>
                         </div>
-                        <div style="font-size:.84rem;font-weight:700;color:#1f2937">\${ task.description || labelTipo(task) }</div>
+                        <div style="font-size:.84rem;font-weight:700;color:#1f2937">\${ tituloTarea(task) }</div>
                         <div style="font-size:.73rem;color:#9ca3af;margin-top:2px">Completada por: \${ task.assignedUserName || '—' }</div>
                     </div>
                     <div style="display:flex;gap:6px;flex-shrink:0">

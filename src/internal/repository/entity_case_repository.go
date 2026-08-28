@@ -29,6 +29,10 @@ type EntityCaseRepository interface {
 	// GetEntityMetaByBranchID resuelve nombre + sector de la organización padre de una sede.
 	GetEntityMetaByBranchID(ctx context.Context, entityBranchID int64) (*models.EntityBranchMeta, error)
 
+	// GetEntityNameByEntityCaseID resuelve el nombre de la organización
+	// (entity.entity_name) a partir del id de entity_case.
+	GetEntityNameByEntityCaseID(ctx context.Context, entityCaseID string) (string, error)
+
 	// ListEntities cataloga salvia.entity ordenado por nombre.
 	ListEntities(ctx context.Context) ([]models.EntityCatalogItem, error)
 
@@ -177,6 +181,19 @@ LIMIT ? OFFSET ?`
 		return nil, 0, err
 	}
 	return items, total, nil
+}
+
+func (r *entityCaseRepository) GetEntityNameByEntityCaseID(ctx context.Context, entityCaseID string) (string, error) {
+	var name string
+	err := r.db.WithContext(ctx).Raw(`
+SELECT COALESCE(e.entity_name, '')
+FROM salvia.entity_case ec
+JOIN salvia.entity_branch eb ON eb.entity_branch_id = ec.entity_branch_id
+JOIN salvia.entity e ON e.entity_id = eb.entity_id
+WHERE ec.id = ?
+LIMIT 1
+`, entityCaseID).Scan(&name).Error
+	return name, err
 }
 
 func (r *entityCaseRepository) GetEntityMetaByBranchID(ctx context.Context, entityBranchID int64) (*models.EntityBranchMeta, error) {

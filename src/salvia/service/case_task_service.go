@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"gorm.io/datatypes"
@@ -15,6 +16,8 @@ import (
 )
 
 var ErrCaseTaskNotFound = errors.New("case_task: registro no encontrado")
+var ErrEntityUserNotFound = errors.New("no hay usuario de entidad asociado a esta sede")
+var ErrEntityUserNotUnique = errors.New("hay más de un usuario de entidad para esta sede")
 
 // CaseTaskService define las operaciones de negocio sobre CaseTask.
 type CaseTaskService interface {
@@ -355,6 +358,11 @@ func (s *caseTaskService) CompleteWithFormData(ctx context.Context, id string, u
 		}
 		go s.sideEffectsJustificarRemision(context.Background(), task, userId, now)
 
+	case "solicitud_entidad":
+		if err := s.completeSolicitudEntidad(ctx, task, userId, formData, fd, now); err != nil {
+			return nil, err
+		}
+
 	default:
 		return nil, fmt.Errorf("CompleteWithFormData: tipo de tarea no soportado: %s", task.Type)
 	}
@@ -366,6 +374,138 @@ func (s *caseTaskService) CompleteWithFormData(ctx context.Context, id string, u
 
 	// ── 5. Retornar tarea actualizada ─────────────────────────────────────────
 	return s.repo.FindByID(ctx, id)
+}
+
+type solicitudItem struct {
+	ObligationID string
+	Label        string
+	Descripcion  string
+}
+
+func parseSolicitudes(fd map[string]interface{}) ([]solicitudItem, error) {
+	raw, ok := fd["solicitudes"]
+	if !ok {
+		return nil, fmt.Errorf("CompleteWithFormData: solicitudes requeridas")
+	}
+	arr, ok := raw.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("CompleteWithFormData: solicitudes debe ser un arreglo")
+	}
+	if len(arr) < 1 {
+		return nil, fmt.Errorf("CompleteWithFormData: selecciona al menos un ítem del checklist")
+	}
+	out := make([]solicitudItem, 0, len(arr))
+	for i, item := range arr {
+		m, ok := item.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("CompleteWithFormData: solicitud #%d inválida", i+1)
+		}
+		id, _ := m["obligationId"].(string)
+		if strings.TrimSpace(id) == "" {
+			return nil, fmt.Errorf("CompleteWithFormData: solicitud #%d sin obligationId", i+1)
+		}
+		desc, _ := m["descripcion"].(string)
+		if strings.TrimSpace(desc) == "" {
+			return nil, fmt.Errorf("CompleteWithFormData: la descripción es obligatoria en cada ítem seleccionado")
+		}
+		label, _ := m["label"].(string)
+		out = append(out, solicitudItem{
+			ObligationID: strings.TrimSpace(id),
+			Label:        strings.TrimSpace(label),
+			Descripcion:  strings.TrimSpace(desc),
+		})
+	}
+	return out, nil
+}
+
+func (s *caseTaskService) findUsersByEntityBranchID(ctx context.Context, branchID int64) ([]string, error) {
+	var ids []string
+	err := s.db.WithContext(ctx).Raw(`
+		SELECT general_user_i_code
+		FROM security.general_user
+		WHERE entity_branch_id = ?
+		ORDER BY general_user_id ASC
+	`, branchID).Scan(&ids).Error
+	return ids, err
+}
+
+// completeSolicitudEntidad valida el checklist, resuelve el único usuario de
+// la sede y, en la misma transacción, marca la tarea Done y crea una
+// respuesta_entidad por ítem seleccionado.
+func (s *caseTaskService) completeSolicitudEntidad(ctx context.Context, task *models.CaseTask, _ string, formData datatypes.JSON, fd map[string]interface{}, now time.Time) error {
+	if task.EntityCaseID == nil || *task.EntityCaseID == "" {
+		return fmt.Errorf("CompleteWithFormData: solicitud_entidad sin entity_case_id")
+	}
+	solicitudes, err := parseSolicitudes(fd)
+	if err != nil {
+		return err
+	}
+
+	var branchID int64
+	if err := s.db.WithContext(ctx).Raw(
+		`SELECT entity_branch_id FROM salvia.entity_case WHERE id = ? AND deleted_at IS NULL`,
+		*task.EntityCaseID,
+	).Scan(&branchID).Error; err != nil {
+		return fmt.Errorf("CompleteWithFormData: cargar entity_case: %w", err)
+	}
+	if branchID == 0 {
+		return fmt.Errorf("CompleteWithFormData: entity_case no encontrado")
+	}
+
+	users, err := s.findUsersByEntityBranchID(ctx, branchID)
+	if err != nil {
+		return fmt.Errorf("CompleteWithFormData: buscar usuario de entidad: %w", err)
+	}
+	if len(users) == 0 {
+		return ErrEntityUserNotFound
+	}
+	if len(users) > 1 {
+		return ErrEntityUserNotUnique
+	}
+	assignedTo := users[0]
+
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&models.CaseTask{}).Where("id = ?", task.ID).Updates(map[string]interface{}{
+			"form_data":    formData,
+			"status":       models.CaseTaskStatusDone,
+			"completed_at": now,
+		}).Error; err != nil {
+			return fmt.Errorf("CompleteWithFormData: marcar Done: %w", err)
+		}
+
+		for _, sol := range solicitudes {
+			childFD, err := json.Marshal(map[string]interface{}{
+				"solicitudTaskId":      task.ID,
+				"obligationId":         sol.ObligationID,
+				"label":                sol.Label,
+				"descripcionSolicitud": sol.Descripcion,
+			})
+			if err != nil {
+				return fmt.Errorf("CompleteWithFormData: serializar form_data respuesta: %w", err)
+			}
+			desc := sol.Label
+			if desc == "" {
+				desc = "Responder solicitud de la entidad"
+			} else {
+				desc = "Responder solicitud: " + desc
+			}
+			child := &models.CaseTask{
+				Category:       "Entidades",
+				Type:           "respuesta_entidad",
+				Description:    desc,
+				AssignedUserID: assignedTo,
+				Status:         models.CaseTaskStatusToDo,
+				FormData:       datatypes.JSON(childFD),
+				CaseID:         task.CaseID,
+				FollowUpID:     task.FollowUpID,
+				EntityCaseID:   task.EntityCaseID,
+			}
+			if err := tx.Create(child).Error; err != nil {
+				return fmt.Errorf("CompleteWithFormData: crear respuesta_entidad: %w", err)
+			}
+		}
+		return nil
+	})
 }
 
 // CreateGestionPropia crea una CaseTask ya completada para una gestión que el

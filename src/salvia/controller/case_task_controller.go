@@ -110,6 +110,7 @@ func (c *CaseTaskController) GetByID(ctx *gin.Context) {
 }
 
 // ListByAssignedUser devuelve las tareas asignadas a un usuario o las de un caso.
+//
 //	GET /api/v1/case-tasks?assignedUserId=<userICode>
 //	GET /api/v1/case-tasks?caseId=<caseICode>
 func (c *CaseTaskController) ListByAssignedUser(ctx *gin.Context) {
@@ -278,6 +279,8 @@ func (c *CaseTaskController) CompleteWithFormData(ctx *gin.Context) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "tarea no encontrada"})
 		case errors.Is(err, service.ErrEntityLetterInvalidState):
 			ctx.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		case errors.Is(err, service.ErrEntityUserNotFound), errors.Is(err, service.ErrEntityUserNotUnique):
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		default:
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		}
@@ -285,7 +288,6 @@ func (c *CaseTaskController) CompleteWithFormData(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, task)
 }
-
 
 // Reassign reasigna una CaseTask a otro usuario.
 // POST /api/v1/case-tasks/:id/reassign
@@ -320,10 +322,10 @@ func (c *CaseTaskController) Reassign(ctx *gin.Context) {
 // tiposGestionPropiaValidos — opciones válidas para el campo "tipo" del
 // endpoint de gestión propia (mismas 4 opciones del modal ModalRegistrarGestion).
 var tiposGestionPropiaValidos = map[string]bool{
-	"Llamada":            true,
-	"Visita presencial":  true,
-	"Oficio a entidad":   true,
-	"Otra gestión":       true,
+	"Llamada":           true,
+	"Visita presencial": true,
+	"Oficio a entidad":  true,
+	"Otra gestión":      true,
 }
 
 // CreateGestionPropia crea una CaseTask ya completada para una gestión que el
@@ -389,7 +391,7 @@ func (c *CaseTaskController) lookupUserName(userID string) string {
 // taskToJSON arma el gin.H completo de una tarea, incluyendo el nombre del
 // usuario asignado ya resuelto. Centraliza el shape para que GetByID y el
 // listado devuelvan siempre el mismo conjunto de campos.
-func (c *CaseTaskController) taskToJSON(t models.CaseTask, assignedUserName string) gin.H {
+func (c *CaseTaskController) taskToJSON(t models.CaseTask, assignedUserName, entityName string) gin.H {
 	result := gin.H{
 		"id":               t.ID,
 		"caseId":           t.CaseID,
@@ -401,12 +403,16 @@ func (c *CaseTaskController) taskToJSON(t models.CaseTask, assignedUserName stri
 		"assignedUserName": assignedUserName,
 		"barrierId":        t.BarrierID,
 		"entityLetterId":   t.EntityLetterID,
+		"entityCaseId":     t.EntityCaseID,
 		"followUpId":       t.FollowUpID,
 		"result":           t.Result,
 		"formData":         t.FormData,
 		"completedAt":      t.CompletedAt,
 		"createdAt":        t.CreatedAt,
 		"updatedAt":        t.UpdatedAt,
+	}
+	if entityName != "" {
+		result["entityName"] = entityName
 	}
 	// Resolver sector de la barrera si tiene barrierId
 	if t.BarrierID != nil && *t.BarrierID != "" {
@@ -417,11 +423,41 @@ func (c *CaseTaskController) taskToJSON(t models.CaseTask, assignedUserName stri
 	return result
 }
 
+func (c *CaseTaskController) lookupEntityNames(entityCaseIDs []string) map[string]string {
+	out := make(map[string]string)
+	if len(entityCaseIDs) == 0 {
+		return out
+	}
+	type row struct {
+		ID   string `gorm:"column:id"`
+		Name string `gorm:"column:entity_name"`
+	}
+	var rows []row
+	c.svc.GetDB().Raw(`
+		SELECT ec.id, COALESCE(e.entity_name, '') AS entity_name
+		FROM salvia.entity_case ec
+		JOIN salvia.entity_branch eb ON eb.entity_branch_id = ec.entity_branch_id
+		JOIN salvia.entity e ON e.entity_id = eb.entity_id
+		WHERE ec.id IN ?
+	`, entityCaseIDs).Scan(&rows)
+	for _, r := range rows {
+		out[r.ID] = r.Name
+	}
+	return out
+}
+
+func (c *CaseTaskController) entityNameForTask(t models.CaseTask) string {
+	if t.EntityCaseID == nil || *t.EntityCaseID == "" {
+		return ""
+	}
+	return c.lookupEntityNames([]string{*t.EntityCaseID})[*t.EntityCaseID]
+}
+
 // enrichTaskWithName enriquece una tarea individual con el nombre del usuario
 // asignado. Usado por GetByID — vistas de detalle como case-task-history
 // necesitan "todos los datos" de una sola tarea, incluyendo el nombre legible.
 func (c *CaseTaskController) enrichTaskWithName(t models.CaseTask) gin.H {
-	return c.taskToJSON(t, c.lookupUserName(t.AssignedUserID))
+	return c.taskToJSON(t, c.lookupUserName(t.AssignedUserID), c.entityNameForTask(t))
 }
 
 // enrichTasksWithNames agrega el nombre del usuario asignado a cada tarea.
@@ -430,9 +466,13 @@ func (c *CaseTaskController) enrichTaskWithName(t models.CaseTask) gin.H {
 func (c *CaseTaskController) enrichTasksWithNames(tasks []models.CaseTask) []gin.H {
 	// Recolectar IDs únicos
 	idsMap := make(map[string]bool)
+	ecIDsMap := make(map[string]bool)
 	for _, t := range tasks {
 		if t.AssignedUserID != "" {
 			idsMap[t.AssignedUserID] = true
+		}
+		if t.EntityCaseID != nil && *t.EntityCaseID != "" {
+			ecIDsMap[*t.EntityCaseID] = true
 		}
 	}
 
@@ -444,10 +484,20 @@ func (c *CaseTaskController) enrichTasksWithNames(tasks []models.CaseTask) []gin
 		}
 	}
 
+	ecIDs := make([]string, 0, len(ecIDsMap))
+	for id := range ecIDsMap {
+		ecIDs = append(ecIDs, id)
+	}
+	entityNames := c.lookupEntityNames(ecIDs)
+
 	// Construir response enriquecido
 	var result []gin.H
 	for _, t := range tasks {
-		result = append(result, c.taskToJSON(t, namesMap[t.AssignedUserID]))
+		entityName := ""
+		if t.EntityCaseID != nil {
+			entityName = entityNames[*t.EntityCaseID]
+		}
+		result = append(result, c.taskToJSON(t, namesMap[t.AssignedUserID], entityName))
 	}
 	if result == nil {
 		result = []gin.H{}

@@ -1,6 +1,6 @@
 # `case-task-modal` — Guía de uso
 
-Componente modal para completar tareas de tipo `gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio` y `justificar_remision`. El padre lo controla mediante una referencia Vue (`ref`) y el método público `open(taskId)`.
+Componente modal para completar tareas de tipo `gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio`, `justificar_remision` y `solicitud_entidad`. El padre lo controla mediante una referencia Vue (`ref`) y el método público `open(taskId)`.
 
 ---
 
@@ -32,6 +32,8 @@ Al montarse, carga la lista de departamentos y ciudades desde el API para pre-po
 
 Si la tarea abierta es de tipo `Corregir oficio`, además hace un `GET /api/v1/entity-letters/:letterId` (usando `tarea.entityLetterId`) para mostrar en modo lectura la razón de corrección y la ruta Kofax del oficio devuelto.
 
+Si la tarea abierta es de tipo `solicitud_entidad`, además hace un `GET /api/v1/entity-cases/:entityCaseId/obligations?status=pendiente` (usando `tarea.entityCaseId`) para pintar el checklist de obligaciones pendientes y el nombre de la organización.
+
 ---
 
 ## Integración en el HTML de la pantalla
@@ -51,6 +53,7 @@ Si la tarea abierta es de tipo `Corregir oficio`, además hace un `GET /api/v1/e
 | `comite_caso` | "Decisiones del Comité" | Checkbox group de decisiones + campos condicionales por decisión |
 | `Corregir oficio` | "Corregir Oficio" | Sin formulario editable — vista de solo lectura con la razón de corrección y la ruta Kofax del `entity_letter` vinculado (`tarea.entityLetterId`). Solo pide confirmación. |
 | `justificar_remision` | "Justificar Remisión" | Caja de solo lectura con `tarea.description` (motivo de devolución del psicólogo/a) + textarea "Tu respuesta" (required, maxlength 500) |
+| `solicitud_entidad` | "Solicitudes a {entityName}" | Checklist de obligaciones pendientes (`entity_case_obligation`); cada ítem seleccionado exige una descripción (maxlength 500). Botón "Enviar solicitudes". |
 
 ---
 
@@ -80,6 +83,7 @@ methods: {
 | Cargar tarea | GET | `/api/v1/case-tasks/:taskId` |
 | Completar tarea | PUT | `/api/v1/case-tasks/:taskId/complete` |
 | Cargar oficio vinculado (solo `Corregir oficio`) | GET | `/api/v1/entity-letters/:letterId` |
+| Cargar obligaciones pendientes (solo `solicitud_entidad`) | GET | `/api/v1/entity-cases/:entityCaseId/obligations?status=pendiente` |
 | Cargar departamentos | GET | `/api/v1/locations/departments` (al montar) |
 | Cargar ciudades | GET | `/api/v1/locations/cities` (al montar) |
 | Cargar municipios | GET | `/api/v1/locations/towns?city_id={id}` (al seleccionar ciudad) |
@@ -168,3 +172,19 @@ Objeto vacío — no hay campos que enviar. El componente solo confirma la corre
 ```
 
 El motivo de devolución que el agente está respondiendo **no** viaja en el payload — ya está en `tarea.description` (lo dejó `sideEffectsValidateRemision`/`ValidateRemision` al crear esta `case_task`: `"Justificar remisión devuelta — Motivo: {motivo}"`). El backend, al completar esta tarea, reabre la `psychosocial_support` vinculada y crea una nueva `case_task` `validar_remision` — ver tabla "Efectos de lado por tipo de tarea" en `case-task-modal-interface.md`.
+
+#### `formData` para `solicitud_entidad`
+```json
+{
+  "entityName": "string — nombre de la organización",
+  "solicitudes": [
+    {
+      "obligationId": "uuid de entity_case_obligation",
+      "label": "string — texto del ítem",
+      "descripcion": "string — requerida, máx. 500 caracteres"
+    }
+  ]
+}
+```
+
+El backend crea una `case_task` `respuesta_entidad` por cada elemento de `solicitudes`, asignada al único usuario de `security.general_user` con la `entity_branch_id` de la sede. Si no hay exactamente un usuario, responde 400 y no completa la tarea original.

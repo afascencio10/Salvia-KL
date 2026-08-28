@@ -88,8 +88,14 @@ case-task-history
             │       ├── [tarea.type === 'Corregir oficio']
             │       │   └── Nota  (.cth-nota-corregido)  "El oficio fue corregido por el agente que lo proyectó"
             │       │
-            │       └── [tarea.type === 'gestion_propia']
+            │       ├── [tarea.type === 'gestion_propia']
             │           └── Campo  "Tipo de gestión"          formData.subtipo
+            │
+            │       └── [tarea.type === 'solicitud_entidad']
+            │           ├── Campo  "Entidad"                  formData.entityName
+            │           └── Campo × N  [v-for s in formData.solicitudes]
+            │               Label  s.label
+            │               Valor  s.descripcion
             │
             └── Footer  (.cth-footer)
                 └── BtnCerrar  "Cerrar"  → cerrar()
@@ -106,6 +112,7 @@ case-task-history
 | `comite_caso` | Chips de decisiones tomadas + observaciones condicionales por decisión + nivel del mecanismo articulador |
 | `Corregir oficio` | Sin campos propios (`formData` es `{}`) — se muestra la nota **"El oficio fue corregido por el agente que lo proyectó"** en vez de un desglose de campos |
 | `gestion_propia` | Solo `formData.subtipo` (Llamada / Visita presencial / Oficio a entidad / Otra gestión) — la descripción libre ya se muestra arriba de forma genérica (`tarea.description`) |
+| `solicitud_entidad` | Nombre de la entidad + lista de ítems enviados (`label` + `descripcion`) |
 
 > Depende directamente de los campos legibles (`departamentoNombre`, `ciudadNombre`, `municipioNombre`, `decisionesTexto`, `nivelMecanismoTexto`) agregados a `_buildFormData()` en `case-task-modal.js`. Sin esos campos, este componente tendría que re-resolver IDs contra los catálogos de ubicación vigentes, lo cual sería frágil para datos históricos.
 >
