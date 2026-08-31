@@ -1762,7 +1762,13 @@ app.component('dinamic-form', {
 
                 if (item.type === 'repeater' && item.isVisible) {
                     const min = item.repeater.minRepetitions || 0;
-                    if (min > 0 && item.entries.length < min) {
+                    // Repeaters controlados por estado (stateItems, ej. "Seguimiento a
+                    // Barreras"): el conteo de entries lo dicta el estado del caso (barreras
+                    // activas), no el usuario — ni siquiera hay botón para agregar una
+                    // (ver "+ Agregar", oculto para stateItems más abajo). Exigir un mínimo
+                    // acá bloqueaba "Siguiente" sin ninguna acción posible para satisfacerlo
+                    // cuando el caso simplemente no tiene barreras activas.
+                    if (!item.repeater.stateItems && min > 0 && item.entries.length < min) {
                         const baseName = item.repeater.itemName || item.repeater.name;
                         const itemName = min > 1 ? baseName + 's' : baseName;
                         repeaterErrors[item.repeater.id] = `Se deben agregar mínimo ${min} ${itemName}`;

@@ -1563,7 +1563,13 @@ func isAnsweredRepeater(
 	}
 
 	// PASO 2 — verificar mínimo de entries
-	if len(entries) < r.MinRepetitions {
+	// Se omite para repeaters controlados por estado (StateItems, p.ej. "Seguimiento a
+	// Barreras", compartido por Primer Contacto y Seguimiento): sus entries reflejan las
+	// barreras activas del caso, no algo que el usuario agregue/quite — el frontend
+	// incluso oculta el botón "+ Agregar" para ellos (dinamic-form.js). Si el caso no
+	// tiene barreras activas, 0 entries es el estado correcto, no una sección incompleta;
+	// exigir un mínimo aquí bloqueaba "Siguiente" sin que el usuario pudiera satisfacerlo.
+	if r.StateItems == nil && len(entries) < r.MinRepetitions {
 		errMsg := fmt.Sprintf("Se requieren al menos %d entrada(s)", r.MinRepetitions)
 		return IsAnsweredRepeaterResult{
 			IsVisible:  true,
