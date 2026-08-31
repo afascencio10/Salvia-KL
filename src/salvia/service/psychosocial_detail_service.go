@@ -470,17 +470,39 @@ func (s *psychosocialDetailService) CreateContact(ctx context.Context, psicosoci
 		}
 
 	case "realizar":
-		// Realicé sesión — es sesión psico, ya completada
+		// Realicé sesión — es sesión psico, ya completada.
+		// El frontend redirige de inmediato a ?contact_id=X (registrar-contacto-modal.js,
+		// modo "inmediato"), y LoadSession entra por la rama viewByID, que exige
+		// FormSubmissionID ya seteado — por eso se fija el formulario y se crea su
+		// submission acá, antes del alta. Sin esto la primera apertura del formulario
+		// tras "Contacto inmediato" fallaba siempre con ErrPsicosocialContactNoSubmission.
 		contact.IsPsicoSession = true
 		contact.IsCompleted = true
 		now := time.Now()
 		contact.CompletedAt = &now
 		status := "realizado"
 		contact.Status = &status
+
+		formKey, formID := selectPsicosocialForm(ps)
+		contact.FormID = &formID
+		sessionTypeVal := string(formKey)
+		contact.SessionType = &sessionTypeVal
 	}
 
 	if err := s.db.WithContext(ctx).Create(contact).Error; err != nil {
 		return nil, err
+	}
+
+	if contactType == "realizar" {
+		fs := &models.FormSubmission{FormID: *contact.FormID}
+		if err := s.db.WithContext(ctx).Create(fs).Error; err != nil {
+			return nil, fmt.Errorf("createContact: crear form_submission: %w", err)
+		}
+		if err := s.db.WithContext(ctx).Model(&models.TeamContact{}).Where("id = ?", contact.ID).
+			Update("form_submission_id", fs.ID).Error; err != nil {
+			return nil, fmt.Errorf("createContact: asociar form_submission: %w", err)
+		}
+		contact.FormSubmissionID = &fs.ID
 	}
 
 	// Si es sesión completada, incrementar session_count en psychosocial_support
