@@ -64,6 +64,7 @@ var HTML_Templates map[string]string = map[string]string{
 	"mis_barreras":             "barrieris.html",
 	"mis_tareas":               "mis_tareas.html",
 	"barreras_departamento":    "barreras_departamento.html",
+	"barreras_departamento_v2": "barreras_departamento_v2.html",
 	"barrera_detalle":                  "barrera_detalle.html",
 	"remision_psicosocial_detalle":     "remision_psicosocial_detalle.html",
 	"kpis_dashboard":                   "kpis_dashboard.html",

@@ -48,10 +48,9 @@ type BarrierV2Service interface {
 	// ListFollowUps devuelve los seguimientos de una barrera en orden cronológico
 	// con el nombre del autor resuelto.
 	ListFollowUps(ctx context.Context, barrierID string) ([]BarrierFollowUpItem, error)
-	// ListActiveByDepartment devuelve todas las barreras activas de los casos
-	// del departamento dado, sin filtrar por asignación de tareas — pantalla
-	// "Barreras Departamento".
-	ListActiveByDepartment(ctx context.Context, departmentID string, filters repository.DepartmentBarrierFilters) ([]models.BarrierV2DepartmentItem, error)
+	// ListByDepartment lista barreras del departamento (todas las no
+	// eliminadas) para "Barreras Departamento", con filtros y paginación.
+	ListByDepartment(ctx context.Context, departmentID string, filters repository.DepartmentBarrierFilters) ([]models.BarrierV2DepartmentItem, int64, error)
 }
 
 type barrierV2Service struct {
@@ -233,8 +232,8 @@ func (s *barrierV2Service) ListByCreatedByIDWithRelations(ctx context.Context, c
 	return s.repo.FindByCreatedByIDWithRelations(ctx, createdByID)
 }
 
-func (s *barrierV2Service) ListActiveByDepartment(ctx context.Context, departmentID string, filters repository.DepartmentBarrierFilters) ([]models.BarrierV2DepartmentItem, error) {
-	return s.repo.FindActiveByDepartmentWithRelations(ctx, departmentID, filters)
+func (s *barrierV2Service) ListByDepartment(ctx context.Context, departmentID string, filters repository.DepartmentBarrierFilters) ([]models.BarrierV2DepartmentItem, int64, error) {
+	return s.repo.FindByDepartmentWithRelations(ctx, departmentID, filters)
 }
 
 func (s *barrierV2Service) ListFollowUps(ctx context.Context, barrierID string) ([]BarrierFollowUpItem, error) {
