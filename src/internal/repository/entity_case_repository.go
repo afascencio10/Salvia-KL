@@ -38,6 +38,12 @@ type EntityCaseRepository interface {
 
 	// ListCitiesByEntityID ciudades distintas de las sedes de una organización.
 	ListCitiesByEntityID(ctx context.Context, entityID int64) ([]models.EntityCityOption, error)
+
+	// GetObligacionesResumen agrega, en dos consultas, el estado del checklist de
+	// obligaciones de todas las entidades de un caso: conteos por sector (para los
+	// anillos de progreso) y el detalle fila a fila (para el modal de drill-down)
+	// del componente case-gestion-institucional.
+	GetObligacionesResumen(ctx context.Context, caseID string) (*models.ObligacionesResumenResponse, error)
 }
 
 type entityCaseRepository struct {
@@ -225,6 +231,64 @@ FROM salvia.entity
 ORDER BY entity_name ASC
 `).Scan(&items).Error
 	return items, err
+}
+
+// obligacionesPorSectorSQL agrega por sector: cuántas entidades tiene el caso
+// en ese sector (COUNT DISTINCT, independiente de si tienen obligaciones) y
+// cuántas obligaciones completadas/totales acumulan (LEFT JOIN — una entidad
+// sin ninguna obligación registrada aporta a cantidad_entidades pero no a total).
+const obligacionesPorSectorSQL = `
+SELECT
+    e.entity_sector AS sector,
+    COUNT(DISTINCT ec.id) AS cantidad_entidades,
+    COUNT(eco.id) FILTER (WHERE eco.status = 'completada') AS completadas,
+    COUNT(eco.id) AS total
+FROM salvia.entity_case ec
+JOIN salvia.entity_branch eb ON eb.entity_branch_id = ec.entity_branch_id
+JOIN salvia.entity e ON e.entity_id = eb.entity_id
+LEFT JOIN salvia.entity_case_obligation eco ON eco.entity_case_id = ec.id
+WHERE ec.case_id = ? AND ec.deleted_at IS NULL
+GROUP BY e.entity_sector
+`
+
+// obligacionesItemsSQL trae una fila por cada obligación registrada (no trae
+// entidades sin obligaciones — esas ya se reflejan en cantidad_entidades).
+const obligacionesItemsSQL = `
+SELECT
+    eb.entity_branch_name AS entidad,
+    e.entity_sector AS sector,
+    COALESCE(NULLIF(TRIM(eco.custom_label), ''), eo.label, '') AS obligacion,
+    (eco.status = 'completada') AS completada
+FROM salvia.entity_case ec
+JOIN salvia.entity_branch eb ON eb.entity_branch_id = ec.entity_branch_id
+JOIN salvia.entity e ON e.entity_id = eb.entity_id
+JOIN salvia.entity_case_obligation eco ON eco.entity_case_id = ec.id
+LEFT JOIN salvia.entity_obligation eo ON eo.id = eco.entity_obligation_id
+WHERE ec.case_id = ? AND ec.deleted_at IS NULL
+ORDER BY eb.entity_branch_name, eco.created_at
+`
+
+func (r *entityCaseRepository) GetObligacionesResumen(ctx context.Context, caseID string) (*models.ObligacionesResumenResponse, error) {
+	porSector := make([]models.ObligacionesResumenSector, 0)
+	if err := r.db.WithContext(ctx).Raw(obligacionesPorSectorSQL, caseID).Scan(&porSector).Error; err != nil {
+		return nil, err
+	}
+	items := make([]models.ObligacionesResumenItem, 0)
+	if err := r.db.WithContext(ctx).Raw(obligacionesItemsSQL, caseID).Scan(&items).Error; err != nil {
+		return nil, err
+	}
+
+	var global models.ObligacionesResumenGlobal
+	for _, s := range porSector {
+		global.Completadas += s.Completadas
+		global.Total += s.Total
+	}
+
+	return &models.ObligacionesResumenResponse{
+		Global:    global,
+		PorSector: porSector,
+		Items:     items,
+	}, nil
 }
 
 func (r *entityCaseRepository) ListCitiesByEntityID(ctx context.Context, entityID int64) ([]models.EntityCityOption, error) {

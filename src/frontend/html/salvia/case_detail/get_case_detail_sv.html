@@ -396,6 +396,9 @@
 
         <!-- ══ TAB: BARRERAS (Gestión institucional) ══ -->
         <template v-if="tabActiva === 'barreras'">
+          <!-- Resumen de gestión institucional (componente reutilizable) -->
+          <case-gestion-institucional :case-id="caseICode" :barriers="barriers"></case-gestion-institucional>
+
           <!-- Entidades relacionadas con el caso (componente reutilizable) -->
           <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid #e5e7eb">
             <p style="font-size:.72rem;color:#6b7280;font-weight:700;margin:0 0 12px;text-transform:uppercase;letter-spacing:.04em">🏛️ Entidades</p>
@@ -1812,6 +1815,7 @@ var app = home;
 <script src="/static/js/components/case-task-history.js"></script>
 <script src="/static/js/components/case-oficios.js"></script>
 <script src="/static/js/components/case-entities.js"></script>
+<script src="/static/js/components/case-gestion-institucional.js"></script>
 <script>
 home.mount('#app');
 </script>

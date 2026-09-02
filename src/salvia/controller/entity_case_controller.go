@@ -63,6 +63,7 @@ func requireCaseDetailAccess(ctx *gin.Context) *utils.CommonSession {
 //
 //	GET  /api/v1/casos/:id/entidades   → List
 //	POST /api/v1/casos/:id/entidades   → Create
+//	GET  /api/v1/casos/:id/obligaciones-resumen → ObligacionesResumen
 //	GET  /api/v1/entity-cases          → ListByEntity (Casos Entidad)
 //	GET  /api/v1/entity-cases/:entityCaseId/obligations → ListObligations
 func (c *EntityCaseController) RegisterRoutes(rg *gin.RouterGroup) {
@@ -70,8 +71,25 @@ func (c *EntityCaseController) RegisterRoutes(rg *gin.RouterGroup) {
 	casos.GET("", c.List)
 	casos.POST("", c.Create)
 
+	rg.GET("/casos/:id/obligaciones-resumen", c.ObligacionesResumen)
 	rg.GET("/entity-cases", c.ListByEntity)
 	rg.GET("/entity-cases/:entityCaseId/obligations", c.ListObligations)
+}
+
+// ObligacionesResumen — GET /api/v1/casos/:id/obligaciones-resumen
+// Agregado de obligaciones (global + por sector + detalle) de todas las
+// entidades del caso, para el componente case-gestion-institucional.
+func (c *EntityCaseController) ObligacionesResumen(ctx *gin.Context) {
+	if requireCaseDetailAccess(ctx) == nil {
+		return
+	}
+	caseID := ctx.Param("id")
+	result, err := c.svc.GetObligacionesResumen(ctx.Request.Context(), caseID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		return
+	}
+	ctx.JSON(http.StatusOK, result)
 }
 
 // ListObligations — GET /api/v1/entity-cases/:entityCaseId/obligations?status=pendiente

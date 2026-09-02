@@ -948,6 +948,7 @@
                 formState:   {
                     skipContact: false, statesColombia: [], newBarriers: [],
                     currentEntities:        [],   // [{ entityCaseId, entityBranchId, nombre, sector }]
+                    currentEntitiesOptions: [],   // [{ value: entityBranchId, label: nombre }] — dropdown "Identificación de Barreras"
                     hasCurrentEntities:     '',    // 'true' | '' — controla visibilidad de "Seguimiento a Entidades"
                     newEntidadesAcudidas:   [],
                     newEntidadesActivacion: [],
@@ -1116,6 +1117,10 @@
                         sector:         e.sector,
                     }));
                     this.formState.hasCurrentEntities = this.formState.currentEntities.length > 0 ? 'true' : '';
+                    this.formState.currentEntitiesOptions = this.formState.currentEntities.map(e => ({
+                        value: e.entityBranchId,
+                        label: e.nombre,
+                    }));
                     console.log('[PSICO] currentEntities cargadas:', this.formState.currentEntities.length);
                 } catch (e) {
                     console.warn('[PSICO] loadCurrentEntities error:', e);

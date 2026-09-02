@@ -98,3 +98,38 @@ type EntityBranchMeta struct {
 	EntityName     string `gorm:"column:entity_name"      json:"entityName"`
 	Sector         string `gorm:"column:sector"           json:"sector"`
 }
+
+// ObligacionesResumenGlobal es el agregado total de obligaciones de un caso —
+// suma de todos los sectores. Se calcula en Go a partir de PorSector, no en SQL.
+type ObligacionesResumenGlobal struct {
+	Completadas int64 `json:"completadas"`
+	Total       int64 `json:"total"`
+}
+
+// ObligacionesResumenSector es el agregado de un sector para
+// GET /api/v1/casos/:caseId/obligaciones-resumen. Solo incluye sectores con
+// al menos una entidad — el frontend completa los que falten (Salud/Justicia/
+// Protección) como "Sin obligaciones".
+type ObligacionesResumenSector struct {
+	Sector            string `gorm:"column:sector"             json:"sector"`
+	CantidadEntidades int64  `gorm:"column:cantidad_entidades" json:"cantidadEntidades"`
+	Completadas       int64  `gorm:"column:completadas"        json:"completadas"`
+	Total             int64  `gorm:"column:total"              json:"total"`
+}
+
+// ObligacionesResumenItem es una fila de detalle (una obligación de una
+// entidad del caso) para el modal de drill-down de case-gestion-institucional.
+type ObligacionesResumenItem struct {
+	Entidad    string `gorm:"column:entidad"    json:"entidad"`
+	Sector     string `gorm:"column:sector"     json:"sector"`
+	Obligacion string `gorm:"column:obligacion" json:"obligacion"`
+	Completada bool   `gorm:"column:completada" json:"completada"`
+}
+
+// ObligacionesResumenResponse es la respuesta completa de
+// GET /api/v1/casos/:caseId/obligaciones-resumen.
+type ObligacionesResumenResponse struct {
+	Global    ObligacionesResumenGlobal   `json:"global"`
+	PorSector []ObligacionesResumenSector `json:"porSector"`
+	Items     []ObligacionesResumenItem   `json:"items"`
+}

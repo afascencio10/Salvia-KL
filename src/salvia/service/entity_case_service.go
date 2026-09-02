@@ -1,6 +1,7 @@
 package service
 
 import (
+	commondb "bitsflow/common/db"
 	"bitsflow/internal/models"
 	"bitsflow/internal/repository"
 	salvia_config "bitsflow/salvia/config"
@@ -60,6 +61,10 @@ type EntityCaseService interface {
 	// texto libre. Usado por processFollowUpSubmission al registrar un
 	// entity_case_follow_up (Sección "Seguimiento a Entidades").
 	UpdateLastAction(ctx context.Context, entityCaseID, lastAction string) error
+
+	// GetObligacionesResumen agrega el checklist de obligaciones de todas las
+	// entidades de un caso — usado por case-gestion-institucional.
+	GetObligacionesResumen(ctx context.Context, caseID string) (*models.ObligacionesResumenResponse, error)
 }
 
 type entityCaseService struct {
@@ -91,6 +96,9 @@ func (s *entityCaseService) Create(ctx context.Context, input CreateEntityCaseIn
 		CreatedByID:    input.CreatedByID,
 	}
 	if err := s.repo.Create(ctx, ec); err != nil {
+		if commondb.IsDuplicateKeyError(err) {
+			return nil, ErrEntityCaseDuplicate
+		}
 		return nil, err
 	}
 	return ec, nil
@@ -170,6 +178,10 @@ func (s *entityCaseService) ListObligations(ctx context.Context, entityCaseID, s
 
 func (s *entityCaseService) UpdateLastAction(ctx context.Context, entityCaseID, lastAction string) error {
 	return s.repo.UpdateFields(ctx, entityCaseID, map[string]interface{}{"last_action": lastAction})
+}
+
+func (s *entityCaseService) GetObligacionesResumen(ctx context.Context, caseID string) (*models.ObligacionesResumenResponse, error) {
+	return s.repo.GetObligacionesResumen(ctx, caseID)
 }
 
 func entitySectorLabel(code string) string {

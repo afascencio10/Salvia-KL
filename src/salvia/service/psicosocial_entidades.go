@@ -383,7 +383,7 @@ func (s *formService) processPsicosocialEntidadEntries(ctx context.Context, form
 						obligID := val
 						eco.EntityObligationID = &obligID
 					}
-					if err := s.entityCaseObligationRepo.Create(ctx, eco); err != nil {
+					if err := s.createEntityCaseObligationIfNotExists(ctx, eco); err != nil {
 						log.Printf("[processPsicosocialEntidadEntries] WARN: no se pudo crear entity_case_obligation (%s) para entity_case %s: %v", g.status, entityCaseID, err)
 					}
 				}

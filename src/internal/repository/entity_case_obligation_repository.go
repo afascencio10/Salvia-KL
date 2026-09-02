@@ -11,6 +11,7 @@ type EntityCaseObligationRepository interface {
 	Repository[models.EntityCaseObligation]
 	FindByEntityCaseID(ctx context.Context, entityCaseID string) ([]models.EntityCaseObligation, error)
 	FindByEntityCaseIDWithLabels(ctx context.Context, entityCaseID, status string) ([]models.EntityCaseObligationItem, error)
+	ExistsForObligation(ctx context.Context, entityCaseID, entityObligationID string) (bool, error)
 }
 
 type entityCaseObligationRepository struct {
@@ -28,6 +29,17 @@ func NewEntityCaseObligationRepository(db *gorm.DB) EntityCaseObligationReposito
 func (r *entityCaseObligationRepository) FindByEntityCaseID(ctx context.Context, entityCaseID string) ([]models.EntityCaseObligation, error) {
 	var items []models.EntityCaseObligation
 	return items, r.db.WithContext(ctx).Where("entity_case_id = ?", entityCaseID).Order("created_at ASC").Find(&items).Error
+}
+
+// ExistsForObligation indica si ya existe un registro para esta obligación de catálogo
+// en este entity_case, para evitar crear duplicados (una misma entity_obligation_id no
+// debe registrarse dos veces para el mismo entity_case).
+func (r *entityCaseObligationRepository) ExistsForObligation(ctx context.Context, entityCaseID, entityObligationID string) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&models.EntityCaseObligation{}).
+		Where("entity_case_id = ? AND entity_obligation_id = ?", entityCaseID, entityObligationID).
+		Count(&count).Error
+	return count > 0, err
 }
 
 func (r *entityCaseObligationRepository) FindByEntityCaseIDWithLabels(ctx context.Context, entityCaseID, status string) ([]models.EntityCaseObligationItem, error) {

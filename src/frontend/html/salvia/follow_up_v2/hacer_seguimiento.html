@@ -266,6 +266,7 @@
                     newBarriers:            [],
                     currentBarriers:        [],
                     currentEntities:        [],   // [{ entityCaseId, entityBranchId, nombre, sector }]
+                    currentEntitiesOptions: [],   // [{ value: entityBranchId, label: nombre }] — dropdown "Identificación de Barreras"
                     hasCurrentEntities:     '',    // 'true' | '' — controla visibilidad de Sección 5
                     newEntidadesAcudidas:   [],   // Sección 6 — repeater "Entidades a las que ya acudió"
                     newEntidadesActivacion: [],   // Sección 6 — repeater "Entidades para activación de ruta"
@@ -369,9 +370,28 @@
                         entityBranchId: e.entityBranchId,
                         nombre:         e.entityBranchName,
                         sector:         e.sector,
+                        obligacionesPendientes: [],
                     }));
                     this.formState.hasCurrentEntities = this.formState.currentEntities.length > 0 ? 'true' : '';
+                    this.formState.currentEntitiesOptions = this.formState.currentEntities.map(e => ({
+                        value: e.entityBranchId,
+                        label: e.nombre,
+                    }));
                     console.log('[HS] currentEntities cargadas:', this.formState.currentEntities.length);
+
+                    // Obligaciones pendientes por entidad — checklist de "Seguimiento a Entidades"
+                    await Promise.all(this.formState.currentEntities.map(async (entity, idx) => {
+                        try {
+                            const oblRes = await fetch(`/api/v1/entity-cases/${entity.entityCaseId}/obligations?status=pendiente`);
+                            if (!oblRes.ok) return;
+                            const oblData = await oblRes.json();
+                            const items = Array.isArray(oblData.items) ? oblData.items : [];
+                            this.formState.currentEntities[idx].obligacionesPendientes =
+                                items.map(item => ({ value: item.id, label: item.label }));
+                        } catch (e) {
+                            console.warn('[HS] obligacionesPendientes error entidad', entity.entityCaseId, e);
+                        }
+                    }));
                 } catch (e) {
                     console.warn('[HS] loadCurrentEntities error:', e);
                     this.formState.currentEntities    = [];
