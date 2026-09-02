@@ -73,10 +73,11 @@ type CaseTaskService interface {
 	CreateGestionPropia(ctx context.Context, caseID, barrierID, tipo, descripcion, userID, enlaceDepartmentID string) (*models.CaseTask, error)
 
 	// SaveArticulacionTerritorial completa o crea+completa una tarea
-	// articulacion_territorial para Mis Barreras. Si requiere seguimiento,
-	// crea un ToDo compromiso_con_enlace. La barrera debe estar asignada al
-	// usuario (user_territory_link_id).
-	SaveArticulacionTerritorial(ctx context.Context, userID, barrierID, taskID string, formData datatypes.JSON) (*models.CaseTask, error)
+	// articulacion_territorial (Mis Barreras y gestión propia en Detalle).
+	// Si requiere seguimiento, crea un ToDo compromiso_con_enlace.
+	// Completar una ToDo existente exige user_territory_link_id.
+	// Crear sin taskId admite asignación al usuario o mismo departamento del enlace.
+	SaveArticulacionTerritorial(ctx context.Context, userID, enlaceDepartmentID, barrierID, taskID string, formData datatypes.JSON) (*models.CaseTask, error)
 }
 
 // ErrBarrierDepartmentMismatch indica que la barrera no pertenece al
@@ -704,7 +705,7 @@ func barrierAssignedToUser(barrier *models.BarrierV2, userID string) bool {
 
 // SaveArticulacionTerritorial completa una ToDo existente o crea+completa
 // articulacion_territorial. Si hay seguimiento, crea ToDo compromiso_con_enlace.
-func (s *caseTaskService) SaveArticulacionTerritorial(ctx context.Context, userID, barrierID, taskID string, formData datatypes.JSON) (*models.CaseTask, error) {
+func (s *caseTaskService) SaveArticulacionTerritorial(ctx context.Context, userID, enlaceDepartmentID, barrierID, taskID string, formData datatypes.JSON) (*models.CaseTask, error) {
 	fd, err := parseArticulacionForm(formData)
 	if err != nil {
 		return nil, err
@@ -717,8 +718,12 @@ func (s *caseTaskService) SaveArticulacionTerritorial(ctx context.Context, userI
 		}
 		return nil, fmt.Errorf("SaveArticulacionTerritorial: leer barrera: %w", err)
 	}
-	if !barrierAssignedToUser(barrier, userID) {
-		return nil, ErrBarrierLinkMismatch
+	if strings.TrimSpace(taskID) != "" {
+		if !barrierAssignedToUser(barrier, userID) {
+			return nil, ErrBarrierLinkMismatch
+		}
+	} else if !barrierAssignedToUser(barrier, userID) && barrier.DepartmentID != enlaceDepartmentID {
+		return nil, ErrBarrierDepartmentMismatch
 	}
 
 	now := time.Now()

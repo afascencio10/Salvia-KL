@@ -404,7 +404,7 @@ func (c *CaseTaskController) CreateGestionPropia(ctx *gin.Context) {
 }
 
 // SaveArticulacionTerritorial completa o crea+completa una tarea de
-// Articulación territorial desde Mis Barreras.
+// Articulación territorial (Mis Barreras y «Registrar gestión propia» en Detalle).
 //
 //	POST /api/v1/case-tasks/articulacion-territorial
 //	Body: { "barrierId": "...", "taskId": "...", "formData": { ... } }
@@ -424,13 +424,15 @@ func (c *CaseTaskController) SaveArticulacionTerritorial(ctx *gin.Context) {
 		return
 	}
 
-	task, err := c.svc.SaveArticulacionTerritorial(ctx.Request.Context(), s.UserICode, body.BarrierID, body.TaskID, body.FormData)
+	task, err := c.svc.SaveArticulacionTerritorial(ctx.Request.Context(), s.UserICode, s.AssignedDepartmentID, body.BarrierID, body.TaskID, body.FormData)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrBarrierNotFound):
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "barrera no encontrada"})
 		case errors.Is(err, service.ErrBarrierLinkMismatch):
 			ctx.JSON(http.StatusForbidden, gin.H{"error": "esta barrera no está asignada a tu usuario"})
+		case errors.Is(err, service.ErrBarrierDepartmentMismatch):
+			ctx.JSON(http.StatusForbidden, gin.H{"error": "esta barrera no pertenece a tu departamento asignado"})
 		case errors.Is(err, service.ErrCaseTaskNotFound):
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "tarea no encontrada"})
 		case errors.Is(err, service.ErrArticulacionInvalid):

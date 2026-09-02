@@ -5,6 +5,7 @@
 | Documento | Link |
 |---|---|
 | Interfaz | [detalle-caso-interface.md](detalle-caso-interface.md) |
+| Changelog sep 2026 | [changelogSep2026.md](changelogSep2026.md) |
 | Changelog ago 2026 | [changelogAgo2026.md](changelogAgo2026.md) |
 | QA reapertura | [QA/E22-reabrir-caso-qa-cases.md](QA/E22-reabrir-caso-qa-cases.md) |
 

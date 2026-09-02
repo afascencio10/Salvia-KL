@@ -69,6 +69,9 @@ app.component('case-tasks', {
         psychosocialId: { type: String, default: '' },
         puedeGestionPropia: { type: Boolean, default: false },
         allowPsicoManage: { type: Boolean, default: false },
+        entityBranchId: { default: null },
+        entityName: { type: String, default: '' },
+        barrierDescription: { type: String, default: '' },
     },
     emits: ['task-completed'],
     data: function() {
@@ -80,12 +83,6 @@ app.component('case-tasks', {
             reasignarAgente: '',
             agentesEquipo: [],
             reasignando: false,
-            modalGestionPropiaAbierto: false,
-            gestionPropiaTipo: 'Llamada',
-            gestionPropiaDescripcion: '',
-            guardandoGestionPropia: false,
-            errorGestionPropia: null,
-            tiposGestionPropia: ['Llamada', 'Visita presencial', 'Oficio a entidad', 'Otra gestión'],
         };
     },
     computed: {
@@ -137,40 +134,14 @@ app.component('case-tasks', {
             this.$emit('task-completed');
         },
         abrirModalGestionPropia: function() {
-            this.gestionPropiaTipo = 'Llamada';
-            this.gestionPropiaDescripcion = '';
-            this.errorGestionPropia = null;
-            this.modalGestionPropiaAbierto = true;
-        },
-        cerrarModalGestionPropia: function() {
-            this.modalGestionPropiaAbierto = false;
-        },
-        async confirmarGestionPropia() {
-            if (!this.gestionPropiaDescripcion.trim()) return;
-            this.guardandoGestionPropia = true;
-            this.errorGestionPropia = null;
-            try {
-                var res = await fetch('/api/v1/case-tasks/gestion-propia', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        caseId: this.caseId,
-                        barrierId: this.barrierId,
-                        tipo: this.gestionPropiaTipo,
-                        descripcion: this.gestionPropiaDescripcion.trim(),
-                    })
-                });
-                var data = await res.json().catch(function() { return {}; });
-                if (!res.ok) {
-                    throw new Error(data.error || ('Error ' + res.status));
-                }
-                this.modalGestionPropiaAbierto = false;
-                this.onTaskCompleted();
-            } catch (e) {
-                this.errorGestionPropia = e.message;
-            } finally {
-                this.guardandoGestionPropia = false;
-            }
+            if (!this.$refs.taskModal) return;
+            this.$refs.taskModal.openArticulacion({
+                barrierId: this.barrierId,
+                caseId: this.caseId,
+                entityBranchId: this.entityBranchId,
+                entityName: this.entityName || '',
+                barrierDescription: this.barrierDescription || '',
+            });
         },
         puedeCompletar: function(task) {
             if ((this.userRole === 'ps' || this.userRole === 'ts') && !this.allowPsicoManage) return false;
@@ -230,6 +201,8 @@ app.component('case-tasks', {
                 'llamar_entidad_barrera': 'Llamar a entidad barrera',
                 'gestion_enlace_territorial': 'Gestión barrera enlace territorial',
                 'gestion_propia': 'Gestión propia',
+                'articulacion_territorial': 'Articulación territorial',
+                'compromiso_con_enlace': 'Compromiso con Enlace',
                 'solicitud_entidad': 'Hacer solicitudes a la entidad',
                 'respuesta_entidad': 'Responder solicitud de la entidad',
             };
@@ -326,34 +299,6 @@ app.component('case-tasks', {
     <case-task-history ref="taskHistory"></case-task-history>
     <!-- Modal gestionar tarea pendiente (autosuficiente) -->
     <case-task-modal ref="taskModal" :current-user-id="userId" @completed="onTaskCompleted"></case-task-modal>
-    <!-- Modal Registrar gestión propia (Enlace Territorial) -->
-    <div v-if="modalGestionPropiaAbierto" class="ct-modal-backdrop" @click.self="cerrarModalGestionPropia">
-        <div class="ct-modal">
-            <p class="ct-modal-title">Registrar gestión propia</p>
-            <p style="font-size:.8rem;color:#6b7280;margin:-8px 0 16px">
-                Documenta una gestión que realizaste por iniciativa propia para atender esta barrera. Quedará registrada como tarea completada.
-            </p>
-            <div class="ct-modal-field">
-                <label class="ct-modal-label">Tipo de gestión</label>
-                <select v-model="gestionPropiaTipo" class="ct-modal-input" style="min-height:auto;resize:none;padding:8px 12px">
-                    <option v-for="t in tiposGestionPropia" :key="t" :value="t">\${ t }</option>
-                </select>
-            </div>
-            <div class="ct-modal-field">
-                <label class="ct-modal-label">Descripción de la gestión</label>
-                <textarea v-model="gestionPropiaDescripcion" class="ct-modal-input" rows="4" placeholder="Ej: Visité la entidad y hablé directamente con el encargado…"></textarea>
-            </div>
-            <div v-if="errorGestionPropia" style="font-size:.78rem;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;margin-bottom:12px">
-                \${ errorGestionPropia }
-            </div>
-            <div class="ct-modal-footer">
-                <button class="ct-modal-btn-cancel" @click="cerrarModalGestionPropia" :disabled="guardandoGestionPropia">Cancelar</button>
-                <button class="ct-modal-btn-save" :disabled="!gestionPropiaDescripcion.trim() || guardandoGestionPropia" @click="confirmarGestionPropia">
-                    \${ guardandoGestionPropia ? 'Guardando...' : 'Registrar como completada' }
-                </button>
-            </div>
-        </div>
-    </div>
     <!-- Modal reasignar tarea -->
     <div v-if="reasignarTask" class="ct-modal-backdrop" @click.self="reasignarTask = null">
         <div class="ct-modal">

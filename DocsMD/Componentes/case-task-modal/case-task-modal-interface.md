@@ -1,6 +1,6 @@
 # `case-task-modal` — Interfaz del Componente
 
-Modal reutilizable para completar tareas (`case_task`). El padre lo activa vía `open(taskId)` o, para Mis Barreras, `openArticulacion(ctx)`. El componente carga la tarea del API (si hay id), renderiza el formulario según `case_task.type` (`gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio`, `justificar_remision`, `solicitud_entidad`, `respuesta_entidad` o `articulacion_territorial`) y al confirmar ejecuta el complete correspondiente.
+Modal reutilizable para completar tareas (`case_task`). El padre lo activa vía `open(taskId)` o `openArticulacion(ctx)` (Mis Barreras y «Registrar gestión propia» en Detalle). El componente carga la tarea del API (si hay id), renderiza el formulario según `case_task.type` (`gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio`, `justificar_remision`, `solicitud_entidad`, `respuesta_entidad` o `articulacion_territorial`) y al confirmar ejecuta el complete correspondiente.
 
 ## Archivos relevantes
 

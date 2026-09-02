@@ -15,7 +15,7 @@ El componente no recibe props. Se controla exclusivamente mediante el método `o
 | Método | Parámetros | Descripción |
 |---|---|---|
 | `open(taskId)` | `taskId: string` — UUID de la `case_task` | Carga la tarea del API, inicializa el formulario según su tipo y muestra el modal |
-| `openArticulacion(ctx)` | `{ taskId?, barrierId, caseId, entityBranchId, entityName, barrierDescription }` | Mis Barreras: mismo formulario de Articulación territorial con o sin tarea previa |
+| `openArticulacion(ctx)` | `{ taskId?, barrierId, caseId, entityBranchId, entityName, barrierDescription }` | Mis Barreras y «Registrar gestión propia» en Detalle de barrera: formulario de Articulación territorial con o sin tarea previa |
 
 ---
 

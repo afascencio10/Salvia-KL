@@ -276,6 +276,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"ro": true,
 		"do": true,
 		"et": true,
+		"en": true,
 		"us": true,
 		"sv": true,
 		"no": true,
