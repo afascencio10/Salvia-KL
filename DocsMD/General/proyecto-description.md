@@ -4,7 +4,7 @@ SOG Salvia (Sistema de Orientación y Gestión) es una plataforma web para organ
 
 El flujo principal comienza cuando un operador registra un caso: completa un formulario con datos de la víctima, los hechos, el agresor y un tamizaje de riesgo (sí/no) que el backend recalcula para asignar un nivel (bajo, moderado, alto o extremo). Al guardar, se genera automáticamente un calendario de seguimientos según el nivel de riesgo y se asigna un agente de forma balanceada entre el equipo.
 
-Los agentes realizan los seguimientos desde la pantalla **Hacer Seguimiento**, que carga un formulario dinámico por secciones. Cada sección registra si la víctima visitó la entidad, si recibió atención y qué barreras encontró. Las barreras activas se gestionan desde **Mis Barreras**, donde el agente puede enviar oficios a las entidades y registrar las respuestas. El historial completo del caso se visualiza en el componente **Timeline**.
+Los agentes realizan los seguimientos desde la pantalla **Hacer Seguimiento**, que carga un formulario dinámico por secciones. Cada sección registra si la víctima visitó la entidad, si recibió atención y qué barreras encontró. Las barreras activas del Enlace Territorial se gestionan desde **Mis Barreras**. El historial completo del caso se visualiza en el componente **Timeline**.
 
 El sistema también gestiona casos de **feminicidio** y **riesgo de feminicidio** con formularios propios.
 
@@ -47,7 +47,7 @@ cd SOG_SALVIA/src && PORT=9090 go run . >> /tmp/salvia_server.log 2>&1 &
 | [`Hacer Seguimiento`](../Screens/hacer-seguimiento/hacer-seguimiento-index.md) | Pantalla donde el agente completa el formulario dinámico de un seguimiento programado.           | `src/frontend/html/salvia/follow_up_v2/hacer_seguimiento.html`    |
 | `Mis Seguimientos`                                                             | Vista del agente con sus seguimientos del día: pendientes, prioritarios y completados.           | `src/frontend/html/salvia/my_follow_ups/get_my_follow_ups.html`   |
 | `Seguimientos Área`                                                            | Vista del supervisor con todos los seguimientos del área organizados por estado y equipo.        | `src/frontend/html/salvia/follow_up_v2/seguimientos_area.html`    |
-| `Mis Barreras`                                                                 | Lista de barreras activas asignadas al agente con acciones para gestionar oficios y respuestas.  | `src/frontend/html/salvia/barriers/barrieris.html`                |
+| [`Mis Barreras`](../Screens/Mis%20Barreras/mis-barreras-index.md)              | Barreras activas asignadas al Enlace territorial (`user_territory_link_id`) con acción Gestionar. | `src/frontend/html/salvia/barriers/barrieris.html`                |
 | [`Barreras Departamento`](../Screens/Barreras%20Departamento/barreras-departamento-index.md) | Listado de barreras del departamento asignado al Enlace territorial (`en`), todos los estados. | `src/frontend/html/salvia/barriers/barreras_departamento_v2.html` |
 | [`Barrera Detalle`](../Screens/Barrera%20Detalle/barrera-detalle-index.md)     | Vista interna de una barrera: historial de actuaciones, oficios enviados y respuestas recibidas. | `src/frontend/html/salvia/barriers/barrera_detalle.html`          |
 | `Notificaciones`                                                               | Centro de notificaciones del sistema para alertas de casos y seguimientos.                       | `src/frontend/html/salvia/notifications/notificaciones.html`      |

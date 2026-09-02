@@ -164,6 +164,20 @@ PASO 3 — Vue re-evalúa reactivamente
     EXCEPTO 'Corregir oficio': BtnConfirmar se habilita en cuanto cargandoOficio = false
     (no depende de campos de formulario)
 
+    CASO 'articulacion_territorial':
+      form = {
+        fechaContacto:        hoy (YYYY-MM-DD local),
+        compromiso:           "",
+        requiereSeguimiento:  true,
+        fechaSeguimiento:     "",
+        sugerenciasRemision:  "",
+      }
+      BtnConfirmar = "Guardar"
+
+Variante openArticulacion(ctx) sin taskId:
+  No hace GET. tarea = { id: null, type: 'articulacion_territorial', description: 'Gestión propia' }
+  articulacionCtx = ctx (barrierId, entityName, barrierDescription, …)
+
 → FIN EJECUCIÓN ✓
 
 

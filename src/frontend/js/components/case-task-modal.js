@@ -353,6 +353,45 @@
             color: #fff;
         }
         .ctm-btn-confirm:hover:not(:disabled) { background: #1e40af; }
+        .ctm-modal.ctm-articulacion .ctm-btn-confirm {
+            background: #5106A7;
+        }
+        .ctm-modal.ctm-articulacion .ctm-btn-confirm:hover:not(:disabled) { background: #3d0780; }
+        .ctm-context-box {
+            background: #f3f4f6;
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 13px;
+            color: #374151;
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+        .ctm-toggle-row {
+            display: flex;
+            gap: 8px;
+        }
+        .ctm-toggle-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            background: #fff;
+            color: #374151;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .ctm-toggle-btn.active {
+            background: #5106A7;
+            border-color: #5106A7;
+            color: #fff;
+        }
+        .ctm-hint {
+            font-size: 12px;
+            color: #6b7280;
+            margin: 6px 0 0;
+            line-height: 1.4;
+        }
     `;
     document.head.appendChild(style);
 })();
@@ -404,6 +443,13 @@ app.component('case-task-modal', {
             cargandoObligaciones: false,
             errorObligaciones: null,
             entityName: '',
+            articulacionCtx: {
+                barrierId: '',
+                caseId: '',
+                entityBranchId: null,
+                entityName: '',
+                barrierDescription: '',
+            },
         };
     },
 
@@ -418,6 +464,9 @@ app.component('case-task-modal', {
             if (this.tarea.type === 'solicitud_entidad') {
                 return 'Solicitudes a ' + (this.entityName || this.tarea.entityName || 'la entidad');
             }
+            if (this.tarea.type === 'articulacion_territorial') {
+                return 'Gestionar barrera';
+            }
             return {
                 gestion_llamada:  'Gestión de Llamada',
                 proyectar_oficio: 'Proyectar Oficio',
@@ -426,6 +475,12 @@ app.component('case-task-modal', {
                 justificar_remision: 'Justificar Remisión',
                 respuesta_entidad: 'Respuesta institucional',
             }[this.tarea.type] || 'Completar tarea';
+        },
+
+        articulacionSubtitulo() {
+            const name = (this.articulacionCtx && this.articulacionCtx.entityName) || '';
+            const desc = (this.articulacionCtx && this.articulacionCtx.barrierDescription) || '';
+            return [name, desc].filter(Boolean).join(' — ');
         },
 
         iconoTipo() {
@@ -438,6 +493,7 @@ app.component('case-task-modal', {
                 justificar_remision: 'fa-reply',
                 solicitud_entidad: 'fa-folder',
                 respuesta_entidad: 'fa-reply',
+                articulacion_territorial: 'fa-link',
             }[this.tarea.type] || 'fa-tasks';
         },
 
@@ -487,6 +543,11 @@ app.component('case-task-modal', {
                     });
                 case 'respuesta_entidad':
                     return !!(f.estadoInstitucional);
+                case 'articulacion_territorial':
+                    if (!f.fechaContacto || !(f.compromiso && String(f.compromiso).trim())) return false;
+                    if (f.requiereSeguimiento === null || f.requiereSeguimiento === undefined) return false;
+                    if (f.requiereSeguimiento && !f.fechaSeguimiento) return false;
+                    return true;
                 default:
                     return false;
             }
@@ -537,6 +598,35 @@ app.component('case-task-modal', {
             }
         },
 
+        async openArticulacion(ctx) {
+            ctx = ctx || {};
+            this.articulacionCtx = {
+                barrierId: ctx.barrierId || '',
+                caseId: ctx.caseId || '',
+                entityBranchId: ctx.entityBranchId || null,
+                entityName: ctx.entityName || '',
+                barrierDescription: ctx.barrierDescription || '',
+            };
+            this.saveError = null;
+            this.errorTarea = null;
+            this.guardando = false;
+            this.completado = false;
+            if (ctx.taskId) {
+                await this.open(ctx.taskId);
+                return;
+            }
+            this.visible = true;
+            this.cargandoTarea = false;
+            this.tarea = {
+                id: null,
+                type: 'articulacion_territorial',
+                description: 'Gestión propia',
+                barrierId: ctx.barrierId || '',
+                caseId: ctx.caseId || '',
+            };
+            this._initForm();
+        },
+
         cancelar() {
             this.visible         = false;
             this.tarea           = null;
@@ -552,6 +642,13 @@ app.component('case-task-modal', {
             this.cargandoObligaciones = false;
             this.errorObligaciones = null;
             this.entityName = '';
+            this.articulacionCtx = {
+                barrierId: '',
+                caseId: '',
+                entityBranchId: null,
+                entityName: '',
+                barrierDescription: '',
+            };
         },
 
         async _cargarOficioVinculado() {
@@ -676,6 +773,19 @@ app.component('case-task-modal', {
                 case 'respuesta_entidad':
                     this.form = { radicado: '', ampliacion: '', estadoInstitucional: '' };
                     break;
+                case 'articulacion_territorial': {
+                    const d = new Date();
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    this.form = {
+                        fechaContacto: d.getFullYear() + '-' + mm + '-' + dd,
+                        compromiso: '',
+                        requiereSeguimiento: null,
+                        fechaSeguimiento: '',
+                        sugerenciasRemision: '',
+                    };
+                    break;
+                }
             }
         },
 
@@ -905,6 +1015,15 @@ app.component('case-task-modal', {
                         estadoInstitucionalTexto: ESTADOS[f.estadoInstitucional] || f.estadoInstitucional,
                     };
                 }
+                case 'articulacion_territorial':
+                    return {
+                        fechaContacto: f.fechaContacto,
+                        compromiso: String(f.compromiso || '').trim(),
+                        requiereSeguimiento: !!f.requiereSeguimiento,
+                        fechaSeguimiento: f.requiereSeguimiento ? (f.fechaSeguimiento || '') : '',
+                        sugerenciasRemision: String(f.sugerenciasRemision || '').trim() || null,
+                        entityBranchId: (this.articulacionCtx && this.articulacionCtx.entityBranchId) || null,
+                    };
             }
         },
 
@@ -916,16 +1035,28 @@ app.component('case-task-modal', {
             this.saveError = null;
 
             const formData = this._buildFormData();
-            const payload  = { userId: this.currentUserId, formData };
             console.log('[CTM] E09 confirmar — tarea:', this.tarea.id, '| type:', this.tarea.type);
             console.log('[CTM] E09 payload formData:', JSON.stringify(formData));
 
             try {
-                const res = await fetch('/api/v1/case-tasks/' + this.tarea.id + '/complete', {
-                    method:  'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body:    JSON.stringify(payload),
-                });
+                let res;
+                if (this.tarea.type === 'articulacion_territorial') {
+                    const barrierId = (this.articulacionCtx && this.articulacionCtx.barrierId) || this.tarea.barrierId;
+                    const payload = { barrierId: barrierId, formData: formData };
+                    if (this.tarea.id) payload.taskId = this.tarea.id;
+                    res = await fetch('/api/v1/case-tasks/articulacion-territorial', {
+                        method:  'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body:    JSON.stringify(payload),
+                    });
+                } else {
+                    const payload = { userId: this.currentUserId, formData };
+                    res = await fetch('/api/v1/case-tasks/' + this.tarea.id + '/complete', {
+                        method:  'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body:    JSON.stringify(payload),
+                    });
+                }
 
                 console.log('[CTM] E09 respuesta HTTP:', res.status);
 
@@ -963,7 +1094,7 @@ app.component('case-task-modal', {
     template: `
 <div>
 <div v-if="visible" class="ctm-overlay" @click.self="cancelar">
-<div class="ctm-modal">
+<div class="ctm-modal" :class="{ 'ctm-articulacion': tarea && tarea.type === 'articulacion_territorial' }">
 
     <!-- Header -->
     <div class="ctm-header">
@@ -973,7 +1104,8 @@ app.component('case-task-modal', {
             </div>
             <div>
                 <p class="ctm-header-title">\${ titulo }</p>
-                <p v-if="tarea && tarea.type !== 'solicitud_entidad' && tarea.type !== 'respuesta_entidad'" class="ctm-header-sub">ID \${ tarea.id.substring(0,8) }…</p>
+                <p v-if="tarea && tarea.type === 'articulacion_territorial'" class="ctm-header-sub">\${ articulacionSubtitulo }</p>
+                <p v-else-if="tarea && tarea.id && tarea.type !== 'solicitud_entidad' && tarea.type !== 'respuesta_entidad'" class="ctm-header-sub">ID \${ tarea.id.substring(0,8) }…</p>
                 <p v-else-if="tarea && tarea.type === 'solicitud_entidad'" class="ctm-header-sub">Selecciona los ítems pendientes del checklist entidad sobre los que deseas hacer una solicitud y describe cada uno.</p>
             </div>
         </div>
@@ -1423,6 +1555,41 @@ app.component('case-task-modal', {
             </div>
         </template>
 
+        <!-- Formulario articulacion_territorial -->
+        <template v-else-if="tarea && tarea.type === 'articulacion_territorial'">
+            <div v-if="articulacionSubtitulo" class="ctm-context-box">
+                \${ articulacionSubtitulo }
+            </div>
+            <div class="ctm-field">
+                <label class="ctm-label">Fecha de contacto <span class="req">*</span></label>
+                <input class="ctm-input" type="date" v-model="form.fechaContacto">
+            </div>
+            <div class="ctm-field">
+                <label class="ctm-label">Compromiso adquirido <span class="req">*</span></label>
+                <textarea class="ctm-textarea" rows="4" v-model="form.compromiso"
+                    placeholder="Describe el compromiso adquirido con la entidad..."></textarea>
+            </div>
+            <div class="ctm-field">
+                <label class="ctm-label">¿El compromiso requiere seguimiento? <span class="req">*</span></label>
+                <div class="ctm-toggle-row">
+                    <button type="button" class="ctm-toggle-btn" :class="{ active: form.requiereSeguimiento === true }"
+                        @click="form.requiereSeguimiento = true">Sí</button>
+                    <button type="button" class="ctm-toggle-btn" :class="{ active: form.requiereSeguimiento === false }"
+                        @click="form.requiereSeguimiento = false">No</button>
+                </div>
+            </div>
+            <div v-if="form.requiereSeguimiento" class="ctm-field">
+                <label class="ctm-label">Fecha de seguimiento al compromiso <span class="req">*</span></label>
+                <input class="ctm-input" type="date" v-model="form.fechaSeguimiento">
+                <p class="ctm-hint">Se enviará un recordatorio de seguimiento en esta fecha y se generará una tarea con este vencimiento.</p>
+            </div>
+            <div class="ctm-field">
+                <label class="ctm-label">Sugerencias de remisión interna o externa</label>
+                <textarea class="ctm-textarea" rows="3" v-model="form.sugerenciasRemision"
+                    placeholder="Opcional"></textarea>
+            </div>
+        </template>
+
         <!-- Error al guardar -->
         <div v-if="saveError" class="ctm-error-banner">
             <i class="fas fa-exclamation-circle"></i> \${ saveError }
@@ -1449,6 +1616,9 @@ app.component('case-task-modal', {
                 </template>
                 <template v-else-if="tarea && tarea.type === 'respuesta_entidad'">
                     Enviar respuesta
+                </template>
+                <template v-else-if="tarea && tarea.type === 'articulacion_territorial'">
+                    Guardar
                 </template>
                 <template v-else>
                     Completar tarea

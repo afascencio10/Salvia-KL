@@ -27,6 +27,7 @@ func (c *BarrierV2GinController) RegisterRoutes(rg *gin.RouterGroup) {
 	barriers := rg.Group("/barriers-v2")
 	barriers.GET("", c.List)
 	barriers.GET("/department", c.ListByDepartment)
+	barriers.GET("/mine", c.ListMine)
 	barriers.GET("/:id/detail", c.GetDetail)
 	barriers.GET("/:id/follow-ups", c.ListFollowUps)
 }
@@ -82,6 +83,26 @@ func (c *BarrierV2GinController) ListByDepartment(ctx *gin.Context) {
 		"page":     page,
 		"pageSize": pageSize,
 	})
+}
+
+// ListMine devuelve las barreras activas asignadas al Enlace Territorial
+// autenticado (user_territory_link_id = sesión). El usuario se toma de la
+// sesión, nunca de query params.
+//
+//	GET /api/v1/barriers-v2/mine
+func (c *BarrierV2GinController) ListMine(ctx *gin.Context) {
+	s := requireEnlaceAccess(ctx)
+	if s == nil {
+		return
+	}
+
+	items, err := c.svc.ListMine(ctx.Request.Context(), s.UserICode)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, items)
 }
 
 // List devuelve las barreras filtradas por createdById enriquecidas con datos del caso.

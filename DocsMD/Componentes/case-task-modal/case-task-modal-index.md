@@ -7,7 +7,7 @@
 | Interfaz | [case-task-modal-interface.md](case-task-modal-interface.md) |
 | Uso | [case-task-modal-usage.md](case-task-modal-usage.md) |
 
-**Changelogs:** [changelogAgo2026.md](changelogAgo2026.md)
+**Changelogs:** [changelogAgo2026.md](changelogAgo2026.md) · [changelogSep2026.md](changelogSep2026.md)
 
 ---
 
@@ -43,7 +43,7 @@
 
 **Evento:** Cuando se abre con una tarea
 **Tipo:** User Interaction
-**Descripción:** El componente padre (`case-tasks.js`, listado de tareas del caso) llama al método público `open(taskId)`. El componente muestra el modal y hace `GET /api/v1/case-tasks/:taskId` para cargar la tarea. Una vez cargada, inicializa el formulario según `tarea.type`. Si `tarea.type === 'Corregir oficio'`, además hace `GET /api/v1/entity-letters/:letterId`. Si `tarea.type === 'solicitud_entidad'`, además hace `GET /api/v1/entity-cases/:entityCaseId/obligations?status=pendiente`.
+**Descripción:** El componente padre llama a `open(taskId)` o `openArticulacion(ctx)`. Con `taskId` hace `GET /api/v1/case-tasks/:taskId`. Sin `taskId` (Mis Barreras) arma una tarea en memoria `articulacion_territorial`. Luego inicializa el formulario según `tarea.type`.
 **Requerido:** Sí
 
 ---
@@ -104,7 +104,7 @@
 
 **Evento:** Cuando confirma el formulario
 **Tipo:** User Interaction
-**Descripción:** El usuario presiona "Completar tarea" (o "Marcar como corregido" si `Corregir oficio`, "Enviar solicitudes" si `solicitud_entidad`, "Enviar respuesta" si `respuesta_entidad`). Valida los campos requeridos según `tarea.type` (ver tabla en interface). Si válido, construye el payload con `formData` como JSON y llama `PUT /api/v1/case-tasks/:taskId/complete`. Si responde 200, cierra el modal y emite `@completed` con la tarea actualizada. Si error (incl. 0/N usuarios de sede en `solicitud_entidad`), muestra `saveError` sin cerrar el modal.
+**Descripción:** El usuario presiona el botón de confirmar ("Guardar" si `articulacion_territorial`). Valida según `tarea.type`. Para articulación llama `POST /api/v1/case-tasks/articulacion-territorial`; el resto usa `PUT /api/v1/case-tasks/:taskId/complete`. Si 200, emite `@completed` y cierra.
 **Requerido:** Sí
 
 ---

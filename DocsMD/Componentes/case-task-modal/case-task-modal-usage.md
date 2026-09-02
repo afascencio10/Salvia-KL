@@ -1,6 +1,6 @@
 # `case-task-modal` — Guía de uso
 
-Componente modal para completar tareas de tipo `gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio`, `justificar_remision`, `solicitud_entidad` y `respuesta_entidad`. El padre lo controla mediante una referencia Vue (`ref`) y el método público `open(taskId)`.
+Componente modal para completar tareas de tipo `gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio`, `justificar_remision`, `solicitud_entidad`, `respuesta_entidad` y `articulacion_territorial`. El padre lo controla mediante una referencia Vue (`ref`) y los métodos públicos `open(taskId)` o `openArticulacion(ctx)`.
 
 ---
 
@@ -15,6 +15,7 @@ El componente no recibe props. Se controla exclusivamente mediante el método `o
 | Método | Parámetros | Descripción |
 |---|---|---|
 | `open(taskId)` | `taskId: string` — UUID de la `case_task` | Carga la tarea del API, inicializa el formulario según su tipo y muestra el modal |
+| `openArticulacion(ctx)` | `{ taskId?, barrierId, caseId, entityBranchId, entityName, barrierDescription }` | Mis Barreras: mismo formulario de Articulación territorial con o sin tarea previa |
 
 ---
 
@@ -55,6 +56,7 @@ Si la tarea abierta es de tipo `solicitud_entidad`, además hace un `GET /api/v1
 | `justificar_remision` | "Justificar Remisión" | Caja de solo lectura con `tarea.description` (motivo de devolución del psicólogo/a) + textarea "Tu respuesta" (required, maxlength 500) |
 | `solicitud_entidad` | "Solicitudes a {entityName}" | Checklist de obligaciones pendientes (`entity_case_obligation`); cada ítem seleccionado exige una descripción (maxlength 500). Botón "Enviar solicitudes". |
 | `respuesta_entidad` | "Respuesta institucional" | Caja de solo lectura (obligación + solicitud del agente) + radicado opcional + ampliación opcional + select de estado institucional required. Botón "Enviar respuesta". |
+| `articulacion_territorial` | "Gestionar barrera" | Fecha de contacto, compromiso, seguimiento condicional, sugerencias opcionales. Botón "Guardar". POST `/api/v1/case-tasks/articulacion-territorial`. |
 
 ---
 
@@ -83,6 +85,7 @@ methods: {
 |---|---|---|
 | Cargar tarea | GET | `/api/v1/case-tasks/:taskId` |
 | Completar tarea | PUT | `/api/v1/case-tasks/:taskId/complete` |
+| Guardar articulación territorial | POST | `/api/v1/case-tasks/articulacion-territorial` |
 | Cargar oficio vinculado (solo `Corregir oficio`) | GET | `/api/v1/entity-letters/:letterId` |
 | Cargar obligaciones pendientes (solo `solicitud_entidad`) | GET | `/api/v1/entity-cases/:entityCaseId/obligations?status=pendiente` |
 | Cargar departamentos | GET | `/api/v1/locations/departments` (al montar) |

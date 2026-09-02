@@ -85,6 +85,7 @@ func (c *CaseTaskController) RegisterRoutes(rg *gin.RouterGroup) {
 	group.PUT("/:id/complete", c.CompleteWithFormData)
 	group.POST("/:id/reassign", c.Reassign)
 	group.POST("/gestion-propia", c.CreateGestionPropia)
+	group.POST("/articulacion-territorial", c.SaveArticulacionTerritorial)
 }
 
 // ListByAssignedUser devuelve las tareas con barrierId asignadas al usuario,
@@ -393,6 +394,49 @@ func (c *CaseTaskController) CreateGestionPropia(ctx *gin.Context) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "barrera no encontrada"})
 		case errors.Is(err, service.ErrBarrierDepartmentMismatch):
 			ctx.JSON(http.StatusForbidden, gin.H{"error": "esta barrera no pertenece a tu departamento asignado"})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		}
+		return
+	}
+
+	ctx.JSON(http.StatusOK, c.enrichTaskWithName(*task))
+}
+
+// SaveArticulacionTerritorial completa o crea+completa una tarea de
+// Articulación territorial desde Mis Barreras.
+//
+//	POST /api/v1/case-tasks/articulacion-territorial
+//	Body: { "barrierId": "...", "taskId": "...", "formData": { ... } }
+func (c *CaseTaskController) SaveArticulacionTerritorial(ctx *gin.Context) {
+	s := requireEnlaceAccess(ctx)
+	if s == nil {
+		return
+	}
+
+	var body struct {
+		BarrierID string         `json:"barrierId" binding:"required"`
+		TaskID    string         `json:"taskId"`
+		FormData  datatypes.JSON `json:"formData" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "campos 'barrierId' y 'formData' requeridos"})
+		return
+	}
+
+	task, err := c.svc.SaveArticulacionTerritorial(ctx.Request.Context(), s.UserICode, body.BarrierID, body.TaskID, body.FormData)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrBarrierNotFound):
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "barrera no encontrada"})
+		case errors.Is(err, service.ErrBarrierLinkMismatch):
+			ctx.JSON(http.StatusForbidden, gin.H{"error": "esta barrera no está asignada a tu usuario"})
+		case errors.Is(err, service.ErrCaseTaskNotFound):
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "tarea no encontrada"})
+		case errors.Is(err, service.ErrArticulacionInvalid):
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "completa fecha de contacto, compromiso y seguimiento si aplica"})
+		case errors.Is(err, service.ErrArticulacionTaskMismatch):
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "la tarea no corresponde a esta barrera"})
 		default:
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
 		}

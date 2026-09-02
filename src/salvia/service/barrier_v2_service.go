@@ -20,19 +20,19 @@ type BarrierFollowUpItem struct {
 
 // BarrierDetailResponse agrupa toda la data para la pantalla de detalle de barrera.
 type BarrierDetailResponse struct {
-	Barrier       models.BarrierV2           `json:"barrier"`
-	VictimName    string                     `json:"victimName"`
-	VictimAge     *int64                     `json:"victimAge"`
-	Location      string                     `json:"location"`
-	RiskLevel     *int                       `json:"riskLevel"`
-	CaseICode     string                     `json:"caseICode"`
-	AgentName     string                     `json:"agentName"`
+	Barrier    models.BarrierV2 `json:"barrier"`
+	VictimName string           `json:"victimName"`
+	VictimAge  *int64           `json:"victimAge"`
+	Location   string           `json:"location"`
+	RiskLevel  *int             `json:"riskLevel"`
+	CaseICode  string           `json:"caseICode"`
+	AgentName  string           `json:"agentName"`
 	// Ubicación resuelta de la barrera
-	BarrierDepartment string                 `json:"barrierDepartment"`
-	BarrierCity       string                 `json:"barrierCity"`
-	BarrierTown       string                 `json:"barrierTown"`
+	BarrierDepartment string `json:"barrierDepartment"`
+	BarrierCity       string `json:"barrierCity"`
+	BarrierTown       string `json:"barrierTown"`
 	// Quién identificó la barrera
-	CreatedByName string                     `json:"createdByName"`
+	CreatedByName string `json:"createdByName"`
 }
 
 type BarrierV2Service interface {
@@ -51,6 +51,8 @@ type BarrierV2Service interface {
 	// ListByDepartment lista barreras del departamento (todas las no
 	// eliminadas) para "Barreras Departamento", con filtros y paginación.
 	ListByDepartment(ctx context.Context, departmentID string, filters repository.DepartmentBarrierFilters) ([]models.BarrierV2DepartmentItem, int64, error)
+	// ListMine lista barreras activas asignadas al Enlace (user_territory_link_id).
+	ListMine(ctx context.Context, userTerritoryLinkID string) ([]models.BarrierV2MineItem, error)
 }
 
 type barrierV2Service struct {
@@ -234,6 +236,10 @@ func (s *barrierV2Service) ListByCreatedByIDWithRelations(ctx context.Context, c
 
 func (s *barrierV2Service) ListByDepartment(ctx context.Context, departmentID string, filters repository.DepartmentBarrierFilters) ([]models.BarrierV2DepartmentItem, int64, error) {
 	return s.repo.FindByDepartmentWithRelations(ctx, departmentID, filters)
+}
+
+func (s *barrierV2Service) ListMine(ctx context.Context, userTerritoryLinkID string) ([]models.BarrierV2MineItem, error) {
+	return s.repo.FindMineWithRelations(ctx, userTerritoryLinkID)
 }
 
 func (s *barrierV2Service) ListFollowUps(ctx context.Context, barrierID string) ([]BarrierFollowUpItem, error) {

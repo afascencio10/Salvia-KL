@@ -26,6 +26,9 @@ type BarrierV2Repository interface {
 	// (todas las no eliminadas), enriquecidas con victim_case, entity_branch y
 	// ciudad. Pantalla "Barreras Departamento": no filtra por case_task.
 	FindByDepartmentWithRelations(ctx context.Context, departmentID string, filters DepartmentBarrierFilters) ([]models.BarrierV2DepartmentItem, int64, error)
+	// FindMineWithRelations lista barreras activas cuyo user_territory_link_id
+	// coincide con el Enlace autenticado, con caso y tarea de articulación ToDo.
+	FindMineWithRelations(ctx context.Context, userTerritoryLinkID string) ([]models.BarrierV2MineItem, error)
 	GetDB() *gorm.DB
 }
 
@@ -231,4 +234,76 @@ LIMIT ? OFFSET ?`
 	items := make([]models.BarrierV2DepartmentItem, 0)
 	err := r.db.WithContext(ctx).Raw(listSQL, listArgs...).Scan(&items).Error
 	return items, total, err
+}
+
+const barrierMineSQL = `
+SELECT
+    b.id,
+    b.case_id,
+    b.sector,
+    b.description,
+    b.status,
+    b.entity_branch_id,
+    COALESCE(eb.entity_branch_name, '')             AS entity_branch_name,
+    COALESCE(b.city_id, '')                         AS city_id,
+    COALESCE(ci.city_name, '')                      AS city_name,
+    COALESCE(vc.victim_case_victim_names, '')       AS victim_name,
+    COALESCE(vc.victim_case_victim_last_names, '')  AS victim_last_name,
+    COALESCE(vc.victim_case_victim_doc_number, '')  AS victim_doc_number,
+    COALESCE(vc.victim_case_i_code, '')             AS case_code,
+    COALESCE(
+        (
+            SELECT NULLIF(vf2p.victim_case_form2_victim_phone::text, '')
+            FROM salvia.victim_case_form2 vf2p
+            WHERE vf2p.victim_case_form2_victim_case = vc.victim_case_id
+            LIMIT 1
+        ),
+        (
+            SELECT vcf1.victim_contact_form1_phone::text
+            FROM salvia.victim_contact_form1 vcf1
+            WHERE vcf1.victim_contact_form1_victim_contact = vc.victim_case_victim_contact
+            ORDER BY vcf1.victim_contact_form1_id DESC
+            LIMIT 1
+        ),
+        ''
+    ) AS victim_phone,
+    COALESCE(t.id::text, '')                        AS task_id,
+    COALESCE(t.type, '')                            AS task_type,
+    COALESCE(t.description, '')                     AS task_description
+FROM salvia.barrier_v2 b
+LEFT JOIN salvia.victim_case vc
+    ON vc.victim_case_i_code = b.case_id
+LEFT JOIN salvia.entity_branch eb
+    ON eb.entity_branch_id = b.entity_branch_id
+LEFT JOIN security.city ci
+    ON ci.city_id::text = b.city_id
+LEFT JOIN LATERAL (
+    SELECT ct.id, ct.type, ct.description
+    FROM salvia.case_task ct
+    WHERE ct.barrier_id = b.id
+      AND ct.assigned_user_id = ?
+      AND ct.type = ?
+      AND ct.status = ?
+      AND ct.deleted_at IS NULL
+    ORDER BY ct.created_at DESC
+    LIMIT 1
+) t ON true
+WHERE b.deleted_at IS NULL
+  AND b.user_territory_link_id = ?
+  AND b.status IN (?, ?)
+ORDER BY b.created_at DESC
+`
+
+func (r *barrierV2Repository) FindMineWithRelations(ctx context.Context, userTerritoryLinkID string) ([]models.BarrierV2MineItem, error) {
+	items := make([]models.BarrierV2MineItem, 0)
+	err := r.db.WithContext(ctx).Raw(
+		barrierMineSQL,
+		userTerritoryLinkID,
+		models.CaseTaskTypeArticulacionTerritorial,
+		models.CaseTaskStatusToDo,
+		userTerritoryLinkID,
+		models.BarrierV2StatusOpen,
+		models.BarrierV2StatusEnGestion,
+	).Scan(&items).Error
+	return items, err
 }

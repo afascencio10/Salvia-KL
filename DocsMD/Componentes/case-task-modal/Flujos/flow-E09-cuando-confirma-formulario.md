@@ -510,6 +510,18 @@ PASO 3 — Manejar respuesta
     → guardando  = false
     → Modal permanece abierto mostrando saveError
 
+CASO 'articulacion_territorial':
+  Validar: fechaContacto, compromiso; fechaSeguimiento si requiereSeguimiento
+  POST /api/v1/case-tasks/articulacion-territorial
+  Body: { barrierId, taskId si existe, formData }
+  Backend:
+    SI barrera no asignada al usuario → 403
+    SI taskId: completa ToDo articulacion_territorial
+    SI NO taskId: crea Done description="Gestión propia"
+    SI requiereSeguimiento: crea ToDo compromiso_con_enlace
+    SI barrera OPEN → En Gestion
+  SI 200 → emit completed + cerrar
+
 → FIN EJECUCIÓN ✓
 
 

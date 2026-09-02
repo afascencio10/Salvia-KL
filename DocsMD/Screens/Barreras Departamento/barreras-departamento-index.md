@@ -2,7 +2,7 @@
 
 Pantalla de listado para el rol **Enlace territorial** (`en`): ve las barreras de `barrier_v2` cuyo `department_id` coincide con el departamento asignado al usuario (`general_user.general_user_assigned_department` → sesión `AssignedDepartmentID`). Incluye todos los estados; el estado es un filtro opcional.
 
-No confundir con **Mis Barreras** (`/salvia/mis-barreras`): esa pantalla lista barreras vía `case_task` asignadas al agente. Barreras Departamento no filtra por asignación de tareas.
+No confundir con **Mis Barreras** (`/salvia/mis-barreras`): esa pantalla lista barreras activas de `barrier_v2` cuyo `user_territory_link_id` es el Enlace autenticado. Barreras Departamento no filtra por enlace asignado a la barrera.
 
 > **Ruta:** `GET /salvia/barreras-departamento`  
 > **Fuente de datos:** `GET /api/v1/barriers-v2/department`  

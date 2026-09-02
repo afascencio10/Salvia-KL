@@ -1,6 +1,6 @@
 # `case-task-modal` — Interfaz del Componente
 
-Modal reutilizable para completar tareas (`case_task`). El padre lo activa vía `open(taskId)`, el componente carga la tarea del API, renderiza el formulario específico según `case_task.type` (`gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio`, `justificar_remision`, `solicitud_entidad` o `respuesta_entidad`) y al confirmar la marca como completada ejecutando los efectos de lado correspondientes en el backend.
+Modal reutilizable para completar tareas (`case_task`). El padre lo activa vía `open(taskId)` o, para Mis Barreras, `openArticulacion(ctx)`. El componente carga la tarea del API (si hay id), renderiza el formulario según `case_task.type` (`gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio`, `justificar_remision`, `solicitud_entidad`, `respuesta_entidad` o `articulacion_territorial`) y al confirmar ejecuta el complete correspondiente.
 
 ## Archivos relevantes
 
@@ -31,6 +31,7 @@ case-task-modal
         │   │     'justificar_remision' → "Justificar Remisión"
         │   │     'solicitud_entidad'   → "Solicitudes a {entityName}"
         │   │     'respuesta_entidad'   → "Respuesta institucional"
+        │   │     'articulacion_territorial' → "Gestionar barrera"
         │   └── BtnCerrar  "✕"  → cancelar()
         │
         ├── [v-if cargandoTarea]
@@ -118,6 +119,15 @@ case-task-modal
             │   ├── <textarea> Ampliar información  maxlength=500  (opcional)
             │   └── <select> Estado institucional*  iniciado | en_proceso | concluido
             │
+            │   [tarea.type === 'articulacion_territorial']
+            │   FormArticulacion  (.ctm-form)
+            │   ├── ContextBox  entidad + descripción de barrera
+            │   ├── <input type=date> Fecha de contacto*
+            │   ├── <textarea> Compromiso adquirido*
+            │   ├── Toggle  ¿El compromiso requiere seguimiento?*  Sí/No
+            │   ├── [v-if requiereSeguimiento] <input type=date> Fecha de seguimiento* + nota
+            │   └── <textarea> Sugerencias de remisión interna o externa  (opcional)
+            │
             │   [tarea.type === 'justificar_remision']
             │   FormJustificarRemision  (.ctm-form)
             │   ├── MotivoDevolucion  (fondo rojo claro)
@@ -155,6 +165,7 @@ case-task-modal
                     │     'Corregir oficio'     → "Marcar como corregido"
                     │     'solicitud_entidad'   → "Enviar solicitudes"
                     │     'respuesta_entidad'   → "Enviar respuesta"
+                    │     'articulacion_territorial' → "Guardar"
                     │     default               → "Completar tarea"
                     :disabled si !formularioValido || guardando || cargandoTarea
                     → confirmar()
@@ -175,6 +186,7 @@ case-task-modal
 | `justificar_remision` | — | Guarda JSON (`respuesta`) + Done. Reabre la `psychosocial_support` vinculada (`status → 'abierto'`) y crea una nueva `case_task` `validar_remision` (`ToDo`) para que el psicólogo/a vuelva a evaluarla — asignada al `psychologist_id` de la `dupla` si la remisión tiene una, si no al `professional_id` individual, si no queda sin asignar (igual que la remisión). Crea `case_timeline_event` "Remisión Justificada". Ver `DocsMD/Screens/Remision Psicosocial Detalle/QA/validar-remision-justificar-qa-cases.md`. |
 | `solicitud_entidad` | — | Valida ≥1 ítem con descripción. Resuelve exactamente un `general_user` con `entity_branch_id` = sede del `entity_case`. Si hay 0 o N usuarios, **no** marca Done y responde 400. Si hay uno: transacción — marca esta tarea Done + `form_data` y crea N `case_task` `respuesta_entidad` (`ToDo`) asignadas a ese usuario, una por ítem. Tras éxito, crea `case_timeline_event` categoría Entidades, type "Solicitud a entidad" (si el insert falla, WARN; la tarea permanece Done). No cambia el status de `entity_case_obligation`. |
 | `respuesta_entidad` | — | Guarda JSON fusionado (contexto de la solicitud + radicado, ampliación, estado) + `Done`. Crea `case_timeline_event` categoría Entidades, type "Respuesta institucional" (si el insert falla, WARN; la tarea permanece Done). No cambia `entity_case_obligation` ni crea más tareas. |
+| `articulacion_territorial` | — | `POST /api/v1/case-tasks/articulacion-territorial`. Si hay `taskId` ToDo válida: Done + `form_data`. Si no: crea tarea ya Done (`description=Gestión propia`). Si `requiereSeguimiento`: crea ToDo `compromiso_con_enlace` con `form_data.fechaSeguimiento`. No marca la barrera `Articulada`; si estaba `OPEN` pasa a `En Gestion`. |
 
 ---
 
@@ -200,6 +212,8 @@ case-task-modal
 > `Corregir oficio` no tiene campos editables. `formularioValido` solo exige que `cargandoOficio === false` (que haya terminado de cargar el `entity_letter` vinculado en modo lectura).
 >
 > `respuesta_entidad`: radicado y ampliación opcionales; `estadoInstitucional` required (`iniciado` | `en_proceso` | `concluido`).
+>
+> `articulacion_territorial`: fecha de contacto y compromiso required; fecha de seguimiento required si Sí; sugerencias opcionales.
 
 ---
 

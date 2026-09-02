@@ -71,6 +71,12 @@ type CaseTaskService interface {
 	// sobre una barrera. Valida que la barrera pertenezca a enlaceDepartmentID
 	// antes de crear nada. Ver DocsMD/Otros/temp/req-registrar-gestion-propia-enlace.md.
 	CreateGestionPropia(ctx context.Context, caseID, barrierID, tipo, descripcion, userID, enlaceDepartmentID string) (*models.CaseTask, error)
+
+	// SaveArticulacionTerritorial completa o crea+completa una tarea
+	// articulacion_territorial para Mis Barreras. Si requiere seguimiento,
+	// crea un ToDo compromiso_con_enlace. La barrera debe estar asignada al
+	// usuario (user_territory_link_id).
+	SaveArticulacionTerritorial(ctx context.Context, userID, barrierID, taskID string, formData datatypes.JSON) (*models.CaseTask, error)
 }
 
 // ErrBarrierDepartmentMismatch indica que la barrera no pertenece al
@@ -79,6 +85,17 @@ var ErrBarrierDepartmentMismatch = errors.New("case_task: la barrera no pertenec
 
 // ErrBarrierNotFound indica que la barrera referenciada no existe.
 var ErrBarrierNotFound = errors.New("case_task: barrera no encontrada")
+
+// ErrBarrierLinkMismatch indica que la barrera no está asignada al Enlace
+// autenticado (user_territory_link_id).
+var ErrBarrierLinkMismatch = errors.New("case_task: la barrera no está asignada a este enlace")
+
+// ErrArticulacionInvalid indica formData incompleto o inválido.
+var ErrArticulacionInvalid = errors.New("case_task: datos de articulación inválidos")
+
+// ErrArticulacionTaskMismatch indica que taskId no es ToDo de articulación
+// de esa barrera y usuario.
+var ErrArticulacionTaskMismatch = errors.New("case_task: la tarea no corresponde a esta articulación")
 
 // CaseTaskServiceDeps agrupa las dependencias necesarias para CaseTaskService.
 type CaseTaskServiceDeps struct {
@@ -382,9 +399,9 @@ func (s *caseTaskService) CompleteWithFormData(ctx context.Context, id string, u
 			label = "obligación institucional"
 		}
 		estadoTxt := map[string]string{
-			"iniciado":    "Iniciado",
-			"en_proceso":  "En proceso",
-			"concluido":   "Concluido",
+			"iniciado":   "Iniciado",
+			"en_proceso": "En proceso",
+			"concluido":  "Concluido",
 		}[estado]
 		s.createEntidadTimelineEvent(ctx, task, userId, now,
 			models.TimelineEventRespuestaEntidad,
@@ -652,6 +669,149 @@ func (s *caseTaskService) CreateGestionPropia(ctx context.Context, caseID, barri
 	go s.actualizarBarreraEnGestion(context.Background(), barrierID, newTask.ID)
 
 	return newTask, nil
+}
+
+type articulacionFormPayload struct {
+	FechaContacto       string `json:"fechaContacto"`
+	Compromiso          string `json:"compromiso"`
+	RequiereSeguimiento *bool  `json:"requiereSeguimiento"`
+	FechaSeguimiento    string `json:"fechaSeguimiento"`
+	SugerenciasRemision string `json:"sugerenciasRemision"`
+	EntityBranchID      *int64 `json:"entityBranchId"`
+}
+
+func parseArticulacionForm(formData datatypes.JSON) (*articulacionFormPayload, error) {
+	var fd articulacionFormPayload
+	if err := json.Unmarshal(formData, &fd); err != nil {
+		return nil, ErrArticulacionInvalid
+	}
+	fd.FechaContacto = strings.TrimSpace(fd.FechaContacto)
+	fd.Compromiso = strings.TrimSpace(fd.Compromiso)
+	fd.FechaSeguimiento = strings.TrimSpace(fd.FechaSeguimiento)
+	fd.SugerenciasRemision = strings.TrimSpace(fd.SugerenciasRemision)
+	if fd.FechaContacto == "" || fd.Compromiso == "" || fd.RequiereSeguimiento == nil {
+		return nil, ErrArticulacionInvalid
+	}
+	if *fd.RequiereSeguimiento && fd.FechaSeguimiento == "" {
+		return nil, ErrArticulacionInvalid
+	}
+	return &fd, nil
+}
+
+func barrierAssignedToUser(barrier *models.BarrierV2, userID string) bool {
+	return barrier.UserTerritoryLinkID != nil && *barrier.UserTerritoryLinkID == userID
+}
+
+// SaveArticulacionTerritorial completa una ToDo existente o crea+completa
+// articulacion_territorial. Si hay seguimiento, crea ToDo compromiso_con_enlace.
+func (s *caseTaskService) SaveArticulacionTerritorial(ctx context.Context, userID, barrierID, taskID string, formData datatypes.JSON) (*models.CaseTask, error) {
+	fd, err := parseArticulacionForm(formData)
+	if err != nil {
+		return nil, err
+	}
+
+	barrier, err := s.barrierRepo.FindByID(ctx, barrierID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrBarrierNotFound
+		}
+		return nil, fmt.Errorf("SaveArticulacionTerritorial: leer barrera: %w", err)
+	}
+	if !barrierAssignedToUser(barrier, userID) {
+		return nil, ErrBarrierLinkMismatch
+	}
+
+	now := time.Now()
+	var task *models.CaseTask
+
+	if strings.TrimSpace(taskID) != "" {
+		existing, err := s.repo.FindByID(ctx, taskID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, ErrCaseTaskNotFound
+			}
+			return nil, fmt.Errorf("SaveArticulacionTerritorial: leer tarea: %w", err)
+		}
+		if existing.Type != models.CaseTaskTypeArticulacionTerritorial ||
+			existing.Status != models.CaseTaskStatusToDo ||
+			existing.AssignedUserID != userID ||
+			existing.BarrierID == nil || *existing.BarrierID != barrierID {
+			return nil, ErrArticulacionTaskMismatch
+		}
+		if err := s.repo.UpdateFields(ctx, existing.ID, map[string]interface{}{
+			"form_data":    formData,
+			"status":       models.CaseTaskStatusDone,
+			"completed_at": now,
+			"result":       fd.Compromiso,
+		}); err != nil {
+			return nil, fmt.Errorf("SaveArticulacionTerritorial: completar tarea: %w", err)
+		}
+		task, err = s.repo.FindByID(ctx, existing.ID)
+		if err != nil {
+			return nil, fmt.Errorf("SaveArticulacionTerritorial: recargar tarea: %w", err)
+		}
+	} else {
+		newTask := &models.CaseTask{
+			Category:       "Barreras",
+			Type:           models.CaseTaskTypeArticulacionTerritorial,
+			Description:    "Gestión propia",
+			Result:         &fd.Compromiso,
+			Status:         models.CaseTaskStatusDone,
+			CompletedAt:    &now,
+			AssignedUserID: userID,
+			CaseID:         barrier.CaseID,
+			BarrierID:      &barrierID,
+			FormData:       formData,
+		}
+		if err := s.repo.Create(ctx, newTask); err != nil {
+			return nil, fmt.Errorf("SaveArticulacionTerritorial: crear tarea: %w", err)
+		}
+		task = newTask
+	}
+
+	if *fd.RequiereSeguimiento {
+		seguimientoData, err := json.Marshal(map[string]interface{}{
+			"fechaSeguimiento":   fd.FechaSeguimiento,
+			"articulacionTaskId": task.ID,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("SaveArticulacionTerritorial: serializar seguimiento: %w", err)
+		}
+		follow := &models.CaseTask{
+			Category:       "Barreras",
+			Type:           models.CaseTaskTypeCompromisoConEnlace,
+			Description:    "Seguimiento al compromiso adquirido",
+			Status:         models.CaseTaskStatusToDo,
+			AssignedUserID: userID,
+			CaseID:         barrier.CaseID,
+			BarrierID:      &barrierID,
+			FormData:       datatypes.JSON(seguimientoData),
+		}
+		if err := s.repo.Create(ctx, follow); err != nil {
+			log.Printf("[CaseTaskService.SaveArticulacionTerritorial] WARN: no se pudo crear compromiso_con_enlace: %v", err)
+		}
+	}
+
+	event := &models.CaseTimelineEvent{
+		CaseID:      barrier.CaseID,
+		Category:    models.TimelineCategoryBarreras,
+		Type:        models.TimelineTypeArticulacionTerritorial,
+		EventType:   models.TimelineEventArticulacionTerritorial,
+		Icon:        models.TimelineIconGestionPropia,
+		Color:       models.TimelineColorPurple,
+		Date:        now,
+		EventUserID: userID,
+		BarrierID:   barrierID,
+		TaskID:      task.ID,
+		Description: fd.Compromiso,
+	}
+	if err := s.timelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[CaseTaskService.SaveArticulacionTerritorial] WARN: timeline: %v", err)
+	}
+
+	go s.actualizarBarreraEnGestion(context.Background(), barrierID, task.ID)
+
+	return task, nil
 }
 
 // actualizarBarreraEnGestion transiciona barrier_v2 de OPEN a "En Gestion" si aplica.

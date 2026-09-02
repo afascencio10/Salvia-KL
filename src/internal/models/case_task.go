@@ -13,10 +13,10 @@ import (
 //
 // Estados posibles:
 //
-//	"ToDo" → tarea pendiente   (tab "Por Articular" en Mis Barreras)
-//	"Done" → tarea completada  (tab "Articuladas" en Mis Barreras)
+//	"ToDo" → tarea pendiente
+//	"Done" → tarea completada
 type CaseTask struct {
-	ID          string `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	ID string `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 
 	// Clasificación
 	Category string `gorm:"type:varchar(100)" json:"category"`
@@ -56,4 +56,10 @@ func (CaseTask) TableName() string {
 const (
 	CaseTaskStatusToDo = "ToDo"
 	CaseTaskStatusDone = "Done"
+)
+
+// Tipos de tarea usados por Mis Barreras (Enlace Territorial).
+const (
+	CaseTaskTypeArticulacionTerritorial = "articulacion_territorial"
+	CaseTaskTypeCompromisoConEnlace     = "compromiso_con_enlace"
 )
