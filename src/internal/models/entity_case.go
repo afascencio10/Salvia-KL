@@ -133,3 +133,31 @@ type ObligacionesResumenResponse struct {
 	PorSector []ObligacionesResumenSector `json:"porSector"`
 	Items     []ObligacionesResumenItem   `json:"items"`
 }
+
+// EntityCaseDetailRow es el shape del detalle completo de un entity_case,
+// usado por GET /api/v1/entity-cases/:entityCaseId/detail.
+type EntityCaseDetailRow struct {
+	EntityCaseID     string  `gorm:"column:entity_case_id"      json:"entityCaseId"`
+	CaseID           string  `gorm:"column:case_id"             json:"caseId"`
+	CaseCode         string  `gorm:"column:case_code"           json:"caseCode"`
+	VictimFullName   string  `gorm:"column:victim_full_name"    json:"victimFullName"`
+	Document         string  `gorm:"column:document"            json:"document"`
+	RiskLevel        string  `gorm:"column:risk_level"          json:"riskLevel"`
+	CaseStatus       string  `gorm:"column:case_status"         json:"caseStatus"`
+	CaseStatusLabel  string  `gorm:"-"                          json:"caseStatusLabel"`
+	AgentName        string  `gorm:"column:agent_name"          json:"agentName"`
+	City             string  `gorm:"column:city"                json:"city"`
+	DepartmentName   string  `gorm:"column:department_name"     json:"departmentName"`
+	EntityBranchName string  `gorm:"column:entity_branch_name"  json:"entityBranchName"`
+	Sector           string  `gorm:"column:sector"              json:"sector"`
+	SectorLabel      string  `gorm:"-"                          json:"sectorLabel"`
+	Address          string  `gorm:"column:address"             json:"address"`
+	TownName         string  `gorm:"column:town_name"           json:"townName"`
+	EntityCityName   string  `gorm:"column:entity_city_name"    json:"entityCityName"`
+	EntityDeptName   string  `gorm:"column:entity_dept_name"    json:"entityDeptName"`
+	Objetivo         *string `gorm:"column:objetivo"            json:"objetivo,omitempty"`
+	LastAction       *string `gorm:"column:last_action"         json:"lastAction,omitempty"`
+	OficiosCount     int64   `gorm:"column:oficios_count"       json:"oficiosCount"`
+	BarrerasCount    int64   `gorm:"column:barreras_count"      json:"barrerasCount"`
+	CreatedAt        string  `gorm:"column:created_at"          json:"createdAt"`
+}

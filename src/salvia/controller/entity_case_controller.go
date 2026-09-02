@@ -66,6 +66,7 @@ func requireCaseDetailAccess(ctx *gin.Context) *utils.CommonSession {
 //	GET  /api/v1/casos/:id/obligaciones-resumen → ObligacionesResumen
 //	GET  /api/v1/entity-cases          → ListByEntity (Casos Entidad)
 //	GET  /api/v1/entity-cases/:entityCaseId/obligations → ListObligations
+//	GET  /api/v1/entity-cases/:entityCaseId/detail → GetDetail
 func (c *EntityCaseController) RegisterRoutes(rg *gin.RouterGroup) {
 	casos := rg.Group("/casos/:id/entidades")
 	casos.GET("", c.List)
@@ -74,6 +75,7 @@ func (c *EntityCaseController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/casos/:id/obligaciones-resumen", c.ObligacionesResumen)
 	rg.GET("/entity-cases", c.ListByEntity)
 	rg.GET("/entity-cases/:entityCaseId/obligations", c.ListObligations)
+	rg.GET("/entity-cases/:entityCaseId/detail", c.GetDetail)
 }
 
 // ObligacionesResumen — GET /api/v1/casos/:id/obligaciones-resumen
@@ -206,4 +208,28 @@ func (c *EntityCaseController) Create(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusCreated, ec)
+}
+
+// GetDetail — GET /api/v1/entity-cases/:entityCaseId/detail
+// Devuelve el detalle completo de un entity_case (rol et).
+func (c *EntityCaseController) GetDetail(ctx *gin.Context) {
+	if requireCasosEntidadAccess(ctx) == nil {
+		return
+	}
+	entityCaseID := ctx.Param("entityCaseId")
+	if entityCaseID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "entityCaseId requerido"})
+		return
+	}
+
+	detail, err := c.svc.GetEntityCaseDetail(ctx.Request.Context(), entityCaseID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "relación caso-entidad no encontrada"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		return
+	}
+	ctx.JSON(http.StatusOK, detail)
 }

@@ -65,6 +65,9 @@ type EntityCaseService interface {
 	// GetObligacionesResumen agrega el checklist de obligaciones de todas las
 	// entidades de un caso — usado por case-gestion-institucional.
 	GetObligacionesResumen(ctx context.Context, caseID string) (*models.ObligacionesResumenResponse, error)
+
+	// GetEntityCaseDetail devuelve el detalle completo de un entity_case por ID.
+	GetEntityCaseDetail(ctx context.Context, entityCaseID string) (*models.EntityCaseDetailRow, error)
 }
 
 type entityCaseService struct {
@@ -206,4 +209,14 @@ func capitalizeFirst(s string) string {
 	}
 	r, size := utf8.DecodeRuneInString(s)
 	return string(unicode.ToUpper(r)) + s[size:]
+}
+
+func (s *entityCaseService) GetEntityCaseDetail(ctx context.Context, entityCaseID string) (*models.EntityCaseDetailRow, error) {
+	row, err := s.repo.GetDetailByID(ctx, entityCaseID)
+	if err != nil {
+		return nil, err
+	}
+	row.CaseStatusLabel = victimCaseStatusLabel(row.CaseStatus)
+	row.SectorLabel = entitySectorLabel(row.Sector)
+	return row, nil
 }

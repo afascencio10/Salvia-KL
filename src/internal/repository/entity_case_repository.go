@@ -44,6 +44,9 @@ type EntityCaseRepository interface {
 	// anillos de progreso) y el detalle fila a fila (para el modal de drill-down)
 	// del componente case-gestion-institucional.
 	GetObligacionesResumen(ctx context.Context, caseID string) (*models.ObligacionesResumenResponse, error)
+
+	// GetDetailByID devuelve el detalle completo de un entity_case por su ID.
+	GetDetailByID(ctx context.Context, entityCaseID string) (*models.EntityCaseDetailRow, error)
 }
 
 type entityCaseRepository struct {
@@ -304,4 +307,67 @@ WHERE eb.entity_id = ?
 ORDER BY c.city_name ASC
 `, entityID).Scan(&items).Error
 	return items, err
+}
+
+// entityCaseDetailSQL obtiene el detalle completo de un entity_case.
+const entityCaseDetailSQL = `
+SELECT
+    ec.id                           AS entity_case_id,
+    ec.case_id                      AS case_id,
+    vc.victim_case_i_code           AS case_code,
+    TRIM(CONCAT(COALESCE(vc.victim_case_victim_names, ''), ' ', COALESCE(vc.victim_case_victim_last_names, ''))) AS victim_full_name,
+    COALESCE(vc.victim_case_victim_doc_number, '') AS document,
+    (` + riskLevelSelect + `) AS risk_level,
+    COALESCE(vc.victim_case_status, '') AS case_status,
+    COALESCE(TRIM(CONCAT(COALESCE(ag.user_names, ''), ' ', COALESCE(ag.user_last_names, ''))), '') AS agent_name,
+    COALESCE(case_city.city_name, '') AS city,
+    COALESCE(case_dept.department_name, '') AS department_name,
+    eb.entity_branch_name           AS entity_branch_name,
+    COALESCE(e.entity_sector, '')   AS sector,
+    COALESCE(eb.entity_branch_address, '') AS address,
+    COALESCE(eb_town.town_name, '') AS town_name,
+    COALESCE(eb_city.city_name, '') AS entity_city_name,
+    COALESCE(eb_dept.department_name, '') AS entity_dept_name,
+    ec.objetivo                     AS objetivo,
+    ec.last_action                  AS last_action,
+    (SELECT COUNT(*) FROM salvia.entity_letter el
+       WHERE el.case_id = ec.case_id AND el.entity_branch_id = ec.entity_branch_id AND el.deleted_at IS NULL
+    ) AS oficios_count,
+    (SELECT COUNT(*) FROM salvia.barrier_v2 b
+       WHERE b.case_id = ec.case_id AND b.entity_branch_id = ec.entity_branch_id
+         AND b.status IN ('OPEN', 'En Gestion') AND b.deleted_at IS NULL
+    ) AS barreras_count,
+    TO_CHAR(ec.created_at, 'YYYY-MM-DD') AS created_at
+FROM salvia.entity_case ec
+JOIN salvia.entity_branch eb ON eb.entity_branch_id = ec.entity_branch_id
+JOIN salvia.entity e ON e.entity_id = eb.entity_id
+JOIN salvia.victim_case vc ON vc.victim_case_i_code = ec.case_id
+LEFT JOIN salvia.victim_case_form2 vf2 ON vf2.victim_case_form2_victim_case = vc.victim_case_id
+LEFT JOIN security.town case_town ON case_town.town_code = vc.victim_case_victim_town_code
+LEFT JOIN security.city case_city ON case_city.city_id = case_town.city_id
+LEFT JOIN security.department case_dept ON case_dept.department_id = case_city.department_id
+LEFT JOIN security.town eb_town ON eb_town.town_code = eb.entity_branch_town_code
+LEFT JOIN security.city eb_city ON eb_city.city_id = eb_town.city_id
+LEFT JOIN security.department eb_dept ON eb_dept.department_id = eb_city.department_id
+LEFT JOIN (
+    SELECT gu.general_user_i_code AS user_i_code,
+           gup.general_user_profile_names AS user_names,
+           gup.general_user_profile_last_names AS user_last_names
+    FROM security.general_user gu
+    JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+) ag ON ag.user_i_code = vc.agent_id
+WHERE ec.id = ? AND ec.deleted_at IS NULL
+LIMIT 1
+`
+
+func (r *entityCaseRepository) GetDetailByID(ctx context.Context, entityCaseID string) (*models.EntityCaseDetailRow, error) {
+	var row models.EntityCaseDetailRow
+	err := r.db.WithContext(ctx).Raw(entityCaseDetailSQL, entityCaseID).Scan(&row).Error
+	if err != nil {
+		return nil, err
+	}
+	if row.EntityCaseID == "" {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &row, nil
 }

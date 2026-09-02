@@ -219,16 +219,12 @@
             },
 
             // E06 — Cuando presiona "Ver detalle"
-            // Destino /salvia/entidad/:id aún no existe (GAP compartido con case-entities).
             goToRelationDetail: function (item) {
-                if (!item || !item.entityBranchICode) {
-                    this.showToast('No se encontró la sede de la entidad.', 'info');
+                if (!item || !item.entityCaseId) {
+                    this.showToast('No se encontró el identificador.', 'info');
                     return;
                 }
-                this.showToast(
-                    'Detalle de entidad pendiente (sede: ' + item.entityBranchICode + ')',
-                    'info'
-                );
+                window.location.href = '/salvia/casos-entidad/' + encodeURIComponent(item.entityCaseId) + '/detalle';
             }
         }
     });
