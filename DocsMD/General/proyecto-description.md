@@ -54,6 +54,7 @@ cd SOG_SALVIA/src && PORT=9090 go run . >> /tmp/salvia_server.log 2>&1 &
 | `Feminicidio`                                                                  | Listado y registro de casos de feminicidio con formulario de datos de la víctima y familia.      | `src/frontend/html/salvia/feminicide/set_feminicide.html`         |
 | `Riesgo de Feminicidio`                                                        | Listado y registro de casos de riesgo de feminicidio con formulario propio.                      | `src/frontend/html/salvia/feminicide/set_feminicide_risk.html`    |
 | [`Casos Entidad`](../Screens/Casos%20Entidad/casos-entidad-index.md)           | Listado de casos con víctimas referidas a la entidad: filtros, última acción y acceso a detalle. | `src/frontend/html/salvia/entity_case/casos_entidad.html` |
+| [`Lista de casos`](../Screens/Lista%20de%20Casos/lista-casos-index.md)         | Tabla reutilizable de `victim_case`. El rol `en` ve solo los casos de su departamento asignado. | `src/frontend/html/salvia/list-cases/list_cases.html` |
 | `Entidades`                                                                    | Catálogo de entidades institucionales que participan en la ruta de atención.                     | —                                                                 |
 | `Sedes`                                                                        | Gestión de sedes (branches) de entidades con ubicación geográfica y municipio.                   | `src/frontend/html/salvia/entity_branch/get_entity_branches.html` |
 | `Asignar Operadores`                                                           | Herramienta para asignar manualmente operadores a casos.                                         | `src/frontend/html/salvia/victim_case/assign_operators.html`      |
@@ -63,6 +64,7 @@ cd SOG_SALVIA/src && PORT=9090 go run . >> /tmp/salvia_server.log 2>&1 &
 
 | Componente | Descripción | Archivo principal |
 |---|---|---|
+| `casos-component` | Tabla reutilizable de casos con filtros, paginación y acciones de fila. | `src/frontend/js/components/casos-component.js` |
 | `dinamic-form` | Componente reutilizable que renderiza formularios dinámicos por secciones con guardado parcial. | `src/frontend/js/components/dinamic-form.js` |
 | `case-timeline` | Componente reutilizable que muestra el historial cronológico de eventos de un caso. | `src/frontend/js/components/case-timeline.js` |
 

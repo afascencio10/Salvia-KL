@@ -2,6 +2,8 @@
 
 Pantalla de listado para el rol **Entidad** (`et`): cada usuario `et` representa una **sede** (`entity_branch`). Ve solo los `entity_case` de su `entity_branch_id`, con filtro por documento.
 
+No confundir con **Lista de casos** (`/salvia/lista-casos`): esa pantalla lista `victim_case` y, para el rol **Enlace territorial** (`en`), se acota al **departamento asignado**. Casos Entidad sigue siendo `entity_case` por sede del usuario `et`.
+
 > **Ruta:** `GET /salvia/casos-entidad`  
 > **Fuente de datos:** `salvia.entity_case` filtrado por `entity_branch_id` del usuario logueado → joins a `victim_case` / riesgo.  
 > **Relación usuario↔sede:** `security.general_user.entity_branch_id` (campo nuevo, solo relevante para rol `et`).  

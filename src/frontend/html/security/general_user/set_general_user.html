@@ -115,6 +115,7 @@
                 <option value="">Seleccione...</option>
                 <option v-for="(dep, idx) in departamentosEnlace" :value="dep.value" :key="idx">${dep.label}</option>
               </select>
+              <span v-if="errors.user && errors.user.assignedDepartment" class="invalid-feedback d-block">${ errors.user.assignedDepartment }</span>
             </div>
           </div>
         </div><!-- /.container-fluid -->
@@ -179,8 +180,7 @@
             document.getElementById('app').style.display = 'block';
             home.config.globalProperties.enums = this.enums;
             // Catálogo de /api/v1/locations/departments — mismo value-space que
-            // barrier_v2.department_id, necesario para comparar el departamento
-            // asignado del Enlace contra el departamento de una barrera.
+            // barrier_v2.department_id y city.department_id (rol en).
             fetch('/api/v1/locations/departments')
               .then(function(res) { return res.ok ? res.json() : []; })
               .then((function(deps) { this.departamentosEnlace = Array.isArray(deps) ? deps : []; }).bind(this))

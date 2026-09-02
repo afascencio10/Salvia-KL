@@ -2,12 +2,14 @@
 
 Tabla reutilizable para visualizar y filtrar casos de víctimas. Acepta props para configurar columnas visibles, filtros disponibles, filtro inicial, botones de acción por fila y modo de reasignación masiva. Emite eventos hacia el padre cuando el usuario presiona un botón de acción en una fila o cuando solicita reasignar los casos seleccionados.
 
+El alcance por departamento del rol `en` no es un prop: lo aplica el backend de `GET /api/v1/cases/list` con la sesión.
+
 ## Archivos relevantes
 
 | Archivo | Rol |
 |---|---|
-| `src/frontend/components/casos-component.js` | Componente principal — template y lógica *(pendiente de crear)* |
-| `src/frontend/css/casos-component.css` | Estilos de layout y estados visuales *(pendiente de crear)* |
+| `src/frontend/js/components/casos-component.js` | Componente principal — template y lógica |
+| `src/frontend/css/casos-component.css` | Estilos de layout y estados visuales |
 
 ---
 

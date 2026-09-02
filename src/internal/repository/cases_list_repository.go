@@ -27,6 +27,7 @@ type CasesListFilters struct {
 	FilterSeguimientosEjecutados string // filter_seguimientos_ejecutados (E-12)
 	FilterEstadoCaso             string // filter_estado_caso (E-13)
 	FilterBarrerasActivas        string // filter_barreras_activas (E-16)
+	AssignedDepartmentID         string // Scope servidor rol en (city.department_id); vacío = sin acotar
 	Search      string
 	Sort        string
 	Order       string
@@ -157,8 +158,12 @@ func (r *casesListRepository) List(ctx context.Context, filters CasesListFilters
 
 	whereSQL, args := buildCasesListWhere(filters)
 	orderSQL := buildCasesListOrder(filters)
+	fromSQL := casesListBaseFrom
+	if strings.TrimSpace(filters.AssignedDepartmentID) != "" {
+		fromSQL += casesListDepartmentJoins
+	}
 
-	countSQL := "SELECT COUNT(*) " + casesListBaseFrom + " " + whereSQL
+	countSQL := "SELECT COUNT(*) " + fromSQL + " " + whereSQL
 	var total int64
 	if err := r.db.WithContext(ctx).Raw(countSQL, args...).Scan(&total).Error; err != nil {
 		return CasesListResult{}, err
@@ -167,7 +172,7 @@ func (r *casesListRepository) List(ctx context.Context, filters CasesListFilters
 	offset := (page - 1) * pageSize
 	dataSQL := fmt.Sprintf(
 		"SELECT %s %s %s %s LIMIT %d OFFSET %d",
-		casesListSelectCols, casesListBaseFrom, whereSQL, orderSQL, pageSize, offset,
+		casesListSelectCols, fromSQL, whereSQL, orderSQL, pageSize, offset,
 	)
 
 	var rows []caseListRow
@@ -247,9 +252,21 @@ func (r *casesListRepository) loadOpenBarriersByCaseIDs(ctx context.Context, cas
 // E-09: casos creados hoy y hasta 5 días calendario antes (zona Bogotá).
 const casosNuevosRangeClause = `(vc.victim_case_creation_date AT TIME ZONE '` + casesListTimezone + `')::date BETWEEN (NOW() AT TIME ZONE '` + casesListTimezone + `')::date - INTERVAL '5 days' AND (NOW() AT TIME ZONE '` + casesListTimezone + `')::date`
 
+const casesListDepartmentJoins = `
+LEFT JOIN security.town t_dept
+       ON t_dept.town_code = vc.victim_case_victim_town_code
+LEFT JOIN security.city c_dept
+       ON c_dept.city_id = t_dept.city_id
+`
+
 func buildCasesListWhere(filters CasesListFilters) (string, []interface{}) {
 	clauses := []string{"1=1"}
 	args := []interface{}{}
+
+	if deptID := strings.TrimSpace(filters.AssignedDepartmentID); deptID != "" {
+		clauses = append(clauses, "c_dept.department_id::text = ?")
+		args = append(args, deptID)
+	}
 
 	casosNuevosActive := filters.ChipFilter == "casos_nuevos" || filters.FilterKey == "casos_nuevos"
 	if casosNuevosActive {

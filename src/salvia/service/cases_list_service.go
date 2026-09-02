@@ -19,6 +19,7 @@ type CasesListInput struct {
 	FilterSeguimientosEjecutados   string
 	FilterEstadoCaso               string
 	FilterBarrerasActivas          string
+	AssignedDepartmentID           string // Scope servidor rol en; vacío = sin acotar
 	Search      string
 	Sort        string
 	Order       string
@@ -79,6 +80,7 @@ func (s *casesListService) List(ctx context.Context, input CasesListInput) (Case
 		FilterSeguimientosEjecutados:   input.FilterSeguimientosEjecutados,
 		FilterEstadoCaso:               input.FilterEstadoCaso,
 		FilterBarrerasActivas:          input.FilterBarrerasActivas,
+		AssignedDepartmentID:           strings.TrimSpace(input.AssignedDepartmentID),
 		Search:              strings.TrimSpace(input.Search),
 		Sort:        sort,
 		Order:       order,

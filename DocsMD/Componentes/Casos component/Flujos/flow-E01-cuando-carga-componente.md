@@ -136,6 +136,10 @@ INPUT: {
   order:         dirección                  → query param: 'asc' | 'desc'
   page:          número de página           → query param (default: 1)
   page_size:     registros por página       → query param (default: 20)
+  // El departamento NUNCA llega como query param.
+  // Si la sesión tiene CurrentRole = 'en':
+  //   SI AssignedDepartmentID vacío → 403 { error: 'su usuario no tiene un departamento asignado' }
+  //   SI AssignedDepartmentID presente → scope servidor (PASO 5b)
 }
 
 
@@ -213,6 +217,16 @@ PASO 5 — Construir query base
   -- Nivel de riesgo del tamizaje (formulario 2 del caso)
   LEFT JOIN salvia.victim_case_form2 vf2
          ON vf2.victim_case_form2_victim_case = vc.victim_case_id
+
+  // PASO 5b — Scope departamento (solo rol en, AssignedDepartmentID de sesión):
+  LEFT JOIN security.town t_dept
+         ON t_dept.town_code = vc.victim_case_victim_town_code
+  LEFT JOIN security.city c_dept
+         ON c_dept.city_id = t_dept.city_id
+  WHERE c_dept.department_id::text = {AssignedDepartmentID}
+  // Cadena: municipio de la víctima → ciudad → departamento.
+  // Los filtros de PASO 6 son aditivos sobre este universo.
+  // Otros roles: estos JOIN/WHERE no se aplican.
 
 
 PASO 6 — Aplicar filtro según filter_key

@@ -126,6 +126,7 @@ var Locale = map[string]map[string]string{
 		"general_user_profile_description_h":     "Escriba una descripción / nota adicional",
 		"security_general_user_profile_town":     "Por favor seleccione un municipio",
 		"security_general_user_profile_branch":   "Por favor seleccione una entidad",
+		"security_general_user_assigned_department": "Por favor seleccione un departamento",
 		"security_general_user_branch_not_found": "No se encontró la entidad",
 	},
 }
