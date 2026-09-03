@@ -2492,6 +2492,18 @@ func (s *formService) processPsicosocialSessionSubmission(ctx context.Context, f
 		log.Printf("[processPsicosocialSessionSubmission] advertencia: hechos de violencia: %v", err)
 	}
 
+	// ── Derivación a equipos SALVIA (Sep 2026) ────────────────────────────────────────────
+	// Procesa la nueva sección "Derivación a equipos SALVIA" presente en los 4 formularios.
+	// Solo ejecuta si la sesión fue atención efectiva (la sección solo se muestra en ese caso,
+	// pero se verifica igual para robustez).
+	// Lógica:
+	//   - medidas_emergencia → crear 1 EmergencyMeasure por cada medida seleccionada (igual que en seguimiento).
+	//   - estabilizacion, atencion_hombres, salvia_dignidad, discapacidad → solo se guardan como answers;
+	//     NO se crea psychosocial_support ni case_task (a diferencia del formulario de seguimiento).
+	if err := s.processPsicosocialDerivacionEquipos(ctx, formID, answerMap, ps, tc.CaseID); err != nil {
+		log.Printf("[processPsicosocialSessionSubmission] advertencia: derivación equipos SALVIA: %v", err)
+	}
+
 	log.Printf("[processPsicosocialSessionSubmission] psicosocialId=%s sessionType=%s sessionCount=%d status=%s ya_hizo_pc=%v ya_hizo_pa=%v",
 		ps.ID, sessionType, ps.SessionCount, ps.Status, ps.YaHizoPrimerContacto, ps.YaHizoPrimeraAtencion)
 
@@ -2579,6 +2591,101 @@ func (s *formService) processPsicosocialHechosViolenciaTimeline(ctx context.Cont
 		return err
 	}
 	log.Printf("[processPsicosocialSessionSubmission] ✅ evento 'Nuevos hechos de violencia' creado → fecha=%s", fechaStr)
+	return nil
+}
+
+// processPsicosocialDerivacionEquipos procesa la sección "Derivación a equipos SALVIA" (Sep 2026)
+// presente en los 4 formularios psicosociales. Resuelve las preguntas por UUID fijo (serie d1000NXX).
+//
+// Comportamiento por equipo seleccionado:
+//   - medidas_emergencia → crear 1 EmergencyMeasure por cada medida seleccionada en la pregunta Q3.
+//   - estabilizacion, atencion_hombres, salvia_dignidad, discapacidad → solo answers (no se crean
+//     registros adicionales desde este formulario, a diferencia del formulario de seguimiento).
+//
+// Si emergencyMeasureRepo es nil, se omite la creación de medidas y se registra una advertencia.
+func (s *formService) processPsicosocialDerivacionEquipos(ctx context.Context, formID string, answerMap map[string]string, ps *models.PsychosocialSupport, caseID string) error {
+	// Mapa de question IDs fijos por formulario (serie d1000NXX).
+	// N: 1=PC, 2=PA, 3=SEG, 4=CIE
+	type derivIDs struct {
+		qRemision       string // Q1: ¿Remisión a equipos SALVIA? (boolean)
+		qEquipos        string // Q2: ¿Cuáles equipos? (multiple)
+		qMedidasEmergen string // Q3: ¿Cuáles medidas de emergencia? (multiple)
+	}
+	formDerivIDs := map[string]derivIDs{
+		constants.FormIDPrimerContacto: {
+			qRemision:       constants.QPCDerivacionRemision,
+			qEquipos:        constants.QPCDerivacionEquipos,
+			qMedidasEmergen: constants.QPCDerivacionMedidasEmergen,
+		},
+		constants.FormIDPrimeraAtencion: {
+			qRemision:       constants.QPADerivacionRemision,
+			qEquipos:        constants.QPADerivacionEquipos,
+			qMedidasEmergen: constants.QPADerivacionMedidasEmergen,
+		},
+		constants.FormIDAtencionPsicosocial: {
+			qRemision:       constants.QSEGDerivacionRemision,
+			qEquipos:        constants.QSEGDerivacionEquipos,
+			qMedidasEmergen: constants.QSEGDerivacionMedidasEmergen,
+		},
+		constants.FormIDCierre: {
+			qRemision:       constants.QCIEDerivacionRemision,
+			qEquipos:        constants.QCIEDerivacionEquipos,
+			qMedidasEmergen: constants.QCIEDerivacionMedidasEmergen,
+		},
+	}
+
+	ids, ok := formDerivIDs[formID]
+	if !ok {
+		return nil // formulario no reconocido — no es un form psicosocial
+	}
+
+	// Si Q1 (remisión) no es true, no hay nada que procesar
+	if !answerIsTrueish(answerMap[ids.qRemision]) {
+		return nil
+	}
+
+	equiposVal := answerMap[ids.qEquipos]
+	if equiposVal == "" {
+		log.Printf("[processPsicosocialDerivacionEquipos] Q1=true pero Q2 (equipos) vacío — formID=%s psicosocialId=%s", formID, ps.ID)
+		return nil
+	}
+
+	log.Printf("[processPsicosocialDerivacionEquipos] formID=%s psicosocialId=%s equipos=%s", formID, ps.ID, equiposVal)
+
+	for _, equipo := range splitCSVValues(equiposVal) {
+		switch equipo {
+		case "medidas_emergencia":
+			// Crear 1 EmergencyMeasure por cada medida seleccionada
+			if s.emergencyMeasureRepo == nil {
+				log.Printf("[processPsicosocialDerivacionEquipos] WARN: emergencyMeasureRepo es nil — medidas de emergencia NO creadas (psicosocialId=%s)", ps.ID)
+				break
+			}
+			medidasVal := answerMap[ids.qMedidasEmergen]
+			if medidasVal == "" {
+				log.Printf("[processPsicosocialDerivacionEquipos] equipo medidas_emergencia seleccionado pero Q3 vacío — psicosocialId=%s", ps.ID)
+				break
+			}
+			for _, medida := range splitCSVValues(medidasVal) {
+				em := &models.EmergencyMeasure{
+					CaseID: caseID,
+					Type:   medida,
+					Status: "ACTIVE",
+				}
+				if err := s.emergencyMeasureRepo.Create(ctx, em); err != nil {
+					log.Printf("[processPsicosocialDerivacionEquipos] WARN: no se pudo crear EmergencyMeasure tipo=%s: %v", medida, err)
+				} else {
+					log.Printf("[processPsicosocialDerivacionEquipos] ✅ EmergencyMeasure creada tipo=%s id=%s psicosocialId=%s", medida, em.ID, ps.ID)
+				}
+			}
+		case "estabilizacion", "atencion_hombres", "salvia_dignidad", "discapacidad":
+			// Solo se guardan como answers en la BD — no se crean registros adicionales
+			// desde el formulario psicosocial (a diferencia del formulario de seguimiento).
+			log.Printf("[processPsicosocialDerivacionEquipos] equipo '%s' registrado como answer — psicosocialId=%s", equipo, ps.ID)
+		default:
+			log.Printf("[processPsicosocialDerivacionEquipos] equipo desconocido '%s' ignorado — psicosocialId=%s", equipo, ps.ID)
+		}
+	}
+
 	return nil
 }
 

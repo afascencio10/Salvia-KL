@@ -245,4 +245,550 @@ WHERE question_id IN (
 AND value LIKE '%atencion%'
 AND value LIKE '%solo_contacto%';
 
+-- =============================================================================
+-- 5. DERIVACIÓN A EQUIPOS SALVIA — Sep 2026
+--
+-- Agrega la sección "Derivación a equipos SALVIA" en los 4 formularios psicosociales
+-- como última sección, visible solo cuando la sesión fue atención efectiva.
+-- UUIDs fijos de preguntas: serie d1000NXX (N=formulario, XX=orden).
+-- Idempotente: ON CONFLICT (id) DO NOTHING en question, INSERT WHERE NOT EXISTS
+-- en form_section y visibility_condition.
+-- =============================================================================
+
+DO $$
+DECLARE
+  v_form_pc  uuid := '439b57e6-07ea-4da4-9721-8ed28c6ca43f';
+  v_form_pa  uuid := '501ab3d7-8382-4447-96a6-f463152693c6';
+  v_form_seg uuid := '7a7b61b3-7bc3-4088-a74d-0974e54a3563';
+  v_form_cie uuid := 'c31026f8-7ce2-49b9-8990-04b44ed4513c';
+
+  -- Sección IDs (generados al vuelo — idempotencia via nombre+form_id)
+  v_pc_deriv_s  uuid;
+  v_pa_deriv_s  uuid;
+  v_seg_deriv_s uuid;
+  v_cie_deriv_s uuid;
+
+  -- Question IDs fijos (serie d1000NXX)
+  -- PC
+  v_pc_q1  varchar := 'd1000101-0000-4000-8000-000000000001';
+  v_pc_q2  varchar := 'd1000102-0000-4000-8000-000000000001';
+  v_pc_q3  varchar := 'd1000103-0000-4000-8000-000000000001';
+  v_pc_q4  varchar := 'd1000104-0000-4000-8000-000000000001';
+  v_pc_q5  varchar := 'd1000105-0000-4000-8000-000000000001';
+  v_pc_q6  varchar := 'd1000106-0000-4000-8000-000000000001';
+  v_pc_q7  varchar := 'd1000107-0000-4000-8000-000000000001';
+  -- PA
+  v_pa_q1  varchar := 'd1000201-0000-4000-8000-000000000002';
+  v_pa_q2  varchar := 'd1000202-0000-4000-8000-000000000002';
+  v_pa_q3  varchar := 'd1000203-0000-4000-8000-000000000002';
+  v_pa_q4  varchar := 'd1000204-0000-4000-8000-000000000002';
+  v_pa_q5  varchar := 'd1000205-0000-4000-8000-000000000002';
+  v_pa_q6  varchar := 'd1000206-0000-4000-8000-000000000002';
+  v_pa_q7  varchar := 'd1000207-0000-4000-8000-000000000002';
+  -- SEG
+  v_seg_q1 varchar := 'd1000301-0000-4000-8000-000000000003';
+  v_seg_q2 varchar := 'd1000302-0000-4000-8000-000000000003';
+  v_seg_q3 varchar := 'd1000303-0000-4000-8000-000000000003';
+  v_seg_q4 varchar := 'd1000304-0000-4000-8000-000000000003';
+  v_seg_q5 varchar := 'd1000305-0000-4000-8000-000000000003';
+  v_seg_q6 varchar := 'd1000306-0000-4000-8000-000000000003';
+  v_seg_q7 varchar := 'd1000307-0000-4000-8000-000000000003';
+  -- CIE
+  v_cie_q1 varchar := 'd1000401-0000-4000-8000-000000000004';
+  v_cie_q2 varchar := 'd1000402-0000-4000-8000-000000000004';
+  v_cie_q3 varchar := 'd1000403-0000-4000-8000-000000000004';
+  v_cie_q4 varchar := 'd1000404-0000-4000-8000-000000000004';
+  v_cie_q5 varchar := 'd1000405-0000-4000-8000-000000000004';
+  v_cie_q6 varchar := 'd1000406-0000-4000-8000-000000000004';
+  v_cie_q7 varchar := 'd1000407-0000-4000-8000-000000000004';
+
+  -- IDs de las preguntas gatillo (ya existentes en la BD)
+  -- PC:  Q12 "Continuar Primera Atención"
+  v_pc_trigger  varchar := 'aa46351a-f6c0-4666-af3e-e0f1f7b6dc8c';
+  -- PA:  Q8  "¿Es atención o solo contacto?"
+  v_pa_trigger  varchar := '3117fd01-6a31-4595-9888-dcdcc96d84e7';
+  -- SEG: Q9  "¿Es atención o solo contacto?"
+  v_seg_trigger varchar := '16de7674-4349-4acc-9d0d-656d1d5e5f10';
+  -- CIE: Q9  "¿Es atención o solo contacto?"
+  v_cie_trigger varchar := 'be185336-e025-4768-a1a2-3ab9e2281450';
+
+BEGIN
+
+  -- ── 1. Crear las 4 secciones (idempotente por nombre + form_id) ─────────────
+
+  SELECT id INTO v_pc_deriv_s FROM salvia.form_section
+  WHERE form_id = v_form_pc AND name = 'Derivación a equipos SALVIA' AND deleted_at IS NULL
+  LIMIT 1;
+  IF v_pc_deriv_s IS NULL THEN
+    INSERT INTO salvia.form_section (id, form_id, name, description, "order")
+    VALUES (gen_random_uuid(), v_form_pc,
+            'Derivación a equipos SALVIA',
+            'Visible cuando la sesión fue atención efectiva (trigger: Q12 Continuar Primera Atención = true). '
+            'Permite registrar necesidades de remisión a equipos SALVIA generadas durante la atención.', 5)
+    RETURNING id INTO v_pc_deriv_s;
+  END IF;
+
+  SELECT id INTO v_pa_deriv_s FROM salvia.form_section
+  WHERE form_id = v_form_pa AND name = 'Derivación a equipos SALVIA' AND deleted_at IS NULL
+  LIMIT 1;
+  IF v_pa_deriv_s IS NULL THEN
+    INSERT INTO salvia.form_section (id, form_id, name, description, "order")
+    VALUES (gen_random_uuid(), v_form_pa,
+            'Derivación a equipos SALVIA',
+            'Visible cuando la sesión fue atención efectiva (trigger: ¿Es atención o solo contacto? = atencion). '
+            'Permite registrar necesidades de remisión a equipos SALVIA generadas durante la atención.', 5)
+    RETURNING id INTO v_pa_deriv_s;
+  END IF;
+
+  SELECT id INTO v_seg_deriv_s FROM salvia.form_section
+  WHERE form_id = v_form_seg AND name = 'Derivación a equipos SALVIA' AND deleted_at IS NULL
+  LIMIT 1;
+  IF v_seg_deriv_s IS NULL THEN
+    INSERT INTO salvia.form_section (id, form_id, name, description, "order")
+    VALUES (gen_random_uuid(), v_form_seg,
+            'Derivación a equipos SALVIA',
+            'Visible cuando la sesión fue atención efectiva (trigger: ¿Es atención o solo contacto? = atencion). '
+            'Permite registrar necesidades de remisión a equipos SALVIA generadas durante la atención.', 5)
+    RETURNING id INTO v_seg_deriv_s;
+  END IF;
+
+  SELECT id INTO v_cie_deriv_s FROM salvia.form_section
+  WHERE form_id = v_form_cie AND name = 'Derivación a equipos SALVIA' AND deleted_at IS NULL
+  LIMIT 1;
+  IF v_cie_deriv_s IS NULL THEN
+    INSERT INTO salvia.form_section (id, form_id, name, description, "order")
+    VALUES (gen_random_uuid(), v_form_cie,
+            'Derivación a equipos SALVIA',
+            'Visible cuando la sesión fue atención efectiva (trigger: ¿Es atención o solo contacto? = atencion). '
+            'Se ubica después de las secciones de Atención Psicosocial y Cierre.', 6)
+    RETURNING id INTO v_cie_deriv_s;
+  END IF;
+
+  -- ── 2. Insertar preguntas con ON CONFLICT (id) DO NOTHING ───────────────────
+  -- Opciones de equipos (reutilizadas en los 4 formularios)
+
+  -- ─── Form PC ─────────────────────────────────────────────────────────────────
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_pc_q1, v_form_pc::varchar, v_pc_deriv_s::varchar, 'boolean',
+          '¿Durante la atención se han generado necesidades que requieran remisión a los equipos SALVIA?',
+          TRUE, 1)
+  ON CONFLICT (id) DO NOTHING;
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_pc_q2, v_form_pc::varchar, v_pc_deriv_s::varchar, 'multiple', '¿Cuáles equipos?', TRUE, 2)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_pc_q2, t.label, t.value, t.ord
+  FROM (VALUES
+    ('Medidas de Emergencia','medidas_emergencia',1),
+    ('Estabilización','estabilizacion',2),
+    ('Atención Hombres','atencion_hombres',3),
+    ('Salvia Dignidad','salvia_dignidad',4),
+    ('Discapacidad','discapacidad',5)
+  ) AS t(label,value,ord)
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_pc_q2 AND value = t.value);
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_pc_q3, v_form_pc::varchar, v_pc_deriv_s::varchar, 'multiple', '¿Cuáles medidas de emergencia?', FALSE, 3)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_pc_q3, t.label, t.value, t.ord
+  FROM (VALUES
+    ('Medida de protección','medida_proteccion',1),
+    ('Carabina / Botón de pánico','boton_panico',2),
+    ('Casa de acogida','casa_acogida',3),
+    ('Reubicación','reubicacion',4),
+    ('Gestión seguridad física en el hogar','gestion_seguridad_fisica',5),
+    ('Subsidio de vivienda temporal','subsidio_vivienda',6),
+    ('Medida de alejamiento','medida_alejamiento',7),
+    ('Custodia y cuidado de hijos e hijas','custodia_hijos',8)
+  ) AS t(label,value,ord)
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_pc_q3 AND value = t.value);
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_pc_q4, v_form_pc::varchar, v_pc_deriv_s::varchar, 'multiple', 'Criterios de remisión — Atención Hombres', FALSE, 4)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_pc_q4, 'Criterio de remisión', 'criterio_hombres', 1
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_pc_q4 AND value = 'criterio_hombres');
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_pc_q5, v_form_pc::varchar, v_pc_deriv_s::varchar, 'multiple', 'Criterios de remisión — Salvia Dignidad', FALSE, 5)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_pc_q5, t.label, t.value, t.ord
+  FROM (VALUES
+    ('Mujer con orientación sexual diversa (lesbiana, bisexual)','osigd_mujer',1),
+    ('Persona no binaria','persona_no_binaria',2)
+  ) AS t(label,value,ord)
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_pc_q5 AND value = t.value);
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_pc_q6, v_form_pc::varchar, v_pc_deriv_s::varchar, 'multiple', 'Criterios de remisión — Estabilización', FALSE, 6)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_pc_q6, t.label, t.value, t.ord
+  FROM (VALUES
+    ('Mujer víctima de violencia con necesidades de estabilización económica','estabilizacion_economica',1),
+    ('Mujer en situación de vulnerabilidad extrema o indigencia','vulnerabilidad_extrema',2),
+    ('Mujer desplazada o migrante que requiere apoyo para su estabilización social','desplazada_migrante',3)
+  ) AS t(label,value,ord)
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_pc_q6 AND value = t.value);
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_pc_q7, v_form_pc::varchar, v_pc_deriv_s::varchar, 'text',
+          'Describa los elementos que evidencia para realizar la remisión', TRUE, 7)
+  ON CONFLICT (id) DO NOTHING;
+
+  -- ─── Form PA ─────────────────────────────────────────────────────────────────
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_pa_q1, v_form_pa::varchar, v_pa_deriv_s::varchar, 'boolean',
+          '¿Durante la atención se han generado necesidades que requieran remisión a los equipos SALVIA?',
+          TRUE, 1)
+  ON CONFLICT (id) DO NOTHING;
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_pa_q2, v_form_pa::varchar, v_pa_deriv_s::varchar, 'multiple', '¿Cuáles equipos?', TRUE, 2)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_pa_q2, t.label, t.value, t.ord
+  FROM (VALUES
+    ('Medidas de Emergencia','medidas_emergencia',1),
+    ('Estabilización','estabilizacion',2),
+    ('Atención Hombres','atencion_hombres',3),
+    ('Salvia Dignidad','salvia_dignidad',4),
+    ('Discapacidad','discapacidad',5)
+  ) AS t(label,value,ord)
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_pa_q2 AND value = t.value);
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_pa_q3, v_form_pa::varchar, v_pa_deriv_s::varchar, 'multiple', '¿Cuáles medidas de emergencia?', FALSE, 3)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_pa_q3, t.label, t.value, t.ord
+  FROM (VALUES
+    ('Medida de protección','medida_proteccion',1),
+    ('Carabina / Botón de pánico','boton_panico',2),
+    ('Casa de acogida','casa_acogida',3),
+    ('Reubicación','reubicacion',4),
+    ('Gestión seguridad física en el hogar','gestion_seguridad_fisica',5),
+    ('Subsidio de vivienda temporal','subsidio_vivienda',6),
+    ('Medida de alejamiento','medida_alejamiento',7),
+    ('Custodia y cuidado de hijos e hijas','custodia_hijos',8)
+  ) AS t(label,value,ord)
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_pa_q3 AND value = t.value);
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_pa_q4, v_form_pa::varchar, v_pa_deriv_s::varchar, 'multiple', 'Criterios de remisión — Atención Hombres', FALSE, 4)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_pa_q4, 'Criterio de remisión', 'criterio_hombres', 1
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_pa_q4 AND value = 'criterio_hombres');
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_pa_q5, v_form_pa::varchar, v_pa_deriv_s::varchar, 'multiple', 'Criterios de remisión — Salvia Dignidad', FALSE, 5)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_pa_q5, t.label, t.value, t.ord
+  FROM (VALUES
+    ('Mujer con orientación sexual diversa (lesbiana, bisexual)','osigd_mujer',1),
+    ('Persona no binaria','persona_no_binaria',2)
+  ) AS t(label,value,ord)
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_pa_q5 AND value = t.value);
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_pa_q6, v_form_pa::varchar, v_pa_deriv_s::varchar, 'multiple', 'Criterios de remisión — Estabilización', FALSE, 6)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_pa_q6, t.label, t.value, t.ord
+  FROM (VALUES
+    ('Mujer víctima de violencia con necesidades de estabilización económica','estabilizacion_economica',1),
+    ('Mujer en situación de vulnerabilidad extrema o indigencia','vulnerabilidad_extrema',2),
+    ('Mujer desplazada o migrante que requiere apoyo para su estabilización social','desplazada_migrante',3)
+  ) AS t(label,value,ord)
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_pa_q6 AND value = t.value);
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_pa_q7, v_form_pa::varchar, v_pa_deriv_s::varchar, 'text',
+          'Describa los elementos que evidencia para realizar la remisión', TRUE, 7)
+  ON CONFLICT (id) DO NOTHING;
+
+  -- ─── Form SEG ─────────────────────────────────────────────────────────────────
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_seg_q1, v_form_seg::varchar, v_seg_deriv_s::varchar, 'boolean',
+          '¿Durante la atención se han generado necesidades que requieran remisión a los equipos SALVIA?',
+          TRUE, 1)
+  ON CONFLICT (id) DO NOTHING;
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_seg_q2, v_form_seg::varchar, v_seg_deriv_s::varchar, 'multiple', '¿Cuáles equipos?', TRUE, 2)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_seg_q2, t.label, t.value, t.ord
+  FROM (VALUES
+    ('Medidas de Emergencia','medidas_emergencia',1),
+    ('Estabilización','estabilizacion',2),
+    ('Atención Hombres','atencion_hombres',3),
+    ('Salvia Dignidad','salvia_dignidad',4),
+    ('Discapacidad','discapacidad',5)
+  ) AS t(label,value,ord)
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_seg_q2 AND value = t.value);
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_seg_q3, v_form_seg::varchar, v_seg_deriv_s::varchar, 'multiple', '¿Cuáles medidas de emergencia?', FALSE, 3)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_seg_q3, t.label, t.value, t.ord
+  FROM (VALUES
+    ('Medida de protección','medida_proteccion',1),
+    ('Carabina / Botón de pánico','boton_panico',2),
+    ('Casa de acogida','casa_acogida',3),
+    ('Reubicación','reubicacion',4),
+    ('Gestión seguridad física en el hogar','gestion_seguridad_fisica',5),
+    ('Subsidio de vivienda temporal','subsidio_vivienda',6),
+    ('Medida de alejamiento','medida_alejamiento',7),
+    ('Custodia y cuidado de hijos e hijas','custodia_hijos',8)
+  ) AS t(label,value,ord)
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_seg_q3 AND value = t.value);
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_seg_q4, v_form_seg::varchar, v_seg_deriv_s::varchar, 'multiple', 'Criterios de remisión — Atención Hombres', FALSE, 4)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_seg_q4, 'Criterio de remisión', 'criterio_hombres', 1
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_seg_q4 AND value = 'criterio_hombres');
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_seg_q5, v_form_seg::varchar, v_seg_deriv_s::varchar, 'multiple', 'Criterios de remisión — Salvia Dignidad', FALSE, 5)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_seg_q5, t.label, t.value, t.ord
+  FROM (VALUES
+    ('Mujer con orientación sexual diversa (lesbiana, bisexual)','osigd_mujer',1),
+    ('Persona no binaria','persona_no_binaria',2)
+  ) AS t(label,value,ord)
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_seg_q5 AND value = t.value);
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_seg_q6, v_form_seg::varchar, v_seg_deriv_s::varchar, 'multiple', 'Criterios de remisión — Estabilización', FALSE, 6)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_seg_q6, t.label, t.value, t.ord
+  FROM (VALUES
+    ('Mujer víctima de violencia con necesidades de estabilización económica','estabilizacion_economica',1),
+    ('Mujer en situación de vulnerabilidad extrema o indigencia','vulnerabilidad_extrema',2),
+    ('Mujer desplazada o migrante que requiere apoyo para su estabilización social','desplazada_migrante',3)
+  ) AS t(label,value,ord)
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_seg_q6 AND value = t.value);
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_seg_q7, v_form_seg::varchar, v_seg_deriv_s::varchar, 'text',
+          'Describa los elementos que evidencia para realizar la remisión', TRUE, 7)
+  ON CONFLICT (id) DO NOTHING;
+
+  -- ─── Form CIE ─────────────────────────────────────────────────────────────────
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_cie_q1, v_form_cie::varchar, v_cie_deriv_s::varchar, 'boolean',
+          '¿Durante la atención se han generado necesidades que requieran remisión a los equipos SALVIA?',
+          TRUE, 1)
+  ON CONFLICT (id) DO NOTHING;
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_cie_q2, v_form_cie::varchar, v_cie_deriv_s::varchar, 'multiple', '¿Cuáles equipos?', TRUE, 2)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_cie_q2, t.label, t.value, t.ord
+  FROM (VALUES
+    ('Medidas de Emergencia','medidas_emergencia',1),
+    ('Estabilización','estabilizacion',2),
+    ('Atención Hombres','atencion_hombres',3),
+    ('Salvia Dignidad','salvia_dignidad',4),
+    ('Discapacidad','discapacidad',5)
+  ) AS t(label,value,ord)
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_cie_q2 AND value = t.value);
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_cie_q3, v_form_cie::varchar, v_cie_deriv_s::varchar, 'multiple', '¿Cuáles medidas de emergencia?', FALSE, 3)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_cie_q3, t.label, t.value, t.ord
+  FROM (VALUES
+    ('Medida de protección','medida_proteccion',1),
+    ('Carabina / Botón de pánico','boton_panico',2),
+    ('Casa de acogida','casa_acogida',3),
+    ('Reubicación','reubicacion',4),
+    ('Gestión seguridad física en el hogar','gestion_seguridad_fisica',5),
+    ('Subsidio de vivienda temporal','subsidio_vivienda',6),
+    ('Medida de alejamiento','medida_alejamiento',7),
+    ('Custodia y cuidado de hijos e hijas','custodia_hijos',8)
+  ) AS t(label,value,ord)
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_cie_q3 AND value = t.value);
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_cie_q4, v_form_cie::varchar, v_cie_deriv_s::varchar, 'multiple', 'Criterios de remisión — Atención Hombres', FALSE, 4)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_cie_q4, 'Criterio de remisión', 'criterio_hombres', 1
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_cie_q4 AND value = 'criterio_hombres');
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_cie_q5, v_form_cie::varchar, v_cie_deriv_s::varchar, 'multiple', 'Criterios de remisión — Salvia Dignidad', FALSE, 5)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_cie_q5, t.label, t.value, t.ord
+  FROM (VALUES
+    ('Mujer con orientación sexual diversa (lesbiana, bisexual)','osigd_mujer',1),
+    ('Persona no binaria','persona_no_binaria',2)
+  ) AS t(label,value,ord)
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_cie_q5 AND value = t.value);
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_cie_q6, v_form_cie::varchar, v_cie_deriv_s::varchar, 'multiple', 'Criterios de remisión — Estabilización', FALSE, 6)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO salvia.option (id, question_id, label, value, "order")
+  SELECT gen_random_uuid()::varchar, v_cie_q6, t.label, t.value, t.ord
+  FROM (VALUES
+    ('Mujer víctima de violencia con necesidades de estabilización económica','estabilizacion_economica',1),
+    ('Mujer en situación de vulnerabilidad extrema o indigencia','vulnerabilidad_extrema',2),
+    ('Mujer desplazada o migrante que requiere apoyo para su estabilización social','desplazada_migrante',3)
+  ) AS t(label,value,ord)
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.option WHERE question_id = v_cie_q6 AND value = t.value);
+
+  INSERT INTO salvia.question (id, form_id, form_section_id, question_type, description, required, "order")
+  VALUES (v_cie_q7, v_form_cie::varchar, v_cie_deriv_s::varchar, 'text',
+          'Describa los elementos que evidencia para realizar la remisión', TRUE, 7)
+  ON CONFLICT (id) DO NOTHING;
+
+  -- ── 3. Visibility conditions de preguntas (idempotente WHERE NOT EXISTS) ─────
+
+  -- PC — Q2 visible si Q1 = true
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_pc_q2, v_pc_q1, 'true', 'EQUALS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_pc_q2 AND trigger_question_id = v_pc_q1 AND trigger_value = 'true');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_pc_q3, v_pc_q2, 'medidas_emergencia', 'CONTAINS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_pc_q3 AND trigger_question_id = v_pc_q2 AND trigger_value = 'medidas_emergencia');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_pc_q4, v_pc_q2, 'atencion_hombres', 'CONTAINS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_pc_q4 AND trigger_question_id = v_pc_q2 AND trigger_value = 'atencion_hombres');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_pc_q5, v_pc_q2, 'salvia_dignidad', 'CONTAINS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_pc_q5 AND trigger_question_id = v_pc_q2 AND trigger_value = 'salvia_dignidad');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_pc_q6, v_pc_q2, 'estabilizacion', 'CONTAINS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_pc_q6 AND trigger_question_id = v_pc_q2 AND trigger_value = 'estabilizacion');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_pc_q7, v_pc_q1, 'true', 'EQUALS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_pc_q7 AND trigger_question_id = v_pc_q1 AND trigger_value = 'true');
+
+  -- PA — Q2..Q7
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_pa_q2, v_pa_q1, 'true', 'EQUALS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_pa_q2 AND trigger_question_id = v_pa_q1 AND trigger_value = 'true');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_pa_q3, v_pa_q2, 'medidas_emergencia', 'CONTAINS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_pa_q3 AND trigger_question_id = v_pa_q2 AND trigger_value = 'medidas_emergencia');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_pa_q4, v_pa_q2, 'atencion_hombres', 'CONTAINS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_pa_q4 AND trigger_question_id = v_pa_q2 AND trigger_value = 'atencion_hombres');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_pa_q5, v_pa_q2, 'salvia_dignidad', 'CONTAINS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_pa_q5 AND trigger_question_id = v_pa_q2 AND trigger_value = 'salvia_dignidad');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_pa_q6, v_pa_q2, 'estabilizacion', 'CONTAINS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_pa_q6 AND trigger_question_id = v_pa_q2 AND trigger_value = 'estabilizacion');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_pa_q7, v_pa_q1, 'true', 'EQUALS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_pa_q7 AND trigger_question_id = v_pa_q1 AND trigger_value = 'true');
+
+  -- SEG — Q2..Q7
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_seg_q2, v_seg_q1, 'true', 'EQUALS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_seg_q2 AND trigger_question_id = v_seg_q1 AND trigger_value = 'true');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_seg_q3, v_seg_q2, 'medidas_emergencia', 'CONTAINS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_seg_q3 AND trigger_question_id = v_seg_q2 AND trigger_value = 'medidas_emergencia');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_seg_q4, v_seg_q2, 'atencion_hombres', 'CONTAINS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_seg_q4 AND trigger_question_id = v_seg_q2 AND trigger_value = 'atencion_hombres');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_seg_q5, v_seg_q2, 'salvia_dignidad', 'CONTAINS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_seg_q5 AND trigger_question_id = v_seg_q2 AND trigger_value = 'salvia_dignidad');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_seg_q6, v_seg_q2, 'estabilizacion', 'CONTAINS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_seg_q6 AND trigger_question_id = v_seg_q2 AND trigger_value = 'estabilizacion');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_seg_q7, v_seg_q1, 'true', 'EQUALS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_seg_q7 AND trigger_question_id = v_seg_q1 AND trigger_value = 'true');
+
+  -- CIE — Q2..Q7
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_cie_q2, v_cie_q1, 'true', 'EQUALS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_cie_q2 AND trigger_question_id = v_cie_q1 AND trigger_value = 'true');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_cie_q3, v_cie_q2, 'medidas_emergencia', 'CONTAINS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_cie_q3 AND trigger_question_id = v_cie_q2 AND trigger_value = 'medidas_emergencia');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_cie_q4, v_cie_q2, 'atencion_hombres', 'CONTAINS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_cie_q4 AND trigger_question_id = v_cie_q2 AND trigger_value = 'atencion_hombres');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_cie_q5, v_cie_q2, 'salvia_dignidad', 'CONTAINS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_cie_q5 AND trigger_question_id = v_cie_q2 AND trigger_value = 'salvia_dignidad');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_cie_q6, v_cie_q2, 'estabilizacion', 'CONTAINS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_cie_q6 AND trigger_question_id = v_cie_q2 AND trigger_value = 'estabilizacion');
+
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'QUESTION', v_cie_q7, v_cie_q1, 'true', 'EQUALS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_cie_q7 AND trigger_question_id = v_cie_q1 AND trigger_value = 'true');
+
+  -- ── 4. Visibility conditions de secciones ────────────────────────────────────
+
+  -- PC  S5 "Derivación" visible cuando Q12 "Continuar Primera Atención" = true
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'SECTION', v_pc_deriv_s::varchar, v_pc_trigger, 'true', 'EQUALS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_pc_deriv_s::varchar AND trigger_question_id = v_pc_trigger AND trigger_value = 'true');
+
+  -- PA  S5 "Derivación" visible cuando Q8 "¿Es atención o solo contacto?" = atencion
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'SECTION', v_pa_deriv_s::varchar, v_pa_trigger, 'atencion', 'EQUALS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_pa_deriv_s::varchar AND trigger_question_id = v_pa_trigger AND trigger_value = 'atencion');
+
+  -- SEG S5 "Derivación" visible cuando Q9 "¿Es atención o solo contacto?" = atencion
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'SECTION', v_seg_deriv_s::varchar, v_seg_trigger, 'atencion', 'EQUALS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_seg_deriv_s::varchar AND trigger_question_id = v_seg_trigger AND trigger_value = 'atencion');
+
+  -- CIE S6 "Derivación" visible cuando Q9 "¿Es atención o solo contacto?" = atencion
+  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_value, operator)
+  SELECT gen_random_uuid()::varchar, 'SECTION', v_cie_deriv_s::varchar, v_cie_trigger, 'atencion', 'EQUALS'
+  WHERE NOT EXISTS (SELECT 1 FROM salvia.visibility_condition WHERE target_id = v_cie_deriv_s::varchar AND trigger_question_id = v_cie_trigger AND trigger_value = 'atencion');
+
+  RAISE NOTICE '=== MIGRATE Sep 2026: Derivación a equipos SALVIA ===';
+  RAISE NOTICE '  PC  sección: %  Q1: %', v_pc_deriv_s, v_pc_q1;
+  RAISE NOTICE '  PA  sección: %  Q1: %', v_pa_deriv_s, v_pa_q1;
+  RAISE NOTICE '  SEG sección: %  Q1: %', v_seg_deriv_s, v_seg_q1;
+  RAISE NOTICE '  CIE sección: %  Q1: %', v_cie_deriv_s, v_cie_q1;
+
+END $$;
+
 COMMIT;
