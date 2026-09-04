@@ -249,10 +249,10 @@
                 this.availableSocialWorkers = (this.socialWorkers || []).slice();
 
                 this.warningPs = this.availablePsychologists.length === 0
-                    ? 'Todas las psicólogas están asignadas a una dupla.'
+                    ? 'Todos los profesionales en Psicología están asignados a una dupla.'
                     : null;
                 this.warningTs = this.availableSocialWorkers.length === 0
-                    ? 'No hay trabajadoras sociales activas.'
+                    ? 'No hay profesionales en Trabajo Social activos.'
                     : null;
             },
 
@@ -297,7 +297,7 @@
                 var socialWorkerId = this.form.socialWorkerId || '';
 
                 if (!name || name.length > 36 || !psychologistId || !socialWorkerId || psychologistId === socialWorkerId) {
-                    this.saveError = 'Completa nombre, psicóloga y trabajadora social.';
+                    this.saveError = 'Completa nombre, profesional en Psicología y profesional en Trabajo Social.';
                     return;
                 }
 
@@ -421,7 +421,7 @@
                         self.deleteTarget = null;
                         self.deleteError = null;
                         self.blockedMessage = (result.data && result.data.message)
-                            || 'Esta dupla no se puede eliminar porque se está utilizando en una sesión.';
+                            || 'Esta dupla no se puede eliminar porque se está utilizando en una atención.';
                         self.modal.kind = 'deleteBlocked';
                         self.modal.visible = true;
                         return;

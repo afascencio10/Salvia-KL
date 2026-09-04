@@ -2313,6 +2313,15 @@ func (s *formService) processPsicosocialSessionSubmission(ctx context.Context, f
 		return fmt.Errorf("processPsicosocialSessionSubmission: no se pudo determinar sessionType para formID=%s", formID)
 	}
 
+	var formQuestions []models.Question
+	if s.questionRepo != nil {
+		if qs, err := s.questionRepo.FindByFormID(ctx, formID); err == nil {
+			formQuestions = qs
+		} else {
+			log.Printf("[processPsicosocialSessionSubmission] advertencia: FindByFormID: %v", err)
+		}
+	}
+
 	// ── Actualizar team_contact ──────────────────────────────────────────────
 	now := time.Now()
 	tc.SessionType = &sessionType
@@ -2320,6 +2329,16 @@ func (s *formService) processPsicosocialSessionSubmission(ctx context.Context, f
 	tc.CompletedAt = &now
 	if sessionType == models.SessionTypeContactoSinAtencion {
 		tc.IsPsicoSession = false
+	}
+	// Observaciones registradas por el equipo psicosocial en el formulario de contacto
+	// (pregunta "Observaciones" / "Observaciones del contacto", presente en todos los
+	// formularios psicosociales) + quién las escribió, para mostrarlas en la tabla de
+	// sesiones de la pestaña Derivaciones sin tener que abrir el detalle de la remisión.
+	if obs := extractPsicosocialObservations(formQuestions, answerMap); obs != "" {
+		tc.Observations = &obs
+	}
+	if actorName != "" {
+		tc.RegisteredByName = &actorName
 	}
 	if err := s.teamContactRepo.Update(ctx, tc); err != nil {
 		return fmt.Errorf("processPsicosocialSessionSubmission: actualizar team_contact: %w", err)
@@ -2369,14 +2388,6 @@ func (s *formService) processPsicosocialSessionSubmission(ctx context.Context, f
 	// No aplica si la remisión se está cerrando en esta misma sesión (sessionType == CIERRE).
 	if sessionType != models.SessionTypeCierre {
 		agenda := extractAgendaAnswers(formID, answerMap)
-		var formQuestions []models.Question
-		if s.questionRepo != nil {
-			if qs, err := s.questionRepo.FindByFormID(ctx, formID); err == nil {
-				formQuestions = qs
-			} else {
-				log.Printf("[processPsicosocialSessionSubmission] advertencia: FindByFormID: %v", err)
-			}
-		}
 		agenda.Mode = resolvePsicosocialAgendaMode(answerMap, formQuestions, ps)
 		if agenda.ShouldSchedule {
 			if err := s.scheduleNextPsicosocialContact(ctx, ps, agenda.Fecha, agenda.Hora, agenda.Mode); err != nil {
@@ -2431,6 +2442,23 @@ func (s *formService) processPsicosocialSessionSubmission(ctx context.Context, f
 		ps.ID, sessionType, ps.SessionCount, ps.Status, ps.YaHizoPrimerContacto, ps.YaHizoPrimeraAtencion)
 
 	return nil
+}
+
+// extractPsicosocialObservations junta las respuestas de las preguntas "Observaciones"
+// (S1, siempre visible) y "Observaciones del contacto" / "Observaciones" (S4, si aplica)
+// de los 4 formularios psicosociales. Ambas pueden venir con contenido en la misma
+// sesión (Primer Contacto S4, Primera Atención S4) — se concatenan en orden de sección.
+func extractPsicosocialObservations(questions []models.Question, answerMap map[string]string) string {
+	var parts []string
+	for _, q := range questions {
+		if q.RepeaterGroupID != nil || !strings.HasPrefix(q.Description, "Observaciones") {
+			continue
+		}
+		if v := strings.TrimSpace(answerMap[q.ID]); v != "" {
+			parts = append(parts, v)
+		}
+	}
+	return strings.Join(parts, " | ")
 }
 
 // processPsicosocialHechosViolenciaTimeline crea un CaseTimelineEvent TimelineTypeHechosCaso

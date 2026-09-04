@@ -187,7 +187,7 @@ app.component('registrar-contacto-modal', {
 <div v-if="visible" class="rcm-overlay" @click.self="cerrar">
     <div class="rcm-modal">
         <p class="rcm-title">Registrar contacto</p>
-        <p class="rcm-subtitle">Selecciona cómo deseas registrar este contacto con la paciente.</p>
+        <p class="rcm-subtitle">Selecciona cómo deseas registrar este contacto con la cuidadora.</p>
 
         <!-- Opciones -->
         <div :class="['rcm-option-card', modo === 'inmediato' ? 'active' : '']" @click="seleccionarModo('inmediato')">
@@ -196,7 +196,7 @@ app.component('registrar-contacto-modal', {
         </div>
         <div :class="['rcm-option-card', modo === 'programado' ? 'active' : '']" @click="seleccionarModo('programado')">
             <p class="rcm-option-title">📅 Programar contacto</p>
-            <p class="rcm-option-desc">Agendar una sesión para una fecha y hora específica (se valida disponibilidad).</p>
+            <p class="rcm-option-desc">Agendar una atención para una fecha y hora específica (se valida disponibilidad).</p>
         </div>
 
         <!-- Campos para programado -->
@@ -227,7 +227,7 @@ app.component('registrar-contacto-modal', {
         <div class="rcm-footer">
             <button class="rcm-btn-cancel" @click="cerrar">Cancelar</button>
             <button class="rcm-btn-save" :disabled="!puedeGuardar || guardando" @click="guardar">
-                \${ guardando ? 'Guardando...' : (modo === 'inmediato' ? 'Iniciar atención' : 'Agendar sesión') }
+                \${ guardando ? 'Guardando...' : (modo === 'inmediato' ? 'Iniciar atención' : 'Agendar atención') }
             </button>
         </div>
     </div>

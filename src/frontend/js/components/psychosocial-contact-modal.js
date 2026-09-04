@@ -221,10 +221,10 @@ app.component('psychosocial-contact-modal', {
             }).then(function(res) {
                 return res.json().then(function(json) {
                     self.loading = false;
-                    if (!res.ok) { self.showError(json.error || 'Error al agendar la sesión'); return; }
+                    if (!res.ok) { self.showError(json.error || 'Error al agendar la atención'); return; }
                     self.$emit('completed', { type: 'scheduled', psicosocialId: self.proc.id, sessionId: json.session ? json.session.id : null });
                     if (immediate && json.redirectUrl) {
-                        self.futureNote('Sesión inmediata creada. El formulario de atención está pendiente de implementar (' + json.redirectUrl + ').');
+                        self.futureNote('Atención inmediata creada. El formulario de atención está pendiente de implementar (' + json.redirectUrl + ').');
                     }
                     self.closeAll();
                     self.flashSuccess();
@@ -349,16 +349,16 @@ app.component('psychosocial-contact-modal', {
       <div v-if="modalSesion" class="psc-modal-overlay" @click.self="closeAll">
         <div class="psc-modal-content">
           <div class="psc-icon" style="background:#f0fdf4;color:#16a34a;"><i class="far fa-calendar-check"></i></div>
-          <h3 class="psc-title">¿Cuándo se realiza la sesión?</h3>
+          <h3 class="psc-title">¿Cuándo se realiza la atención?</h3>
           <p class="psc-sub" style="margin-bottom:1.25rem;">Puedes iniciarla de inmediato o agendarla</p>
           <div class="psc-stack">
             <button class="psc-btn psc-btn-primary" :disabled="loading" @click="scheduleSession(true)">De inmediato</button>
             <div style="border-top:1px solid #e5e7eb;margin:.4rem 0;"></div>
             <label class="psc-label">Agendar — Fecha</label>
-            <input type="date" class="psc-input" v-model="scheduledDate" aria-label="Fecha de la sesión">
+            <input type="date" class="psc-input" v-model="scheduledDate" aria-label="Fecha de la atención">
             <label class="psc-label">Agendar — Hora</label>
-            <input type="time" class="psc-input" v-model="scheduledTime" aria-label="Hora de la sesión">
-            <button class="psc-btn psc-btn-ghost" :disabled="loading" @click="scheduleSession(false)">Agendar sesión</button>
+            <input type="time" class="psc-input" v-model="scheduledTime" aria-label="Hora de la atención">
+            <button class="psc-btn psc-btn-ghost" :disabled="loading" @click="scheduleSession(false)">Agendar atención</button>
           </div>
           <button class="psc-cancel" :disabled="loading" @click="closeAll">CANCELAR</button>
         </div>

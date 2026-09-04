@@ -29,7 +29,9 @@ import (
 //	    summary             TEXT,
 //	    is_psico_session    BOOLEAN DEFAULT false,
 //	    form_id             VARCHAR(36),
-//	    session_type        VARCHAR(30)
+//	    session_type        VARCHAR(30),
+//	    observations        TEXT,
+//	    registered_by_name  VARCHAR(255)
 //	);
 type TeamContact struct {
 	ID               string  `gorm:"type:varchar(36);primaryKey;default:gen_random_uuid()" json:"id"`
@@ -54,6 +56,12 @@ type TeamContact struct {
 	CompletedAt    *time.Time     `gorm:"column:completed_at" json:"completedAt"`
 	Summary        *string        `gorm:"type:text" json:"summary"`
 	IsPsicoSession bool           `gorm:"column:is_psico_session;default:false" json:"isPsicoSession"`
+	// Observations y RegisteredByName se completan al procesar el formulario de contacto
+	// de una sesión psicosocial realizada (ver processPsicosocialSessionSubmission):
+	// texto de la(s) pregunta(s) "Observaciones" del formulario, y nombre de quien lo
+	// diligenció — se muestran en la tabla de sesiones de la pestaña Derivaciones.
+	Observations     *string `gorm:"type:text;column:observations" json:"observations,omitempty"`
+	RegisteredByName *string `gorm:"type:varchar(255);column:registered_by_name" json:"registeredByName,omitempty"`
 	CreatedAt      time.Time      `json:"createdAt"`
 	UpdatedAt      time.Time      `json:"updatedAt"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deletedAt,omitempty"`

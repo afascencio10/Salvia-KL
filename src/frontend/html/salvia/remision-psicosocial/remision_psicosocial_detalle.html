@@ -100,7 +100,7 @@
 
         <!-- Sesiones counter con circulitos -->
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding:0 4px">
-            <span style="font-size:.78rem;color:#6b7280">Sesiones (4–6)</span>
+            <span style="font-size:.78rem;color:#6b7280">Atenciones (4–6)</span>
             <span v-for="n in 6" :key="'s'+n" style="width:10px;height:10px;border-radius:50%" :style="n <= sesionesRealizadas ? 'background:#5106A7' : 'background:#e5e7eb'"></span>
             <span style="font-size:.75rem;color:#9ca3af;margin-left:4px">${ sesionesRealizadas } realizadas</span>
         </div>
@@ -168,7 +168,7 @@
             <!-- Preferencia de horario -->
             <div style="margin-top:24px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px">
                 <div style="display:flex;align-items:center;justify-content:space-between">
-                    <p style="font-size:.72rem;font-weight:700;color:#1d4ed8;text-transform:uppercase;margin:0">🔒 Preferencia de horario de la paciente <span style="font-weight:400;text-transform:none">(solo equipo psicosocial)</span></p>
+                    <p style="font-size:.72rem;font-weight:700;color:#1d4ed8;text-transform:uppercase;margin:0">🔒 Preferencia de horario de la cuidadora <span style="font-weight:400;text-transform:none">(solo equipo psicosocial)</span></p>
                     <button v-if="!editandoHorario" @click="editandoHorario = true; nuevoHorario = remision.schedulePreference || ''" style="font-size:.75rem;color:#5106A7;font-weight:600;background:none;border:none;cursor:pointer">Editar</button>
                 </div>
                 <div v-if="!editandoHorario" style="margin-top:8px">
@@ -231,10 +231,10 @@
                                 ${ fechaContacto(contact) }
                             </div>
                             <div style="font-size:.88rem;font-weight:700;color:#111827" :style="contact.status === 'cancelada' ? 'text-decoration:line-through;color:#9ca3af' : ''">
-                                <span v-if="contact.status === 'cancelada'">Sesión ${ contarSesionesHasta(idx) } cancelada</span>
-                                <span v-else-if="contact.isPsicoSession && contact.isCompleted">Sesión ${ contarSesionesHasta(idx) } realizada</span>
-                                <span v-else-if="contact.isPsicoSession && !contact.isCompleted">Sesión ${ contarSesionesHasta(idx) } agendada</span>
-                                <span v-else>Contacto sin sesión</span>
+                                <span v-if="contact.status === 'cancelada'">Atención ${ contarSesionesHasta(idx) } cancelada</span>
+                                <span v-else-if="contact.isPsicoSession && contact.isCompleted">Atención ${ contarSesionesHasta(idx) } realizada</span>
+                                <span v-else-if="contact.isPsicoSession && !contact.isCompleted">Atención ${ contarSesionesHasta(idx) } agendada</span>
+                                <span v-else>Contacto sin atención</span>
                                 <span v-if="contact.sessionType"> — ${ labelSessionType(contact.sessionType) }</span>
                             </div>
                             <div v-if="contact.summary" style="font-size:.8rem;color:#6b7280;margin-top:4px">${ contact.summary }</div>
@@ -253,12 +253,12 @@
                 <!-- Botones -->
                 <div style="display:flex;gap:8px;margin-top:12px;padding-left:48px">
                     <!-- Ver sesión: solo si está completada Y (es ps/ts O la remisión está cerrada) -->
-                    <button v-if="contact.isCompleted && (esProfesionalPsico || remision.status === 'cerrado')" @click="verSesion(contact)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #5106A7;background:#fff;color:#5106A7;cursor:pointer;font-weight:600">Ver sesión</button>
+                    <button v-if="contact.isCompleted && (esProfesionalPsico || remision.status === 'cerrado')" @click="verSesion(contact)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #5106A7;background:#fff;color:#5106A7;cursor:pointer;font-weight:600">Ver atención</button>
                     <!-- Registrar sesión, reprogramar, cancelar: solo ps/ts y remisión no cerrada -->
                     <template v-if="esProfesionalPsico && contact.isPsicoSession && !contact.isCompleted && contact.status !== 'cancelada' && remision.status !== 'cerrado'">
-                        <button @click="registrarSesion(contact)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:none;background:#5106A7;color:#fff;cursor:pointer;font-weight:600">Registrar sesión</button>
+                        <button @click="registrarSesion(contact)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:none;background:#5106A7;color:#fff;cursor:pointer;font-weight:600">Registrar atención</button>
                         <button @click="abrirReprogramar(contact, idx)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;color:#374151;cursor:pointer;font-weight:500">Reprogramar</button>
-                        <button @click="cancelarSesion(contact)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #fecaca;background:#fff;color:#dc2626;cursor:pointer;font-weight:500">Cancelar sesión</button>
+                        <button @click="cancelarSesion(contact)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #fecaca;background:#fff;color:#dc2626;cursor:pointer;font-weight:500">Cancelar atención</button>
                     </template>
                 </div>
             </div>
@@ -286,7 +286,7 @@
 <!-- Modal Reprogramar sesión -->
 <div v-if="reprogramarVisible" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:10000;padding:16px" @click.self="reprogramarVisible = false">
     <div style="background:#fff;border-radius:16px;width:100%;max-width:440px;padding:32px;box-shadow:0 20px 40px rgba(0,0,0,.18)">
-        <p style="font-size:1.2rem;font-weight:800;color:#111827;margin:0 0 6px">Reprogramar sesión ${ contarSesionesHasta(reprogramarIdx) }</p>
+        <p style="font-size:1.2rem;font-weight:800;color:#111827;margin:0 0 6px">Reprogramar atención ${ contarSesionesHasta(reprogramarIdx) }</p>
         <p style="font-size:.85rem;color:#6b7280;margin:0 0 24px">Elige la nueva fecha y hora.</p>
         <div style="display:flex;gap:14px;margin-bottom:24px">
             <div style="flex:1">
@@ -313,12 +313,12 @@
         <div style="width:52px;height:52px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
             <span style="font-size:1.5rem">⚠️</span>
         </div>
-        <p style="font-size:1.05rem;font-weight:700;color:#111827;margin:0 0 8px">¿Cancelar esta sesión?</p>
-        <p style="font-size:.85rem;color:#6b7280;margin:0 0 24px;line-height:1.5">La sesión quedará marcada como cancelada en el historial. Esta acción no se puede deshacer.</p>
+        <p style="font-size:1.05rem;font-weight:700;color:#111827;margin:0 0 8px">¿Cancelar esta atención?</p>
+        <p style="font-size:.85rem;color:#6b7280;margin:0 0 24px;line-height:1.5">La atención quedará marcada como cancelada en el historial. Esta acción no se puede deshacer.</p>
         <div style="display:flex;gap:12px;justify-content:center">
             <button @click="cancelarVisible = false" style="padding:10px 24px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;color:#374151;font-size:.85rem;font-weight:600;cursor:pointer">No, volver</button>
             <button @click="confirmarCancelacion" :disabled="cancelarGuardando" style="padding:10px 24px;border-radius:10px;border:none;background:#dc2626;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer" :style="{ opacity: cancelarGuardando ? '.5' : '1' }">
-                ${ cancelarGuardando ? 'Cancelando...' : 'Sí, cancelar sesión' }
+                ${ cancelarGuardando ? 'Cancelando...' : 'Sí, cancelar atención' }
             </button>
         </div>
     </div>

@@ -16,7 +16,7 @@
         <div class="welcome-section adp-header">
             <div>
                 <h2 class="adp-title">Administrar duplas</h2>
-                <p class="adp-subtitle">Cada psicóloga puede pertenecer a una sola dupla; una trabajadora social puede estar en varias</p>
+                <p class="adp-subtitle">Cada profesional en Psicología puede pertenecer a una sola dupla; cada profesional en Trabajo Social puede estar en varias</p>
             </div>
             <button
                 type="button"
@@ -35,11 +35,11 @@
             <div class="adp-professionals">
                 <section class="adp-card">
                     <div class="adp-card-header">
-                        <h3 class="adp-card-title">Psicosociales – Psicólogas</h3>
+                        <h3 class="adp-card-title">Psicosociales – Profesionales en Psicología</h3>
                     </div>
                     <div class="adp-card-body">
                         <div v-if="psychologists.length === 0" class="adp-empty">
-                            No hay psicólogas activas.
+                            No hay profesionales en Psicología activos.
                         </div>
                         <div
                             v-for="p in psychologists"
@@ -61,11 +61,11 @@
 
                 <section class="adp-card">
                     <div class="adp-card-header">
-                        <h3 class="adp-card-title">Psicosociales – Trabajadoras sociales</h3>
+                        <h3 class="adp-card-title">Psicosociales – Profesionales en Trabajo Social</h3>
                     </div>
                     <div class="adp-card-body">
                         <div v-if="socialWorkers.length === 0" class="adp-empty">
-                            No hay trabajadoras sociales activas.
+                            No hay profesionales en Trabajo Social activos.
                         </div>
                         <div
                             v-for="p in socialWorkers"
@@ -104,12 +104,12 @@
                         <div class="adp-dupla-members">
                             <span class="adp-member">
                                 <span class="adp-avatar adp-avatar--sm">${ initialOf(d.psychologistName) }</span>
-                                <span>${ d.psychologistName } <span class="adp-member-role">(Psicóloga)</span></span>
+                                <span>${ d.psychologistName } <span class="adp-member-role">(Profesional en Psicología)</span></span>
                             </span>
                             <span class="adp-plus">+</span>
                             <span class="adp-member">
                                 <span class="adp-avatar adp-avatar--sm">${ initialOf(d.socialWorkerName) }</span>
-                                <span>${ d.socialWorkerName } <span class="adp-member-role">(Trabajadora Social)</span></span>
+                                <span>${ d.socialWorkerName } <span class="adp-member-role">(Profesional en Trabajo Social)</span></span>
                             </span>
                         </div>
                     </div>
@@ -131,7 +131,7 @@
         <div class="adp-dialog" role="dialog" aria-modal="true">
             <div class="adp-dialog-header">
                 <h3 class="adp-dialog-title">${ modal.mode === 'edit' ? 'Editar dupla' : 'Nueva dupla' }</h3>
-                <p class="adp-dialog-subtitle">Cada psicóloga solo puede pertenecer a una dupla. Una trabajadora social puede estar en varias.</p>
+                <p class="adp-dialog-subtitle">Cada profesional en Psicología solo puede pertenecer a una dupla. Cada profesional en Trabajo Social puede estar en varias.</p>
             </div>
             <div class="adp-dialog-body">
                 <div class="adp-field">
@@ -149,14 +149,14 @@
                     >
                 </div>
                 <div class="adp-field">
-                    <label for="adp-ps">Psicóloga</label>
+                    <label for="adp-ps">Profesional en Psicología</label>
                     <select
                         id="adp-ps"
                         v-model="form.psychologistId"
                         class="adp-select"
                         :disabled="isSaving || availablePsychologists.length === 0"
                     >
-                        <option value="">Seleccionar psicóloga...</option>
+                        <option value="">Seleccionar profesional en Psicología...</option>
                         <option
                             v-for="p in availablePsychologists"
                             :key="'opt-ps-' + p.icode"
@@ -166,14 +166,14 @@
                     <p v-if="warningPs" class="adp-field-warning">${ warningPs }</p>
                 </div>
                 <div class="adp-field">
-                    <label for="adp-ts">Trabajadora Social</label>
+                    <label for="adp-ts">Profesional en Trabajo Social</label>
                     <select
                         id="adp-ts"
                         v-model="form.socialWorkerId"
                         class="adp-select"
                         :disabled="isSaving || availableSocialWorkers.length === 0"
                     >
-                        <option value="">Seleccionar trabajadora social...</option>
+                        <option value="">Seleccionar profesional en Trabajo Social...</option>
                         <option
                             v-for="p in availableSocialWorkers"
                             :key="'opt-ts-' + p.icode"

@@ -47,7 +47,7 @@
                 </select>
             </div>
             <div class="rps-filter-item">
-                <label class="rps-filter-label">Sesiones completadas</label>
+                <label class="rps-filter-label">Atenciones completadas</label>
                 <select class="rps-select" :value="activeFilters.sesiones_completadas || ''" @change="setDropdownFilter('sesiones_completadas', $event.target.value)">
                     <option value="">Todas</option>
                     <option v-for="n in sesionesOptions" :key="n" :value="String(n)">${ n }</option>

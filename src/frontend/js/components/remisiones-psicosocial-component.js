@@ -10,7 +10,7 @@
     }
 
     var SESSION_DOTS = 6;
-    var SESSION_LABEL = 'Sesiones (4 - 6)';
+    var SESSION_LABEL = 'Atenciones (4 - 6)';
     var STATUS_CERRADO = 'cerrado';
 
     vueApp.component('remisiones-psicosocial-component', {
@@ -651,7 +651,7 @@
 
             professionalRoleLabel: function(team) {
                 if (team === 'psicologia') {
-                    return 'Psicóloga';
+                    return 'Profesional Psicosocial';
                 }
                 if (team === 'trab. social') {
                     return 'Trab. Social';
