@@ -196,28 +196,52 @@ app.component('case-gestion-institucional', {
             return d.toLocaleDateString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit' });
         },
 
+        // Las 3 fuentes (entidades, obligaciones-resumen, oficios) se cargan de forma
+        // independiente -- un fallo transitorio en una (500, timeout) no debe tumbar
+        // las otras dos ni bloquear el panel completo. Antes un solo `!resultados[i].ok`
+        // en cualquiera de las 3 marcaba error=true y ocultaba TODO el resumen, aunque
+        // las otras 2 hubieran cargado bien y el caso simplemente no tuviera datos.
+        // `this.error` queda solo como red de seguridad para un fallo catastrófico
+        // fuera de las 3 fuentes (ver catch de más abajo); en operación normal nunca
+        // se setea, así que el panel siempre se renderiza con lo que sí haya cargado.
+        async cargarFuente(url, parse, onError) {
+            try {
+                var res = await fetch(url);
+                if (!res.ok) throw new Error('http_' + res.status);
+                return parse(await res.json());
+            } catch (e) {
+                console.warn('[case-gestion-institucional] error cargando ' + url + ':', e);
+                return onError();
+            }
+        },
         async cargar() {
             this.cargando = true;
             this.error = null;
             try {
                 var self = this;
                 var resultados = await Promise.all([
-                    fetch('/api/v1/casos/' + this.caseId + '/entidades'),
-                    fetch('/api/v1/casos/' + this.caseId + '/obligaciones-resumen'),
-                    fetch('/api/v1/entity-letters?caseId=' + encodeURIComponent(this.caseId)),
+                    this.cargarFuente(
+                        '/api/v1/casos/' + this.caseId + '/entidades',
+                        function(data) { return Array.isArray(data) ? data : []; },
+                        function() { return []; }
+                    ),
+                    this.cargarFuente(
+                        '/api/v1/casos/' + this.caseId + '/obligaciones-resumen',
+                        function(data) { return data || { global: { completadas: 0, total: 0 }, porSector: [], items: [] }; },
+                        function() { return { global: { completadas: 0, total: 0 }, porSector: [], items: [] }; }
+                    ),
+                    this.cargarFuente(
+                        '/api/v1/entity-letters?caseId=' + encodeURIComponent(this.caseId),
+                        function(data) { return Array.isArray(data) ? data : (data.items || []); },
+                        function() { return []; }
+                    ),
                 ]);
-                for (var i = 0; i < resultados.length; i++) {
-                    if (!resultados[i].ok) throw new Error('http_' + resultados[i].status);
-                }
-                var entidades = await resultados[0].json();
-                var resumenObligaciones = await resultados[1].json();
-                var oficios = await resultados[2].json();
 
-                this.entidades = Array.isArray(entidades) ? entidades : [];
-                this.resumenObligaciones = resumenObligaciones || { global: { completadas: 0, total: 0 }, porSector: [], items: [] };
-                this.oficios = Array.isArray(oficios) ? oficios : (oficios.items || []);
+                this.entidades = resultados[0];
+                this.resumenObligaciones = resultados[1];
+                this.oficios = resultados[2];
             } catch (e) {
-                console.warn('[case-gestion-institucional] error cargando resumen:', e);
+                console.warn('[case-gestion-institucional] error inesperado cargando resumen:', e);
                 this.error = 'No se pudo cargar el resumen de gestión institucional.';
             } finally {
                 this.cargando = false;

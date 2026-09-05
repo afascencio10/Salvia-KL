@@ -607,7 +607,7 @@
                                     .then(r => r.json())
                                     .then(branches => {
                                         this.formState[cfg.stateKey][idx].entidadesDisponibles =
-                                            (Array.isArray(branches) ? branches : []).map(b => ({ label: b.name, value: b.id }));
+                                            (Array.isArray(branches) ? branches : []).map(b => ({ label: b.name, value: String(b.id) }));
                                     })
                                     .catch(() => { this.formState[cfg.stateKey][idx].entidadesDisponibles = []; });
                             } else {
