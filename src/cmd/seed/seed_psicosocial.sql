@@ -1674,22 +1674,32 @@ INSERT INTO salvia.form_section (id, form_id, name, description, "order")
 VALUES (gen_random_uuid(), v_form_pa,
         'Derivación a equipos SALVIA',
         'Visible cuando la sesión fue atención efectiva (trigger: ¿Es atención o solo contacto? = atencion). '
-        'Permite registrar necesidades de remisión a equipos SALVIA generadas durante la atención.', 5)
+        'Permite registrar necesidades de remisión a equipos SALVIA generadas durante la atención.', 7)
 RETURNING id INTO v_pa_deriv_s;
 
 INSERT INTO salvia.form_section (id, form_id, name, description, "order")
 VALUES (gen_random_uuid(), v_form_seg,
         'Derivación a equipos SALVIA',
         'Visible cuando la sesión fue atención efectiva (trigger: ¿Es atención o solo contacto? = atencion). '
-        'Permite registrar necesidades de remisión a equipos SALVIA generadas durante la atención.', 5)
+        'Permite registrar necesidades de remisión a equipos SALVIA generadas durante la atención.', 7)
 RETURNING id INTO v_seg_deriv_s;
 
 INSERT INTO salvia.form_section (id, form_id, name, description, "order")
 VALUES (gen_random_uuid(), v_form_cie,
         'Derivación a equipos SALVIA',
         'Visible cuando la sesión fue atención efectiva (trigger: ¿Es atención o solo contacto? = atencion). '
-        'Se ubica después de las secciones de Atención Psicosocial y Cierre.', 6)
+        'Se ubica después de la sección de atención y antes de Cierre.', 7)
 RETURNING id INTO v_cie_deriv_s;
+
+-- Orden único: Derivación después de atención, Cierre al final (si existe).
+UPDATE salvia.form_section SET "order" = 6
+ WHERE form_id = v_form_pc AND name = 'Cierre';
+UPDATE salvia.form_section SET "order" = 7
+ WHERE form_id IN (v_form_pa, v_form_seg, v_form_cie)
+   AND name = 'Derivación a equipos SALVIA';
+UPDATE salvia.form_section SET "order" = 8
+ WHERE form_id IN (v_form_pa, v_form_seg, v_form_cie)
+   AND name = 'Cierre';
 
 -- ── Helper para insertar preguntas y opciones de la sección de derivación ────
 -- Se repite 4 veces (una por formulario) para mantener UUIDs fijos por formulario.
@@ -2058,9 +2068,9 @@ RAISE NOTICE '=== SEED PSICOSOCIAL COMPLETADO ===';
 RAISE NOTICE 'Formularios: PC=% | PA=% | SEG=% | CIE=%', v_form_pc, v_form_pa, v_form_seg, v_form_cie;
 RAISE NOTICE 'Secciones:';
 RAISE NOTICE '  PC  S1: % | S2 Barreras-Seg: % | S3 Barreras-Id: % | S4 (condicional): % | S5 Derivación: %', v_pc_s1, v_pc_bar_seg_s, v_pc_bar_id_s, v_pc_s2, v_pc_deriv_s;
-RAISE NOTICE '  PA  S1: % | S2 Barreras-Seg: % | S3 Barreras-Id: % | S4: % | S5 Derivación: %', v_pa_s1, v_pa_bar_seg_s, v_pa_bar_id_s, v_pa_s2, v_pa_deriv_s;
-RAISE NOTICE '  SEG S1: % | S2 Barreras-Seg: % | S3 Barreras-Id: % | S4: % | S5 Derivación: %', v_seg_s1, v_seg_bar_seg_s, v_seg_bar_id_s, v_seg_s2, v_seg_deriv_s;
-RAISE NOTICE '  CIE S1: % | S2 Barreras-Seg: % | S3 Barreras-Id: % | S4: % | S5: % | S6 Derivación: %', v_cie_s1, v_cie_bar_seg_s, v_cie_bar_id_s, v_cie_s2, v_cie_s3, v_cie_deriv_s;
+RAISE NOTICE '  PA  S1: % | S2 Barreras-Seg: % | S3 Barreras-Id: % | S4: % | S7 Derivación: %', v_pa_s1, v_pa_bar_seg_s, v_pa_bar_id_s, v_pa_s2, v_pa_deriv_s;
+RAISE NOTICE '  SEG S1: % | S2 Barreras-Seg: % | S3 Barreras-Id: % | S4: % | S7 Derivación: %', v_seg_s1, v_seg_bar_seg_s, v_seg_bar_id_s, v_seg_s2, v_seg_deriv_s;
+RAISE NOTICE '  CIE S1: % | S2 Barreras-Seg: % | S3 Barreras-Id: % | S4: % | S5: % | S7 Derivación: %', v_cie_s1, v_cie_bar_seg_s, v_cie_bar_id_s, v_cie_s2, v_cie_s3, v_cie_deriv_s;
 RAISE NOTICE 'Preguntas gatillo:';
 RAISE NOTICE '  PC  Q12 Continuar Primera Atención:            %', v_pc_q12;
 RAISE NOTICE '  PC  Q13 Fecha próxima (S1):                    %', v_pc_q13;

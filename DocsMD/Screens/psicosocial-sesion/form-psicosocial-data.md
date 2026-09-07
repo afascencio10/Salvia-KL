@@ -29,7 +29,7 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 - Implementado en `src/cmd/seed/seed_psicosocial.sql`.
 
 **Decisión del líder — ajuste 6, derivación a equipos SALVIA (Sep 2026):**
-- Requerimiento: "El equipo psicosocial deriva casos desde contacto". Se agrega una nueva sección **"Derivación a equipos SALVIA"** como **última sección** en los 4 formularios.
+- Requerimiento: "El equipo psicosocial deriva casos desde contacto". Se agrega una nueva sección **"Derivación a equipos SALVIA"** **después de la sección de atención y antes de Cierre** en los 4 formularios (orden único por formulario).
 - La sección es **visible solo cuando la sesión fue atención efectiva** (mismo trigger que la sección de contenido S4):
   - **Primer Contacto:** trigger = Q12 "Continuar Primera Atención" = `true`
   - **Primera Atención, Atención Psicosocial, Cierre:** trigger = "¿Es atención o solo contacto?" = `atencion`
@@ -61,7 +61,7 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 
 ## Form 1: Primer Contacto
 
-**Secciones:** 5 (S3, S4 y S5 ocultas por defecto — Sep 2026: +S5 Derivación)
+**Secciones:** 6 (S3, S4 y S5 ocultas por defecto — Sep 2026: +S5 Derivación, Cierre = S6)
 
 ### Sección 1 — Primer contacto
 
@@ -142,7 +142,7 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 
 ## Form 2: Primera Atención
 
-**Secciones:** 5 (S3 y S5 ocultas por defecto — Sep 2026: +S5 Derivación)
+**Secciones:** 8 (S3, S6 y S7 ocultas por defecto — Sep 2026: Derivación = S7, Cierre = S8; Entidades = S4–S5)
 
 > Este formulario se usa **únicamente en Escenario B**: segunda llamada independiente donde `ya_hizo_primer_contacto = true` y `ya_hizo_primera_atencion = false`. La Primera Atención realizada dentro del Primer Contacto (Escenario A, Continuar = Sí) ya no usa este formulario.
 
@@ -198,7 +198,7 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 | 14 | Hora próxima atención | time | ✅ | *visible si Q12 = Sí* |
 | 15 | Observaciones | text | ❌ | *visible si Q3 = Sí* |
 
-### Sección 5 — Derivación a equipos SALVIA *(Sep 2026 — condicional: S1-Q8 = atencion)*
+### Sección 7 — Derivación a equipos SALVIA *(Sep 2026 — condicional: S1-Q8 = atencion; order 7, antes de Cierre)*
 
 > UUIDs de preguntas: serie `d1000201`–`d1000207`.
 
@@ -216,7 +216,7 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 
 ## Form 3: Atención Psicosocial *(antes "Seguimiento" — renombrado Jul 2026)*
 
-**Secciones:** 5 (S3 y S5 ocultas por defecto — Sep 2026: +S5 Derivación)
+**Secciones:** 8 (S3, S6 y S7 ocultas por defecto — Sep 2026: Derivación = S7, Cierre = S8; Entidades = S4–S5)
 
 ### Sección 1 — Contacto Atención Psicosocial *(antes "Contacto Seguimiento")*
 
@@ -259,7 +259,7 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 | 6 | Hora próxima atención | time | ✅ | *visible si Q4 = Sí* |
 | 7 | Observaciones | text | ❌ | — |
 
-### Sección 5 — Derivación a equipos SALVIA *(Sep 2026 — condicional: S1-Q9 = atencion)*
+### Sección 7 — Derivación a equipos SALVIA *(Sep 2026 — condicional: S1-Q9 = atencion; order 7, antes de Cierre)*
 
 > UUIDs de preguntas: serie `d1000301`–`d1000307`.
 
@@ -277,7 +277,7 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 
 ## Form 4: Cierre
 
-**Secciones:** 6 (S3, S5 y S6 ocultas por defecto — Sep 2026: +S6 Derivación)
+**Secciones:** 8 (S3, S6, S7 y S8 ocultas por defecto — Sep 2026: Derivación = S7, Cierre = S8; Entidades = S4–S5)
 
 > Tiene las mismas secciones de Seguimiento (Contacto + Barreras + Seguimiento) más la sección de Cierre. Aplica cuando `session_count >= 3`.
 
@@ -323,9 +323,23 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 | 5 | Fecha próxima atención | date | ✅ | *visible si Q4 = Sí* |
 | 6 | Hora próxima atención | time | ✅ | *visible si Q4 = Sí* |
 | 7 | Observaciones | text | ❌ | — |
-| 8 | Cerrar remisión | boolean | ✅ | **Gatillo de S5** |
+| 8 | Cerrar remisión | boolean | ✅ | **Gatillo de S8** |
 
-### Sección 5 — Cierre
+### Sección 7 — Derivación a equipos SALVIA *(Sep 2026 — condicional: S1-Q9 = atencion; order 7, antes de Cierre)*
+
+> UUIDs de preguntas: serie `d1000401`–`d1000407`.
+
+| # | Pregunta | Tipo | Req | Opciones / Notas |
+|---|---|---|---|---|
+| 1 | ¿Durante la atención se han generado necesidades que requieran remisión a los equipos SALVIA? | boolean | ✅ | — |
+| 2 | ¿Cuáles equipos? | multiple | ✅ | Medidas de Emergencia / Estabilización / Atención Hombres / Salvia Dignidad / Discapacidad — *visible si Q1 = true* |
+| 3 | ¿Cuáles medidas de emergencia? | multiple | ❌ | 8 opciones — *visible si Q2 CONTAINS `medidas_emergencia`* |
+| 4 | Criterios de remisión — Atención Hombres | multiple | ❌ | Criterio de remisión — *visible si Q2 CONTAINS `atencion_hombres`* |
+| 5 | Criterios de remisión — Salvia Dignidad | multiple | ❌ | Mujer OSIGD / Persona no binaria — *visible si Q2 CONTAINS `salvia_dignidad`* |
+| 6 | Criterios de remisión — Estabilización | multiple | ❌ | 3 opciones — *visible si Q2 CONTAINS `estabilizacion`* |
+| 7 | Describa los elementos que evidencia para realizar la remisión | text | ✅ | *visible si Q1 = true* |
+
+### Sección 8 — Cierre *(order 8; visibilidad: atención + Cerrar remisión)*
 
 > **Visibilidad de sección:** Solo se muestra cuando **ambas** condiciones se cumplen:
 > 1. `¿Es atención o solo contacto? = Atención` (S1)
@@ -342,20 +356,6 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 | 5 | Hay nuevos hechos de violencia | boolean | ✅ | — |
 | 6 | Descripción de los hechos | text | ❌ | *visible si Q5 = true* |
 | 7 | Fecha (de los hechos) | date | ❌ | *visible si Q5 = true* |
-
-### Sección 6 — Derivación a equipos SALVIA *(Sep 2026 — condicional: S1-Q9 = atencion)*
-
-> UUIDs de preguntas: serie `d1000401`–`d1000407`.
-
-| # | Pregunta | Tipo | Req | Opciones / Notas |
-|---|---|---|---|---|
-| 1 | ¿Durante la atención se han generado necesidades que requieran remisión a los equipos SALVIA? | boolean | ✅ | — |
-| 2 | ¿Cuáles equipos? | multiple | ✅ | Medidas de Emergencia / Estabilización / Atención Hombres / Salvia Dignidad / Discapacidad — *visible si Q1 = true* |
-| 3 | ¿Cuáles medidas de emergencia? | multiple | ❌ | 8 opciones — *visible si Q2 CONTAINS `medidas_emergencia`* |
-| 4 | Criterios de remisión — Atención Hombres | multiple | ❌ | Criterio de remisión — *visible si Q2 CONTAINS `atencion_hombres`* |
-| 5 | Criterios de remisión — Salvia Dignidad | multiple | ❌ | Mujer OSIGD / Persona no binaria — *visible si Q2 CONTAINS `salvia_dignidad`* |
-| 6 | Criterios de remisión — Estabilización | multiple | ❌ | 3 opciones — *visible si Q2 CONTAINS `estabilizacion`* |
-| 7 | Describa los elementos que evidencia para realizar la remisión | text | ✅ | *visible si Q1 = true* |
 
 ---
 
@@ -430,11 +430,11 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 | Form 4 — Cierre | S2 — Seguimiento a Barreras | *(ninguno — pendiente formState externo)* | siempre habilitada |
 | Form 4 — Cierre | S3 — Identificación de Barreras | S1-Q12 Desde la atención anterior... | `= true` |
 | Form 4 — Cierre | S4 — Atención Psicosocial (Cierre) | S1-Q9 ¿Es atención o solo contacto? | `= atencion` |
-| Form 4 — Cierre | S5 — Cierre | S4-Q6 Cerrar remisión | `= true` (y S4 visible) |
+| Form 4 — Cierre | S8 — Cierre | S4-Q6 Cerrar remisión | `= true` (y S4 visible) |
 | Form 1 — Primer Contacto | **S5 — Derivación a equipos SALVIA** | S1-Q12 Continuar Primera Atención | `= true` |
-| Form 2 — Primera Atención | **S5 — Derivación a equipos SALVIA** | S1-Q8 ¿Es atención o solo contacto? | `= atencion` |
-| Form 3 — Atención Psicosocial | **S5 — Derivación a equipos SALVIA** | S1-Q9 ¿Es atención o solo contacto? | `= atencion` |
-| Form 4 — Cierre | **S6 — Derivación a equipos SALVIA** | S1-Q9 ¿Es atención o solo contacto? | `= atencion` |
+| Form 2 — Primera Atención | **S7 — Derivación a equipos SALVIA** | S1-Q8 ¿Es atención o solo contacto? | `= atencion` |
+| Form 3 — Atención Psicosocial | **S7 — Derivación a equipos SALVIA** | S1-Q9 ¿Es atención o solo contacto? | `= atencion` |
+| Form 4 — Cierre | **S7 — Derivación a equipos SALVIA** | S1-Q9 ¿Es atención o solo contacto? | `= atencion` |
 
 > Las secciones "Seguimiento a Barreras" e "Identificación de Barreras" son idénticas (misma estructura, preguntas, opciones y repeaters) en los 4 formularios — ver `DocsMD/Screens/hacer-seguimiento/form-seguimiento-barreras-repeater.md` y `form-barreras-repeater.md`.
 > La sección "Derivación a equipos SALVIA" también es idéntica en los 4 formularios, con UUIDs fijos de preguntas distintos por formulario (serie `d1000NXX`).
@@ -447,12 +447,12 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 
 | Formulario | Secciones | Preguntas (fuera de repeaters) | Opciones |
 |---|---|---|---|
-| Form 1: Primer Contacto | 5 (S3, S4 y S5 condicionales) | 14 (S1) + 12 (S4) + 7 (S5) = 33 | ~18 |
-| Form 2: Primera Atención | 5 (S3 y S5 condicionales) | 11 (S1) + 12 (S4) + 7 (S5) = 30 | ~23 |
-| Form 3: Atención Psicosocial | 5 (S3 y S5 condicionales) | 12 (S1) + 5 (S4) + 7 (S5) = 24 | ~17 |
-| Form 4: Cierre | 6 (S3, S5 y S6 condicionales) | 12 (S1) + 6 (S4) + 7 (S5 Cierre) + 7 (S6) = 32 | ~22 |
+| Form 1: Primer Contacto | 6 (S3, S4 y S5 condicionales) | 14 (S1) + 12 (S4) + 7 (S5) = 33 | ~18 |
+| Form 2: Primera Atención | 8 (S3, S6 y S7 condicionales) | 11 (S1) + 12 (S6) + 7 (S7) = 30 | ~23 |
+| Form 3: Atención Psicosocial | 8 (S3, S6 y S7 condicionales) | 12 (S1) + 5 (S6) + 7 (S7) = 24 | ~17 |
+| Form 4: Cierre | 8 (S3, S6, S7 y S8 condicionales) | 12 (S1) + 6 (S6) + 7 (S7) + 7 (S8 Cierre) = 32 | ~22 |
 | **Total (fuera de barreras)** | **21** | **~119** | **~80** |
 | **+ Barreras (x4 formularios)** | 8 secciones (2 x 4) | +29 preguntas de repeater x 4 = +116 | ~15 por repeater |
 
 > Jul 2026 (ajuste 4): Form 1/2 S4 pasó de 14 a 12 preguntas (-2, ajuste razonable/intérprete eliminadas). Form 3/4 S1 pasó de 11 a 12 preguntas (+1, "¿individual o en dupla?" agregada).
-> Sep 2026 (ajuste 6): Se agregan 7 preguntas de "Derivación a equipos SALVIA" como última sección en cada formulario (condicional — misma visibilidad que S4 de contenido).
+> Sep 2026 (ajuste 6): Se agregan 7 preguntas de "Derivación a equipos SALVIA" después de la sección de atención y antes de Cierre (condicional — misma visibilidad que la sección de contenido). El `order` no se comparte con Entidades ni con Cierre.

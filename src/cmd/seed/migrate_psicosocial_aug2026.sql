@@ -336,7 +336,7 @@ BEGIN
     VALUES (gen_random_uuid(), v_form_pa,
             'Derivación a equipos SALVIA',
             'Visible cuando la sesión fue atención efectiva (trigger: ¿Es atención o solo contacto? = atencion). '
-            'Permite registrar necesidades de remisión a equipos SALVIA generadas durante la atención.', 5)
+            'Permite registrar necesidades de remisión a equipos SALVIA generadas durante la atención.', 7)
     RETURNING id INTO v_pa_deriv_s;
   END IF;
 
@@ -348,7 +348,7 @@ BEGIN
     VALUES (gen_random_uuid(), v_form_seg,
             'Derivación a equipos SALVIA',
             'Visible cuando la sesión fue atención efectiva (trigger: ¿Es atención o solo contacto? = atencion). '
-            'Permite registrar necesidades de remisión a equipos SALVIA generadas durante la atención.', 5)
+            'Permite registrar necesidades de remisión a equipos SALVIA generadas durante la atención.', 7)
     RETURNING id INTO v_seg_deriv_s;
   END IF;
 
@@ -360,9 +360,19 @@ BEGIN
     VALUES (gen_random_uuid(), v_form_cie,
             'Derivación a equipos SALVIA',
             'Visible cuando la sesión fue atención efectiva (trigger: ¿Es atención o solo contacto? = atencion). '
-            'Se ubica después de las secciones de Atención Psicosocial y Cierre.', 6)
+            'Se ubica después de la sección de atención y antes de Cierre.', 7)
     RETURNING id INTO v_cie_deriv_s;
   END IF;
+
+  -- Orden único: Derivación después de atención, Cierre al final.
+  UPDATE salvia.form_section SET "order" = 6
+   WHERE form_id = v_form_pc AND name = 'Cierre' AND deleted_at IS NULL;
+  UPDATE salvia.form_section SET "order" = 7
+   WHERE form_id IN (v_form_pa, v_form_seg, v_form_cie)
+     AND name = 'Derivación a equipos SALVIA' AND deleted_at IS NULL;
+  UPDATE salvia.form_section SET "order" = 8
+   WHERE form_id IN (v_form_pa, v_form_seg, v_form_cie)
+     AND name = 'Cierre' AND deleted_at IS NULL;
 
   -- ── 2. Insertar preguntas con ON CONFLICT (id) DO NOTHING ───────────────────
   -- Opciones de equipos (reutilizadas en los 4 formularios)
