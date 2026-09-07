@@ -6,7 +6,7 @@ description: "Roles del sistema SALVIA y matriz de permisos por operación, deri
 owner: "@security-guild"
 status: active
 tags: [security, rbac, compliance]
-last_updated: "2026-07-17"
+last_updated: "2026-09-07"
 code_refs: [src/salvia/config/Menu.go]
 ---
 
@@ -79,11 +79,12 @@ Códigos de columna: `ad`=Administrador, `sv`=Supervisor, `op`=Operador, `ro`=Op
 ### Atención Psicosocial — Flujo 3x3
 
 > [!NOTE]
-> Permisos nuevos del [Flujo 3x3 de Atención Psicosocial](/.knowledge/3-features/AtencionPsicosocial3x3/index.md). Habilitados **solo** para `ps` y `ts` (por eso esta tabla también incluye esas dos columnas). Deben reflejarse 1:1 en `PermissionsByRole` (`src/salvia/config/Menu.go`) en el mismo PR de implementación.
+> Permisos del [Flujo 3x3 de Atención Psicosocial](/.knowledge/3-features/AtencionPsicosocial3x3/index.md) y de la pantalla de detalle de remisión. Escritura 3x3 solo `ps`/`ts`. Lectura de historial de intentos y de la pantalla de detalle también para supervisor `sv`. Deben reflejarse 1:1 en `PermissionsByRole` (`src/salvia/config/Menu.go`).
 
 | Permiso / operación | ad | sv | op | ro | do | no | et | en | an | us | fo | ps | ts |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `get_psychosocial_contact_attempts` | · | · | · | · | · | · | · | · | · | · | · | ✅ | ✅ |
+| `get_remision_psicosocial_detalle` | · | ✅ | · | · | · | · | · | · | · | · | · | ✅ | ✅ |
+| `get_psychosocial_contact_attempts` | · | ✅ | · | · | · | · | · | · | · | · | · | ✅ | ✅ |
 | `register_psychosocial_contact_attempt` | · | · | · | · | · | · | · | · | · | · | · | ✅ | ✅ |
 | `set_psychosocial_consent` | · | · | · | · | · | · | · | · | · | · | · | ✅ | ✅ |
 | `schedule_psychosocial_session` | · | · | · | · | · | · | · | · | · | · | · | ✅ | ✅ |

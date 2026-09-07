@@ -43,6 +43,12 @@
                 <span>Mis remisiones</span>
             </a>
             {{ end }}
+            {{ if eq .currentRole "sv" }}
+            <a href="/salvia/historial-remisiones" class="salvia-sidebar__nav-link">
+                <i class="fas fa-hand-holding-heart" aria-hidden="true"></i>
+                <span>Historial remisiones</span>
+            </a>
+            {{ end }}
             {{ if eq .currentRole "ro" }}
             <a href="/salvia/mis-casos" class="salvia-sidebar__nav-link">
                 <i class="fas fa-folder-open" aria-hidden="true"></i>
