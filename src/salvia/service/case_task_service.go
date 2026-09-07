@@ -105,6 +105,7 @@ type CaseTaskServiceDeps struct {
 	CaseTimelineRepo repository.CaseTimelineEventRepository
 	EntityLetterSvc  EntityLetterService
 	EntityLetterRepo repository.EntityLetterRepository
+	EntityCaseSvc    EntityCaseService
 	DB               *gorm.DB
 }
 
@@ -114,6 +115,7 @@ type caseTaskService struct {
 	timelineRepo     repository.CaseTimelineEventRepository
 	entityLetterSvc  EntityLetterService
 	entityLetterRepo repository.EntityLetterRepository
+	entityCaseSvc    EntityCaseService
 	db               *gorm.DB
 }
 
@@ -124,6 +126,7 @@ func NewCaseTaskService(deps CaseTaskServiceDeps) CaseTaskService {
 		timelineRepo:     deps.CaseTimelineRepo,
 		entityLetterSvc:  deps.EntityLetterSvc,
 		entityLetterRepo: deps.EntityLetterRepo,
+		entityCaseSvc:    deps.EntityCaseSvc,
 		db:               deps.DB,
 	}
 }
@@ -718,61 +721,61 @@ func (s *caseTaskService) SaveArticulacionTerritorial(ctx context.Context, userI
 		}
 		return nil, fmt.Errorf("SaveArticulacionTerritorial: leer barrera: %w", err)
 	}
-	if strings.TrimSpace(taskID) != "" {
-		if !barrierAssignedToUser(barrier, userID) {
-			return nil, ErrBarrierLinkMismatch
-		}
-	} else if !barrierAssignedToUser(barrier, userID) && barrier.DepartmentID != enlaceDepartmentID {
+	// Autorización: la barrera debe estar asignada al enlace (user_territory_link_id)
+	// o pertenecer a su departamento asignado.
+	if !barrierAssignedToUser(barrier, userID) && barrier.DepartmentID != enlaceDepartmentID {
 		return nil, ErrBarrierDepartmentMismatch
 	}
 
 	now := time.Now()
-	var task *models.CaseTask
 
-	if strings.TrimSpace(taskID) != "" {
-		existing, err := s.repo.FindByID(ctx, taskID)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, ErrCaseTaskNotFound
+	// El campo entidad no se toma del cliente: siempre se fija con la entidad real
+	// de la barrera (solo lectura, no editable ni por API).
+	fd.EntityBranchID = barrier.EntityBranchID
+
+	// Múltiples gestiones sin sobreescribir: CADA gestión crea un nuevo registro
+	// Done (un compromiso adquirido). No se completa una tarea existente — así el
+	// enlace puede registrar cuantas gestiones necesite sobre la misma barrera.
+	// Si venía un taskId de una ToDo abierta (la que creó el comité), esa ToDo se
+	// cierra la primera vez para que no quede pendiente; las siguientes gestiones
+	// simplemente agregan nuevos registros.
+	if tid := strings.TrimSpace(taskID); tid != "" {
+		if existing, ferr := s.repo.FindByID(ctx, tid); ferr == nil &&
+			existing.Type == models.CaseTaskTypeArticulacionTerritorial &&
+			existing.Status == models.CaseTaskStatusToDo &&
+			existing.BarrierID != nil && *existing.BarrierID == barrierID {
+			// Cierra la ToDo inicial sin abortar si falla.
+			if err := s.repo.UpdateFields(ctx, existing.ID, map[string]interface{}{
+				"status":       models.CaseTaskStatusDone,
+				"completed_at": now,
+			}); err != nil {
+				log.Printf("[CaseTaskService.SaveArticulacionTerritorial] WARN: no se pudo cerrar ToDo inicial %s: %v", existing.ID, err)
 			}
-			return nil, fmt.Errorf("SaveArticulacionTerritorial: leer tarea: %w", err)
 		}
-		if existing.Type != models.CaseTaskTypeArticulacionTerritorial ||
-			existing.Status != models.CaseTaskStatusToDo ||
-			existing.AssignedUserID != userID ||
-			existing.BarrierID == nil || *existing.BarrierID != barrierID {
-			return nil, ErrArticulacionTaskMismatch
-		}
-		if err := s.repo.UpdateFields(ctx, existing.ID, map[string]interface{}{
-			"form_data":    formData,
-			"status":       models.CaseTaskStatusDone,
-			"completed_at": now,
-			"result":       fd.Compromiso,
-		}); err != nil {
-			return nil, fmt.Errorf("SaveArticulacionTerritorial: completar tarea: %w", err)
-		}
-		task, err = s.repo.FindByID(ctx, existing.ID)
-		if err != nil {
-			return nil, fmt.Errorf("SaveArticulacionTerritorial: recargar tarea: %w", err)
-		}
-	} else {
-		newTask := &models.CaseTask{
-			Category:       "Barreras",
-			Type:           models.CaseTaskTypeArticulacionTerritorial,
-			Description:    "Gestión propia",
-			Result:         &fd.Compromiso,
-			Status:         models.CaseTaskStatusDone,
-			CompletedAt:    &now,
-			AssignedUserID: userID,
-			CaseID:         barrier.CaseID,
-			BarrierID:      &barrierID,
-			FormData:       formData,
-		}
-		if err := s.repo.Create(ctx, newTask); err != nil {
-			return nil, fmt.Errorf("SaveArticulacionTerritorial: crear tarea: %w", err)
-		}
-		task = newTask
 	}
+
+	// Reserializar formData con la entidad forzada de la barrera.
+	formDataFixed, mErr := json.Marshal(fd)
+	if mErr != nil {
+		formDataFixed = formData // fallback: usa el original
+	}
+
+	newTask := &models.CaseTask{
+		Category:       "Barreras",
+		Type:           models.CaseTaskTypeArticulacionTerritorial,
+		Description:    "Gestión propia",
+		Result:         &fd.Compromiso,
+		Status:         models.CaseTaskStatusDone,
+		CompletedAt:    &now,
+		AssignedUserID: userID,
+		CaseID:         barrier.CaseID,
+		BarrierID:      &barrierID,
+		FormData:       datatypes.JSON(formDataFixed),
+	}
+	if err := s.repo.Create(ctx, newTask); err != nil {
+		return nil, fmt.Errorf("SaveArticulacionTerritorial: crear tarea: %w", err)
+	}
+	task := newTask
 
 	if *fd.RequiereSeguimiento {
 		seguimientoData, err := json.Marshal(map[string]interface{}{
@@ -926,11 +929,54 @@ func (s *caseTaskService) sideEffectsComiteCaso(ctx context.Context, task *model
 		switch decision {
 
 		case "activar_enlace":
+			enlaceID, _ := fd["enlaceId"].(string)
+			solicitud, _ := fd["solicitudEnlace"].(string)
+			solicitud = strings.TrimSpace(solicitud)
+
 			if task.BarrierID != nil && *task.BarrierID != "" {
-				if err := s.barrierRepo.UpdateFields(ctx, *task.BarrierID, map[string]interface{}{
-					"enlace_activado": true,
-				}); err != nil {
+				// Marca la barrera como enlace activado y le asigna el enlace destino
+				// (user_territory_link_id) para que aparezca en su pantalla "Mis Barreras".
+				fields := map[string]interface{}{"enlace_activado": true}
+				if enlaceID != "" {
+					fields["user_territory_link_id"] = enlaceID
+				}
+				if err := s.barrierRepo.UpdateFields(ctx, *task.BarrierID, fields); err != nil {
 					log.Printf("[CaseTaskService] WARN: comite_caso no pudo activar enlace en barrier %s: %v", *task.BarrierID, err)
+				}
+
+				// Crea la tarea articulacion_territorial (ToDo) para el enlace destino.
+				if enlaceID != "" {
+					descripcion := "Articulación territorial"
+					if solicitud != "" {
+						descripcion = solicitud
+					}
+					barrierID := *task.BarrierID
+					artTask := &models.CaseTask{
+						Category:       "Barreras",
+						Type:           models.CaseTaskTypeArticulacionTerritorial,
+						Description:    descripcion,
+						Status:         models.CaseTaskStatusToDo,
+						AssignedUserID: enlaceID,
+						CaseID:         task.CaseID,
+						BarrierID:      &barrierID,
+					}
+					if err := s.repo.Create(ctx, artTask); err != nil {
+						log.Printf("[CaseTaskService] WARN: comite_caso no pudo crear articulacion_territorial para enlace %s: %v", enlaceID, err)
+					}
+				}
+			}
+
+			// Si el comité eligió "otra entidad", asociarla al caso (entity_case).
+			if destino, _ := fd["entidadDestino"].(string); destino == "otra" {
+				if otraID, ok := fd["otraEntidadId"].(float64); ok && otraID > 0 && s.entityCaseSvc != nil {
+					_, err := s.entityCaseSvc.Create(ctx, CreateEntityCaseInput{
+						CaseID:         task.CaseID,
+						EntityBranchID: int64(otraID),
+						CreatedByID:    userId,
+					})
+					if err != nil && !errors.Is(err, ErrEntityCaseDuplicate) {
+						log.Printf("[CaseTaskService] WARN: comite_caso no pudo asociar otra entidad %d al caso %s: %v", int64(otraID), task.CaseID, err)
+					}
 				}
 			}
 

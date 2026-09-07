@@ -53,6 +53,13 @@ func main() {
 	// Asegurar que usuarios sin town tengan Bogotá por defecto (evita error 500 en reasignación)
 	gormDB.Exec(`UPDATE security.general_user_profile SET general_user_profile_town = '11001000' WHERE (general_user_profile_town IS NULL OR general_user_profile_town = '') AND general_user_profile_id IN (SELECT general_user_general_user_profile FROM security.general_user WHERE general_user_status = 'e')`)
 
+	// Asegurar que exista el rol "Equipo Técnico" (código 'te'), destinatario de las
+	// tareas "Decisiones del Comité". Idempotente: no hace nada si ya existe.
+	// role_i_code NO es autogenerado: se llena con un UUID (mismo patrón que SetRoleDefaults).
+	gormDB.Exec(`INSERT INTO security.role (role_i_code, role_code, role_name, role_description, role_creation_date, role_update_date)
+		SELECT gen_random_uuid()::text, 'te', 'Equipo Técnico', 'Equipo técnico que gestiona las decisiones del comité sobre barreras', NOW(), NOW()
+		WHERE NOT EXISTS (SELECT 1 FROM security.role WHERE role_code = 'te')`)
+
 	// AutoMigrate por tabla — warning en lugar de fatal para tablas ya existentes
 	for _, m := range []interface{}{
 		&models.Form{},
@@ -247,6 +254,7 @@ func main() {
 		CaseTimelineRepo: caseTimelineRepo,
 		EntityLetterSvc:  entityLetterSvc,
 		EntityLetterRepo: entityLetterRepo,
+		EntityCaseSvc:    entityCaseSvc,
 		DB:               gormDB,
 	})
 	caseTaskCtrl := salvia_ctrl.NewCaseTaskController(caseTaskSvc)

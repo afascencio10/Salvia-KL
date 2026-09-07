@@ -215,10 +215,23 @@
                 <p v-else class="ced-empty-text">Sin objetivo registrado</p>
             </div>
 
-            <!-- Card: Checklist entidad (placeholder) -->
+            <!-- Card: Checklist entidad -->
             <div class="ced-card">
-                <p class="ced-card-title">Checklist entidad</p>
-                <p class="ced-empty-text">No hay checklist configurado para esta entidad</p>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                    <p class="ced-card-title" style="margin:0">Checklist entidad</p>
+                    <span v-if="obligacionesTotal > 0" style="font-size:.78rem;font-weight:700;color:#5106A7;background:#f5f3ff;border-radius:12px;padding:3px 10px">
+                        ${ obligacionesCompletadas }/${ obligacionesTotal } completadas
+                    </span>
+                </div>
+                <div v-if="cargandoObligaciones" class="ced-empty-text">Cargando checklist...</div>
+                <p v-else-if="obligacionesTotal === 0" class="ced-empty-text">No hay checklist configurado para esta entidad</p>
+                <div v-else style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+                    <div v-for="o in obligaciones" :key="o.id" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px">
+                        <span v-if="o.status === 'completada'" style="width:20px;height:20px;border-radius:50%;background:#dcfce7;color:#16a34a;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;flex-shrink:0">✓</span>
+                        <span v-else style="width:20px;height:20px;border-radius:50%;background:#fee2e2;border:2px solid #fca5a5;display:inline-block;flex-shrink:0"></span>
+                        <span style="font-size:.85rem;color:#374151" :style="o.status === 'completada' ? 'text-decoration:line-through;color:#9ca3af' : ''">${ o.label }</span>
+                    </div>
+                </div>
             </div>
         </div>
 

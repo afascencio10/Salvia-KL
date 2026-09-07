@@ -15,14 +15,26 @@
                 errorMessage: '',
                 errorCode: 0,
                 activeTab: 'info',
-                toast: { visible: false, message: '', type: 'info' }
+                toast: { visible: false, message: '', type: 'info' },
+                // Checklist de tareas de la entidad
+                obligaciones: [],
+                cargandoObligaciones: false
             };
+        },
+        computed: {
+            obligacionesCompletadas: function () {
+                return this.obligaciones.filter(function (o) { return o.status === 'completada'; }).length;
+            },
+            obligacionesTotal: function () {
+                return this.obligaciones.length;
+            }
         },
         mounted: function () {
             document.title = cfg.windowTitle || 'Detalle Caso Entidad';
             var appEl = document.getElementById('app');
             if (appEl) appEl.style.display = 'block';
             this.fetchDetail();
+            this.fetchObligaciones();
         },
         methods: {
             fetchDetail: function () {
@@ -68,6 +80,26 @@
                 .catch(function (err) {
                     self.error = err.message || 'Error desconocido';
                     self.loading = false;
+                });
+            },
+
+            fetchObligaciones: function () {
+                var self = this;
+                if (!entityCaseId) return;
+                self.cargandoObligaciones = true;
+                fetch('/api/v1/entity-cases/' + encodeURIComponent(entityCaseId) + '/obligations', {
+                    method: 'GET',
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json' }
+                })
+                .then(function (res) { return res.ok ? res.json() : { items: [] }; })
+                .then(function (data) {
+                    self.obligaciones = (data && Array.isArray(data.items)) ? data.items : [];
+                    self.cargandoObligaciones = false;
+                })
+                .catch(function () {
+                    self.obligaciones = [];
+                    self.cargandoObligaciones = false;
                 });
             },
 

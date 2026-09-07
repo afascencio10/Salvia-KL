@@ -450,6 +450,14 @@ app.component('case-task-modal', {
                 entityName: '',
                 barrierDescription: '',
             },
+
+            // Activar Enlace (comite_caso)
+            enlacesDepartamento: [],   // enlaces 'en' del departamento del caso
+            cargandoEnlaces: false,
+            oeCiudades: [],            // cascada "otra entidad"
+            oeMunicipios: [],
+            oeEntidades: [],
+            cargandoOeEntidades: false,
         };
     },
 
@@ -524,7 +532,17 @@ app.component('case-task-modal', {
                     return true;
                 case 'comite_caso':
                     if (!f.decisiones || f.decisiones.length === 0) return false;
-                    if (f.decisiones.includes('mecanismo_articulador') && !f.nivelMecanismo) return false;
+                    if (f.decisiones.includes('activar_enlace')) {
+                        if (!f.solicitudEnlace || !f.solicitudEnlace.trim()) return false;
+                        if (!f.entidadDestino) return false;
+                        if (f.entidadDestino === 'otra' && !f.oeEntidadId) return false;
+                        // Si hay varios enlaces, debe elegir uno
+                        if (this.enlacesDepartamento.length > 1 && !f.enlaceSeleccionado) return false;
+                    }
+                    if (f.decisiones.includes('mecanismo_articulador')) {
+                        if (!f.nivelMecanismo) return false;
+                        if (!f.quienLlenaMecanismo) return false;
+                    }
                     return true;
                 case 'Corregir oficio':
                     // Sin campos obligatorios — solo confirmación
@@ -752,11 +770,26 @@ app.component('case-task-modal', {
                 case 'comite_caso':
                     this.form = {
                         decisiones:                   [],
+                        // Activar Enlace
+                        solicitudEnlace:              '',
+                        entidadDestino:               '',   // 'misma' | 'otra'
+                        enlaceSeleccionado:           '',   // icode del enlace, si hay >1
+                        // Otra entidad (solo si entidadDestino === 'otra')
+                        oeDepartamentoId:             '',
+                        oeCiudadId:                   '',
+                        oeMunicipioId:                '',
+                        oeSector:                     '',
+                        oeEntidadId:                  '',
+                        oeCanalActivacion:            '',
+                        // Oficio / Recomendaciones / Mecanismo
                         observacionesOficio:          '',
                         observacionesRecomendaciones: '',
                         nivelMecanismo:               null,
                         observacionesMecanismo:       '',
+                        quienLlenaMecanismo:          '',   // 'equipo_tecnico' | 'agente'
                     };
+                    // Cargar enlaces del departamento del caso (para decidir dropdown)
+                    this._cargarEnlacesDepartamento();
                     break;
                 case 'Corregir oficio':
                     this.form = {};
@@ -913,6 +946,79 @@ app.component('case-task-modal', {
             return this.form.decisiones && this.form.decisiones.includes(valor);
         },
 
+        /* ── Activar Enlace ──────────────────────────────────────────────── */
+
+        // Carga los enlaces territoriales (rol 'en') del departamento del caso.
+        // Si hay más de uno, el modal muestra un dropdown para elegir a cuál se dirige.
+        async _cargarEnlacesDepartamento() {
+            this.enlacesDepartamento = [];
+            const caseId = this.tarea && this.tarea.caseId;
+            if (!caseId) return;
+            this.cargandoEnlaces = true;
+            try {
+                const res = await fetch('/api/v1/casos/' + encodeURIComponent(caseId) + '/enlaces');
+                if (res.ok) {
+                    const data = await res.json();
+                    this.enlacesDepartamento = Array.isArray(data) ? data : [];
+                    // Si hay exactamente uno, preseleccionarlo
+                    if (this.enlacesDepartamento.length === 1) {
+                        this.form.enlaceSeleccionado = this.enlacesDepartamento[0].icode;
+                    }
+                }
+            } catch (e) {
+                console.warn('[CTM] error cargando enlaces del departamento:', e);
+            } finally {
+                this.cargandoEnlaces = false;
+            }
+        },
+
+        onCambiaEntidadDestino(valor) {
+            this.form.entidadDestino = valor;
+            // Limpiar cascada de "otra entidad" al cambiar
+            if (valor !== 'otra') {
+                this.form.oeDepartamentoId = '';
+                this.form.oeCiudadId = '';
+                this.form.oeMunicipioId = '';
+                this.form.oeSector = '';
+                this.form.oeEntidadId = '';
+                this.form.oeCanalActivacion = '';
+                this.oeCiudades = []; this.oeMunicipios = []; this.oeEntidades = [];
+            }
+        },
+
+        onOeDepartamento() {
+            this.oeCiudades = this.form.oeDepartamentoId
+                ? this.allCiudades.filter(c => String(c.departmentId) === String(this.form.oeDepartamentoId)) : [];
+            this.form.oeCiudadId = ''; this.form.oeMunicipioId = ''; this.form.oeEntidadId = '';
+            this.oeMunicipios = []; this.oeEntidades = [];
+        },
+
+        async onOeCiudad() {
+            this.form.oeMunicipioId = ''; this.form.oeEntidadId = '';
+            this.oeMunicipios = []; this.oeEntidades = [];
+            if (!this.form.oeCiudadId) return;
+            try {
+                const res = await fetch('/api/v1/locations/towns?city_id=' + encodeURIComponent(this.form.oeCiudadId));
+                if (res.ok) { const d = await res.json(); this.oeMunicipios = Array.isArray(d) ? d : (d.items || []); }
+            } catch (e) { console.warn('[CTM] error municipios otra entidad:', e); }
+        },
+
+        onOeMunicipio() { this.form.oeEntidadId = ''; this.oeEntidades = []; this._buscarOeEntidades(); },
+        onOeSector()    { this.form.oeEntidadId = ''; this.oeEntidades = []; this._buscarOeEntidades(); },
+
+        async _buscarOeEntidades() {
+            if (!this.form.oeMunicipioId || !this.form.oeSector) return;
+            this.cargandoOeEntidades = true;
+            try {
+                const res = await fetch('/api/v1/entity-branches?town_code=' + encodeURIComponent(this.form.oeMunicipioId) + '&sector=' + encodeURIComponent(this.form.oeSector));
+                this.oeEntidades = res.ok ? (await res.json() || []) : [];
+            } catch (e) {
+                this.oeEntidades = [];
+            } finally {
+                this.cargandoOeEntidades = false;
+            }
+        },
+
         onChangeNivelMecanismo() {
             console.log('[CTM] E08 nivelMecanismo seleccionado →', this.form.nivelMecanismo);
         },
@@ -972,14 +1078,32 @@ app.component('case-task-modal', {
                         departamental: 'Departamental',
                         nacional:      'Nacional',
                     };
+                    const QUIEN_LABELS = { equipo_tecnico: 'Equipo Técnico', agente: 'Agente de Seguimiento' };
+                    const activó = this.tieneDecision('activar_enlace');
+                    const esOtra = activó && f.entidadDestino === 'otra';
+                    const enlaceObj = this.enlacesDepartamento.find(e => e.icode === f.enlaceSeleccionado);
                     return {
                         decisiones:                   f.decisiones,
                         decisionesTexto:              f.decisiones.map(d => DECISION_LABELS[d] || d),
+                        // Activar Enlace
+                        solicitudEnlace:              activó ? (f.solicitudEnlace || '').trim() || null : null,
+                        entidadDestino:               activó ? f.entidadDestino : null,        // 'misma' | 'otra'
+                        enlaceId:                     activó ? (f.enlaceSeleccionado || null) : null,
+                        enlaceNombre:                 activó && enlaceObj ? enlaceObj.fullName : null,
+                        // Otra entidad (solo si aplica)
+                        otraEntidadId:                esOtra ? Number(f.oeEntidadId) : null,
+                        otraEntidadNombre:            esOtra ? ((this.oeEntidades.find(e => String(e.id) === String(f.oeEntidadId)) || {}).name || null) : null,
+                        otraEntidadSector:            esOtra ? f.oeSector : null,
+                        otraEntidadMunicipioId:       esOtra ? f.oeMunicipioId : null,
+                        otraEntidadCanal:             esOtra ? (f.oeCanalActivacion || null) : null,
+                        // Oficio / Recomendaciones / Mecanismo
                         observacionesOficio:          this.tieneDecision('oficio')                ? f.observacionesOficio          || null : null,
                         observacionesRecomendaciones: this.tieneDecision('recomendaciones_agente') ? f.observacionesRecomendaciones || null : null,
                         nivelMecanismo:               this.tieneDecision('mecanismo_articulador')  ? f.nivelMecanismo                       : null,
                         nivelMecanismoTexto:          this.tieneDecision('mecanismo_articulador')  ? (NIVEL_LABELS[f.nivelMecanismo] || null) : null,
                         observacionesMecanismo:       this.tieneDecision('mecanismo_articulador')  ? f.observacionesMecanismo       || null : null,
+                        quienLlenaMecanismo:          this.tieneDecision('mecanismo_articulador')  ? (f.quienLlenaMecanismo || null) : null,
+                        quienLlenaMecanismoTexto:     this.tieneDecision('mecanismo_articulador')  ? (QUIEN_LABELS[f.quienLlenaMecanismo] || null) : null,
                     };
                 }
                 case 'Corregir oficio':
@@ -1384,6 +1508,99 @@ app.component('case-task-modal', {
 
             <!-- Campos condicionales -->
 
+            <template v-if="tieneDecision('activar_enlace')">
+                <div style="margin-top:16px;background:#f5f3ff;border:1px solid #e9d5ff;border-radius:10px;padding:14px 16px">
+                    <p class="ctm-section-title" style="color:#5106A7;margin:0 0 10px">Activar Enlace Territorial</p>
+
+                    <div class="ctm-field">
+                        <label class="ctm-label">Solicitud para el enlace <span class="req">*</span></label>
+                        <textarea class="ctm-textarea" v-model="form.solicitudEnlace" rows="3" placeholder="Explica la tarea que debe realizar el enlace territorial…" maxlength="500"></textarea>
+                    </div>
+
+                    <!-- Dropdown de enlace solo si hay más de uno -->
+                    <div class="ctm-field" v-if="enlacesDepartamento.length > 1">
+                        <label class="ctm-label">¿A qué enlace se dirige? <span class="req">*</span></label>
+                        <select class="ctm-select" v-model="form.enlaceSeleccionado">
+                            <option value="">Selecciona un enlace…</option>
+                            <option v-for="en in enlacesDepartamento" :key="en.icode" :value="en.icode">\${ en.fullName }</option>
+                        </select>
+                    </div>
+                    <div class="ctm-field" v-else-if="enlacesDepartamento.length === 1">
+                        <label class="ctm-label">Enlace</label>
+                        <div style="font-size:13px;color:#374151;padding:6px 0">\${ enlacesDepartamento[0].fullName }</div>
+                    </div>
+
+                    <label class="ctm-label" style="margin-top:6px">¿A qué entidad debe ir la enlace? <span class="req">*</span></label>
+                    <div style="display:flex;gap:10px;margin-top:6px">
+                        <button type="button"
+                            @click="onCambiaEntidadDestino('misma')"
+                            :style="form.entidadDestino === 'misma'
+                                ? 'flex:1;border:2px solid #5106A7;background:#ede9fe;color:#5106A7;border-radius:8px;padding:10px;font-size:.8rem;font-weight:700;cursor:pointer'
+                                : 'flex:1;border:2px solid #e5e7eb;background:#fff;color:#374151;border-radius:8px;padding:10px;font-size:.8rem;font-weight:600;cursor:pointer'">
+                            Misma entidad de la barrera<span v-if="tarea.barrierEntityName"> (\${ tarea.barrierEntityName })</span>
+                        </button>
+                        <button type="button"
+                            @click="onCambiaEntidadDestino('otra')"
+                            :style="form.entidadDestino === 'otra'
+                                ? 'flex:1;border:2px solid #5106A7;background:#ede9fe;color:#5106A7;border-radius:8px;padding:10px;font-size:.8rem;font-weight:700;cursor:pointer'
+                                : 'flex:1;border:2px solid #e5e7eb;background:#fff;color:#374151;border-radius:8px;padding:10px;font-size:.8rem;font-weight:600;cursor:pointer'">
+                            Otra entidad
+                        </button>
+                    </div>
+
+                    <!-- Formulario de otra entidad -->
+                    <template v-if="form.entidadDestino === 'otra'">
+                        <div class="ctm-field" style="margin-top:12px">
+                            <label class="ctm-label">Sector <span class="req">*</span></label>
+                            <select class="ctm-select" v-model="form.oeSector" @change="onOeSector">
+                                <option value="">Selecciona un sector…</option>
+                                <option v-for="s in sectoresModal" :key="s.value" :value="s.value">\${ s.label }</option>
+                            </select>
+                        </div>
+                        <div class="ctm-field">
+                            <label class="ctm-label">Departamento <span class="req">*</span></label>
+                            <select class="ctm-select" v-model="form.oeDepartamentoId" @change="onOeDepartamento">
+                                <option value="">Selecciona…</option>
+                                <option v-for="d in departamentos" :key="d.value" :value="d.value">\${ d.label }</option>
+                            </select>
+                        </div>
+                        <div class="ctm-field">
+                            <label class="ctm-label">Ciudad <span class="req">*</span></label>
+                            <select class="ctm-select" v-model="form.oeCiudadId" @change="onOeCiudad" :disabled="!form.oeDepartamentoId">
+                                <option value="">Selecciona…</option>
+                                <option v-for="c in oeCiudades" :key="c.value" :value="c.value">\${ c.label }</option>
+                            </select>
+                        </div>
+                        <div class="ctm-field">
+                            <label class="ctm-label">Municipio <span class="req">*</span></label>
+                            <select class="ctm-select" v-model="form.oeMunicipioId" @change="onOeMunicipio" :disabled="!form.oeCiudadId">
+                                <option value="">Selecciona…</option>
+                                <option v-for="m in oeMunicipios" :key="m.value" :value="m.value">\${ m.label }</option>
+                            </select>
+                        </div>
+                        <div class="ctm-field" v-if="cargandoOeEntidades">
+                            <span style="font-size:12px;color:#6b7280">Buscando entidades…</span>
+                        </div>
+                        <div class="ctm-field" v-else-if="oeEntidades.length > 0">
+                            <label class="ctm-label">Entidad <span class="req">*</span></label>
+                            <select class="ctm-select" v-model="form.oeEntidadId">
+                                <option value="">Selecciona la entidad…</option>
+                                <option v-for="opt in oeEntidades" :key="opt.id" :value="opt.id">\${ opt.name }</option>
+                            </select>
+                        </div>
+                        <div class="ctm-field">
+                            <label class="ctm-label">Canal de activación</label>
+                            <select class="ctm-select" v-model="form.oeCanalActivacion">
+                                <option value="">Selecciona…</option>
+                                <option value="notificacion">Notificación / Oficio</option>
+                                <option value="llamada">Llamada</option>
+                                <option value="correo">Correo electrónico</option>
+                            </select>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
             <template v-if="tieneDecision('oficio')">
                 <p class="ctm-section-title" style="margin-top:16px">Oficio</p>
                 <div class="ctm-field">
@@ -1414,6 +1631,14 @@ app.component('case-task-modal', {
                 <div class="ctm-field">
                     <label class="ctm-label">Observaciones del mecanismo</label>
                     <textarea class="ctm-textarea" v-model="form.observacionesMecanismo" rows="2" placeholder="Observaciones sobre el mecanismo…" maxlength="500"></textarea>
+                </div>
+                <div class="ctm-field">
+                    <label class="ctm-label">¿Quién llena el formulario del mecanismo? <span class="req">*</span></label>
+                    <select class="ctm-select" v-model="form.quienLlenaMecanismo">
+                        <option value="">Selecciona…</option>
+                        <option value="equipo_tecnico">Equipo Técnico</option>
+                        <option value="agente">Agente de Seguimiento del caso</option>
+                    </select>
                 </div>
             </template>
 
@@ -1559,6 +1784,13 @@ app.component('case-task-modal', {
         <template v-else-if="tarea && tarea.type === 'articulacion_territorial'">
             <div v-if="articulacionSubtitulo" class="ctm-context-box">
                 \${ articulacionSubtitulo }
+            </div>
+            <!-- Entidad contactada: solo lectura, precargada con la entidad de la barrera -->
+            <div class="ctm-field">
+                <label class="ctm-label">Entidad contactada</label>
+                <input class="ctm-input" type="text" readonly disabled
+                    :value="(articulacionCtx && articulacionCtx.entityName) || 'Entidad de la barrera'"
+                    style="background:#f3f4f6;color:#6b7280;cursor:not-allowed">
             </div>
             <div class="ctm-field">
                 <label class="ctm-label">Fecha de contacto <span class="req">*</span></label>

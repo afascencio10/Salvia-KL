@@ -82,7 +82,11 @@ app.component('case-entities', {
             cargandoEntidades: false,
             guardando: false,
             errores: {},
-            form: { departamento: '', ciudad: '', municipio: '', sector: '', entidadId: '', objetivo: '' },
+            form: { departamento: '', ciudad: '', municipio: '', sector: '', entidadId: '', objetivo: '', obligaciones: [] },
+
+            // Checklist de tareas de la entidad seleccionada
+            tareasEntidad: [],           // catálogo de tareas de la entidad elegida [{value, label}]
+            cargandoTareas: false,
         };
     },
     computed: {
@@ -138,10 +142,12 @@ app.component('case-entities', {
 
         // ── Modal: agregar entidad ──────────────────────────────────────────────
         abrirModalAgregar: function() {
-            this.form = { departamento: '', ciudad: '', municipio: '', sector: '', entidadId: '', objetivo: '' };
+            this.form = { departamento: '', ciudad: '', municipio: '', sector: '', entidadId: '', objetivo: '', obligaciones: [] };
             this.ciudades = [];
             this.municipios = [];
             this.entidadesDisponibles = [];
+            this.tareasEntidad = [];
+            this.cargandoTareas = false;
             this.cargandoEntidades = false;
             this.errores = {};
             this.guardando = false;
@@ -185,11 +191,15 @@ app.component('case-entities', {
         onCambiaMunicipio: function() {
             this.entidadesDisponibles = [];
             this.form.entidadId = '';
+            this.tareasEntidad = [];
+            this.form.obligaciones = [];
             this.buscarEntidadesDisponibles();
         },
         onCambiaSectorModal: function() {
             this.entidadesDisponibles = [];
             this.form.entidadId = '';
+            this.tareasEntidad = [];
+            this.form.obligaciones = [];
             this.buscarEntidadesDisponibles();
         },
         buscarEntidadesDisponibles: function() {
@@ -223,6 +233,7 @@ app.component('case-entities', {
                     entityBranchId: Number(self.form.entidadId),
                     objetivo: self.form.objetivo.trim(),
                     createdById: self.userId,
+                    obligationIds: self.form.obligaciones,
                 }),
             })
                 .then(function(res) {
@@ -243,8 +254,49 @@ app.component('case-entities', {
                 });
         },
 
+        // ── Checklist de tareas de la entidad seleccionada ──────────────────────
+        // Al elegir una entidad en el select, trae el catálogo de tareas gestionables
+        // de esa organización (GET /api/v1/entity-branches/:branchId/obligations).
+        onCambiaEntidad: function() {
+            this.tareasEntidad = [];
+            this.form.obligaciones = [];
+            if (!this.form.entidadId) return;
+            var self = this;
+            self.cargandoTareas = true;
+            fetch('/api/v1/entity-branches/' + encodeURIComponent(this.form.entidadId) + '/obligations')
+                .then(function(res) { return res.ok ? res.json() : []; })
+                .then(function(data) {
+                    // El endpoint agrega "Otra" al final; la excluimos del checklist.
+                    self.tareasEntidad = (Array.isArray(data) ? data : []).filter(function(o) {
+                        return o.value !== 'otra';
+                    });
+                    self.cargandoTareas = false;
+                })
+                .catch(function() {
+                    self.tareasEntidad = [];
+                    self.cargandoTareas = false;
+                });
+        },
+
+        toggleObligacion: function(value) {
+            var idx = this.form.obligaciones.indexOf(value);
+            if (idx > -1) {
+                this.form.obligaciones.splice(idx, 1);
+            } else {
+                this.form.obligaciones.push(value);
+            }
+        },
+
+        obligacionSeleccionada: function(value) {
+            return this.form.obligaciones.indexOf(value) > -1;
+        },
+
         onVerDetalle: function(entidad) {
-            window.location.href = '/salvia/entidad/' + entidad.entityBranchICode;
+            if (!entidad || !entidad.relId) {
+                console.warn('[case-entities] entidad sin relId, no se puede abrir detalle');
+                return;
+            }
+            window.location.href = '/salvia/casos-entidad/' + encodeURIComponent(entidad.relId) + '/detalle';
         },
     },
     template: `
@@ -339,11 +391,32 @@ app.component('case-entities', {
 
                         <div class="ce-field" v-if="entidadesDisponibles.length > 0">
                             <label>Entidad *</label>
-                            <select v-model="form.entidadId">
+                            <select v-model="form.entidadId" @change="onCambiaEntidad">
                                 <option value="">Seleccione la entidad</option>
                                 <option v-for="opt in entidadesDisponibles" :key="opt.id" :value="opt.id">\${ opt.name }</option>
                             </select>
                             <div v-if="errores.entidad" class="ce-field-error">\${ errores.entidad }</div>
+                        </div>
+
+                        <!-- Checklist de tareas de la entidad (solo tras elegir entidad) -->
+                        <div class="ce-field" v-if="form.entidadId">
+                            <label>Tareas que la entidad puede gestionar</label>
+                            <div v-if="cargandoTareas" class="ce-hint">Cargando tareas...</div>
+                            <div v-else-if="tareasEntidad.length === 0" class="ce-hint">
+                                Esta entidad no tiene tareas configuradas en el catálogo.
+                            </div>
+                            <div v-else style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
+                                <button
+                                    type="button"
+                                    v-for="t in tareasEntidad"
+                                    :key="t.value"
+                                    @click="toggleObligacion(t.value)"
+                                    :style="obligacionSeleccionada(t.value)
+                                        ? 'border:1px solid #5106A7;background:#5106A7;color:#fff;border-radius:20px;padding:7px 16px;font-size:.8rem;font-weight:600;cursor:pointer'
+                                        : 'border:1px solid #c4b5fd;background:#fff;color:#5106A7;border-radius:20px;padding:7px 16px;font-size:.8rem;font-weight:500;cursor:pointer'">
+                                    <span v-if="obligacionSeleccionada(t.value)">✓ </span>\${ t.label }
+                                </button>
+                            </div>
                         </div>
 
                         <div class="ce-field">

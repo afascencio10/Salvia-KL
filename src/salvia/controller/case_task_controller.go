@@ -490,11 +490,23 @@ func (c *CaseTaskController) taskToJSON(t models.CaseTask, assignedUserName, ent
 	if entityName != "" {
 		result["entityName"] = entityName
 	}
-	// Resolver sector de la barrera si tiene barrierId
+	// Resolver sector y entidad de la barrera si tiene barrierId
 	if t.BarrierID != nil && *t.BarrierID != "" {
-		var sector string
-		c.svc.GetDB().Raw("SELECT COALESCE(sector, '') FROM salvia.barrier_v2 WHERE id = ? LIMIT 1", *t.BarrierID).Scan(&sector)
-		result["barrierSector"] = sector
+		var barrierRow struct {
+			Sector           string `gorm:"column:sector"`
+			EntityBranchID   *int64 `gorm:"column:entity_branch_id"`
+			EntityBranchName string `gorm:"column:entity_branch_name"`
+		}
+		c.svc.GetDB().Raw(`
+			SELECT COALESCE(b.sector, '') AS sector,
+			       b.entity_branch_id,
+			       COALESCE(eb.entity_branch_name, '') AS entity_branch_name
+			FROM salvia.barrier_v2 b
+			LEFT JOIN salvia.entity_branch eb ON eb.entity_branch_id = b.entity_branch_id
+			WHERE b.id = ? LIMIT 1`, *t.BarrierID).Scan(&barrierRow)
+		result["barrierSector"] = barrierRow.Sector
+		result["barrierEntityBranchId"] = barrierRow.EntityBranchID
+		result["barrierEntityName"] = barrierRow.EntityBranchName
 	}
 	return result
 }

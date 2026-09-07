@@ -7,6 +7,7 @@ import (
 	salvia_config "bitsflow/salvia/config"
 	"context"
 	"errors"
+	"log"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -22,6 +23,10 @@ type CreateEntityCaseInput struct {
 	EntityBranchID int64
 	Objetivo       *string
 	CreatedByID    string
+	// ObligationIds — IDs del catálogo entity_obligation seleccionados en el
+	// checklist del formulario. Se registran como entity_case_obligation en
+	// estado "pendiente" al crear la entidad.
+	ObligationIds []string
 }
 
 // EntityCaseListFilter filtros del listado Casos Entidad (por sede de sesión).
@@ -104,6 +109,29 @@ func (s *entityCaseService) Create(ctx context.Context, input CreateEntityCaseIn
 		}
 		return nil, err
 	}
+
+	// Registrar las tareas seleccionadas del checklist como obligaciones
+	// pendientes de este entity_case. Si alguna falla, se registra en log pero
+	// no se aborta (la entidad ya quedó creada).
+	if s.obligationRepo != nil {
+		for _, obligID := range input.ObligationIds {
+			obligID = strings.TrimSpace(obligID)
+			if obligID == "" || obligID == "otra" {
+				continue
+			}
+			oid := obligID
+			eco := &models.EntityCaseObligation{
+				EntityCaseID:       ec.ID,
+				EntityObligationID: &oid,
+				Status:             models.EntityCaseObligationStatusPendiente,
+				CreatedByID:        input.CreatedByID,
+			}
+			if err := s.obligationRepo.Create(ctx, eco); err != nil {
+				log.Printf("[EntityCaseService.Create] WARN: no se pudo crear entity_case_obligation %s para entity_case %s: %v", obligID, ec.ID, err)
+			}
+		}
+	}
+
 	return ec, nil
 }
 

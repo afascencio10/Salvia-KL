@@ -184,9 +184,10 @@ func (c *EntityCaseController) Create(ctx *gin.Context) {
 	caseID := ctx.Param("id")
 
 	var body struct {
-		EntityBranchID int64   `json:"entityBranchId" binding:"required"`
-		Objetivo       *string `json:"objetivo"`
-		CreatedByID    string  `json:"createdById" binding:"required"`
+		EntityBranchID int64    `json:"entityBranchId" binding:"required"`
+		Objetivo       *string  `json:"objetivo"`
+		CreatedByID    string   `json:"createdById" binding:"required"`
+		ObligationIds  []string `json:"obligationIds"`
 	}
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -198,6 +199,7 @@ func (c *EntityCaseController) Create(ctx *gin.Context) {
 		EntityBranchID: body.EntityBranchID,
 		Objetivo:       body.Objetivo,
 		CreatedByID:    body.CreatedByID,
+		ObligationIds:  body.ObligationIds,
 	})
 	if err != nil {
 		if errors.Is(err, service.ErrEntityCaseDuplicate) {

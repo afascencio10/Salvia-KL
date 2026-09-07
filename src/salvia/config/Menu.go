@@ -253,7 +253,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	// get_directorio_entidades ("Opción A: todos los roles internos pueden ver"),
 	// que ya es la clasificación interno/externo vigente en este código. en
 	// (Enlace Territorial) queda fuera a propósito, igual que en ese permiso.
-	"get_mis_tareas": {"op": true, "ro": true, "et": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true, "mn": true},
+	"get_mis_tareas": {"op": true, "ro": true, "et": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true, "mn": true, "te": true},
 
 	// ── Módulo de Barreras Departamento ──────────────────────────────────────
 	// Solo el enlace territorial (en) puede ver el panorama de barreras de su departamento.
@@ -284,6 +284,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"ps": true,
 		"ts": true,
 		"an": true,
+		"te": true,
 	},
 
 	// ── Dashboard KPIs (Salvia_KPIs_v1) ──────────────────────────────────────
@@ -295,8 +296,8 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	// ── Administrar Duplas (Atención Psicosocial — solo sv) ────────────────
 	"get_administrar_duplas": {"sv": true},
 
-	// ── Casos Entidad (solo rol et) ───────────────────────────────────────
-	"get_casos_entidad": {"et": true},
+	// ── Casos Entidad (rol et + ro, op, sv, en Enlace Territorial) ─────────
+	"get_casos_entidad": {"et": true, "ro": true, "op": true, "sv": true, "en": true},
 
 	// ── Mis remisiones Psicosocial (profesional ps / ts) ────────────────────
 	"get_mis_remisiones_psicosocial": {"ps": true, "ts": true},
