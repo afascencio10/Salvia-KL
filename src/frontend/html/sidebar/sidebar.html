@@ -26,12 +26,16 @@
 
         <nav class="salvia-sidebar__nav" aria-label="Navegación principal">
             {{/* Los roles psicosociales (ps, ts) no tienen get_victim_cases ni
-                 get_list_cases: estas pantallas les responden 401. */}}
-            {{ if and (ne .currentRole "ps") (ne .currentRole "ts") }}
+                 get_list_cases: estas pantallas les responden 401.
+                 El Equipo Técnico (te) no ve "Reportes": esa pantalla legacy
+                 (/salvia/casos) no está preparada para su rol. */}}
+            {{ if and (ne .currentRole "ps") (ne .currentRole "ts") (ne .currentRole "te") }}
             <a href="/salvia/casos" class="salvia-sidebar__nav-link">
                 <i class="fas fa-home" aria-hidden="true"></i>
                 <span>Reportes</span>
             </a>
+            {{ end }}
+            {{ if and (ne .currentRole "ps") (ne .currentRole "ts") }}
             <a href="/salvia/lista-casos" class="salvia-sidebar__nav-link">
                 <i class="fas fa-list" aria-hidden="true"></i>
                 <span>Lista Casos</span>
@@ -49,7 +53,7 @@
                 <span>Mis Casos</span>
             </a>
             {{ end }}
-            {{ if or (eq .currentRole "op") (eq .currentRole "ro") (eq .currentRole "et") (eq .currentRole "sv") (eq .currentRole "no") (eq .currentRole "do") (eq .currentRole "us") (eq .currentRole "fo") (eq .currentRole "ad") (eq .currentRole "an") (eq .currentRole "ps") (eq .currentRole "ts") (eq .currentRole "ab") (eq .currentRole "mn") }}
+            {{ if or (eq .currentRole "op") (eq .currentRole "ro") (eq .currentRole "et") (eq .currentRole "sv") (eq .currentRole "no") (eq .currentRole "do") (eq .currentRole "us") (eq .currentRole "fo") (eq .currentRole "ad") (eq .currentRole "an") (eq .currentRole "ps") (eq .currentRole "ts") (eq .currentRole "ab") (eq .currentRole "mn") (eq .currentRole "te") }}
             <a href="/salvia/mis-tareas" class="salvia-sidebar__nav-link">
                 <i class="fas fa-tasks" aria-hidden="true"></i>
                 <span>Mis Tareas</span>
