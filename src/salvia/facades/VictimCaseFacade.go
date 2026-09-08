@@ -164,7 +164,7 @@ func VictimCaseGET(c *gin.Context) {
 					tplName = "get_victim_case_sv_v1"
 				}
 				_, _, branches = salvia_ctrl.GetEntityBranchesByTownCodeWithMoments(vCase.VictimCaseTownCode, &db.ConnData{}, dbClientConfig, dbServerConfig)
-			case "no":
+			case "no", "an":
 				tplName = "get_victim_case_no"
 				if vCase.VictimCaseForm1.VictimCaseForm1ICode != "" {
 					//Si se diligenció el formulario 1 vamos a su plantilla
@@ -281,7 +281,7 @@ func VictimCaseGET(c *gin.Context) {
 				code, victimCaseRes, count = salvia_ctrl.GetVictimCaseByAll(filter, page, &db.ConnData{}, dbClientConfig, dbServerConfig)
 			}
 
-		case "no":
+		case "no", "an":
 			tplName = "get_victim_cases_no"
 			if filter == "" { //Si es primera entrada por defecto se cargan los entrutados aprobados
 				filter = "ra"

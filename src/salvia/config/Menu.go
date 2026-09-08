@@ -45,6 +45,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"sv": true,
 		"no": true,
 		"fo": true,
+		"an": true,
 	},
 	"get_victim_cases": {
 		"op": true,
@@ -55,6 +56,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"sv": true,
 		"no": true,
 		"fo": true,
+		"an": true,
 	},
 	"get_victim_case_by_document": {
 		"op": true,
@@ -62,6 +64,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"et": true,
 		"sv": true,
 		"no": true,
+		"an": true,
 	},
 	"get_victim_cases_by_all": {
 		"op": true,
@@ -111,6 +114,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"ad": true,
 		"sv": true,
 		"no": true,
+		"an": true,
 	},
 	"get_entity_branches_by_towncode_and_entity": {
 		"op": true,
@@ -120,6 +124,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"ad": true,
 		"sv": true,
 		"no": true,
+		"an": true,
 	},
 	"get_entity_branches_with_moments": {
 		"op": true,
@@ -128,6 +133,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"ad": true,
 		"sv": true,
 		"no": true,
+		"an": true,
 	},
 	"get_entity_branches": {
 		"do": true,
@@ -596,6 +602,16 @@ var MenuTools map[string]map[string]map[string][]map[string]string = map[string]
 			},
 		},
 		"no": {
+			"menu_tool_get_victim_cases": {
+				{
+					"label":       Locale["sp"]["menu_tool_get_victim_case"],
+					"path":        "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["VictimCase"],
+					"action":      "",
+					"customClass": "fas fa-eye icoacciones",
+				},
+			},
+		},
+		"an": {
 			"menu_tool_get_victim_cases": {
 				{
 					"label":       Locale["sp"]["menu_tool_get_victim_case"],
