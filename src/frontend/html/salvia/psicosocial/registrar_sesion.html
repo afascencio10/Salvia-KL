@@ -1,6 +1,6 @@
 <div class="container mt-4">
     <div class="welcome-section mb-4">
-        <h2><b>Registrar Sesión Psicosocial</b></h2>
+        <h2><b>Registrar Atención Psicosocial</b></h2>
     </div>
 
     <div id="psicosocial-app">
@@ -11,7 +11,7 @@
                 <circle cx="20" cy="20" r="16" fill="none" stroke="#ede9fe" stroke-width="4"></circle>
                 <circle cx="20" cy="20" r="16" fill="none" stroke="#7c3aed" stroke-width="4" stroke-linecap="round" stroke-dasharray="70 100"></circle>
             </svg>
-            <p class="ps-page-loader-text">Cargando sesión psicosocial...</p>
+            <p class="ps-page-loader-text">Cargando atención psicosocial...</p>
         </div>
 
         <template v-else>
@@ -68,7 +68,7 @@
                     <div class="ps-session-status">
                         <div class="ps-ss-badge ps-ss-session">
                             <i class="fas fa-calendar-check"></i>
-                            Sesión ${ psicosocialState.sessionCount + 1 } de 6
+                            Atención ${ psicosocialState.sessionCount + 1 } de 6
                         </div>
                         <div class="ps-ss-badge"
                             :style="{ color: statusInfo.color, background: statusInfo.bg, border: '1px solid ' + statusInfo.color + '44' }">
@@ -93,7 +93,7 @@
                 <i class="fas fa-folder-open"></i> Información del caso
             </button>
             <button class="ps-tab" :class="{ 'ps-tab--active': activeTab === 'sesion' }" @click="activeTab = 'sesion'">
-                <i class="fas fa-clipboard-list"></i> Formulario de sesión
+                <i class="fas fa-clipboard-list"></i> Formulario de atención
             </button>
         </div>
 
@@ -267,7 +267,7 @@
                     </button>
                     <button class="ps-btn-next"
                         @click="goNext">
-                        <span v-if="isLastSection && canEdit">Guardar sesión ✓</span>
+                        <span v-if="isLastSection && canEdit">Guardar atención ✓</span>
                         <span v-else-if="isLastSection && !canEdit">Cerrar</span>
                         <span v-else>Siguiente →</span>
                     </button>
@@ -319,7 +319,7 @@
                 <!-- Variante: Solo Contacto -->
                 <template v-else-if="completedVariant === 'solo_contacto'">
                     <h4 class="ps-completed-title">Contacto registrado</h4>
-                    <p class="ps-completed-text">El contacto fue registrado. La próxima sesión queda pendiente de agendar.</p>
+                    <p class="ps-completed-text">El contacto fue registrado. La próxima atención queda pendiente de agendar.</p>
                     <button class="ps-completed-btn" @click="resetMock">
                         ← Volver a casos de prueba
                     </button>
@@ -336,8 +336,8 @@
 
                 <!-- Variante: sesión normal (mock) -->
                 <template v-else-if="isMock">
-                    <h4 class="ps-completed-title">Sesión registrada</h4>
-                    <p class="ps-completed-text">La sesión fue registrada exitosamente.</p>
+                    <h4 class="ps-completed-title">Atención registrada</h4>
+                    <p class="ps-completed-text">La atención fue registrada exitosamente.</p>
                     <button class="ps-completed-btn" @click="resetMock">
                         ← Volver a casos de prueba
                     </button>
@@ -345,8 +345,8 @@
 
                 <!-- Variante: sesión normal (real) -->
                 <template v-else>
-                    <h4 class="ps-completed-title">Sesión registrada</h4>
-                    <p class="ps-completed-text">La sesión fue registrada exitosamente.</p>
+                    <h4 class="ps-completed-title">Atención registrada</h4>
+                    <p class="ps-completed-text">La atención fue registrada exitosamente.</p>
                     <button class="ps-completed-btn" @click="goToRemision">
                         Ver remisión
                     </button>
@@ -1067,7 +1067,7 @@
                     const res  = await fetch(url);
                     const data = await res.json();
                     if (!res.ok) {
-                        this.loadError = data.error || 'Error al cargar la sesión psicosocial';
+                        this.loadError = data.error || 'Error al cargar la atención psicosocial';
                         return;
                     }
                     this.formId           = data.formId;
@@ -1091,7 +1091,7 @@
                     console.log('[PSICO] Datos cargados:', data);
                     console.log('[PSICO] caseICode:', this.caseICode);
                 } catch (e) {
-                    this.loadError = 'Error de conexión al cargar la sesión psicosocial';
+                    this.loadError = 'Error de conexión al cargar la atención psicosocial';
                     console.error('[PSICO] error:', e);
                 } finally {
                     this.pageLoading = false;

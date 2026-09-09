@@ -46,6 +46,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"no": true,
 		"fo": true,
 		"te": true,
+		"an": true,
 	},
 	"get_victim_cases": {
 		"op": true,
@@ -56,6 +57,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"sv": true,
 		"no": true,
 		"fo": true,
+		"an": true,
 	},
 	"get_victim_case_by_document": {
 		"op": true,
@@ -63,6 +65,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"et": true,
 		"sv": true,
 		"no": true,
+		"an": true,
 	},
 	"get_victim_cases_by_all": {
 		"op": true,
@@ -112,6 +115,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"ad": true,
 		"sv": true,
 		"no": true,
+		"an": true,
 	},
 	"get_entity_branches_by_towncode_and_entity": {
 		"op": true,
@@ -121,6 +125,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"ad": true,
 		"sv": true,
 		"no": true,
+		"an": true,
 	},
 	"get_entity_branches_with_moments": {
 		"op": true,
@@ -129,6 +134,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"ad": true,
 		"sv": true,
 		"no": true,
+		"an": true,
 	},
 	"get_entity_branches": {
 		"do": true,
@@ -261,13 +267,13 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	"get_barreras_departamento": {"en": true},
 
 	// ── Módulo de Seguimiento (HU-027) ──────────────────────────────────────
-	"get_seguimiento_detalle_caso":    {"ad": true, "sv": true, "op": true, },
-	"get_seguimiento_detalle":         {"ad": true, "sv": true, "op": true},
-	"get_seguimiento_formulario":      {"op": true},
-	"get_mis_seguimientos_dia":        {"op": true},
+	"get_seguimiento_detalle_caso": {"ad": true, "sv": true, "op": true},
+	"get_seguimiento_detalle":      {"ad": true, "sv": true, "op": true},
+	"get_seguimiento_formulario":   {"op": true},
+	"get_mis_seguimientos_dia":     {"op": true},
 	// Carga de la pantalla HTML: mismos roles que get_notificaciones; uso real solo op/ro (validación en frontend).
-	"get_my_cases":  {"op": true, "an": true, "no": true, "sv": true, "ad": true, "ro": true, "et": true},
-	"get_list_cases": {"op": true, "an": true, "no": true, "sv": true, "ad": true, "ro": true, "et": true, "en": true, "do": true, "us": true, "fo": true, "te": true},
+	"get_my_cases":                    {"op": true, "an": true, "no": true, "sv": true, "ad": true, "ro": true, "et": true},
+	"get_list_cases":                  {"op": true, "an": true, "no": true, "sv": true, "ad": true, "ro": true, "et": true, "en": true, "do": true, "us": true, "fo": true, "te": true},
 	"get_seguimientos_area":           {"ad": true, "sv": true},
 	"get_hacer_seguimiento":           {"ro": true, "op": true, "ad": true},
 	"generate_calendario_seguimiento": {"ad": true, "sv": true, "op": true},
@@ -294,6 +300,9 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	// ── Historial de Remisiones (Atención Psicosocial) ─────────────────────
 	"get_historial_remisiones": {"sv": true},
 
+	// ── Detalle de remisión psicosocial (profesional ps/ts + supervisor sv) ─
+	"get_remision_psicosocial_detalle": {"ps": true, "ts": true, "sv": true},
+
 	// ── Administrar Duplas (Atención Psicosocial — solo sv) ────────────────
 	"get_administrar_duplas": {"sv": true},
 
@@ -309,13 +318,13 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	// ── Test — selección de casos psicosocial (solo desarrollo / supervisión) ─
 	"get_test_psicosocial": {"ps": true, "ts": true, "sv": true, "ad": true},
 	// ── Flujo 3x3 de Atención Psicosocial (profesional ps / ts) ─────────────
-	"get_psychosocial_contact_attempts":      {"ps": true, "ts": true},
-	"register_psychosocial_contact_attempt":  {"ps": true, "ts": true},
-	"set_psychosocial_consent":               {"ps": true, "ts": true},
-	"schedule_psychosocial_session":          {"ps": true, "ts": true},
-	"set_psychosocial_next_attempt":          {"ps": true, "ts": true},
-	"init_psychosocial_closure_form":         {"ps": true, "ts": true},
-	"close_psychosocial_process":             {"ps": true, "ts": true},
+	"get_psychosocial_contact_attempts":     {"ps": true, "ts": true, "sv": true},
+	"register_psychosocial_contact_attempt": {"ps": true, "ts": true},
+	"set_psychosocial_consent":              {"ps": true, "ts": true},
+	"schedule_psychosocial_session":         {"ps": true, "ts": true},
+	"set_psychosocial_next_attempt":         {"ps": true, "ts": true},
+	"init_psychosocial_closure_form":        {"ps": true, "ts": true},
+	"close_psychosocial_process":            {"ps": true, "ts": true},
 
 	// ── Calendario Psicosocial ─────────────────────────────────────────────
 	// ts (trabajador social) comparte el resto de permisos psicosociales con ps y
@@ -326,10 +335,10 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	// Opción A: todos los roles internos pueden ver; et + sv pueden crear;
 	// solo sv puede editar/deshabilitar. Los permisos de escritura se validan
 	// en el frontend (botones ocultos) y también deben validarse en el backend.
-	"get_directorio_entidades":    {"op": true, "ro": true, "et": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true, "mn": true},
-	"set_directorio_entidad":      {"et": true, "sv": true},
-	"update_directorio_entidad":   {"sv": true},
-	"disable_directorio_entidad":  {"sv": true},
+	"get_directorio_entidades":   {"op": true, "ro": true, "et": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true, "mn": true},
+	"set_directorio_entidad":     {"et": true, "sv": true},
+	"update_directorio_entidad":  {"sv": true},
+	"disable_directorio_entidad": {"sv": true},
 }
 
 // Menús del sistema. Se filtra por el tipo de menú (ie/ default) y luego por la sección principal repesentada por el locale.
@@ -596,6 +605,16 @@ var MenuTools map[string]map[string]map[string][]map[string]string = map[string]
 			},
 		},
 		"no": {
+			"menu_tool_get_victim_cases": {
+				{
+					"label":       Locale["sp"]["menu_tool_get_victim_case"],
+					"path":        "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["VictimCase"],
+					"action":      "",
+					"customClass": "fas fa-eye icoacciones",
+				},
+			},
+		},
+		"an": {
 			"menu_tool_get_victim_cases": {
 				{
 					"label":       Locale["sp"]["menu_tool_get_victim_case"],

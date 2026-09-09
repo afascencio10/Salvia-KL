@@ -315,6 +315,8 @@
                       <th style="text-align:left;padding:6px 10px">Profesional</th>
                       <th style="text-align:left;padding:6px 10px">Estado</th>
                       <th style="text-align:left;padding:6px 10px">Resumen</th>
+                      <th style="text-align:left;padding:6px 10px">Observaciones</th>
+                      <th style="text-align:left;padding:6px 10px">Registrado por</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -326,6 +328,8 @@
                         <span :style="{background: s.isCompleted ? '#dcfce7' : '#fef3c7', color: s.isCompleted ? '#166534' : '#92400e', padding:'2px 8px', borderRadius:'12px', fontSize:'.7rem', fontWeight:600}">${ s.status }</span>
                       </td>
                       <td style="padding:6px 10px;color:#6b7280">${ s.summary || '—' }</td>
+                      <td style="padding:6px 10px;color:#6b7280">${ s.observations || '—' }</td>
+                      <td style="padding:6px 10px;color:#374151">${ s.registeredByName || '—' }</td>
                     </tr>
                   </tbody>
                 </table>

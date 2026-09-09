@@ -55,6 +55,8 @@ type PsychosocialSessionView struct {
 	Summary          string  `json:"summary"`
 	ProfessionalName string  `json:"professionalName"`
 	ProfessionalID   string  `json:"professionalId"`
+	Observations     string  `json:"observations"`
+	RegisteredByName string  `json:"registeredByName"`
 }
 
 // PsychosocialSupportView — remisión + sus sesiones + asignación resuelta.
@@ -320,7 +322,9 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 				tc.is_completed AS is_completed,
 				COALESCE(tc.summary, '') AS summary,
 				COALESCE(TRIM(CONCAT(gup.general_user_profile_names, ' ', gup.general_user_profile_last_names)), '') AS professional_name,
-				COALESCE(gu.general_user_i_code::text, tc.professional_id, '') AS professional_id
+				COALESCE(gu.general_user_i_code::text, tc.professional_id, '') AS professional_id,
+				COALESCE(tc.observations, '') AS observations,
+				COALESCE(tc.registered_by_name, '') AS registered_by_name
 			FROM salvia.team_contact tc
 			LEFT JOIN security.general_user gu
 			       ON gu.general_user_id::text = BTRIM(COALESCE(tc.professional_id,''))

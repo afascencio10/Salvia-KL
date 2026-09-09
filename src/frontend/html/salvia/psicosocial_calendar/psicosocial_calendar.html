@@ -19,7 +19,7 @@
                 <p class="pc-header-sub">
                     ${ isSupervisor
                         ? 'Consulta la agenda de tu equipo y programa reuniones internas'
-                        : 'Consulta tus sesiones y reuniones asignadas' }
+                        : 'Consulta tus atenciones y reuniones asignadas' }
                 </p>
             </div>
         </div>
@@ -56,8 +56,8 @@
                     <button class="pc-new-item" @click="pickNewSession">
                         <i class="fas fa-user-check pc-new-item-icon"></i>
                         <span>
-                            <span class="pc-new-item-title">Sesión con ciudadana</span>
-                            <span class="pc-new-item-sub">Programar sesión de seguimiento</span>
+                            <span class="pc-new-item-title">Atención con ciudadana</span>
+                            <span class="pc-new-item-sub">Programar atención de seguimiento</span>
                         </span>
                     </button>
                     <button v-if="isSupervisor" class="pc-new-item" @click="pickNewMeeting">
@@ -92,7 +92,7 @@
     <div v-if="showSessionModal" class="pc-modal-backdrop" @click.self="closeSessionModal">
         <div class="pc-modal">
             <div class="pc-modal-header">
-                <h3 class="pc-modal-title"><i class="fas fa-calendar-plus pc-icon--primary"></i> ${ editingSessionId ? 'Editar sesión' : 'Programar sesión' }</h3>
+                <h3 class="pc-modal-title"><i class="fas fa-calendar-plus pc-icon--primary"></i> ${ editingSessionId ? 'Editar atención' : 'Programar atención' }</h3>
                 <button class="pc-modal-close" @click="closeSessionModal">&times;</button>
             </div>
             <div class="pc-modal-body">
@@ -127,7 +127,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="pc-hint">La sesión quedará asignada al agente seleccionado.</div>
+                    <div class="pc-hint">La atención quedará asignada al agente seleccionado.</div>
                 </div>
                 <div class="pc-form-group">
                     <label>Víctima <span class="pc-required">*</span></label>
@@ -189,7 +189,7 @@
                 </div>
                 <div class="pc-form-group">
                     <label>Notas (opcional)</label>
-                    <textarea class="pc-form-textarea" v-model="sessionForm.summary" placeholder="Objetivo de la sesión, tema a tratar…"></textarea>
+                    <textarea class="pc-form-textarea" v-model="sessionForm.summary" placeholder="Objetivo de la atención, tema a tratar…"></textarea>
                 </div>
             </div>
             <div class="pc-modal-footer">
@@ -293,7 +293,7 @@
 
             <div class="pc-preview">
                 <div class="pc-preview-kindline">
-                    ${ selectedEvent.kind === 'meeting' ? 'Reunión de equipo' : 'Sesión con ciudadana' }
+                    ${ selectedEvent.kind === 'meeting' ? 'Reunión de equipo' : 'Atención con ciudadana' }
                 </div>
                 <h2 class="pc-preview-title">${ selectedEvent.kind === 'meeting' ? selectedEvent.title : capitalizeName(selectedEvent.victimName || selectedEvent.title) }</h2>
                 <div class="pc-preview-when">${ formatDateTime(selectedEvent.start) }</div>
@@ -567,7 +567,7 @@ var pcApp = Vue.createApp({
                 const cls = ev.kind === 'meeting' ? 'pc-event-meeting' : ('pc-event-risk-' + (ev.riskLevel || 0));
                 this.calendar.addEvent({
                     id: ev.id,
-                    title: ev.title || 'Sesión',
+                    title: ev.title || 'Atención',
                     start: this.localStart(ev),
                     classNames: [cls],
                     extendedProps: {
@@ -633,7 +633,7 @@ var pcApp = Vue.createApp({
             const stH = Math.floor(existStart / 60), stM = existStart % 60;
             const endTotal = existStart + DURATION;
             const enH = Math.floor(endTotal / 60), enM = endTotal % 60;
-            return 'El agente ya tiene una sesión de ' + pad(stH) + ':' + pad(stM) + ' a ' + pad(enH) + ':' + pad(enM) + ' (ventana de 2 horas)';
+            return 'El agente ya tiene una atención de ' + pad(stH) + ':' + pad(stM) + ' a ' + pad(enH) + ':' + pad(enM) + ' (ventana de 2 horas)';
         },
         async loadAgents() {
             try {
@@ -704,14 +704,14 @@ var pcApp = Vue.createApp({
         },
         async deleteSessionConfirm() {
             if (!this.selectedEvent || this.selectedEvent.kind !== 'session') return;
-            if (!confirm('¿Eliminar esta sesión? El seguimiento programado se borrará.')) return;
+            if (!confirm('¿Eliminar esta atención? El seguimiento programado se borrará.')) return;
             try {
                 const r = await fetch('/api/v1/psychosocial/sessions/' + this.selectedEvent.id, {
                     method: 'DELETE',
                     credentials: 'same-origin',
                 });
                 if (!r.ok) throw new Error('No se pudo eliminar');
-                this.successMsg = 'Sesión eliminada';
+                this.successMsg = 'Atención eliminada';
                 this.selectedEvent = null;
                 this.loadEvents();
                 setTimeout(() => this.successMsg = '', 3000);
@@ -729,7 +729,7 @@ var pcApp = Vue.createApp({
             // Solo se valida en el alta: una sesión PENDIENTE ya vencida sigue siendo
             // editable (canEditSession), y aquí no se está reprogramando su fecha.
             if (!isEdit && this.sessionForm.scheduledDate < this.toDateStr(new Date())) {
-                this.error = 'La fecha de la sesión no puede ser anterior a hoy';
+                this.error = 'La fecha de la atención no puede ser anterior a hoy';
                 return;
             }
             const agentIdForCheck = this.sessionForm.agentId || this.currentUserICode;
@@ -764,12 +764,12 @@ var pcApp = Vue.createApp({
                     const data = await r.json().catch(() => ({}));
                     throw new Error(data.error || 'Error HTTP ' + r.status);
                 }
-                this.successMsg = isEdit ? 'Sesión actualizada' : 'Sesión programada correctamente';
+                this.successMsg = isEdit ? 'Atención actualizada' : 'Atención programada correctamente';
                 this.closeSessionModal();
                 this.loadEvents();
                 setTimeout(() => this.successMsg = '', 3000);
             } catch (e) {
-                this.error = e.message || 'Error al programar sesión';
+                this.error = e.message || 'Error al programar atención';
             } finally {
                 this.submitting = false;
             }
