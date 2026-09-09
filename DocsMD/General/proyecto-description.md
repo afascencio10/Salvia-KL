@@ -68,6 +68,7 @@ cd SOG_SALVIA/src && PORT=9090 go run . >> /tmp/salvia_server.log 2>&1 &
 | `casos-component` | Tabla reutilizable de casos con filtros, paginación y acciones de fila. | `src/frontend/js/components/casos-component.js` |
 | `dinamic-form` | Componente reutilizable que renderiza formularios dinámicos por secciones con guardado parcial. | `src/frontend/js/components/dinamic-form.js` |
 | `case-timeline` | Componente reutilizable que muestra el historial cronológico de eventos de un caso. | `src/frontend/js/components/case-timeline.js` |
+| `case-mecanismos` | Cadena de escalamiento a mecanismos articuladores en Gestión institucional. | `src/frontend/js/components/case-mecanismos.js` |
 
 Línea de prueba.
 Otra linea de prueba de felipe

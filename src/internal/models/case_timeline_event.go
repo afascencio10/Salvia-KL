@@ -18,6 +18,7 @@ const (
 	TimelineCategoryMedidas        = "Medidas"
 	TimelineCategoryPsicosocial    = "Psicosocial"
 	TimelineCategoryEstabilizacion = "Estabilización"
+	TimelineCategoryMecanismos     = "Mecanismos"
 )
 
 // ─── Tipos de evento (Type) ──────────────────────────────────────────────────
@@ -51,6 +52,8 @@ const (
 
 	TimelineTypeSolicitudEntidad = "Solicitud a entidad"
 	TimelineTypeRespuestaEntidad = "Respuesta institucional"
+
+	TimelineTypeMecanismoRegistrado = "Mecanismo articulador registrado"
 )
 
 // ─── Iconos ──────────────────────────────────────────────────────────────────
@@ -77,6 +80,7 @@ const (
 
 	TimelineIconSolicitudEntidad = "folder"
 	TimelineIconRespuestaEntidad = "reply"
+	TimelineIconMecanismo        = "scale-balanced"
 )
 
 // ─── Colores ─────────────────────────────────────────────────────────────────
@@ -109,6 +113,7 @@ const (
 	TimelineEventOficioActualizado       = "OFICIO_ACTUALIZADO"
 	TimelineEventSolicitudEntidad        = "SOLICITUD_ENTIDAD"
 	TimelineEventRespuestaEntidad        = "RESPUESTA_ENTIDAD"
+	TimelineEventMecanismo               = "MECANISMO_REGISTRADO"
 )
 
 // CaseTimelineEvent registra un evento en la vida de un caso.
@@ -137,6 +142,7 @@ type CaseTimelineEvent struct {
 	EmergencyMeasureID      string `gorm:"type:varchar(36)" json:"emergency_measure_id"`
 	PsychosocialSupportID   string `gorm:"type:varchar(36)" json:"psychosocial_support_id"`
 	EconomicStabilizationID string `gorm:"type:varchar(36)" json:"economic_stabilization_id"`
+	ArticulatingMechanismID string `gorm:"type:varchar(36)" json:"articulating_mechanism_id"`
 
 	CreatedAt time.Time      `json:"created_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`

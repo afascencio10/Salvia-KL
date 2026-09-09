@@ -57,6 +57,7 @@ Catálogo de roles del sistema.
 | `et` | Entidad |
 | `an` | A notificaciones |
 | `us` | Usuario externo |
+| `mc` | Mecanismo (asignado en la tarjeta Mecanismos; el alcance se infiere del municipio del perfil) |
 
 ---
 

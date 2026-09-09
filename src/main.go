@@ -93,6 +93,8 @@ func main() {
 		&models.EntityCaseFollowUp{},
 		&models.TeamMeeting{},
 		&models.TeamMeetingAgent{},
+		&models.CaseArticulatingMechanism{},
+		&models.CaseArticulatingMechanismComment{},
 	} {
 		if err := gormDB.AutoMigrate(m); err != nil {
 			log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -157,6 +159,7 @@ func main() {
 	entityObligationRepo := repository.NewEntityObligationRepository(gormDB)
 	entityCaseObligationRepo := repository.NewEntityCaseObligationRepository(gormDB)
 	entityCaseFollowUpRepo := repository.NewEntityCaseFollowUpRepository(gormDB)
+	articulatingMechanismRepo := repository.NewCaseArticulatingMechanismRepository(gormDB)
 
 	// Services
 	casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
@@ -172,6 +175,7 @@ func main() {
 	followUpV2Svc := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo, answerRepo, repeaterEntryRepo)
 	victimCaseFormSvc := service.NewVictimCaseFormService(victimCaseFormRepo, victimCaseLightRepo, caseTimelineRepo, followUpV2Svc)
 	entityCaseSvc := service.NewEntityCaseService(entityCaseRepo, entityCaseObligationRepo)
+	articulatingMechanismSvc := service.NewCaseArticulatingMechanismService(articulatingMechanismRepo, caseTimelineRepo)
 
 	formSvc := service.NewFormService(service.FormServiceDeps{
 		FormRepo:                  formRepo,
@@ -246,6 +250,7 @@ func main() {
 	entityLetterCtrl := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
 
 	entityCaseCtrl := salvia_ctrl.NewEntityCaseController(entityCaseSvc)
+	articulatingMechanismCtrl := salvia_ctrl.NewCaseArticulatingMechanismController(articulatingMechanismSvc)
 	entityAPICtrl := salvia_ctrl.NewEntityAPIController(entityCaseSvc)
 
 	caseTaskSvc := service.NewCaseTaskService(service.CaseTaskServiceDeps{
@@ -301,6 +306,7 @@ func main() {
 	reportAsyncCtrl.RegisterRoutes(api)
 	entityLetterCtrl.RegisterRoutes(api)
 	entityCaseCtrl.RegisterRoutes(api)
+	articulatingMechanismCtrl.RegisterRoutes(api)
 	entityAPICtrl.RegisterRoutes(api)
 	entityBranchAPICtrl.RegisterRoutes(api)
 	barrierV2GinCtrl.RegisterRoutes(api)

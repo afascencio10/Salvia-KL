@@ -206,6 +206,7 @@ var CT_CATEGORIAS = [
     { value: 'Medidas',        label: 'Medidas' },
     { value: 'Psicosocial',    label: 'Psicosocial' },
     { value: 'Estabilización', label: 'Estabilización' },
+    { value: 'Mecanismos',     label: 'Mecanismos' },
 ];
 
 /* ─── Helper: color de fondo por defecto cuando el evento no trae color ── */
@@ -218,6 +219,7 @@ function ctDefaultColor(category) {
         'Estabilización': '#15803d',
         'Oficios':        '#0f766e',
         'Entidades':      '#5106A7',
+        'Mecanismos':     '#5106A7',
         'General':        '#4b5563',
     };
     return map[category] || '#4b5563';

@@ -64,7 +64,7 @@
           </div>
             
           
-          <div class="row" v-if="isUserSelected('et') || isUserSelected('do')">
+          <div class="row" v-if="isUserSelected('et') || isUserSelected('do') || isUserSelected('mc')">
             <div class="tituloform">
               <i class="fas fa-map-marker-alt fa-2x"></i><h2>Ubicación funcionario</h2>
             </div>
@@ -75,7 +75,7 @@
                 <option v-for="(ent, idx) in enums.entities" :value="ent.icode" :key="idx">${ent.name}</option>
               </select>
             </div>
-            <div class="col-4" v-if="workingPlace.entitySelected != '' || isUserSelected('do')">
+            <div class="col-4" v-if="workingPlace.entitySelected != '' || isUserSelected('do') || isUserSelected('mc')">
               <label>Departamento</label>
               <select  :class="[!workingPlace.departmentSelected && errors.profile && errors.profile.townSelected ? 'form-control is-invalid' : 'form-control']"  id="departments" @change="changeDepartment($event)"
                 v-model="workingPlace.departmentSelected">

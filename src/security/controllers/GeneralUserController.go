@@ -414,7 +414,7 @@ func SetGeneralUser(dataInput string, s utils.CommonSession, connData *db.ConnDa
 				entityRoleFound = true
 				break
 			}
-			if r.RoleCode == "do" {
+			if r.RoleCode == "do" || r.RoleCode == "mc" {
 				departmentOperatorRoleFound = true
 				break
 			}
@@ -1155,7 +1155,7 @@ func UpdateGeneralUserByICode(dataInput string, id string, s utils.CommonSession
 				entityRoleFound = true
 				break
 			}
-			if r.RoleCode == "do" {
+			if r.RoleCode == "do" || r.RoleCode == "mc" {
 				departmentOperatorRoleFound = true
 				break
 			}

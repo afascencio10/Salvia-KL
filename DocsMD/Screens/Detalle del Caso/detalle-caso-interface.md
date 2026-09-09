@@ -20,6 +20,7 @@ Facade: `CaseDetailGET` (`CaseDetailFacade.go`)
 | `src/frontend/js/components/case-task-history.js` | Modal de solo lectura para ver el detalle de una `CaseTask` completada — montado a nivel de pantalla, ver nota en sección Modales |
 | `src/frontend/js/components/case-oficios.js` | Oficios del caso — embebido al final del tab Gestión institucional |
 | `src/frontend/js/components/case-entities.js` | Entidades relacionadas con el caso — embebido al inicio del tab Gestión institucional, antes de la lista de barreras |
+| `src/frontend/js/components/case-mecanismos.js` | Cadena de escalamiento a mecanismos articuladores — después de entidades, antes de barreras |
 | `src/salvia/facades/CaseDetailFacade.go` | Facade que renderiza el template e inyecta `caseICode`, `userRole`, `userTeam`, `userICode`, `currentUser` |
 
 ---
@@ -144,6 +145,10 @@ DetalleCaso  (.container)
             │   │   (ver DocsMD/Componentes/case-entities/ para el árbol interno completo —
             │   │    filtros, cards, modal de agregar; lectura para cualquier rol con acceso a
             │   │    esta pantalla, agregar solo para sv/op/ro)
+            │   │
+            │   ├── CaseMecanismos  // src/frontend/js/components/case-mecanismos.js
+            │   │   :case-id="caseICode"  :user-id="userICode"  :user-role="userRole"
+            │   │   (ver DocsMD/Componentes/case-mecanismos/)
             │   │
             │   ├── [v-if tareasPendientesTotal().length > 0]  BannerTareasPendientesLocal
             │   │   └── "⚠️ Tienes N tarea(s) pendiente(s) con este caso"
