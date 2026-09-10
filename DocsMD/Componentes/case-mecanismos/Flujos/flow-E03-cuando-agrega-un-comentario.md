@@ -1,17 +1,12 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando agrega un comentario
    Tipo: User Interaction
-   Función: agregarComentario(m)
+   Función: (retirada del UI)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-INPUT: { mechanismId, body }
+El input y el botón «Agregar comentario» se quitaron de la card.
+El listado de comentarios existentes se mantiene visible.
 
-PASO 1 — POST /api/v1/casos/{caseId}/mecanismos/{mid}/comentarios
-  Body: { "body": "..." }
-
-Backend guarda author_id, author_name (sesión) y created_at.
-No escribe evento de Timeline.
-
-SI ok:
-  → append del comentario en la card
-  → limpia el textarea
+El endpoint POST /api/v1/casos/{caseId}/mecanismos/{mid}/comentarios
+sigue existiendo; la lógica de qué se mostrará en esta sección
+queda pendiente de definición.

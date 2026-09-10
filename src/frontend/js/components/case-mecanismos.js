@@ -73,8 +73,6 @@ app.component('case-mecanismos', {
             error: null,
             mecanismos: [],
             commentsOpen: {},
-            commentDraft: {},
-            commentSaving: {},
 
             modalAbierto: false,
             guardando: false,
@@ -184,32 +182,6 @@ app.component('case-mecanismos', {
         commentsOf: function(m) {
             return Array.isArray(m.comments) ? m.comments : [];
         },
-        agregarComentario: function(m) {
-            var self = this;
-            var body = (this.commentDraft[m.id] || '').trim();
-            if (!body || this.commentSaving[m.id]) return;
-            this.commentSaving[m.id] = true;
-            fetch('/api/v1/casos/' + self.caseId + '/mecanismos/' + m.id + '/comentarios', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ body: body }),
-            })
-                .then(function(res) {
-                    if (!res.ok) throw new Error('Error ' + res.status);
-                    return res.json();
-                })
-                .then(function(comment) {
-                    if (!Array.isArray(m.comments)) m.comments = [];
-                    m.comments.push(comment);
-                    self.commentDraft[m.id] = '';
-                    self.commentSaving[m.id] = false;
-                    self.commentsOpen[m.id] = true;
-                })
-                .catch(function() {
-                    self.commentSaving[m.id] = false;
-                    alert('No se pudo guardar el comentario.');
-                });
-        },
 
         abrirModal: function() {
             this.form = this.formVacio();
@@ -251,11 +223,13 @@ app.component('case-mecanismos', {
             this.municipios = [];
             this.usuarios = [];
             if (!this.form.departmentId) return;
-            var self = this;
-            fetch('/api/v1/locations/cities?department_id=' + encodeURIComponent(this.form.departmentId))
-                .then(function(res) { return res.json(); })
-                .then(function(data) { self.ciudades = Array.isArray(data) ? data : []; })
-                .catch(function() { self.ciudades = []; });
+            if (this.form.scope === 'municipal') {
+                var self = this;
+                fetch('/api/v1/locations/cities?department_id=' + encodeURIComponent(this.form.departmentId))
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) { self.ciudades = Array.isArray(data) ? data : []; })
+                    .catch(function() { self.ciudades = []; });
+            }
             this.cargarUsuarios();
         },
         onCambiaCiudad: function() {
@@ -306,7 +280,7 @@ app.component('case-mecanismos', {
         guardar: function() {
             var self = this;
             var errores = {};
-            if (!this.form.scope) errores.scope = 'Selecciona el alcance';
+            if (!this.form.scope) errores.scope = 'Selecciona el tipo de mecanismo';
             if (this.form.scope === 'municipal') {
                 if (!this.form.departmentId) errores.departmentId = 'Selecciona el departamento';
                 if (!this.form.cityId) errores.cityId = 'Selecciona la ciudad';
@@ -391,18 +365,6 @@ app.component('case-mecanismos', {
                                 <div>\${ c.body }</div>
                                 <div class="cm-comment-meta">\${ c.authorName } · \${ formatFecha(c.createdAt) }</div>
                             </div>
-                            <div v-if="puedeAgregar" class="cm-comment-form">
-                                <textarea
-                                    :value="commentDraft[m.id] || ''"
-                                    @input="commentDraft[m.id] = $event.target.value"
-                                    maxlength="2000"
-                                    placeholder="Agregar un comentario..."></textarea>
-                                <button class="cm-btn-comentar"
-                                    :disabled="!(commentDraft[m.id] || '').trim() || commentSaving[m.id]"
-                                    @click="agregarComentario(m)">
-                                    \${ commentSaving[m.id] ? 'Guardando...' : 'Agregar comentario' }
-                                </button>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -419,7 +381,7 @@ app.component('case-mecanismos', {
                     </div>
                     <div class="cm-modal-body">
                         <div class="cm-field">
-                            <label>Alcance <span class="cm-req">*</span></label>
+                            <label>Tipo mecanismo <span class="cm-req">*</span></label>
                             <select v-model="form.scope" @change="onCambiaAlcance">
                                 <option value="municipal">Municipal</option>
                                 <option value="departamental">Departamental</option>
@@ -455,22 +417,13 @@ app.component('case-mecanismos', {
                         </div>
 
                         <template v-if="form.scope === 'departamental'">
-                            <div class="cm-row" style="grid-template-columns:1fr 1fr">
-                                <div class="cm-field">
-                                    <label>Departamento <span class="cm-req">*</span></label>
-                                    <select v-model="form.departmentId" @change="onCambiaDepartamento">
-                                        <option value="">Selecciona...</option>
-                                        <option v-for="d in departamentos" :key="'d-'+d.value" :value="d.value">\${ d.label }</option>
-                                    </select>
-                                    <div v-if="errores.departmentId" class="cm-field-error">\${ errores.departmentId }</div>
-                                </div>
-                                <div class="cm-field">
-                                    <label>Ciudad</label>
-                                    <select v-model="form.cityId" :disabled="!form.departmentId" @change="onCambiaCiudad">
-                                        <option value="">Todas</option>
-                                        <option v-for="c in ciudades" :key="'c-'+c.value" :value="c.value">\${ c.label }</option>
-                                    </select>
-                                </div>
+                            <div class="cm-field">
+                                <label>Departamento <span class="cm-req">*</span></label>
+                                <select v-model="form.departmentId" @change="onCambiaDepartamento">
+                                    <option value="">Selecciona...</option>
+                                    <option v-for="d in departamentos" :key="'d-'+d.value" :value="d.value">\${ d.label }</option>
+                                </select>
+                                <div v-if="errores.departmentId" class="cm-field-error">\${ errores.departmentId }</div>
                             </div>
                         </template>
 

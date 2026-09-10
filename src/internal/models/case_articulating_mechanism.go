@@ -11,15 +11,19 @@ const (
 	ArticulatingMechanismScopeDepartamental = "departamental"
 	ArticulatingMechanismScopeNacional      = "nacional"
 	ArticulatingMechanismRoleCode           = "mc"
+
+	// CaseArticulatingMechanismStatusActive es el estado inicial (abierto).
+	CaseArticulatingMechanismStatusActive = "active"
 )
 
 // CaseArticulatingMechanism registra un escalamiento del caso ante un
-// mecanismo articulador. El usuario asignado tiene rol mc; el alcance es el
-// elegido en el modal, no un atributo del usuario.
+// mecanismo articulador. El usuario asignado tiene rol mc; el alcance del
+// modal debe coincidir con el tipo registrado en articulating_mechanism.
 type CaseArticulatingMechanism struct {
 	ID     string `gorm:"type:varchar(36);primaryKey;default:gen_random_uuid()" json:"id"`
 	CaseID string `gorm:"type:varchar(36);not null;index;column:case_id" json:"caseId"`
 	Scope  string `gorm:"type:varchar(20);not null;column:scope" json:"scope"`
+	Status string `gorm:"type:varchar(20);not null;default:active;index;column:status" json:"status"`
 
 	AssignedUserID   string `gorm:"type:varchar(36);not null;index;column:assigned_user_id" json:"assignedUserId"`
 	AssignedUserName string `gorm:"type:varchar(256);not null;column:assigned_user_name" json:"assignedUserName"`

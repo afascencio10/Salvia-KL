@@ -145,6 +145,7 @@ func (s *caseArticulatingMechanismService) Create(ctx context.Context, input Cre
 	row := &models.CaseArticulatingMechanism{
 		CaseID:           strings.TrimSpace(input.CaseID),
 		Scope:            scope,
+		Status:           models.CaseArticulatingMechanismStatusActive,
 		AssignedUserID:   user.ICode,
 		AssignedUserName: strings.TrimSpace(user.FullName),
 		CreatedByID:      strings.TrimSpace(input.CreatedByID),

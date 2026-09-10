@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// MechanismUserFilter filtra usuarios mc por alcance y territorio del perfil.
+// MechanismUserFilter filtra usuarios mc por el tipo y la ubicación de su articulating_mechanism.
 type MechanismUserFilter struct {
 	Scope        string
 	DepartmentID string
@@ -72,17 +72,15 @@ const mechanismUserSQL = `
 SELECT
     gu.general_user_i_code AS icode,
     TRIM(COALESCE(gup.general_user_profile_names, '') || ' ' || COALESCE(gup.general_user_profile_last_names, '')) AS full_name,
-    COALESCE(gup.general_user_profile_town, '') AS town_code,
-    COALESCE(t.town_name, '') AS town_name,
-    COALESCE(c.city_name, '') AS city_name,
-    COALESCE(d.department_name, '') AS department_name
+    COALESCE(am.town_code, '') AS town_code,
+    COALESCE(am.town_name, '') AS town_name,
+    COALESCE(am.city_name, '') AS city_name,
+    COALESCE(am.department_name, '') AS department_name
 FROM security.general_user gu
 JOIN security.rel_role_general_user rgu ON rgu.general_user_id = gu.general_user_id
 JOIN security.role r ON r.role_id = rgu.role_id
 JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
-LEFT JOIN security.town t ON t.town_code = gup.general_user_profile_town
-LEFT JOIN security.city c ON c.city_id = t.city_id
-LEFT JOIN security.department d ON d.department_id = c.department_id
+JOIN salvia.articulating_mechanism am ON am.id = gu.articulating_mechanism_id AND am.deleted_at IS NULL
 WHERE r.role_code = ?
   AND gu.general_user_status = 'e'
 `
@@ -91,17 +89,16 @@ func (r *caseArticulatingMechanismRepository) ListMechanismUsers(ctx context.Con
 	query := mechanismUserSQL
 	args := []interface{}{models.ArticulatingMechanismRoleCode}
 
+	query += " AND am.type = ?"
+	args = append(args, strings.TrimSpace(filter.Scope))
+
 	switch filter.Scope {
 	case models.ArticulatingMechanismScopeMunicipal:
-		query += " AND gup.general_user_profile_town = ?"
+		query += " AND am.town_code = ?"
 		args = append(args, strings.TrimSpace(filter.TownCode))
 	case models.ArticulatingMechanismScopeDepartamental:
-		query += " AND c.department_id::text = ?"
+		query += " AND am.department_id = ?"
 		args = append(args, strings.TrimSpace(filter.DepartmentID))
-		if strings.TrimSpace(filter.CityID) != "" {
-			query += " AND c.city_id::text = ?"
-			args = append(args, strings.TrimSpace(filter.CityID))
-		}
 	}
 
 	query += " ORDER BY full_name ASC"

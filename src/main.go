@@ -51,7 +51,15 @@ func main() {
 	}
 
 	// Asegurar que usuarios sin town tengan Bogotá por defecto (evita error 500 en reasignación)
-	gormDB.Exec(`UPDATE security.general_user_profile SET general_user_profile_town = '11001000' WHERE (general_user_profile_town IS NULL OR general_user_profile_town = '') AND general_user_profile_id IN (SELECT general_user_general_user_profile FROM security.general_user WHERE general_user_status = 'e')`)
+	gormDB.Exec(`UPDATE security.general_user_profile SET general_user_profile_town = '11001000' WHERE (general_user_profile_town IS NULL OR general_user_profile_town = '') AND general_user_profile_id IN (
+		SELECT general_user_general_user_profile FROM security.general_user gu
+		WHERE gu.general_user_status = 'e'
+		  AND NOT EXISTS (
+			SELECT 1 FROM security.rel_role_general_user rr
+			JOIN security.role r ON r.role_id = rr.role_id
+			WHERE rr.general_user_id = gu.general_user_id AND r.role_code = 'mc'
+		  )
+	)`)
 
 	// Asegurar que exista el rol "Equipo Técnico" (código 'te'), destinatario de las
 	// tareas "Decisiones del Comité". Idempotente: no hace nada si ya existe.
@@ -93,6 +101,7 @@ func main() {
 		&models.EntityCaseFollowUp{},
 		&models.TeamMeeting{},
 		&models.TeamMeetingAgent{},
+		&models.ArticulatingMechanism{},
 		&models.CaseArticulatingMechanism{},
 		&models.CaseArticulatingMechanismComment{},
 	} {
@@ -160,6 +169,7 @@ func main() {
 	entityCaseObligationRepo := repository.NewEntityCaseObligationRepository(gormDB)
 	entityCaseFollowUpRepo := repository.NewEntityCaseFollowUpRepository(gormDB)
 	articulatingMechanismRepo := repository.NewCaseArticulatingMechanismRepository(gormDB)
+	repository.InitArticulatingMechanismIdentity(gormDB)
 
 	// Services
 	casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
@@ -394,6 +404,8 @@ func migrateLegacyTables(db *gorm.DB) {
 		AssignedDepartment string `gorm:"column:general_user_assigned_department;type:varchar(20)"`
 		// EntityBranchId: sede (salvia.entity_branch) del usuario rol et. Nullable.
 		EntityBranchId *int64 `gorm:"column:entity_branch_id;type:bigint;index"`
+		// ArticulatingMechanismId: registro 1:1 del usuario rol mc. Nullable.
+		ArticulatingMechanismId *string `gorm:"column:articulating_mechanism_id;type:varchar(36);index"`
 	}
 	if err := db.Table("security.general_user").AutoMigrate(&GeneralUserSync{}); err != nil {
 		log.Printf("[WARN] AutoMigrate security.general_user: %v", err)
