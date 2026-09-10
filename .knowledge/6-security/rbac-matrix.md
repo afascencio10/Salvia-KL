@@ -6,7 +6,7 @@ description: "Roles del sistema SALVIA y matriz de permisos por operación, deri
 owner: "@security-guild"
 status: active
 tags: [security, rbac, compliance]
-last_updated: "2026-09-07"
+last_updated: "2026-09-10"
 code_refs: [src/salvia/config/Menu.go]
 ---
 
@@ -71,7 +71,7 @@ Códigos de columna: `ad`=Administrador, `sv`=Supervisor, `op`=Operador, `ro`=Op
 | `update_victim_case` | · | · | ✅ | ✅ | · | · | · | · | · | · | · | · | · |
 | `report_victim_cases` | · | ✅ | ✅ | ✅ | · | ✅ | · | · | · | · | · | · | · |
 | `approve_victim_case` | · | · | ✅ | ✅ | · | · | · | · | · | · | · | · | · |
-| `get_list_cases` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | · | ✅ | ✅ | ✅ | · | · |
+| `get_list_cases` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | · | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `get_my_cases` | ✅ | ✅ | ✅ | ✅ | · | ✅ | ✅ | · | ✅ | · | · | · | · |
 | `get_case_detail_sv` | · | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | · | · | ✅ | ✅ | ✅ | ✅ |
 | `set_case_log` | · | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | · | · | ✅ | · | · | · |

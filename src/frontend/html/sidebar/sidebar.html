@@ -25,18 +25,18 @@
         </div>
 
         <nav class="salvia-sidebar__nav" aria-label="Navegación principal">
-            {{/* Los roles psicosociales (ps, ts) no tienen get_victim_cases ni
-                 get_list_cases: estas pantallas les responden 401. */}}
+            {{/* Reportes exige get_victim_cases; ps y ts no lo tienen. */}}
             {{ if and (ne .currentRole "ps") (ne .currentRole "ts") }}
             <a href="/salvia/casos" class="salvia-sidebar__nav-link">
                 <i class="fas fa-home" aria-hidden="true"></i>
                 <span>Reportes</span>
             </a>
+            {{ end }}
+            {{/* Lista Casos: get_list_cases incluye ps y ts. */}}
             <a href="/salvia/lista-casos" class="salvia-sidebar__nav-link">
                 <i class="fas fa-list" aria-hidden="true"></i>
                 <span>Lista Casos</span>
             </a>
-            {{ end }}
             {{ if or (eq .currentRole "ps") (eq .currentRole "ts") }}
             <a href="/salvia/mis-remisiones-psicosocial" class="salvia-sidebar__nav-link">
                 <i class="fas fa-hand-holding-heart" aria-hidden="true"></i>
