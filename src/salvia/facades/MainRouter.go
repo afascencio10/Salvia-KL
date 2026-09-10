@@ -227,6 +227,11 @@ func StartRouter(router *gin.Engine) {
 		secRouter.GET("/casos-entidad/:entityCaseId/detalle", CasosEntidadDetalleGET)
 
 		/*
+			Casos Mecanismo (solo rol mc)
+		*/
+		secRouter.GET("/casos-mecanismo", CasosMecanismoGET)
+
+		/*
 			Mis remisiones Psicosocial (roles ps, ts)
 		*/
 		secRouter.GET("/mis-remisiones-psicosocial", MisRemisionesPsicosocialGET)

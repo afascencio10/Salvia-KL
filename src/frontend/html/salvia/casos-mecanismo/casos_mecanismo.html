@@ -1,0 +1,164 @@
+<link rel="stylesheet" href="/static/css/casos-mecanismo.css">
+
+<main class="salvia-main">
+<div class="container cme-page">
+
+    <div v-if="toast.visible" class="cme-toast" :class="'cme-toast--' + toast.type">
+        ${ toast.message }
+    </div>
+
+    <div v-if="loadError" class="cme-error-block">
+        <p>${ loadError }</p>
+        <button type="button" class="cme-btn cme-btn--secondary" @click="reloadScreen">Reintentar</button>
+    </div>
+
+    <template v-else>
+        <div class="welcome-section cme-welcome">
+            <div>
+                <h2><b>Casos Mecanismo</b></h2>
+                <p class="text-muted mb-0">Casos escalados a tu instancia del mecanismo articulador</p>
+            </div>
+        </div>
+
+        <section class="cme-filters">
+            <div class="cme-filter-field">
+                <label class="cme-label" for="cme-filter-document">Documento de identidad</label>
+                <input
+                    id="cme-filter-document"
+                    type="text"
+                    class="cme-input"
+                    placeholder="Ej: 1023456780"
+                    v-model="filters.document"
+                    @input="onFilterDocument"
+                    :disabled="isLoading"
+                >
+            </div>
+            <div class="cme-filter-field">
+                <label class="cme-label" for="cme-filter-city">Ciudad</label>
+                <input
+                    id="cme-filter-city"
+                    type="text"
+                    class="cme-input"
+                    placeholder="Ej: San Salvador"
+                    v-model="filters.city"
+                    @input="onFilterCity"
+                    :disabled="isLoading"
+                >
+            </div>
+        </section>
+
+        <div v-if="isLoading" class="cme-loading">
+            <span class="cme-spinner" aria-hidden="true"></span>
+            <span>Cargando casos…</span>
+        </div>
+
+        <div v-else-if="items.length === 0" class="cme-empty">
+            No hay casos asignados a tu mecanismo con los filtros actuales.
+        </div>
+
+        <section v-else class="cme-list">
+            <div class="cme-list-header">
+                <span class="cme-col-label">Caso</span>
+                <span class="cme-col-label">Compromiso de Salvia</span>
+                <span class="cme-col-label">Último comentario del mecanismo</span>
+                <span class="cme-col-label">Acción</span>
+            </div>
+
+            <article
+                v-for="item in items"
+                :key="item.id"
+                class="cme-row"
+            >
+                <div class="cme-col-caso">
+                    <p class="cme-name">${ item.victimFullName }</p>
+                    <p class="cme-ids">Doc: ${ item.document || '—' } · Tel: ${ item.phone || '—' }</p>
+                    <p class="cme-city">
+                        <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+                        <span>${ item.city || '—' }</span>
+                    </p>
+                    <div class="cme-badges">
+                        <span
+                            v-if="item.riskLevel"
+                            class="cme-badge cme-badge--risk"
+                            :class="'cme-badge--risk-' + riskClass(item.riskLevel)"
+                        >${ item.riskLevel }</span>
+                        <span
+                            class="cme-badge cme-badge--status"
+                            :class="'cme-badge--status-' + statusClass(item.caseStatusLabel || item.caseStatus)"
+                        >${ item.caseStatusLabel || item.caseStatus }</span>
+                        <span
+                            class="cme-badge"
+                            :class="'cme-badge--scope-' + (item.scope || '')"
+                        >${ scopeLabel(item.scope) }</span>
+                    </div>
+                    <button type="button" class="cme-link" @click="goToCase(item)">Ver caso →</button>
+                </div>
+
+                <div>
+                    <p class="cme-commitment">${ item.salviaCommitment || '—' }</p>
+                </div>
+
+                <div>
+                    <p v-if="item.lastComment" class="cme-comment">${ item.lastComment }</p>
+                    <p v-else class="cme-comment cme-comment--empty">Sin comentarios aún</p>
+                    <span v-if="item.lastCommentAt" class="cme-comment-date">${ formatDate(item.lastCommentAt) }</span>
+                </div>
+
+                <div class="cme-col-accion">
+                    <button type="button" class="cme-btn-gestionar" @click="openGestionar(item)">
+                        Gestionar
+                    </button>
+                </div>
+            </article>
+
+            <nav v-if="totalPages > 1" class="cme-pagination" aria-label="Paginación">
+                <button
+                    type="button"
+                    class="cme-page-btn"
+                    :disabled="currentPage === 0"
+                    @click="changePage(currentPage - 1)"
+                >Anterior</button>
+                <button
+                    v-for="n in totalPages"
+                    :key="'p-' + (n - 1)"
+                    type="button"
+                    class="cme-page-btn"
+                    :class="{ 'cme-page-btn--active': currentPage === (n - 1) }"
+                    @click="changePage(n - 1)"
+                >${ n }</button>
+                <button
+                    type="button"
+                    class="cme-page-btn"
+                    :disabled="currentPage >= totalPages - 1"
+                    @click="changePage(currentPage + 1)"
+                >Siguiente</button>
+            </nav>
+        </section>
+    </template>
+
+    <case-task-modal
+        ref="taskModal"
+        :current-user-id="currentUserId"
+        @completed="onTaskCompleted">
+    </case-task-modal>
+
+</div>
+</main>
+
+{{ template "standard_scripts.html" . }}
+{{ template "overlay.html" . }}
+
+<script>
+    window.__CasosMecanismoConfig = {
+        windowTitle: {{.windowTitle}},
+        currentUser: "{{.currentUser}}",
+        currentRole: "{{.currentRole}}",
+        currentUserId: "{{.currentUserId}}",
+        menu: {{.menu}}
+    };
+</script>
+<script src="/static/js/components/casos-mecanismo.js"></script>
+<script src="/static/js/components/case-task-modal.js"></script>
+<script>
+    home.mount('#app');
+</script>

@@ -1,11 +1,14 @@
 package controller
 
 import (
+	"bitsflow/common/utils"
+	salvia_config "bitsflow/salvia/config"
 	"bitsflow/salvia/service"
 	"errors"
 	"net/http"
 	"strings"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -26,6 +29,7 @@ func (c *CaseArticulatingMechanismController) RegisterRoutes(rg *gin.RouterGroup
 	casos.POST("", c.Create)
 	casos.POST("/:mid/comentarios", c.AddComment)
 
+	rg.GET("/mecanismos/mine", c.ListMine)
 	rg.GET("/mecanismos/usuarios", c.ListUsers)
 }
 
@@ -39,6 +43,48 @@ func (c *CaseArticulatingMechanismController) List(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, items)
+}
+
+func requireMcAccess(ctx *gin.Context) *utils.CommonSession {
+	sessionID, ok := sessions.Default(ctx).Get("userData").(string)
+	if !ok || sessionID == "" {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "no autenticado"})
+		return nil
+	}
+	s, err := utils.GetCommonSession(sessionID)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "no autenticado"})
+		return nil
+	}
+	if !utils.CheckPermission(salvia_config.PermissionsByRole, "get_casos_mecanismo", s.CurrentRole, ctx) {
+		return nil
+	}
+	return s
+}
+
+// ListMine — GET /api/v1/mecanismos/mine?document=&city=&page=&pageSize=
+func (c *CaseArticulatingMechanismController) ListMine(ctx *gin.Context) {
+	s := requireMcAccess(ctx)
+	if s == nil {
+		return
+	}
+	page := ginQueryInt(ctx, "page", 0)
+	pageSize := ginQueryInt(ctx, "pageSize", 5)
+	if pageSize <= 0 {
+		pageSize = 5
+	}
+	result, err := c.svc.ListMine(ctx.Request.Context(), service.ListMineFilter{
+		AssignedUserID: s.UserICode,
+		Document:       ctx.Query("document"),
+		City:           ctx.Query("city"),
+		Page:           page,
+		PageSize:       pageSize,
+	})
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		return
+	}
+	ctx.JSON(http.StatusOK, result)
 }
 
 func (c *CaseArticulatingMechanismController) Create(ctx *gin.Context) {
@@ -137,13 +183,16 @@ func writeMechanismError(ctx *gin.Context, err error) {
 		errors.Is(err, service.ErrMechanismMissingLocation),
 		errors.Is(err, service.ErrMechanismUserRequired),
 		errors.Is(err, service.ErrMechanismCommentEmpty),
-		errors.Is(err, service.ErrMechanismCommitmentTooLong):
+		errors.Is(err, service.ErrMechanismCommitmentTooLong),
+		errors.Is(err, service.ErrGestionMecanismoInvalid):
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	case errors.Is(err, service.ErrMechanismUserNotFound),
 		errors.Is(err, service.ErrMechanismNotFound),
 		errors.Is(err, gorm.ErrRecordNotFound):
 		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-	case errors.Is(err, service.ErrMechanismUserOutsideGeo):
+	case errors.Is(err, service.ErrMechanismUserOutsideGeo),
+		errors.Is(err, service.ErrMechanismNotAssigned),
+		errors.Is(err, service.ErrMechanismNotActive):
 		ctx.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 	default:
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})

@@ -3,12 +3,14 @@ package service
 import (
 	"bitsflow/internal/models"
 	"bitsflow/internal/repository"
+	salvia_config "bitsflow/salvia/config"
 	"context"
 	"errors"
 	"fmt"
 	"log"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"gorm.io/gorm"
@@ -23,6 +25,9 @@ var (
 	ErrMechanismNotFound          = errors.New("mecanismo: registro no encontrado")
 	ErrMechanismCommentEmpty      = errors.New("mecanismo: el comentario no puede estar vacío")
 	ErrMechanismCommitmentTooLong = errors.New("mecanismo: el compromiso supera el máximo de caracteres")
+	ErrMechanismNotAssigned       = errors.New("mecanismo: no está asignado a tu usuario")
+	ErrMechanismNotActive         = errors.New("mecanismo: el registro no está activo")
+	ErrGestionMecanismoInvalid    = errors.New("mecanismo: el formulario está incompleto")
 )
 
 const maxSalviaCommitmentRunes = 2000
@@ -55,11 +60,27 @@ type ListMechanismUsersInput struct {
 	TownCode     string
 }
 
+type ListMineFilter struct {
+	AssignedUserID string
+	Document       string
+	City           string
+	Page           int
+	PageSize       int
+}
+
+type MechanismMinePage struct {
+	Items    []models.CaseMechanismMineItem `json:"items"`
+	Total    int64                          `json:"total"`
+	Page     int                            `json:"page"`
+	PageSize int                            `json:"pageSize"`
+}
+
 type CaseArticulatingMechanismService interface {
 	ListByCase(ctx context.Context, caseID string) ([]models.CaseArticulatingMechanism, error)
 	Create(ctx context.Context, input CreateArticulatingMechanismInput) (*models.CaseArticulatingMechanism, error)
 	AddComment(ctx context.Context, input AddMechanismCommentInput) (*models.CaseArticulatingMechanismComment, error)
 	ListUsers(ctx context.Context, input ListMechanismUsersInput) ([]models.MechanismUserOption, error)
+	ListMine(ctx context.Context, filter ListMineFilter) (*MechanismMinePage, error)
 }
 
 type caseArticulatingMechanismService struct {
@@ -82,7 +103,75 @@ func (s *caseArticulatingMechanismService) ListByCase(ctx context.Context, caseI
 	if rows == nil {
 		return []models.CaseArticulatingMechanism{}, nil
 	}
+	ids := make([]string, 0, len(rows))
+	for i := range rows {
+		ids = append(ids, rows[i].ID)
+		rows[i].Gestiones = []models.MechanismGestionItem{}
+	}
+	gestiones, err := s.repo.FindGestionesByMechanismIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	byMech := make(map[string][]models.MechanismGestionItem, len(rows))
+	for _, g := range gestiones {
+		byMech[g.MechanismID] = append(byMech[g.MechanismID], g)
+	}
+	for i := range rows {
+		if items, ok := byMech[rows[i].ID]; ok {
+			rows[i].Gestiones = items
+		}
+	}
 	return rows, nil
+}
+
+func (s *caseArticulatingMechanismService) ListMine(ctx context.Context, filter ListMineFilter) (*MechanismMinePage, error) {
+	pageSize := filter.PageSize
+	if pageSize <= 0 {
+		pageSize = 5
+	}
+	items, total, err := s.repo.FindMinePaginated(ctx, filter.AssignedUserID, filter.Document, filter.City, filter.Page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+	for i := range items {
+		items[i].CaseStatusLabel = mechanismCaseStatusLabel(items[i].CaseStatus)
+	}
+	return &MechanismMinePage{
+		Items:    items,
+		Total:    total,
+		Page:     filter.Page,
+		PageSize: pageSize,
+	}, nil
+}
+
+func mechanismCaseStatusLabel(code string) string {
+	switch strings.TrimSpace(code) {
+	case "ra":
+		return "Activo"
+	case "is":
+		return "Con novedad"
+	case "cd":
+		return "Cerrado"
+	case "ex":
+		return "Vencido"
+	case "r":
+		return "Por aprobar"
+	case "fc":
+		return "Recontacto"
+	}
+	if label, ok := salvia_config.VICTIM_CASE_STATUS["sp"][code]; ok {
+		return capitalizeMechanismLabel(label)
+	}
+	return code
+}
+
+func capitalizeMechanismLabel(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return s
+	}
+	r, size := utf8.DecodeRuneInString(s)
+	return string(unicode.ToUpper(r)) + s[size:]
 }
 
 func (s *caseArticulatingMechanismService) ListUsers(ctx context.Context, input ListMechanismUsersInput) ([]models.MechanismUserOption, error) {
@@ -215,6 +304,9 @@ func (s *caseArticulatingMechanismService) Create(ctx context.Context, input Cre
 
 	if row.Comments == nil {
 		row.Comments = []models.CaseArticulatingMechanismComment{}
+	}
+	if row.Gestiones == nil {
+		row.Gestiones = []models.MechanismGestionItem{}
 	}
 	return row, nil
 }

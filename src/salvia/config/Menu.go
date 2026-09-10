@@ -292,6 +292,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"ts": true,
 		"an": true,
 		"te": true,
+		"mc": true,
 	},
 
 	// ── Dashboard KPIs (Salvia_KPIs_v1) ──────────────────────────────────────
@@ -308,6 +309,9 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 
 	// ── Casos Entidad (rol et + ro, op, sv, en Enlace Territorial) ─────────
 	"get_casos_entidad": {"et": true, "ro": true, "op": true, "sv": true, "en": true},
+
+	// ── Casos Mecanismo (rol mc — mecanismos articuladores) ────────────────
+	"get_casos_mecanismo": {"mc": true},
 
 	// ── Mis remisiones Psicosocial (profesional ps / ts) ────────────────────
 	"get_mis_remisiones_psicosocial": {"ps": true, "ts": true},

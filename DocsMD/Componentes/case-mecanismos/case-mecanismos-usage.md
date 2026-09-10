@@ -40,7 +40,7 @@ Filtro de usuarios `mc` (tabla `salvia.articulating_mechanism` vía `general_use
 
 Usuarios `mc` sin fila de mecanismo no aparecen hasta re-guardarlos en el alta/edición de usuario.
 
-Al crear un registro se escribe un evento en el Timeline (categoría `Mecanismos`).
+Al crear un registro se escribe un evento en el Timeline (categoría `Mecanismos`). Cada gestión (`POST /api/v1/case-tasks/gestion-mecanismo`) también escribe un evento (`Gestión del mecanismo`). La card lista esas gestiones en `gestiones` (no los comentarios viejos).
 
 ## Shape de un registro
 
@@ -55,8 +55,14 @@ Al crear un registro se escribe un evento en el Timeline (categoría `Mecanismos
   "cityName": "San Salvador",
   "townName": "San Salvador Centro",
   "salviaCommitment": "...",
-  "comments": [
-    { "id": "...", "authorName": "...", "body": "...", "createdAt": "..." }
+  "gestiones": [
+    {
+      "id": "...",
+      "result": "Abordado en sesión: Sí, sesión ordinaria. Reporte de gestión: …",
+      "formData": { "abordadoEnSesion": "si_ordinaria", "reporteGestion": "…" },
+      "completedAt": "...",
+      "assignedUserName": "Ana Pérez"
+    }
   ]
 }
 ```
@@ -98,7 +104,7 @@ Filtro de usuarios `mc`:
 - Departamental: `city.department_id` = departamento; `city_id` opcional.
 - Nacional: todos los `mc` activos.
 
-Al crear un registro se escribe un evento en el Timeline (categoría `Mecanismos`). Un comentario no genera evento.
+Al crear un registro se escribe un evento en el Timeline (categoría `Mecanismos`). Cada gestión también escribe un evento. Un comentario de la tabla vieja no genera evento.
 
 ## Shape de un registro
 
@@ -113,8 +119,14 @@ Al crear un registro se escribe un evento en el Timeline (categoría `Mecanismos
   "cityName": "San Salvador",
   "townName": "San Salvador Centro",
   "salviaCommitment": "...",
-  "comments": [
-    { "id": "...", "authorName": "...", "body": "...", "createdAt": "..." }
+  "gestiones": [
+    {
+      "id": "...",
+      "result": "Abordado en sesión: Sí, sesión ordinaria. Reporte de gestión: …",
+      "formData": { "abordadoEnSesion": "si_ordinaria", "reporteGestion": "…" },
+      "completedAt": "...",
+      "assignedUserName": "Ana Pérez"
+    }
   ]
 }
 ```

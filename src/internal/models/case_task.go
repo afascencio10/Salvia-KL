@@ -41,6 +41,7 @@ type CaseTask struct {
 	PsychosocialSupportID   *string `gorm:"type:uuid;column:psychosocial_support_id"               json:"psychosocialSupportId,omitempty"`
 	EconomicStabilizationID *string `gorm:"type:uuid;column:economic_stabilization_id"             json:"economicStabilizationId,omitempty"`
 	EntityCaseID            *string `gorm:"type:varchar(36);column:entity_case_id;index"           json:"entityCaseId,omitempty"`
+	CaseArticulatingMechanismID *string `gorm:"type:varchar(36);column:case_articulating_mechanism_id;index" json:"caseArticulatingMechanismId,omitempty"`
 
 	// Timestamps
 	CreatedAt time.Time      `json:"createdAt"`
@@ -62,4 +63,6 @@ const (
 const (
 	CaseTaskTypeArticulacionTerritorial = "articulacion_territorial"
 	CaseTaskTypeCompromisoConEnlace     = "compromiso_con_enlace"
+	CaseTaskTypeGestionMecanismo        = "gestion_mecanismo"
+	CaseTaskCategoryMecanismos          = "Mecanismos"
 )

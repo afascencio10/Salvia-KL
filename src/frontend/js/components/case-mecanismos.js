@@ -30,7 +30,14 @@
         .cm-comments-toggle { background:none;border:none;padding:0;font-size:.78rem;font-weight:600;color:#374151;cursor:pointer }
         .cm-comments-empty { font-size:.8rem;color:#9ca3af;font-style:italic;margin:6px 0 8px }
         .cm-comment { font-size:.82rem;color:#374151;margin:8px 0;padding:8px 10px;background:#f9fafb;border-radius:8px }
+        .cm-comment-head { display:flex;align-items:flex-start;justify-content:space-between;gap:10px }
+        .cm-comment-body { flex:1;min-width:0;white-space:pre-wrap }
+        .cm-btn-ver { flex-shrink:0;background:#fff;border:1px solid #d1d5db;color:#5106A7;border-radius:6px;padding:4px 10px;font-size:.72rem;font-weight:600;cursor:pointer }
+        .cm-btn-ver:hover { border-color:#5106A7;background:#f5f3ff }
         .cm-comment-meta { font-size:.7rem;color:#9ca3af;margin-top:4px }
+        .cm-detalle-row { margin-bottom:12px }
+        .cm-detalle-label { font-size:.72rem;font-weight:600;color:#6b7280;margin-bottom:2px }
+        .cm-detalle-value { font-size:.88rem;color:#111827;white-space:pre-wrap }
         .cm-comment-form { display:flex;flex-direction:column;gap:6px;margin-top:8px }
         .cm-comment-form textarea { width:100%;font-size:.82rem;border:1px solid #d1d5db;border-radius:8px;padding:8px 10px;outline:none;box-sizing:border-box;font-family:inherit;resize:vertical;min-height:56px }
         .cm-comment-form textarea:focus { border-color:#5106A7 }
@@ -73,6 +80,9 @@ app.component('case-mecanismos', {
             error: null,
             mecanismos: [],
             commentsOpen: {},
+            detalleAbierto: false,
+            detalleGestion: null,
+            detalleScope: '',
 
             modalAbierto: false,
             guardando: false,
@@ -111,6 +121,9 @@ app.component('case-mecanismos', {
             if (this.form.scope === 'departamental') return 'Mecanismo Departamental';
             if (this.form.scope === 'nacional') return 'Mecanismo Nacional';
             return 'Mecanismo';
+        },
+        detalleCamposLista: function() {
+            return this.detalleCampos();
         },
         usersReady: function() {
             if (this.form.scope === 'nacional') return true;
@@ -179,8 +192,56 @@ app.component('case-mecanismos', {
         toggleComments: function(id) {
             this.commentsOpen[id] = this.commentsOpen[id] === false;
         },
-        commentsOf: function(m) {
-            return Array.isArray(m.comments) ? m.comments : [];
+        gestionesOf: function(m) {
+            return Array.isArray(m.gestiones) ? m.gestiones : [];
+        },
+        abrirDetalle: function(gestion, scope) {
+            this.detalleGestion = gestion || null;
+            this.detalleScope = scope || '';
+            this.detalleAbierto = true;
+        },
+        cerrarDetalle: function() {
+            this.detalleAbierto = false;
+            this.detalleGestion = null;
+            this.detalleScope = '';
+        },
+        parseFormData: function(raw) {
+            if (!raw) return {};
+            if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+            if (typeof raw === 'string') {
+                try { return JSON.parse(raw); } catch (e) { return {}; }
+            }
+            return {};
+        },
+        detalleCampos: function() {
+            if (!this.detalleGestion) return [];
+            var fd = this.parseFormData(this.detalleGestion.formData);
+            var sesionTexto = fd.abordadoEnSesionTexto || '';
+            if (!sesionTexto) {
+                if (fd.abordadoEnSesion === 'si_ordinaria') sesionTexto = 'Sí, sesión ordinaria';
+                else if (fd.abordadoEnSesion === 'si_extraordinaria') sesionTexto = 'Sí, sesión extraordinaria';
+                else if (fd.abordadoEnSesion === 'no') sesionTexto = 'No';
+            }
+            var defs = [
+                { key: 'abordado', label: 'Abordado en sesión', value: sesionTexto },
+                { key: 'fechaSesion', label: 'Fecha de la sesión', value: fd.fechaSesion },
+                { key: 'compromisos', label: 'Compromisos', value: fd.compromisos },
+                { key: 'fechaProxima', label: 'Fecha de la próxima sesión', value: fd.fechaProxima },
+                { key: 'detalleProxima', label: 'Detalle de la próxima sesión', value: fd.detalleProxima },
+                { key: 'reporteGestion', label: 'Reporte de gestión', value: fd.reporteGestion },
+                { key: 'remisionResponsables', label: 'Remisión a responsables', value: fd.remisionResponsables },
+                { key: 'asistenciasFecha', label: 'Fecha de asistencias técnicas', value: fd.asistenciasFecha },
+                { key: 'asistenciasTexto', label: 'Asistencias técnicas', value: fd.asistenciasTexto },
+            ];
+            var out = [];
+            for (var i = 0; i < defs.length; i++) {
+                var v = defs[i].value;
+                if (v === null || v === undefined) continue;
+                v = String(v).trim();
+                if (!v) continue;
+                out.push({ label: defs[i].label, value: v });
+            }
+            return out;
         },
 
         abrirModal: function() {
@@ -357,15 +418,40 @@ app.component('case-mecanismos', {
                     </template>
                     <div class="cm-comments">
                         <button class="cm-comments-toggle" @click="toggleComments(m.id)">
-                            Comentarios del mecanismo (\${ commentsOf(m).length })
+                            Comentarios del mecanismo (\${ gestionesOf(m).length })
                         </button>
                         <div v-if="commentsOpen[m.id] !== false">
-                            <div v-if="commentsOf(m).length === 0" class="cm-comments-empty">Sin comentarios aún</div>
-                            <div v-for="c in commentsOf(m)" :key="c.id" class="cm-comment">
-                                <div>\${ c.body }</div>
-                                <div class="cm-comment-meta">\${ c.authorName } · \${ formatFecha(c.createdAt) }</div>
+                            <div v-if="gestionesOf(m).length === 0" class="cm-comments-empty">Sin comentarios aún</div>
+                            <div v-for="g in gestionesOf(m)" :key="g.id" class="cm-comment">
+                                <div class="cm-comment-head">
+                                    <div class="cm-comment-body">\${ g.result || '—' }</div>
+                                    <button type="button" class="cm-btn-ver" @click="abrirDetalle(g, m.scope)">Ver</button>
+                                </div>
+                                <div class="cm-comment-meta">\${ g.assignedUserName } · \${ formatFecha(g.completedAt) }</div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="detalleAbierto && detalleGestion" class="cm-modal-overlay" @click.self="cerrarDetalle">
+                <div class="cm-modal">
+                    <div class="cm-modal-header">
+                        <div>
+                            <h3>Gestión del mecanismo</h3>
+                            <p class="cm-modal-sub">\${ scopeLabel(detalleScope) }</p>
+                        </div>
+                        <button class="cm-modal-close" @click="cerrarDetalle">×</button>
+                    </div>
+                    <div class="cm-modal-body">
+                        <div v-if="detalleCamposLista.length === 0" class="cm-comments-empty">Sin datos en el formulario.</div>
+                        <div v-for="campo in detalleCamposLista" :key="campo.label" class="cm-detalle-row">
+                            <div class="cm-detalle-label">\${ campo.label }</div>
+                            <div class="cm-detalle-value">\${ campo.value }</div>
+                        </div>
+                    </div>
+                    <div class="cm-modal-footer">
+                        <button class="cm-btn-cancel" @click="cerrarDetalle">Cerrar</button>
                     </div>
                 </div>
             </div>

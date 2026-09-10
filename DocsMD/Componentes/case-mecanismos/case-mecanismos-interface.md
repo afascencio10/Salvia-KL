@@ -7,7 +7,7 @@ Montado en el tab **Gestión institucional** del Detalle del Caso, después de `
 **Permisos:**
 - Ver: cualquier rol con `get_case_detail_sv`.
 - Agregar registro: solo `sv`, `op`, `ro`.
-- El input de comentarios está retirado; el listado existente se mantiene hasta definir la lógica nueva.
+- El input de comentarios está retirado. La sección lista las `case_task` `gestion_mecanismo` Done (`result` + botón **Ver** con `formData`).
 
 ## Archivos relevantes
 
@@ -42,10 +42,11 @@ case-mecanismos
         ├── [ubicación]  pin + municipio, ciudad (departamento)
         ├── [compromiso]  "Compromiso de Salvia"
         └── Comentarios
-            ├── Titulo  "Comentarios del mecanismo (N)"
+            ├── Titulo  "Comentarios del mecanismo (N)"  N = gestiones.length
             ├── [vacío]  "Sin comentarios aún"
-            └── Comentario × N  body + authorName + fecha
-            (sin input de alta; lógica pendiente)
+            └── Gestion × N  result + assignedUserName + fecha + Btn "Ver"
+                └── Overlay solo lectura: pares label/valor de formData (campos vacíos ocultos)
+            (sin input de alta; POST comentarios sin uso en UI)
 
 ─── MODAL: AGREGAR MECANISMO ARTICULADOR ──────────────────────────────────
 
@@ -93,10 +94,11 @@ case-mecanismos
         ├── [ubicación]  pin + municipio, ciudad (departamento)
         ├── [compromiso]  "Compromiso de Salvia"
         └── Comentarios
-            ├── Titulo  "Comentarios del mecanismo (N)"
+            ├── Titulo  "Comentarios del mecanismo (N)"  N = gestiones.length
             ├── [vacío]  "Sin comentarios aún"
-            ├── Comentario × N  body + authorName + fecha
-            └── [v-if puedeAgregar]  textarea + "Agregar comentario"
+            └── Gestion × N  result + assignedUserName + fecha + Btn "Ver"
+                └── Overlay solo lectura: pares label/valor de formData
+            (sin input de alta; POST comentarios sin uso en UI)
 
 ─── MODAL: AGREGAR MECANISMO ARTICULADOR ──────────────────────────────────
 

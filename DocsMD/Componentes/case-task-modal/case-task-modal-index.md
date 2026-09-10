@@ -43,7 +43,7 @@
 
 **Evento:** Cuando se abre con una tarea
 **Tipo:** User Interaction
-**Descripción:** El componente padre llama a `open(taskId)` o `openArticulacion(ctx)`. Con `taskId` hace `GET /api/v1/case-tasks/:taskId`. Sin `taskId` (Mis Barreras) arma una tarea en memoria `articulacion_territorial`. Luego inicializa el formulario según `tarea.type`.
+**Descripción:** El componente padre llama a `open(taskId)`, `openArticulacion(ctx)` o `openMecanismo(ctx)`. Con `taskId` hace `GET /api/v1/case-tasks/:taskId`. Sin `taskId` (Mis Barreras / Casos Mecanismo) arma una tarea en memoria (`articulacion_territorial` o `gestion_mecanismo`). Luego inicializa el formulario según `tarea.type`.
 **Requerido:** Sí
 
 ---
@@ -104,7 +104,7 @@
 
 **Evento:** Cuando confirma el formulario
 **Tipo:** User Interaction
-**Descripción:** El usuario presiona el botón de confirmar ("Guardar" si `articulacion_territorial`). Valida según `tarea.type`. Para articulación llama `POST /api/v1/case-tasks/articulacion-territorial`; el resto usa `PUT /api/v1/case-tasks/:taskId/complete`. Si 200, emite `@completed` y cierra.
+**Descripción:** El usuario presiona el botón de confirmar ("Guardar" si `articulacion_territorial` o `gestion_mecanismo`). Valida según `tarea.type`. Articulación: `POST /api/v1/case-tasks/articulacion-territorial`. Mecanismo: `POST /api/v1/case-tasks/gestion-mecanismo`. El resto usa `PUT /api/v1/case-tasks/:taskId/complete`. Si 200, emite `@completed` y cierra.
 **Requerido:** Sí
 
 ---

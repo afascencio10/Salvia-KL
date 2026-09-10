@@ -270,6 +270,7 @@ func main() {
 		EntityLetterSvc:  entityLetterSvc,
 		EntityLetterRepo: entityLetterRepo,
 		EntityCaseSvc:    entityCaseSvc,
+		MechanismRepo:    articulatingMechanismRepo,
 		DB:               gormDB,
 	})
 	caseTaskCtrl := salvia_ctrl.NewCaseTaskController(caseTaskSvc)

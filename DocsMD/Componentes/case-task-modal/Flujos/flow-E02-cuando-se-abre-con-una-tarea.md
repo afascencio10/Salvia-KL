@@ -178,6 +178,22 @@ Variante openArticulacion(ctx) sin taskId:
   No hace GET. tarea = { id: null, type: 'articulacion_territorial', description: 'Gestión propia' }
   articulacionCtx = ctx (barrierId, entityName, barrierDescription, …)
 
+Variante openMecanismo(ctx):
+  No hace GET. tarea = { id: null, type: 'gestion_mecanismo', scope }
+  mecanismoCtx = { mechanismId, caseId, scope }
+  form = {
+    abordadoEnSesion: '',
+    fechaSesion: '',
+    compromisos: '',
+    fechaProxima: '',
+    detalleProxima: '',
+    reporteGestion: '',
+    remisionResponsables: '',
+    asistenciasFecha: '',
+    asistenciasTexto: '',
+  }
+  BtnConfirmar = "Guardar"
+
 → FIN EJECUCIÓN ✓
 
 

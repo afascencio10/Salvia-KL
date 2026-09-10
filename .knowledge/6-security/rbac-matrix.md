@@ -6,7 +6,7 @@ description: "Roles del sistema SALVIA y matriz de permisos por operación, deri
 owner: "@security-guild"
 status: active
 tags: [security, rbac, compliance]
-last_updated: "2026-09-07"
+last_updated: "2026-09-10"
 code_refs: [src/salvia/config/Menu.go]
 ---
 
@@ -41,6 +41,7 @@ Esta matriz dicta la autorización. Todos los endpoints (y componentes UI) deben
 | `us` | Usuario externo | 16 199 |
 | `ps` | Psicólogo | 1 |
 | `ts` | Trabajador social | 0 |
+| `mc` | Mecanismo articulador | — |
 
 \* Conteo de `security.rel_role_general_user` en `develop` (Supabase) al 2026-07-02.
 
@@ -49,6 +50,7 @@ Esta matriz dicta la autorización. Todos los endpoints (y componentes UI) deben
 > - El código usa un rol **`fo`** en `PermissionsByRole` que **no existe** en `security.role`. Un usuario nunca tendrá ese rol, así que esas líneas son permisos muertos (o falta crear el rol).
 > - Los roles **`ps` (Psicólogo)** y **`ts` (Trabajador social)** existen en BD y desde [Consulta de Caso Psicosocial](/.knowledge/3-features/ConsultaCasoPsicosocial/index.md) tienen **una única** operación habilitada en `PermissionsByRole`: `get_case_detail_sv` (solo lectura). Para el resto de operaciones de este documento siguen sin ninguna entrada.
 > - `en` (Enlace territorial) habilita `get_mis_barreras`, `get_barreras_departamento`, `get_list_cases` (listado acotado al departamento asignado) y `get_case_detail_sv` (Ver caso desde Mis barreras / Detalle de barrera).
+> - `mc` (Mecanismo articulador) habilita `get_casos_mecanismo` (pantalla Casos Mecanismo) y `get_case_detail_sv` (Ver caso una vez asignado). El login redirige a `/salvia/casos-mecanismo`. No se añade columna `mc` al resto de tablas de este documento.
 
 ## Matriz de Permisos por Operación
 
@@ -77,6 +79,16 @@ Códigos de columna: `ad`=Administrador, `sv`=Supervisor, `op`=Operador, `ro`=Op
 | `set_case_log` | · | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | · | · | ✅ | · | · | · |
 
 > **Alcance `en` en listados:** `get_list_cases` y `GET /api/v1/cases/list` están permitidos para Enlace territorial (`en`). El resultado se acota al `general_user_assigned_department` de la sesión (nunca a un parámetro del cliente). Sin departamento asignado la API responde 403. El rol `et` sigue viendo el listado completo de Lista de casos; su recorte por sede es **Casos Entidad**.
+
+> **Alcance `mc`:** también tiene `get_case_detail_sv` (Ver caso desde Casos Mecanismo). No aparece como columna en esta tabla.
+
+### Casos Mecanismo
+
+> Permiso de la pantalla Casos Mecanismo. Solo rol `mc`. La API `GET /api/v1/mecanismos/mine` recorta siempre por `assigned_user_id` de sesión y `status = active`. El POST de gestión (`/api/v1/case-tasks/gestion-mecanismo`) reutiliza el mismo permiso vía `requireMcAccess`.
+
+| Permiso / operación | mc |
+| :--- | :---: |
+| `get_casos_mecanismo` | ✅ |
 
 ### Atención Psicosocial — Flujo 3x3
 

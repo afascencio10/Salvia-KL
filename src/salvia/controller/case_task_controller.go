@@ -86,6 +86,7 @@ func (c *CaseTaskController) RegisterRoutes(rg *gin.RouterGroup) {
 	group.POST("/:id/reassign", c.Reassign)
 	group.POST("/gestion-propia", c.CreateGestionPropia)
 	group.POST("/articulacion-territorial", c.SaveArticulacionTerritorial)
+	group.POST("/gestion-mecanismo", c.SaveGestionMecanismo)
 }
 
 // ListByAssignedUser devuelve las tareas con barrierId asignadas al usuario,
@@ -439,6 +440,46 @@ func (c *CaseTaskController) SaveArticulacionTerritorial(ctx *gin.Context) {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "completa fecha de contacto, compromiso y seguimiento si aplica"})
 		case errors.Is(err, service.ErrArticulacionTaskMismatch):
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "la tarea no corresponde a esta barrera"})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		}
+		return
+	}
+
+	ctx.JSON(http.StatusOK, c.enrichTaskWithName(*task))
+}
+
+// SaveGestionMecanismo crea una case_task Done con el formulario del mecanismo.
+//
+//	POST /api/v1/case-tasks/gestion-mecanismo
+//	Body: { "mechanismId": "...", "formData": { ... } }
+func (c *CaseTaskController) SaveGestionMecanismo(ctx *gin.Context) {
+	s := requireMcAccess(ctx)
+	if s == nil {
+		return
+	}
+
+	var body struct {
+		MechanismID string         `json:"mechanismId" binding:"required"`
+		FormData    datatypes.JSON `json:"formData" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "campos 'mechanismId' y 'formData' requeridos"})
+		return
+	}
+
+	task, err := c.svc.SaveGestionMecanismo(ctx.Request.Context(), s.UserICode, body.MechanismID, body.FormData)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrMechanismNotFound):
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "mecanismo no encontrado"})
+		case errors.Is(err, service.ErrMechanismNotAssigned):
+			ctx.JSON(http.StatusForbidden, gin.H{"error": "este caso no está asignado a tu usuario"})
+		case errors.Is(err, service.ErrMechanismNotActive):
+			ctx.JSON(http.StatusConflict, gin.H{"error": "este escalamiento ya no está activo"})
+		case errors.Is(err, service.ErrGestionMecanismoInvalid),
+			errors.Is(err, service.ErrMechanismInvalidScope):
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "completa los campos requeridos del formulario"})
 		default:
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
 		}

@@ -14,5 +14,6 @@ SI error:
 
 SI ok:
   → mecanismos = resultado (array)
+  → cada fila trae gestiones[] (case_task gestion_mecanismo Done: result, formData, completedAt, assignedUserName)
   → si vacío: empty state
-  → si hay filas: lista con badge de alcance, usuario asignado, ubicación, compromiso y comentarios
+  → si hay filas: lista con badge de alcance, usuario asignado, ubicación, compromiso y comentarios (= gestiones)

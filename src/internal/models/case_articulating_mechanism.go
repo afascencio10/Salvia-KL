@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -43,7 +44,8 @@ type CaseArticulatingMechanism struct {
 	UpdatedAt time.Time      `json:"updatedAt"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
-	Comments []CaseArticulatingMechanismComment `gorm:"foreignKey:MechanismID;references:ID" json:"comments"`
+	Comments  []CaseArticulatingMechanismComment `gorm:"foreignKey:MechanismID;references:ID" json:"comments,omitempty"`
+	Gestiones []MechanismGestionItem             `gorm:"-" json:"gestiones"`
 }
 
 func (CaseArticulatingMechanism) TableName() string {
@@ -63,6 +65,35 @@ type CaseArticulatingMechanismComment struct {
 
 func (CaseArticulatingMechanismComment) TableName() string {
 	return "salvia.case_articulating_mechanism_comment"
+}
+
+// MechanismGestionItem es una case_task gestion_mecanismo Done, para la card
+// del Detalle del Caso (comentario = result, Ver = formData).
+type MechanismGestionItem struct {
+	ID               string         `gorm:"column:id" json:"id"`
+	MechanismID      string         `gorm:"column:mechanism_id" json:"mechanismId"`
+	Result           *string        `gorm:"column:result" json:"result"`
+	FormData         datatypes.JSON `gorm:"column:form_data" json:"formData"`
+	CompletedAt      *time.Time     `gorm:"column:completed_at" json:"completedAt"`
+	AssignedUserName string         `gorm:"column:assigned_user_name" json:"assignedUserName"`
+}
+
+// CaseMechanismMineItem es una fila del listado Casos Mecanismo (rol mc).
+type CaseMechanismMineItem struct {
+	ID               string     `gorm:"column:id" json:"id"`
+	CaseID           string     `gorm:"column:case_id" json:"caseId"`
+	CaseCode         string     `gorm:"column:case_code" json:"caseCode"`
+	VictimFullName   string     `gorm:"column:victim_full_name" json:"victimFullName"`
+	Document         string     `gorm:"column:document" json:"document"`
+	Phone            string     `gorm:"column:phone" json:"phone"`
+	City             string     `gorm:"column:city" json:"city"`
+	RiskLevel        string     `gorm:"column:risk_level" json:"riskLevel"`
+	CaseStatus       string     `gorm:"column:case_status" json:"caseStatus"`
+	CaseStatusLabel  string     `gorm:"-" json:"caseStatusLabel"`
+	Scope            string     `gorm:"column:scope" json:"scope"`
+	SalviaCommitment *string    `gorm:"column:salvia_commitment" json:"salviaCommitment,omitempty"`
+	LastComment      *string    `gorm:"column:last_comment" json:"lastComment,omitempty"`
+	LastCommentAt    *time.Time `gorm:"column:last_comment_at" json:"lastCommentAt,omitempty"`
 }
 
 // MechanismUserOption es una fila del select de usuarios mc.

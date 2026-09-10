@@ -54,6 +54,7 @@ const (
 	TimelineTypeRespuestaEntidad = "Respuesta institucional"
 
 	TimelineTypeMecanismoRegistrado = "Mecanismo articulador registrado"
+	TimelineTypeGestionMecanismo    = "Gestión del mecanismo"
 )
 
 // ─── Iconos ──────────────────────────────────────────────────────────────────
@@ -114,6 +115,7 @@ const (
 	TimelineEventSolicitudEntidad        = "SOLICITUD_ENTIDAD"
 	TimelineEventRespuestaEntidad        = "RESPUESTA_ENTIDAD"
 	TimelineEventMecanismo               = "MECANISMO_REGISTRADO"
+	TimelineEventGestionMecanismo        = "GESTION_MECANISMO"
 )
 
 // CaseTimelineEvent registra un evento en la vida de un caso.

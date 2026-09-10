@@ -78,6 +78,10 @@ type CaseTaskService interface {
 	// Completar una ToDo existente exige user_territory_link_id.
 	// Crear sin taskId admite asignación al usuario o mismo departamento del enlace.
 	SaveArticulacionTerritorial(ctx context.Context, userID, enlaceDepartmentID, barrierID, taskID string, formData datatypes.JSON) (*models.CaseTask, error)
+
+	// SaveGestionMecanismo crea siempre una case_task Done para el formulario
+	// de Casos Mecanismo. Nunca actualiza una tarea previa.
+	SaveGestionMecanismo(ctx context.Context, userID, mechanismID string, formData datatypes.JSON) (*models.CaseTask, error)
 }
 
 // ErrBarrierDepartmentMismatch indica que la barrera no pertenece al
@@ -106,6 +110,7 @@ type CaseTaskServiceDeps struct {
 	EntityLetterSvc  EntityLetterService
 	EntityLetterRepo repository.EntityLetterRepository
 	EntityCaseSvc    EntityCaseService
+	MechanismRepo    repository.CaseArticulatingMechanismRepository
 	DB               *gorm.DB
 }
 
@@ -116,6 +121,7 @@ type caseTaskService struct {
 	entityLetterSvc  EntityLetterService
 	entityLetterRepo repository.EntityLetterRepository
 	entityCaseSvc    EntityCaseService
+	mechanismRepo    repository.CaseArticulatingMechanismRepository
 	db               *gorm.DB
 }
 
@@ -127,6 +133,7 @@ func NewCaseTaskService(deps CaseTaskServiceDeps) CaseTaskService {
 		entityLetterSvc:  deps.EntityLetterSvc,
 		entityLetterRepo: deps.EntityLetterRepo,
 		entityCaseSvc:    deps.EntityCaseSvc,
+		mechanismRepo:    deps.MechanismRepo,
 		db:               deps.DB,
 	}
 }
@@ -818,6 +825,185 @@ func (s *caseTaskService) SaveArticulacionTerritorial(ctx context.Context, userI
 	}
 
 	go s.actualizarBarreraEnGestion(context.Background(), barrierID, task.ID)
+
+	return task, nil
+}
+
+type gestionMecanismoForm struct {
+	AbordadoEnSesion      string `json:"abordadoEnSesion"`
+	AbordadoEnSesionTexto string `json:"abordadoEnSesionTexto"`
+	FechaSesion           string `json:"fechaSesion"`
+	Compromisos           string `json:"compromisos"`
+	FechaProxima          string `json:"fechaProxima"`
+	DetalleProxima        string `json:"detalleProxima"`
+	ReporteGestion        string `json:"reporteGestion"`
+	RemisionResponsables  string `json:"remisionResponsables"`
+	AsistenciasFecha      string `json:"asistenciasFecha"`
+	AsistenciasTexto      string `json:"asistenciasTexto"`
+}
+
+func parseGestionMecanismoForm(scope string, formData datatypes.JSON) (*gestionMecanismoForm, error) {
+	var fd gestionMecanismoForm
+	if len(formData) > 0 {
+		if err := json.Unmarshal(formData, &fd); err != nil {
+			return nil, ErrGestionMecanismoInvalid
+		}
+	}
+	fd.AbordadoEnSesion = strings.TrimSpace(fd.AbordadoEnSesion)
+	fd.AbordadoEnSesionTexto = strings.TrimSpace(fd.AbordadoEnSesionTexto)
+	fd.FechaSesion = strings.TrimSpace(fd.FechaSesion)
+	fd.Compromisos = strings.TrimSpace(fd.Compromisos)
+	fd.FechaProxima = strings.TrimSpace(fd.FechaProxima)
+	fd.DetalleProxima = strings.TrimSpace(fd.DetalleProxima)
+	fd.ReporteGestion = strings.TrimSpace(fd.ReporteGestion)
+	fd.RemisionResponsables = strings.TrimSpace(fd.RemisionResponsables)
+	fd.AsistenciasFecha = strings.TrimSpace(fd.AsistenciasFecha)
+	fd.AsistenciasTexto = strings.TrimSpace(fd.AsistenciasTexto)
+
+	switch scope {
+	case models.ArticulatingMechanismScopeMunicipal:
+		switch fd.AbordadoEnSesion {
+		case "si_ordinaria", "si_extraordinaria", "no":
+		default:
+			return nil, ErrGestionMecanismoInvalid
+		}
+		if fd.ReporteGestion == "" {
+			return nil, ErrGestionMecanismoInvalid
+		}
+	case models.ArticulatingMechanismScopeDepartamental:
+		if fd.FechaProxima == "" || fd.DetalleProxima == "" || fd.ReporteGestion == "" {
+			return nil, ErrGestionMecanismoInvalid
+		}
+	case models.ArticulatingMechanismScopeNacional:
+		if fd.ReporteGestion == "" || fd.AsistenciasFecha == "" || fd.AsistenciasTexto == "" {
+			return nil, ErrGestionMecanismoInvalid
+		}
+	default:
+		return nil, ErrMechanismInvalidScope
+	}
+	return &fd, nil
+}
+
+func buildGestionMecanismoResult(scope string, fd *gestionMecanismoForm) string {
+	parts := make([]string, 0, 6)
+	appendPart := func(label, value string) {
+		if strings.TrimSpace(value) == "" {
+			return
+		}
+		parts = append(parts, label+": "+strings.TrimSpace(value))
+	}
+	switch scope {
+	case models.ArticulatingMechanismScopeMunicipal:
+		label := fd.AbordadoEnSesionTexto
+		if label == "" {
+			switch fd.AbordadoEnSesion {
+			case "si_ordinaria":
+				label = "Sí, sesión ordinaria"
+			case "si_extraordinaria":
+				label = "Sí, sesión extraordinaria"
+			case "no":
+				label = "No"
+			}
+		}
+		appendPart("Abordado en sesión", label)
+		appendPart("Fecha", fd.FechaSesion)
+		appendPart("Compromisos", fd.Compromisos)
+		appendPart("Próxima sesión", strings.TrimSpace(fd.FechaProxima+" "+fd.DetalleProxima))
+		appendPart("Reporte de gestión", fd.ReporteGestion)
+		appendPart("Remisión a responsables", fd.RemisionResponsables)
+	case models.ArticulatingMechanismScopeDepartamental:
+		appendPart("Próxima sesión", strings.TrimSpace(fd.FechaProxima+" "+fd.DetalleProxima))
+		appendPart("Reporte de gestión", fd.ReporteGestion)
+		appendPart("Remisión a responsables", fd.RemisionResponsables)
+	case models.ArticulatingMechanismScopeNacional:
+		appendPart("Reporte de gestión", fd.ReporteGestion)
+		appendPart("Asistencias técnicas", strings.TrimSpace(fd.AsistenciasFecha+" "+fd.AsistenciasTexto))
+	}
+	return strings.Join(parts, ". ")
+}
+
+func gestionMecanismoDescription(scope string) string {
+	switch scope {
+	case models.ArticulatingMechanismScopeMunicipal:
+		return "Gestión del Comité Municipal"
+	case models.ArticulatingMechanismScopeDepartamental:
+		return "Gestión del Comité Departamental"
+	default:
+		return "Gestión de la Instancia Nacional"
+	}
+}
+
+// SaveGestionMecanismo crea una case_task Done por cada envío del formulario del mecanismo.
+func (s *caseTaskService) SaveGestionMecanismo(ctx context.Context, userID, mechanismID string, formData datatypes.JSON) (*models.CaseTask, error) {
+	mechanismID = strings.TrimSpace(mechanismID)
+	userID = strings.TrimSpace(userID)
+	if mechanismID == "" || userID == "" {
+		return nil, ErrGestionMecanismoInvalid
+	}
+	row, err := s.mechanismRepo.FindByID(ctx, mechanismID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrMechanismNotFound
+		}
+		return nil, fmt.Errorf("SaveGestionMecanismo: leer mecanismo: %w", err)
+	}
+	if row.AssignedUserID != userID {
+		return nil, ErrMechanismNotAssigned
+	}
+	if row.Status != models.CaseArticulatingMechanismStatusActive {
+		return nil, ErrMechanismNotActive
+	}
+
+	fd, err := parseGestionMecanismoForm(row.Scope, formData)
+	if err != nil {
+		return nil, err
+	}
+	formFixed, mErr := json.Marshal(fd)
+	if mErr != nil {
+		formFixed = formData
+	}
+	result := buildGestionMecanismoResult(row.Scope, fd)
+	now := time.Now()
+	mechID := row.ID
+	task := &models.CaseTask{
+		Category:                    models.CaseTaskCategoryMecanismos,
+		Type:                        models.CaseTaskTypeGestionMecanismo,
+		Description:                 gestionMecanismoDescription(row.Scope),
+		Result:                      &result,
+		Status:                      models.CaseTaskStatusDone,
+		CompletedAt:                 &now,
+		AssignedUserID:              userID,
+		CaseID:                      row.CaseID,
+		CaseArticulatingMechanismID: &mechID,
+		FormData:                    datatypes.JSON(formFixed),
+	}
+	if err := s.repo.Create(ctx, task); err != nil {
+		return nil, fmt.Errorf("SaveGestionMecanismo: crear tarea: %w", err)
+	}
+
+	actorName := ""
+	if name, nErr := s.mechanismRepo.UserFullName(ctx, userID); nErr == nil {
+		actorName = strings.TrimSpace(name)
+	}
+	event := &models.CaseTimelineEvent{
+		CaseID:                  row.CaseID,
+		EventType:               models.TimelineEventGestionMecanismo,
+		Description:             result,
+		ActorID:                 userID,
+		ActorName:               actorName,
+		Category:                models.TimelineCategoryMecanismos,
+		Type:                    models.TimelineTypeGestionMecanismo,
+		Icon:                    models.TimelineIconMecanismo,
+		Date:                    now,
+		EventUserID:             userID,
+		Color:                   models.TimelineColorPurple,
+		TaskID:                  task.ID,
+		ArticulatingMechanismID: row.ID,
+		CreatedAt:               now,
+	}
+	if err := s.timelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[CaseTaskService.SaveGestionMecanismo] WARN: timeline caso %s tarea %s: %v", row.CaseID, task.ID, err)
+	}
 
 	return task, nil
 }

@@ -522,6 +522,20 @@ CASO 'articulacion_territorial':
     SI barrera OPEN → En Gestion
   SI 200 → emit completed + cerrar
 
+CASO 'gestion_mecanismo':
+  Validar según mecanismoCtx.scope:
+    municipal:     abordadoEnSesion + reporteGestion
+    departamental: fechaProxima + detalleProxima + reporteGestion
+    nacional:      reporteGestion + asistenciasFecha + asistenciasTexto
+  POST /api/v1/case-tasks/gestion-mecanismo
+  Body: { mechanismId, formData }
+  Backend:
+    SI mecanismo no asignado al usuario → 403
+    SI no active → 409
+    Siempre INSERT case_task Done (nunca PUT complete)
+    result = resumen concatenado del formulario
+  SI 200 → emit completed + cerrar
+
 → FIN EJECUCIÓN ✓
 
 

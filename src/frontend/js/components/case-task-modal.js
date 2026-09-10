@@ -450,6 +450,11 @@ app.component('case-task-modal', {
                 entityName: '',
                 barrierDescription: '',
             },
+            mecanismoCtx: {
+                mechanismId: '',
+                caseId: '',
+                scope: '',
+            },
 
             // Activar Enlace (comite_caso)
             enlacesDepartamento: [],   // enlaces 'en' del departamento del caso
@@ -474,6 +479,13 @@ app.component('case-task-modal', {
             }
             if (this.tarea.type === 'articulacion_territorial') {
                 return 'Gestionar barrera';
+            }
+            if (this.tarea.type === 'gestion_mecanismo') {
+                var scope = (this.mecanismoCtx && this.mecanismoCtx.scope) || this.tarea.scope || '';
+                if (scope === 'municipal') return 'Gestión del Comité Municipal';
+                if (scope === 'departamental') return 'Gestión del Comité Departamental';
+                if (scope === 'nacional') return 'Gestión de la Instancia Nacional';
+                return 'Gestión del mecanismo';
             }
             return {
                 gestion_llamada:  'Gestión de Llamada',
@@ -502,6 +514,7 @@ app.component('case-task-modal', {
                 solicitud_entidad: 'fa-folder',
                 respuesta_entidad: 'fa-reply',
                 articulacion_territorial: 'fa-link',
+                gestion_mecanismo: 'fa-balance-scale',
             }[this.tarea.type] || 'fa-tasks';
         },
 
@@ -566,6 +579,20 @@ app.component('case-task-modal', {
                     if (f.requiereSeguimiento === null || f.requiereSeguimiento === undefined) return false;
                     if (f.requiereSeguimiento && !f.fechaSeguimiento) return false;
                     return true;
+                case 'gestion_mecanismo': {
+                    var scope = (this.mecanismoCtx && this.mecanismoCtx.scope) || '';
+                    if (!f.reporteGestion || !String(f.reporteGestion).trim()) return false;
+                    if (scope === 'municipal') {
+                        return !!(f.abordadoEnSesion);
+                    }
+                    if (scope === 'departamental') {
+                        return !!(f.fechaProxima && String(f.detalleProxima || '').trim());
+                    }
+                    if (scope === 'nacional') {
+                        return !!(f.asistenciasFecha && String(f.asistenciasTexto || '').trim());
+                    }
+                    return false;
+                }
                 default:
                     return false;
             }
@@ -645,6 +672,29 @@ app.component('case-task-modal', {
             this._initForm();
         },
 
+        openMecanismo(ctx) {
+            ctx = ctx || {};
+            this.mecanismoCtx = {
+                mechanismId: ctx.mechanismId || '',
+                caseId: ctx.caseId || '',
+                scope: ctx.scope || '',
+            };
+            this.saveError = null;
+            this.errorTarea = null;
+            this.guardando = false;
+            this.completado = false;
+            this.visible = true;
+            this.cargandoTarea = false;
+            this.tarea = {
+                id: null,
+                type: 'gestion_mecanismo',
+                scope: this.mecanismoCtx.scope,
+                description: 'Gestión mecanismo',
+                caseId: ctx.caseId || '',
+            };
+            this._initForm();
+        },
+
         cancelar() {
             this.visible         = false;
             this.tarea           = null;
@@ -666,6 +716,11 @@ app.component('case-task-modal', {
                 entityBranchId: null,
                 entityName: '',
                 barrierDescription: '',
+            };
+            this.mecanismoCtx = {
+                mechanismId: '',
+                caseId: '',
+                scope: '',
             };
         },
 
@@ -819,6 +874,19 @@ app.component('case-task-modal', {
                     };
                     break;
                 }
+                case 'gestion_mecanismo':
+                    this.form = {
+                        abordadoEnSesion: '',
+                        fechaSesion: '',
+                        compromisos: '',
+                        fechaProxima: '',
+                        detalleProxima: '',
+                        reporteGestion: '',
+                        remisionResponsables: '',
+                        asistenciasFecha: '',
+                        asistenciasTexto: '',
+                    };
+                    break;
             }
         },
 
@@ -1148,6 +1216,32 @@ app.component('case-task-modal', {
                         sugerenciasRemision: String(f.sugerenciasRemision || '').trim() || null,
                         entityBranchId: (this.articulacionCtx && this.articulacionCtx.entityBranchId) || null,
                     };
+                case 'gestion_mecanismo': {
+                    const SESION_LABELS = {
+                        si_ordinaria: 'Sí, sesión ordinaria',
+                        si_extraordinaria: 'Sí, sesión extraordinaria',
+                        no: 'No',
+                    };
+                    const scope = (this.mecanismoCtx && this.mecanismoCtx.scope) || '';
+                    const esSi = f.abordadoEnSesion === 'si_ordinaria' || f.abordadoEnSesion === 'si_extraordinaria';
+                    const esNo = f.abordadoEnSesion === 'no';
+                    return {
+                        abordadoEnSesion: scope === 'municipal' ? (f.abordadoEnSesion || '') : '',
+                        abordadoEnSesionTexto: scope === 'municipal' ? (SESION_LABELS[f.abordadoEnSesion] || '') : '',
+                        fechaSesion: scope === 'municipal' && esSi ? (f.fechaSesion || '') : '',
+                        compromisos: scope === 'municipal' && esSi ? String(f.compromisos || '').trim() : '',
+                        fechaProxima: (scope === 'departamental' || (scope === 'municipal' && esNo))
+                            ? (f.fechaProxima || '') : '',
+                        detalleProxima: (scope === 'departamental' || (scope === 'municipal' && esNo))
+                            ? String(f.detalleProxima || '').trim() : '',
+                        reporteGestion: String(f.reporteGestion || '').trim(),
+                        remisionResponsables: (scope === 'nacional')
+                            ? ''
+                            : String(f.remisionResponsables || '').trim(),
+                        asistenciasFecha: scope === 'nacional' ? (f.asistenciasFecha || '') : '',
+                        asistenciasTexto: scope === 'nacional' ? String(f.asistenciasTexto || '').trim() : '',
+                    };
+                }
             }
         },
 
@@ -1169,6 +1263,16 @@ app.component('case-task-modal', {
                     const payload = { barrierId: barrierId, formData: formData };
                     if (this.tarea.id) payload.taskId = this.tarea.id;
                     res = await fetch('/api/v1/case-tasks/articulacion-territorial', {
+                        method:  'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body:    JSON.stringify(payload),
+                    });
+                } else if (this.tarea.type === 'gestion_mecanismo') {
+                    const payload = {
+                        mechanismId: (this.mecanismoCtx && this.mecanismoCtx.mechanismId) || '',
+                        formData: formData,
+                    };
+                    res = await fetch('/api/v1/case-tasks/gestion-mecanismo', {
                         method:  'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body:    JSON.stringify(payload),
@@ -1822,6 +1926,83 @@ app.component('case-task-modal', {
             </div>
         </template>
 
+        <!-- Formulario gestion_mecanismo -->
+        <template v-else-if="tarea && tarea.type === 'gestion_mecanismo'">
+            <template v-if="mecanismoCtx && mecanismoCtx.scope === 'municipal'">
+                <div class="ctm-field">
+                    <label class="ctm-label">¿El caso ha sido abordado en sesión del Comité Municipal? <span class="req">*</span></label>
+                    <select class="ctm-select" v-model="form.abordadoEnSesion">
+                        <option value="">Selecciona una opción...</option>
+                        <option value="si_ordinaria">Sí, sesión ordinaria</option>
+                        <option value="si_extraordinaria">Sí, sesión extraordinaria</option>
+                        <option value="no">No</option>
+                    </select>
+                    <p class="ctm-hint">Responda sí únicamente si la sesión ya sucedió.</p>
+                </div>
+                <template v-if="form.abordadoEnSesion === 'si_ordinaria' || form.abordadoEnSesion === 'si_extraordinaria'">
+                    <div class="ctm-field">
+                        <label class="ctm-label">Fecha de la sesión</label>
+                        <input class="ctm-input" type="date" v-model="form.fechaSesion">
+                    </div>
+                    <div class="ctm-field">
+                        <label class="ctm-label">Compromisos de la sesión</label>
+                        <textarea class="ctm-textarea" rows="3" maxlength="500" v-model="form.compromisos"
+                            placeholder="Si el caso se abordó en varias sesiones, consigne los compromisos de todas."></textarea>
+                    </div>
+                </template>
+                <template v-else-if="form.abordadoEnSesion === 'no'">
+                    <div class="ctm-field">
+                        <label class="ctm-label">Fecha de la próxima sesión</label>
+                        <input class="ctm-input" type="date" v-model="form.fechaProxima">
+                    </div>
+                    <div class="ctm-field">
+                        <label class="ctm-label">Detalle de la próxima sesión</label>
+                        <textarea class="ctm-textarea" rows="3" maxlength="500" v-model="form.detalleProxima"
+                            placeholder="Indique cuándo se citará, según la urgencia del caso."></textarea>
+                    </div>
+                </template>
+            </template>
+
+            <template v-if="mecanismoCtx && mecanismoCtx.scope === 'departamental'">
+                <div class="ctm-field">
+                    <label class="ctm-label">Fecha de la próxima sesión o mesa técnica <span class="req">*</span></label>
+                    <input class="ctm-input" type="date" v-model="form.fechaProxima">
+                </div>
+                <div class="ctm-field">
+                    <label class="ctm-label">Detalle de la próxima sesión o mesa técnica <span class="req">*</span></label>
+                    <textarea class="ctm-textarea" rows="3" maxlength="500" v-model="form.detalleProxima"
+                        placeholder="Indique cuándo se citará la próxima sesión o mesa técnica."></textarea>
+                </div>
+            </template>
+
+            <div class="ctm-field">
+                <label class="ctm-label">Reporte de gestión <span class="req">*</span></label>
+                <textarea class="ctm-textarea" rows="4" maxlength="2000" v-model="form.reporteGestion"
+                    placeholder="Acciones adelantadas y, si aplica, enlace a la documentación."></textarea>
+                <p class="ctm-hint">Describa las acciones adelantadas. Si hay documentación de soporte, incluya el enlace.</p>
+            </div>
+
+            <div v-if="mecanismoCtx && mecanismoCtx.scope !== 'nacional'" class="ctm-field">
+                <label class="ctm-label">Remisión a responsables</label>
+                <textarea class="ctm-textarea" rows="3" maxlength="500" v-model="form.remisionResponsables"
+                    placeholder="Opcional"></textarea>
+                <p class="ctm-hint">Según el Decreto 1710. Este campo se guarda; no dispara un escalamiento automático.</p>
+            </div>
+
+            <template v-if="mecanismoCtx && mecanismoCtx.scope === 'nacional'">
+                <div class="ctm-field">
+                    <label class="ctm-label">Fecha de asistencias técnicas <span class="req">*</span></label>
+                    <input class="ctm-input" type="date" v-model="form.asistenciasFecha">
+                </div>
+                <div class="ctm-field">
+                    <label class="ctm-label">Asistencias técnicas <span class="req">*</span></label>
+                    <textarea class="ctm-textarea" rows="3" maxlength="500" v-model="form.asistenciasTexto"
+                        placeholder="Si no aplica, escriba «No aplica» y explique."></textarea>
+                    <p class="ctm-hint">Si no aplica, escriba «No aplica» y la explicación.</p>
+                </div>
+            </template>
+        </template>
+
         <!-- Error al guardar -->
         <div v-if="saveError" class="ctm-error-banner">
             <i class="fas fa-exclamation-circle"></i> \${ saveError }
@@ -1850,6 +2031,9 @@ app.component('case-task-modal', {
                     Enviar respuesta
                 </template>
                 <template v-else-if="tarea && tarea.type === 'articulacion_territorial'">
+                    Guardar
+                </template>
+                <template v-else-if="tarea && tarea.type === 'gestion_mecanismo'">
                     Guardar
                 </template>
                 <template v-else>
