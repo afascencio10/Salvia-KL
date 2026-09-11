@@ -152,6 +152,39 @@ type CaseReportDTO struct {
 	AllowsEasyReport        string `gorm:"column:allows_easy_report"`
 	AgentResponsible        string `gorm:"column:agent_responsible"`
 	OwnerDescription        string `gorm:"column:owner_description"`
+
+	// Bloque 7: Campos adicionales solicitados (Form 1 / Form 2)
+	// -- Form 1 --
+	F1SexualOrientationOther string `gorm:"column:f1_sexual_orientation_other"`
+	F1NationalityOther       string `gorm:"column:f1_nationality_other"`
+	F1EthnicGroupOther       string `gorm:"column:f1_ethnic_group_other"`
+	F1MaritalStatusOther     string `gorm:"column:f1_marital_status_other"`
+	F1ChildrenAge            string `gorm:"column:f1_children_age"`
+	F1SpecialSupport         string `gorm:"column:f1_special_support"`
+	F1ViolenceExperienced    string `gorm:"column:f1_violence_experienced"`
+	F1ViolenceExperiencedOther string `gorm:"column:f1_violence_experienced_other"`
+	F1Dependents             string `gorm:"column:f1_dependents"`
+	F1AggressorHasWeapons    string `gorm:"column:f1_aggressor_has_weapons"`
+	F1ExperiencedViolenceBefore string `gorm:"column:f1_experienced_violence_before"`
+	F1PreviouslyReported     string `gorm:"column:f1_previously_reported"`
+	F1IfPreviouslyReported   string `gorm:"column:f1_if_previously_reported"`
+	F1IndigenousTongue       string `gorm:"column:f1_indigenous_tongue"`
+	F1IfArmedConflict        string `gorm:"column:f1_if_armed_conflict"`
+	F1Aggressor              string `gorm:"column:f1_aggressor"`
+	// -- Form 2 --
+	F2ReportedPreviously     string `gorm:"column:f2_reported_previously"`
+	F2ReportedEntity         string `gorm:"column:f2_reported_entity"`
+	F2AttentionWasAppropriate string `gorm:"column:f2_attention_was_appropriate"`
+	F2AggressorsOccupation   string `gorm:"column:f2_aggressors_occupation"`
+	F2PhysicalViolenceIncrease string `gorm:"column:f2_physical_violence_increase"`
+	F2AggressorSexuallyHarassment string `gorm:"column:f2_aggressor_sexually_harassment"`
+	F2AggressorCommonSpaces  string `gorm:"column:f2_aggressor_common_spaces"`
+	F2AggressorHierarchy     string `gorm:"column:f2_aggressor_hierarchy"`
+	F2AggressorUsedPositionAuthority string `gorm:"column:f2_aggressor_used_position_authority"`
+	F2Law1996Instruments     string `gorm:"column:f2_law_1996_instruments"`
+	F2IndigenousPeople       string `gorm:"column:f2_indigenous_people"`
+	F2CampesinoRecognition   string `gorm:"column:f2_campesino_recognition"`
+	F2AggressorUnemployed    string `gorm:"column:f2_aggressor_unemployed"`
 }
 
 type FollowUpReportDTO struct {
@@ -348,14 +381,20 @@ func (r *reportRepository) FindCasesInDateRange(ctx context.Context, start, end 
 				FROM salvia.rel_victim_case_form2_enums_victim_case_form2 vt_rel
 				JOIN salvia.victim_case_form2_enums vte ON vte.victim_case_form2_enums_id = vt_rel.victim_case_form2_enums_id
 				WHERE vt_rel.victim_case_form2_id = vf2.victim_case_form2_id
-				AND (vte.victim_case_form2_enums_category LIKE '%violence_experienced%' OR vte.victim_case_form2_enums_category LIKE '%type_of_experienced_violence%')
+				-- Solo el TIPO exacto. Se usa igualdad (no LIKE) porque el patrón
+				-- '%violence_experienced%' también hacía match con las categorías
+				-- de subtipo ('..._subtype_violence_experienced_fi', etc.),
+				-- contaminando este campo con los subtipos.
+				AND vte.victim_case_form2_enums_category = 'victim_case_form2_type_violence_experienced'
 			), '') AS violence_type,
 			COALESCE((
 				SELECT string_agg(ste.victim_case_form2_enums_name, ', ')
 				FROM salvia.rel_victim_case_form2_enums_victim_case_form2 st_rel
 				JOIN salvia.victim_case_form2_enums ste ON ste.victim_case_form2_enums_id = st_rel.victim_case_form2_enums_id
 				WHERE st_rel.victim_case_form2_id = vf2.victim_case_form2_id
-				AND ste.victim_case_form2_enums_category LIKE '%subtype_violence%'
+				-- Solo SUBTIPOS: categorías que empiezan por el prefijo de subtipo
+				-- ('victim_case_form2_subtype_violence_experienced_fi/_ps/_se').
+				AND ste.victim_case_form2_enums_category LIKE 'victim_case_form2_subtype_violence_experienced%'
 			), '') AS violence_subtype,
 			COALESCE((
 				SELECT string_agg(soe.victim_case_form2_enums_name, ', ')
@@ -445,7 +484,52 @@ func (r *reportRepository) FindCasesInDateRange(ctx context.Context, start, end 
 			COALESCE(NULLIF(vf2.victim_case_form2_saliva_management_explanation, ''), '') AS management_explanation,
 			COALESCE(NULLIF(b6_easy.victim_case_form2_enums_name, ''), '') AS allows_easy_report,
 			COALESCE((SELECT gup.general_user_profile_names || ' ' || gup.general_user_profile_last_names FROM security.general_user gu JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile WHERE gu.general_user_i_code = vc.agent_id LIMIT 1), '') AS agent_responsible,
-			COALESCE(vc.victim_case_owner_description, '') AS owner_description
+			COALESCE(vc.victim_case_owner_description, '') AS owner_description,
+
+			-- Bloque 7: Campos adicionales solicitados (Form 1 / Form 2)
+			-- Form 1 (texto libre / códigos directos)
+			COALESCE(NULLIF(vf1.victim_case_form1_victim_sexual_orientation_other, ''), '') AS f1_sexual_orientation_other,
+			COALESCE(NULLIF(vf1.victim_case_form1_victim_nationality_other, ''), '') AS f1_nationality_other,
+			COALESCE(NULLIF(vf1.victim_case_form1_victim_ethnic_group_other, ''), '') AS f1_ethnic_group_other,
+			COALESCE(NULLIF(vf1.victim_case_form1_victim_marital_status_other, ''), '') AS f1_marital_status_other,
+			COALESCE(NULLIF(vf1.victim_case_form1_victim_children_age, ''), '') AS f1_children_age,
+			COALESCE(NULLIF(vf1.victim_case_form1_victim_special_support, ''), '') AS f1_special_support,
+			COALESCE(NULLIF(vf1.victim_case_form1_victim_violence_experienced, ''), '') AS f1_violence_experienced,
+			COALESCE(NULLIF(vf1.victim_case_form1_victim_violence_experienced_other, ''), '') AS f1_violence_experienced_other,
+			COALESCE(NULLIF(vf1.victim_case_form1_victim_dependents, ''), '') AS f1_dependents,
+			COALESCE(NULLIF(vf1.victim_case_form1_victim_aggressor_has_weapons, ''), '') AS f1_aggressor_has_weapons,
+			COALESCE(NULLIF(vf1.victim_case_form1_experienced_physical_or_sexual_violence_befor, ''), '') AS f1_experienced_violence_before,
+			COALESCE(NULLIF(vf1.victim_case_form1_victim_previously_reported_situation, ''), '') AS f1_previously_reported,
+			COALESCE(NULLIF(vf1.victim_case_form1_victim_if_previously_reported, ''), '') AS f1_if_previously_reported,
+			COALESCE(NULLIF(vf1.victim_case_form1_victim_if_indigenous_tongue, ''), '') AS f1_indigenous_tongue,
+			COALESCE(NULLIF(vf1.victim_case_form1_victim_if_armed_conflict, ''), '') AS f1_if_armed_conflict,
+			COALESCE(NULLIF(vf1.victim_case_form1_victim_aggressor, ''), '') AS f1_aggressor,
+			-- Form 2 (enums vía tabla victim_case_form2_enums)
+			COALESCE(NULLIF(b7_rep_prev.victim_case_form2_enums_name, ''), '') AS f2_reported_previously,
+			COALESCE((
+				SELECT string_agg(wr_e.victim_case_form2_enums_name, ', ')
+				FROM salvia.rel_victim_case_form2_enums_victim_case_form2 wr_rel
+				JOIN salvia.victim_case_form2_enums wr_e ON wr_e.victim_case_form2_enums_id = wr_rel.victim_case_form2_enums_id
+				WHERE wr_rel.victim_case_form2_id = vf2.victim_case_form2_id
+				AND wr_e.victim_case_form2_enums_category LIKE '%who_report_to%'
+			), '') AS f2_reported_entity,
+			COALESCE(NULLIF(b7_att.victim_case_form2_enums_name, ''), '') AS f2_attention_was_appropriate,
+			COALESCE(NULLIF(b7_occ.victim_case_form2_enums_name, ''), '') AS f2_aggressors_occupation,
+			COALESCE(NULLIF(b7_phys.victim_case_form2_enums_name, ''), '') AS f2_physical_violence_increase,
+			COALESCE(NULLIF(b7_harass.victim_case_form2_enums_name, ''), '') AS f2_aggressor_sexually_harassment,
+			COALESCE(NULLIF(b7_common.victim_case_form2_enums_name, ''), '') AS f2_aggressor_common_spaces,
+			COALESCE(NULLIF(b7_hier.victim_case_form2_enums_name, ''), '') AS f2_aggressor_hierarchy,
+			COALESCE(NULLIF(b7_auth.victim_case_form2_enums_name, ''), '') AS f2_aggressor_used_position_authority,
+			COALESCE((
+				SELECT string_agg(law_e.victim_case_form2_enums_name, ', ')
+				FROM salvia.rel_victim_case_form2_enums_victim_case_form2 law_rel
+				JOIN salvia.victim_case_form2_enums law_e ON law_e.victim_case_form2_enums_id = law_rel.victim_case_form2_enums_id
+				WHERE law_rel.victim_case_form2_id = vf2.victim_case_form2_id
+				AND law_e.victim_case_form2_enums_category LIKE '%law_1996%'
+			), '') AS f2_law_1996_instruments,
+			COALESCE(NULLIF(b7_indig.victim_case_form2_enums_name, ''), '') AS f2_indigenous_people,
+			COALESCE(NULLIF(b7_camp.victim_case_form2_enums_name, ''), '') AS f2_campesino_recognition,
+			COALESCE(NULLIF(b7_unemp.victim_case_form2_enums_name, ''), '') AS f2_aggressor_unemployed
 
 		FROM salvia.victim_case vc
 		LEFT JOIN salvia.victim_case_form1 vf1 ON vf1.victim_case_form1_victim_case = vc.victim_case_id
@@ -508,6 +592,18 @@ func (r *reportRepository) FindCasesInDateRange(ctx context.Context, start, end 
 		LEFT JOIN salvia.victim_case_form2_enums b5_stratum ON b5_stratum.victim_case_form2_enums_id = vf2.victim_case_form2_housing_stratum
 		LEFT JOIN salvia.victim_case_form2_enums b5_preg ON b5_preg.victim_case_form2_enums_id = vf2.victim_case_form2_currently_pregnant
 		LEFT JOIN salvia.victim_case_form2_enums b6_easy ON b6_easy.victim_case_form2_enums_id = vf2.victim_case_form2_allows_easy_report
+		-- Bloque 7: JOINs de enums para campos adicionales solicitados (Form 2)
+		LEFT JOIN salvia.victim_case_form2_enums b7_rep_prev ON b7_rep_prev.victim_case_form2_enums_id = vf2.victim_case_form2_reported_previously
+		LEFT JOIN salvia.victim_case_form2_enums b7_att ON b7_att.victim_case_form2_enums_id = vf2.victim_case_form2_attention_was_appropriate
+		LEFT JOIN salvia.victim_case_form2_enums b7_occ ON b7_occ.victim_case_form2_enums_id = vf2.victim_case_form2_aggressors_occupation
+		LEFT JOIN salvia.victim_case_form2_enums b7_phys ON b7_phys.victim_case_form2_enums_id = vf2.victim_case_form2_aggressor_violence_physical_increase
+		LEFT JOIN salvia.victim_case_form2_enums b7_harass ON b7_harass.victim_case_form2_enums_id = vf2.victim_case_form2_aggressor_sexually_harassment
+		LEFT JOIN salvia.victim_case_form2_enums b7_common ON b7_common.victim_case_form2_enums_id = vf2.victim_case_form2_aggressor_common_spaces
+		LEFT JOIN salvia.victim_case_form2_enums b7_hier ON b7_hier.victim_case_form2_enums_id = vf2.victim_case_form2_aggressor_hierarchy
+		LEFT JOIN salvia.victim_case_form2_enums b7_auth ON b7_auth.victim_case_form2_enums_id = vf2.victim_case_form2_aggressor_used_position_authority
+		LEFT JOIN salvia.victim_case_form2_enums b7_indig ON b7_indig.victim_case_form2_enums_id = vf2.victim_case_form2_indigenous_people
+		LEFT JOIN salvia.victim_case_form2_enums b7_camp ON b7_camp.victim_case_form2_enums_id = vf2.victim_case_form2_campesino_recognition
+		LEFT JOIN salvia.victim_case_form2_enums b7_unemp ON b7_unemp.victim_case_form2_enums_id = vf2.victim_case_form2_aggressor_unemployed
 		LEFT JOIN security.town t ON t.town_code = vc.victim_case_victim_town_code
 		LEFT JOIN security.city c ON c.city_id = t.city_id
 		LEFT JOIN security.department d ON d.department_id = c.department_id
