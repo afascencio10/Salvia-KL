@@ -252,8 +252,9 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	"get_notificaciones": {"op": true, "an": true, "no": true, "sv": true, "ad": true, "ro": true, "et": true},
 
 	// ── Módulo de Mis Barreras ────────────────────────────────────────────────
-	// Solo el agente de seguimiento (op) puede gestionar sus barreras.
-	"get_mis_barreras": {"en": true},
+	// Barreras personalmente asignadas al usuario (en = Enlace Territorial,
+	// no = Operador territorial nacional).
+	"get_mis_barreras": {"en": true, "no": true},
 
 	// ── Módulo de Mis Tareas ─────────────────────────────────────────────────
 	// Visible para todos los roles internos, no para externos — mismo set que
