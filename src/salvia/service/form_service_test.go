@@ -284,6 +284,9 @@ func (m *MockFollowUpRepo) FindRealizedTodayByAgent(ctx context.Context, agentID
 func (m *MockFollowUpRepo) IncrementAttempt(ctx context.Context, followUpID string) error {
 	return m.Called(ctx, followUpID).Error(0)
 }
+func (m *MockFollowUpRepo) DeletePendingByCaseID(ctx context.Context, caseID string) error {
+	return m.Called(ctx, caseID).Error(0)
+}
 func (m *MockFollowUpRepo) FindByTeamPaginated(ctx context.Context, team string, filters repository.FollowUpFilters, page, limit int) ([]models.FollowUpV2, int64, error) {
 	args := m.Called(ctx, team, filters, page, limit)
 	return args.Get(0).([]models.FollowUpV2), args.Get(1).(int64), args.Error(2)
@@ -316,6 +319,12 @@ func (m *MockFollowUpRepo) LoadVictimInfoByCaseID(ctx context.Context, caseID st
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*repository.VictimCaseInfo), args.Error(1)
+}
+func (m *MockFollowUpRepo) UpdateActiveBarrierIDs(ctx context.Context, id string, ids string) error {
+	return m.Called(ctx, id, ids).Error(0)
+}
+func (m *MockFollowUpRepo) UpdateAgentForPendingByCaseID(ctx context.Context, caseID string, agentID string) error {
+	return m.Called(ctx, caseID, agentID).Error(0)
 }
 func (m *MockFollowUpRepo) UpdateFormSubmissionID(ctx context.Context, id string, fsID string) error {
 	return m.Called(ctx, id, fsID).Error(0)
@@ -402,6 +411,23 @@ func (m *MockVictimCaseLightRepo) FindByICode(ctx context.Context, iCode string)
 func (m *MockVictimCaseLightRepo) UpdateStatus(ctx context.Context, caseID string, status string) error {
 	return m.Called(ctx, caseID, status).Error(0)
 }
+func (m *MockVictimCaseLightRepo) FindOpenByDocNumber(ctx context.Context, docNumber string) (*models.VictimCaseLight, error) {
+	args := m.Called(ctx, docNumber)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.VictimCaseLight), args.Error(1)
+}
+func (m *MockVictimCaseLightRepo) FindRiskLevelByICode(ctx context.Context, iCode string) (int, error) {
+	args := m.Called(ctx, iCode)
+	return args.Int(0), args.Error(1)
+}
+func (m *MockVictimCaseLightRepo) UpdateRiskLevelByICode(ctx context.Context, iCode string, newLevel int) error {
+	return m.Called(ctx, iCode, newLevel).Error(0)
+}
+func (m *MockVictimCaseLightRepo) UpdateTeamAndAgent(ctx context.Context, iCode string, team string, agentID string) error {
+	return m.Called(ctx, iCode, team, agentID).Error(0)
+}
 
 // --- Mock EntityLetterRepository ---
 type MockEntityLetterRepo struct { mock.Mock }
@@ -459,6 +485,10 @@ func (m *MockEntityLetterRepo) FindByNotificationUserIDWithRelations(ctx context
 func (m *MockEntityLetterRepo) UpdateState(ctx context.Context, id, state string) error {
 	return m.Called(ctx, id, state).Error(0)
 }
+func (m *MockEntityLetterRepo) FindWithRelationsFilteredPaginated(ctx context.Context, filter repository.EntityLetterListFilter, page, pageSize int) (repository.EntityLetterListResult, error) {
+	args := m.Called(ctx, filter, page, pageSize)
+	return args.Get(0).(repository.EntityLetterListResult), args.Error(1)
+}
 
 // --- Mock CaseTaskRepository ---
 type MockCaseTaskRepo struct { mock.Mock }
@@ -493,8 +523,20 @@ func (m *MockCaseTaskRepo) FindByAssignedUserIDWithRelations(ctx context.Context
 	args := m.Called(ctx, assignedUserID)
 	return args.Get(0).([]models.CaseTaskWithRelations), args.Error(1)
 }
+func (m *MockCaseTaskRepo) FindByAssignedUserIDPaged(ctx context.Context, assignedUserID, status string, page, pageSize int) (repository.PageResult[models.CaseTaskWithRelations], error) {
+	args := m.Called(ctx, assignedUserID, status, page, pageSize)
+	return args.Get(0).(repository.PageResult[models.CaseTaskWithRelations]), args.Error(1)
+}
 func (m *MockCaseTaskRepo) FindByCaseID(ctx context.Context, caseID string) ([]models.CaseTask, error) {
 	args := m.Called(ctx, caseID)
+	return args.Get(0).([]models.CaseTask), args.Error(1)
+}
+func (m *MockCaseTaskRepo) FindByCaseIDAndBarrier(ctx context.Context, caseID, barrierID string) ([]models.CaseTask, error) {
+	args := m.Called(ctx, caseID, barrierID)
+	return args.Get(0).([]models.CaseTask), args.Error(1)
+}
+func (m *MockCaseTaskRepo) FindByCaseIDAndPsychosocial(ctx context.Context, caseID, psychosocialID string) ([]models.CaseTask, error) {
+	args := m.Called(ctx, caseID, psychosocialID)
 	return args.Get(0).([]models.CaseTask), args.Error(1)
 }
 func (m *MockCaseTaskRepo) FindByBarrierID(ctx context.Context, barrierID string) ([]models.CaseTask, error) {

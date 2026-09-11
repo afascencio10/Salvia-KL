@@ -73,7 +73,7 @@ Códigos de columna: `ad`=Administrador, `sv`=Supervisor, `op`=Operador, `ro`=Op
 | `update_victim_case` | · | · | ✅ | ✅ | · | · | · | · | · | · | · | · | · |
 | `report_victim_cases` | · | ✅ | ✅ | ✅ | · | ✅ | · | · | · | · | · | · | · |
 | `approve_victim_case` | · | · | ✅ | ✅ | · | · | · | · | · | · | · | · | · |
-| `get_list_cases` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | · | · |
+| `get_list_cases` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `get_my_cases` | ✅ | ✅ | ✅ | ✅ | · | ✅ | ✅ | · | ✅ | · | · | · | · |
 | `get_case_detail_sv` | · | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | · | ✅ | ✅ | ✅ | ✅ |
 | `set_case_log` | · | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | · | · | ✅ | · | · | · |

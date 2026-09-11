@@ -184,6 +184,14 @@ func (s *formService) processPsicosocialEntidadEntries(ctx context.Context, form
 		return nil
 	}
 
+	// followUpID como string: ps.FollowUpID es nil cuando la remisión se creó
+	// manualmente (fuera del flujo de seguimiento) — entity_case_follow_up.follow_up_id
+	// es NOT NULL, así que se guarda vacío en ese caso.
+	var followUpID string
+	if ps.FollowUpID != nil {
+		followUpID = *ps.FollowUpID
+	}
+
 	// ── Seguimiento a Entidades (idéntico a PASO 3c de processFollowUpSubmission) ──
 	entidadesDelCaso, err := s.entityCaseSvc.ListByCase(ctx, ps.CaseID)
 	if err != nil {
@@ -221,7 +229,7 @@ func (s *formService) processPsicosocialEntidadEntries(ctx context.Context, form
 				tcID := teamContactID
 				ecfu := &models.EntityCaseFollowUp{
 					EntityCaseID:            entityCaseID,
-					FollowUpID:              ps.FollowUpID,
+					FollowUpID:              followUpID,
 					TeamContactID:           &tcID,
 					RutaActualizada:         rutaActualizada,
 					RequiereNuevaActivacion: requiereActivacion,
@@ -248,7 +256,7 @@ func (s *formService) processPsicosocialEntidadEntries(ctx context.Context, form
 
 			if requiereActivacion {
 				psID := ps.ID
-				s.procesarCanalActivacion(ctx, ps.CaseID, &ps.FollowUpID, actorID, entityCaseID, entityBranchID, canal, &psID)
+				s.procesarCanalActivacion(ctx, ps.CaseID, ps.FollowUpID, actorID, entityCaseID, entityBranchID, canal, &psID)
 			}
 		}
 	}
@@ -372,7 +380,7 @@ func (s *formService) processPsicosocialEntidadEntries(ctx context.Context, form
 					eco := &models.EntityCaseObligation{
 						EntityCaseID:  entityCaseID,
 						Status:        g.status,
-						FollowUpID:    &ps.FollowUpID,
+						FollowUpID:    ps.FollowUpID,
 						TeamContactID: &tcID,
 						CreatedByID:   actorID,
 					}
@@ -392,7 +400,7 @@ func (s *formService) processPsicosocialEntidadEntries(ctx context.Context, form
 			// Canal de activación (solo aplica en el repeater de activación)
 			if rcfg.qCanalActivacion != "" {
 				psID := ps.ID
-				s.procesarCanalActivacion(ctx, ps.CaseID, &ps.FollowUpID, actorID, entityCaseID, entityBranchID, idMap[rcfg.qCanalActivacion], &psID)
+				s.procesarCanalActivacion(ctx, ps.CaseID, ps.FollowUpID, actorID, entityCaseID, entityBranchID, idMap[rcfg.qCanalActivacion], &psID)
 			}
 		}
 	}

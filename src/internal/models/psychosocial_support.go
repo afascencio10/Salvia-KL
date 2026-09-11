@@ -17,7 +17,9 @@ import (
 type PsychosocialSupport struct {
 	ID              string     `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	CaseID          string     `gorm:"type:varchar(36);not null" json:"caseId"`
-	FollowUpID      string     `gorm:"type:uuid;not null" json:"followUpId"`
+	// FollowUpID es nil cuando la remisión se crea manualmente (fuera del flujo de
+	// seguimiento), p.ej. desde el endpoint de creación directa por caseId/cédula.
+	FollowUpID      *string    `gorm:"type:uuid;column:follow_up_id" json:"followUpId,omitempty"`
 	Type            string     `gorm:"type:varchar(50);not null" json:"type"`
 	Provider        string     `gorm:"type:varchar(255)" json:"provider"`
 	ScheduledAt     *time.Time `json:"scheduledAt"`

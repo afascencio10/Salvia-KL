@@ -98,7 +98,7 @@ const psychosocialProfSpecialtySelect = `(
 const psychosocialListSelectCols = `
 	ps.id,
 	ps.case_id,
-	ps.follow_up_id,
+	COALESCE(ps.follow_up_id::text, '') AS follow_up_id,
 	ps.status,
 	ps.created_at,
 	ps.submitted_by_team,

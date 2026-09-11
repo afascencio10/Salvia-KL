@@ -2604,7 +2604,6 @@ func (s *formService) processPsicosocialHechosViolenciaTimeline(ctx context.Cont
 
 	hechoEvent := &models.CaseTimelineEvent{
 		CaseID:                ps.CaseID,
-		FollowUpID:            ps.FollowUpID,
 		Category:              models.TimelineCategoryGeneral,
 		Type:                  models.TimelineTypeHechosCaso,
 		Icon:                  models.TimelineIconHechosCaso,
@@ -3056,7 +3055,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 
 		b := &models.BarrierV2{
 			CaseID:      fu.CaseID,
-			FollowUpID:  fu.ID,
+			FollowUpID:  &fu.ID,
 			CreatedByID: actorID,
 			Status:      models.BarrierV2StatusOpen,
 
@@ -3255,7 +3254,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 			if s.barrierFollowUpRepo != nil && barrierID != "" {
 				bfu := &models.BarrierFollowUp{
 					BarrierID:             barrierID,
-					FollowUpID:            fu.ID,
+					FollowUpID:            &fu.ID,
 					CreatedByID:           actorID,
 					Persists:              sbMap[qSBPersiste] == "true",
 					InstitutionalResponse: sbMap[qSBRespuestaInstitucional],
@@ -3567,7 +3566,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 				}
 				ps := &models.PsychosocialSupport{
 					CaseID:          fu.CaseID,
-					FollowUpID:      fu.ID,
+					FollowUpID:      &fu.ID,
 					Type:            "derivacion",
 					Status:          models.PsychosocialSupportStatusAbierto,
 					SubmittedBy:     submittedBy,

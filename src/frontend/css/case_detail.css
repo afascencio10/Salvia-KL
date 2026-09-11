@@ -58,6 +58,9 @@
 .cd-deriv-section{border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;margin-bottom:12px}
 .cd-deriv-header{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid #f3f4f6;font-size:.84rem;font-weight:600;color:#374151;min-height:unset!important}
 .cd-deriv-header .cd-count{margin-left:auto;font-size:.72rem;color:#9ca3af;font-weight:400}
+.btn-crear-remision-psico{font-size:.72rem!important;background:#5106A7!important;color:#fff!important;border:none!important;border-radius:8px!important;padding:4px 10px!important;cursor:pointer!important;font-weight:600!important;width:auto!important;min-height:unset!important;margin-top:0!important}
+.btn-crear-remision-psico:hover{background:#3d0080!important}
+.btn-crear-remision-psico:disabled{background:#9ca3af!important;cursor:not-allowed!important;opacity:.7!important}
 .cd-deriv-item{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-bottom:1px solid #f9fafb}
 .cd-deriv-item:last-child{border-bottom:none}.cd-deriv-desc{flex:1;font-size:.83rem;color:#374151}
 .cd-deriv-date{font-size:.72rem!important;color:#9ca3af!important;margin-top:2px!important;min-height:unset!important}

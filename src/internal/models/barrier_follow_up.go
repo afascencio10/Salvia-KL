@@ -7,7 +7,9 @@ import "time"
 type BarrierFollowUp struct {
 	ID        string    `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	BarrierID string    `gorm:"type:uuid;not null;index" json:"barrierId"`
-	FollowUpID string   `gorm:"type:uuid;not null;index" json:"followUpId"`
+	// FollowUpID es nil cuando el seguimiento a la barrera se registra en un contacto
+	// psicosocial (no en un seguimiento) — la barrera se resuelve vía BarrierID.
+	FollowUpID *string  `gorm:"type:uuid;column:follow_up_id;index" json:"followUpId,omitempty"`
 	CreatedByID string  `gorm:"type:varchar(36);not null" json:"createdById"`
 
 	Persists              bool   `gorm:"not null;default:false" json:"persists"`                // Q2

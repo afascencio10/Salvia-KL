@@ -9,48 +9,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"gorm.io/gorm"
 )
 
 // ---------------------------------------------------------------------------
 // Mock del repositorio
 // ---------------------------------------------------------------------------
-
-// MockFollowUpRepo implementa repository.FollowUpRepository usando testify/mock.
-type MockFollowUpRepo struct {
-	mock.Mock
-}
-
-func (m *MockFollowUpRepo) Create(ctx context.Context, entity *models.FollowUpV2) error {
-	return m.Called(ctx, entity).Error(0)
-}
-
-func (m *MockFollowUpRepo) Update(ctx context.Context, entity *models.FollowUpV2) error {
-	return m.Called(ctx, entity).Error(0)
-}
-
-func (m *MockFollowUpRepo) Delete(ctx context.Context, id string) error {
-	return m.Called(ctx, id).Error(0)
-}
-
-func (m *MockFollowUpRepo) FindByID(ctx context.Context, id string) (*models.FollowUpV2, error) {
-	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.FollowUpV2), args.Error(1)
-}
-
-func (m *MockFollowUpRepo) FindWithPagination(ctx context.Context, page, pageSize int) (repository.PageResult[models.FollowUpV2], error) {
-	args := m.Called(ctx, page, pageSize)
-	return args.Get(0).(repository.PageResult[models.FollowUpV2]), args.Error(1)
-}
-
-func (m *MockFollowUpRepo) FindByCaseID(ctx context.Context, caseID string) ([]models.FollowUpV2, error) {
-	args := m.Called(ctx, caseID)
-	return args.Get(0).([]models.FollowUpV2), args.Error(1)
-}
+// MockFollowUpRepo (implementa repository.FollowUpRepository) se declara una
+// sola vez para todo el paquete service_test — ver form_service_test.go.
 
 // ---------------------------------------------------------------------------
 // Tests de GetFollowUpByID
@@ -61,11 +27,12 @@ func TestGetFollowUpByID(t *testing.T) {
 
 	t.Run("éxito - retorna el registro", func(t *testing.T) {
 		repoMock := new(MockFollowUpRepo)
-		expected := &models.FollowUpV2{ID: "uuid-123", CaseID: "case-1", AgentID: "agent-1", Status: "open"}
+		agentID := "agent-1"
+		expected := &models.FollowUpV2{ID: "uuid-123", CaseID: "case-1", AgentID: &agentID, Status: "open"}
 
 		repoMock.On("FindByID", ctx, "uuid-123").Return(expected, nil)
 
-		svc := service.NewFollowUpV2Service(repoMock)
+		svc := service.NewFollowUpV2Service(repoMock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		result, err := svc.GetFollowUpByID(ctx, "uuid-123")
 
 		assert.NoError(t, err)
@@ -78,7 +45,7 @@ func TestGetFollowUpByID(t *testing.T) {
 
 		repoMock.On("FindByID", ctx, "no-existe").Return(nil, gorm.ErrRecordNotFound)
 
-		svc := service.NewFollowUpV2Service(repoMock)
+		svc := service.NewFollowUpV2Service(repoMock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		result, err := svc.GetFollowUpByID(ctx, "no-existe")
 
 		assert.Nil(t, result)
@@ -92,7 +59,7 @@ func TestGetFollowUpByID(t *testing.T) {
 
 		repoMock.On("FindByID", ctx, "uuid-err").Return(nil, dbErr)
 
-		svc := service.NewFollowUpV2Service(repoMock)
+		svc := service.NewFollowUpV2Service(repoMock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		result, err := svc.GetFollowUpByID(ctx, "uuid-err")
 
 		assert.Nil(t, result)
@@ -119,7 +86,7 @@ func TestGetPaginatedFollowUps(t *testing.T) {
 
 		repoMock.On("FindWithPagination", ctx, 0, 20).Return(expected, nil)
 
-		svc := service.NewFollowUpV2Service(repoMock)
+		svc := service.NewFollowUpV2Service(repoMock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		result, err := svc.GetPaginatedFollowUps(ctx, 0, 20)
 
 		assert.NoError(t, err)
@@ -134,7 +101,7 @@ func TestGetPaginatedFollowUps(t *testing.T) {
 
 		repoMock.On("FindWithPagination", ctx, 0, 20).Return(empty, dbErr)
 
-		svc := service.NewFollowUpV2Service(repoMock)
+		svc := service.NewFollowUpV2Service(repoMock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		_, err := svc.GetPaginatedFollowUps(ctx, 0, 20)
 
 		assert.ErrorIs(t, err, dbErr)
