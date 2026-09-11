@@ -74,6 +74,10 @@ type PsychosocialDetailResponse struct {
 	SchedulePreference  *string `json:"schedulePreference"`
 	ValidationPending   bool    `json:"validationPending"`
 	ValidationCriteria  []string `json:"validationCriteria"`
+	// ReferralEvidence: respuesta a "Describa los elementos que evidencia para
+	// realizar la remisión" (Sección 5 del form de seguimiento). Vacío si la
+	// remisión no tiene follow_up de origen (creada manualmente).
+	ReferralEvidence    string  `json:"referralEvidence"`
 
 	// Contactos/Sesiones
 	Contacts []PsychosocialContactItem `json:"contacts"`
@@ -391,32 +395,49 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 	`, id).Scan(&validationTaskCount)
 	resp.ValidationPending = validationTaskCount > 0
 
-	// 10. Criterios de remisión (desde Notes del psychosocial_support)
-	if ps.Notes != nil && *ps.Notes != "" {
-		criteriosRaw := strings.Split(*ps.Notes, ",")
-		criterioLabels := map[string]string{
-			"criterio_obligatorio":    "Criterio obligatorio",
-			"conducta_suicida":        "Conducta suicida",
-			"interseccionalidad":      "Interseccionalidad",
-			"sin_ruta":                "Sin ruta de atención",
-			"condiciones_territoriales": "Condiciones territoriales",
-			"sin_acceso_psico":        "Sin acceso a atención psicosocial",
-			"naturalizacion_vbg":      "Naturalización de VBG",
-		}
-		for _, c := range criteriosRaw {
-			c = strings.TrimSpace(c)
-			if c == "" || c == "criterio_obligatorio" {
-				continue
+	// 10. Criterios de remisión y evidencia — respuestas del form_submission del
+	// seguimiento que originó esta derivación (Sección 5, preguntas
+	// qCriteriosPsico y qFollowUpReferralEvidence). ps.FollowUpID es nil para
+	// remisiones creadas manualmente (sin seguimiento de origen) — en ese caso
+	// no hay respuestas que leer.
+	resp.ValidationCriteria = []string{}
+	if ps.FollowUpID != nil {
+		const qCriteriosPsico = "71c42c4a-f640-47ad-b2c1-5d4c18480449" // Criterios de remisión — Atención Psicosocial
+
+		var fu models.FollowUpV2
+		if err := s.db.WithContext(ctx).Select("form_submission_id").Where("id = ?", *ps.FollowUpID).First(&fu).Error; err == nil && fu.FormSubmissionID != nil {
+			var answers []models.Answer
+			s.db.WithContext(ctx).
+				Where("form_submission_id = ? AND question_id IN ?", *fu.FormSubmissionID, []string{qCriteriosPsico, qFollowUpReferralEvidence}).
+				Find(&answers)
+
+			criterioLabels := map[string]string{
+				"conducta_suicida":          "Conducta suicida",
+				"interseccionalidad":        "Interseccionalidad",
+				"sin_ruta":                  "Sin ruta de atención",
+				"condiciones_territoriales": "Condiciones territoriales",
+				"sin_acceso_psico":          "Sin acceso a atención psicosocial",
+				"naturalizacion_vbg":        "Naturalización de VBG",
 			}
-			if label, ok := criterioLabels[c]; ok {
-				resp.ValidationCriteria = append(resp.ValidationCriteria, label)
-			} else {
-				resp.ValidationCriteria = append(resp.ValidationCriteria, c)
+			for _, a := range answers {
+				switch a.QuestionID {
+				case qCriteriosPsico:
+					for _, c := range strings.Split(a.Value, ",") {
+						c = strings.TrimSpace(c)
+						if c == "" || c == "criterio_obligatorio" {
+							continue
+						}
+						if label, ok := criterioLabels[c]; ok {
+							resp.ValidationCriteria = append(resp.ValidationCriteria, label)
+						} else {
+							resp.ValidationCriteria = append(resp.ValidationCriteria, c)
+						}
+					}
+				case qFollowUpReferralEvidence:
+					resp.ReferralEvidence = strings.TrimSpace(a.Value)
+				}
 			}
 		}
-	}
-	if resp.ValidationCriteria == nil {
-		resp.ValidationCriteria = []string{}
 	}
 
 	return resp, nil

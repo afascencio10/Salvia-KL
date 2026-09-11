@@ -68,7 +68,8 @@ func TestBarrierV2Service_GetByID(t *testing.T) {
 func TestBarrierV2Service_Create(t *testing.T) {
 	ctx := context.Background()
 	repo := new(MockBarrierV2Repo)
-	b := &models.BarrierV2{CaseID: "c-1", FollowUpID: "f-1", Sector: "JUSTICIA", Description: "Desc"}
+	followUpID := "f-1"
+	b := &models.BarrierV2{CaseID: "c-1", FollowUpID: &followUpID, Sector: "JUSTICIA", Description: "Desc"}
 	repo.On("Create", ctx, b).Return(nil)
 	svc := service.NewBarrierV2Service(repo)
 	err := svc.Create(ctx, b)

@@ -68,7 +68,8 @@ func TestPsychosocialSupportService_GetByID(t *testing.T) {
 func TestPsychosocialSupportService_Create(t *testing.T) {
 	ctx := context.Background()
 	repo := new(MockPsychosocialSupportRepo)
-	ps := &models.PsychosocialSupport{CaseID: "c-1", FollowUpID: "f-1", Type: "TERAPIA"}
+	followUpID := "f-1"
+	ps := &models.PsychosocialSupport{CaseID: "c-1", FollowUpID: &followUpID, Type: "TERAPIA"}
 	repo.On("Create", ctx, ps).Return(nil)
 	svc := service.NewPsychosocialSupportService(repo)
 	err := svc.Create(ctx, ps)
