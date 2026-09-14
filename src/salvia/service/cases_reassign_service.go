@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -36,17 +37,20 @@ type CasesReassignService interface {
 type casesReassignService struct {
 	reassignRepo repository.CasesReassignRepository
 	timelineRepo repository.CaseTimelineEventRepository
+	logRepo      repository.AppLogRepository
 	db           *gorm.DB
 }
 
 func NewCasesReassignService(
 	reassignRepo repository.CasesReassignRepository,
 	timelineRepo repository.CaseTimelineEventRepository,
+	logRepo repository.AppLogRepository,
 	db *gorm.DB,
 ) CasesReassignService {
 	return &casesReassignService{
 		reassignRepo: reassignRepo,
 		timelineRepo: timelineRepo,
+		logRepo:      logRepo,
 		db:           db,
 	}
 }
@@ -109,6 +113,19 @@ func (s *casesReassignService) ReassignBulk(ctx context.Context, input CasesReas
 				return err
 			}
 			result.FollowUpsUpdated += fuCount
+
+			if s.logRepo != nil {
+				if logErr := s.logRepo.Log(ctx, caseICode, "Reasignación manual (bulk): agente actualizado", map[string]interface{}{
+					"agentICode":       agentICode,
+					"agentName":        agentName,
+					"team":             agentTeam,
+					"followUpsUpdated": fuCount,
+					"actorICode":       supervisorICode,
+					"actorName":        supervisorName,
+				}); logErr != nil {
+					log.Printf("[WARN] ReassignBulk: no se pudo guardar log caseICode=%s: %v", caseICode, logErr)
+				}
+			}
 
 			now := time.Now()
 			description := fmt.Sprintf(

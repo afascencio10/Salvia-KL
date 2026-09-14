@@ -128,6 +128,7 @@ type followUpV2Service struct {
 	timelineRepo      repository.CaseTimelineEventRepository
 	answerRepo        repository.AnswerRepository
 	repeaterEntryRepo repository.RepeaterEntryRepository
+	logRepo           repository.AppLogRepository
 }
 
 // NewFollowUpV2Service construye el servicio inyectando los repositorios.
@@ -145,6 +146,7 @@ func NewFollowUpV2Service(
 	timelineRepo repository.CaseTimelineEventRepository,
 	answerRepo repository.AnswerRepository,
 	repeaterEntryRepo repository.RepeaterEntryRepository,
+	logRepo repository.AppLogRepository,
 ) FollowUpV2Service {
 	return &followUpV2Service{
 		repo:              repo,
@@ -160,6 +162,7 @@ func NewFollowUpV2Service(
 		timelineRepo:      timelineRepo,
 		answerRepo:        answerRepo,
 		repeaterEntryRepo: repeaterEntryRepo,
+		logRepo:           logRepo,
 	}
 }
 
@@ -322,7 +325,7 @@ func (s *followUpV2Service) ReasignarCalendario(ctx context.Context, caseID stri
 		team := "Riesgo alto"
 		scheduledDates := computeScheduledDates(offsets, now, today, newLevel)
 
-		agentID, err := s.calcularAgente(ctx, scheduledDates, team)
+		agentID, err := s.calcularAgente(ctx, caseID, scheduledDates, team)
 		if err != nil {
 			log.Printf("[WARN] ReasignarCalendario: calcularAgente falló (%v) — agente quedará sin asignar", err)
 			agentID = ""
@@ -356,7 +359,7 @@ func (s *followUpV2Service) ReasignarCalendario(ctx context.Context, caseID stri
 			dates = append(dates, fu.ScheduledDate)
 		}
 
-		agentID, err := s.calcularAgente(ctx, dates, team)
+		agentID, err := s.calcularAgente(ctx, caseID, dates, team)
 		if err != nil {
 			log.Printf("[WARN] ReasignarCalendario: calcularAgente falló (%v) — agente sin cambios", err)
 			return nil
@@ -426,7 +429,7 @@ func (s *followUpV2Service) GenerateOrRecalculate(ctx context.Context, caseID st
 		// Descomentar cuando el evento esté listo para activarse.
 		//
 		scheduledDates := computeScheduledDates(offsets, now, today, input.RiskLevel)
-		assignedAgentID, autoErr := s.calcularAgente(ctx, scheduledDates, input.Team)
+		assignedAgentID, autoErr := s.calcularAgente(ctx, caseID, scheduledDates, input.Team)
 		if autoErr != nil {
 			log.Printf("[WARN] AutoAsignacion: %v — se usará el agentID del input", autoErr)
 		} else {
@@ -1248,6 +1251,16 @@ func (s *followUpV2Service) getDateMatrix(ctx context.Context, dates []time.Time
 	return matrix, nil
 }
 
+// agenteRankingLogEntry es la fila de log del ranking de auto-asignación:
+// la posición final de cada agente candidato con las métricas que la explican.
+type agenteRankingLogEntry struct {
+	AgentID    string  `json:"agentId"`
+	AvgPos     float64 `json:"avgPos"`
+	DateLoad   int64   `json:"dateLoad"`
+	GlobalLoad int64   `json:"globalLoad"`
+	Selected   bool    `json:"selected"`
+}
+
 // calcularAgente implementa el algoritmo de auto-asignación balanceada:
 //
 //  1. Obtiene todos los agentes con rol "ro" del mismo equipo.
@@ -1257,7 +1270,10 @@ func (s *followUpV2Service) getDateMatrix(ctx context.Context, dates []time.Time
 //  5. Elige el agente con menor avg_pos.
 //     Desempate 1: menor carga en las fechas específicas.
 //     Desempate 2: menor carga global en el equipo (todos sus seguimientos pendientes).
-func (s *followUpV2Service) calcularAgente(ctx context.Context, dates []time.Time, team string) (string, error) {
+//
+// caseID se usa únicamente como key de logging (salvia.app_log) para poder
+// auditar después por qué se asignó tal agente a un caso puntual.
+func (s *followUpV2Service) calcularAgente(ctx context.Context, caseID string, dates []time.Time, team string) (string, error) {
 	if len(dates) == 0 {
 		return "", fmt.Errorf("calcularAgente: no se recibieron fechas")
 	}
@@ -1267,6 +1283,18 @@ func (s *followUpV2Service) calcularAgente(ctx context.Context, dates []time.Tim
 	if err != nil {
 		return "", fmt.Errorf("calcularAgente: obtener agentes ro del equipo %q: %w", team, err)
 	}
+
+	if s.logRepo != nil {
+		if logErr := s.logRepo.Log(ctx, caseID, "Auto-asignación: agentes candidatos obtenidos", map[string]interface{}{
+			"team":     team,
+			"role":     "ro",
+			"agentes":  agents,
+			"cantidad": len(agents),
+		}); logErr != nil {
+			log.Printf("[WARN] calcularAgente: no se pudo guardar log de candidatos: %v", logErr)
+		}
+	}
+
 	if len(agents) == 0 {
 		return "", fmt.Errorf("calcularAgente: no hay agentes con rol ro en el equipo %q", team)
 	}
@@ -1330,6 +1358,8 @@ func (s *followUpV2Service) calcularAgente(ctx context.Context, dates []time.Tim
 	bestDateLoad := int64(math.MaxInt64)
 	bestGlobalLoad := int64(math.MaxInt64)
 
+	ranking := make([]agenteRankingLogEntry, 0, len(agents))
+
 	for _, a := range agents {
 		avg := agentPosSum[a.ICode] / float64(n)
 		dLoad := agentDateLoad[a.ICode]
@@ -1345,8 +1375,30 @@ func (s *followUpV2Service) calcularAgente(ctx context.Context, dates []time.Tim
 			bestGlobalLoad = gLoad
 		}
 
+		ranking = append(ranking, agenteRankingLogEntry{
+			AgentID:    a.ICode,
+			AvgPos:     avg,
+			DateLoad:   dLoad,
+			GlobalLoad: gLoad,
+		})
+
 		log.Printf("[AutoAsignacion] Agente %s | avg_pos=%.3f | carga_fechas=%d | carga_global=%d",
 			a.ICode, avg, dLoad, gLoad)
+	}
+
+	for i := range ranking {
+		ranking[i].Selected = ranking[i].AgentID == bestID
+	}
+
+	if s.logRepo != nil {
+		if logErr := s.logRepo.Log(ctx, caseID, "Auto-asignación: ranking de agentes calculado", map[string]interface{}{
+			"team":          team,
+			"fechas":        dates,
+			"ranking":       ranking,
+			"agenteElegido": bestID,
+		}); logErr != nil {
+			log.Printf("[WARN] calcularAgente: no se pudo guardar log de ranking: %v", logErr)
+		}
 	}
 
 	log.Printf("[AutoAsignacion] ✓ Seleccionado: %s (equipo=%q, avg_pos=%.3f, carga_fechas=%d, carga_global=%d)",
