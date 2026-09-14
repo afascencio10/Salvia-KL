@@ -15,7 +15,7 @@ var misBarrerasModalTemplates = []string{}
 
 // MisBarrerasGET renderiza la pantalla de Mis Barreras.
 // Ruta: GET /salvia/mis-barreras
-// Roles permitidos: en (Enlace Territorial)
+// Roles permitidos: en (Enlace Territorial), no (Operador territorial nacional)
 func MisBarrerasGET(c *gin.Context) {
 	session := sessions.Default(c)
 	sessionIDVal := session.Get("userData")

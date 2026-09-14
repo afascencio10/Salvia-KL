@@ -194,7 +194,8 @@ func (s *formService) processPsicosocialBarrierEntries(ctx context.Context, form
 
 		b := &models.BarrierV2{
 			CaseID:        ps.CaseID,
-			FollowUpID:    ps.FollowUpID,
+			// FollowUpID queda nil: esta barrera se identifica en un contacto
+			// psicosocial, no en un seguimiento — su origen es TeamContactID.
 			TeamContactID: &teamContactID,
 			CreatedByID:   actorID,
 			Status:        models.BarrierV2StatusOpen,
@@ -262,7 +263,6 @@ func (s *formService) processPsicosocialBarrierEntries(ctx context.Context, form
 			}
 
 			barrierID := b.ID
-			followUpID := ps.FollowUpID
 			psychosocialSupportID := ps.ID
 			var entityLetterID *string
 
@@ -296,7 +296,6 @@ func (s *formService) processPsicosocialBarrierEntries(ctx context.Context, form
 				AssignedUserID:        actorID,
 				Status:                models.CaseTaskStatusToDo,
 				CaseID:                ps.CaseID,
-				FollowUpID:            &followUpID,
 				BarrierID:             &barrierID,
 				EntityLetterID:        entityLetterID,
 				PsychosocialSupportID: &psychosocialSupportID,
@@ -447,9 +446,10 @@ func (s *formService) processPsicosocialBarrierFollowUps(ctx context.Context, fo
 
 		if s.barrierFollowUpRepo != nil && barrierID != "" {
 			bfu := &models.BarrierFollowUp{
-				BarrierID:             barrierID,
-				FollowUpID:            ps.FollowUpID,
-				CreatedByID:           actorID,
+				BarrierID: barrierID,
+				// FollowUpID queda nil: se registra en un contacto psicosocial,
+				// no en un seguimiento — la barrera se resuelve vía BarrierID.
+				CreatedByID: actorID,
 				Persists:              answerIsTrueish(sbMap[qIDs.Persiste]),
 				InstitutionalResponse: sbMap[qIDs.RespuestaInstitucional],
 				ManagementActions:     sbMap[qIDs.Gestion],
@@ -468,7 +468,6 @@ func (s *formService) processPsicosocialBarrierFollowUps(ctx context.Context, fo
 			resumen := buildBarrierFollowUpSummary(sbMap[qIDs.Persiste], sbMap[qIDs.RespuestaInstitucional], sbMap[qIDs.Actuaciones])
 			tlEvent := &models.CaseTimelineEvent{
 				CaseID:                ps.CaseID,
-				FollowUpID:            ps.FollowUpID,
 				Category:              "Barreras",
 				Type:                  "Seguimiento a Barrera",
 				Icon:                  "shield-halved",

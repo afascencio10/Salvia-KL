@@ -20,6 +20,9 @@ func (m *MockPsychosocialSupportRepo) Create(ctx context.Context, e *models.Psyc
 func (m *MockPsychosocialSupportRepo) Update(ctx context.Context, e *models.PsychosocialSupport) error {
 	return m.Called(ctx, e).Error(0)
 }
+func (m *MockPsychosocialSupportRepo) UpdateFields(ctx context.Context, id string, fields map[string]interface{}) error {
+	return m.Called(ctx, id, fields).Error(0)
+}
 func (m *MockPsychosocialSupportRepo) Delete(ctx context.Context, id string) error {
 	return m.Called(ctx, id).Error(0)
 }
@@ -68,7 +71,8 @@ func TestPsychosocialSupportService_GetByID(t *testing.T) {
 func TestPsychosocialSupportService_Create(t *testing.T) {
 	ctx := context.Background()
 	repo := new(MockPsychosocialSupportRepo)
-	ps := &models.PsychosocialSupport{CaseID: "c-1", FollowUpID: "f-1", Type: "TERAPIA"}
+	followUpID := "f-1"
+	ps := &models.PsychosocialSupport{CaseID: "c-1", FollowUpID: &followUpID, Type: "TERAPIA"}
 	repo.On("Create", ctx, ps).Return(nil)
 	svc := service.NewPsychosocialSupportService(repo)
 	err := svc.Create(ctx, ps)

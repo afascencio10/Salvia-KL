@@ -54,6 +54,94 @@ func (m *MockFollowUpV2Service) GenerateOrRecalculate(ctx context.Context, caseI
 	return args.Get(0).([]models.FollowUpV2), args.Error(1)
 }
 
+func (m *MockFollowUpV2Service) GetFollowUpDetail(ctx context.Context, id string, isSupervisor bool) (*models.FollowUpDetailResponse, error) {
+	args := m.Called(ctx, id, isSupervisor)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.FollowUpDetailResponse), args.Error(1)
+}
+
+func (m *MockFollowUpV2Service) GetAgentDayFollowUps(ctx context.Context, agentID string, date time.Time) ([]models.FollowUpV2, []models.FollowUpV2, []models.FollowUpV2, error) {
+	args := m.Called(ctx, agentID, date)
+	var pending, priority, completed []models.FollowUpV2
+	if args.Get(0) != nil {
+		pending = args.Get(0).([]models.FollowUpV2)
+	}
+	if args.Get(1) != nil {
+		priority = args.Get(1).([]models.FollowUpV2)
+	}
+	if args.Get(2) != nil {
+		completed = args.Get(2).([]models.FollowUpV2)
+	}
+	return pending, priority, completed, args.Error(3)
+}
+
+func (m *MockFollowUpV2Service) GetMyDayFollowUpsEnriched(ctx context.Context, agentID string, date time.Time) (*models.MyDayResponse, error) {
+	args := m.Called(ctx, agentID, date)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.MyDayResponse), args.Error(1)
+}
+
+func (m *MockFollowUpV2Service) RegisterContactAttempt(ctx context.Context, followUpID string, reason string, wasAnswered bool, attemptTime *time.Time) (*models.FollowUpV2, error) {
+	args := m.Called(ctx, followUpID, reason, wasAnswered, attemptTime)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.FollowUpV2), args.Error(1)
+}
+
+func (m *MockFollowUpV2Service) LoadFollowUp(ctx context.Context, id string, agentID string, formID string) (*service.LoadFollowUpResult, error) {
+	args := m.Called(ctx, id, agentID, formID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*service.LoadFollowUpResult), args.Error(1)
+}
+
+func (m *MockFollowUpV2Service) ReasignarCalendario(ctx context.Context, caseID string, newLevel int) error {
+	return m.Called(ctx, caseID, newLevel).Error(0)
+}
+
+func (m *MockFollowUpV2Service) GetByTeamPaginated(ctx context.Context, team string, filters repository.FollowUpFilters, page, limit int) ([]models.FollowUpV2, int64, error) {
+	args := m.Called(ctx, team, filters, page, limit)
+	if args.Get(0) == nil {
+		return nil, args.Get(1).(int64), args.Error(2)
+	}
+	return args.Get(0).([]models.FollowUpV2), args.Get(1).(int64), args.Error(2)
+}
+
+func (m *MockFollowUpV2Service) GetAgentWorkload(ctx context.Context, team string, fecha string) ([]repository.AgentWorkload, error) {
+	args := m.Called(ctx, team, fecha)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]repository.AgentWorkload), args.Error(1)
+}
+
+func (m *MockFollowUpV2Service) GetFilterOptions(ctx context.Context, team string) (service.FilterOptions, error) {
+	args := m.Called(ctx, team)
+	if args.Get(0) == nil {
+		return service.FilterOptions{}, args.Error(1)
+	}
+	return args.Get(0).(service.FilterOptions), args.Error(1)
+}
+
+func (m *MockFollowUpV2Service) RescheduleFollowUp(ctx context.Context, id string, input service.RescheduleInput) error {
+	return m.Called(ctx, id, input).Error(0)
+}
+
+func (m *MockFollowUpV2Service) CloseCaseFollowUps(ctx context.Context, followUpID string, closureReason string) error {
+	return m.Called(ctx, followUpID, closureReason).Error(0)
+}
+
+func (m *MockFollowUpV2Service) InitClosureForm(ctx context.Context, followUpID string, agentID string) (string, error) {
+	args := m.Called(ctx, followUpID, agentID)
+	return args.String(0), args.Error(1)
+}
+
 // ── helper: construye router de test ─────────────────────────────────────────
 
 func newTestRouter(svc service.FollowUpV2Service) *gin.Engine {

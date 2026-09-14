@@ -85,13 +85,13 @@ func (c *BarrierV2GinController) ListByDepartment(ctx *gin.Context) {
 	})
 }
 
-// ListMine devuelve las barreras activas asignadas al Enlace Territorial
-// autenticado (user_territory_link_id = sesión). El usuario se toma de la
-// sesión, nunca de query params.
+// ListMine devuelve las barreras activas asignadas al usuario autenticado
+// (user_territory_link_id = sesión) — Enlace Territorial u Operador
+// territorial nacional. El usuario se toma de la sesión, nunca de query params.
 //
 //	GET /api/v1/barriers-v2/mine
 func (c *BarrierV2GinController) ListMine(ctx *gin.Context) {
-	s := requireEnlaceAccess(ctx)
+	s := requireMisBarrerasAccess(ctx)
 	if s == nil {
 		return
 	}

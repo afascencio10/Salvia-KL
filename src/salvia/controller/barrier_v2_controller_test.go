@@ -38,6 +38,29 @@ func (m *MockBarrierV2Service) Update(ctx context.Context, b *models.BarrierV2) 
 func (m *MockBarrierV2Service) Delete(ctx context.Context, id string) error {
 	return m.Called(ctx, id).Error(0)
 }
+func (m *MockBarrierV2Service) GetDetail(ctx context.Context, id string) (*service.BarrierDetailResponse, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*service.BarrierDetailResponse), args.Error(1)
+}
+func (m *MockBarrierV2Service) ListByCreatedByIDWithRelations(ctx context.Context, createdByID string) ([]models.BarrierV2WithRelations, error) {
+	args := m.Called(ctx, createdByID)
+	return args.Get(0).([]models.BarrierV2WithRelations), args.Error(1)
+}
+func (m *MockBarrierV2Service) ListFollowUps(ctx context.Context, barrierID string) ([]service.BarrierFollowUpItem, error) {
+	args := m.Called(ctx, barrierID)
+	return args.Get(0).([]service.BarrierFollowUpItem), args.Error(1)
+}
+func (m *MockBarrierV2Service) ListByDepartment(ctx context.Context, departmentID string, filters repository.DepartmentBarrierFilters) ([]models.BarrierV2DepartmentItem, int64, error) {
+	args := m.Called(ctx, departmentID, filters)
+	return args.Get(0).([]models.BarrierV2DepartmentItem), args.Get(1).(int64), args.Error(2)
+}
+func (m *MockBarrierV2Service) ListMine(ctx context.Context, userTerritoryLinkID string) ([]models.BarrierV2MineItem, error) {
+	args := m.Called(ctx, userTerritoryLinkID)
+	return args.Get(0).([]models.BarrierV2MineItem), args.Error(1)
+}
 
 func TestBarrierV2Controller_GetByID(t *testing.T) {
 	t.Run("200", func(t *testing.T) {
@@ -67,7 +90,7 @@ func TestBarrierV2Controller_Create(t *testing.T) {
 		svc.On("Create", mock.Anything, mock.AnythingOfType("*models.BarrierV2")).Return(nil)
 		ctrl := controller.NewBarrierV2Controller(svc)
 		body, _ := json.Marshal(map[string]string{
-			"case_id": "c-1", "follow_up_id": "f-1", "sector": "JUSTICIA", "description": "Desc",
+			"caseId": "c-1", "followUpId": "f-1", "sector": "JUSTICIA", "description": "Desc",
 		})
 		req := httptest.NewRequest(http.MethodPost, "/barriers", bytes.NewReader(body))
 		rec := httptest.NewRecorder()

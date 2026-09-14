@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -24,6 +25,13 @@ func (m *MockQuestionService) GetByID(ctx context.Context, id string) (*models.Q
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*models.Question), args.Error(1)
+}
+func (m *MockQuestionService) ListByFormID(ctx context.Context, formID string) ([]models.Question, error) {
+	args := m.Called(ctx, formID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.Question), args.Error(1)
 }
 func (m *MockQuestionService) List(ctx context.Context, page, limit int) (repository.PageResult[models.Question], error) {
 	args := m.Called(ctx, page, limit)
@@ -39,24 +47,31 @@ func (m *MockQuestionService) Delete(ctx context.Context, id string) error {
 	return m.Called(ctx, id).Error(0)
 }
 
+func newQuestionTestRouter(svc service.QuestionService) *gin.Engine {
+	r := gin.New()
+	ctrl := controller.NewQuestionController(svc)
+	ctrl.RegisterRoutes(r.Group("/api/v1"))
+	return r
+}
+
 func TestQuestionController_GetByID(t *testing.T) {
 	t.Run("200", func(t *testing.T) {
 		svc := new(MockQuestionService)
 		svc.On("GetByID", mock.Anything, "q-1").Return(&models.Question{ID: "q-1"}, nil)
-		ctrl := controller.NewQuestionController(svc)
-		req := httptest.NewRequest(http.MethodGet, "/questions?id=q-1", nil)
+		r := newQuestionTestRouter(svc)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/questions/q-1", nil)
 		rec := httptest.NewRecorder()
-		ctrl.GetByIDHandler(rec, req)
+		r.ServeHTTP(rec, req)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
 	t.Run("404", func(t *testing.T) {
 		svc := new(MockQuestionService)
 		svc.On("GetByID", mock.Anything, "x").Return(nil, service.ErrQuestionNotFound)
-		ctrl := controller.NewQuestionController(svc)
-		req := httptest.NewRequest(http.MethodGet, "/questions?id=x", nil)
+		r := newQuestionTestRouter(svc)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/questions/x", nil)
 		rec := httptest.NewRecorder()
-		ctrl.GetByIDHandler(rec, req)
+		r.ServeHTTP(rec, req)
 		assert.Equal(t, http.StatusNotFound, rec.Code)
 	})
 }
@@ -65,25 +80,25 @@ func TestQuestionController_Create(t *testing.T) {
 	t.Run("201", func(t *testing.T) {
 		svc := new(MockQuestionService)
 		svc.On("Create", mock.Anything, mock.AnythingOfType("*models.Question")).Return(nil)
-		ctrl := controller.NewQuestionController(svc)
+		r := newQuestionTestRouter(svc)
 		body, _ := json.Marshal(map[string]string{
-			"form_id": "f-1", "form_section_id": "s-1",
-			"question_type_id": "BOOLEAN", "description": "¿Sí?",
+			"formSectionId": "s-1", "questionTypeId": "BOOLEAN", "description": "¿Sí?",
 		})
-		req := httptest.NewRequest(http.MethodPost, "/questions", bytes.NewReader(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/forms/f-1/questions", bytes.NewReader(body))
 		rec := httptest.NewRecorder()
-		ctrl.CreateHandler(rec, req)
+		r.ServeHTTP(rec, req)
 		assert.Equal(t, http.StatusCreated, rec.Code)
 	})
 
 	t.Run("400 campos faltantes", func(t *testing.T) {
 		svc := new(MockQuestionService)
-		ctrl := controller.NewQuestionController(svc)
-		body, _ := json.Marshal(map[string]string{"form_id": "f-1"})
-		req := httptest.NewRequest(http.MethodPost, "/questions", bytes.NewReader(body))
+		r := newQuestionTestRouter(svc)
+		body, _ := json.Marshal(map[string]string{})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/forms/f-1/questions", bytes.NewReader(body))
 		rec := httptest.NewRecorder()
-		ctrl.CreateHandler(rec, req)
+		r.ServeHTTP(rec, req)
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		svc.AssertNotCalled(t, "Create")
 	})
 }
 
@@ -91,10 +106,20 @@ func TestQuestionController_Delete(t *testing.T) {
 	t.Run("204", func(t *testing.T) {
 		svc := new(MockQuestionService)
 		svc.On("Delete", mock.Anything, "q-1").Return(nil)
-		ctrl := controller.NewQuestionController(svc)
-		req := httptest.NewRequest(http.MethodDelete, "/questions?id=q-1", nil)
+		r := newQuestionTestRouter(svc)
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/questions/q-1", nil)
 		rec := httptest.NewRecorder()
-		ctrl.DeleteHandler(rec, req)
+		r.ServeHTTP(rec, req)
 		assert.Equal(t, http.StatusNoContent, rec.Code)
+	})
+
+	t.Run("404", func(t *testing.T) {
+		svc := new(MockQuestionService)
+		svc.On("Delete", mock.Anything, "x").Return(service.ErrQuestionNotFound)
+		r := newQuestionTestRouter(svc)
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/questions/x", nil)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusNotFound, rec.Code)
 	})
 }

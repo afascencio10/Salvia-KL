@@ -26,6 +26,12 @@ func NewCaseTaskController(svc service.CaseTaskService) *CaseTaskController {
 // restringidos por departamento del Enlace Territorial.
 var enlaceTerritorialRoles = map[string]bool{"en": true}
 
+// misBarrerasRoles — roles con acceso a "Mis Barreras" (barreras asignadas
+// personalmente al usuario vía user_territory_link_id). A diferencia de
+// enlaceTerritorialRoles, no exige departamento asignado porque "no"
+// (Operador territorial nacional) no tiene ámbito departamental.
+var misBarrerasRoles = map[string]bool{"en": true, "no": true}
+
 // requireEnlaceAccess valida la sesión (sessions.Default + utils.GetCommonSession,
 // mismo patrón que entity_case_controller.go), exige rol "en" y que el usuario
 // tenga un departamento asignado. No reutiliza salvia_config.PermissionsByRole
@@ -45,6 +51,13 @@ func requireEnlaceAccess(ctx *gin.Context) *utils.CommonSession {
 		return nil
 	}
 	return s
+}
+
+// requireMisBarrerasAccess valida la sesión y exige que el rol esté en
+// misBarrerasRoles. Usado por ListMine (barrier_v2_gin_controller.go), que
+// se filtra por s.UserICode y no depende del departamento asignado.
+func requireMisBarrerasAccess(ctx *gin.Context) *utils.CommonSession {
+	return requireSessionRole(ctx, misBarrerasRoles)
 }
 
 // requireSessionRole resuelve la sesión y exige que el rol actual esté entre los

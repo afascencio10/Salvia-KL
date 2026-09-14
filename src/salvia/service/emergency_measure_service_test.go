@@ -20,6 +20,9 @@ func (m *MockEmergencyMeasureRepo) Create(ctx context.Context, e *models.Emergen
 func (m *MockEmergencyMeasureRepo) Update(ctx context.Context, e *models.EmergencyMeasure) error {
 	return m.Called(ctx, e).Error(0)
 }
+func (m *MockEmergencyMeasureRepo) UpdateFields(ctx context.Context, id string, fields map[string]interface{}) error {
+	return m.Called(ctx, id, fields).Error(0)
+}
 func (m *MockEmergencyMeasureRepo) Delete(ctx context.Context, id string) error {
 	return m.Called(ctx, id).Error(0)
 }

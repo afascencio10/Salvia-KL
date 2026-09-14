@@ -142,6 +142,40 @@ var (
 		"Plan de Acción (Form 2)",
 		"Explicación Gestión Salvia (Form 2)",
 		"Permiso Denuncia Fiscalía (Form 2)",
+		// Bloque 7: Campos adicionales solicitados (Form 1 / Form 2)
+		// Form 1
+		"Otra Orientación Sexual (Form 1)",
+		"Otra Nacionalidad (Form 1)",
+		"Otro Grupo Étnico (Form 1)",
+		"Otro Estado Civil (Form 1)",
+		"Edades de los Hijos (Form 1)",
+		"Apoyo Especial (Form 1)",
+		"Violencia Experimentada (Form 1)",
+		"Otra Violencia Experimentada (Form 1)",
+		"Dependientes (Form 1)",
+		"El Agresor Tenía Armas (Form 1)",
+		"Experimentó Violencia Antes (Form 1)",
+		"Reportó Previamente (Form 1)",
+		"Si Reportó Previamente - Entidades (Form 1)",
+		"Lengua Indígena (Form 1)",
+		"Si es Víctima de Conflicto Armado (Form 1)",
+		"Agresor (Form 1)",
+		// Form 2
+		"Reporte Previo a Autoridad (Form 2)",
+		"Entidad Donde Reportó (Form 2)",
+		"Efectividad de Atención Previa (Form 2)",
+		"Ocupación del Agresor (Form 2)",
+		"Aumento Violencia Física Últimos 60 Días (Form 2)",
+		"Hostigamiento y Acoso Sexual (Form 2)",
+		"Espacios Comunes con Agresor (Form 2)",
+		"Relación Jerárquica (Form 2)",
+		"Uso de Autoridad para Amenazar (Form 2)",
+		"Instrumentos de Apoyo Legal - Ley 1996 (Form 2)",
+		"Pueblo Indígena Específico (Form 2)",
+		"Reconocimiento como Campesino/a (Form 2)",
+		"Desempleo del Agresor - No Pareja (Form 2)",
+		// Columnas finales (movidas al final por solicitud)
+		"Día de Creación del Caso",
 		"Agente Responsable",
 		"Historial de Funcionarios",
 	}
@@ -255,6 +289,20 @@ func formatOrigin(o string) string {
 		}
 		return o
 	}
+}
+
+// formatIfPreviouslyReported traduce el código de entidad (Form 1) donde la
+// víctima reportó previamente (cf=Comisaría de Familia, fi=Fiscalía, etc.)
+// usando el mapa VICTIM_CASE_VICTIM_IF_PREVIOUSLY_REPORTED de config.
+func formatIfPreviouslyReported(code string) string {
+	code = strings.TrimSpace(strings.ToLower(code))
+	if code == "" {
+		return "No registra"
+	}
+	if label, ok := salvia_config.VICTIM_CASE_VICTIM_IF_PREVIOUSLY_REPORTED[code]; ok {
+		return label
+	}
+	return code
 }
 
 // BuildEmptyFollowUpsExcel genera un Excel solo con encabezados cuando no hay datos
@@ -484,8 +532,42 @@ func BuildFollowUpsExcel(
 		_ = f.SetCellValue("Registro", fmt.Sprintf("DC%d", rNum), translateEnumKey(c.ActionPlan))
 		_ = f.SetCellValue("Registro", fmt.Sprintf("DD%d", rNum), c.ManagementExplanation)
 		_ = f.SetCellValue("Registro", fmt.Sprintf("DE%d", rNum), translateEnumKey(c.AllowsEasyReport))
-		_ = f.SetCellValue("Registro", fmt.Sprintf("DF%d", rNum), c.AgentResponsible)
-		_ = f.SetCellValue("Registro", fmt.Sprintf("DG%d", rNum), c.OwnerDescription)
+		// Bloque 7: Campos adicionales solicitados (Form 1 / Form 2)
+		// Form 1
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DF%d", rNum), c.F1SexualOrientationOther)
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DG%d", rNum), c.F1NationalityOther)
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DH%d", rNum), c.F1EthnicGroupOther)
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DI%d", rNum), c.F1MaritalStatusOther)
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DJ%d", rNum), c.F1ChildrenAge)
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DK%d", rNum), c.F1SpecialSupport)
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DL%d", rNum), translateEnumKey(c.F1ViolenceExperienced))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DM%d", rNum), c.F1ViolenceExperiencedOther)
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DN%d", rNum), formatYesNo(c.F1Dependents))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DO%d", rNum), formatYesNo(c.F1AggressorHasWeapons))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DP%d", rNum), formatYesNo(c.F1ExperiencedViolenceBefore))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DQ%d", rNum), formatYesNo(c.F1PreviouslyReported))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DR%d", rNum), formatIfPreviouslyReported(c.F1IfPreviouslyReported))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DS%d", rNum), translateEnumKey(c.F1IndigenousTongue))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DT%d", rNum), formatYesNo(c.F1IfArmedConflict))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DU%d", rNum), formatYesNo(c.F1Aggressor))
+		// Form 2
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DV%d", rNum), translateEnumKey(c.F2ReportedPreviously))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DW%d", rNum), translateEnumKey(c.F2ReportedEntity))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DX%d", rNum), translateEnumKey(c.F2AttentionWasAppropriate))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DY%d", rNum), translateEnumKey(c.F2AggressorsOccupation))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("DZ%d", rNum), translateEnumKey(c.F2PhysicalViolenceIncrease))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("EA%d", rNum), translateEnumKey(c.F2AggressorSexuallyHarassment))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("EB%d", rNum), translateEnumKey(c.F2AggressorCommonSpaces))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("EC%d", rNum), translateEnumKey(c.F2AggressorHierarchy))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("ED%d", rNum), translateEnumKey(c.F2AggressorUsedPositionAuthority))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("EE%d", rNum), translateEnumKey(c.F2Law1996Instruments))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("EF%d", rNum), translateEnumKey(c.F2IndigenousPeople))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("EG%d", rNum), translateEnumKey(c.F2CampesinoRecognition))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("EH%d", rNum), translateEnumKey(c.F2AggressorUnemployed))
+		// Columnas finales (movidas al final por solicitud)
+		_ = f.SetCellValue("Registro", fmt.Sprintf("EI%d", rNum), c.VictimCaseCreatedAt.Format("2006-01-02 15:04:05"))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("EJ%d", rNum), c.AgentResponsible)
+		_ = f.SetCellValue("Registro", fmt.Sprintf("EK%d", rNum), c.OwnerDescription)
 	}
 
 	// 3. Llenar hoja "Seguimientos"
