@@ -396,6 +396,23 @@
             </div>
           </div>
 
+          <!-- Comentarios del Equipo Técnico -->
+          <div class="cd-deriv-section" style="background:#f5f3ff;border-color:#c4b5fd">
+            <div class="cd-deriv-header" style="border-bottom-color:#c4b5fd">
+              💬 Comentarios del Equipo Técnico
+              <span class="cd-count" style="color:#7c3aed">${ comentariosEquipoTecnico.length } comentario${ comentariosEquipoTecnico.length !== 1 ? 's' : '' }</span>
+              <button v-if="userRole === 'te'" type="button" @click="abrirModalComentarioEquipoTecnico"
+                style="margin-left:8px;font-size:.72rem;font-weight:600;padding:4px 10px;border-radius:8px;background:#7c3aed;color:#fff;border:none;cursor:pointer">
+                + Comentario
+              </button>
+            </div>
+            <div v-if="comentariosEquipoTecnico.length === 0" class="cd-deriv-empty">Sin comentarios</div>
+            <div v-for="item in comentariosEquipoTecnico" :key="item.id" class="cd-deriv-item" style="flex-direction:column;align-items:stretch">
+              <p style="margin:0;font-size:.83rem;color:#374151;white-space:pre-wrap">${ item.result }</p>
+              <div class="cd-deriv-date">${ item.assignedUserName || 'Equipo Técnico' } · 📅 ${ formatFecha(item.completedAt) }</div>
+            </div>
+          </div>
+
         </template>
 
         <!-- ══ TAB: BARRERAS (Gestión institucional) ══ -->
@@ -758,6 +775,29 @@
   </div>
 </div>
 
+<!-- ══ MODAL: COMENTARIO EQUIPO TÉCNICO ══ -->
+<div v-if="modalComentarioEquipoTecnico" class="ns-backdrop" @click.self="modalComentarioEquipoTecnico = false">
+  <div class="ns-modal">
+    <div class="ns-header">
+      <div>
+        <p class="ns-title">Agregar comentario</p>
+        <p class="ns-subtitle">Equipo Técnico</p>
+      </div>
+      <button class="ns-close" @click="modalComentarioEquipoTecnico = false">✕</button>
+    </div>
+    <div class="ns-body">
+      <textarea v-model="nuevoComentarioTexto" rows="4" placeholder="Escribe una observación o comentario sobre el caso..."
+        style="width:100%;font-size:.88rem;border:1px solid #d1d5db;border-radius:8px;padding:8px 12px;resize:none;outline:none;box-sizing:border-box"></textarea>
+    </div>
+    <div class="ns-footer">
+      <button class="ns-btn-cancel" @click="modalComentarioEquipoTecnico = false">Cancelar</button>
+      <button class="ns-btn-save" :disabled="guardandoComentario || !nuevoComentarioTexto.trim()" @click="guardarComentarioEquipoTecnico">
+        ${ guardandoComentario ? 'Guardando...' : 'Agregar comentario' }
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL: REASIGNAR CASO ══ -->
 <div v-if="modalReasignar" class="ns-backdrop" @click.self="modalReasignar = false">
   <div class="ns-modal">
@@ -881,6 +921,10 @@ var home = Vue.createApp({
       psychosocialSupports: [],
       sessionsExpanded: {},
       economicStabilizations: [],
+      comentariosEquipoTecnico: [],
+      modalComentarioEquipoTecnico: false,
+      nuevoComentarioTexto: '',
+      guardandoComentario: false,
       barriers: [],
       caseTasks: [],
       tipoViolencia: [],
@@ -1193,6 +1237,7 @@ var home = Vue.createApp({
           self.emergencyMeasures = data.emergencyMeasures || [];
           self.psychosocialSupports = data.psychosocialSupports || [];
           self.economicStabilizations = data.economicStabilizations || [];
+          self.comentariosEquipoTecnico = data.comentariosEquipoTecnico || [];
           self.barriers = data.barriers || [];
           self.cargarTareasCaso();
           self.tipoViolencia = data.tipoViolencia || [];
@@ -1571,6 +1616,40 @@ var home = Vue.createApp({
     },
     abrirModalReabrir() {
       this.modalReabrir = true;
+    },
+    abrirModalComentarioEquipoTecnico() {
+      this.nuevoComentarioTexto = '';
+      this.modalComentarioEquipoTecnico = true;
+    },
+    guardarComentarioEquipoTecnico() {
+      if (!this.nuevoComentarioTexto.trim()) return;
+      var self = this;
+      self.guardandoComentario = true;
+      fetch('/api/v1/case-tasks/comentario-equipo-tecnico', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ caseId: self.caseICode, texto: self.nuevoComentarioTexto.trim() })
+      })
+        .then(function(res) {
+          if (res.ok) {
+            self.modalComentarioEquipoTecnico = false;
+            self.guardandoComentario = false;
+            self.showToast('success', 'Comentario agregado');
+            self.cargarDatos();
+          } else {
+            return res.json().then(function(data) {
+              self.guardandoComentario = false;
+              self.showToast('error', data.error || 'Error al agregar el comentario');
+            }).catch(function() {
+              self.guardandoComentario = false;
+              self.showToast('error', 'Error al agregar el comentario');
+            });
+          }
+        })
+        .catch(function() {
+          self.guardandoComentario = false;
+          self.showToast('error', 'Error de conexión al agregar el comentario');
+        });
     },
     confirmarReabrirCaso() {
       var self = this;

@@ -19,6 +19,7 @@ const (
 	TimelineCategoryPsicosocial    = "Psicosocial"
 	TimelineCategoryEstabilizacion = "Estabilización"
 	TimelineCategoryMecanismos     = "Mecanismos"
+	TimelineCategoryEquipoTecnico  = "Equipo Técnico"
 )
 
 // ─── Tipos de evento (Type) ──────────────────────────────────────────────────
@@ -55,6 +56,8 @@ const (
 
 	TimelineTypeMecanismoRegistrado = "Mecanismo articulador registrado"
 	TimelineTypeGestionMecanismo    = "Gestión del mecanismo"
+
+	TimelineTypeComentarioEquipoTecnico = "Comentario del Equipo Técnico"
 )
 
 // ─── Iconos ──────────────────────────────────────────────────────────────────
@@ -82,6 +85,7 @@ const (
 	TimelineIconSolicitudEntidad = "folder"
 	TimelineIconRespuestaEntidad = "reply"
 	TimelineIconMecanismo        = "scale-balanced"
+	TimelineIconComentario       = "comment-dots"
 )
 
 // ─── Colores ─────────────────────────────────────────────────────────────────
@@ -116,6 +120,7 @@ const (
 	TimelineEventRespuestaEntidad        = "RESPUESTA_ENTIDAD"
 	TimelineEventMecanismo               = "MECANISMO_REGISTRADO"
 	TimelineEventGestionMecanismo        = "GESTION_MECANISMO"
+	TimelineEventComentarioEquipoTecnico = "COMENTARIO_EQUIPO_TECNICO"
 )
 
 // CaseTimelineEvent registra un evento en la vida de un caso.

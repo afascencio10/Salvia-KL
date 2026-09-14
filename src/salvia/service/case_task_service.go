@@ -82,6 +82,12 @@ type CaseTaskService interface {
 	// SaveGestionMecanismo crea siempre una case_task Done para el formulario
 	// de Casos Mecanismo. Nunca actualiza una tarea previa.
 	SaveGestionMecanismo(ctx context.Context, userID, mechanismID string, formData datatypes.JSON) (*models.CaseTask, error)
+
+	// SaveComentarioEquipoTecnico crea una case_task Done (tipo
+	// comentario_equipo_tecnico) con el texto del comentario en Result, y
+	// registra el evento correspondiente en el timeline del caso. Solo el rol
+	// 'te' puede invocarla (verificado en el controller).
+	SaveComentarioEquipoTecnico(ctx context.Context, userID, caseID, texto string) (*models.CaseTask, error)
 }
 
 // ErrBarrierDepartmentMismatch indica que la barrera no pertenece al
@@ -101,6 +107,9 @@ var ErrArticulacionInvalid = errors.New("case_task: datos de articulación invá
 // ErrArticulacionTaskMismatch indica que taskId no es ToDo de articulación
 // de esa barrera y usuario.
 var ErrArticulacionTaskMismatch = errors.New("case_task: la tarea no corresponde a esta articulación")
+
+// ErrComentarioEquipoTecnicoInvalid indica caseId o texto vacío.
+var ErrComentarioEquipoTecnicoInvalid = errors.New("case_task: comentario del equipo técnico inválido")
 
 // CaseTaskServiceDeps agrupa las dependencias necesarias para CaseTaskService.
 type CaseTaskServiceDeps struct {
@@ -1003,6 +1012,60 @@ func (s *caseTaskService) SaveGestionMecanismo(ctx context.Context, userID, mech
 	}
 	if err := s.timelineRepo.Create(ctx, event); err != nil {
 		log.Printf("[CaseTaskService.SaveGestionMecanismo] WARN: timeline caso %s tarea %s: %v", row.CaseID, task.ID, err)
+	}
+
+	return task, nil
+}
+
+// SaveComentarioEquipoTecnico crea una case_task Done por cada comentario que el
+// Equipo Técnico agrega en el tab Derivaciones de Detalle del Caso. El texto va
+// en Result; nunca pasa por ToDo.
+func (s *caseTaskService) SaveComentarioEquipoTecnico(ctx context.Context, userID, caseID, texto string) (*models.CaseTask, error) {
+	userID = strings.TrimSpace(userID)
+	caseID = strings.TrimSpace(caseID)
+	texto = strings.TrimSpace(texto)
+	if userID == "" || caseID == "" || texto == "" {
+		return nil, ErrComentarioEquipoTecnicoInvalid
+	}
+
+	now := time.Now()
+	task := &models.CaseTask{
+		Category:       models.CaseTaskCategoryEquipoTecnico,
+		Type:           models.CaseTaskTypeComentarioEquipoTecnico,
+		Description:    "Comentario del Equipo Técnico",
+		Result:         &texto,
+		Status:         models.CaseTaskStatusDone,
+		CompletedAt:    &now,
+		AssignedUserID: userID,
+		CaseID:         caseID,
+	}
+	if err := s.repo.Create(ctx, task); err != nil {
+		return nil, fmt.Errorf("SaveComentarioEquipoTecnico: crear tarea: %w", err)
+	}
+
+	// UserFullName es una consulta genérica por i_code (vive en mechanismRepo por
+	// historia, no por acoplamiento a mecanismos — ver su implementación).
+	actorName := ""
+	if name, nErr := s.mechanismRepo.UserFullName(ctx, userID); nErr == nil {
+		actorName = strings.TrimSpace(name)
+	}
+	event := &models.CaseTimelineEvent{
+		CaseID:      caseID,
+		EventType:   models.TimelineEventComentarioEquipoTecnico,
+		Description: texto,
+		ActorID:     userID,
+		ActorName:   actorName,
+		Category:    models.TimelineCategoryEquipoTecnico,
+		Type:        models.TimelineTypeComentarioEquipoTecnico,
+		Icon:        models.TimelineIconComentario,
+		Date:        now,
+		EventUserID: userID,
+		Color:       models.TimelineColorPurple,
+		TaskID:      task.ID,
+		CreatedAt:   now,
+	}
+	if err := s.timelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[CaseTaskService.SaveComentarioEquipoTecnico] WARN: timeline caso %s tarea %s: %v", caseID, task.ID, err)
 	}
 
 	return task, nil

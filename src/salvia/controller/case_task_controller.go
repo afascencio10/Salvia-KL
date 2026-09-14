@@ -70,6 +70,10 @@ func requireSessionRole(ctx *gin.Context, allowed map[string]bool) *utils.Common
 // misTareasRoles — roles con acceso a la bandeja de "Mis Tareas".
 var misTareasRoles = map[string]bool{"op": true, "ro": true, "et": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true, "mn": true, "te": true}
 
+// equipoTecnicoRoles — único rol que puede agregar comentarios del Equipo
+// Técnico en el tab Derivaciones de Detalle del Caso.
+var equipoTecnicoRoles = map[string]bool{"te": true}
+
 // RegisterRoutes registra las rutas de CaseTask en el grupo /api/v1.
 //
 //	GET  /api/v1/case-tasks?assignedUserId=<id>   → tareas con barrera asignadas al usuario
@@ -87,6 +91,7 @@ func (c *CaseTaskController) RegisterRoutes(rg *gin.RouterGroup) {
 	group.POST("/gestion-propia", c.CreateGestionPropia)
 	group.POST("/articulacion-territorial", c.SaveArticulacionTerritorial)
 	group.POST("/gestion-mecanismo", c.SaveGestionMecanismo)
+	group.POST("/comentario-equipo-tecnico", c.SaveComentarioEquipoTecnico)
 }
 
 // ListByAssignedUser devuelve las tareas con barrierId asignadas al usuario,
@@ -487,6 +492,40 @@ func (c *CaseTaskController) SaveGestionMecanismo(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, c.enrichTaskWithName(*task))
+}
+
+// SaveComentarioEquipoTecnico crea una case_task Done con un comentario del
+// Equipo Técnico sobre un caso (tab Derivaciones → Comentarios del Equipo
+// Técnico). Solo accesible para el rol 'te'.
+//
+//	POST /api/v1/case-tasks/comentario-equipo-tecnico
+//	Body: { "caseId": "...", "texto": "..." }
+func (c *CaseTaskController) SaveComentarioEquipoTecnico(ctx *gin.Context) {
+	s := requireSessionRole(ctx, equipoTecnicoRoles)
+	if s == nil {
+		return
+	}
+
+	var body struct {
+		CaseID string `json:"caseId" binding:"required"`
+		Texto  string `json:"texto" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "campos 'caseId' y 'texto' requeridos"})
+		return
+	}
+
+	task, err := c.svc.SaveComentarioEquipoTecnico(ctx.Request.Context(), s.UserICode, body.CaseID, body.Texto)
+	if err != nil {
+		if errors.Is(err, service.ErrComentarioEquipoTecnicoInvalid) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "el comentario no puede estar vacío"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		return
+	}
+
+	ctx.JSON(http.StatusCreated, c.enrichTaskWithName(*task))
 }
 
 // lookupUserName resuelve el nombre completo de un usuario a partir de su icode.
