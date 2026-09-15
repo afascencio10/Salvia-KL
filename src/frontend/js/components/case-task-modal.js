@@ -544,6 +544,7 @@ app.component('case-task-modal', {
                     if (!f.departamentoId || !f.ciudadId || !f.municipioId || !f.entidadId) return false;
                     return true;
                 case 'comite_caso':
+                    if (!f.analisisMesaTecnica || !f.analisisMesaTecnica.trim()) return false;
                     if (!f.decisiones || f.decisiones.length === 0) return false;
                     if (f.decisiones.includes('activar_enlace')) {
                         if (!f.solicitudEnlace || !f.solicitudEnlace.trim()) return false;
@@ -824,6 +825,8 @@ app.component('case-task-modal', {
                     break;
                 case 'comite_caso':
                     this.form = {
+                        // Análisis general de la sesión (obligatorio, aplica a toda la mesa técnica)
+                        analisisMesaTecnica:          '',
                         decisiones:                   [],
                         // Activar Enlace
                         solicitudEnlace:              '',
@@ -836,11 +839,8 @@ app.component('case-task-modal', {
                         oeSector:                     '',
                         oeEntidadId:                  '',
                         oeCanalActivacion:            '',
-                        // Oficio / Recomendaciones / Mecanismo
-                        observacionesOficio:          '',
-                        observacionesRecomendaciones: '',
+                        // Mecanismo
                         nivelMecanismo:               null,
-                        observacionesMecanismo:       '',
                         quienLlenaMecanismo:          '',   // 'equipo_tecnico' | 'agente'
                     };
                     // Cargar enlaces del departamento del caso (para decidir dropdown)
@@ -998,11 +998,9 @@ app.component('case-task-modal', {
             const idx = this.form.decisiones.indexOf(valor);
             if (idx > -1) {
                 this.form.decisiones.splice(idx, 1);
-                if (valor === 'oficio')                this.form.observacionesOficio          = '';
-                if (valor === 'recomendaciones_agente') this.form.observacionesRecomendaciones = '';
                 if (valor === 'mecanismo_articulador') {
-                    this.form.nivelMecanismo        = null;
-                    this.form.observacionesMecanismo = '';
+                    this.form.nivelMecanismo     = null;
+                    this.form.quienLlenaMecanismo = '';
                 }
             } else {
                 this.form.decisiones.push(valor);
@@ -1151,6 +1149,8 @@ app.component('case-task-modal', {
                     const esOtra = activó && f.entidadDestino === 'otra';
                     const enlaceObj = this.enlacesDepartamento.find(e => e.icode === f.enlaceSeleccionado);
                     return {
+                        // Análisis general de la sesión (aplica a toda la mesa técnica)
+                        analisisMesaTecnica:          (f.analisisMesaTecnica || '').trim() || null,
                         decisiones:                   f.decisiones,
                         decisionesTexto:              f.decisiones.map(d => DECISION_LABELS[d] || d),
                         // Activar Enlace
@@ -1164,12 +1164,9 @@ app.component('case-task-modal', {
                         otraEntidadSector:            esOtra ? f.oeSector : null,
                         otraEntidadMunicipioId:       esOtra ? f.oeMunicipioId : null,
                         otraEntidadCanal:             esOtra ? (f.oeCanalActivacion || null) : null,
-                        // Oficio / Recomendaciones / Mecanismo
-                        observacionesOficio:          this.tieneDecision('oficio')                ? f.observacionesOficio          || null : null,
-                        observacionesRecomendaciones: this.tieneDecision('recomendaciones_agente') ? f.observacionesRecomendaciones || null : null,
+                        // Mecanismo
                         nivelMecanismo:               this.tieneDecision('mecanismo_articulador')  ? f.nivelMecanismo                       : null,
                         nivelMecanismoTexto:          this.tieneDecision('mecanismo_articulador')  ? (NIVEL_LABELS[f.nivelMecanismo] || null) : null,
-                        observacionesMecanismo:       this.tieneDecision('mecanismo_articulador')  ? f.observacionesMecanismo       || null : null,
                         quienLlenaMecanismo:          this.tieneDecision('mecanismo_articulador')  ? (f.quienLlenaMecanismo || null) : null,
                         quienLlenaMecanismoTexto:     this.tieneDecision('mecanismo_articulador')  ? (QUIEN_LABELS[f.quienLlenaMecanismo] || null) : null,
                     };
@@ -1571,6 +1568,12 @@ app.component('case-task-modal', {
         <!-- Formulario comite_caso -->
         <template v-else-if="tarea && tarea.type === 'comite_caso'">
 
+            <!-- Análisis de la mesa técnica (obligatorio, aplica a toda la sesión) -->
+            <div class="ctm-field">
+                <label class="ctm-label">Análisis de la mesa técnica <span class="req">*</span></label>
+                <textarea class="ctm-textarea" v-model="form.analisisMesaTecnica" rows="4" placeholder="Resumen de lo que se determinó en la mesa técnica y por qué se toman estas decisiones…" maxlength="1000"></textarea>
+            </div>
+
             <p class="ctm-section-title">Decisiones tomadas <span style="color:#dc2626">*</span></p>
             <p style="font-size:12px;color:#6b7280;margin:0 0 12px">Selecciona al menos una</p>
 
@@ -1705,22 +1708,6 @@ app.component('case-task-modal', {
                 </div>
             </template>
 
-            <template v-if="tieneDecision('oficio')">
-                <p class="ctm-section-title" style="margin-top:16px">Oficio</p>
-                <div class="ctm-field">
-                    <label class="ctm-label">Observaciones del oficio</label>
-                    <textarea class="ctm-textarea" v-model="form.observacionesOficio" rows="2" placeholder="Observaciones sobre el oficio a generar…" maxlength="500"></textarea>
-                </div>
-            </template>
-
-            <template v-if="tieneDecision('recomendaciones_agente')">
-                <p class="ctm-section-title" style="margin-top:16px">Recomendaciones</p>
-                <div class="ctm-field">
-                    <label class="ctm-label">Observaciones para el agente</label>
-                    <textarea class="ctm-textarea" v-model="form.observacionesRecomendaciones" rows="2" placeholder="Recomendaciones al agente del caso…" maxlength="500"></textarea>
-                </div>
-            </template>
-
             <template v-if="tieneDecision('mecanismo_articulador')">
                 <p class="ctm-section-title" style="margin-top:16px">Mecanismo Articulador</p>
                 <div class="ctm-field">
@@ -1731,10 +1718,6 @@ app.component('case-task-modal', {
                         <option value="departamental">Departamental</option>
                         <option value="nacional">Nacional</option>
                     </select>
-                </div>
-                <div class="ctm-field">
-                    <label class="ctm-label">Observaciones del mecanismo</label>
-                    <textarea class="ctm-textarea" v-model="form.observacionesMecanismo" rows="2" placeholder="Observaciones sobre el mecanismo…" maxlength="500"></textarea>
                 </div>
                 <div class="ctm-field">
                     <label class="ctm-label">¿Quién llena el formulario del mecanismo? <span class="req">*</span></label>

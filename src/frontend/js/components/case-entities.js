@@ -82,7 +82,7 @@ app.component('case-entities', {
             cargandoEntidades: false,
             guardando: false,
             errores: {},
-            form: { departamento: '', ciudad: '', municipio: '', sector: '', entidadId: '', objetivo: '', obligaciones: [] },
+            form: { departamento: '', ciudad: '', municipio: '', sector: '', entidadId: '', objetivo: '', solicitud: '', obligaciones: [] },
 
             // Checklist de tareas de la entidad seleccionada
             tareasEntidad: [],           // catálogo de tareas de la entidad elegida [{value, label}]
@@ -142,7 +142,7 @@ app.component('case-entities', {
 
         // ── Modal: agregar entidad ──────────────────────────────────────────────
         abrirModalAgregar: function() {
-            this.form = { departamento: '', ciudad: '', municipio: '', sector: '', entidadId: '', objetivo: '', obligaciones: [] };
+            this.form = { departamento: '', ciudad: '', municipio: '', sector: '', entidadId: '', objetivo: '', solicitud: '', obligaciones: [] };
             this.ciudades = [];
             this.municipios = [];
             this.entidadesDisponibles = [];
@@ -232,6 +232,7 @@ app.component('case-entities', {
                 body: JSON.stringify({
                     entityBranchId: Number(self.form.entidadId),
                     objetivo: self.form.objetivo.trim(),
+                    solicitud: self.form.solicitud.trim() || null,
                     createdById: self.userId,
                     obligationIds: self.form.obligaciones,
                 }),
@@ -400,7 +401,7 @@ app.component('case-entities', {
 
                         <!-- Checklist de tareas de la entidad (solo tras elegir entidad) -->
                         <div class="ce-field" v-if="form.entidadId">
-                            <label>Tareas que la entidad puede gestionar</label>
+                            <label>Acciones institucionales</label>
                             <div v-if="cargandoTareas" class="ce-hint">Cargando tareas...</div>
                             <div v-else-if="tareasEntidad.length === 0" class="ce-hint">
                                 Esta entidad no tiene tareas configuradas en el catálogo.
@@ -417,6 +418,11 @@ app.component('case-entities', {
                                     <span v-if="obligacionSeleccionada(t.value)">✓ </span>\${ t.label }
                                 </button>
                             </div>
+                        </div>
+
+                        <div class="ce-field">
+                            <label>Solicitud a la entidad</label>
+                            <textarea v-model="form.solicitud" placeholder="¿Qué acciones institucionales se requieren?"></textarea>
                         </div>
 
                         <div class="ce-field">

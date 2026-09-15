@@ -416,26 +416,18 @@ app.component('case-task-history', {
 
             <!-- Detalle formData: comite_caso -->
             <template v-else-if="tarea.type === 'comite_caso'">
+                <div class="cth-field" v-if="tarea.formData.analisisMesaTecnica">
+                    <label class="cth-field-label">Análisis de la mesa técnica</label>
+                    <div class="cth-field-value">\${ tarea.formData.analisisMesaTecnica }</div>
+                </div>
                 <p class="cth-section-title">Decisiones tomadas</p>
                 <div class="cth-chips">
                     <span class="cth-chip" v-for="d in (tarea.formData.decisionesTexto || [])" :key="d">\${ d }</span>
-                </div>
-                <div class="cth-field" v-if="tarea.formData.observacionesOficio">
-                    <label class="cth-field-label">Obs. oficio</label>
-                    <div class="cth-field-value">\${ tarea.formData.observacionesOficio }</div>
-                </div>
-                <div class="cth-field" v-if="tarea.formData.observacionesRecomendaciones">
-                    <label class="cth-field-label">Obs. recomendaciones</label>
-                    <div class="cth-field-value">\${ tarea.formData.observacionesRecomendaciones }</div>
                 </div>
                 <template v-if="tarea.formData.nivelMecanismo">
                     <div class="cth-field">
                         <label class="cth-field-label">Nivel del mecanismo</label>
                         <div class="cth-field-value">\${ tarea.formData.nivelMecanismoTexto || tarea.formData.nivelMecanismo }</div>
-                    </div>
-                    <div class="cth-field" v-if="tarea.formData.observacionesMecanismo">
-                        <label class="cth-field-label">Obs. mecanismo</label>
-                        <div class="cth-field-value">\${ tarea.formData.observacionesMecanismo }</div>
                     </div>
                 </template>
             </template>

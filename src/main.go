@@ -163,6 +163,7 @@ func main() {
 	duplaRepo := repository.NewDuplaRepository(gormDB)
 	psychosocialReassignRepo := repository.NewPsychosocialReassignRepository(gormDB)
 	entityCaseRepo := repository.NewEntityCaseRepository(gormDB)
+	caseProfessionalRepo := repository.NewCaseProfessionalRepository(gormDB)
 	psychosocialCalendarRepo := repository.NewPsychosocialCalendarRepository(gormDB)
 	victimCaseFormRepo := repository.NewVictimCaseFormRepository(gormDB)
 	entityObligationRepo := repository.NewEntityObligationRepository(gormDB)
@@ -185,6 +186,7 @@ func main() {
 	followUpV2Svc := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo, answerRepo, repeaterEntryRepo)
 	victimCaseFormSvc := service.NewVictimCaseFormService(victimCaseFormRepo, victimCaseLightRepo, caseTimelineRepo, followUpV2Svc)
 	entityCaseSvc := service.NewEntityCaseService(entityCaseRepo, entityCaseObligationRepo)
+	caseProfessionalSvc := service.NewCaseProfessionalService(caseProfessionalRepo)
 	articulatingMechanismSvc := service.NewCaseArticulatingMechanismService(articulatingMechanismRepo, caseTimelineRepo)
 
 	formSvc := service.NewFormService(service.FormServiceDeps{
@@ -261,6 +263,7 @@ func main() {
 	entityLetterCtrl := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
 
 	entityCaseCtrl := salvia_ctrl.NewEntityCaseController(entityCaseSvc)
+	caseProfessionalCtrl := salvia_ctrl.NewCaseProfessionalController(caseProfessionalSvc)
 	articulatingMechanismCtrl := salvia_ctrl.NewCaseArticulatingMechanismController(articulatingMechanismSvc)
 	entityAPICtrl := salvia_ctrl.NewEntityAPIController(entityCaseSvc)
 
@@ -319,6 +322,7 @@ func main() {
 	reportAsyncCtrl.RegisterRoutes(api)
 	entityLetterCtrl.RegisterRoutes(api)
 	entityCaseCtrl.RegisterRoutes(api)
+	caseProfessionalCtrl.RegisterRoutes(api)
 	articulatingMechanismCtrl.RegisterRoutes(api)
 	entityAPICtrl.RegisterRoutes(api)
 	entityBranchAPICtrl.RegisterRoutes(api)

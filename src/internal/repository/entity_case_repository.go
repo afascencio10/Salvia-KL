@@ -87,6 +87,7 @@ SELECT
     COALESCE(c.city_name, '')       AS city_name,
     COALESCE(t.town_name, '')       AS town_name,
     ec.objetivo                 AS objetivo,
+    ec.solicitud                AS solicitud,
     ec.last_action              AS last_action,
     ec.created_by_id            AS created_by_id,
     ec.created_at               AS created_at,

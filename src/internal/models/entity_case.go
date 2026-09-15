@@ -17,6 +17,10 @@ type EntityCase struct {
 	CaseID         string  `gorm:"type:varchar(36);not null;index;column:case_id" json:"caseId"`
 	EntityBranchID int64   `gorm:"not null;index;column:entity_branch_id" json:"entityBranchId"`
 	Objetivo       *string `gorm:"type:text;column:objetivo" json:"objetivo,omitempty"`
+	// Solicitud a la entidad — texto libre opcional, complementa el checklist
+	// de acciones institucionales (HU: capturar una solicitud puntual dirigida
+	// a la entidad, además del checklist). Columna creada vía AutoMigrate.
+	Solicitud *string `gorm:"type:text;column:solicitud" json:"solicitud,omitempty"`
 
 	// LastAction es un campo de texto libre editado directamente — no se calcula.
 	// Pendiente definir el mecanismo exacto para poblarlo (ver GAP en related-tables.md).
@@ -48,6 +52,7 @@ type EntityCaseWithRelations struct {
 	CityName             string    `gorm:"column:city_name"               json:"cityName"`
 	TownName             string    `gorm:"column:town_name"               json:"townName"`
 	Objetivo             *string   `gorm:"column:objetivo"                json:"objetivo,omitempty"`
+	Solicitud            *string   `gorm:"column:solicitud"               json:"solicitud,omitempty"`
 	LastAction           *string   `gorm:"column:last_action"             json:"lastAction,omitempty"`
 	OficiosCount         int64     `gorm:"column:oficios_count"           json:"oficiosCount"`
 	BarrerasActivasCount int64     `gorm:"column:barreras_activas_count"  json:"barrerasActivasCount"`

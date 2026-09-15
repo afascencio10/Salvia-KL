@@ -186,6 +186,7 @@ func (c *EntityCaseController) Create(ctx *gin.Context) {
 	var body struct {
 		EntityBranchID int64    `json:"entityBranchId" binding:"required"`
 		Objetivo       *string  `json:"objetivo"`
+		Solicitud      *string  `json:"solicitud"`
 		CreatedByID    string   `json:"createdById" binding:"required"`
 		ObligationIds  []string `json:"obligationIds"`
 	}
@@ -198,6 +199,7 @@ func (c *EntityCaseController) Create(ctx *gin.Context) {
 		CaseID:         caseID,
 		EntityBranchID: body.EntityBranchID,
 		Objetivo:       body.Objetivo,
+		Solicitud:      body.Solicitud,
 		CreatedByID:    body.CreatedByID,
 		ObligationIds:  body.ObligationIds,
 	})
