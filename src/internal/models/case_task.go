@@ -66,3 +66,19 @@ const (
 	CaseTaskTypeGestionMecanismo        = "gestion_mecanismo"
 	CaseTaskCategoryMecanismos          = "Mecanismos"
 )
+
+// Comentarios del Equipo Técnico en el tab Derivaciones de Detalle del Caso.
+// Cada comentario es una case_task Done: el texto va en Result, sin pasar por ToDo.
+const (
+	CaseTaskTypeComentarioEquipoTecnico = "comentario_equipo_tecnico"
+	CaseTaskCategoryEquipoTecnico       = "Equipo Técnico"
+)
+
+// CaseTaskCommentItem es un comentario del Equipo Técnico — una case_task Done
+// del tipo comentario_equipo_tecnico — con el nombre de quien lo creó resuelto.
+type CaseTaskCommentItem struct {
+	ID               string     `gorm:"column:id" json:"id"`
+	Result           *string    `gorm:"column:result" json:"result"`
+	CompletedAt      *time.Time `gorm:"column:completed_at" json:"completedAt"`
+	AssignedUserName string     `gorm:"column:assigned_user_name" json:"assignedUserName"`
+}

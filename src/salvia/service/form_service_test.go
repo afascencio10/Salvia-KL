@@ -550,3 +550,7 @@ func (m *MockCaseTaskRepo) FindTodoByEntityLetterID(ctx context.Context, entityL
 	}
 	return args.Get(0).(*models.CaseTask), args.Error(1)
 }
+func (m *MockCaseTaskRepo) FindCommentsByCaseID(ctx context.Context, caseID string) ([]models.CaseTaskCommentItem, error) {
+	args := m.Called(ctx, caseID)
+	return args.Get(0).([]models.CaseTaskCommentItem), args.Error(1)
+}
