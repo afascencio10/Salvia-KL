@@ -151,9 +151,28 @@ func ForceHTTPS() gin.HandlerFunc {
 	}
 }
 
+// isProductionHost indica si el host corresponde al ambiente de PRODUCCIÓN
+// (salvia-colombia.co) — NO al de pruebas (pruebas.salvia-colombia.co) ni al
+// local. Solo en producción el home redirige a la landing informativa
+// (info.salvia-colombia.co); en pruebas/local se muestra el landing.html
+// interno como estaba antes.
+//
+// Se ignora un posible ":puerto" en el host y se excluye explícitamente el
+// prefijo "pruebas." para que testing no caiga en la rama de producción.
+func isProductionHost(host string) bool {
+	// Quitar puerto si viene (ej: "salvia-colombia.co:443").
+	if i := strings.IndexByte(host, ':'); i >= 0 {
+		host = host[:i]
+	}
+	host = strings.ToLower(strings.TrimSpace(host))
+	if strings.HasPrefix(host, "pruebas.") {
+		return false
+	}
+	return host == "salvia-colombia.co" || host == "www.salvia-colombia.co"
+}
+
 func home(c *gin.Context) {
-	host := c.Request.Host
-	if strings.Contains(host, "salvia-colombia") {
+	if isProductionHost(c.Request.Host) {
 		c.Redirect(http.StatusTemporaryRedirect, "https://info.salvia-colombia.co/")
 	} else {
 		c.Redirect(http.StatusTemporaryRedirect, staticURI+"/landing.html")
@@ -237,8 +256,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		location := c.Request.RequestURI
 
 		if !strings.Contains(location, publicURI) && !strings.Contains(location, staticURI) && !IsLoggedIn(c) && !strings.Contains(location, "login") && !strings.HasPrefix(location, "/api/") && !strings.HasPrefix(location, "/swagger") {
-			host := c.Request.Host
-			if strings.Contains(host, "salvia-colombia") {
+			if isProductionHost(c.Request.Host) {
 				c.Redirect(http.StatusTemporaryRedirect, "https://info.salvia-colombia.co/")
 			} else {
 				c.Redirect(http.StatusTemporaryRedirect, staticURI+"/landing.html")
