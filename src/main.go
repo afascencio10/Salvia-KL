@@ -104,6 +104,7 @@ func main() {
 		&models.ArticulatingMechanism{},
 		&models.CaseArticulatingMechanism{},
 		&models.CaseArticulatingMechanismComment{},
+		&models.AppLog{},
 	} {
 		if err := gormDB.AutoMigrate(m); err != nil {
 			log.Printf("[WARN] AutoMigrate %T: %v", m, err)
@@ -171,6 +172,7 @@ func main() {
 	entityCaseFollowUpRepo := repository.NewEntityCaseFollowUpRepository(gormDB)
 	articulatingMechanismRepo := repository.NewCaseArticulatingMechanismRepository(gormDB)
 	repository.InitArticulatingMechanismIdentity(gormDB)
+	appLogRepo := repository.NewAppLogRepository(gormDB)
 
 	// Services
 	casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
@@ -183,7 +185,7 @@ func main() {
 	repeaterEntrySvc := service.NewRepeaterEntryService(repeaterEntryRepo)
 	answerSvc := service.NewAnswerService(answerRepo)
 	optionSvc := service.NewOptionService(optionRepo)
-	followUpV2Svc := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo, answerRepo, repeaterEntryRepo)
+	followUpV2Svc := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo, answerRepo, repeaterEntryRepo, appLogRepo)
 	victimCaseFormSvc := service.NewVictimCaseFormService(victimCaseFormRepo, victimCaseLightRepo, caseTimelineRepo, followUpV2Svc)
 	entityCaseSvc := service.NewEntityCaseService(entityCaseRepo, entityCaseObligationRepo)
 	caseProfessionalSvc := service.NewCaseProfessionalService(caseProfessionalRepo)
@@ -227,7 +229,7 @@ func main() {
 	caseInfoSvc := service.NewCaseInfoService(caseInfoRepo)
 	reportSvc := service.NewReportService(reportRepo)
 	casesListSvc := service.NewCasesListService(casesListRepo)
-	casesReassignSvc := service.NewCasesReassignService(casesReassignRepo, caseTimelineRepo, gormDB)
+	casesReassignSvc := service.NewCasesReassignService(casesReassignRepo, caseTimelineRepo, appLogRepo, gormDB)
 	agentsSearchSvc := service.NewAgentsSearchService(agentLightRepo)
 	psychosocialSupportSvc := service.NewPsychosocialSupportService(psRepo)
 	psychosocialListSvc := service.NewPsychosocialListService(psychosocialListRepo, duplaRepo)
@@ -294,7 +296,7 @@ func main() {
 	psychosocialContactCtrl := salvia_ctrl.NewPsychosocialContactController(psychosocial3x3Svc)
 	psychosocialCalendarCtrl := salvia_ctrl.NewPsychosocialCalendarController(psychosocialCalendarSvc)
 	followUpV2Repo := repository.NewFollowUpV2Repository(gormDB)
-	assignCaseSvc := service.NewAssignCaseService(victimCaseLightRepo, agentLightRepo, followUpV2Repo)
+	assignCaseSvc := service.NewAssignCaseService(victimCaseLightRepo, agentLightRepo, followUpV2Repo, appLogRepo)
 	assignCaseCtrl := salvia_ctrl.NewAssignCaseController(assignCaseSvc)
 
 	locationRepo := repository.NewLocationRepository(gormDB)

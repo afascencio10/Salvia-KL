@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -15,6 +16,12 @@ type AssignCaseInput struct {
 	Team          string    `json:"team"`
 	AgentLogin    string    `json:"agentLogin"`
 	FollowUpDates []string  `json:"followUpDates"`
+
+	// ActorICode/ActorName identifican a quien ejecuta la reasignación, si el
+	// request llegó con una sesión activa. Este endpoint no exige sesión, así
+	// que pueden llegar vacíos — se registran en el log cuando estén disponibles.
+	ActorICode string `json:"-"`
+	ActorName  string `json:"-"`
 }
 
 // AssignCaseResult resume el resultado de la operación.
@@ -33,17 +40,20 @@ type assignCaseService struct {
 	caseRepo   repository.VictimCaseLightRepository
 	agentRepo  repository.AgentLightRepository
 	followRepo repository.FollowUpV2Repository
+	logRepo    repository.AppLogRepository
 }
 
 func NewAssignCaseService(
 	caseRepo repository.VictimCaseLightRepository,
 	agentRepo repository.AgentLightRepository,
 	followRepo repository.FollowUpV2Repository,
+	logRepo repository.AppLogRepository,
 ) AssignCaseService {
 	return &assignCaseService{
 		caseRepo:   caseRepo,
 		agentRepo:  agentRepo,
 		followRepo: followRepo,
+		logRepo:    logRepo,
 	}
 }
 
@@ -72,6 +82,24 @@ func (s *assignCaseService) AssignCase(ctx context.Context, input AssignCaseInpu
 		return nil, fmt.Errorf("error actualizando team/agent en victim_case: %w", err)
 	}
 	log.Printf("[AssignCase] victim_case actualizado team=%s agentID=%s", input.Team, agent.ICode)
+
+	if s.logRepo != nil {
+		actorName := input.ActorName
+		if actorName == "" {
+			actorName = "desconocido (endpoint sin sesión)"
+		}
+		if logErr := s.logRepo.Log(ctx, vcase.VictimICode, "Reasignación manual: agente actualizado", map[string]interface{}{
+			"docNumber":  input.DocNumber,
+			"team":       input.Team,
+			"agentICode": agent.ICode,
+			"agentLogin": input.AgentLogin,
+			"agentName":  strings.TrimSpace(agent.Names + " " + agent.LastNames),
+			"actorICode": input.ActorICode,
+			"actorName":  actorName,
+		}); logErr != nil {
+			log.Printf("[WARN] AssignCase: no se pudo guardar log: %v", logErr)
+		}
+	}
 
 	result := &AssignCaseResult{
 		CaseICode:  vcase.VictimICode,
