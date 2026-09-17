@@ -252,6 +252,13 @@
         <!-- ══ TAB: DERIVACIONES ══ -->
         <template v-if="tabActiva === 'derivaciones'">
 
+          <div v-if="userRole === 'te'" style="display:flex;justify-content:flex-end;margin-bottom:14px">
+            <button type="button" @click="abrirModalRemisionEquipos"
+              style="font-size:.82rem;font-weight:600;padding:8px 14px;border-radius:8px;background:#5106A7;color:#fff;border:none;cursor:pointer">
+              + Remisión a equipos
+            </button>
+          </div>
+
           <!-- Medidas de Emergencia -->
           <div class="cd-deriv-section" style="background:#fef2f2;border-color:#fca5a5">
             <div class="cd-deriv-header" style="border-bottom-color:#fca5a5">
@@ -827,6 +834,120 @@
   </div>
 </div>
 
+<!-- ══ MODAL: REMISIÓN A EQUIPOS (Equipo Técnico) ══ -->
+<div v-if="modalRemisionEquipos" class="ns-backdrop" @click.self="modalRemisionEquipos = false">
+  <div class="ns-modal" style="max-width:640px;max-height:85vh;overflow-y:auto">
+    <div class="ns-header">
+      <div>
+        <p class="ns-title">Remisión a equipos</p>
+        <p class="ns-subtitle" v-if="caso">${ caso.victimCaseVictimName }</p>
+      </div>
+      <button class="ns-close" @click="modalRemisionEquipos = false">✕</button>
+    </div>
+    <div class="ns-body" style="display:flex;flex-direction:column;gap:16px">
+
+      <div>
+        <label style="font-size:.82rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">
+          ¿Cuáles equipos? <span style="color:#dc2626">*</span>
+        </label>
+        <div>
+          <button type="button" v-for="opt in remisionOpcionesEquipos" :key="opt.value"
+            @click="toggleRemisionValor(remisionForm.equipos, opt.value)"
+            :style="{padding:'6px 12px',borderRadius:'20px',fontSize:'.78rem',border: remisionForm.equipos.indexOf(opt.value) !== -1 ? '1px solid #5106A7' : '1px solid #d1d5db',background: remisionForm.equipos.indexOf(opt.value) !== -1 ? '#5106A7' : '#fff',color: remisionForm.equipos.indexOf(opt.value) !== -1 ? '#fff' : '#374151',cursor:'pointer',marginRight:'6px',marginBottom:'6px'}">
+            ${ opt.label }
+          </button>
+        </div>
+      </div>
+
+      <div v-if="remisionMuestraAvisoConflicto" style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;font-size:.8rem;color:#92400e">
+        Has seleccionado Medidas de Emergencia y Apoyo Psicosocial, pero no se puede remitir a estos equipos al tiempo, solo se remitirá a Medidas de Emergencia.
+      </div>
+
+      <div v-if="remisionMuestraMedidas">
+        <label style="font-size:.82rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">¿Cuáles medidas de emergencia?</label>
+        <div>
+          <button type="button" v-for="opt in remisionOpcionesMedidas" :key="opt.value"
+            @click="toggleRemisionValor(remisionForm.medidas, opt.value)"
+            :style="{padding:'6px 12px',borderRadius:'20px',fontSize:'.78rem',border: remisionForm.medidas.indexOf(opt.value) !== -1 ? '1px solid #dc2626' : '1px solid #d1d5db',background: remisionForm.medidas.indexOf(opt.value) !== -1 ? '#dc2626' : '#fff',color: remisionForm.medidas.indexOf(opt.value) !== -1 ? '#fff' : '#374151',cursor:'pointer',marginRight:'6px',marginBottom:'6px'}">
+            ${ opt.label }
+          </button>
+        </div>
+      </div>
+
+      <template v-if="remisionMuestraPsico">
+        <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:10px 12px;font-size:.8rem;color:#1e3a8a">
+          Para que la remisión sea válida se debe marcar el criterio obligatorio y sumar mínimo 3 puntos con los otros criterios.
+          Estado de la remisión: <strong>${ remisionPsicoEstado }</strong>
+        </div>
+        <div>
+          <label style="font-size:.82rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">Criterios de remisión — Atención Psicosocial</label>
+          <div>
+            <button type="button" v-for="opt in remisionOpcionesCriteriosPsico" :key="opt.value"
+              @click="toggleRemisionValor(remisionForm.criteriosPsico, opt.value)"
+              :style="{padding:'6px 12px',borderRadius:'20px',fontSize:'.76rem',border: remisionForm.criteriosPsico.indexOf(opt.value) !== -1 ? '1px solid #1d4ed8' : '1px solid #d1d5db',background: remisionForm.criteriosPsico.indexOf(opt.value) !== -1 ? '#1d4ed8' : '#fff',color: remisionForm.criteriosPsico.indexOf(opt.value) !== -1 ? '#fff' : '#374151',cursor:'pointer',marginRight:'6px',marginBottom:'6px'}">
+              ${ opt.label }
+            </button>
+          </div>
+        </div>
+      </template>
+
+      <div v-if="remisionMuestraHombres">
+        <label style="font-size:.82rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">
+          Criterios de remisión — Atención Hombres <span style="color:#dc2626">*</span>
+        </label>
+        <div>
+          <button type="button" v-for="opt in remisionOpcionesCriteriosHombres" :key="opt.value"
+            @click="toggleRemisionValor(remisionForm.criteriosHombres, opt.value)"
+            :style="{padding:'6px 12px',borderRadius:'20px',fontSize:'.78rem',border: remisionForm.criteriosHombres.indexOf(opt.value) !== -1 ? '1px solid #0369a1' : '1px solid #d1d5db',background: remisionForm.criteriosHombres.indexOf(opt.value) !== -1 ? '#0369a1' : '#fff',color: remisionForm.criteriosHombres.indexOf(opt.value) !== -1 ? '#fff' : '#374151',cursor:'pointer',marginRight:'6px',marginBottom:'6px'}">
+            ${ opt.label }
+          </button>
+        </div>
+      </div>
+
+      <div v-if="remisionMuestraDiscapacidad">
+        <label style="font-size:.82rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">
+          Seleccione los servicios del Equipo de Discapacidad <span style="color:#dc2626">*</span>
+        </label>
+        <div>
+          <button type="button" v-for="opt in remisionOpcionesDiscapacidad" :key="opt.value"
+            @click="toggleRemisionValor(remisionForm.serviciosDiscapacidad, opt.value)"
+            :style="{padding:'6px 12px',borderRadius:'20px',fontSize:'.78rem',border: remisionForm.serviciosDiscapacidad.indexOf(opt.value) !== -1 ? '1px solid #7c3aed' : '1px solid #d1d5db',background: remisionForm.serviciosDiscapacidad.indexOf(opt.value) !== -1 ? '#7c3aed' : '#fff',color: remisionForm.serviciosDiscapacidad.indexOf(opt.value) !== -1 ? '#fff' : '#374151',cursor:'pointer',marginRight:'6px',marginBottom:'6px'}">
+            ${ opt.label }
+          </button>
+        </div>
+      </div>
+
+      <div v-if="remisionMuestraEstabilizacion">
+        <label style="font-size:.82rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">
+          Criterios de remisión — Estabilización <span style="color:#dc2626">*</span>
+        </label>
+        <div>
+          <button type="button" v-for="opt in remisionOpcionesEstabilizacion" :key="opt.value"
+            @click="toggleRemisionValor(remisionForm.criteriosEstabilizacion, opt.value)"
+            :style="{padding:'6px 12px',borderRadius:'20px',fontSize:'.78rem',border: remisionForm.criteriosEstabilizacion.indexOf(opt.value) !== -1 ? '1px solid #15803d' : '1px solid #d1d5db',background: remisionForm.criteriosEstabilizacion.indexOf(opt.value) !== -1 ? '#15803d' : '#fff',color: remisionForm.criteriosEstabilizacion.indexOf(opt.value) !== -1 ? '#fff' : '#374151',cursor:'pointer',marginRight:'6px',marginBottom:'6px'}">
+            ${ opt.label }
+          </button>
+        </div>
+      </div>
+
+      <div v-if="remisionForm.equipos.length > 0">
+        <label style="font-size:.82rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">
+          Describa los elementos que evidencia para realizar la remisión <span style="color:#dc2626">*</span>
+        </label>
+        <textarea v-model="remisionForm.evidencia" rows="3" placeholder="Describa los elementos que evidencian la necesidad de esta remisión..."
+          style="width:100%;font-size:.85rem;border:1px solid #d1d5db;border-radius:8px;padding:8px 12px;resize:none;outline:none;box-sizing:border-box"></textarea>
+      </div>
+
+    </div>
+    <div class="ns-footer">
+      <button class="ns-btn-cancel" @click="modalRemisionEquipos = false">Cancelar</button>
+      <button class="ns-btn-save" :disabled="!remisionValida || guardandoRemision" @click="guardarRemisionEquipos">
+        ${ guardandoRemision ? 'Guardando...' : 'Guardar remisión' }
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL: REASIGNAR CASO ══ -->
 <div v-if="modalReasignar" class="ns-backdrop" @click.self="modalReasignar = false">
   <div class="ns-modal">
@@ -986,6 +1107,49 @@ var home = Vue.createApp({
       reabriendo: false,
       modalRemisionPsico: false,
       creandoRemisionPsico: false,
+      modalRemisionEquipos: false,
+      guardandoRemision: false,
+      remisionForm: {
+        equipos: [], medidas: [], criteriosPsico: [], criteriosHombres: [],
+        serviciosDiscapacidad: [], criteriosEstabilizacion: [], evidencia: ''
+      },
+      remisionOpcionesEquipos: [
+        { value: 'medidas_emergencia', label: 'Medidas de Emergencia' },
+        { value: 'atencion_psico', label: 'Atención Psicosocial' },
+        { value: 'estabilizacion', label: 'Estabilización' },
+        { value: 'atencion_hombres', label: 'Atención Hombres' },
+        { value: 'salvia_dignidad', label: 'Salvia Dignidad' },
+        { value: 'discapacidad', label: 'Discapacidad' }
+      ],
+      remisionOpcionesMedidas: [
+        { value: 'alojamiento', label: 'Alojamiento' },
+        { value: 'transporte', label: 'Transporte' },
+        { value: 'alimentacion', label: 'Alimentación' },
+        { value: 'vestuario', label: 'Vestuario' },
+        { value: 'apoyo_psico', label: 'Apoyo psicosocial' },
+        { value: 'otras_me', label: 'Otras ME' }
+      ],
+      remisionOpcionesCriteriosPsico: [
+        { value: 'criterio_obligatorio', label: 'Mujeres en todas sus diversidades y personas no binarias, mayores de 18 años, víctimas de VBG o VpP con voluntariedad para la atención y en post-emergencia (criterio obligatorio)' },
+        { value: 'conducta_suicida', label: 'Conducta suicida derivada de VBG o VpP (3 puntos)' },
+        { value: 'interseccionalidad', label: 'Interseccionalidad (2 puntos)' },
+        { value: 'sin_ruta', label: 'Que no haya activado la ruta (1 punto)' },
+        { value: 'condiciones_territoriales', label: 'Condiciones territoriales y de orden público que impiden la atención (1 punto)' },
+        { value: 'sin_acceso_psico', label: 'Sin acceso a la atención psicosocial o psicológica (1 punto)' },
+        { value: 'naturalizacion_vbg', label: 'Naturalización de la Violencia Basada en Género y de los roles de género (1 punto)' }
+      ],
+      remisionOpcionesCriteriosHombres: [
+        { value: 'criterio_hombres', label: 'Hombres diversos victimarios o posibles victimarios.' }
+      ],
+      remisionOpcionesDiscapacidad: [
+        { value: 'apoyo_lsc', label: 'Apoyo comunicativo en Lengua de Señas Colombiana (LSC)' },
+        { value: 'enfoque_discapacidad', label: 'Apoyo con enfoque de discapacidad (ley de capacidad legal)' }
+      ],
+      remisionOpcionesEstabilizacion: [
+        { value: 'sin_ingresos', label: 'No tiene ninguna forma de ingresos o tiene ingresos de forma inestable' },
+        { value: 'vivienda_temporal', label: 'La persona reside actualmente en vivienda temporal o familiar' },
+        { value: 'personas_cargo', label: 'La persona tiene personas a cargo que limitan su tiempo para trabajar/estudiar' }
+      ],
       reasignarOperador: '',
       reasignando: false,
       autoAsignando: false,
@@ -1054,6 +1218,31 @@ var home = Vue.createApp({
   },
 
   computed: {
+    remisionMuestraMedidas() { return this.remisionForm.equipos.indexOf('medidas_emergencia') !== -1; },
+    remisionMuestraPsico() { return this.remisionForm.equipos.indexOf('atencion_psico') !== -1; },
+    remisionMuestraHombres() { return this.remisionForm.equipos.indexOf('atencion_hombres') !== -1; },
+    remisionMuestraDiscapacidad() { return this.remisionForm.equipos.indexOf('discapacidad') !== -1; },
+    remisionMuestraEstabilizacion() { return this.remisionForm.equipos.indexOf('estabilizacion') !== -1; },
+    remisionMuestraAvisoConflicto() {
+      return this.remisionMuestraMedidas && this.remisionMuestraPsico;
+    },
+    remisionPsicoEstado() {
+      var criterios = this.remisionForm.criteriosPsico;
+      var tieneObligatorio = criterios.indexOf('criterio_obligatorio') !== -1;
+      var puntajes = { conducta_suicida: 3, interseccionalidad: 2, sin_ruta: 1, condiciones_territoriales: 1, sin_acceso_psico: 1, naturalizacion_vbg: 1 };
+      var total = 0;
+      criterios.forEach(function(c) { total += puntajes[c] || 0; });
+      return (tieneObligatorio && total >= 3) ? 'Cumple' : 'No cumple';
+    },
+    remisionValida() {
+      var f = this.remisionForm;
+      if (f.equipos.length === 0) return false;
+      if (this.remisionMuestraHombres && f.criteriosHombres.length === 0) return false;
+      if (this.remisionMuestraDiscapacidad && f.serviciosDiscapacidad.length === 0) return false;
+      if (this.remisionMuestraEstabilizacion && f.criteriosEstabilizacion.length === 0) return false;
+      if (!f.evidencia.trim()) return false;
+      return true;
+    },
     nuevoSegValido() {
       if (!this.nuevoSeg.fecha) return false;
       if (this.userRole === 'sv' && !this.nuevoSeg.agente) return false;
@@ -1680,6 +1869,57 @@ var home = Vue.createApp({
         .catch(function() {
           self.guardandoComentario = false;
           self.showToast('error', 'Error de conexión al agregar el comentario');
+        });
+    },
+    toggleRemisionValor(arr, val) {
+      var idx = arr.indexOf(val);
+      if (idx === -1) arr.push(val); else arr.splice(idx, 1);
+    },
+    abrirModalRemisionEquipos() {
+      this.remisionForm = {
+        equipos: [], medidas: [], criteriosPsico: [], criteriosHombres: [],
+        serviciosDiscapacidad: [], criteriosEstabilizacion: [], evidencia: ''
+      };
+      this.modalRemisionEquipos = true;
+    },
+    guardarRemisionEquipos() {
+      if (!this.remisionValida) return;
+      var self = this;
+      self.guardandoRemision = true;
+      var f = this.remisionForm;
+      var answers = {};
+      answers['e0d38cf5-fe3f-45cb-9fd3-f5b8f7b2f7dc'] = f.equipos.join(',');
+      if (f.medidas.length) answers['1a36260c-33a4-4ebd-bffb-e387d7964b96'] = f.medidas.join(',');
+      if (f.criteriosPsico.length) answers['71c42c4a-f640-47ad-b2c1-5d4c18480449'] = f.criteriosPsico.join(',');
+      if (f.criteriosHombres.length) answers['f7edf4fc-d1cd-4591-a358-31566c806365'] = f.criteriosHombres.join(',');
+      if (f.serviciosDiscapacidad.length) answers['47b122b1-0151-4b58-a007-d4afb722c1b9'] = f.serviciosDiscapacidad.join(',');
+      if (f.criteriosEstabilizacion.length) answers['28accaa6-99dc-4ec4-967b-f26045ad707c'] = f.criteriosEstabilizacion.join(',');
+      answers['1bdc8b52-2472-46b1-a8ab-52ea2b22f986'] = f.evidencia.trim();
+
+      fetch('/api/v1/casos/' + CASE_ICODE + '/remision-equipos', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ answers: answers })
+      })
+        .then(function(res) {
+          if (res.ok) {
+            self.modalRemisionEquipos = false;
+            self.guardandoRemision = false;
+            self.showToast('success', 'Remisión a equipos registrada correctamente');
+            self.cargarDatos();
+          } else {
+            return res.json().then(function(data) {
+              self.guardandoRemision = false;
+              self.showToast('error', data.error || 'Error al registrar la remisión');
+            }).catch(function() {
+              self.guardandoRemision = false;
+              self.showToast('error', 'Error al registrar la remisión');
+            });
+          }
+        })
+        .catch(function() {
+          self.guardandoRemision = false;
+          self.showToast('error', 'Error de conexión al registrar la remisión');
         });
     },
     confirmarReabrirCaso() {

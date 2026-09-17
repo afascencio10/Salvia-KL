@@ -245,6 +245,7 @@ func main() {
 
 	// Controllers
 	formCtrl := salvia_ctrl.NewFormController(formSvc, victimCaseFormSvc)
+	remisionManualCtrl := salvia_ctrl.NewRemisionManualController(formSvc)
 	formSectionCtrl := salvia_ctrl.NewFormSectionController(formSectionSvc)
 	questionCtrl := salvia_ctrl.NewQuestionController(questionSvc)
 	repeaterGroupCtrl := salvia_ctrl.NewRepeaterGroupController(repeaterGroupSvc)
@@ -309,6 +310,7 @@ func main() {
 	// Routes
 	api := router.Group("/api/v1")
 	formCtrl.RegisterRoutes(api)
+	remisionManualCtrl.RegisterRoutes(api)
 	formSubmissionCtrl.RegisterRoutes(api)
 	formSectionCtrl.RegisterRoutes(api)
 	questionCtrl.RegisterRoutes(api)

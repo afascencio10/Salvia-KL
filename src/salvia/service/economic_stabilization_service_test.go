@@ -71,7 +71,8 @@ func TestEconomicStabilizationService_GetByID(t *testing.T) {
 func TestEconomicStabilizationService_Create(t *testing.T) {
 	ctx := context.Background()
 	repo := new(MockEconomicStabilizationRepo)
-	es := &models.EconomicStabilization{CaseID: "c-1", FollowUpID: "f-1", Type: "SUBSIDIO"}
+	followUpID := "f-1"
+	es := &models.EconomicStabilization{CaseID: "c-1", FollowUpID: &followUpID, Type: "SUBSIDIO"}
 	repo.On("Create", ctx, es).Return(nil)
 	svc := service.NewEconomicStabilizationService(repo)
 	err := svc.Create(ctx, es)

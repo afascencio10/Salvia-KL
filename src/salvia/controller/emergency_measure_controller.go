@@ -51,8 +51,8 @@ func (c *EmergencyMeasureController) CreateHandler(w http.ResponseWriter, r *htt
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "body inválido"})
 		return
 	}
-	if em.CaseID == "" || em.FollowUpID == "" || em.Type == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "campos requeridos: case_id, follow_up_id, type"})
+	if em.CaseID == "" || em.Type == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "campos requeridos: case_id, type"})
 		return
 	}
 	if err := c.svc.Create(r.Context(), &em); err != nil {

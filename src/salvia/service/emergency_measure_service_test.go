@@ -71,7 +71,8 @@ func TestEmergencyMeasureService_GetByID(t *testing.T) {
 func TestEmergencyMeasureService_Create(t *testing.T) {
 	ctx := context.Background()
 	repo := new(MockEmergencyMeasureRepo)
-	em := &models.EmergencyMeasure{CaseID: "c-1", FollowUpID: "f-1", Type: "PROTECCION"}
+	followUpID := "f-1"
+	em := &models.EmergencyMeasure{CaseID: "c-1", FollowUpID: &followUpID, Type: "PROTECCION"}
 	repo.On("Create", ctx, em).Return(nil)
 	svc := service.NewEmergencyMeasureService(repo)
 	err := svc.Create(ctx, em)

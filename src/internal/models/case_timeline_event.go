@@ -58,6 +58,7 @@ const (
 	TimelineTypeGestionMecanismo    = "Gestión del mecanismo"
 
 	TimelineTypeComentarioEquipoTecnico = "Comentario del Equipo Técnico"
+	TimelineTypeRemisionEquipos         = "Remisión a equipos registrada"
 )
 
 // ─── Iconos ──────────────────────────────────────────────────────────────────

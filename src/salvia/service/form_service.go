@@ -143,6 +143,12 @@ type FormService interface {
 	// llamado post-commit desde VictimCaseController.SetVictimCase. Ver
 	// DocsMD/Otros/temp/agregar-identificacion-entidades-registro-caso-legacy.md.
 	ProcessVictimCaseEntidadEntries(ctx context.Context, caseID, actorID string, acudidas, activacion []VictimCaseEntidadEntryInput) error
+
+	// ProcessManualRemision crea derivaciones a equipos SALVIA (y medidas de
+	// emergencia) directamente para un caso, sin pasar por el formulario de
+	// seguimiento — usado por el modal "Remisión a equipos" del Equipo Técnico
+	// en Detalle del Caso → Derivaciones. Ver remision_manual_equipos.go.
+	ProcessManualRemision(ctx context.Context, caseID, actorID string, answerMap map[string]string) (int, error)
 }
 
 type FormServiceDeps struct {
@@ -2990,6 +2996,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		qAcCompletadasOtra  = "b40710d4-d8d2-4292-8980-a95cb9961b0e"
 		qAcPendientes       = "0982fa51-6349-4a9b-826a-317f5f1a02cf"
 		qAcPendientesOtra   = "3fc2ce53-e83b-4d3f-9c01-2a262fa42f69"
+		qAcRadicado         = "6c1b8cd5-bb04-4bde-a3ea-72fdf56633db"
 		qAcInfoRuta         = "ce08ba3f-a310-48f6-96af-2fb058d80b04"
 
 		rgEntidadesActivacion = "5b5b7713-03fb-4263-9dc4-ac981130878d"
@@ -3368,6 +3375,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 			qPendientes      string
 			qPendientesOtra  string
 			qObjetivo        string // "" si no aplica
+			qRadicado        string // "" si no aplica
 			qCanalActivacion string // "" si no aplica
 		}
 		repeaterConfigs := []entidadRepeaterCfg{
@@ -3375,7 +3383,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 				groupID: rgEntidadesAcudidas, qEntidad: qAcEntidad,
 				qCompletadas: qAcCompletadas, qCompletadasOtra: qAcCompletadasOtra,
 				qPendientes: qAcPendientes, qPendientesOtra: qAcPendientesOtra,
-				qObjetivo: qAcInfoRuta,
+				qObjetivo: qAcInfoRuta, qRadicado: qAcRadicado,
 			},
 			{
 				groupID: rgEntidadesActivacion, qEntidad: qAvEntidad,
@@ -3418,10 +3426,17 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 					}
 				}
 
+				var radicado *string
+				if cfg.qRadicado != "" {
+					if v := strings.TrimSpace(idMap[cfg.qRadicado]); v != "" {
+						radicado = &v
+					}
+				}
+
 				var entityCaseID string
 				created, err := s.entityCaseSvc.Create(ctx, CreateEntityCaseInput{
 					CaseID: fu.CaseID, EntityBranchID: entityBranchID,
-					Objetivo: objetivo, CreatedByID: actorID,
+					Objetivo: objetivo, Radicado: radicado, CreatedByID: actorID,
 				})
 				if err != nil {
 					if errors.Is(err, ErrEntityCaseDuplicate) {
@@ -3498,194 +3513,12 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		}
 	}
 
-	// 4. Crear registros de derivación por equipo
-	if equiposVal, ok := answerMap[qEquipos]; ok && equiposVal != "" {
-		log.Printf("[processFollowUp] derivaciones a equipos: %s", equiposVal)
-		for _, equipo := range splitValues(equiposVal) {
-			switch equipo {
-			case "atencion_psico":
-				// Regla de exclusión: si también se seleccionó medidas_emergencia, solo se crea
-				// la derivación de emergencia. La remisión psicosocial se omite.
-				equiposSeleccionados := splitValues(equiposVal)
-				tieneMedidasEmergencia := false
-				for _, e := range equiposSeleccionados {
-					if e == "medidas_emergencia" {
-						tieneMedidasEmergencia = true
-						break
-					}
-				}
-				if tieneMedidasEmergencia {
-					log.Printf("[processFollowUp] atencion_psico omitida — incompatible con medidas_emergencia seleccionada al mismo tiempo")
-					break
-				}
-				// Validar criterios de remisión psicosocial antes de crear la derivación.
-				// Regla: debe estar marcado "criterio_obligatorio" Y sumar mínimo 3 puntos.
-				criteriosVal := answerMap[qCriteriosPsico]
-				criteriosSelected := splitValues(criteriosVal)
-				tieneCriterioObligatorio := false
-				for _, c := range criteriosSelected {
-					if c == "criterio_obligatorio" {
-						tieneCriterioObligatorio = true
-						break
-					}
-				}
-				puntajesPsico := map[string]int{
-					"conducta_suicida":          3,
-					"interseccionalidad":        2,
-					"sin_ruta":                  1,
-					"condiciones_territoriales": 1,
-					"sin_acceso_psico":          1,
-					"naturalizacion_vbg":        1,
-				}
-				totalPuntos := 0
-				for _, c := range criteriosSelected {
-					totalPuntos += puntajesPsico[c]
-				}
-				if !tieneCriterioObligatorio || totalPuntos < 3 {
-					log.Printf("[processFollowUp] derivacion psicosocial NO cumple criterios (obligatorio=%v, puntos=%d) — omitida", tieneCriterioObligatorio, totalPuntos)
-					break
-				}
-				log.Printf("[processFollowUp] creando derivacion -> atencion_psico (obligatorio=%v, puntos=%d)", tieneCriterioObligatorio, totalPuntos)
-				var submittedBy *string
-				if actorID != "" {
-					submittedBy = &actorID
-				}
-				var submittedByTeam *string
-				if s.agentLightRepo != nil && actorID != "" {
-					agent, err := s.agentLightRepo.FindByICode(ctx, actorID)
-					if err != nil {
-						log.Printf("[processFollowUp] WARN: no se pudo resolver equipo del remitente (actor=%s): %v", actorID, err)
-					} else if agent != nil && strings.TrimSpace(agent.Team) != "" {
-						team := strings.TrimSpace(agent.Team)
-						submittedByTeam = &team
-					} else {
-						log.Printf("[processFollowUp] WARN: agente %s sin general_user_team — submitted_by_team quedará vacío", actorID)
-					}
-				} else {
-					log.Printf("[processFollowUp] WARN: no se pudo resolver submitted_by_team (actor=%s)", actorID)
-				}
-				ps := &models.PsychosocialSupport{
-					CaseID:          fu.CaseID,
-					FollowUpID:      &fu.ID,
-					Type:            "derivacion",
-					Status:          models.PsychosocialSupportStatusAbierto,
-					SubmittedBy:     submittedBy,
-					SubmittedByTeam: submittedByTeam,
-				}
-				if err := s.psychosocialSupportRepo.Create(ctx, ps); err != nil {
-					return fmt.Errorf("processFollowUpSubmission: crear derivacion psicosocial: %w", err)
-				}
-				log.Printf("[processFollowUp] ✅ derivacion creada -> atencion_psico (id=%s)", ps.ID)
-				remisionCount++
-
-				// Tarea para que el equipo psicosocial valide si la remisión es procedente.
-				psID := ps.ID
-				followUpID := fu.ID
-				validarTask := &models.CaseTask{
-					Category:              "Psicosocial",
-					Type:                  "validar_remision",
-					Description:           "Validar que remision a psicosocial es valida",
-					AssignedUserID:        "",
-					Status:                models.CaseTaskStatusToDo,
-					CaseID:                fu.CaseID,
-					FollowUpID:            &followUpID,
-					PsychosocialSupportID: &psID,
-				}
-				if s.caseTaskRepo != nil {
-					if err := s.caseTaskRepo.Create(ctx, validarTask); err != nil {
-						log.Printf("[processFollowUp] WARN: no se pudo crear case_task de validación psicosocial (psychosocial_support=%s): %v", ps.ID, err)
-					}
-				}
-			case "atencion_hombres":
-				// Validar criterio de remisión al equipo de hombres antes de crear la derivación.
-				// Regla: debe estar marcado "criterio_hombres".
-				criteriosHombresVal := answerMap[qCriteriosHombres]
-				criteriosHombresSelected := splitValues(criteriosHombresVal)
-				tieneCriterioHombres := false
-				for _, c := range criteriosHombresSelected {
-					if c == "criterio_hombres" {
-						tieneCriterioHombres = true
-						break
-					}
-				}
-				if !tieneCriterioHombres {
-					log.Printf("[processFollowUp] derivacion atencion_hombres NO cumple criterio — omitida")
-					break
-				}
-				log.Printf("[processFollowUp] creando derivacion -> atencion_hombres")
-				mtr := &models.MenTeamRemision{
-					CaseID:     fu.CaseID,
-					FollowUpID: fu.ID,
-					Type:       "derivacion",
-					Status:     "ACTIVE",
-				}
-				if err := s.menTeamRemisionRepo.Create(ctx, mtr); err != nil {
-					return fmt.Errorf("processFollowUpSubmission: crear derivacion atencion_hombres: %w", err)
-				}
-				log.Printf("[processFollowUp] ✅ derivacion creada -> atencion_hombres (id=%s)", mtr.ID)
-				remisionCount++
-			case "discapacidad":
-				// Crear un registro por cada servicio seleccionado del Equipo de Discapacidad.
-				serviciosVal := answerMap[qServiciosDiscapacidad]
-				if serviciosVal == "" {
-					log.Printf("[processFollowUp] derivacion discapacidad sin servicios seleccionados — omitida")
-					break
-				}
-				for _, svc := range splitValues(serviciosVal) {
-					log.Printf("[processFollowUp] creando derivacion -> discapacidad servicio=%s", svc)
-					dr := &models.DiscapacidadRemision{
-						CaseID:     fu.CaseID,
-						FollowUpID: fu.ID,
-						Service:    svc,
-						Status:     "ACTIVE",
-					}
-					if err := s.discapacidadRemisionRepo.Create(ctx, dr); err != nil {
-						return fmt.Errorf("processFollowUpSubmission: crear derivacion discapacidad [%s]: %w", svc, err)
-					}
-					log.Printf("[processFollowUp] ✅ derivacion creada -> discapacidad servicio=%s (id=%s)", svc, dr.ID)
-					remisionCount++
-				}
-			case "estabilizacion":
-				// Validar que se haya seleccionado al menos 1 criterio de estabilización.
-				criteriosEstVal := answerMap[qCriteriosEstabilizacion]
-				if criteriosEstVal == "" || len(splitValues(criteriosEstVal)) == 0 {
-					log.Printf("[processFollowUp] derivacion estabilizacion sin criterios seleccionados — omitida")
-					break
-				}
-				log.Printf("[processFollowUp] creando derivacion -> estabilizacion (criterios: %s)", criteriosEstVal)
-				ec := &models.EconomicStabilization{
-					CaseID:     fu.CaseID,
-					FollowUpID: fu.ID,
-					Type:       "derivacion",
-					Status:     "ACTIVE",
-				}
-				if err := s.economicStabilizationRepo.Create(ctx, ec); err != nil {
-					return fmt.Errorf("processFollowUpSubmission: crear derivacion economica: %w", err)
-				}
-				log.Printf("[processFollowUp] ✅ derivacion creada -> estabilizacion (id=%s)", ec.ID)
-				remisionCount++
-			}
-		}
+	// 4-5. Crear registros de derivación por equipo y medidas de emergencia
+	rc, err := s.processEquiposYMedidas(ctx, fu.CaseID, &fu.ID, actorID, answerMap)
+	if err != nil {
+		return fmt.Errorf("processFollowUpSubmission: %w", err)
 	}
-
-	// 5. Crear una EmergencyMeasure por cada medida de emergencia seleccionada
-	if medidasVal, ok := answerMap[qMedidasEmergencia]; ok && medidasVal != "" {
-		log.Printf("[processFollowUp] medidas de emergencia: %s", medidasVal)
-		for _, medida := range splitValues(medidasVal) {
-			log.Printf("[processFollowUp] creando medida emergencia tipo=%s", medida)
-			em := &models.EmergencyMeasure{
-				CaseID:     fu.CaseID,
-				FollowUpID: fu.ID,
-				Type:       medida,
-				Status:     "ACTIVE",
-			}
-			if err := s.emergencyMeasureRepo.Create(ctx, em); err != nil {
-				return fmt.Errorf("processFollowUpSubmission: crear medida emergencia [%s]: %w", medida, err)
-			}
-			log.Printf("[processFollowUp] ✅ medida emergencia creada tipo=%s (id=%s)", medida, em.ID)
-			remisionCount++
-		}
-	}
+	remisionCount += rc
 
 	// 6. Marcar el follow_up como REALIZADO
 	if err := s.followUpRepo.UpdateStatus(ctx, fu.ID, models.FollowUpStatusRealizado); err != nil {
@@ -3786,6 +3619,226 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 	s.reasignarCaso(ctx, fu, answerMap, actorID)
 
 	return nil
+}
+
+// processEquiposYMedidas crea las derivaciones a equipos SALVIA (Sección 5,
+// "¿Cuáles equipos?") y las medidas de emergencia, a partir de un answerMap ya
+// indexado por questionId. Es la lógica de los PASO 4-5 de
+// processFollowUpSubmission, extraída para poder reutilizarla también desde el
+// modal de remisión manual del Equipo Técnico (Detalle del Caso → Derivaciones),
+// que no pasa por un seguimiento — de ahí que followUpID sea *string: nil en
+// ese caso, &fu.ID cuando sí viene de un seguimiento real.
+func (s *formService) processEquiposYMedidas(ctx context.Context, caseID string, followUpID *string, actorID string, answerMap map[string]string) (int, error) {
+	const (
+		qEquipos                 = "e0d38cf5-fe3f-45cb-9fd3-f5b8f7b2f7dc" // Derivaciones a equipos (multi-select)
+		qMedidasEmergencia       = "1a36260c-33a4-4ebd-bffb-e387d7964b96" // Medidas de emergencia (multi-select)
+		qCriteriosPsico          = "71c42c4a-f640-47ad-b2c1-5d4c18480449" // Criterios de remisión — Atención Psicosocial (multiple)
+		qCriteriosHombres        = "f7edf4fc-d1cd-4591-a358-31566c806365" // Criterios de remisión — Atención Hombres (multiple)
+		qCriteriosEstabilizacion = "28accaa6-99dc-4ec4-967b-f26045ad707c" // Criterios de remisión — Estabilización (multiple)
+		qServiciosDiscapacidad   = "47b122b1-0151-4b58-a007-d4afb722c1b9" // Servicios del Equipo de Discapacidad (multiple)
+	)
+
+	splitValues := func(v string) []string {
+		var out []string
+		for _, part := range strings.Split(v, ",") {
+			if t := strings.TrimSpace(part); t != "" {
+				out = append(out, t)
+			}
+		}
+		return out
+	}
+
+	remisionCount := 0
+
+	// 4. Crear registros de derivación por equipo
+	if equiposVal, ok := answerMap[qEquipos]; ok && equiposVal != "" {
+		log.Printf("[processEquiposYMedidas] derivaciones a equipos: %s", equiposVal)
+		for _, equipo := range splitValues(equiposVal) {
+			switch equipo {
+			case "atencion_psico":
+				// Regla de exclusión: si también se seleccionó medidas_emergencia, solo se crea
+				// la derivación de emergencia. La remisión psicosocial se omite.
+				equiposSeleccionados := splitValues(equiposVal)
+				tieneMedidasEmergencia := false
+				for _, e := range equiposSeleccionados {
+					if e == "medidas_emergencia" {
+						tieneMedidasEmergencia = true
+						break
+					}
+				}
+				if tieneMedidasEmergencia {
+					log.Printf("[processEquiposYMedidas] atencion_psico omitida — incompatible con medidas_emergencia seleccionada al mismo tiempo")
+					break
+				}
+				// Validar criterios de remisión psicosocial antes de crear la derivación.
+				// Regla: debe estar marcado "criterio_obligatorio" Y sumar mínimo 3 puntos.
+				criteriosVal := answerMap[qCriteriosPsico]
+				criteriosSelected := splitValues(criteriosVal)
+				tieneCriterioObligatorio := false
+				for _, c := range criteriosSelected {
+					if c == "criterio_obligatorio" {
+						tieneCriterioObligatorio = true
+						break
+					}
+				}
+				puntajesPsico := map[string]int{
+					"conducta_suicida":          3,
+					"interseccionalidad":        2,
+					"sin_ruta":                  1,
+					"condiciones_territoriales": 1,
+					"sin_acceso_psico":          1,
+					"naturalizacion_vbg":        1,
+				}
+				totalPuntos := 0
+				for _, c := range criteriosSelected {
+					totalPuntos += puntajesPsico[c]
+				}
+				if !tieneCriterioObligatorio || totalPuntos < 3 {
+					log.Printf("[processEquiposYMedidas] derivacion psicosocial NO cumple criterios (obligatorio=%v, puntos=%d) — omitida", tieneCriterioObligatorio, totalPuntos)
+					break
+				}
+				log.Printf("[processEquiposYMedidas] creando derivacion -> atencion_psico (obligatorio=%v, puntos=%d)", tieneCriterioObligatorio, totalPuntos)
+				var submittedBy *string
+				if actorID != "" {
+					submittedBy = &actorID
+				}
+				var submittedByTeam *string
+				if s.agentLightRepo != nil && actorID != "" {
+					agent, err := s.agentLightRepo.FindByICode(ctx, actorID)
+					if err != nil {
+						log.Printf("[processEquiposYMedidas] WARN: no se pudo resolver equipo del remitente (actor=%s): %v", actorID, err)
+					} else if agent != nil && strings.TrimSpace(agent.Team) != "" {
+						team := strings.TrimSpace(agent.Team)
+						submittedByTeam = &team
+					} else {
+						log.Printf("[processEquiposYMedidas] WARN: agente %s sin general_user_team — submitted_by_team quedará vacío", actorID)
+					}
+				} else {
+					log.Printf("[processEquiposYMedidas] WARN: no se pudo resolver submitted_by_team (actor=%s)", actorID)
+				}
+				ps := &models.PsychosocialSupport{
+					CaseID:          caseID,
+					FollowUpID:      followUpID,
+					Type:            "derivacion",
+					Status:          models.PsychosocialSupportStatusAbierto,
+					SubmittedBy:     submittedBy,
+					SubmittedByTeam: submittedByTeam,
+				}
+				if err := s.psychosocialSupportRepo.Create(ctx, ps); err != nil {
+					return remisionCount, fmt.Errorf("crear derivacion psicosocial: %w", err)
+				}
+				log.Printf("[processEquiposYMedidas] ✅ derivacion creada -> atencion_psico (id=%s)", ps.ID)
+				remisionCount++
+
+				// Tarea para que el equipo psicosocial valide si la remisión es procedente.
+				psID := ps.ID
+				validarTask := &models.CaseTask{
+					Category:              "Psicosocial",
+					Type:                  "validar_remision",
+					Description:           "Validar que remision a psicosocial es valida",
+					AssignedUserID:        "",
+					Status:                models.CaseTaskStatusToDo,
+					CaseID:                caseID,
+					FollowUpID:            followUpID,
+					PsychosocialSupportID: &psID,
+				}
+				if s.caseTaskRepo != nil {
+					if err := s.caseTaskRepo.Create(ctx, validarTask); err != nil {
+						log.Printf("[processEquiposYMedidas] WARN: no se pudo crear case_task de validación psicosocial (psychosocial_support=%s): %v", ps.ID, err)
+					}
+				}
+			case "atencion_hombres":
+				// Validar criterio de remisión al equipo de hombres antes de crear la derivación.
+				// Regla: debe estar marcado "criterio_hombres".
+				criteriosHombresVal := answerMap[qCriteriosHombres]
+				criteriosHombresSelected := splitValues(criteriosHombresVal)
+				tieneCriterioHombres := false
+				for _, c := range criteriosHombresSelected {
+					if c == "criterio_hombres" {
+						tieneCriterioHombres = true
+						break
+					}
+				}
+				if !tieneCriterioHombres {
+					log.Printf("[processEquiposYMedidas] derivacion atencion_hombres NO cumple criterio — omitida")
+					break
+				}
+				log.Printf("[processEquiposYMedidas] creando derivacion -> atencion_hombres")
+				mtr := &models.MenTeamRemision{
+					CaseID:     caseID,
+					FollowUpID: followUpID,
+					Type:       "derivacion",
+					Status:     "ACTIVE",
+				}
+				if err := s.menTeamRemisionRepo.Create(ctx, mtr); err != nil {
+					return remisionCount, fmt.Errorf("crear derivacion atencion_hombres: %w", err)
+				}
+				log.Printf("[processEquiposYMedidas] ✅ derivacion creada -> atencion_hombres (id=%s)", mtr.ID)
+				remisionCount++
+			case "discapacidad":
+				// Crear un registro por cada servicio seleccionado del Equipo de Discapacidad.
+				serviciosVal := answerMap[qServiciosDiscapacidad]
+				if serviciosVal == "" {
+					log.Printf("[processEquiposYMedidas] derivacion discapacidad sin servicios seleccionados — omitida")
+					break
+				}
+				for _, svc := range splitValues(serviciosVal) {
+					log.Printf("[processEquiposYMedidas] creando derivacion -> discapacidad servicio=%s", svc)
+					dr := &models.DiscapacidadRemision{
+						CaseID:     caseID,
+						FollowUpID: followUpID,
+						Service:    svc,
+						Status:     "ACTIVE",
+					}
+					if err := s.discapacidadRemisionRepo.Create(ctx, dr); err != nil {
+						return remisionCount, fmt.Errorf("crear derivacion discapacidad [%s]: %w", svc, err)
+					}
+					log.Printf("[processEquiposYMedidas] ✅ derivacion creada -> discapacidad servicio=%s (id=%s)", svc, dr.ID)
+					remisionCount++
+				}
+			case "estabilizacion":
+				// Validar que se haya seleccionado al menos 1 criterio de estabilización.
+				criteriosEstVal := answerMap[qCriteriosEstabilizacion]
+				if criteriosEstVal == "" || len(splitValues(criteriosEstVal)) == 0 {
+					log.Printf("[processEquiposYMedidas] derivacion estabilizacion sin criterios seleccionados — omitida")
+					break
+				}
+				log.Printf("[processEquiposYMedidas] creando derivacion -> estabilizacion (criterios: %s)", criteriosEstVal)
+				ec := &models.EconomicStabilization{
+					CaseID:     caseID,
+					FollowUpID: followUpID,
+					Type:       "derivacion",
+					Status:     "ACTIVE",
+				}
+				if err := s.economicStabilizationRepo.Create(ctx, ec); err != nil {
+					return remisionCount, fmt.Errorf("crear derivacion economica: %w", err)
+				}
+				log.Printf("[processEquiposYMedidas] ✅ derivacion creada -> estabilizacion (id=%s)", ec.ID)
+				remisionCount++
+			}
+		}
+	}
+
+	// 5. Crear una EmergencyMeasure por cada medida de emergencia seleccionada
+	if medidasVal, ok := answerMap[qMedidasEmergencia]; ok && medidasVal != "" {
+		log.Printf("[processEquiposYMedidas] medidas de emergencia: %s", medidasVal)
+		for _, medida := range splitValues(medidasVal) {
+			log.Printf("[processEquiposYMedidas] creando medida emergencia tipo=%s", medida)
+			em := &models.EmergencyMeasure{
+				CaseID:     caseID,
+				FollowUpID: followUpID,
+				Type:       medida,
+				Status:     "ACTIVE",
+			}
+			if err := s.emergencyMeasureRepo.Create(ctx, em); err != nil {
+				return remisionCount, fmt.Errorf("crear medida emergencia [%s]: %w", medida, err)
+			}
+			log.Printf("[processEquiposYMedidas] ✅ medida emergencia creada tipo=%s (id=%s)", medida, em.ID)
+			remisionCount++
+		}
+	}
+
+	return remisionCount, nil
 }
 
 // reasignarCaso evalúa las respuestas del formulario de seguimiento y, si corresponde,
