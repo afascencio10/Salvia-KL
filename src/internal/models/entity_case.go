@@ -22,6 +22,12 @@ type EntityCase struct {
 	// a la entidad, además del checklist). Columna creada vía AutoMigrate.
 	Solicitud *string `gorm:"type:text;column:solicitud" json:"solicitud,omitempty"`
 
+	// Radicado: N° de radicado/NUNC/MP con el que la víctima ya acudió a esta
+	// entidad — viene de la pregunta homónima del repeater "Entidades a las
+	// que ya acudió" (Identificación de Entidades). Solo se fija al crear el
+	// entity_case; no se sobreescribe en seguimientos posteriores.
+	Radicado *string `gorm:"type:text;column:radicado" json:"radicado,omitempty"`
+
 	// LastAction es un campo de texto libre editado directamente — no se calcula.
 	// Pendiente definir el mecanismo exacto para poblarlo (ver GAP en related-tables.md).
 	LastAction *string `gorm:"type:text;column:last_action" json:"lastAction,omitempty"`
@@ -53,6 +59,7 @@ type EntityCaseWithRelations struct {
 	TownName             string    `gorm:"column:town_name"               json:"townName"`
 	Objetivo             *string   `gorm:"column:objetivo"                json:"objetivo,omitempty"`
 	Solicitud            *string   `gorm:"column:solicitud"               json:"solicitud,omitempty"`
+	Radicado             *string   `gorm:"column:radicado"                json:"radicado,omitempty"`
 	LastAction           *string   `gorm:"column:last_action"             json:"lastAction,omitempty"`
 	OficiosCount         int64     `gorm:"column:oficios_count"           json:"oficiosCount"`
 	BarrerasActivasCount int64     `gorm:"column:barreras_activas_count"  json:"barrerasActivasCount"`

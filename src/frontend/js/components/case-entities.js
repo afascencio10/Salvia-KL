@@ -82,7 +82,7 @@ app.component('case-entities', {
             cargandoEntidades: false,
             guardando: false,
             errores: {},
-            form: { departamento: '', ciudad: '', municipio: '', sector: '', entidadId: '', objetivo: '', solicitud: '', obligaciones: [] },
+            form: { departamento: '', ciudad: '', municipio: '', sector: '', entidadId: '', objetivo: '', solicitud: '', radicado: '', obligaciones: [] },
 
             // Checklist de tareas de la entidad seleccionada
             tareasEntidad: [],           // catálogo de tareas de la entidad elegida [{value, label}]
@@ -142,7 +142,7 @@ app.component('case-entities', {
 
         // ── Modal: agregar entidad ──────────────────────────────────────────────
         abrirModalAgregar: function() {
-            this.form = { departamento: '', ciudad: '', municipio: '', sector: '', entidadId: '', objetivo: '', solicitud: '', obligaciones: [] };
+            this.form = { departamento: '', ciudad: '', municipio: '', sector: '', entidadId: '', objetivo: '', solicitud: '', radicado: '', obligaciones: [] };
             this.ciudades = [];
             this.municipios = [];
             this.entidadesDisponibles = [];
@@ -233,6 +233,7 @@ app.component('case-entities', {
                     entityBranchId: Number(self.form.entidadId),
                     objetivo: self.form.objetivo.trim(),
                     solicitud: self.form.solicitud.trim() || null,
+                    radicado: self.form.radicado.trim() || null,
                     createdById: self.userId,
                     obligationIds: self.form.obligaciones,
                 }),
@@ -339,6 +340,7 @@ app.component('case-entities', {
                         <div class="ce-stats">
                             <span>Oficios: \${ entidad.oficiosCount }</span>
                             <span>Barreras activas: \${ entidad.barrerasActivasCount }</span>
+                            <span v-if="entidad.radicado">N° de radicado: \${ entidad.radicado }</span>
                             <span v-if="entidad.lastAction">Última acción: \${ entidad.lastAction }</span>
                             <span v-else>Sin acciones registradas</span>
                         </div>
@@ -423,6 +425,11 @@ app.component('case-entities', {
                         <div class="ce-field">
                             <label>Solicitud a la entidad</label>
                             <textarea v-model="form.solicitud" placeholder="¿Qué acciones institucionales se requieren?"></textarea>
+                        </div>
+
+                        <div class="ce-field">
+                            <label>¿Cuenta con un N° de radicado, NUNC, MP, etc.?</label>
+                            <input type="text" v-model="form.radicado" placeholder="N° de radicado, NUNC, MP, etc." />
                         </div>
 
                         <div class="ce-field">

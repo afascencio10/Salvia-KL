@@ -23,6 +23,7 @@ type CreateEntityCaseInput struct {
 	EntityBranchID int64
 	Objetivo       *string
 	Solicitud      *string
+	Radicado       *string
 	CreatedByID    string
 	// ObligationIds — IDs del catálogo entity_obligation seleccionados en el
 	// checklist del formulario. Se registran como entity_case_obligation en
@@ -103,6 +104,7 @@ func (s *entityCaseService) Create(ctx context.Context, input CreateEntityCaseIn
 		EntityBranchID: input.EntityBranchID,
 		Objetivo:       input.Objetivo,
 		Solicitud:      input.Solicitud,
+		Radicado:       input.Radicado,
 		CreatedByID:    input.CreatedByID,
 	}
 	if err := s.repo.Create(ctx, ec); err != nil {
