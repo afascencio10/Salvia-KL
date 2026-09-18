@@ -135,6 +135,20 @@
               <span v-if="errors.profile && errors.profile.townSelected" class="invalid-feedback d-block">${ errors.profile.townSelected }</span>
             </div>
           </div>
+          <div class="row" v-if="isUserSelected('ro')">
+            <div class="tituloform">
+              <i class="fas fa-users-cog fa-2x"></i><h2>Equipo (Operador de seguimiento)</h2>
+            </div>
+            <div class="col-4">
+              <label>Equipo</label>
+              <select :class="[errors.user && errors.user.team ? 'form-control is-invalid' : 'form-control']"
+                id="team" v-model="data.user.team">
+                <option value="">Seleccione...</option>
+                <option value="Riesgo bajo">Equipo de seguimiento general</option>
+                <option value="Riesgo alto">Equipo de seguimiento de riesgo</option>
+              </select>
+            </div>
+          </div>
         </div><!-- /.container-fluid -->
       </div>
       <div class="row justify-content-xl-center botones">

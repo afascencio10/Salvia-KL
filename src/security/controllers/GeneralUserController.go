@@ -320,6 +320,7 @@ func SetGeneralUser(dataInput string, s utils.CommonSession, connData *db.ConnDa
 	var entityRoleFound bool = false
 	var departmentOperatorRoleFound bool = false
 	var mechanismRoleFound bool = false
+	var riskOperatorRoleFound bool = false
 
 	// Se especifican los campos obligatorios para el usuario
 	var checkFields map[string]bool = map[string]bool{"GeneralUserPassword": true, "GeneralUserPasswordRepeat": true, "GeneralUserLanguage": true, "GeneralUserLogin": true}
@@ -421,7 +422,21 @@ func SetGeneralUser(dataInput string, s utils.CommonSession, connData *db.ConnDa
 			if r.RoleCode == models.ArticulatingMechanismRoleCode {
 				mechanismRoleFound = true
 			}
+			if r.RoleCode == "ro" {
+				riskOperatorRoleFound = true
+			}
 		}
+
+		// El rol "ro" (Operador de seguimiento) requiere indicar el equipo de seguimiento
+		// (Riesgo alto / Riesgo bajo); para el resto de roles el campo se ignora.
+		if riskOperatorRoleFound {
+			if userRequest.User.GeneralUserTeam != "Riesgo alto" && userRequest.User.GeneralUserTeam != "Riesgo bajo" {
+				utils.SetError(collectedErrors, security_daos.GeneralUserJSONName, utils.GetTag(&userRequest.User, "GeneralUserTeam", "json"), "security_general_user_team_required", "common_global_error", security_config.Locale)
+			}
+		} else {
+			userRequest.User.GeneralUserTeam = ""
+		}
+
 		if entityRoleFound || departmentOperatorRoleFound {
 			// Se obtienen valores específicos para entidad y localidad
 
@@ -1066,6 +1081,7 @@ func UpdateGeneralUserByICode(dataInput string, id string, s utils.CommonSession
 	var entityRoleFound bool = false
 	var departmentOperatorRoleFound bool = false
 	var mechanismRoleFound bool = false
+	var riskOperatorRoleFound bool = false
 
 	// Se obtiene el usuario actual a actualizar basado en su ICode
 	var by common_controllers.By = common_controllers.By{
@@ -1178,7 +1194,21 @@ func UpdateGeneralUserByICode(dataInput string, id string, s utils.CommonSession
 			if r.RoleCode == models.ArticulatingMechanismRoleCode {
 				mechanismRoleFound = true
 			}
+			if r.RoleCode == "ro" {
+				riskOperatorRoleFound = true
+			}
 		}
+
+		// El rol "ro" (Operador de seguimiento) requiere indicar el equipo de seguimiento
+		// (Riesgo alto / Riesgo bajo); para el resto de roles el campo se ignora.
+		if riskOperatorRoleFound {
+			if userRequest.User.GeneralUserTeam != "Riesgo alto" && userRequest.User.GeneralUserTeam != "Riesgo bajo" {
+				utils.SetError(collectedErrors, security_daos.GeneralUserJSONName, utils.GetTag(&userRequest.User, "GeneralUserTeam", "json"), "security_general_user_team_required", "common_global_error", security_config.Locale)
+			}
+		} else {
+			userRequest.User.GeneralUserTeam = ""
+		}
+
 		if entityRoleFound || departmentOperatorRoleFound {
 			// Se obtienen valores específicos para entidad y localidad
 
@@ -1270,6 +1300,7 @@ func UpdateGeneralUserByICode(dataInput string, id string, s utils.CommonSession
 
 	// Actualización de los campos del usuario
 	usrToUpdate.GeneralUserLanguage = userRequest.User.GeneralUserLanguage
+	usrToUpdate.GeneralUserTeam = userRequest.User.GeneralUserTeam
 
 	usrToUpdate.GeneralUserGeneralUserProfile.GeneralUserProfileGender = userRequest.User.GeneralUserGeneralUserProfile.GeneralUserProfileGender
 	usrToUpdate.GeneralUserGeneralUserProfile.GeneralUserProfileDescription = userRequest.User.GeneralUserGeneralUserProfile.GeneralUserProfileDescription

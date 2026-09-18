@@ -10,18 +10,20 @@ Describe los escenarios posibles al registrar una sesión psicosocial, qué form
 
 Cada tipo de sesión tiene su propio formulario con secciones propias. El backend selecciona el form_id correcto leyendo el estado de `salvia.psychosocial_support`.
 
-| Formulario | Form ID | Secciones |
+| Formulario | Form ID | Secciones (catálogo vivo Sep 2026) |
 |---|---|---|
-| **Primer Contacto** | `FORM_ID_PRIMER_CONTACTO` | 1 — Primer contacto · 2 — Seguimiento a Barreras · 3 — Identificación de Barreras *(condicional)* · 4 — Primera atención *(condicional: visible si "Continuar PA = Sí")* |
-| **Primera Atención** | `FORM_ID_PRIMERA_ATENCION` | 1 — Contacto · 2 — Seguimiento a Barreras · 3 — Identificación de Barreras *(condicional)* · 4 — Primera atención |
-| **Atención Psicosocial** *(antes "Seguimiento")* | `FORM_ID_SEGUIMIENTO` | 1 — Contacto · 2 — Seguimiento a Barreras · 3 — Identificación de Barreras *(condicional)* · 4 — Atención Psicosocial |
-| **Cierre** | `FORM_ID_CIERRE` | 1 — Contacto · 2 — Seguimiento a Barreras · 3 — Identificación de Barreras *(condicional)* · 4 — Atención Psicosocial (Cierre) · 5 — Cierre *(condicional: visible si "Cerrar remisión = Sí")* |
+| **Primer Contacto** | `FORM_ID_PRIMER_CONTACTO` | 1 Contacto · **2 OSIGHN** *(si Continuar PA y gatillo OSIGHN = sí)* · 3 Seg. Barreras · 4 Identif. Barreras · 5 Primera atención · 6 Derivación · 7 Cierre |
+| **Primera Atención** | `FORM_ID_PRIMERA_ATENCION` | 1 Contacto · **2 OSIGHN** · 3–4 Barreras · 5–6 Entidades · 7 Primera atención · 8 Derivación · 9 Cierre |
+| **Atención Psicosocial** *(antes "Seguimiento")* | `FORM_ID_SEGUIMIENTO` | 1 Contacto · **2 OSIGHN** · 3–4 Barreras · 5–6 Entidades · 7 Atención Psicosocial · 8 Derivación · 9 Cierre |
+| **Cierre** | `FORM_ID_CIERRE` | 1 Contacto · **2 OSIGHN** · 3–4 Barreras · 5–6 Entidades · 7 Atención (Cierre) · 8 Derivación · 9 Cierre |
 
 > Los Form IDs se generan con el seed y se almacenan como constantes en el backend Go. La constante `FORM_ID_SEGUIMIENTO` conserva su nombre en el código aunque el formulario ahora se muestre como "Atención Psicosocial".
 >
 > **Jul 2026:** Se agregaron las secciones "Seguimiento a Barreras" e "Identificación de Barreras" a los 4 formularios, replicando la funcionalidad del Formulario de Seguimiento (`DocsMD/Screens/hacer-seguimiento/`). Ver detalle en [Comportamiento de registro de Barreras](#comportamiento-de-registro-de-barreras-jul-2026) más abajo.
 >
 > **Jul 2026 (ajuste 4):** El formulario "Seguimiento" se renombró a **"Atención Psicosocial"** (junto con sus secciones internas que contenían la palabra "Seguimiento"). Ver [Decisión: Rebranding "Seguimiento" → "Atención Psicosocial"](#decisión-rebranding-seguimiento--atención-psicosocial-y-limpieza-de-preguntas-jul-2026).
+>
+> **Sep 2026:** Sección **OSIGHN** como S2 en los 4 forms. Ver [`changelogSep2026.md`](changelogSep2026.md) y [`form-psicosocial-data.md`](form-psicosocial-data.md).
 
 ---
 
@@ -163,19 +165,17 @@ La visibilidad de las secciones de contenido se controla con `visibility_conditi
 
 | Formulario | Sección controlada | Trigger | Valor |
 |---|---|---|---|
-| Primer Contacto | Sección 4 — Primera Atención | `Continuar Primera Atención` | `true` |
-| Primera Atención | Sección 4 — Primera Atención | `¿Es atención o solo contacto?` (Q8) | `atencion` |
-| Atención Psicosocial | Sección 4 — Atención Psicosocial | `¿Es atención o solo contacto?` (Q9) | `atencion` |
-| Cierre | Sección 4 — Atención Psicosocial (Cierre) | `¿Es atención o solo contacto?` (Q9) | `atencion` |
-| Cierre | Sección 5 — Cierre | `Cerrar remisión` | `true` |
-| Primer Contacto | Sección 3 — Identificación de Barreras | `Desde la atención anterior...` | `true` |
-| Primera Atención | Sección 3 — Identificación de Barreras | `Desde la atención anterior...` (Q11) | `true` |
-| Atención Psicosocial / Cierre | Sección 3 — Identificación de Barreras | `Desde la atención anterior...` (Q12) | `true` |
+| Primer Contacto | S2 — OSIGHN | Pregunta gatillo OSIGHN (tras Continuar PA) | `si` |
+| Primera Atención / Atención / Cierre | S2 — OSIGHN | Pregunta gatillo OSIGHN (tras Es atención) | `si` |
+| Primer Contacto | Primera Atención / Derivación | `Continuar Primera Atención` | `true` |
+| Primera Atención / Atención / Cierre | Contenido / Derivación | `¿Es atención o solo contacto?` | `atencion` |
+| Todos | Identificación de Barreras | `Desde la atención anterior...` | `true` |
+| Todos | Cierre | `Cerrar remisión` | `true` |
 
 La pregunta "Fecha nueva" en PA/SEG/CIE solo es visible cuando se selecciona `solo_contacto`.
 La pregunta "Fecha próxima atención" en PC-S1 solo es visible cuando "Continuar Primera Atención = No".
 
-> **Sección 2 — Seguimiento a Barreras** no tiene `visibility_condition` basada en pregunta: permanece siempre habilitada en los 4 formularios. Su visibilidad real (mostrar u ocultar según si el caso tiene barreras activas) depende de `formState` externo — decisión pendiente, igual que en `DocsMD/Screens/hacer-seguimiento/form-seguimiento-barreras-repeater.md`.
+> **Sección 2 — OSIGHN** (Sep 2026) se muestra cuando la pregunta gatillo de Contacto = `si`. **Seguimiento a Barreras** pasa a S3: no tiene `visibility_condition` basada en pregunta; visibilidad real vía `formState` / `currentBarriers`.
 
 ---
 

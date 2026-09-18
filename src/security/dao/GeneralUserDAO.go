@@ -185,14 +185,14 @@ func SetGeneralUser(user *GeneralUserDTO, connData *db.ConnData, clientConfig *d
 	}
 
 	// Se define la lista de campos que se insertarán en la BD.
-	var usrFieldsSlice []string = []string{"GeneralUserICode", "GeneralUserCreationDate", "GeneralUserUpdateDate", "GeneralUserLogin", "GeneralUserPassword", "GeneralUserStatus", "GeneralUserLanguage", "GeneralUserGeneralUserProfile", "GeneralUserAssignedDepartment", "GeneralUserEntityBranchId", "GeneralUserArticulatingMechanismId"}
+	var usrFieldsSlice []string = []string{"GeneralUserICode", "GeneralUserCreationDate", "GeneralUserUpdateDate", "GeneralUserLogin", "GeneralUserPassword", "GeneralUserStatus", "GeneralUserLanguage", "GeneralUserGeneralUserProfile", "GeneralUserTeam", "GeneralUserAssignedDepartment", "GeneralUserEntityBranchId", "GeneralUserArticulatingMechanismId"}
 	var usrFieldsAliasSlice []string = []string{}
 
 	// Se genera la query de inserción utilizando la función GetSQL.
 	var query string = common_dao.GetSQL(common_dao.SQL_INSERT, usrFieldsSlice, usrFieldsAliasSlice, GeneralUserDBName, []string{}, []string{}, []string{"GeneralUserId"}, common_dao.SQL_AND, GeneralUserDBScheme, GeneralUserFieldDefinitions, false)
 
 	// Se ejecuta la query con los parámetros correspondientes.
-	persistenceCtrl.QueryRow(context.Background(), query, user.GeneralUserICode, user.GeneralUserCreationDate.Format(common_config.DateTime.DB_DATE_TIME_FORMAT), user.GeneralUserUpdateDate.Format(common_config.DateTime.DB_DATE_TIME_FORMAT), user.GeneralUserLogin, user.GeneralUserPassword, user.GeneralUserStatus, user.GeneralUserLanguage, profileId, user.GeneralUserAssignedDepartment, entityBranchID, articulatingMechanismID)
+	persistenceCtrl.QueryRow(context.Background(), query, user.GeneralUserICode, user.GeneralUserCreationDate.Format(common_config.DateTime.DB_DATE_TIME_FORMAT), user.GeneralUserUpdateDate.Format(common_config.DateTime.DB_DATE_TIME_FORMAT), user.GeneralUserLogin, user.GeneralUserPassword, user.GeneralUserStatus, user.GeneralUserLanguage, profileId, user.GeneralUserTeam, user.GeneralUserAssignedDepartment, entityBranchID, articulatingMechanismID)
 	persistenceCtrl.Scan(&user.GeneralUserId)
 
 	if persistenceCtrl.Error != nil {
@@ -228,7 +228,7 @@ func UpdateGeneralUserByICode(user *GeneralUserDTO, connData *db.ConnData, clien
 	}
 
 	// Se definen los campos que se actualizarán.
-	var usrFieldsSlice []string = []string{"GeneralUserUpdateDate", "GeneralUserPassword", "GeneralUserLanguage", "GeneralUserStatus", "GeneralUserAssignedDepartment", "GeneralUserEntityBranchId", "GeneralUserArticulatingMechanismId"}
+	var usrFieldsSlice []string = []string{"GeneralUserUpdateDate", "GeneralUserPassword", "GeneralUserLanguage", "GeneralUserStatus", "GeneralUserTeam", "GeneralUserAssignedDepartment", "GeneralUserEntityBranchId", "GeneralUserArticulatingMechanismId"}
 	var usrFieldsAliasSlice []string = []string{}
 
 	// Se genera la query de actualización utilizando la función GetSQL.
@@ -236,7 +236,7 @@ func UpdateGeneralUserByICode(user *GeneralUserDTO, connData *db.ConnData, clien
 
 	// Se ejecuta la query con los parámetros correspondientes.
 	persistenceCtrl.Exec(context.Background(), query,
-		user.GeneralUserICode, user.GeneralUserUpdateDate.Format(common_config.DateTime.DB_DATE_TIME_FORMAT), user.GeneralUserPassword, user.GeneralUserLanguage, user.GeneralUserStatus, user.GeneralUserAssignedDepartment, entityBranchID, articulatingMechanismID)
+		user.GeneralUserICode, user.GeneralUserUpdateDate.Format(common_config.DateTime.DB_DATE_TIME_FORMAT), user.GeneralUserPassword, user.GeneralUserLanguage, user.GeneralUserStatus, user.GeneralUserTeam, user.GeneralUserAssignedDepartment, entityBranchID, articulatingMechanismID)
 
 	if persistenceCtrl.Error != nil {
 		fmt.Println("SQL Query: ", query)

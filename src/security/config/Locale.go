@@ -131,6 +131,7 @@ var Locale = map[string]map[string]string{
 		"security_general_user_mechanism_city":   "Por favor seleccione una ciudad",
 		"security_general_user_assigned_department": "Por favor seleccione un departamento",
 		"security_general_user_branch_not_found": "No se encontró la entidad",
+		"security_general_user_team_required":    "Por favor seleccione un equipo",
 	},
 }
 

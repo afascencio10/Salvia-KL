@@ -57,11 +57,58 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 - Al responder Fecha+Hora, el frontend consulta disponibilidad (ventana 2h, individual/dupla). Mensaje informativo solo si no hay cupo. Al guardar, si no hay cupo (o Agendar=No) **no** se crea `team_contact` agendado.
 - Seed/migración: `seed_psicosocial.sql` + `migrate_psicosocial_aug2026.sql`. UUIDs de Agendar/Hora en `src/internal/constants/psicosocial_agenda_questions.go`.
 
+**Decisión del líder — ajuste 6, sección OSIGHN (Sep 2026):**
+- En Contacto, si la sesión es **atención** (PC: Continuar Primera Atención = Sí; PA/SEG/CIE: ¿Es atención o solo contacto? = Atención), se muestra **¿Tiene una orientación sexual e identidad de género no hegemónicas (OSIGHN)?** (Sí/No).
+- Si = Sí → sección **OSIGHN** como **S2** (el resto de secciones se recorre +1). Preguntas: hoja `FORMULARIO OSIGHN` del Excel 14-09-2026, **sin** tipo ni número de documento (retiradas 2026-09-17).
+- Primer Contacto no tiene «¿Es atención o solo contacto?»; el equivalente es Continuar Primera Atención.
+- Migración: `src/cmd/seed/migrate_psicosocial_osighn_sep2026.sql` + `migrate_psicosocial_osighn_drop_doc_sep2026.sql`. UUIDs en `src/internal/constants/psicosocial_osighn_questions.go`.
+- Catálogo vivo (BD pruebas): PC tiene 7 secciones; PA/Atención/Cierre tienen 9 (incluyen Entidades, Derivación y Cierre además de Barreras). Docs históricas debajo hablan de 4–5 secciones; el orden real está en [Estado vivo Sep 2026](#estado-vivo-sep-2026).
+
+---
+
+## Estado vivo Sep 2026
+
+Fuente: BD de pruebas (Supabase) + `migrate_psicosocial_osighn_sep2026.sql`.
+
+| Form | Orden de secciones |
+|---|---|
+| Primer Contacto | 1 Contacto · **2 OSIGHN** · 3 Seg. Barreras · 4 Identif. Barreras · 5 Primera Atención · 6 Derivación · 7 Cierre |
+| Primera Atención | 1 Contacto · **2 OSIGHN** · 3 Seg. Barreras · 4 Identif. Barreras · 5 Seg. Entidades · 6 Identif. Entidades · 7 Primera Atención · 8 Derivación · 9 Cierre |
+| Atención Psicosocial | igual que PA, S7 = Atención Psicosocial |
+| Cierre | igual que PA, S7 = Atención Psicosocial (Cierre) |
+
+OSIGHN visible si la pregunta gatillo de Contacto = `si`. Identificación de Barreras, contenido, Derivación y Cierre conservan sus VC previas (apuntan a UUID de sección, no al `order`).
+
+### Pregunta gatillo (Contacto S1)
+
+| Form | Tras | Order | Visible si |
+|---|---|---|---|
+| PC | Continuar Primera Atención (Q12) | 13 | Q12 = `true` |
+| PA | ¿Es atención o solo contacto? (Q8) | 9 | Q8 = `atencion` |
+| SEG / CIE | ¿Es atención o solo contacto? (Q9) | 10 | Q9 = `atencion` |
+
+Texto: `¿Tiene una orientación sexual e identidad de género no hegemónicas (OSIGHN)?` — `single` Sí/`si` · No/`no`.
+
+### Sección OSIGHN (misma en los 4 forms)
+
+| # | Pregunta | Tipo | Req | Notas |
+|---|---|---|---|---|
+| 1 | Recordatorio nombre identitario vs jurídico | info | ❌ | Banner |
+| 2 | ¿Con qué nombre se identifica o prefiere que le llamemos? | text | ✅ | |
+| 3 | ¿Cuáles son los nombres y apellidos que aparecen en su documento de identidad? | text | ✅ | |
+| 4 | ¿Con qué pronombre(es) prefieres que me refiera a ti? | single | ✅ | Ella / El / Elle |
+| 5 | Identidad de Género | single | ✅ | Incluye **Otro** (comentario del Excel) |
+| 6 | ¿Cuál? | text | ✅ | *visible si Q5 = `otro`* |
+| 7 | Sexo asignado al nacer | single | ✅ | Hombre / Mujer / Intersexual |
+| 8 | Orientación sexual | single | ✅ | Gay / Lesbiana / Bisexual / Pansexual / Heterosexual / No sabe |
+
+> 2026-09-17: se retiraron Tipo de documento y Número de documento (antes Q1/Q2). El resto conserva sus UUIDs (`…x03`–`…x10`) y pasa a order 1–8.
+
 ---
 
 ## Form 1: Primer Contacto
 
-**Secciones:** 6 (S3, S4 y S5 ocultas por defecto — Sep 2026: +S5 Derivación, Cierre = S6)
+**Secciones:** 7 (catálogo vivo Sep 2026; OSIGHN, Identif. Barreras, Primera Atención, Derivación y Cierre condicionales)
 
 ### Sección 1 — Primer contacto
 
@@ -80,13 +127,18 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 | 9 | Hay nuevos hechos de violencia | boolean | ✅ | — |
 | 10 | Descripción de los hechos | text | ❌ | *visible si Q9 = true* |
 | 11 | Fecha (de los hechos) | date | ❌ | *visible si Q9 = true* |
-| 12 | Continuar Primera Atención | boolean | ✅ | **Gatillo de visibilidad de S4**: Si = true → S4 aparece en este mismo formulario |
-| 13 | ¿Agendar nueva sesión? | single | ✅ | Sí / No — *visible si Q5 = Sí **Y** Q12 = No* |
-| 14 | Fecha próxima atención | date | ✅ | *visible si Q13 = Sí* |
-| 15 | Hora próxima atención | time | ✅ | *visible si Q13 = Sí* |
-| 16 | Desde la atención anterior se han identificado barreras institucionales | boolean | ✅ | **ÚLTIMA** — *visible si Q12 = Sí* — **gatillo de visibilidad de S3** |
+| 12 | Continuar Primera Atención | boolean | ✅ | **Gatillo de visibilidad de Primera Atención / Derivación**: Si = true → esas secciones aparecen en este mismo formulario |
+| 13 | ¿Tiene una orientación sexual e identidad de género no hegemónicas (OSIGHN)? | single | ✅ | Sí / No — *visible si Q12 = Sí* — **gatillo de S2 OSIGHN** |
+| 14 | ¿Agendar nueva sesión? | single | ✅ | Sí / No — *visible si Q5 = Sí **Y** Q12 = No* |
+| 15 | Fecha próxima atención | date | ✅ | *visible si Q14 = Sí* |
+| 16 | Hora próxima atención | time | ✅ | *visible si Q14 = Sí* |
+| 17 | Desde la atención anterior se han identificado barreras institucionales | boolean | ✅ | **ÚLTIMA** — *visible si Q12 = Sí* — **gatillo de Identificación de Barreras** |
 
-### Sección 2 — Seguimiento a Barreras *(nueva, Jul 2026)*
+### Sección 2 — OSIGHN *(nueva, Sep 2026)*
+
+> **Visibilidad:** gatillo S1 (pregunta OSIGHN) = `si`. Preguntas: ver [Estado vivo Sep 2026](#estado-vivo-sep-2026).
+
+### Sección 3 — Seguimiento a Barreras *(Jul 2026; era S2)*
 
 > **Visibilidad de sección:** No depende de ninguna pregunta de este formulario. Permanece habilitada sin importar la respuesta de Q14. Su visibilidad real (si el caso tiene barreras activas) queda pendiente de resolver vía formState externo, igual que en el Formulario de Seguimiento.
 >
@@ -142,7 +194,7 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 
 ## Form 2: Primera Atención
 
-**Secciones:** 8 (S3, S6 y S7 ocultas por defecto — Sep 2026: Derivación = S7, Cierre = S8; Entidades = S4–S5)
+**Secciones:** 9 (catálogo vivo Sep 2026)
 
 > Este formulario se usa **únicamente en Escenario B**: segunda llamada independiente donde `ya_hizo_primer_contacto = true` y `ya_hizo_primera_atencion = false`. La Primera Atención realizada dentro del Primer Contacto (Escenario A, Continuar = Sí) ya no usa este formulario.
 
@@ -157,14 +209,19 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 | 5 | Hay nuevos hechos de violencia | boolean | ✅ | *visible si Q2 = Sí* |
 | 6 | Descripción de los hechos | text | ❌ | *visible si Q5 = true* |
 | 7 | Fecha (de los hechos) | date | ❌ | *visible si Q5 = true* |
-| 8 | ¿Es atención o solo contacto? | single | ✅ | Atención / Solo Contacto — **gatillo de visibilidad de Sección 4** |
-| 9 | Observaciones del contacto | text | ❌ | Visible siempre |
-| 10 | ¿Agendar nueva sesión? | single | ✅ | Sí / No — *visible si Q8 = Solo Contacto* |
-| 11 | Fecha nueva | date | ❌ | *visible si Q10 = Sí* |
-| 12 | Hora próxima atención | time | ✅ | *visible si Q10 = Sí* |
-| 13 | Desde la atención anterior se han identificado barreras institucionales | boolean | ✅ | **ÚLTIMA** — *visible si Q8 = Atención* — **gatillo S3** |
+| 8 | ¿Es atención o solo contacto? | single | ✅ | Atención / Solo Contacto — **gatillo de visibilidad de contenido / Derivación** |
+| 9 | ¿Tiene una orientación sexual e identidad de género no hegemónicas (OSIGHN)? | single | ✅ | Sí / No — *visible si Q8 = Atención* — **gatillo de S2 OSIGHN** |
+| 10 | Observaciones del contacto | text | ❌ | Visible siempre |
+| 11 | ¿Agendar nueva sesión? | single | ✅ | Sí / No — *visible si Q8 = Solo Contacto* |
+| 12 | Fecha nueva | date | ❌ | *visible si Q11 = Sí* |
+| 13 | Hora próxima atención | time | ✅ | *visible si Q11 = Sí* |
+| 14 | Desde la atención anterior se han identificado barreras institucionales | boolean | ✅ | **ÚLTIMA** — *visible si Q8 = Atención* — **gatillo Identif. Barreras** |
 
-### Sección 2 — Seguimiento a Barreras *(nueva, Jul 2026)*
+### Sección 2 — OSIGHN *(nueva, Sep 2026)*
+
+> Visible si Q9 = Sí. Ver [Estado vivo Sep 2026](#estado-vivo-sep-2026).
+
+### Sección 3 — Seguimiento a Barreras *(Jul 2026; era S2)*
 
 > **Visibilidad de sección:** Habilitada siempre; visibilidad real vía `formState.currentBarriers` (§9.5).
 >
@@ -216,7 +273,7 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 
 ## Form 3: Atención Psicosocial *(antes "Seguimiento" — renombrado Jul 2026)*
 
-**Secciones:** 8 (S3, S6 y S7 ocultas por defecto — Sep 2026: Derivación = S7, Cierre = S8; Entidades = S4–S5)
+**Secciones:** 9 (catálogo vivo Sep 2026)
 
 ### Sección 1 — Contacto Atención Psicosocial *(antes "Contacto Seguimiento")*
 
@@ -230,22 +287,27 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 | 6 | Hay nuevos hechos de violencia | boolean | ✅ | *visible si Q2 = Sí* |
 | 7 | Descripción de los hechos | text | ❌ | *visible si Q6 = true* |
 | 8 | Fecha (de los hechos) | date | ❌ | *visible si Q6 = true* |
-| 9 | ¿Es atención o solo contacto? | single | ✅ | Atención / Solo Contacto — **gatillo de visibilidad de Sección 4** |
-| 10 | Observaciones del contacto | text | ❌ | Visible siempre |
-| 11 | ¿Agendar nueva sesión? | single | ✅ | *visible si Q9 = Solo Contacto* |
-| 12 | Fecha nueva | date | ❌ | *visible si Q11 = Sí* |
-| 13 | Hora próxima atención | time | ✅ | *visible si Q11 = Sí* |
-| 14 | Desde la atención anterior se han identificado barreras institucionales | boolean | ✅ | **ÚLTIMA** — *visible si Q9 = Atención* — **gatillo S3** |
+| 9 | ¿Es atención o solo contacto? | single | ✅ | Atención / Solo Contacto — **gatillo de visibilidad de contenido / Derivación** |
+| 10 | ¿Tiene una orientación sexual e identidad de género no hegemónicas (OSIGHN)? | single | ✅ | Sí / No — *visible si Q9 = Atención* — **gatillo de S2 OSIGHN** |
+| 11 | Observaciones del contacto | text | ❌ | Visible siempre |
+| 12 | ¿Agendar nueva sesión? | single | ✅ | *visible si Q9 = Solo Contacto* |
+| 13 | Fecha nueva | date | ❌ | *visible si Q12 = Sí* |
+| 14 | Hora próxima atención | time | ✅ | *visible si Q12 = Sí* |
+| 15 | Desde la atención anterior se han identificado barreras institucionales | boolean | ✅ | **ÚLTIMA** — *visible si Q9 = Atención* — **gatillo Identif. Barreras** |
 
-### Sección 2 — Seguimiento a Barreras *(nombre fijo)*
+### Sección 2 — OSIGHN *(nueva, Sep 2026)*
+
+> Visible si Q10 = Sí. Ver [Estado vivo Sep 2026](#estado-vivo-sep-2026).
+
+### Sección 3 — Seguimiento a Barreras *(nombre fijo)*
 
 > Visibilidad real vía `formState.currentBarriers`. Post-submit §9.6.
 
-### Sección 3 — Identificación de Barreras
+### Sección 4 — Identificación de Barreras
 
 > Visible cuando pregunta de barreras (S1) = Sí. Post-submit: barrera + tareas.
 
-### Sección 4 — Atención Psicosocial *(antes "Seguimiento")*
+### Sección 7 — Atención Psicosocial *(antes "Seguimiento"; era S4)*
 
 > Visible cuando `¿Es atención o solo contacto? = Atención`.
 
@@ -277,13 +339,13 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 
 ## Form 4: Cierre
 
-**Secciones:** 8 (S3, S6, S7 y S8 ocultas por defecto — Sep 2026: Derivación = S7, Cierre = S8; Entidades = S4–S5)
+**Secciones:** 9 (catálogo vivo Sep 2026)
 
 > Tiene las mismas secciones de Seguimiento (Contacto + Barreras + Seguimiento) más la sección de Cierre. Aplica cuando `session_count >= 3`.
 
 ### Sección 1 — Contacto Cierre
 
-*(Idéntica a Sección 1 del Form Atención Psicosocial, incluyendo la pregunta de barreras)*
+*(Idéntica a Sección 1 del Form Atención Psicosocial, incluyendo la pregunta de barreras y el gatillo OSIGHN)*
 
 | # | Pregunta | Tipo | Req | Opciones / Notas |
 |---|---|---|---|---|
@@ -295,22 +357,27 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 | 6 | Hay nuevos hechos de violencia | boolean | ✅ | *visible si Q2 = Sí* |
 | 7 | Descripción de los hechos | text | ❌ | *visible si Q6 = true* |
 | 8 | Fecha (de los hechos) | date | ❌ | *visible si Q6 = true* |
-| 9 | ¿Es atención o solo contacto? | single | ✅ | Atención / Solo Contacto — **gatillo de visibilidad de Sección 4** |
-| 10 | Observaciones del contacto | text | ❌ | Visible siempre |
-| 11 | ¿Agendar nueva sesión? | single | ✅ | *visible si Q9 = Solo Contacto* |
-| 12 | Fecha nueva | date | ❌ | *visible si Q11 = Sí* |
-| 13 | Hora próxima atención | time | ✅ | *visible si Q11 = Sí* |
-| 14 | Desde la atención anterior se han identificado barreras institucionales | boolean | ✅ | **ÚLTIMA** — *visible si Q9 = Atención* — **gatillo S3** |
+| 9 | ¿Es atención o solo contacto? | single | ✅ | Atención / Solo Contacto — **gatillo de visibilidad de contenido / Derivación** |
+| 10 | ¿Tiene una orientación sexual e identidad de género no hegemónicas (OSIGHN)? | single | ✅ | Sí / No — *visible si Q9 = Atención* — **gatillo de S2 OSIGHN** |
+| 11 | Observaciones del contacto | text | ❌ | Visible siempre |
+| 12 | ¿Agendar nueva sesión? | single | ✅ | *visible si Q9 = Solo Contacto* |
+| 13 | Fecha nueva | date | ❌ | *visible si Q12 = Sí* |
+| 14 | Hora próxima atención | time | ✅ | *visible si Q12 = Sí* |
+| 15 | Desde la atención anterior se han identificado barreras institucionales | boolean | ✅ | **ÚLTIMA** — *visible si Q9 = Atención* — **gatillo Identif. Barreras** |
 
-### Sección 2 — Seguimiento a Barreras *(nombre fijo)*
+### Sección 2 — OSIGHN *(nueva, Sep 2026)*
+
+> Visible si Q10 = Sí. Ver [Estado vivo Sep 2026](#estado-vivo-sep-2026).
+
+### Sección 3 — Seguimiento a Barreras *(nombre fijo)*
 
 > Visibilidad real vía `formState.currentBarriers`. Post-submit §9.6.
 
-### Sección 3 — Identificación de Barreras
+### Sección 4 — Identificación de Barreras
 
 > Visible cuando pregunta de barreras (S1) = Sí.
 
-### Sección 4 — Atención Psicosocial (en Cierre)
+### Sección 7 — Atención Psicosocial (en Cierre)
 
 > Visible cuando `¿Es atención o solo contacto? = Atención`.
 
@@ -416,25 +483,19 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 
 ## Resumen de visibilidad de secciones
 
+Orden real Sep 2026 (OSIGHN = S2). Las VC de secciones previas no cambian: apuntan a UUID.
+
 | Formulario | Sección | Trigger | Condición |
 |---|---|---|---|
-| Form 1 — Primer Contacto | S2 — Seguimiento a Barreras | *(ninguno — pendiente formState externo)* | siempre habilitada |
-| Form 1 — Primer Contacto | S3 — Identificación de Barreras | S1-Q14 Desde la atención anterior... | `= true` |
-| Form 1 — Primer Contacto | S4 — Primera Atención | S1-Q12 Continuar Primera Atención | `= true` |
-| Form 2 — Primera Atención | S2 — Seguimiento a Barreras | *(ninguno — pendiente formState externo)* | siempre habilitada |
-| Form 2 — Primera Atención | S3 — Identificación de Barreras | S1-Q11 Desde la atención anterior... | `= true` |
-| Form 2 — Primera Atención | S4 — Primera Atención | S1-Q8 ¿Es atención o solo contacto? | `= atencion` |
-| Form 3 — Atención Psicosocial | S2 — Seguimiento a Barreras | *(ninguno — pendiente formState externo)* | siempre habilitada |
-| Form 3 — Atención Psicosocial | S3 — Identificación de Barreras | S1-Q12 Desde la atención anterior... | `= true` |
-| Form 3 — Atención Psicosocial | S4 — Atención Psicosocial | S1-Q9 ¿Es atención o solo contacto? | `= atencion` |
-| Form 4 — Cierre | S2 — Seguimiento a Barreras | *(ninguno — pendiente formState externo)* | siempre habilitada |
-| Form 4 — Cierre | S3 — Identificación de Barreras | S1-Q12 Desde la atención anterior... | `= true` |
-| Form 4 — Cierre | S4 — Atención Psicosocial (Cierre) | S1-Q9 ¿Es atención o solo contacto? | `= atencion` |
-| Form 4 — Cierre | S8 — Cierre | S4-Q6 Cerrar remisión | `= true` (y S4 visible) |
-| Form 1 — Primer Contacto | **S5 — Derivación a equipos SALVIA** | S1-Q12 Continuar Primera Atención | `= true` |
-| Form 2 — Primera Atención | **S7 — Derivación a equipos SALVIA** | S1-Q8 ¿Es atención o solo contacto? | `= atencion` |
-| Form 3 — Atención Psicosocial | **S7 — Derivación a equipos SALVIA** | S1-Q9 ¿Es atención o solo contacto? | `= atencion` |
-| Form 4 — Cierre | **S7 — Derivación a equipos SALVIA** | S1-Q9 ¿Es atención o solo contacto? | `= atencion` |
+| Los 4 | S2 — OSIGHN | Pregunta gatillo OSIGHN (Contacto) | `= si` |
+| Form 1 | Identificación de Barreras | Desde la atención anterior... | `= true` |
+| Form 1 | Primera Atención / Derivación | Continuar Primera Atención | `= true` |
+| Form 1 | Cierre | Cerrar remisión | `= true` |
+| Form 2/3/4 | Identificación de Barreras | Desde la atención anterior... | `= true` |
+| Form 2/3/4 | Seguimiento a Entidades | `formState.hasCurrentEntities` | `= true` |
+| Form 2/3/4 | Contenido (PA / Atención / Atención Cierre) / Derivación | ¿Es atención o solo contacto? | `= atencion` |
+| Form 2/3/4 | Cierre | Cerrar remisión | `= true` |
+| Los 4 | Seguimiento a Barreras | *(formState `currentBarriers`)* | habilitada; visibilidad real vía estado externo |
 
 > Las secciones "Seguimiento a Barreras" e "Identificación de Barreras" son idénticas (misma estructura, preguntas, opciones y repeaters) en los 4 formularios — ver `DocsMD/Screens/hacer-seguimiento/form-seguimiento-barreras-repeater.md` y `form-barreras-repeater.md`.
 > La sección "Derivación a equipos SALVIA" también es idéntica en los 4 formularios, con UUIDs fijos de preguntas distintos por formulario (serie `d1000NXX`).
@@ -445,14 +506,14 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 
 > Nota (Jul 2026): "Seguimiento a Barreras" agrega 1 repeater group con 7 preguntas por entrada; "Identificación de Barreras" agrega 1 repeater group con 22 preguntas por entrada (mín. 1 repetición). Estas 2 secciones se repiten idénticas en los 4 formularios.
 
-| Formulario | Secciones | Preguntas (fuera de repeaters) | Opciones |
-|---|---|---|---|
-| Form 1: Primer Contacto | 6 (S3, S4 y S5 condicionales) | 14 (S1) + 12 (S4) + 7 (S5) = 33 | ~18 |
-| Form 2: Primera Atención | 8 (S3, S6 y S7 condicionales) | 11 (S1) + 12 (S6) + 7 (S7) = 30 | ~23 |
-| Form 3: Atención Psicosocial | 8 (S3, S6 y S7 condicionales) | 12 (S1) + 5 (S6) + 7 (S7) = 24 | ~17 |
-| Form 4: Cierre | 8 (S3, S6, S7 y S8 condicionales) | 12 (S1) + 6 (S6) + 7 (S7) + 7 (S8 Cierre) = 32 | ~22 |
-| **Total (fuera de barreras)** | **21** | **~119** | **~80** |
-| **+ Barreras (x4 formularios)** | 8 secciones (2 x 4) | +29 preguntas de repeater x 4 = +116 | ~15 por repeater |
+> Sep 2026: +1 sección OSIGHN × 4 forms; +1 pregunta gatillo en cada Contacto; +8 preguntas OSIGHN × 4 (tipo/número de documento retirados el 17-09).
+
+| Formulario | Secciones | Preguntas OSIGHN (fuera de repeaters de barreras/entidades) |
+|---|---|---|
+| Form 1: Primer Contacto | 7 (OSIGHN, Identif. Barreras, PA, Derivación, Cierre condicionales) | gatillo S1 + 8 en S2 |
+| Form 2: Primera Atención | 9 | igual |
+| Form 3: Atención Psicosocial | 9 | igual |
+| Form 4: Cierre | 9 | igual |
 
 > Jul 2026 (ajuste 4): Form 1/2 S4 pasó de 14 a 12 preguntas (-2, ajuste razonable/intérprete eliminadas). Form 3/4 S1 pasó de 11 a 12 preguntas (+1, "¿individual o en dupla?" agregada).
 > Sep 2026 (ajuste 6): Se agregan 7 preguntas de "Derivación a equipos SALVIA" después de la sección de atención y antes de Cierre (condicional — misma visibilidad que la sección de contenido). El `order` no se comparte con Entidades ni con Cierre.
