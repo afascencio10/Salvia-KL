@@ -25,22 +25,28 @@
         </div>
 
         <nav class="salvia-sidebar__nav" aria-label="Navegación principal">
-            {{/* Los roles psicosociales (ps, ts) no tienen get_victim_cases ni
-                 get_list_cases: estas pantallas les responden 401. */}}
+            {{/* Reportes exige get_victim_cases; ps y ts no lo tienen. */}}
             {{ if and (ne .currentRole "ps") (ne .currentRole "ts") }}
             <a href="/salvia/casos" class="salvia-sidebar__nav-link">
                 <i class="fas fa-home" aria-hidden="true"></i>
                 <span>Reportes</span>
             </a>
+            {{ end }}
+            {{/* Lista Casos: get_list_cases incluye ps y ts. */}}
             <a href="/salvia/lista-casos" class="salvia-sidebar__nav-link">
                 <i class="fas fa-list" aria-hidden="true"></i>
                 <span>Lista Casos</span>
             </a>
-            {{ end }}
             {{ if or (eq .currentRole "ps") (eq .currentRole "ts") }}
             <a href="/salvia/mis-remisiones-psicosocial" class="salvia-sidebar__nav-link">
                 <i class="fas fa-hand-holding-heart" aria-hidden="true"></i>
                 <span>Mis remisiones</span>
+            </a>
+            {{ end }}
+            {{ if eq .currentRole "sv" }}
+            <a href="/salvia/historial-remisiones" class="salvia-sidebar__nav-link">
+                <i class="fas fa-hand-holding-heart" aria-hidden="true"></i>
+                <span>Historial remisiones</span>
             </a>
             {{ end }}
             {{ if eq .currentRole "ro" }}
@@ -72,6 +78,12 @@
             <a href="/salvia/calendario-psicosocial" class="salvia-sidebar__nav-link">
                 <i class="fas fa-calendar-alt" aria-hidden="true"></i>
                 <span>Calendario</span>
+            </a>
+            {{ end }}
+            {{ if or (eq .currentRole "op") (eq .currentRole "ro") (eq .currentRole "et") (eq .currentRole "sv") (eq .currentRole "no") (eq .currentRole "do") (eq .currentRole "us") (eq .currentRole "fo") (eq .currentRole "ad") (eq .currentRole "an") (eq .currentRole "ps") (eq .currentRole "ts") (eq .currentRole "ab") (eq .currentRole "mn") }}
+            <a href="/salvia/directorio-entidades" class="salvia-sidebar__nav-link">
+                <i class="fas fa-map-marked-alt" aria-hidden="true"></i>
+                <span>Directorio</span>
             </a>
             {{ end }}
             {{ if eq .currentRole "en" }}

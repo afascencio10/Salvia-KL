@@ -47,15 +47,14 @@ func CheckAndGetSession(c *gin.Context, permission string) *SessionContext {
 //     Además /salvia/casos exige get_victim_cases, permiso más restringido que
 //     el get_list_cases del listado.
 //   - Los roles que no trabajan sobre casos vuelven a su propio listado; para
-//     ellos ambas pantallas de casos responden 401.
+//     ellos /salvia/casos (Reportes) responde 401. ps y ts sí tienen
+//     get_list_cases, así que el fallback por defecto aplica también a ellos.
 func BackFallbackPath(role string) string {
 	switch role {
 	case "an":
 		return "/salvia/notificaciones"
 	case "en":
 		return "/salvia/mis-barreras"
-	case "ps", "ts":
-		return "/salvia/mis-remisiones-psicosocial"
 	}
 	return "/salvia/lista-casos"
 }

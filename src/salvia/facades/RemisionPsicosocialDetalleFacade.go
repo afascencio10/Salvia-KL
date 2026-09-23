@@ -4,31 +4,37 @@ import (
 	common_facades "bitsflow/common/facades"
 	"bitsflow/common/utils"
 	salvia_config "bitsflow/salvia/config"
-	"net/http"
 
-	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 )
 
+// remisionBackFallbackPath es el listado de origen según el rol:
+// supervisor (sv) entra desde Historial de Remisiones; ps/ts desde Mis remisiones.
+func remisionBackFallbackPath(role string) string {
+	if role == "sv" {
+		return "/salvia/historial-remisiones"
+	}
+	return "/salvia/mis-remisiones-psicosocial"
+}
+
 // RemisionPsicosocialDetalleGET renderiza la pantalla de detalle de una remisión psicosocial.
 // Ruta: GET /salvia/remision-psicosocial/:id
-// Acceso: cualquier usuario autenticado (sin restricción de rol).
+// Acceso: roles con permiso get_remision_psicosocial_detalle (ps, ts, sv).
 func RemisionPsicosocialDetalleGET(c *gin.Context) {
-	session := sessions.Default(c)
-	sessionIDVal := session.Get("userData")
-	if sessionIDVal == nil {
-		c.Redirect(http.StatusTemporaryRedirect, "/static/landing.html")
+	sc := CheckAndGetSession(c, "get_remision_psicosocial_detalle")
+	if sc == nil {
 		return
 	}
 
-	sessionID := sessionIDVal.(string)
-	s, err := utils.GetCommonSession(sessionID)
-	if err != nil {
-		c.Redirect(http.StatusTemporaryRedirect, "/static/landing.html")
-		return
-	}
+	common_facades.SetHeaderNoCache(c)
 
 	remisionId := c.Param("id")
+	vars := BaseTemplateVars(sc, sc.Session.Lang)
+	vars["windowTitle"] = "Detalle de Remisión Psicosocial"
+	vars["currentUserId"] = sc.Session.UserICode
+	vars["userTeam"] = sc.Session.Team
+	vars["remisionId"] = remisionId
+	vars["salviaBackFallbackPath"] = remisionBackFallbackPath(sc.Session.CurrentRole)
 
 	common_facades.RenderTemplate(
 		c,
@@ -40,16 +46,7 @@ func RemisionPsicosocialDetalleGET(c *gin.Context) {
 		utils.GetFullHtmlTemplates(),
 		utils.DEFAULT_VIEW,
 		utils.DEFAULT_PANIC_TEMPLATE,
-		map[string]interface{}{
-			"windowTitle":   "Detalle de Remisión Psicosocial",
-			"currentUser":   s.Names + " " + s.LastNames,
-			"currentRole":   s.CurrentRole,
-			"currentUserId": s.UserICode,
-			"userTeam":      s.Team,
-			"remisionId":    remisionId,
-			"locale":        salvia_config.Locale,
-			"lang":          s.Lang,
-		},
+		vars,
 		utils.GetFullHtmlFuncMap(),
 	)
 }

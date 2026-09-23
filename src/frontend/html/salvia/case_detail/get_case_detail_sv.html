@@ -275,6 +275,7 @@
             <div class="cd-deriv-header" style="border-bottom-color:#93c5fd">
               🩷 Psicosocial
               <span class="cd-count" style="color:#1d4ed8">${ psychosocialSupports.length } registro${ psychosocialSupports.length !== 1 ? 's' : '' }</span>
+              <button v-if="puedeReasignar" class="btn-crear-remision-psico" @click="abrirModalRemisionPsico">+ Crear remisión</button>
             </div>
             <div v-if="psychosocialSupports.length === 0" class="cd-deriv-empty">Sin registros</div>
             <div v-for="item in psychosocialSupports" :key="item.id" class="cd-deriv-item" style="flex-direction:column;align-items:stretch">
@@ -751,6 +752,31 @@
   </div>
 </div>
 
+<!-- ══ MODAL: CREAR REMISIÓN PSICOSOCIAL ══ -->
+<div v-if="modalRemisionPsico" class="ns-backdrop" @click.self="modalRemisionPsico = false">
+  <div class="ns-modal">
+    <div class="ns-header">
+      <div>
+        <p class="ns-title">Crear remisión a Atención Psicosocial</p>
+        <p class="ns-subtitle" v-if="caso">${ caso.victimCaseVictimName }</p>
+      </div>
+      <button class="ns-close" @click="modalRemisionPsico = false">✕</button>
+    </div>
+    <div class="ns-body">
+      <p style="margin:0;font-size:.88rem;color:#374151;line-height:1.5">
+        Se creará una remisión manual a Atención Psicosocial para este caso, con equipo remitente
+        <strong>Supervisor</strong>. ¿Desea continuar?
+      </p>
+    </div>
+    <div class="ns-footer">
+      <button class="ns-btn-cancel" @click="modalRemisionPsico = false">Cancelar</button>
+      <button class="ns-btn-save" :disabled="creandoRemisionPsico" @click="confirmarRemisionPsico">
+        ${ creandoRemisionPsico ? 'Creando...' : 'Confirmar' }
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL: REASIGNAR CASO ══ -->
 <div v-if="modalReasignar" class="ns-backdrop" @click.self="modalReasignar = false">
   <div class="ns-modal">
@@ -904,6 +930,8 @@ var home = Vue.createApp({
       modalReasignar: false,
       modalReabrir: false,
       reabriendo: false,
+      modalRemisionPsico: false,
+      creandoRemisionPsico: false,
       reasignarOperador: '',
       reasignando: false,
       autoAsignando: false,
@@ -1596,6 +1624,38 @@ var home = Vue.createApp({
         .catch(function() {
           self.reabriendo = false;
           self.showToast('error', 'Error de conexión al reabrir el caso');
+        });
+    },
+    abrirModalRemisionPsico() {
+      this.modalRemisionPsico = true;
+    },
+    confirmarRemisionPsico() {
+      var self = this;
+      self.creandoRemisionPsico = true;
+      fetch('/api/v1/psychosocial-support/manual', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ caseId: CASE_ICODE })
+      })
+        .then(function(res) {
+          if (res.ok) {
+            self.modalRemisionPsico = false;
+            self.creandoRemisionPsico = false;
+            self.showToast('success', 'Remisión a Atención Psicosocial creada correctamente');
+            self.cargarDatos();
+          } else {
+            return res.json().then(function(data) {
+              self.creandoRemisionPsico = false;
+              self.showToast('error', data.error || 'Error al crear la remisión');
+            }).catch(function() {
+              self.creandoRemisionPsico = false;
+              self.showToast('error', 'Error al crear la remisión');
+            });
+          }
+        })
+        .catch(function() {
+          self.creandoRemisionPsico = false;
+          self.showToast('error', 'Error de conexión al crear la remisión');
         });
     },
     guardarSeguimiento() {

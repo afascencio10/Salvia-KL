@@ -11,7 +11,9 @@ import (
 type BarrierV2 struct {
 	ID          string         `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	CaseID      string         `gorm:"type:varchar(36);not null" json:"caseId"`
-	FollowUpID  string         `gorm:"type:uuid;not null" json:"followUpId"`
+	// FollowUpID es nil cuando la barrera se identifica en un contacto psicosocial
+	// (no en un seguimiento) — ver TeamContactID para el origen en ese caso.
+	FollowUpID  *string        `gorm:"type:uuid;column:follow_up_id" json:"followUpId,omitempty"`
 	CreatedByID string         `gorm:"type:varchar(36);index" json:"createdById"`
 	Status      string         `gorm:"type:varchar(20);default:'OPEN'" json:"status"`
 	// TeamContactID identifica el salvia.team_contact (sesión psicosocial) en el que se

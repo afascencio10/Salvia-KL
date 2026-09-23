@@ -51,8 +51,8 @@ func (c *BarrierV2Controller) CreateHandler(w http.ResponseWriter, r *http.Reque
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "body inválido"})
 		return
 	}
-	if b.CaseID == "" || b.FollowUpID == "" || b.Sector == "" || b.Description == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "campos requeridos: case_id, follow_up_id, sector, description"})
+	if b.CaseID == "" || b.Sector == "" || b.Description == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "campos requeridos: case_id, sector, description"})
 		return
 	}
 	if err := c.svc.Create(r.Context(), &b); err != nil {

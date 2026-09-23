@@ -23,6 +23,7 @@ type VictimContactListFilters struct {
 	Names     string
 	LastNames string
 	Phone     string
+	Document  string
 }
 
 var (
@@ -90,6 +91,7 @@ type VictimContactPgDB struct {
 	VictimContactLongitude         sql.NullFloat64
 	VictimContactForm2VictimColPhone   sql.NullInt64
 	VictimContactForm2FactsDescription sql.NullString
+	VictimContactForm1DocNumber        sql.NullString
 }
 
 // MarshalJSON implementa la interfaz json.Marshaler para formatear las fechas con un formato específico.
@@ -333,12 +335,40 @@ func buildVictimContactsWithoutCaseWhere(victimContactPath, victimCasePath strin
 	}
 
 	if strings.TrimSpace(filters.Phone) != "" {
-		where += ` AND EXISTS (
-			SELECT 1 FROM ` + victimContactForm2Path + ` vcf2
-			WHERE vcf2.` + VictimContactForm2FieldDefinitions["VictimContactForm2VictimContact"].DBName + ` = ` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactId"].DBName + `
-			AND vcf2.` + VictimContactForm2FieldDefinitions["VictimContactForm2VictimColPhone"].DBName + `::text ILIKE $` + strconv.Itoa(argIndex) + `
+		// El teléfono del contacto puede estar en Form2 (victim_col_phone, reporte de
+		// tercero) O en Form1 (phone, reporte propio). Antes el filtro solo miraba
+		// Form2, por lo que un contacto que reportó por Form1 no aparecía al buscar
+		// por su teléfono aunque sí se mostrara en la lista y el detalle. Se busca en
+		// ambos formularios con el mismo valor ($argIndex).
+		victimContactForm1Path := VictimContactForm1DBScheme + "." + VictimContactForm1DBName
+		where += ` AND (
+			EXISTS (
+				SELECT 1 FROM ` + victimContactForm2Path + ` vcf2
+				WHERE vcf2.` + VictimContactForm2FieldDefinitions["VictimContactForm2VictimContact"].DBName + ` = ` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactId"].DBName + `
+				AND vcf2.` + VictimContactForm2FieldDefinitions["VictimContactForm2VictimColPhone"].DBName + `::text ILIKE $` + strconv.Itoa(argIndex) + `
+			)
+			OR EXISTS (
+				SELECT 1 FROM ` + victimContactForm1Path + ` vcf1
+				WHERE vcf1.` + VictimContactForm1FieldDefinitions["VictimContactForm1VictimContact"].DBName + ` = ` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactId"].DBName + `
+				AND vcf1.` + VictimContactForm1FieldDefinitions["VictimContactForm1Phone"].DBName + `::text ILIKE $` + strconv.Itoa(argIndex) + `
+			)
 		)`
 		args = append(args, "%"+strings.TrimSpace(filters.Phone)+"%")
+		argIndex++
+	}
+
+	if strings.TrimSpace(filters.Document) != "" {
+		// El número de documento del contacto solo se captura en Form1 (reporte
+		// propio); Form2 (reporte de tercero) NO tiene columna de documento, por lo
+		// que no se busca allí. Coincidencia parcial (ILIKE). Los contactos sin
+		// documento diligenciado no aparecen por este filtro.
+		victimContactForm1Path := VictimContactForm1DBScheme + "." + VictimContactForm1DBName
+		where += ` AND EXISTS (
+			SELECT 1 FROM ` + victimContactForm1Path + ` vcf1d
+			WHERE vcf1d.` + VictimContactForm1FieldDefinitions["VictimContactForm1VictimContact"].DBName + ` = ` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactId"].DBName + `
+			AND vcf1d.` + VictimContactForm1FieldDefinitions["VictimContactForm1DocNumber"].DBName + `::text ILIKE $` + strconv.Itoa(argIndex) + `
+		)`
+		args = append(args, "%"+strings.TrimSpace(filters.Document)+"%")
 	}
 
 	return where, args
@@ -350,6 +380,18 @@ func victimContactForm2ListSubquery(victimContactPath, form2FieldDBName string) 
 		` FROM ` + victimContactForm2Path + ` vcf2 WHERE vcf2.` + VictimContactForm2FieldDefinitions["VictimContactForm2VictimContact"].DBName +
 		` = ` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactId"].DBName +
 		` ORDER BY vcf2.` + VictimContactForm2FieldDefinitions["VictimContactForm2CreationDate"].DBName + ` DESC LIMIT 1)`
+}
+
+// victimContactForm1DocSubquery devuelve el número de documento diligenciado en
+// el Form1 (contacto directo de la víctima) para mostrarlo en el listado. Form2
+// (reporte de tercero) no tiene columna de documento, por lo que solo se consulta
+// Form1. Si no hay documento diligenciado, la subconsulta retorna NULL.
+func victimContactForm1DocSubquery(victimContactPath string) string {
+	victimContactForm1Path := VictimContactForm1DBScheme + "." + VictimContactForm1DBName
+	return `(SELECT vcf1.` + VictimContactForm1FieldDefinitions["VictimContactForm1DocNumber"].DBName +
+		` FROM ` + victimContactForm1Path + ` vcf1 WHERE vcf1.` + VictimContactForm1FieldDefinitions["VictimContactForm1VictimContact"].DBName +
+		` = ` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactId"].DBName +
+		` ORDER BY vcf1.` + VictimContactForm1FieldDefinitions["VictimContactForm1CreationDate"].DBName + ` DESC LIMIT 1)`
 }
 
 func GetVictimContactsWithoutVictimCase(page int, status string, filters VictimContactListFilters, connData *db.ConnData, clientConfig *db.DBClientConfig, serverConfig *db.DBServerConfig) ([]VictimContactDTO, int, error) {
@@ -374,10 +416,11 @@ func GetVictimContactsWithoutVictimCase(page int, status string, filters VictimC
 	var victimContactFieldsStr = common_dao.GetSQL(common_dao.SQL_SELECT_FIELDS_ONLY, victimContactFieldsSlice, victimContactFieldsAliasSlice, VictimContactDBName, []string{}, []string{}, []string{}, common_dao.SQL_AND, VictimContactDBScheme, VictimContactFieldDefinitions, true)
 	form2PhoneField := victimContactForm2ListSubquery(victimContactPath, VictimContactForm2FieldDefinitions["VictimContactForm2VictimColPhone"].DBName)
 	form2FactsField := victimContactForm2ListSubquery(victimContactPath, VictimContactForm2FieldDefinitions["VictimContactForm2FactsDescription"].DBName)
+	form1DocField := victimContactForm1DocSubquery(victimContactPath)
 
 	whereClause, queryArgs := buildVictimContactsWithoutCaseWhere(victimContactPath, victimCasePath, status, filters)
 
-	var query string = `SELECT ` + victimContactFieldsStr + `, ` + form2PhoneField + `, ` + form2FactsField +
+	var query string = `SELECT ` + victimContactFieldsStr + `, ` + form2PhoneField + `, ` + form2FactsField + `, ` + form1DocField +
 		` FROM ` + victimContactPath +
 		` LEFT JOIN ` + victimCasePath + ` ON (` + victimContactPath + `.` + VictimContactFieldDefinitions["VictimContactId"].DBName + ` = ` + victimCasePath + `.` + VictimCaseFieldDefinitions["VictimCaseVictimContact"].DBName + `)` +
 		whereClause +
@@ -388,7 +431,7 @@ func GetVictimContactsWithoutVictimCase(page int, status string, filters VictimC
 
 	for persistenceCtrl.Next() {
 		var victimContactPG VictimContactPgDB = VictimContactPgDB{}
-		persistenceCtrl.ScanRow(&victimContactPG.VictimContactICode, &victimContactPG.VictimContactCreationDate, &victimContactPG.VictimContactStatus, &victimContactPG.VictimContactNames, &victimContactPG.VictimContactLastNames, &victimContactPG.VictimContactLatitude, &victimContactPG.VictimContactLongitude, &victimContactPG.VictimContactForm2VictimColPhone, &victimContactPG.VictimContactForm2FactsDescription)
+		persistenceCtrl.ScanRow(&victimContactPG.VictimContactICode, &victimContactPG.VictimContactCreationDate, &victimContactPG.VictimContactStatus, &victimContactPG.VictimContactNames, &victimContactPG.VictimContactLastNames, &victimContactPG.VictimContactLatitude, &victimContactPG.VictimContactLongitude, &victimContactPG.VictimContactForm2VictimColPhone, &victimContactPG.VictimContactForm2FactsDescription, &victimContactPG.VictimContactForm1DocNumber)
 		victimContacts = append(victimContacts, victimContactPG.ToDTO())
 	}
 
@@ -580,6 +623,9 @@ func (obj *VictimContactPgDB) ToDTO() VictimContactDTO {
 	}
 	if obj.VictimContactForm2FactsDescription.Valid {
 		dto.VictimContactForm2.VictimContactForm2FactsDescription = obj.VictimContactForm2FactsDescription.String
+	}
+	if obj.VictimContactForm1DocNumber.Valid {
+		dto.VictimContactForm1.VictimContactForm1DocNumber = obj.VictimContactForm1DocNumber.String
 	}
 	return dto
 }

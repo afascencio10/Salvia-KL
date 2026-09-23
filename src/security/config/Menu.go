@@ -38,6 +38,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"ro": true,
 		"do": true,
 		"fo": true,
+		"an": true,
 	},
 	"get_town_by_city_code": {
 		"op": true,
@@ -47,6 +48,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"ro": true,
 		"do": true,
 		"fo": true,
+		"an": true,
 	},
 }
 

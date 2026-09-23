@@ -4,7 +4,7 @@
         <h2><b>Lista de casos</b></h2>
         <div style="display:flex; gap:8px; align-items:center;">
             <button v-if="canDescargarReporte" class="btn btn-secondary" @click="onDescargarReporte">Descargar reporte consolidado <i class="fas fa-file-excel"></i></button>
-            <a href="/salvia/casos/nuevo"><button class="btn btn-primary">Crear Nuevo caso <i class="fas fa-plus-circle"></i></button></a>
+            <a v-if="canCrearCaso" href="/salvia/casos/nuevo"><button class="btn btn-primary">Crear Nuevo caso <i class="fas fa-plus-circle"></i></button></a>
         </div>
     </div>
 
@@ -110,8 +110,17 @@
             canDescargarReporte: function() {
                 return this.currentRole === 'sv' || this.currentRole === 'ad';
             },
+            isPsicosocialRole: function() {
+                return this.currentRole === 'ps' || this.currentRole === 'ts';
+            },
+            canCrearCaso: function() {
+                return !this.isPsicosocialRole;
+            },
+            canConsultarCaso: function() {
+                return !this.isPsicosocialRole;
+            },
             casosButtons: function() {
-                var consultar = [
+                var buttons = [
                     {
                         id: 'detalle',
                         label: 'Detalle del caso',
@@ -120,16 +129,17 @@
                         title: 'Ver detalle completo',
                         href: '/salvia/casos/{i_code}/detalle',
                     },
-                    {
+                ];
+                if (this.canConsultarCaso) {
+                    buttons.push({
                         id: 'consultar',
                         label: 'Consultar caso',
                         icon: 'fas fa-eye',
                         title: 'Consultar caso',
                         href: '/salvia/casos/{i_code}/',
-                    },
-
-                ];
-                return consultar;
+                    });
+                }
+                return buttons;
             },
         },
         mounted: function() {

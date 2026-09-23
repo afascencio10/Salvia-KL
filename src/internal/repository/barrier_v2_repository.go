@@ -105,7 +105,7 @@ const barrierWithRelationsSQL = `
 SELECT
     b.id,
     b.case_id,
-    b.follow_up_id,
+    COALESCE(b.follow_up_id::text, '') AS follow_up_id,
     b.sector,
     b.description,
     b.status,

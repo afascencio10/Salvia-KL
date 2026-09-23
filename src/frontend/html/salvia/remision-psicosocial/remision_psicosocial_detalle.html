@@ -15,7 +15,7 @@
             <p style="font-size:2.5rem;margin:0 0 12px">⚠️</p>
             <p style="font-size:1rem;font-weight:700;color:#111827;margin:0 0 8px">No se pudo cargar la remisión</p>
             <p style="font-size:.85rem;color:#6b7280;margin:0 0 20px">${ error }</p>
-            <a href="javascript:salviaGoBack('/salvia/mis-remisiones-psicosocial')" class="btn btn-secondary" style="border-radius:8px;padding:8px 16px;font-size:.85rem">← Volver</a>
+            <a href="javascript:salviaGoBack('{{.salviaBackFallbackPath}}')" class="btn btn-secondary" style="border-radius:8px;padding:8px 16px;font-size:.85rem">← Volver</a>
         </div>
     </div>
 
@@ -23,7 +23,7 @@
 
         <!-- Breadcrumb -->
         <div class="brd-breadcrumb">
-            <a href="javascript:salviaGoBack('/salvia/mis-remisiones-psicosocial')" class="brd-back-link">
+            <a href="javascript:salviaGoBack('{{.salviaBackFallbackPath}}')" class="brd-back-link">
                 <i class="fas fa-arrow-left"></i>
                 Remisiones
             </a>
@@ -162,6 +162,20 @@
                 <div>
                     <span style="font-size:.68rem;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">Psicóloga asignada</span>
                     <span style="font-size:.88rem;font-weight:700;color:#5106A7">${ remision.professionalName || 'Sin asignar' }</span>
+                </div>
+            </div>
+
+            <!-- Criterios y evidencia de la remisión a psicosocial -->
+            <div v-if="(remision.validationCriteria && remision.validationCriteria.length) || remision.referralEvidence" style="margin-top:24px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px 16px">
+                <div v-if="remision.validationCriteria && remision.validationCriteria.length">
+                    <p style="font-size:.72rem;font-weight:700;color:#c2410c;text-transform:uppercase;margin:0 0 8px">Criterios de la remisión</p>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <span v-for="c in remision.validationCriteria" :key="c" style="font-size:.75rem;font-weight:600;padding:4px 12px;border-radius:20px;background:#fff;color:#c2410c;border:1px solid #fed7aa">${ c }</span>
+                    </div>
+                </div>
+                <div v-if="remision.referralEvidence" :style="(remision.validationCriteria && remision.validationCriteria.length) ? 'margin-top:14px' : ''">
+                    <p style="font-size:.72rem;font-weight:700;color:#c2410c;text-transform:uppercase;margin:0 0 6px">Elementos que evidencian la remisión</p>
+                    <p style="font-size:.84rem;color:#374151;margin:0;line-height:1.5">${ remision.referralEvidence }</p>
                 </div>
             </div>
 
@@ -381,7 +395,7 @@
         data() {
             return {
                 currentUser:   {{.currentUser}},
-                currentRole:   {{.currentRole}},
+                currentRole:   "{{.currentRole}}",
                 currentUserId: {{.currentUserId}},
                 userTeam:      "{{.userTeam}}",
                 remisionID:    "{{.remisionId}}",
