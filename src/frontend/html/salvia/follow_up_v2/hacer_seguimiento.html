@@ -467,19 +467,12 @@
             async onFormCompleted() {
                 this.formCompleted = true;
 
-                // Si se llegó desde "Sí contestó" (register_attempt=true), registrar el intento efectivo ahora
-                var params = new URLSearchParams(window.location.search);
-                if (params.get('register_attempt') === 'true') {
-                    try {
-                        await fetch('/api/v1/follow-ups/' + this.followUpId + '/attempts', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ reason: 'Sí contestó', was_answered: true })
-                        });
-                    } catch (e) {
-                        console.warn('[HS] No se pudo registrar intento efectivo:', e);
-                    }
-                }
+                // El intento EFECTIVO (was_answered = true) ya NO se registra aquí.
+                // Se registra en el backend (processFollowUpSubmission) en el mismo
+                // punto donde el seguimiento pasa a REALIZADO, garantizando que solo
+                // exista un intento efectivo y solo cuando el formulario realmente se
+                // completó. Antes se hacía con ?register_attempt=true, lo que generaba
+                // intentos exitosos duplicados.
 
                 setTimeout(() => this.goToCase(), 3000);
             },

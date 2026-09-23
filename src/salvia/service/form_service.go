@@ -151,6 +151,7 @@ type FormServiceDeps struct {
 	RepeaterEntryRepo          repository.RepeaterEntryRepository
 	AnswerRepo                 repository.AnswerRepository
 	FollowUpRepo               repository.FollowUpRepository
+	FollowUpAttemptRepo        repository.FollowUpAttemptRepository
 	EmergencyMeasureRepo       repository.EmergencyMeasureRepository
 	PsychosocialSupportRepo    repository.PsychosocialSupportRepository
 	EconomicStabilizationRepo  repository.EconomicStabilizationRepository
@@ -182,6 +183,7 @@ type formService struct {
 	repeaterEntryRepo      repository.RepeaterEntryRepository
 	answerRepo             repository.AnswerRepository
 	followUpRepo           repository.FollowUpRepository
+	followUpAttemptRepo    repository.FollowUpAttemptRepository
 	emergencyMeasureRepo   repository.EmergencyMeasureRepository
 	psychosocialSupportRepo    repository.PsychosocialSupportRepository
 	economicStabilizationRepo  repository.EconomicStabilizationRepository
@@ -214,6 +216,7 @@ func NewFormService(deps FormServiceDeps) FormService {
 		repeaterEntryRepo:         deps.RepeaterEntryRepo,
 		answerRepo:                deps.AnswerRepo,
 		followUpRepo:              deps.FollowUpRepo,
+		followUpAttemptRepo:       deps.FollowUpAttemptRepo,
 		emergencyMeasureRepo:      deps.EmergencyMeasureRepo,
 		psychosocialSupportRepo:   deps.PsychosocialSupportRepo,
 		economicStabilizationRepo: deps.EconomicStabilizationRepo,
@@ -3260,6 +3263,28 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 	// 6. Marcar el follow_up como REALIZADO
 	if err := s.followUpRepo.UpdateStatus(ctx, fu.ID, models.FollowUpStatusRealizado); err != nil {
 		return fmt.Errorf("processFollowUpSubmission: actualizar estado followUp: %w", err)
+	}
+
+	// 6b. Registrar el intento EFECTIVO (was_answered = true) en el mismo punto
+	// donde el seguimiento pasa a REALIZADO. Antes esto se hacía desde el
+	// frontend (hacer_seguimiento.html con ?register_attempt=true), lo que
+	// generaba intentos exitosos duplicados cada vez que se re-disparaba el
+	// evento form-completed sin que el seguimiento llegara a ejecutarse. Al
+	// hacerlo aquí queda garantizado: solo hay un intento efectivo y solo si el
+	// formulario realmente se completó (el guard inicial de esta función impide
+	// re-ejecución cuando ya está REALIZADO).
+	if s.followUpAttemptRepo != nil {
+		now := time.Now()
+		effectiveAttempt := &models.FollowUpAttempt{
+			FollowUpID:  fu.ID,
+			Reason:      "Sí contestó",
+			WasAnswered: true,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		}
+		if err := s.followUpAttemptRepo.CreateAttempt(ctx, effectiveAttempt); err != nil {
+			log.Printf("[processFollowUpSubmission] advertencia: no se pudo registrar intento efectivo para followUp=%s: %v", fu.ID, err)
+		}
 	}
 
 	// 7. Crear evento en el timeline del caso
