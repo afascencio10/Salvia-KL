@@ -2696,6 +2696,33 @@ func (s *formService) processCaseClosureSubmission(ctx context.Context, submissi
 	return nil
 }
 
+// competencesStateOptionsPath es el rasgo que identifica a la pregunta de
+// competencias del repeater de barreras: es la única cuyas opciones se resuelven
+// contra formState.newBarriers[i].competencias. Ver ListCompetences y
+// _updateCompetenciaOptions en hacer_seguimiento.html.
+const competencesStateOptionsPath = "newBarriers.{_entryIndex}.competencias"
+
+// resolveCompetencesQuestionID devuelve el ID de la pregunta de competencias del
+// repeater, o "" si todavía no se ha creado. Resolverla por su state_options_path
+// en vez de por UUID o por orden evita dos cosas: recompilar cuando la pregunta se
+// cree en cada ambiente, y que insertar una pregunta antes le corra el orden.
+func (s *formService) resolveCompetencesQuestionID(ctx context.Context, repeaterGroupID string) string {
+	if s.questionRepo == nil {
+		return ""
+	}
+	questions, err := s.questionRepo.FindByRepeaterGroupID(ctx, repeaterGroupID)
+	if err != nil {
+		log.Printf("⚠️  [processFollowUp] no se pudieron leer las preguntas del repeater de barreras: %v", err)
+		return ""
+	}
+	for _, q := range questions {
+		if q.StateOptionsPath != nil && *q.StateOptionsPath == competencesStateOptionsPath {
+			return q.ID
+		}
+	}
+	return ""
+}
+
 // processFollowUpSubmission marca el follow_up_v2 asociado como REALIZADO y crea las entidades
 // derivadas (barreras, medidas de emergencia, derivaciones) a partir de las respuestas.
 func (s *formService) processFollowUpSubmission(ctx context.Context, submissionID, actorID string) error {
@@ -2845,6 +2872,13 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		return fmt.Errorf("processFollowUpSubmission: leer entradas de barreras: %w", err)
 	}
 	log.Printf("[processFollowUp] barreras: %d entradas encontradas", len(barrierEntries))
+
+	// La pregunta de competencias se resuelve en runtime por su state_options_path
+	// y no con un UUID hardcodeado: se crea por API después del despliegue (ver
+	// DocsMD/Screens/hacer-seguimiento/form-barreras-repeater.md), así que un UUID
+	// fijo obligaría a recompilar. Si todavía no existe devuelve "" y la barrera se
+	// guarda sin competencias, igual que hoy.
+	qBarreraCompetencias := s.resolveCompetencesQuestionID(ctx, rgBarreras)
 	for _, entry := range barrierEntries {
 		entryAnswers, err := s.answerRepo.FindByRepeaterEntryID(ctx, entry.ID)
 		if err != nil {
@@ -2882,6 +2916,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 			OfficialDependency: entryMap[qBarreraFuncionario],
 			Description:        entryMap[qBarreraDescripcion],
 			ManagementActions:  entryMap[qBarreraGestion],
+			Competences:        entryMap[qBarreraCompetencias],
 		}
 		log.Printf("[processFollowUp] creando barrera sector=%s entry=%s", sector, entry.ID)
 		if err := s.barrierV2Repo.Create(ctx, b); err != nil {

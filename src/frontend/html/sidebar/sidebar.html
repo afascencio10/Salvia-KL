@@ -68,7 +68,7 @@
                 <span>Notificaciones Salvia</span>
             </a>
             {{ end }}
-            {{ if or (eq .currentRole "ps") (eq .currentRole "ts") }}
+            {{ if or (eq .currentRole "ps") (eq .currentRole "ts") (eq .currentRole "sv") }}
             <a href="/salvia/calendario-psicosocial" class="salvia-sidebar__nav-link">
                 <i class="fas fa-calendar-alt" aria-hidden="true"></i>
                 <span>Calendario</span>

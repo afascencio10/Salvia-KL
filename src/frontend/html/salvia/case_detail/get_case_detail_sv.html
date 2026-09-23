@@ -934,9 +934,9 @@ var home = Vue.createApp({
       // horaria del dispositivo del cliente, que puede estar mal configurado.
       fechaHoy: "{{.fechaHoy}}",
       toast: { show: false, type: 'success', message: '' },
-      tabs: [
+      allTabs: [
         { id: 'info',         label: 'Info General',  icono: '👤' },
-        { id: 'derivaciones', label: 'Derivaciones',  icono: '↗️' },
+        { id: 'derivaciones', label: 'Atención SALVIA',  icono: '↗️' },
         { id: 'barreras',     label: 'Gestión institucional', icono: '🏛️' },
         { id: 'seguimientos', label: 'Seguimientos',  icono: '📞' },
         { id: 'tareas',       label: 'Tareas',        icono: '📝' },
@@ -990,6 +990,15 @@ var home = Vue.createApp({
     esConsultaSoloLectura() {
       // Agente psicosocial: solo consulta, sin acciones que modifiquen el caso
       return this.userRole === 'ps' || this.userRole === 'ts';
+    },
+    esEntidadOMecanismo() {
+      // Entidad/Mecanismo: solo ven Gestión Institucional e Info General,
+      // sin visibilidad de la gestión interna de SALVIA (ver DoD).
+      return this.userRole === 'et' || this.userRole === 'mn';
+    },
+    tabs() {
+      if (!this.esEntidadOMecanismo) return this.allTabs;
+      return this.allTabs.filter(function(t) { return t.id === 'info' || t.id === 'barreras'; });
     },
     proximoSeguimiento() {
       // Buscar el primer seguimiento PENDIENTE ordenado por fecha (ya vienen ordenados del backend)
@@ -1262,6 +1271,8 @@ var home = Vue.createApp({
         .catch(function() {});
     },
     cargarTareasCaso() {
+      // Entidad/Mecanismo no tienen la pestaña Tareas ni acceso backend a este listado.
+      if (this.esEntidadOMecanismo) { this.caseTasks = []; return; }
       var self = this;
       fetch('/api/v1/case-tasks?caseId=' + CASE_ICODE)
         .then(function(res) { return res.json(); })

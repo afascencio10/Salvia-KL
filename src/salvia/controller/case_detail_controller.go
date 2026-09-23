@@ -11,6 +11,7 @@
 package controller
 
 import (
+	"bitsflow/common/utils"
 	internaldb "bitsflow/internal/db"
 	"bitsflow/internal/repository"
 	"bitsflow/salvia/service"
@@ -18,8 +19,42 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 )
+
+// entidadMecanismoRoles — roles externos (entidad, mecanismo) sin visibilidad sobre la
+// gestión interna de SALVIA en el detalle de caso (Timeline, Derivaciones, Tareas, Seguimientos).
+var entidadMecanismoRoles = map[string]bool{"et": true, "mn": true}
+
+// stripInternalCaseData oculta, a nivel de backend, los datos de gestión interna de SALVIA
+// (Derivaciones y Seguimientos) del payload de detalle de caso cuando el usuario autenticado
+// tiene rol de entidad o mecanismo. Gestión Institucional (Barriers), Timeline resumen de
+// "Hechos del caso" e Info General se dejan intactos: solo lo listado en la DoD se restringe.
+func stripInternalCaseData(ctx *gin.Context, detail *repository.CaseDetailData) {
+	sessionID, _ := sessions.Default(ctx).Get("userData").(string)
+	s, err := utils.GetCommonSession(sessionID)
+	if err != nil {
+		return
+	}
+	applyEntidadMecanismoRestriction(detail, s.CurrentRole)
+}
+
+// applyEntidadMecanismoRestriction oculta Derivaciones (EmergencyMeasures,
+// PsychosocialSupports, EconomicStabilizations) y Seguimientos (FollowUp, Entries,
+// FollowUpsV2) cuando role es entidad o mecanismo. Deja intactos Case/Form1/Form2,
+// Barriers (Gestión Institucional) y TimelineEvents (usado por Info General).
+func applyEntidadMecanismoRestriction(detail *repository.CaseDetailData, role string) {
+	if !entidadMecanismoRoles[role] {
+		return
+	}
+	detail.FollowUp = nil
+	detail.Entries = nil
+	detail.FollowUpsV2 = nil
+	detail.EmergencyMeasures = nil
+	detail.PsychosocialSupports = nil
+	detail.EconomicStabilizations = nil
+}
 
 // agentRoleCodesDefault — roles al listar agentes por equipo (M-02 reasignar-casos-modal).
 // Para incluir operadores 'op', agregar "op" a este slice o pasar ?role=op en la query.
@@ -84,6 +119,7 @@ func (c *CaseDetailController) GetByID(ctx *gin.Context) {
 		}
 		return
 	}
+	stripInternalCaseData(ctx, detail)
 	ctx.JSON(http.StatusOK, detail)
 }
 
@@ -294,6 +330,17 @@ func (c *CaseDetailController) GetTimelineEvents(ctx *gin.Context) {
 	caseID    := ctx.Param("id")
 	barrierID := ctx.Query("barrierId")
 	psychosocialID := ctx.Query("psychosocialId")
+
+	// La pestaña Timeline (sin barrierId/psychosocialId) es gestión interna de SALVIA,
+	// oculta para entidad/mecanismo. El timeline embebido en Gestión Institucional o en
+	// una remisión psicosocial específica (con barrierId/psychosocialId) sigue disponible.
+	if barrierID == "" && psychosocialID == "" {
+		sessionID, _ := sessions.Default(ctx).Get("userData").(string)
+		if s, err := utils.GetCommonSession(sessionID); err == nil && entidadMecanismoRoles[s.CurrentRole] {
+			ctx.JSON(http.StatusForbidden, gin.H{"error": "su rol no tiene permiso para acceder a este recurso"})
+			return
+		}
+	}
 
 	events, err := c.timelineRepo.GetByCaseID(ctx.Request.Context(), caseID, barrierID, psychosocialID)
 	if err != nil {

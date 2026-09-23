@@ -234,25 +234,28 @@
             },
 
             computeAvailableProfessionals: function () {
-                // Solo la psicóloga es exclusiva de una dupla.
-                // La trabajadora social puede pertenecer a varias.
+                // Cada profesional (Psicología o Trabajo Social) pertenece a una única dupla activa.
                 var occupiedPsych = {};
+                var occupiedTs = {};
                 var editingId = this.editingDuplaId;
                 (this.duplas || []).forEach(function (d) {
                     if (editingId && d.id === editingId) return;
                     if (d.psychologistId) occupiedPsych[d.psychologistId] = true;
+                    if (d.socialWorkerId) occupiedTs[d.socialWorkerId] = true;
                 });
 
                 this.availablePsychologists = (this.psychologists || []).filter(function (p) {
                     return !occupiedPsych[p.icode];
                 });
-                this.availableSocialWorkers = (this.socialWorkers || []).slice();
+                this.availableSocialWorkers = (this.socialWorkers || []).filter(function (p) {
+                    return !occupiedTs[p.icode];
+                });
 
                 this.warningPs = this.availablePsychologists.length === 0
                     ? 'Todos los profesionales en Psicología están asignados a una dupla.'
                     : null;
                 this.warningTs = this.availableSocialWorkers.length === 0
-                    ? 'No hay profesionales en Trabajo Social activos.'
+                    ? 'Todos los profesionales en Trabajo Social están asignados a una dupla.'
                     : null;
             },
 
