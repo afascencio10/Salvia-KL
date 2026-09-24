@@ -223,11 +223,12 @@
               </div>
               <!-- Nuevos hechos reportados en seguimientos -->
               <div v-if="hechosReportados.length" style="margin-top:16px;border-top:1px solid #e5e7eb;padding-top:14px">
-                <p style="font-size:.78rem;font-weight:600;color:#6b7280;margin:0 0 10px;text-transform:uppercase">Hechos reportados en seguimientos</p>
+                <p style="font-size:.78rem;font-weight:600;color:#6b7280;margin:0 0 4px;text-transform:uppercase">Hechos reportados en seguimientos</p>
+                <p style="font-size:.7rem;color:#9ca3af;margin:0 0 10px">Ordenados por fecha del suceso, del más antiguo al más reciente.</p>
                 <div v-for="(h, idx) in hechosReportados" :key="h.id" style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-bottom:8px">
                   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                     <span style="font-size:.75rem;font-weight:600;color:#dc2626"><i class="fa fa-file-lines"></i> Hecho #${ idx + 1 }</span>
-                    <span style="font-size:.7rem;color:#9ca3af">${ h.date ? h.date.substring(0,10) : '' }</span>
+                    <span style="font-size:.7rem;color:#9ca3af"><i class="fa fa-calendar-day" style="margin-right:4px"></i>Fecha del suceso: ${ h.date ? h.date.substring(0,10) : 'Sin fecha' }</span>
                   </div>
                   <p style="font-size:.82rem;color:#374151;margin:0">${ h.description || 'Sin descripción' }</p>
                 </div>
@@ -509,7 +510,11 @@
             </div>
             <div class="cd-sstat cd-sstat-orange">
               <div class="cd-lbl">Pendientes</div>
-              <div class="cd-val">${ followUpsV2.filter(s => s.status === 'PENDIENTE' && !s.is_completed).length }</div>
+              <div class="cd-val">${ followUpsV2.filter(s => s.status === 'PENDIENTE' && !s.is_completed && !esVencido(s)).length }</div>
+            </div>
+            <div class="cd-sstat">
+              <div class="cd-lbl">Vencidos</div>
+              <div class="cd-val" style="color:#dc2626">${ followUpsV2.filter(s => esVencido(s)).length }</div>
             </div>
           </div>
           <div v-if="followUpsV2.length === 0" class="cd-empty">
@@ -518,15 +523,19 @@
           </div>
           <div v-for="(seg, idx) in followUpsV2" :key="seg.id"
             :class="['cd-seg-item', seg.is_completed || seg.status === 'REALIZADO' ? 'done' : 'pending']"
-            style="flex-wrap:wrap;cursor:pointer"
+            :style="esVencido(seg) ? 'flex-wrap:wrap;cursor:pointer;background:#f3f4f6;border-color:#e5e7eb;opacity:.85' : 'flex-wrap:wrap;cursor:pointer'"
             @click="toggleSegExpand(seg.id)">
-            <div :class="['cd-seg-indicator', seg.is_completed || seg.status === 'REALIZADO' ? 'cd-si-done' : 'cd-si-pending']">
-              ${ seg.is_completed || seg.status === 'REALIZADO' ? '✓' : (idx + 1) }
+            <div :class="['cd-seg-indicator', seg.is_completed || seg.status === 'REALIZADO' ? 'cd-si-done' : 'cd-si-pending']"
+              :style="esVencido(seg) ? 'background:#9ca3af' : ''">
+              ${ seg.is_completed || seg.status === 'REALIZADO' ? '✓' : (esVencido(seg) ? '—' : segNumero(seg)) }
             </div>
             <div class="cd-seg-info">
               <div class="cd-seg-title">
-                <p>Seguimiento #${ idx + 1 }</p>
-                <span :class="['cd-seg-badge', seg.is_completed || seg.status === 'REALIZADO' ? 'cd-sb-done' : 'cd-sb-pending']">
+                <p>${ esVencido(seg) ? 'Seguimiento vencido' : 'Seguimiento #' + segNumero(seg) }</p>
+                <span v-if="esVencido(seg)" class="cd-seg-badge" style="background:#fee2e2;color:#dc2626">
+                  Vencido
+                </span>
+                <span v-else :class="['cd-seg-badge', seg.is_completed || seg.status === 'REALIZADO' ? 'cd-sb-done' : 'cd-sb-pending']">
                   ${ seg.status }
                 </span>
                 <!-- Indicador de intentos (esquema 3×3) -->
@@ -552,8 +561,9 @@
                @click.stop>
               Ver detalle →
             </a>
-            <!-- Botones para seguimientos PENDIENTES -->
-            <div v-if="!seg.is_completed && seg.status !== 'REALIZADO'" class="cd-seg-actions" @click.stop>
+            <!-- Botones para seguimientos PENDIENTES (no aplican a vencidos: un
+                 seguimiento vencido no se inicia ni se edita, se crea uno nuevo) -->
+            <div v-if="!seg.is_completed && seg.status !== 'REALIZADO' && !esVencido(seg)" class="cd-seg-actions" @click.stop>
               <a v-if="(userRole === 'ro' || userRole === 'op') && seg.agent_id === userICode" href="#" class="btn-iniciar" style="text-decoration:none;text-align:center" @click.prevent="iniciarSeguimiento(seg)">▶ Iniciar</a>
               <button v-else-if="userRole === 'ro' || userRole === 'op'" class="btn-iniciar" disabled style="opacity:.5;cursor:not-allowed" title="Este seguimiento está asignado a otro agente">▶ Iniciar</button>
               <button v-if="puedeReasignar || ((userRole === 'ro' || userRole === 'op') && caso && caso.agentId === userICode)"
@@ -1083,7 +1093,25 @@ var home = Vue.createApp({
       return ultima;
     },
     hechosReportados() {
-      return this.hechosTimeline || [];
+      // Se ordenan cronológicamente por la fecha del suceso (campo 'date'),
+      // del más antiguo al más reciente, tal como lo pide el requerimiento.
+      // No se altera el orden del backend (created_at DESC), que alimenta la
+      // pestaña Timeline; el reordenamiento es local a esta card de Hechos.
+      // Si dos hechos tienen la misma fecha de suceso, se desempata por la
+      // fecha de registro (created_at) ascendente para un orden estable.
+      var lista = (this.hechosTimeline || []).slice();
+      var toTime = function(valor) {
+        if (!valor) return 0;
+        var t = new Date(valor).getTime();
+        return isNaN(t) ? 0 : t;
+      };
+      lista.sort(function(a, b) {
+        var da = toTime(a && a.date);
+        var db = toTime(b && b.date);
+        if (da !== db) return da - db;
+        return toTime(a && a.created_at) - toTime(b && b.created_at);
+      });
+      return lista;
     },
     derivaciones() {
       var sectores = {
@@ -1357,6 +1385,37 @@ var home = Vue.createApp({
       // Si es el usuario actual (op autoasignado), usar su nombre de sesión
       if (agentId === this.userICode) return this.currentUser;
       return agentId;
+    },
+    // esVencido determina si una tarjeta de seguimiento está vencida.
+    // Se apoya en el estado 'VENCIDO' que ya calcula el backend al abrir el
+    // detalle, pero además valida por fecha como respaldo: un seguimiento no
+    // realizado ni cerrado cuya fecha programada ya quedó atrás se considera
+    // vencido aunque su estado todavía no se haya actualizado.
+    esVencido(seg) {
+      if (!seg) return false;
+      if (seg.is_completed || seg.status === 'REALIZADO' || seg.status === 'CERRADO') return false;
+      if (seg.status === 'VENCIDO') return true;
+      var fechaSeg = seg.scheduled_date ? seg.scheduled_date.substring(0, 10) : '';
+      if (!fechaSeg) return false;
+      var ahora = new Date();
+      var hoy = ahora.getFullYear() + '-' + String(ahora.getMonth() + 1).padStart(2, '0') + '-' + String(ahora.getDate()).padStart(2, '0');
+      return fechaSeg < hoy;
+    },
+    // segNumero calcula el número visible del seguimiento ("Seguimiento #N")
+    // contando únicamente los seguimientos NO vencidos (realizados y pendientes),
+    // en el orden en que aparecen en la lista. Los vencidos no consumen número,
+    // de modo que la numeración refleja los seguimientos efectivamente gestionados
+    // o pendientes. Se recalcula dinámicamente según el estado real de cada uno.
+    segNumero(seg) {
+      if (!seg) return '';
+      var n = 0;
+      for (var i = 0; i < this.followUpsV2.length; i++) {
+        var actual = this.followUpsV2[i];
+        if (this.esVencido(actual)) continue;
+        n++;
+        if (actual.id === seg.id) return n;
+      }
+      return '';
     },
     labelEstado(s) {
       var m = { 'ra':'Activo', 'is':'Con novedad', 'cd':'Cerrado', 'ex':'Vencido', 'r':'Por aprobar', 'fc':'Recontacto' };

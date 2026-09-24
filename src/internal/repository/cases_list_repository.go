@@ -130,6 +130,11 @@ const casesListSelectCols = `
         WHERE case_id = vc.victim_case_i_code
           AND status = 'PENDIENTE'
           AND deleted_at IS NULL
+          -- Se descarta cualquier seguimiento cuya fecha programada ya quedó atrás
+          -- (comparando por fecha calendario en hora Colombia). Así el "próximo
+          -- seguimiento" de la lista coincide con el detalle: un seguimiento
+          -- vencido no se muestra como próximo, se pasa al siguiente futuro.
+          AND (scheduled_date AT TIME ZONE '` + casesListTimezone + `')::date >= (NOW() AT TIME ZONE '` + casesListTimezone + `')::date
         ORDER BY scheduled_date ASC
         LIMIT 1
     ) AS next_follow_up_date,
