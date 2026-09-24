@@ -296,6 +296,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"ts": true,
 		"an": true,
 		"mn": true,
+		"en": true,
 	},
 
 	// ── Dashboard KPIs (Salvia_KPIs_v1) ──────────────────────────────────────
