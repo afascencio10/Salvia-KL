@@ -198,9 +198,22 @@
                 this.workingPlace.branches = this.data.user.profile.selectedBranches;
             }
 
+            var _savedDept = this.data.user.assignedDepartment;
+            var _self = this;
             fetch('/api/v1/locations/departments')
               .then(function(res) { return res.ok ? res.json() : []; })
-              .then((function(deps) { this.departamentosEnlace = Array.isArray(deps) ? deps : []; }).bind(this))
+              .then(function(deps) {
+                _self.departamentosEnlace = Array.isArray(deps) ? deps : [];
+                _self.$nextTick(function() {
+                  if (_savedDept) {
+                    // Encuentra la opción cuyo value coincida como número (normaliza "05" → "5")
+                    var match = _self.departamentosEnlace.find(function(d) {
+                      return d.value === _savedDept || parseInt(d.value, 10) === parseInt(_savedDept, 10);
+                    });
+                    _self.data.user.assignedDepartment = match ? match.value : _savedDept;
+                  }
+                });
+              })
               .catch(function() {});
 
           },
