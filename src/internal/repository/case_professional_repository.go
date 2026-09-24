@@ -8,12 +8,14 @@ import (
 
 // CaseProfessionalRow es una fila de la tabla "Profesionales de atención"
 // (pestaña Derivaciones del detalle del caso): una persona/usuario que ha
-// intervenido en el caso, con todos sus roles concatenados y una nota que
-// consolida sus intervenciones.
+// intervenido en el caso, con todos sus roles concatenados.
+//
+// Antes traía además una nota que concatenaba todas las descripciones del
+// timeline de esa persona. Se quitó junto con la columna de la tabla: era
+// ilegible en una sola celda y el detalle ya está en la pestaña Timeline.
 type CaseProfessionalRow struct {
 	Usuario string `gorm:"column:usuario" json:"usuario"`
 	Rol     string `gorm:"column:rol"     json:"rol"`
-	Notas   string `gorm:"column:notas"   json:"notas"`
 }
 
 // CaseProfessionalRepository expone la consulta consolidada de intervinientes
@@ -39,8 +41,8 @@ func NewCaseProfessionalRepository(db *gorm.DB) CaseProfessionalRepository {
 // Se agrupa por usuario (una fila por persona). Para evitar el producto
 // cartesiano entre "eventos del usuario" y "roles del usuario", se resuelven en
 // dos CTEs separadas y se unen al final:
-//   - ev: agrega los eventos del usuario (notas concatenadas cronológicamente,
-//     nombre resuelto/snapshot, fecha de la primera intervención para ordenar).
+//   - ev: agrega los eventos del usuario (nombre resuelto/snapshot y fecha de la
+//     primera intervención para ordenar).
 //   - roles: concatena los role_name distintos de ese usuario.
 //
 // Solo se consideran eventos con event_user_id no vacío (los eventos de sistema
@@ -56,11 +58,7 @@ WITH ev AS (
 			NULLIF(cte.actor_name, ''),
 			cte.event_user_id
 		) AS usuario,
-		MIN(COALESCE(cte.date, cte.created_at)) AS primera_intervencion,
-		string_agg(
-			COALESCE(NULLIF(cte.description, ''), cte.type, cte.event_type),
-			' · ' ORDER BY COALESCE(cte.date, cte.created_at) ASC
-		) AS notas
+		MIN(COALESCE(cte.date, cte.created_at)) AS primera_intervencion
 	FROM salvia.case_timeline_event cte
 	LEFT JOIN security.general_user gu
 		ON gu.general_user_i_code = cte.event_user_id
@@ -90,9 +88,8 @@ roles AS (
 	GROUP BY gu.general_user_i_code
 )
 SELECT
-	ev.usuario                        AS usuario,
-	COALESCE(NULLIF(roles.rol, ''), '—') AS rol,
-	COALESCE(ev.notas, '')            AS notas
+	ev.usuario                           AS usuario,
+	COALESCE(NULLIF(roles.rol, ''), '—') AS rol
 FROM ev
 LEFT JOIN roles ON roles.user_icode = ev.user_icode
 ORDER BY ev.primera_intervencion ASC
