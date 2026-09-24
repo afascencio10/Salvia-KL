@@ -25,18 +25,21 @@
         </div>
 
         <nav class="salvia-sidebar__nav" aria-label="Navegación principal">
-            {{/* Reportes exige get_victim_cases; ps y ts no lo tienen. */}}
-            {{ if and (ne .currentRole "ps") (ne .currentRole "ts") }}
+            {{/* Reportes exige get_victim_cases, que ps/ts/et no tienen.
+                 El Equipo Técnico (te), Mecanismo (mc) y Entidad Territorial (et) tampoco ven "Reportes". */}}
+            {{ if and (ne .currentRole "ps") (ne .currentRole "ts") (ne .currentRole "te") (ne .currentRole "mc") (ne .currentRole "et") }}
             <a href="/salvia/casos" class="salvia-sidebar__nav-link">
                 <i class="fas fa-home" aria-hidden="true"></i>
                 <span>Reportes</span>
             </a>
             {{ end }}
-            {{/* Lista Casos: get_list_cases incluye ps y ts. */}}
+            {{/* Lista Casos: get_list_cases excluye mc (pantalla propia) y et (solo ve sus casos remisionados). */}}
+            {{ if and (ne .currentRole "mc") (ne .currentRole "et") }}
             <a href="/salvia/lista-casos" class="salvia-sidebar__nav-link">
                 <i class="fas fa-list" aria-hidden="true"></i>
                 <span>Lista Casos</span>
             </a>
+            {{ end }}
             {{ if or (eq .currentRole "ps") (eq .currentRole "ts") }}
             <a href="/salvia/mis-remisiones-psicosocial" class="salvia-sidebar__nav-link">
                 <i class="fas fa-hand-holding-heart" aria-hidden="true"></i>

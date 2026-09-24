@@ -55,6 +55,12 @@ func BackFallbackPath(role string) string {
 		return "/salvia/notificaciones"
 	case "en":
 		return "/salvia/mis-barreras"
+	case "ps", "ts":
+		return "/salvia/mis-remisiones-psicosocial"
+	case "mc":
+		return "/salvia/casos-mecanismo"
+	case "et":
+		return "/salvia/casos-entidad"
 	}
 	return "/salvia/lista-casos"
 }

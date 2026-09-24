@@ -229,6 +229,10 @@
                     'Detalle de entidad pendiente (sede: ' + item.entityBranchICode + ')',
                     'info'
                 );
+            },
+
+            logout: function () {
+                logout('/seguridad/logout');
             }
         }
     });

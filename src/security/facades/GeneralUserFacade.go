@@ -158,8 +158,11 @@ func GeneralUserLOGIN_POST(c *gin.Context) {
 						utils.MergeMaps(menu, v)
 					}
 				case "et":
-					navMap := salvia_config.TranslateNavigationRule(usr.GeneralUserLanguage, salvia_config.NAVIGATION_RULES["login"])
-					navMap["role"] = currentRole
+					// Entidad Territorial: redirigir directamente a Casos Entidad.
+					navMap := map[string]string{
+						"login": "/salvia/casos-entidad",
+						"role":  currentRole,
+					}
 					navByte, _ := json.Marshal(navMap)
 					navStr = string(navByte)
 					if v, found := salvia_config.Menu[usr.GeneralUserLanguage]["et"]; found {
