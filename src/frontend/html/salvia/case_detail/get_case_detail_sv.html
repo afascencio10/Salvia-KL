@@ -407,21 +407,49 @@
           <!-- Profesionales de atención (componente reutilizable) -->
           <case-professionals :case-id="caseICode"></case-professionals>
 
-          <!-- Comentarios del Equipo Técnico -->
+          <!-- Análisis del caso: análisis de la mesa técnica + comentarios del equipo técnico -->
           <div class="cd-deriv-section" style="background:#f5f3ff;border-color:#c4b5fd">
             <div class="cd-deriv-header" style="border-bottom-color:#c4b5fd">
-              💬 Comentarios del Equipo Técnico
-              <span class="cd-count" style="color:#7c3aed">${ comentariosEquipoTecnico.length } comentario${ comentariosEquipoTecnico.length !== 1 ? 's' : '' }</span>
+              💬 Análisis del caso
               <button v-if="userRole === 'te'" type="button" @click="abrirModalComentarioEquipoTecnico"
                 style="margin-left:8px;font-size:.72rem;font-weight:600;padding:4px 10px;border-radius:8px;background:#7c3aed;color:#fff;border:none;cursor:pointer">
                 + Comentario
               </button>
             </div>
-            <div v-if="comentariosEquipoTecnico.length === 0" class="cd-deriv-empty">Sin comentarios</div>
-            <div v-for="item in comentariosEquipoTecnico" :key="item.id" class="cd-deriv-item" style="flex-direction:column;align-items:stretch">
-              <p style="margin:0;font-size:.83rem;color:#374151;white-space:pre-wrap">${ item.result }</p>
-              <div class="cd-deriv-date">${ item.assignedUserName || 'Equipo Técnico' } · 📅 ${ formatFecha(item.completedAt) }</div>
+
+            <div v-if="analisisMesaTecnica.length === 0 && comentariosEquipoTecnico.length === 0" class="cd-deriv-empty">
+              Sin análisis ni comentarios registrados
             </div>
+
+            <!-- Resumen del formulario de Decisión de la Mesa Técnica: análisis y decisiones -->
+            <template v-if="analisisMesaTecnica.length > 0">
+              <p style="font-size:.72rem;color:#6b7280;font-weight:700;margin:12px 16px 6px;text-transform:uppercase;letter-spacing:.04em">
+                Mesa técnica
+                <span style="color:#7c3aed">· ${ analisisMesaTecnica.length } sesión${ analisisMesaTecnica.length !== 1 ? 'es' : '' }</span>
+              </p>
+              <div v-for="t in analisisMesaTecnica" :key="t.id" class="cd-deriv-item" style="flex-direction:column;align-items:stretch">
+                <p v-if="t.formData.analisisMesaTecnica" style="margin:0;font-size:.83rem;color:#374151;white-space:pre-wrap">${ t.formData.analisisMesaTecnica }</p>
+                <div v-if="decisionesMesaTecnica(t).length > 0" style="margin-top:6px">
+                  <div style="font-size:.72rem;color:#6b7280;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Decisiones tomadas</div>
+                  <div style="display:flex;flex-wrap:wrap;gap:4px">
+                    <span v-for="d in decisionesMesaTecnica(t)" :key="d" style="font-size:.75rem;background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:4px;border:1px solid #e5e7eb">${ d }</span>
+                  </div>
+                </div>
+                <div class="cd-deriv-date">${ t.assignedUserName || 'Mesa técnica' } · 📅 ${ formatFecha(t.completedAt) }</div>
+              </div>
+            </template>
+
+            <!-- Comentarios libres del equipo técnico -->
+            <template v-if="comentariosEquipoTecnico.length > 0">
+              <p style="font-size:.72rem;color:#6b7280;font-weight:700;margin:12px 16px 6px;text-transform:uppercase;letter-spacing:.04em">
+                Comentarios del equipo técnico
+                <span style="color:#7c3aed">· ${ comentariosEquipoTecnico.length }</span>
+              </p>
+              <div v-for="item in comentariosEquipoTecnico" :key="item.id" class="cd-deriv-item" style="flex-direction:column;align-items:stretch">
+                <p style="margin:0;font-size:.83rem;color:#374151;white-space:pre-wrap">${ item.result }</p>
+                <div class="cd-deriv-date">${ item.assignedUserName || 'Equipo Técnico' } · 📅 ${ formatFecha(item.completedAt) }</div>
+              </div>
+            </template>
           </div>
 
         </template>
@@ -1221,6 +1249,17 @@ var home = Vue.createApp({
   },
 
   computed: {
+    // Análisis de la mesa técnica: las tareas comite_caso ya completadas del caso.
+    // No requiere consulta nueva — cargarTareasCaso() ya trae todas las tareas con
+    // su formData, que es donde el modal guarda el formulario de decisión.
+    // Ver case-task-modal.js (caso 'comite_caso') y case-task-history.js, que
+    // renderiza estos mismos campos en el histórico de la tarea.
+    analisisMesaTecnica() {
+      return this.caseTasks
+        .filter(function(t) { return t.type === 'comite_caso' && t.status === 'Done' && t.formData; })
+        .slice()
+        .sort(function(a, b) { return String(a.completedAt || '').localeCompare(String(b.completedAt || '')); });
+    },
     remisionMuestraMedidas() { return this.remisionForm.equipos.indexOf('medidas_emergencia') !== -1; },
     remisionMuestraPsico() { return this.remisionForm.equipos.indexOf('atencion_psico') !== -1; },
     remisionMuestraHombres() { return this.remisionForm.equipos.indexOf('atencion_hombres') !== -1; },
@@ -1557,6 +1596,15 @@ var home = Vue.createApp({
         }
         return true;
       });
+    },
+    // Etiquetas de las decisiones de una mesa técnica. El modal guarda las dos
+    // formas: 'decisiones' con los códigos y 'decisionesTexto' con las etiquetas.
+    // Las tareas anteriores a que se agregara decisionesTexto solo tienen los
+    // códigos, así que se usan como respaldo antes que no mostrar nada.
+    decisionesMesaTecnica(tarea) {
+      var fd = tarea.formData || {};
+      if (Array.isArray(fd.decisionesTexto) && fd.decisionesTexto.length > 0) return fd.decisionesTexto;
+      return Array.isArray(fd.decisiones) ? fd.decisiones : [];
     },
     formatFecha(f) { return f ? f.substring(0, 10) : '—'; },
     formatFechaHora(f) {
