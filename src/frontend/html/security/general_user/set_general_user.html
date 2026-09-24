@@ -115,6 +115,7 @@
                 <option value="">Seleccione...</option>
                 <option v-for="(dep, idx) in departamentosEnlace" :value="dep.value" :key="idx">${dep.label}</option>
               </select>
+              <span v-if="errors.user && errors.user.assignedDepartment" class="error invalid-feedback">${errors.user.assignedDepartment}</span>
             </div>
           </div>
           <div class="row" v-if="isUserSelected('ro')">
