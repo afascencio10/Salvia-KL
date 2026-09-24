@@ -437,10 +437,6 @@
             <case-entities :case-id="caseICode" :user-id="userICode" :user-role="userRole"></case-entities>
           </div>
 
-          <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid #e5e7eb">
-            <case-mecanismos :case-id="caseICode" :user-id="userICode" :user-role="userRole"></case-mecanismos>
-          </div>
-
           <!-- Banner tareas pendientes -->
           <div v-if="tareasPendientesTotal().length > 0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
             <div style="display:flex;align-items:center;gap:8px">
@@ -521,6 +517,13 @@
                 <case-tasks :case-id="caseICode" :barrier-id="b.id" :user-id="userICode" :user-role="userRole" ></case-tasks>
               </div>
             </div>
+          </div>
+
+          <!-- Mecanismos del caso (componente reutilizable) — va después de Barreras
+               por decisión de producto: primero la barrera identificada, luego el
+               mecanismo con el que se gestiona. -->
+          <div style="margin-top:24px;padding-top:20px;border-top:1px solid #e5e7eb">
+            <case-mecanismos :case-id="caseICode" :user-id="userICode" :user-role="userRole"></case-mecanismos>
           </div>
 
           <!-- Oficios del caso (componente reutilizable) -->
