@@ -17,6 +17,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const noFoundContent = `
+<script>document.getElementById('app').style.display='block';</script>
+<div style="min-height:70vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;">
+  <div style="max-width:480px;width:100%;text-align:center;">
+    <div style="font-size:72px;color:#adb5bd;line-height:1;margin-bottom:16px;">
+      <i class="fas fa-map-signs"></i>
+    </div>
+    <h1 style="font-size:28px;font-weight:700;color:#343a40;margin-bottom:8px;">Página no encontrada</h1>
+    <p style="color:#6c757d;margin-bottom:24px;">La dirección que ingresaste no existe o ya no está disponible.</p>
+    <a href="javascript:history.back()" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left mr-1"></i>Volver
+    </a>
+  </div>
+</div>`
+
 var modules map[string]string = map[string]string{}
 
 var router *gin.Engine
@@ -111,7 +126,43 @@ func InitRouter() *gin.Engine {
 
 	router.GET("/", home)
 
+	router.NoRoute(notFoundHandler)
+
 	return router
+}
+
+func notFoundHandler(c *gin.Context) {
+	// Si es una llamada API, responde JSON simple
+	if strings.HasPrefix(c.Request.RequestURI, "/api/") {
+		c.JSON(http.StatusNotFound, gin.H{"error": "ruta no encontrada"})
+		return
+	}
+
+	// Si el usuario no está autenticado, redirige al landing
+	if !IsLoggedIn(c) {
+		if isProductionHost(c.Request.Host) {
+			c.Redirect(http.StatusTemporaryRedirect, "https://info.salvia-colombia.co/")
+		} else {
+			c.Redirect(http.StatusTemporaryRedirect, staticURI+"/landing.html")
+		}
+		return
+	}
+
+	// Usuario autenticado: mostrar página 404 dentro del layout de la app
+	session := sessions.Default(c)
+	v := session.Get("userData")
+	currentUser := ""
+	if v != nil {
+		if s, err := utils.GetCommonSession(v.(string)); err == nil && s != nil {
+			currentUser = s.Names + " " + s.LastNames
+		}
+	}
+
+	c.HTML(http.StatusNotFound, utils.DEFAULT_VIEW, gin.H{
+		"windowTitle": "Página no encontrada",
+		"currentUser": currentUser,
+		"content":     template.HTML(noFoundContent),
+	})
 }
 
 // NewHTTPServer retorna un *http.Server configurado pero sin arrancar.

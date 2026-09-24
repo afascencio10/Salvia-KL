@@ -84,6 +84,13 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"ad": true,
 		"an": true,
 	},
+	// view_new_victim_case: controla el acceso a la pantalla /casos/nuevo.
+	// Solo agente integral (op), agente de seguimiento (ro) y agente de notificaciones (an).
+	"view_new_victim_case": {
+		"op": true,
+		"ro": true,
+		"an": true,
+	},
 	"update_victim_case": {
 		"op": true,
 		"ro": true,
