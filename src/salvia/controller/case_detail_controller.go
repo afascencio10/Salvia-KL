@@ -405,19 +405,25 @@ func (c *CaseDetailController) ReasignarCaso(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// ReabrirCaso pasa un caso cerrado (cd) a activo (ra).
+// ReabrirCaso pasa un caso cerrado (cd) a activo (ra). Solo el rol "sv" puede
+// ejecutarlo — misma validación de sesión que ya usa case-entities
+// (requireCaseDetailAccess, definido en entity_case_controller.go).
 // POST /api/v1/casos/:id/reabrir
 func (c *CaseDetailController) ReabrirCaso(ctx *gin.Context) {
-	caseICode := ctx.Param("id")
-	var body struct {
-		ActorID string `json:"actor_id"`
+	s := requireCaseDetailAccess(ctx)
+	if s == nil {
+		return
 	}
-	_ = ctx.ShouldBindJSON(&body)
+	if s.CurrentRole != "sv" {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "solo un supervisor puede reabrir el caso"})
+		return
+	}
+	caseICode := ctx.Param("id")
 	if c.cierreSvc == nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "servicio de cierre no disponible"})
 		return
 	}
-	if err := c.cierreSvc.ReabrirCaso(ctx.Request.Context(), caseICode, body.ActorID); err != nil {
+	if err := c.cierreSvc.ReabrirCaso(ctx.Request.Context(), caseICode, s.UserICode); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
