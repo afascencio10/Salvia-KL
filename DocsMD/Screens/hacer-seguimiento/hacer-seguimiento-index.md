@@ -15,6 +15,7 @@
 | [`changelogMay2026.md`](changelogMay2026.md) | Cambios realizados en mayo 2026 |
 | [`changelogJun2026.md`](changelogJun2026.md) | Cambios realizados en junio 2026 |
 | [`changelogAgo2026.md`](changelogAgo2026.md) | Cambios realizados en agosto 2026 |
+| [`changelogSep2026.md`](changelogSep2026.md) | Cambios realizados en septiembre 2026 |
 
 ### Otros MDs
 
