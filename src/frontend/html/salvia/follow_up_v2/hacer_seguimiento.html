@@ -374,7 +374,7 @@
                     }));
                     this.formState.hasCurrentEntities = this.formState.currentEntities.length > 0 ? 'true' : '';
                     this.formState.currentEntitiesOptions = this.formState.currentEntities.map(e => ({
-                        value: e.entityBranchId,
+                        value: String(e.entityBranchId),
                         label: e.nombre,
                     }));
                     console.log('[HS] currentEntities cargadas:', this.formState.currentEntities.length);
