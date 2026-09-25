@@ -3,12 +3,14 @@ package controller
 
 import (
 	"bitsflow/common/utils"
+	salvia_config "bitsflow/salvia/config"
 	salvia_daos "bitsflow/salvia/dao"
 	"bitsflow/salvia/service"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -32,6 +34,7 @@ func NewFormController(svc service.FormService, victimCaseFormSvc service.Victim
 //	PUT    /api/v1/forms/:id
 //	DELETE /api/v1/forms/:id
 //	GET    /api/v1/forms/:id/load?submissionId=<optional>
+//	GET    /api/v1/competences?sector=<q1>&institutions=<q3|q6|q9>
 func (c *FormController) RegisterRoutes(rg *gin.RouterGroup) {
 	forms := rg.Group("/forms")
 	forms.GET("", c.List)
@@ -45,6 +48,7 @@ func (c *FormController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/testEndpoint", c.TestEndpoint)
 	rg.GET("/victim-case-forms/:submissionId/result", c.GetVictimCaseFormResult)
 	rg.GET("/victim-case-forms/enums", c.GetVictimCaseFormEnums)
+	rg.GET("/competences", c.ListCompetences)
 }
 
 // TestEndpoint es un sandbox de pruebas.
@@ -267,6 +271,29 @@ func (c *FormController) GetVictimCaseFormEnums(ctx *gin.Context) {
 		out[category] = opts
 	}
 	ctx.JSON(http.StatusOK, out)
+}
+
+// ListCompetences expone el catálogo de competencias (acciones institucionales)
+// de las entidades como { label, value }, para que dinamic-form lo resuelva vía
+// state_options_path en el repeater de barreras del formulario de seguimiento —
+// el mismo mecanismo que ya usan Ciudad y Municipio de ese repeater.
+//
+//	GET /api/v1/competences?sector=salud&institutions=ips,eps
+//
+// sector es el valor de la pregunta de sector de la barrera (Q1) e institutions
+// los de la pregunta "¿A qué institución acudió?" (Q3/Q6/Q9), separados por coma.
+// Sin institución marcada devuelve las competencias de todo el sector.
+//
+// Sin sesión ni rol, igual que los demás catálogos de opciones del formulario
+// (/victim-case-forms/enums, /locations/*): es normativa pública, no dato de caso.
+func (c *FormController) ListCompetences(ctx *gin.Context) {
+	institutions := make([]string, 0, 4)
+	for _, raw := range strings.Split(ctx.Query("institutions"), ",") {
+		if institution := strings.TrimSpace(raw); institution != "" {
+			institutions = append(institutions, institution)
+		}
+	}
+	ctx.JSON(http.StatusOK, salvia_config.CompetenceOptions(ctx.Query("sector"), institutions))
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────

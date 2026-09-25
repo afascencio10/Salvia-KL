@@ -203,6 +203,7 @@ func main() {
 		RepeaterEntryRepo:         repeaterEntryRepo,
 		AnswerRepo:                answerRepo,
 		FollowUpRepo:              followUpRepo,
+		FollowUpAttemptRepo:       attemptRepo,
 		EmergencyMeasureRepo:      emRepo,
 		PsychosocialSupportRepo:   psRepo,
 		EconomicStabilizationRepo: esRepo,

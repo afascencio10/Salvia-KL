@@ -22,6 +22,8 @@ type DirectoryRepository interface {
 	Repository[models.Directory]
 	FindByFilters(ctx context.Context, filters DirectoryFilters, page, limit int) ([]models.Directory, int64, error)
 	SetActive(ctx context.Context, id string, active bool) error
+	// FindAll devuelve todos los directorios, activos e inactivos.
+	FindAll(ctx context.Context) ([]models.Directory, error)
 }
 
 type directoryRepository struct {
@@ -76,6 +78,12 @@ func (r *directoryRepository) FindByFilters(ctx context.Context, f DirectoryFilt
 		Limit(limit).
 		Find(&items).Error
 	return items, total, err
+}
+
+func (r *directoryRepository) FindAll(ctx context.Context) ([]models.Directory, error) {
+	var items []models.Directory
+	err := r.db.WithContext(ctx).Find(&items).Error
+	return items, err
 }
 
 func (r *directoryRepository) SetActive(ctx context.Context, id string, active bool) error {

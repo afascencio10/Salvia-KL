@@ -28,7 +28,11 @@ func NewReportService(repo repository.ReportRepository) ReportService {
 }
 
 func (s *reportService) GenerateConsolidatedFollowUpsReport(ctx context.Context, r FollowUpsReportRange) (*excelize.File, error) {
-	// 1. Consultar casos creados en el rango — por chunks de 2 meses para evitar timeout del pooler
+	// 1. Consultar casos creados en el rango — por chunks de 2 meses para evitar timeout del pooler.
+	// El repositorio compara por FECHA calendario (::date), por lo que los chunks NO deben
+	// compartir día: el siguiente chunk empieza al día siguiente (a medianoche) del fin del
+	// chunk anterior. Antes se avanzaba con Add(time.Second), lo que con la comparación por
+	// ::date solapaba el día del corte y duplicaba los casos de ese día en dos chunks.
 	var cases []repository.CaseReportDTO
 	chunkStart := r.StartDate
 	for chunkStart.Before(r.EndDate) {
@@ -41,7 +45,10 @@ func (s *reportService) GenerateConsolidatedFollowUpsReport(ctx context.Context,
 			return nil, err
 		}
 		cases = append(cases, chunk...)
-		chunkStart = chunkEnd.Add(time.Second)
+		// Avanzar al inicio (medianoche) del día siguiente al fin del chunk, para que
+		// el próximo chunk arranque en un día calendario distinto y no se solape.
+		nextDay := chunkEnd.AddDate(0, 0, 1)
+		chunkStart = time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), 0, 0, 0, 0, nextDay.Location())
 	}
 
 	var caseICodes []string

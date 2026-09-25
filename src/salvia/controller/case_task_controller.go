@@ -87,6 +87,12 @@ var misTareasRoles = map[string]bool{"op": true, "ro": true, "et": true, "sv": t
 // Técnico en el tab Derivaciones de Detalle del Caso.
 var equipoTecnicoRoles = map[string]bool{"te": true}
 
+// misTareasRolesExcludingEntidadMecanismo — mismos roles que misTareasRoles salvo
+// entidad y mecanismo. Gatea las tareas de un caso completo (caseId sin barrierId ni
+// psychosocialId), que alimentan la pestaña "Tareas" del detalle de caso — gestión
+// interna de SALVIA oculta para esos dos roles.
+var misTareasRolesExcludingEntidadMecanismo = map[string]bool{"op": true, "ro": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true}
+
 // RegisterRoutes registra las rutas de CaseTask en el grupo /api/v1.
 //
 //	GET  /api/v1/case-tasks?assignedUserId=<id>   → tareas con barrera asignadas al usuario
@@ -161,6 +167,12 @@ func (c *CaseTaskController) ListByAssignedUser(ctx *gin.Context) {
 				return
 			}
 			ctx.JSON(http.StatusOK, c.enrichTasksWithNames(c.filterTasksForEntityRole(ctx, items)))
+			return
+		}
+		// La pestaña Tareas (caseId sin barrierId/psychosocialId) es gestión interna de
+		// SALVIA, oculta para entidad/mecanismo. Las tareas por barrera (usadas dentro
+		// de Gestión Institucional) y por remisión psicosocial siguen disponibles arriba.
+		if requireSessionRole(ctx, misTareasRolesExcludingEntidadMecanismo) == nil {
 			return
 		}
 		items, err := c.svc.ListByCaseID(ctx.Request.Context(), caseID)

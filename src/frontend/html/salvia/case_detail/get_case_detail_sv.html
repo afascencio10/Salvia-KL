@@ -223,11 +223,12 @@
               </div>
               <!-- Nuevos hechos reportados en seguimientos -->
               <div v-if="hechosReportados.length" style="margin-top:16px;border-top:1px solid #e5e7eb;padding-top:14px">
-                <p style="font-size:.78rem;font-weight:600;color:#6b7280;margin:0 0 10px;text-transform:uppercase">Hechos reportados en seguimientos</p>
+                <p style="font-size:.78rem;font-weight:600;color:#6b7280;margin:0 0 4px;text-transform:uppercase">Hechos reportados en seguimientos</p>
+                <p style="font-size:.7rem;color:#9ca3af;margin:0 0 10px">Ordenados por fecha del suceso, del más antiguo al más reciente.</p>
                 <div v-for="(h, idx) in hechosReportados" :key="h.id" style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-bottom:8px">
                   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                     <span style="font-size:.75rem;font-weight:600;color:#dc2626"><i class="fa fa-file-lines"></i> Hecho #${ idx + 1 }</span>
-                    <span style="font-size:.7rem;color:#9ca3af">${ h.date ? h.date.substring(0,10) : '' }</span>
+                    <span style="font-size:.7rem;color:#9ca3af"><i class="fa fa-calendar-day" style="margin-right:4px"></i>Fecha del suceso: ${ h.date ? h.date.substring(0,10) : 'Sin fecha' }</span>
                   </div>
                   <p style="font-size:.82rem;color:#374151;margin:0">${ h.description || 'Sin descripción' }</p>
                 </div>
@@ -407,21 +408,49 @@
           <!-- Profesionales de atención (componente reutilizable) -->
           <case-professionals :case-id="caseICode"></case-professionals>
 
-          <!-- Comentarios del Equipo Técnico -->
+          <!-- Análisis del caso: análisis de la mesa técnica + comentarios del equipo técnico -->
           <div class="cd-deriv-section" style="background:#f5f3ff;border-color:#c4b5fd">
             <div class="cd-deriv-header" style="border-bottom-color:#c4b5fd">
-              💬 Comentarios del Equipo Técnico
-              <span class="cd-count" style="color:#7c3aed">${ comentariosEquipoTecnico.length } comentario${ comentariosEquipoTecnico.length !== 1 ? 's' : '' }</span>
+              💬 Análisis del caso
               <button v-if="userRole === 'te'" type="button" @click="abrirModalComentarioEquipoTecnico"
                 style="margin-left:8px;font-size:.72rem;font-weight:600;padding:4px 10px;border-radius:8px;background:#7c3aed;color:#fff;border:none;cursor:pointer">
                 + Comentario
               </button>
             </div>
-            <div v-if="comentariosEquipoTecnico.length === 0" class="cd-deriv-empty">Sin comentarios</div>
-            <div v-for="item in comentariosEquipoTecnico" :key="item.id" class="cd-deriv-item" style="flex-direction:column;align-items:stretch">
-              <p style="margin:0;font-size:.83rem;color:#374151;white-space:pre-wrap">${ item.result }</p>
-              <div class="cd-deriv-date">${ item.assignedUserName || 'Equipo Técnico' } · 📅 ${ formatFecha(item.completedAt) }</div>
+
+            <div v-if="analisisMesaTecnica.length === 0 && comentariosEquipoTecnico.length === 0" class="cd-deriv-empty">
+              Sin análisis ni comentarios registrados
             </div>
+
+            <!-- Resumen del formulario de Decisión de la Mesa Técnica: análisis y decisiones -->
+            <template v-if="analisisMesaTecnica.length > 0">
+              <p style="font-size:.72rem;color:#6b7280;font-weight:700;margin:12px 16px 6px;text-transform:uppercase;letter-spacing:.04em">
+                Mesa técnica
+                <span style="color:#7c3aed">· ${ analisisMesaTecnica.length } sesión${ analisisMesaTecnica.length !== 1 ? 'es' : '' }</span>
+              </p>
+              <div v-for="t in analisisMesaTecnica" :key="t.id" class="cd-deriv-item" style="flex-direction:column;align-items:stretch">
+                <p v-if="t.formData.analisisMesaTecnica" style="margin:0;font-size:.83rem;color:#374151;white-space:pre-wrap">${ t.formData.analisisMesaTecnica }</p>
+                <div v-if="decisionesMesaTecnica(t).length > 0" style="margin-top:6px">
+                  <div style="font-size:.72rem;color:#6b7280;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Decisiones tomadas</div>
+                  <div style="display:flex;flex-wrap:wrap;gap:4px">
+                    <span v-for="d in decisionesMesaTecnica(t)" :key="d" style="font-size:.75rem;background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:4px;border:1px solid #e5e7eb">${ d }</span>
+                  </div>
+                </div>
+                <div class="cd-deriv-date">${ t.assignedUserName || 'Mesa técnica' } · 📅 ${ formatFecha(t.completedAt) }</div>
+              </div>
+            </template>
+
+            <!-- Comentarios libres del equipo técnico -->
+            <template v-if="comentariosEquipoTecnico.length > 0">
+              <p style="font-size:.72rem;color:#6b7280;font-weight:700;margin:12px 16px 6px;text-transform:uppercase;letter-spacing:.04em">
+                Comentarios del equipo técnico
+                <span style="color:#7c3aed">· ${ comentariosEquipoTecnico.length }</span>
+              </p>
+              <div v-for="item in comentariosEquipoTecnico" :key="item.id" class="cd-deriv-item" style="flex-direction:column;align-items:stretch">
+                <p style="margin:0;font-size:.83rem;color:#374151;white-space:pre-wrap">${ item.result }</p>
+                <div class="cd-deriv-date">${ item.assignedUserName || 'Equipo Técnico' } · 📅 ${ formatFecha(item.completedAt) }</div>
+              </div>
+            </template>
           </div>
 
         </template>
@@ -435,10 +464,6 @@
           <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid #e5e7eb">
             <p style="font-size:.72rem;color:#6b7280;font-weight:700;margin:0 0 12px;text-transform:uppercase;letter-spacing:.04em">🏛️ Entidades</p>
             <case-entities :case-id="caseICode" :user-id="userICode" :user-role="userRole"></case-entities>
-          </div>
-
-          <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid #e5e7eb">
-            <case-mecanismos :case-id="caseICode" :user-id="userICode" :user-role="userRole"></case-mecanismos>
           </div>
 
           <!-- Banner tareas pendientes -->
@@ -523,6 +548,13 @@
             </div>
           </div>
 
+          <!-- Mecanismos del caso (componente reutilizable) — va después de Barreras
+               por decisión de producto: primero la barrera identificada, luego el
+               mecanismo con el que se gestiona. -->
+          <div style="margin-top:24px;padding-top:20px;border-top:1px solid #e5e7eb">
+            <case-mecanismos :case-id="caseICode" :user-id="userICode" :user-role="userRole"></case-mecanismos>
+          </div>
+
           <!-- Oficios del caso (componente reutilizable) -->
           <div style="margin-top:24px;padding-top:20px;border-top:1px solid #e5e7eb">
             <p style="font-size:.72rem;color:#6b7280;font-weight:700;margin:0 0 12px;text-transform:uppercase;letter-spacing:.04em">📄 Oficios del caso</p>
@@ -543,7 +575,11 @@
             </div>
             <div class="cd-sstat cd-sstat-orange">
               <div class="cd-lbl">Pendientes</div>
-              <div class="cd-val">${ followUpsV2.filter(s => s.status === 'PENDIENTE' && !s.is_completed).length }</div>
+              <div class="cd-val">${ followUpsV2.filter(s => s.status === 'PENDIENTE' && !s.is_completed && !esVencido(s)).length }</div>
+            </div>
+            <div class="cd-sstat">
+              <div class="cd-lbl">Vencidos</div>
+              <div class="cd-val" style="color:#dc2626">${ followUpsV2.filter(s => esVencido(s)).length }</div>
             </div>
           </div>
           <div v-if="followUpsV2.length === 0" class="cd-empty">
@@ -552,15 +588,19 @@
           </div>
           <div v-for="(seg, idx) in followUpsV2" :key="seg.id"
             :class="['cd-seg-item', seg.is_completed || seg.status === 'REALIZADO' ? 'done' : 'pending']"
-            style="flex-wrap:wrap;cursor:pointer"
+            :style="esVencido(seg) ? 'flex-wrap:wrap;cursor:pointer;background:#f3f4f6;border-color:#e5e7eb;opacity:.85' : 'flex-wrap:wrap;cursor:pointer'"
             @click="toggleSegExpand(seg.id)">
-            <div :class="['cd-seg-indicator', seg.is_completed || seg.status === 'REALIZADO' ? 'cd-si-done' : 'cd-si-pending']">
-              ${ seg.is_completed || seg.status === 'REALIZADO' ? '✓' : (idx + 1) }
+            <div :class="['cd-seg-indicator', seg.is_completed || seg.status === 'REALIZADO' ? 'cd-si-done' : 'cd-si-pending']"
+              :style="esVencido(seg) ? 'background:#9ca3af' : ''">
+              ${ seg.is_completed || seg.status === 'REALIZADO' ? '✓' : (esVencido(seg) ? '—' : segNumero(seg)) }
             </div>
             <div class="cd-seg-info">
               <div class="cd-seg-title">
-                <p>Seguimiento #${ idx + 1 }</p>
-                <span :class="['cd-seg-badge', seg.is_completed || seg.status === 'REALIZADO' ? 'cd-sb-done' : 'cd-sb-pending']">
+                <p>${ esVencido(seg) ? 'Seguimiento vencido' : 'Seguimiento #' + segNumero(seg) }</p>
+                <span v-if="esVencido(seg)" class="cd-seg-badge" style="background:#fee2e2;color:#dc2626">
+                  Vencido
+                </span>
+                <span v-else :class="['cd-seg-badge', seg.is_completed || seg.status === 'REALIZADO' ? 'cd-sb-done' : 'cd-sb-pending']">
                   ${ seg.status }
                 </span>
                 <!-- Indicador de intentos (esquema 3×3) -->
@@ -586,8 +626,9 @@
                @click.stop>
               Ver detalle →
             </a>
-            <!-- Botones para seguimientos PENDIENTES -->
-            <div v-if="!seg.is_completed && seg.status !== 'REALIZADO'" class="cd-seg-actions" @click.stop>
+            <!-- Botones para seguimientos PENDIENTES (no aplican a vencidos: un
+                 seguimiento vencido no se inicia ni se edita, se crea uno nuevo) -->
+            <div v-if="!seg.is_completed && seg.status !== 'REALIZADO' && !esVencido(seg)" class="cd-seg-actions" @click.stop>
               <a v-if="(userRole === 'ro' || userRole === 'op') && seg.agent_id === userICode" href="#" class="btn-iniciar" style="text-decoration:none;text-align:center" @click.prevent="iniciarSeguimiento(seg)">▶ Iniciar</a>
               <button v-else-if="userRole === 'ro' || userRole === 'op'" class="btn-iniciar" disabled style="opacity:.5;cursor:not-allowed" title="Este seguimiento está asignado a otro agente">▶ Iniciar</button>
               <button v-if="puedeReasignar || ((userRole === 'ro' || userRole === 'op') && caso && caso.agentId === userICode)"
@@ -1180,9 +1221,9 @@ var home = Vue.createApp({
       // horaria del dispositivo del cliente, que puede estar mal configurado.
       fechaHoy: "{{.fechaHoy}}",
       toast: { show: false, type: 'success', message: '' },
-      tabs: [
+      allTabs: [
         { id: 'info',         label: 'Info General',  icono: '👤' },
-        { id: 'derivaciones', label: 'Derivaciones',  icono: '↗️' },
+        { id: 'derivaciones', label: 'Atención SALVIA',  icono: '↗️' },
         { id: 'barreras',     label: 'Gestión institucional', icono: '🏛️' },
         { id: 'seguimientos', label: 'Seguimientos',  icono: '📞' },
         { id: 'tareas',       label: 'Tareas',        icono: '📝' },
@@ -1218,6 +1259,17 @@ var home = Vue.createApp({
   },
 
   computed: {
+    // Análisis de la mesa técnica: las tareas comite_caso ya completadas del caso.
+    // No requiere consulta nueva — cargarTareasCaso() ya trae todas las tareas con
+    // su formData, que es donde el modal guarda el formulario de decisión.
+    // Ver case-task-modal.js (caso 'comite_caso') y case-task-history.js, que
+    // renderiza estos mismos campos en el histórico de la tarea.
+    analisisMesaTecnica() {
+      return this.caseTasks
+        .filter(function(t) { return t.type === 'comite_caso' && t.status === 'Done' && t.formData; })
+        .slice()
+        .sort(function(a, b) { return String(a.completedAt || '').localeCompare(String(b.completedAt || '')); });
+    },
     remisionMuestraMedidas() { return this.remisionForm.equipos.indexOf('medidas_emergencia') !== -1; },
     remisionMuestraPsico() { return this.remisionForm.equipos.indexOf('atencion_psico') !== -1; },
     remisionMuestraHombres() { return this.remisionForm.equipos.indexOf('atencion_hombres') !== -1; },
@@ -1261,6 +1313,15 @@ var home = Vue.createApp({
     esConsultaSoloLectura() {
       // Agente psicosocial: solo consulta, sin acciones que modifiquen el caso
       return this.userRole === 'ps' || this.userRole === 'ts';
+    },
+    esEntidadOMecanismo() {
+      // Entidad/Mecanismo: solo ven Gestión Institucional e Info General,
+      // sin visibilidad de la gestión interna de SALVIA (ver DoD).
+      return this.userRole === 'et' || this.userRole === 'mn';
+    },
+    tabs() {
+      if (!this.esEntidadOMecanismo) return this.allTabs;
+      return this.allTabs.filter(function(t) { return t.id === 'info' || t.id === 'barreras'; });
     },
     proximoSeguimiento() {
       // Buscar el primer seguimiento PENDIENTE ordenado por fecha (ya vienen ordenados del backend)
@@ -1317,7 +1378,25 @@ var home = Vue.createApp({
       return ultima;
     },
     hechosReportados() {
-      return this.hechosTimeline || [];
+      // Se ordenan cronológicamente por la fecha del suceso (campo 'date'),
+      // del más antiguo al más reciente, tal como lo pide el requerimiento.
+      // No se altera el orden del backend (created_at DESC), que alimenta la
+      // pestaña Timeline; el reordenamiento es local a esta card de Hechos.
+      // Si dos hechos tienen la misma fecha de suceso, se desempata por la
+      // fecha de registro (created_at) ascendente para un orden estable.
+      var lista = (this.hechosTimeline || []).slice();
+      var toTime = function(valor) {
+        if (!valor) return 0;
+        var t = new Date(valor).getTime();
+        return isNaN(t) ? 0 : t;
+      };
+      lista.sort(function(a, b) {
+        var da = toTime(a && a.date);
+        var db = toTime(b && b.date);
+        if (da !== db) return da - db;
+        return toTime(a && a.created_at) - toTime(b && b.created_at);
+      });
+      return lista;
     },
     derivaciones() {
       var sectores = {
@@ -1534,6 +1613,8 @@ var home = Vue.createApp({
         .catch(function() {});
     },
     cargarTareasCaso() {
+      // Entidad/Mecanismo no tienen la pestaña Tareas ni acceso backend a este listado.
+      if (this.esEntidadOMecanismo) { this.caseTasks = []; return; }
       var self = this;
       fetch('/api/v1/case-tasks?caseId=' + CASE_ICODE)
         .then(function(res) { return res.json(); })
@@ -1554,6 +1635,15 @@ var home = Vue.createApp({
         }
         return true;
       });
+    },
+    // Etiquetas de las decisiones de una mesa técnica. El modal guarda las dos
+    // formas: 'decisiones' con los códigos y 'decisionesTexto' con las etiquetas.
+    // Las tareas anteriores a que se agregara decisionesTexto solo tienen los
+    // códigos, así que se usan como respaldo antes que no mostrar nada.
+    decisionesMesaTecnica(tarea) {
+      var fd = tarea.formData || {};
+      if (Array.isArray(fd.decisionesTexto) && fd.decisionesTexto.length > 0) return fd.decisionesTexto;
+      return Array.isArray(fd.decisiones) ? fd.decisiones : [];
     },
     formatFecha(f) { return f ? f.substring(0, 10) : '—'; },
     formatFechaHora(f) {
@@ -1597,6 +1687,37 @@ var home = Vue.createApp({
       // Si es el usuario actual (op autoasignado), usar su nombre de sesión
       if (agentId === this.userICode) return this.currentUser;
       return agentId;
+    },
+    // esVencido determina si una tarjeta de seguimiento está vencida.
+    // Se apoya en el estado 'VENCIDO' que ya calcula el backend al abrir el
+    // detalle, pero además valida por fecha como respaldo: un seguimiento no
+    // realizado ni cerrado cuya fecha programada ya quedó atrás se considera
+    // vencido aunque su estado todavía no se haya actualizado.
+    esVencido(seg) {
+      if (!seg) return false;
+      if (seg.is_completed || seg.status === 'REALIZADO' || seg.status === 'CERRADO') return false;
+      if (seg.status === 'VENCIDO') return true;
+      var fechaSeg = seg.scheduled_date ? seg.scheduled_date.substring(0, 10) : '';
+      if (!fechaSeg) return false;
+      var ahora = new Date();
+      var hoy = ahora.getFullYear() + '-' + String(ahora.getMonth() + 1).padStart(2, '0') + '-' + String(ahora.getDate()).padStart(2, '0');
+      return fechaSeg < hoy;
+    },
+    // segNumero calcula el número visible del seguimiento ("Seguimiento #N")
+    // contando únicamente los seguimientos NO vencidos (realizados y pendientes),
+    // en el orden en que aparecen en la lista. Los vencidos no consumen número,
+    // de modo que la numeración refleja los seguimientos efectivamente gestionados
+    // o pendientes. Se recalcula dinámicamente según el estado real de cada uno.
+    segNumero(seg) {
+      if (!seg) return '';
+      var n = 0;
+      for (var i = 0; i < this.followUpsV2.length; i++) {
+        var actual = this.followUpsV2[i];
+        if (this.esVencido(actual)) continue;
+        n++;
+        if (actual.id === seg.id) return n;
+      }
+      return '';
     },
     labelEstado(s) {
       var m = { 'ra':'Activo', 'is':'Con novedad', 'cd':'Cerrado', 'ex':'Vencido', 'r':'Por aprobar', 'fc':'Recontacto' };

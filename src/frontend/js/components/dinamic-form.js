@@ -1344,6 +1344,13 @@ app.component('dinamic-form', {
         _sanitizeOptionAnswer(question, value, formState, entryIndex) {
             if (!question.stateOptionsPath || !value) return value;
             const opts  = resolveQuestionOptions(question, formState, entryIndex);
+            // Sin opciones resueltas no se puede saber si el valor guardado sigue
+            // siendo válido: puede que el padre todavía no haya cargado la lista.
+            // Municipio y Competencias la traen por fetch, que resuelve después del
+            // primer render, así que al reabrir un seguimiento el valor guardado se
+            // comparaba contra una lista vacía y se perdía en silencio. Ante la
+            // duda se deja quieto: cuando las opciones lleguen se vuelve a validar.
+            if (opts.length === 0) return value;
             const valid = new Set(opts.map(o => o.value));
             if (question.questionTypeId === 'multiple') {
                 const kept = value.split(',').map(v => v.trim()).filter(v => v && valid.has(v));

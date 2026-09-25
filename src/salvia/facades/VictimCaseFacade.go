@@ -4,6 +4,7 @@ package salvia_facades
 
 import (
 	"bytes"
+	"html/template"
 	"math"
 	"net/http"
 	"strconv"
@@ -754,6 +755,34 @@ func VictimCasePOST_GET(c *gin.Context) {
 	session := sessions.Default(c)
 	var sessionID string = session.Get("userData").(string)
 	s, _ := utils.GetCommonSession(sessionID)
+
+	// Solo op, ro y an pueden acceder a la pantalla de creación de caso.
+	if _, allowed := salvia_config.PermissionsByRole["view_new_victim_case"][s.CurrentRole]; !allowed {
+		noPermContent := template.HTML(`
+			<script>document.getElementById('app').style.display='block';</script>
+			<div style="min-height:70vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;">
+			  <div style="max-width:480px;width:100%;text-align:center;">
+			    <div style="font-size:72px;color:#adb5bd;line-height:1;margin-bottom:16px;">
+			      <i class="fas fa-lock"></i>
+			    </div>
+			    <h1 style="font-size:28px;font-weight:700;color:#343a40;margin-bottom:8px;">Acceso restringido</h1>
+			    <p style="color:#6c757d;margin-bottom:24px;">No tienes permisos para acceder a esta pantalla.<br>Si crees que esto es un error, comunícate con el administrador.</p>
+			    <a href="javascript:history.back()" class="btn btn-outline-secondary">
+			      <i class="fas fa-arrow-left mr-1"></i>Volver
+			    </a>
+			  </div>
+			</div>`)
+		c.HTML(http.StatusForbidden, utils.DEFAULT_VIEW, gin.H{
+			"windowTitle": "Acceso restringido",
+			"currentUser": s.Names + " " + s.LastNames,
+			"currentRole": s.CurrentRole,
+			"locale":      salvia_config.Locale,
+			"lang":        s.Lang,
+			"menu":        s.CurrentMenu,
+			"content":     noPermContent,
+		})
+		return
+	}
 
 	// Verifica que el usuario tenga el permiso "set_victim_case".
 	if !utils.CheckPermission(salvia_config.PermissionsByRole, "set_victim_case", s.CurrentRole, c) {

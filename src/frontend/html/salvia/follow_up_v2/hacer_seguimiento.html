@@ -239,6 +239,10 @@
     // futura migración) se muestra siempre en solo lectura — ver canEdit más abajo.
     const FORM_ID_DEFAULT = '2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff';
 
+    // Repeater "Barreras identificadas" — ver
+    // DocsMD/Screens/hacer-seguimiento/form-barreras-repeater.md
+    const BARRIER_GROUP_ID = '5fd3ecdc-2e5f-4b31-97ef-8a994580586a';
+
     var app = Vue.createApp({
         delimiters: ['${', '}'],
         data() {
@@ -274,12 +278,11 @@
                 allCities:        [],   // [{ label, value, departmentId }] — para filtrado local
                 _townCityCache:   {},   // { [idx]: cityId } — evita re-fetch redundante de municipios
                 _deptCityCache:   {},   // { [idx]: deptId } — evita re-filtrar ciudades sin cambio
-                // Cachés de los repeaters de Identificación de Entidades (Sección 6),
-                // claveadas por "stateKey:idx" para diferenciar ambos repeaters
                 _entRepDeptCache:      {},
                 _entRepCityCache:      {},
                 _entRepMunicipioCache: {},
                 _entRepEntidadCache:   {},
+                _competenciaCache: {},
             };
         },
         mounted() {
@@ -419,6 +422,7 @@
                 this._updateReasignacionState(getVal, splitCSV);
                 this._updateBarreraLocationOptions(payload);
                 this._updateEntidadIdentificacionOptions(payload);
+                this._updateCompetenciaOptions(payload);
             },
             _updatePsicosocialState(getVal, splitCSV) {
                 const Q_PSICO = '71c42c4a-f640-47ad-b2c1-5d4c18480449';
@@ -482,7 +486,6 @@
                 console.log('[reasignacion] resultado → shouldReassign=%o | canHigh=%o | canLow=%o', this.formState.shouldReassignCase, this.formState.canReassignHigh, this.formState.canReassignLow);
             },
             _updateBarreraLocationOptions(payload) {
-                const BARRIER_GROUP_ID = '5fd3ecdc-2e5f-4b31-97ef-8a994580586a';
                 const Q_DEPT = '31c7f8ba-880e-4c9a-89f0-1a6a1e43b7b9';
                 const Q_CITY = 'c6f2d54a-3c61-4ae7-b2bf-50a884031fa4';
 
@@ -491,9 +494,7 @@
 
                 console.log('[barreras-location] entries=%o | allCities cargadas=%o', entries.length, this.allCities.length);
 
-                while (this.formState.newBarriers.length < entries.length) {
-                    this.formState.newBarriers.push({ cities: [], towns: [] });
-                }
+                this._ensureBarrierEntries(entries.length);
 
                 entries.forEach((entry, idx) => {
                     const getEntryVal = qId => (entry.answers.find(a => a.questionId === qId)?.value || '');
@@ -629,24 +630,76 @@
                             }
                         }
                     });
+            },
+            // Una posición de newBarriers por entrada del repeater: ahí viven las
+            // opciones que las preguntas sin opciones en BD resuelven vía
+            // state_options_path (cities, towns y competencias).
+            _ensureBarrierEntries(count) {
+                while (this.formState.newBarriers.length < count) {
+                    this.formState.newBarriers.push({ cities: [], towns: [], competencias: [] });
+                }
+            },
+            /* Carga las competencias (obligaciones) de la entidad como opciones de la
+             * pregunta de competencias del repeater de barreras.
+             *
+             * Las competencias son del catálogo normativo y se piden por sector +
+             * institución, nunca por sede: la obligación es de la entidad. Para
+             * "otras instituciones" y cuando el agente marcó "no sabe" no hay
+             * institución que mandar y el endpoint responde con las del sector. */
+            _updateCompetenciaOptions(payload) {
+                const Q_SECTOR = 'f19378b6-55c5-4fdf-b765-7ebcc3978741';
+                // "¿A qué institución acudió?" — hay una pregunta por sector (Q3/Q6/Q9).
+                const Q_INSTITUCION_POR_SECTOR = {
+                    salud:      'e88fb2bf-7196-4bea-91e6-fe78ccdedac1',
+                    justicia:   '4b4997fa-67a0-4479-852d-df9e7bfb2b3e',
+                    proteccion: '78474c82-61b9-4a0c-beca-439274813c03',
+                };
+
+                const entries = (payload.answers?.repeaterEntries || [])
+                    .filter(e => e.repeaterGroupId === BARRIER_GROUP_ID);
+
+                this._ensureBarrierEntries(entries.length);
+
+                entries.forEach((entry, idx) => {
+                    const getEntryVal = qId => (entry.answers.find(a => a.questionId === qId)?.value || '');
+                    const sector       = getEntryVal(Q_SECTOR);
+                    const instituciones = getEntryVal(Q_INSTITUCION_POR_SECTOR[sector] || '');
+
+                    const cacheKey = sector + '|' + instituciones;
+                    if (this._competenciaCache[idx] === cacheKey) return;
+                    this._competenciaCache[idx] = cacheKey;
+
+                    if (!sector) {
+                        this.formState.newBarriers[idx].competencias = [];
+                        return;
+                    }
+
+                    const url = '/api/v1/competences?sector=' + encodeURIComponent(sector)
+                        + '&institutions=' + encodeURIComponent(instituciones);
+                    fetch(url)
+                        .then(r => r.json())
+                        .then(competencias => {
+                            // Si el agente cambió de sector o de institución mientras
+                            // esta respuesta venía en camino, ya no aplica.
+                            if (this._competenciaCache[idx] !== cacheKey) return;
+                            this.formState.newBarriers[idx].competencias = Array.isArray(competencias) ? competencias : [];
+                            console.log('[barreras-competencias] entry[%o] sector=%o instituciones=%o → %o opciones', idx, sector, instituciones, this.formState.newBarriers[idx].competencias.length);
+                        })
+                        .catch(() => {
+                            if (this._competenciaCache[idx] !== cacheKey) return;
+                            this.formState.newBarriers[idx].competencias = [];
+                        });
                 });
             },
             async onFormCompleted() {
                 this.formCompleted = true;
 
-                // Si se llegó desde "Sí contestó" (register_attempt=true), registrar el intento efectivo ahora
-                var params = new URLSearchParams(window.location.search);
-                if (params.get('register_attempt') === 'true') {
-                    try {
-                        await fetch('/api/v1/follow-ups/' + this.followUpId + '/attempts', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ reason: 'Sí contestó', was_answered: true })
-                        });
-                    } catch (e) {
-                        console.warn('[HS] No se pudo registrar intento efectivo:', e);
-                    }
-                }
+                // El intento EFECTIVO (was_answered = true) ya NO se registra aquí.
+                // Se registra en el backend (processFollowUpSubmission) en el mismo
+                // punto donde el seguimiento pasa a REALIZADO, garantizando que solo
+                // exista un intento efectivo y solo cuando el formulario realmente se
+                // completó. Antes se hacía con ?register_attempt=true, lo que generaba
+                // intentos exitosos duplicados.
 
                 setTimeout(() => this.goToCase(), 3000);
             },

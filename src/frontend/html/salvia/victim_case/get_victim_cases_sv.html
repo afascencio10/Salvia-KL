@@ -63,6 +63,11 @@
                 <input type="text" id="filter_phone" class="form-control" placeholder="Buscar por teléfono"
                     v-model="filterPhone">
             </div>
+            <div class="form-group">
+                <label for="filter_document">Documento de la víctima</label>
+                <input type="text" id="filter_document" class="form-control" placeholder="Buscar por documento"
+                    v-model="filterDocument">
+            </div>
             <div class="form-group form-group--actions">
                 <label aria-hidden="true">&nbsp;</label>
                 <div class="reportes-filter-actions">
@@ -130,6 +135,7 @@
                             <th scope="col">Fecha Creación</th>
                             <th scope="col">Nombres y Apellidos</th>
                             <th scope="col">Teléfono</th>
+                            <th scope="col">Documento</th>
                             <th scope="col">Reporte de los hechos</th>
                             <th scope="col">Riesgo de feminicidio</th>
                             <th scope="col">Estado</th>
@@ -143,6 +149,7 @@
                                 <td>${victimContact.creationDate}</td>
                                 <td>${victimContact.lastNames}, ${victimContact.names}</td>
                                 <td>${formatContactPhone(victimContact.form2 && victimContact.form2.victimColPhone)}</td>
+                                <td>${formatContactDocument(victimContact.form && victimContact.form.docNumber)}</td>
                                 <td :title="victimContact.form2 && victimContact.form2.factsDescription ? victimContact.form2.factsDescription : ''">${truncateWords(victimContact.form2 && victimContact.form2.factsDescription)}</td>
                                 <td></td>
                                 <td v-if="victimContact.status == 'v'" ><span class="tag recontacto">Recontacto</span></td>
@@ -225,6 +232,7 @@
               filterNames: "",
               filterLastNames: "",
               filterPhone: "",
+              filterDocument: "",
               menu:{{.menu}},
               menuToolsContactTable: {{.menuToolsContactTable}},
               menuToolsCaseTable: {{.menuToolsCaseTable}},
@@ -295,6 +303,12 @@
                 }
                 return String(phone);
             },
+            formatContactDocument(docNumber) {
+                if (docNumber === null || docNumber === undefined || String(docNumber).trim() === '' || String(docNumber).trim() === '0') {
+                    return 'No registra';
+                }
+                return String(docNumber).trim();
+            },
             truncateWords(text, maxWords = 6) {
                 if (!text || typeof text !== 'string') {
                     return '';
@@ -334,6 +348,9 @@
                 if (this.filterPhone.trim()) {
                     params.push("phone=" + encodeURIComponent(this.filterPhone.trim()));
                 }
+                if (this.filterDocument.trim()) {
+                    params.push("document=" + encodeURIComponent(this.filterDocument.trim()));
+                }
                 if (params.length > 0) {
                     url += "?" + params.join("&");
                 }
@@ -347,6 +364,7 @@
                 this.filterNames = "";
                 this.filterLastNames = "";
                 this.filterPhone = "";
+                this.filterDocument = "";
                 this.currentPage = 0;
                 this.goToPage(0);
             },

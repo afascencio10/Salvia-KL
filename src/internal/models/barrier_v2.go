@@ -49,6 +49,15 @@ type BarrierV2 struct {
 	Description        string `gorm:"type:text" json:"description"`        // Q21 text
 	ManagementActions  string `gorm:"type:text" json:"managementActions"`  // Q22 CSV
 
+	// Competences son los códigos de las competencias (obligaciones) de la entidad
+	// que el agente marcó para esta barrera. CSV, igual que SpecificInstitutions.
+	// El catálogo vive embebido en salvia_config (no es una tabla), así que acá se
+	// guarda solo el código: el texto de la acción, su tiempo de respuesta y su
+	// sustento normativo se resuelven contra ese catálogo.
+	// Vacío en las barreras creadas desde la sesión psicosocial, que tiene su
+	// propio repeater sin esta pregunta.
+	Competences string `gorm:"type:text" json:"competences"` // Q23 CSV
+
 	EnlaceActivado bool `gorm:"type:boolean;default:false;column:enlace_activado" json:"enlaceActivado"`
 
 	// EntityBranchID identifica la sede (salvia.entity_branch) donde se gestiona esta

@@ -1,9 +1,13 @@
 /**
  * case-professionals.js
  * Sección "Profesionales de atención" de la pestaña Derivaciones del detalle
- * del caso. Muestra una tabla con Usuario, Rol y Notas: una fila por persona
- * que ha intervenido en el caso (desde cualquier módulo), con sus roles
- * concatenados y la consolidación cronológica de sus intervenciones.
+ * del caso. Muestra una tabla con Usuario y Rol: una fila por persona que ha
+ * intervenido en el caso (desde cualquier módulo), con sus roles concatenados.
+ *
+ * La columna "Notas" se eliminó por decisión de producto: concatenaba todas las
+ * descripciones del timeline de esa persona en una sola celda, lo que resultaba
+ * ilegible. Para ver qué hizo cada quien está la pestaña Timeline, que muestra
+ * los mismos eventos con su fecha y en orden.
  *
  * Consume GET /api/v1/casos/:id/profesionales-atencion.
  */
@@ -19,7 +23,6 @@
         .cp-table td { padding:10px 14px;color:#374151;border-top:1px solid #f1f5f9;vertical-align:top }
         .cp-usuario { font-weight:600;color:#111827;white-space:nowrap }
         .cp-rol { color:#5106A7;font-weight:600;white-space:nowrap }
-        .cp-notas { color:#4b5563;line-height:1.45 }
         .cp-loading, .cp-empty { padding:16px;font-size:.82rem;color:#9ca3af;font-style:italic }
         .cp-error { background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;color:#dc2626;font-size:.82rem }
     `;
@@ -79,14 +82,12 @@ app.component('case-professionals', {
                             <tr>
                                 <th>Usuario</th>
                                 <th>Rol</th>
-                                <th>Notas</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr v-for="(p, idx) in profesionales" :key="idx">
                                 <td class="cp-usuario">\${ p.usuario || '—' }</td>
                                 <td class="cp-rol">\${ p.rol || '—' }</td>
-                                <td class="cp-notas">\${ p.notas || '—' }</td>
                             </tr>
                         </tbody>
                     </table>
