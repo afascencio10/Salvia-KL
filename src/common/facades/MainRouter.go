@@ -193,10 +193,6 @@ func StartRouter() {
 	}
 }
 
-func isProductionHost(host string) bool {
-	return strings.Contains(host, "salvia-colombia")
-}
-
 func ForceHTTPS() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		go http.ListenAndServe(":80", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
