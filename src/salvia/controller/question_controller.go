@@ -54,16 +54,22 @@ func (c *QuestionController) Create(ctx *gin.Context) {
 		Description     string  `json:"description"    binding:"required"`
 		Required        bool    `json:"required"`
 		Order           int     `json:"order"`
+		// StateOptionsPath deja crear preguntas cuyas opciones no viven en la tabla
+		// option sino en el formState del frontend (ej. Ciudad y Municipio del
+		// repeater de barreras, o las competencias de la entidad). Sin esto la
+		// única forma de registrarlas era un UPDATE a mano en la base.
+		StateOptionsPath *string `json:"stateOptionsPath"`
 	}
 	if err := ctx.ShouldBindJSON(&body); err != nil { ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return }
 	q := &models.Question{
-		FormID:          ctx.Param("id"),
-		FormSectionID:   body.FormSectionID,
-		RepeaterGroupID: body.RepeaterGroupID,
-		QuestionTypeID:  body.QuestionTypeID,
-		Description:     body.Description,
-		Required:        body.Required,
-		Order:           body.Order,
+		FormID:           ctx.Param("id"),
+		FormSectionID:    body.FormSectionID,
+		RepeaterGroupID:  body.RepeaterGroupID,
+		QuestionTypeID:   body.QuestionTypeID,
+		Description:      body.Description,
+		Required:         body.Required,
+		Order:            body.Order,
+		StateOptionsPath: body.StateOptionsPath,
 	}
 	if err := c.svc.Create(ctx.Request.Context(), q); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"}); return
@@ -82,12 +88,22 @@ func (c *QuestionController) Update(ctx *gin.Context) {
 		Description    *string `json:"description"`
 		Required       *bool   `json:"required"`
 		Order          *int    `json:"order"`
+		// Cadena vacía borra el path y devuelve la pregunta a sus opciones de la
+		// tabla option; así un path mal escrito se corrige por API.
+		StateOptionsPath *string `json:"stateOptionsPath"`
 	}
 	if err := ctx.ShouldBindJSON(&body); err != nil { ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return }
 	if body.QuestionTypeID != nil { q.QuestionTypeID = *body.QuestionTypeID }
 	if body.Description != nil    { q.Description = *body.Description }
 	if body.Required != nil       { q.Required = *body.Required }
 	if body.Order != nil          { q.Order = *body.Order }
+	if body.StateOptionsPath != nil {
+		if *body.StateOptionsPath == "" {
+			q.StateOptionsPath = nil
+		} else {
+			q.StateOptionsPath = body.StateOptionsPath
+		}
+	}
 	if err := c.svc.Update(ctx.Request.Context(), q); err != nil {
 		if errors.Is(err, service.ErrQuestionNotFound) { ctx.JSON(http.StatusNotFound, gin.H{"error": "pregunta no encontrada"}); return }
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"}); return

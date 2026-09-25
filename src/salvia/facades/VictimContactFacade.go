@@ -170,6 +170,7 @@ func VictimContactGET(c *gin.Context) {
 			Names:     c.Query("names"),
 			LastNames: c.Query("lastNames"),
 			Phone:     c.Query("phone"),
+			Document:  c.Query("document"),
 		}
 
 		// Llamada al controlador para obtener la lista de contactos sin caso asociado.

@@ -2,10 +2,12 @@ package controller
 
 import (
 	"bitsflow/internal/repository"
+	salvia_config "bitsflow/salvia/config"
 	"bitsflow/salvia/service"
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -22,20 +24,52 @@ func NewDirectoryController(svc service.DirectoryService) *DirectoryController {
 //
 //	POST   /api/v1/directories               → Create
 //	POST   /api/v1/directories/bulk          → CreateBulk (array JSON)
+//	POST   /api/v1/directories/bulk-upload   → BulkUpload (CSV del "Mapeo de actores", multipart campo "file")
 //	GET    /api/v1/directories               → List (filtros opcionales)
 //	GET    /api/v1/directories/:id           → GetByID
 //	PUT    /api/v1/directories/:id           → Update
 //	PATCH  /api/v1/directories/:id/disable   → Disable (soft)
 //	PATCH  /api/v1/directories/:id/enable    → Enable
+//
+// Las lecturas quedan abiertas: las consume la app móvil sin sesión de la web.
+// Toda escritura pasa por requireDirectoryPermission con el permiso que ya define
+// Menu.go para esa acción — son tres distintos, no uno: crear lo puede hacer
+// entidad y supervisor, actualizar y desactivar solo supervisor.
 func (c *DirectoryController) RegisterRoutes(rg *gin.RouterGroup) {
 	dirs := rg.Group("/directories")
-	dirs.POST("/bulk", c.CreateBulk)
-	dirs.POST("", c.Create)
 	dirs.GET("", c.List)
 	dirs.GET("/:id", c.GetByID)
-	dirs.PUT("/:id", c.Update)
-	dirs.PATCH("/:id/disable", c.Disable)
-	dirs.PATCH("/:id/enable", c.Enable)
+
+	// El guard va como middleware del grupo y no repetido dentro de cada handler
+	// para que una ruta de escritura nueva no pueda quedar sin protección por
+	// olvido — que es exactamente cómo quedaron abiertas estas seis.
+	crear := dirs.Group("", requireDirectoryPermission("set_directorio_entidad"))
+	crear.POST("", c.Create)
+	crear.POST("/bulk", c.CreateBulk)
+
+	actualizar := dirs.Group("", requireDirectoryPermission("update_directorio_entidad"))
+	actualizar.PUT("/:id", c.Update)
+	// La carga masiva actualiza lo existente además de crear, así que exige el
+	// permiso de actualizar, el más estricto de los dos.
+	actualizar.POST("/bulk-upload", c.BulkUpload)
+
+	desactivar := dirs.Group("", requireDirectoryPermission("disable_directorio_entidad"))
+	desactivar.PATCH("/:id/disable", c.Disable)
+	desactivar.PATCH("/:id/enable", c.Enable)
+}
+
+// requireDirectoryPermission corta la petición con 401 o 403 si la sesión no tiene
+// el permiso indicado en salvia_config.PermissionsByRole.
+func requireDirectoryPermission(permission string) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		// requireSessionRole ya escribió la respuesta; falta cortar la cadena
+		// porque usa ctx.JSON y no ctx.AbortWithStatusJSON.
+		if requireSessionRole(ctx, salvia_config.PermissionsByRole[permission]) == nil {
+			ctx.Abort()
+			return
+		}
+		ctx.Next()
+	}
 }
 
 func (c *DirectoryController) Create(ctx *gin.Context) {
@@ -71,6 +105,34 @@ func (c *DirectoryController) CreateBulk(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusCreated, result)
+}
+
+// BulkUpload recibe rutas_atencion_territorial.csv (paquete "BD consolidada mapeo de
+// actores" de SALVIA): actualiza las entidades existentes y crea las nuevas. El
+// permiso lo exige el middleware del grupo en RegisterRoutes.
+func (c *DirectoryController) BulkUpload(ctx *gin.Context) {
+	fileHeader, err := ctx.FormFile("file")
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "adjunta el archivo en el campo 'file' (multipart/form-data)"})
+		return
+	}
+	if !strings.HasSuffix(strings.ToLower(fileHeader.Filename), ".csv") {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "el archivo debe ser .csv"})
+		return
+	}
+	file, err := fileHeader.Open()
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "no se pudo abrir el archivo"})
+		return
+	}
+	defer file.Close()
+
+	result, err := c.svc.UpsertFromCSV(ctx.Request.Context(), file)
+	if err != nil {
+		writeDirectoryError(ctx, err)
+		return
+	}
+	ctx.JSON(http.StatusOK, result)
 }
 
 func (c *DirectoryController) List(ctx *gin.Context) {

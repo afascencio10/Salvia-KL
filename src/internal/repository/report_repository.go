@@ -360,7 +360,12 @@ func (r *reportRepository) FindCasesInDateRange(ctx context.Context, start, end 
 			COALESCE(NULLIF(vmg.victim_case_form2_enums_name, ''), '') AS violence_motivated_by_gender_2,
 
 			-- Bloque 1: Autorización y Contacto
-			'' AS authorization_answer,
+			-- La "Autorización de datos personales" NO se persiste en ninguna columna
+			-- de BD, pero es un requisito OBLIGATORIO para poder crear el caso: si la
+			-- persona no acepta, el caso no llega a existir. Por tanto, todo caso que
+			-- aparece en este reporte necesariamente tuvo la autorización aceptada, y
+			-- se refleja por defecto como 'Sí'. (Antes salía vacío → "No registra".)
+			'Sí' AS authorization_answer,
 			COALESCE((
 				SELECT string_agg(adj_e.victim_case_form2_enums_name, ', ')
 				FROM salvia.rel_victim_case_form2_enums_victim_case_form2 adj_rel
@@ -607,7 +612,15 @@ func (r *reportRepository) FindCasesInDateRange(ctx context.Context, start, end 
 		LEFT JOIN security.town t ON t.town_code = vc.victim_case_victim_town_code
 		LEFT JOIN security.city c ON c.city_id = t.city_id
 		LEFT JOIN security.department d ON d.department_id = c.department_id
-		WHERE vc.victim_case_creation_date BETWEEN ? AND ?
+ 		-- Comparación por FECHA calendario en hora Colombia. victim_case_creation_date
+		-- es TIMESTAMP WITHOUT TIME ZONE guardado en hora Colombia (el servidor de BD
+		-- corre en UTC-5). Los parámetros llegan como instante y se reinterpretan en
+		-- 'America/Bogota' antes de truncar a ::date, para evitar el corrimiento de
+		-- ±5h que hacía que el reporte incluyera el día anterior o excluyera la
+		-- madrugada del primer día del rango.
+		WHERE vc.victim_case_creation_date::date
+		      BETWEEN (?::timestamptz AT TIME ZONE 'America/Bogota')::date
+		          AND (?::timestamptz AT TIME ZONE 'America/Bogota')::date
 		ORDER BY vc.victim_case_creation_date ASC
 	`
 	err := r.db.WithContext(ctx).Raw(query, start, end).Scan(&cases).Error
@@ -757,7 +770,12 @@ func (r *reportRepository) FindContactsInDateRange(ctx context.Context, start, e
 			WHERE e.victim_case_form2_enums_category = 'victim_case_form2_adjustments_gbv'
 			GROUP BY rel.victim_contact_form2_id
 		) rel_enums ON rel_enums.form2_id = f2.victim_contact_form2_id
-		WHERE vc.victim_contact_creation_date BETWEEN ? AND ?
+		-- Comparación por FECHA calendario en hora Colombia (mismo motivo que en
+		-- FindCasesInDateRange): evita el corrimiento de zona horaria en los bordes
+		-- del rango.
+		WHERE vc.victim_contact_creation_date::date
+		      BETWEEN (?::timestamptz AT TIME ZONE 'America/Bogota')::date
+		          AND (?::timestamptz AT TIME ZONE 'America/Bogota')::date
 		ORDER BY vc.victim_contact_creation_date ASC
 	`
 	err := r.db.WithContext(ctx).Raw(query, start, end).Scan(&contacts).Error

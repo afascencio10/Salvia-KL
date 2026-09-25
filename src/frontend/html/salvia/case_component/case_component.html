@@ -292,7 +292,7 @@
                                 <!-- next_follow_up_date -->
                                 <td v-else-if="col.key === 'next_follow_up_date'" class="cc-cell-follow-up">
                                     <span v-if="caseObj.nextFollowUpDate" class="cc-follow-up-date">
-                                        ${ formatDate(caseObj.nextFollowUpDate) }
+                                        ${ formatDateUTC(caseObj.nextFollowUpDate) }
                                     </span>
                                     <span v-else class="cc-follow-up-none">—</span>
                                 </td>

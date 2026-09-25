@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 
 	"gorm.io/gorm"
@@ -111,6 +112,9 @@ const maxDirectoryBulkSize = 500
 type DirectoryService interface {
 	Create(ctx context.Context, input CreateDirectoryInput) (*DirectoryResponse, error)
 	CreateBulk(ctx context.Context, inputs []CreateDirectoryInput) (*DirectoryBulkCreateResult, error)
+	// UpsertFromCSV carga el "Mapeo de actores" de SALVIA: actualiza las entidades que
+	// ya existen y crea las nuevas. Ver directory_bulk_upload_service.go.
+	UpsertFromCSV(ctx context.Context, r io.Reader) (*DirectoryUpsertResult, error)
 	Update(ctx context.Context, id string, input UpdateDirectoryInput) (*DirectoryResponse, error)
 	Disable(ctx context.Context, id string) error
 	Enable(ctx context.Context, id string) error

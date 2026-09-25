@@ -108,9 +108,11 @@ app.component('follow-up-contact-modal', {
             if (!fu || this.loading) return;
 
             this.loading = true;
-            // No registrar el intento aquí — se registra al completar el formulario de seguimiento.
-            // Redirigir al formulario con parámetro para que sepa que debe registrar el intento al guardar.
-            window.location.href = `/salvia/hacer-seguimiento/${fu.id}?register_attempt=true`;
+            // No se registra ningún intento aquí. El intento EFECTIVO lo registra el
+            // backend (processFollowUpSubmission) cuando el formulario de seguimiento
+            // se completa y el seguimiento pasa a REALIZADO — un único punto, sin
+            // duplicados. Por eso ya no se pasa ?register_attempt.
+            window.location.href = `/salvia/hacer-seguimiento/${fu.id}`;
         },
 
         handleNoAnswer() {
