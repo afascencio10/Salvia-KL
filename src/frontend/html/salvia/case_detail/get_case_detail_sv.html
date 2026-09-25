@@ -436,6 +436,9 @@
                     <span v-for="d in decisionesMesaTecnica(t)" :key="d" style="font-size:.75rem;background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:4px;border:1px solid #e5e7eb">${ d }</span>
                   </div>
                 </div>
+                <div v-if="t.formData.gestionaOficioTexto" style="margin-top:6px;font-size:.78rem;color:#374151">
+                  <i class="fa fa-file-lines" style="color:#7c3aed;margin-right:5px"></i><strong>Gestión del oficio:</strong> ${ t.formData.gestionaOficioTexto }
+                </div>
                 <div class="cd-deriv-date">${ t.assignedUserName || 'Mesa técnica' } · 📅 ${ formatFecha(t.completedAt) }</div>
               </div>
             </template>
@@ -1630,8 +1633,15 @@ var home = Vue.createApp({
       var self = this;
       return this.caseTasks.filter(function(t) {
         if (t.status !== 'ToDo') return false;
+        // Rol Entidad ('et'): filtro original del equipo — solo sus tareas asignadas.
         if (self.userRole === 'et') {
           return String(t.assignedUserId || '') === String(self.userICode || '');
+        }
+        // Equipo Técnico ('te'): cuenta sus tareas asignadas y las comite_caso del
+        // pool (sin dueño), coherente con la visibilidad de la pestaña Tareas.
+        if (self.userRole === 'te') {
+          if (String(t.assignedUserId || '') === String(self.userICode || '')) return true;
+          return t.type === 'comite_caso' && !t.assignedUserId;
         }
         return true;
       });

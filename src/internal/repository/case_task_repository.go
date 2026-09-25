@@ -24,7 +24,11 @@ type CaseTaskRepository interface {
 	// FindByAssignedUserIDPaged devuelve, paginadas, todas las tareas del usuario
 	// —no solo las de barrera— con el caso de origen resuelto. Es la consulta de la
 	// pantalla "Mis Tareas". status vacío trae todos los estados.
-	FindByAssignedUserIDPaged(ctx context.Context, assignedUserID, status string, page, pageSize int) (PageResult[models.CaseTaskWithRelations], error)
+	//
+	// role es el rol del usuario en sesión: cuando es 'te' (Equipo Técnico) se
+	// incluyen además las tareas comite_caso del pool (assigned_user_id vacío),
+	// disponibles para que cualquier integrante del equipo técnico las gestione.
+	FindByAssignedUserIDPaged(ctx context.Context, assignedUserID, status, role string, page, pageSize int) (PageResult[models.CaseTaskWithRelations], error)
 
 	// FindByCaseID devuelve todas las tareas de un caso.
 	FindByCaseID(ctx context.Context, caseID string) ([]models.CaseTask, error)
@@ -190,7 +194,7 @@ func (r *caseTaskRepository) FindByAssignedUserIDWithRelations(ctx context.Conte
 	return items, err
 }
 
-func (r *caseTaskRepository) FindByAssignedUserIDPaged(ctx context.Context, assignedUserID, status string, page, pageSize int) (PageResult[models.CaseTaskWithRelations], error) {
+func (r *caseTaskRepository) FindByAssignedUserIDPaged(ctx context.Context, assignedUserID, status, role string, page, pageSize int) (PageResult[models.CaseTaskWithRelations], error) {
 	if page < 1 {
 		page = 1
 	}
@@ -198,8 +202,17 @@ func (r *caseTaskRepository) FindByAssignedUserIDPaged(ctx context.Context, assi
 		pageSize = 20
 	}
 
-	where := " AND ct.assigned_user_id = ?"
-	args := []interface{}{assignedUserID}
+	// Base: tareas asignadas al usuario. Para el Equipo Técnico ('te') se suman
+	// las tareas comite_caso del pool (sin dueño), visibles para todo el equipo.
+	var where string
+	var args []interface{}
+	if role == "te" {
+		where = " AND (ct.assigned_user_id = ? OR (ct.type = 'comite_caso' AND ct.assigned_user_id = ''))"
+		args = []interface{}{assignedUserID}
+	} else {
+		where = " AND ct.assigned_user_id = ?"
+		args = []interface{}{assignedUserID}
+	}
 	if status != "" {
 		where += " AND ct.status = ?"
 		args = append(args, status)

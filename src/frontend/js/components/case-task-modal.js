@@ -557,6 +557,10 @@ app.component('case-task-modal', {
                         if (!f.nivelMecanismo) return false;
                         if (!f.quienLlenaMecanismo) return false;
                     }
+                    if (f.decisiones.includes('oficio')) {
+                        // Debe definirse quién gestiona el oficio (equipo técnico o agente)
+                        if (!f.gestionaOficio) return false;
+                    }
                     return true;
                 case 'Corregir oficio':
                     // Sin campos obligatorios — solo confirmación
@@ -842,6 +846,8 @@ app.component('case-task-modal', {
                         // Mecanismo
                         nivelMecanismo:               null,
                         quienLlenaMecanismo:          '',   // 'equipo_tecnico' | 'agente'
+                        // Oficio: quién gestiona el oficio una vez generado
+                        gestionaOficio:               '',   // 'equipo_tecnico' | 'agente'
                     };
                     // Cargar enlaces del departamento del caso (para decidir dropdown)
                     this._cargarEnlacesDepartamento();
@@ -1002,6 +1008,9 @@ app.component('case-task-modal', {
                     this.form.nivelMecanismo     = null;
                     this.form.quienLlenaMecanismo = '';
                 }
+                if (valor === 'oficio') {
+                    this.form.gestionaOficio = '';
+                }
             } else {
                 this.form.decisiones.push(valor);
             }
@@ -1010,6 +1019,15 @@ app.component('case-task-modal', {
 
         tieneDecision(valor) {
             return this.form.decisiones && this.form.decisiones.includes(valor);
+        },
+
+        // Selección de quién gestiona el oficio. Aunque el requerimiento pide dos
+        // checkboxes, las opciones son excluyentes (el oficio lo gestiona el equipo
+        // técnico O el agente asignado, nunca ambos): al marcar una se limpia la otra,
+        // y volver a marcar la ya seleccionada la desmarca.
+        onChangeGestionaOficio(valor) {
+            this.form.gestionaOficio = (this.form.gestionaOficio === valor) ? '' : valor;
+            console.log('[CTM] E09 gestionaOficio →', this.form.gestionaOficio);
         },
 
         /* ── Activar Enlace ──────────────────────────────────────────────── */
@@ -1145,6 +1163,7 @@ app.component('case-task-modal', {
                         nacional:      'Nacional',
                     };
                     const QUIEN_LABELS = { equipo_tecnico: 'Equipo Técnico', agente: 'Agente de Seguimiento' };
+                    const GESTIONA_OFICIO_LABELS = { equipo_tecnico: 'Equipo Técnico', agente: 'Agente asignado al caso' };
                     const activó = this.tieneDecision('activar_enlace');
                     const esOtra = activó && f.entidadDestino === 'otra';
                     const enlaceObj = this.enlacesDepartamento.find(e => e.icode === f.enlaceSeleccionado);
@@ -1169,6 +1188,9 @@ app.component('case-task-modal', {
                         nivelMecanismoTexto:          this.tieneDecision('mecanismo_articulador')  ? (NIVEL_LABELS[f.nivelMecanismo] || null) : null,
                         quienLlenaMecanismo:          this.tieneDecision('mecanismo_articulador')  ? (f.quienLlenaMecanismo || null) : null,
                         quienLlenaMecanismoTexto:     this.tieneDecision('mecanismo_articulador')  ? (QUIEN_LABELS[f.quienLlenaMecanismo] || null) : null,
+                        // Oficio: quién gestiona el oficio generado
+                        gestionaOficio:               this.tieneDecision('oficio')  ? (f.gestionaOficio || null) : null,
+                        gestionaOficioTexto:          this.tieneDecision('oficio')  ? (GESTIONA_OFICIO_LABELS[f.gestionaOficio] || null) : null,
                     };
                 }
                 case 'Corregir oficio':
@@ -1726,6 +1748,31 @@ app.component('case-task-modal', {
                         <option value="equipo_tecnico">Equipo Técnico</option>
                         <option value="agente">Agente de Seguimiento del caso</option>
                     </select>
+                </div>
+            </template>
+
+            <!-- Gestión del oficio: se despliega al elegir la decisión "Generar Oficio".
+                 Define quién queda a cargo de gestionar el oficio generado. Va al final
+                 del formulario, como pide el requerimiento. -->
+            <template v-if="tieneDecision('oficio')">
+                <p class="ctm-section-title" style="margin-top:16px">Gestión del oficio</p>
+                <p style="font-size:.78rem;color:#6b7280;margin:0 0 8px">¿Quién gestiona el oficio una vez generado?</p>
+                <div class="ctm-checkbox-group">
+                    <label :class="['ctm-checkbox-item', form.gestionaOficio === 'equipo_tecnico' ? 'checked' : '']"
+                        @click="onChangeGestionaOficio('equipo_tecnico')">
+                        <div class="ctm-checkbox-box">
+                            <i class="fas fa-check ctm-checkbox-check"></i>
+                        </div>
+                        <span class="ctm-checkbox-text">Lo gestiona el Equipo Técnico</span>
+                    </label>
+
+                    <label :class="['ctm-checkbox-item', form.gestionaOficio === 'agente' ? 'checked' : '']"
+                        @click="onChangeGestionaOficio('agente')">
+                        <div class="ctm-checkbox-box">
+                            <i class="fas fa-check ctm-checkbox-check"></i>
+                        </div>
+                        <span class="ctm-checkbox-text">Lo gestiona el Agente asignado al caso</span>
+                    </label>
                 </div>
             </template>
 

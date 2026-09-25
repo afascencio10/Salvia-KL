@@ -430,6 +430,12 @@ app.component('case-task-history', {
                         <div class="cth-field-value">\${ tarea.formData.nivelMecanismoTexto || tarea.formData.nivelMecanismo }</div>
                     </div>
                 </template>
+                <template v-if="tarea.formData.gestionaOficioTexto">
+                    <div class="cth-field">
+                        <label class="cth-field-label">Gestión del oficio</label>
+                        <div class="cth-field-value">\${ tarea.formData.gestionaOficioTexto }</div>
+                    </div>
+                </template>
             </template>
 
             <!-- Detalle: Corregir oficio -->

@@ -3196,15 +3196,15 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 					taskType = "comite_caso"
 				}
 
-				// La tarea "Decisiones del Comité" (comite_caso) se asigna al Equipo
-				// Técnico (rol 'te'), no al agente. Las demás tareas siguen yendo al agente.
+				// La tarea "Decisiones del Comité" (comite_caso) queda disponible para
+				// TODO el Equipo Técnico (rol 'te') como un pool, no se asigna a un
+				// agente concreto: assigned_user_id vacío = "sin dueño, la toma cualquier
+				// 'te'". Cuando un 'te' la gestiona, el completado registra su icode en
+				// assigned_user_id (ver CompleteWithFormData, rama comite_caso). Las demás
+				// tareas siguen asignándose al agente que hace el seguimiento.
 				assignedTo := actorID
 				if taskType == "comite_caso" {
-					if teUser := s.resolverEquipoTecnico(ctx); teUser != "" {
-						assignedTo = teUser
-					} else {
-						log.Printf("[processFollowUp] WARN: no hay usuario Equipo Técnico (rol 'te') activo; comite_caso se asigna al agente %s", actorID)
-					}
+					assignedTo = ""
 				}
 
 				task := &models.CaseTask{
@@ -4235,24 +4235,6 @@ func splitCSVValues(v string) []string {
 		}
 	}
 	return out
-}
-
-// resolverEquipoTecnico devuelve el icode del primer usuario activo con rol
-// "Equipo Técnico" ('te'), destinatario de las tareas "Decisiones del Comité".
-// Retorna "" si no hay ninguno (el llamador decide el fallback).
-func (s *formService) resolverEquipoTecnico(ctx context.Context) string {
-	if s.agentLightRepo == nil {
-		return ""
-	}
-	users, err := s.agentLightRepo.FindAllByRole(ctx, "te")
-	if err != nil {
-		log.Printf("[resolverEquipoTecnico] WARN: error consultando usuarios 'te': %v", err)
-		return ""
-	}
-	if len(users) == 0 {
-		return ""
-	}
-	return users[0].ICode
 }
 
 // createEntityCaseObligationIfNotExists evita duplicar obligaciones: si eco referencia
