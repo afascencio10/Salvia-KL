@@ -6,6 +6,8 @@
 
 ## Conexión a la base de datos
 
+> ⚠️ **Este Supabase es exclusivamente de pruebas/desarrollo.** Existe una base de datos de **producción real, en un servidor aparte, al que este entorno no tiene acceso** — nadie debe asumir que una conexión exitosa aquí implica tocar datos reales de producción, ni al revés, que "no hay forma de llegar a producción" significa que esta BD sea inofensiva de tratar con cuidado. Este Supabase es el que usan tanto el servidor local (`go run`) como los tests E2E de `qa-salvia`. Es seguro crear, modificar y borrar datos aquí como parte de desarrollo o QA. Dicho esto, sigue siendo una base compartida (otras sesiones de Claude, el equipo, o corridas de CI pueden estar usándola al mismo tiempo) — evita operaciones destructivas amplias (`TRUNCATE`, `DROP TABLE`, `DELETE` sin `WHERE`) y prefiere limpiar solo los datos que tú mismo creaste (ver el patrón `resetXFixture()` en `qa-salvia/helpers/db.ts`).
+
 **Proveedor:** Supabase (PostgreSQL)  
 **Config file:** `src/config/db_config.json`
 
@@ -68,6 +70,7 @@ PGPASSWORD='Salvia2026@' psql \
 | `victim_case_form2`       | Formulario 2 del caso: datos ampliados con score y nivel de riesgo calculado.            |
 | `victim_contact_form1`    | Formulario 1 del contacto: datos iniciales de la víctima reportados por un tercero.      |
 | `victim_contact_form2`    | Formulario de reporte de tercero: datos del reportante, tipo de reporte y mejor horario. |
+| `victim_contact_form2_v2` | Extensión 1:1 de `victim_contact_form2` para el reporte V2: consentimiento, anonimato, parentesco y datos propios del reportante. |
 | `victim_case_form2_enums` | Catálogo de opciones compartidas por formularios del caso, contacto y feminicidio.       |
 
 ### Organización institucional
