@@ -89,7 +89,7 @@
         <button v-if="(userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode))" class="btn-nuevo-seg" style="background:#5106A7;color:#fff" @click="crearEIniciarSeguimiento" :disabled="creandoEIniciando">
           ${ creandoEIniciando ? 'Creando...' : '▶ Crear e iniciar seguimiento' }
         </button>
-        <button v-if="(puedeReasignar || userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode)) && caso.victimCaseStatus === 'cd'" class="btn-nuevo-seg" @click="abrirModalReabrir">
+        <button v-if="puedeReasignar && caso.victimCaseStatus === 'cd'" class="btn-nuevo-seg" @click="abrirModalReabrir">
           Reabrir caso
         </button>
       </div>

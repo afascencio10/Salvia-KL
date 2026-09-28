@@ -5,11 +5,12 @@ EVENTO: Cuando confirma reapertura
 
 Disparado por: click en "Confirmar" del modal Reabrir caso (E-21)
 Archivo:       src/frontend/html/salvia/case_detail/get_case_detail_sv.html → confirmarReabrirCaso()
-Backend:       POST /api/v1/casos/:id/reabrir → CasoCierreService.ReabrirCaso()
+Backend:       POST /api/v1/casos/:id/reabrir → requireCaseDetailAccess() [exige rol sv] → CasoCierreService.ReabrirCaso()
 
 INPUT: {
-  caseICode:  i_code del caso           → CASE_ICODE (plantilla Go)
-  actorId:    i_code del usuario        → userICode (plantilla Go)
+  caseICode:  i_code del caso           → CASE_ICODE (plantilla Go) / ctx.Param("id")
+  sesión:     sesión del usuario actual → cookie de sesión → sessions.Default(ctx) + utils.GetCommonSession
+              (actorId ya NO viene del body — se toma de sesión.UserICode; ver PASO B0)
 }
 
 
@@ -25,9 +26,9 @@ PASO 1 — Marcar loading
 PASO 2 — Llamar al backend
 
   POST /api/v1/casos/{caseICode}/reabrir
-  body: { actor_id: actorId }
+  body: { actor_id: actorId }   // el backend ya no lee este campo — ver PASO B0
 
-  SI respuesta no ok:
+  SI respuesta no ok (incluye 403 si el rol no es sv):
     → reabriendo = false
     → showToast('error', data.error || 'Error al reabrir el caso')
     → TERMINAR (el modal permanece abierto)
@@ -49,6 +50,29 @@ PASO 3 — Cerrar modal y recargar
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   BACKEND — ReabrirCaso
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PASO B0 — Validar sesión y rol (requireCaseDetailAccess)
+
+  sessionID = sessions.Default(ctx).Get("userData")
+
+  SI no hay sessionID válido:
+    → Responder 401 { error: "no autenticado" }
+    → TERMINAR
+
+  s = utils.GetCommonSession(sessionID)
+
+  SI err (sesión expirada):
+    → Responder 401 { error: "no autenticado" }
+    → TERMINAR
+
+  SI s.CurrentRole != "sv":
+    → Responder 403 { error: "solo un supervisor puede reabrir el caso" }
+    → TERMINAR
+
+  SI NO:
+    → actorId = s.UserICode   // reemplaza el actor_id del body
+    → CONTINÚA FLUJO GENERAL
+
 
 PASO B1 — Validar caseICode
 

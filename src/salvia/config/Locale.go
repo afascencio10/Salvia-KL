@@ -757,6 +757,22 @@ var Locale = map[string]map[string]string{
 		"victim_case_form2_report_type_details_ot": "Otra",
 		"victim_case_form2_report_type_details_an": "Anónima",
 
+		// PSWYA-755 — Registro de Contacto Víctima V2 (Flujo A). Clave de enum
+		// propia (victim_case_form2_report_type_v2): NO se agregan filas a
+		// victim_case_form2_report_type (arriba) para no alterar el <select>
+		// genérico que usa la pantalla pública V1 (set_victim_contact.html).
+		"victim_case_form2_report_type_v2_v":  "Usted es la víctima de violencia basada en género y/o por prejuicio",
+		"victim_case_form2_report_type_v2_r":  "Usted quiere reportar un hecho de violencia basada en género y/o por prejuicio experimentado por otra persona",
+		"victim_case_form2_report_type_v2_fm": "Usted es un familiar de víctima de feminicidio o de homicidio abyecto o fútil",
+		"victim_case_form2_report_type_v2_ho": "Usted es un hombre con posibilidad de ejercer violencia de género",
+
+		"victim_case_form2_anonimato_an": "Anónimo",
+		"victim_case_form2_anonimato_pr": "A nombre propio",
+
+		"victim_case_form2_parentesco_fa": "Familia",
+		"victim_case_form2_parentesco_fs": "Familia social",
+		"victim_case_form2_parentesco_ot": "Otra",
+
 		"victim_case_form2_enums_not_found":          "Por favor escoja una opción",
 		"feminicide_form2_enums_not_found":           "Por favor escoja una opción",
 		"feminicide_risk_form1_enums_not_found":      "Por favor escoja una opción",

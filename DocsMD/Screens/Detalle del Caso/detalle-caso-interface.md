@@ -68,7 +68,7 @@ DetalleCaso  (.container)
     │       │       :disabled si followUpsV2.length >= 8
     │       │       Label "Máximo alcanzado (8)" | "+ Nuevo seguimiento"
     │       │       → abrirModalNuevoSeg()
-    │       └── [v-if (puedeReasignar || userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode)) && caso.victimCaseStatus === 'cd']
+    │       └── [v-if puedeReasignar && caso.victimCaseStatus === 'cd']
     │           BtnReabrirCaso  "Reabrir caso"  → abrirModalReabrir()
     │
     ├── [v-if proximoSeguimiento]  BannerProximoSeg
@@ -320,6 +320,7 @@ CaseInfo (modo modal)  // src/frontend/js/components/case-info.js
 | Btn "Reasignar" (caso) | `sv` |
 | Btn "👤 Asignarme este caso" | `op`, solo si el caso no tiene agente o el agente no es el usuario actual |
 | Btn "+ Nuevo seguimiento" | `sv`, `ro`, o `op` dueño del caso (`caso.agentId === userICode`) |
+| Btn "Reabrir caso" | `sv` únicamente — validado también en el backend (`ReabrirCaso` responde 403 a otros roles) |
 | Btn "▶ Iniciar" (habilitado) | `op`, `ro` — solo si `seg.agent_id === userICode` |
 | Btn "✏️ Editar" seguimiento | `sv`, o (`ro`/`op`) dueño del caso (`caso.agentId === userICode`) |
 | Btn "📋 Reasignar" seguimiento | `sv`, o (`ro`/`op`) agente propio del seguimiento (`seg.agent_id === userICode`) |

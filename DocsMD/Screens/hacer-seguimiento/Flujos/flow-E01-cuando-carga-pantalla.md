@@ -58,27 +58,46 @@ PASO 3b — Cargar ubicaciones geográficas en background (paralelo a loadFollow
   → allCities es variable local (no en formState); se usa en E-05 para filtrar ciudades por barrera
 
 
-PASO 4 — Calcular canEdit (prioridad en cascada)
+PASO 4 — Calcular canEdit y noEditReason (prioridad en cascada)
 
-  CONDICIÓN 1: caso cerrado (prioridad máxima)
+  CONDICIÓN 0: form migrado (prioridad máxima — Kobo, Bases Salvia, u otra fuente)
+    SI this.formId !== FORM_ID_DEFAULT:
+      → canEdit = false
+      → noEditReason = "Fue migrado desde un formulario anterior (Kobo o Bases Salvia) y quedó fijo como solo lectura."
+      → TERMINAR cálculo   // no evaluar condiciones siguientes
+
+  CONDICIÓN 1: caso cerrado
     SI data.caseStatus === 'cd':
       → canEdit = false
-      → TERMINAR cálculo   // no evaluar condiciones siguientes
+      → noEditReason = "El caso asociado está cerrado."
+      → TERMINAR cálculo
 
   CONDICIÓN 2: seguimiento ya realizado
     SI fu.status === 'REALIZADO' && fu.completed_at existe:
       diffDays = (Date.now() - new Date(fu.completed_at)) / (1000 * 60 * 60 * 24)
       SI diffDays <= 5:
         → canEdit = true
+        → noEditReason = null
       SI diffDays > 5:
         → canEdit = false
+        → noEditReason = "Se completó hace más de 5 días."
       → TERMINAR cálculo
 
   CONDICIÓN 3: cualquier otro estado
     → canEdit = true
+    → noEditReason = null
+
+  OVERRIDE FINAL (fuera de la cascada — se evalúa siempre, pise lo que pise arriba):
+    SI userRole === 'ps' || userRole === 'ts':
+      → canEdit = false
+      → noEditReason = "Tu rol solo tiene acceso de lectura a los seguimientos."
 
 
-PASO 5 — DinamicForm se monta con los props calculados
+PASO 5 — Renderizar banner de solo lectura y montar DinamicForm
+
+  SI !canEdit:
+    → Renderizar ReadonlyBanner (.ms-readonly-banner) al inicio de #seguimiento-app
+      con noEditReason como subtítulo
 
   DinamicForm recibe:
     :form-id       = formId        (hardcoded "2d0aeb46-...")
@@ -194,5 +213,4 @@ PASO 11 — Responder al frontend
 
 | Variable / decisión                                                                        | Paso afectado |
 |--------------------------------------------------------------------------------------------|---------------|
-| Si se debe mostrar un mensaje visual diferente cuando canEdit = false por cierre de caso   | PASO 5        |
 | Si loadLocations termina después de que answers-updated se emite en carga inicial, las opciones de ubicación aparecen vacías en el primer render | PASO 3b       |

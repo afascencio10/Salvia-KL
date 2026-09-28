@@ -24,6 +24,9 @@ Facade: `FollowUpGET`
 ```
 follow-up-detail-app  (.ms-page-wrapper)
 │
+├── [v-if !canEdit]
+│   ReadonlyBanner  (.ms-readonly-banner)  🔒 "Este seguimiento no se puede editar" + noEditReason
+│
 ├── Breadcrumb  (.ms-breadcrumb)
 │   ├── BtnVolver  (.ms-breadcrumb-btn)  → goBack()
 │   └── Texto  "{ victimCase.name } / Seguimiento #{ followUp.id }"
@@ -156,11 +159,16 @@ Subconjunto fijo de respuestas del formulario dinámico de seguimiento, leído d
 
 ## Estados de `canEdit`
 
-| Condición | canEdit |
-|---|---|
-| Caso cerrado (`caseInfo.status === 'cd'`) | `false` permanente |
-| Seguimiento REALIZADO y han pasado > 5 días desde `completed_at` | `false` |
-| Cualquier otro estado | `true` |
+`canEdit` se calcula en `loadDetail()`, en cascada por prioridad — idéntica a la de `hacer-seguimiento` (ver `DocsMD/Screens/hacer-seguimiento/interfaz.md`, sección "Estados del modo canEdit"; mismo código, mismos comentarios). Cuando queda en `false`, `noEditReason` guarda el motivo que muestra el `ReadonlyBanner` al inicio de la pantalla.
+
+| # | Condición | canEdit | noEditReason |
+|---|---|---|---|
+| 1 | `formId !== FORM_ID_DEFAULT` (seguimiento migrado — Kobo, Bases Salvia, u otra fuente) | `false` permanente | "Fue migrado desde un formulario anterior (Kobo o Bases Salvia) y quedó fijo como solo lectura." |
+| 2 | Caso cerrado (`caseInfo.status === 'cd'`) | `false` permanente | "El caso asociado está cerrado." |
+| 3 | Seguimiento REALIZADO y han pasado > 5 días desde `completed_at` | `false` | "Se completó hace más de 5 días." |
+| 3b | Seguimiento REALIZADO y han pasado ≤ 5 días | `true` | — |
+| 4 | Cualquier otro estado | `true` | — |
+| 5 | **Override final** — `userRole === 'ps'` o `'ts'`: se evalúa después de las anteriores y pisa cualquier resultado, incluso si 1-4 dio `true` | `false` | "Tu rol solo tiene acceso de lectura a los seguimientos." |
 
 ---
 

@@ -1,4 +1,13 @@
 <div id="follow-up-detail-app" class="ms-page-wrapper">
+    <!-- Banner: razón por la que el seguimiento no se puede editar -->
+    <div v-if="!canEdit" class="ms-readonly-banner">
+        <span class="ms-readonly-banner__icon">🔒</span>
+        <div class="ms-readonly-banner__content">
+            <p class="ms-readonly-banner__title">Este seguimiento no se puede editar</p>
+            <p class="ms-readonly-banner__subtitle">${ noEditReason }</p>
+        </div>
+    </div>
+
     <!-- Breadcrumb -->
     <div class="ms-breadcrumb">
         <button @click="goBack" class="ms-breadcrumb-btn"><i class="fas fa-arrow-left"></i></button>
@@ -262,6 +271,7 @@
                 formId:      FORM_ID_DEFAULT,
                 submissionId: null,
                 canEdit:      true,
+                noEditReason: null,
                 userRole:     '{{ .userRole }}',
                 formState: {
                     psysocialRemisionState: '',
@@ -424,21 +434,26 @@
                     // (seguimiento migrado — Kobo, Bases Salvia, o futuras migraciones)
                     if (this.formId !== FORM_ID_DEFAULT) {
                         this.canEdit = false;
+                        this.noEditReason = 'Fue migrado desde un formulario anterior (Kobo o Bases Salvia) y quedó fijo como solo lectura.';
                     } else if (data.caseInfo.status === 'cd') {
                         // canEdit: false permanente si el caso está cerrado
                         this.canEdit = false;
+                        this.noEditReason = 'El caso asociado está cerrado.';
                     } else if (data.followUp.status === 'REALIZADO' && data.followUp.completed_at) {
                         // canEdit: false si REALIZADO y han pasado más de 5 días desde completed_at
                         const diffDays = (Date.now() - new Date(data.followUp.completed_at)) / (1000 * 60 * 60 * 24);
                         this.canEdit = diffDays <= 5;
+                        this.noEditReason = this.canEdit ? null : 'Se completó hace más de 5 días.';
                     } else {
                         this.canEdit = true;
+                        this.noEditReason = null;
                     }
 
                     // Psicólogo/a (ps) y trabajador social (ts): el seguimiento es siempre
                     // de solo lectura para ellos, sin excepción de las reglas anteriores.
                     if (this.userRole === 'ps' || this.userRole === 'ts') {
                         this.canEdit = false;
+                        this.noEditReason = 'Tu rol solo tiene acceso de lectura a los seguimientos.';
                     }
 
                     // Card víctima — viene directo del backend con todos los campos
