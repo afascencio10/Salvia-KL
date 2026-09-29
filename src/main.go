@@ -98,6 +98,7 @@ func main() {
 		&models.EntityCase{},
 		&models.EntityObligation{},
 		&models.EntityCaseObligation{},
+		&models.EntityCaseObligationResponse{},
 		&models.EntityCaseFollowUp{},
 		&models.TeamMeeting{},
 		&models.TeamMeetingAgent{},
@@ -164,6 +165,7 @@ func main() {
 	duplaRepo := repository.NewDuplaRepository(gormDB)
 	psychosocialReassignRepo := repository.NewPsychosocialReassignRepository(gormDB)
 	entityCaseRepo := repository.NewEntityCaseRepository(gormDB)
+	entityObligationResponseRepo := repository.NewEntityCaseObligationResponseRepository(gormDB)
 	caseProfessionalRepo := repository.NewCaseProfessionalRepository(gormDB)
 	psychosocialCalendarRepo := repository.NewPsychosocialCalendarRepository(gormDB)
 	victimCaseFormRepo := repository.NewVictimCaseFormRepository(gormDB)
@@ -187,7 +189,8 @@ func main() {
 	optionSvc := service.NewOptionService(optionRepo)
 	followUpV2Svc := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo, answerRepo, repeaterEntryRepo, appLogRepo)
 	victimCaseFormSvc := service.NewVictimCaseFormService(victimCaseFormRepo, victimCaseLightRepo, caseTimelineRepo, followUpV2Svc)
-	entityCaseSvc := service.NewEntityCaseService(entityCaseRepo, entityCaseObligationRepo)
+	entityCaseSvc := service.NewEntityCaseService(entityCaseRepo, entityCaseObligationRepo, entityObligationResponseRepo)
+	entityObligationResponseSvc := service.NewEntityObligationResponseService(entityObligationResponseRepo, entityCaseRepo)
 	caseProfessionalSvc := service.NewCaseProfessionalService(caseProfessionalRepo)
 	articulatingMechanismSvc := service.NewCaseArticulatingMechanismService(articulatingMechanismRepo, caseTimelineRepo)
 
@@ -266,6 +269,7 @@ func main() {
 	entityLetterCtrl := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
 
 	entityCaseCtrl := salvia_ctrl.NewEntityCaseController(entityCaseSvc)
+	entityObligationResponseCtrl := salvia_ctrl.NewEntityObligationResponseController(entityObligationResponseSvc)
 	caseProfessionalCtrl := salvia_ctrl.NewCaseProfessionalController(caseProfessionalSvc)
 	articulatingMechanismCtrl := salvia_ctrl.NewCaseArticulatingMechanismController(articulatingMechanismSvc)
 	entityAPICtrl := salvia_ctrl.NewEntityAPIController(entityCaseSvc)
@@ -326,6 +330,7 @@ func main() {
 	reportAsyncCtrl.RegisterRoutes(api)
 	entityLetterCtrl.RegisterRoutes(api)
 	entityCaseCtrl.RegisterRoutes(api)
+	entityObligationResponseCtrl.RegisterRoutes(api)
 	caseProfessionalCtrl.RegisterRoutes(api)
 	articulatingMechanismCtrl.RegisterRoutes(api)
 	entityAPICtrl.RegisterRoutes(api)

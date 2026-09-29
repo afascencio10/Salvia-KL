@@ -1,0 +1,359 @@
+<!-- Se reusa el CSS de Casos Entidad: es la misma pantalla del rol entidad, con el
+     mismo lenguaje visual y la misma fila de dos columnas (Caso · Relación con
+     entidad). Duplicar ese archivo solo para cambiar el prefijo de las clases
+     dejaría dos hojas que hay que mantener sincronizadas. Abajo van únicamente los
+     estilos que esta pantalla agrega. -->
+<link rel="stylesheet" href="/static/css/casos-entidad.css">
+
+<style>
+.mai-tabs { display:flex; gap:4px; border-bottom:2px solid #e5e7eb; margin-bottom:18px }
+.mai-tab {
+    padding:9px 18px; font-size:.86rem; font-weight:500; color:#6b7280;
+    background:transparent; border:none; border-bottom:2px solid transparent;
+    margin-bottom:-2px; cursor:pointer; display:flex; align-items:center; gap:7px;
+    transition:color .15s, border-color .15s;
+}
+.mai-tab:hover:not(:disabled) { color:#374151 }
+.mai-tab:disabled { cursor:default; opacity:.6 }
+.mai-tab--active { color:#5106A7; border-bottom-color:#5106A7; font-weight:600 }
+.mai-tab-count {
+    font-size:.72rem; font-weight:700; padding:1px 8px; border-radius:10px;
+    background:#f3f4f6; color:#4b5563;
+}
+.mai-tab--active .mai-tab-count { background:#ede9fe; color:#5106A7 }
+.mai-accion-title { margin:0 0 4px; font-size:.88rem; font-weight:600; color:#111827 }
+.mai-accion-desc { margin:0 0 8px; font-size:.8rem; color:#4b5563; line-height:1.45 }
+.mai-estado {
+    display:inline-block; font-size:.72rem; font-weight:600; padding:2px 8px;
+    border-radius:4px; border:1px solid #bbf7d0; background:#f0fdf4; color:#15803d;
+    margin-bottom:6px;
+}
+.mai-radicado { margin:0 0 6px; font-size:.78rem; color:#6b7280 }
+
+.mai-checklist { border-top:1px solid #e5e7eb; margin-top:12px; padding-top:10px }
+.mai-checklist-head {
+    display:flex; align-items:baseline; justify-content:space-between; gap:8px;
+    margin-bottom:6px;
+}
+.mai-checklist-title {
+    margin:0; font-size:.72rem; font-weight:700; color:#6b7280;
+    text-transform:uppercase; letter-spacing:.04em;
+}
+.mai-checklist-count { font-size:.75rem; font-weight:600; color:#5106A7; white-space:nowrap }
+.mai-checklist-list { list-style:none; margin:0 0 8px; padding:0 }
+.mai-checklist-item {
+    display:flex; align-items:flex-start; gap:7px;
+    font-size:.79rem; color:#4b5563; line-height:1.4; padding:2px 0;
+}
+.mai-checklist-item--done { color:#15803d }
+.mai-checklist-mark { flex-shrink:0; font-weight:700 }
+.mai-checklist-empty { margin:0 0 8px; font-size:.79rem; color:#9ca3af; font-style:italic }
+
+/* Modal "Completar acción institucional". Los campos reusan .ce-label/.ce-input y
+   los botones .ce-btn de casos-entidad.css; acá va solo el contenedor. */
+.mai-modal-overlay {
+    /* 9000 como los modales de notificaciones: el sidebar está en 1050 y a esa
+       altura el modal quedaría por debajo. */
+    position:fixed; inset:0; z-index:9000; background:rgba(17,24,39,.5);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+}
+.mai-modal {
+    background:#fff; border-radius:10px; width:100%; max-width:560px;
+    max-height:90vh; overflow-y:auto; box-shadow:0 12px 32px rgba(0,0,0,.18);
+}
+.mai-modal-header {
+    display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+    padding:16px 20px; border-bottom:1px solid #e5e7eb;
+}
+.mai-modal-header h5 { margin:0; font-size:1rem; font-weight:700; color:#111827 }
+.mai-modal-close {
+    background:none; border:none; font-size:1.4rem; line-height:1; color:#9ca3af;
+    cursor:pointer; padding:0 4px;
+}
+.mai-modal-close:hover { color:#4b5563 }
+.mai-modal-body { padding:16px 20px }
+.mai-modal-context { margin:0 0 14px; font-size:.82rem; color:#4b5563; line-height:1.5 }
+.mai-modal-context b { color:#111827 }
+.mai-field { margin-bottom:14px }
+.mai-field .ce-input { width:100% }
+.mai-hint { margin:4px 0 0; font-size:.74rem; color:#9ca3af }
+.mai-required { color:#dc2626 }
+.mai-btn-primary { background:#5106A7; border-color:#5106A7; color:#fff }
+.mai-btn-primary:hover:not(:disabled) { background:#41058a }
+.mai-modal-error {
+    margin:0 0 12px; padding:9px 12px; border-radius:6px;
+    border:1px solid #fecaca; background:#fef2f2; color:#b91c1c; font-size:.8rem;
+}
+.mai-modal-footer {
+    display:flex; justify-content:flex-end; gap:8px;
+    border-top:1px solid #e5e7eb; margin-top:4px; padding-top:14px;
+}
+</style>
+
+<main class="salvia-main">
+<div class="container ce-page">
+
+    <div v-if="toast.visible" class="ce-toast" :class="'ce-toast--' + toast.type">
+        ${ toast.message }
+    </div>
+
+    <div v-if="loadError" class="ce-error-block">
+        <p>${ loadError }</p>
+        <button type="button" class="ce-btn ce-btn--secondary" @click="reloadScreen">Reintentar</button>
+    </div>
+
+    <template v-else>
+        <div class="welcome-section ce-welcome">
+            <div>
+                <h2><b>Mis Acciones Institucionales</b></h2>
+                <p class="text-muted mb-0">Acciones solicitadas a tu entidad por cada caso</p>
+                <p v-if="entityName" class="ce-entity-name">${ entityName }</p>
+            </div>
+        </div>
+
+        <div v-if="!hasSede" class="ce-empty">
+            Tu usuario no tiene una sede asignada, así que no hay acciones institucionales que mostrar.
+            Comunícate con el equipo de SALVIA para que te asignen la sede.
+        </div>
+
+        <template v-else>
+            <div class="mai-tabs" role="tablist">
+                <button
+                    type="button"
+                    class="mai-tab"
+                    role="tab"
+                    :class="{ 'mai-tab--active': status === 'pendiente' }"
+                    :aria-selected="status === 'pendiente'"
+                    :disabled="isLoading"
+                    @click="changeStatus('pendiente')"
+                >
+                    Pendientes
+                    <span class="mai-tab-count">${ counts.pendientes }</span>
+                </button>
+                <button
+                    type="button"
+                    class="mai-tab"
+                    role="tab"
+                    :class="{ 'mai-tab--active': status === 'completada' }"
+                    :aria-selected="status === 'completada'"
+                    :disabled="isLoading"
+                    @click="changeStatus('completada')"
+                >
+                    Completadas
+                    <span class="mai-tab-count">${ counts.completadas }</span>
+                </button>
+            </div>
+
+            <section class="ce-filters">
+                <div class="ce-filter-field">
+                    <label class="ce-label" for="mai-filter-document">Documento de identidad</label>
+                    <input
+                        id="mai-filter-document"
+                        type="text"
+                        class="ce-input"
+                        placeholder="Ej: 1023456780"
+                        v-model="filters.document"
+                        @input="onFilterDocument"
+                        :disabled="isLoading"
+                    >
+                </div>
+                <div class="ce-filter-field">
+                    <label class="ce-label" for="mai-filter-city">Ciudad</label>
+                    <select
+                        id="mai-filter-city"
+                        class="ce-input"
+                        v-model="filters.cityId"
+                        @change="onFilterCity"
+                        :disabled="isLoading"
+                    >
+                        <option value="">Todas</option>
+                        <option v-for="c in cityOptions" :key="c.id" :value="c.id">${ c.name }</option>
+                    </select>
+                </div>
+            </section>
+
+            <div v-if="isLoading" class="ce-loading">
+                <span class="ce-spinner" aria-hidden="true"></span>
+                <span>Cargando acciones institucionales…</span>
+            </div>
+
+            <div v-else-if="items.length === 0" class="ce-empty">
+                ${ status === 'pendiente'
+                    ? 'No tienes acciones institucionales pendientes con los filtros actuales.'
+                    : 'Todavía no has completado acciones institucionales con los filtros actuales.' }
+            </div>
+
+            <section v-else class="ce-list">
+                <div class="ce-list-header">
+                    <span class="ce-col-label">Caso</span>
+                    <span class="ce-col-label">Acción Institucional</span>
+                </div>
+
+                <article
+                    v-for="item in items"
+                    :key="item.entityCaseId + '|' + item.entityObligationId"
+                    class="ce-row"
+                >
+                    <div class="ce-col-caso">
+                        <p class="ce-name">${ item.victimFullName || '—' }</p>
+                        <p class="ce-ids">${ item.caseId } · ${ item.document || 'Sin documento' }</p>
+                        <p class="ce-city">
+                            <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+                            <span>${ item.cityName || '—' }</span>
+                        </p>
+                        <div class="ce-badges">
+                            <span
+                                v-if="item.riskLevel"
+                                class="ce-badge ce-badge--risk"
+                                :class="'ce-badge--risk-' + riskClass(item.riskLevel)"
+                            >${ item.riskLevel }</span>
+                        </div>
+                    </div>
+
+                    <div class="ce-col-relacion">
+                        <p class="mai-accion-title">${ item.label }</p>
+                        <p v-if="item.description" class="mai-accion-desc">${ item.description }</p>
+
+                        <template v-if="item.estado">
+                            <span class="mai-estado">${ estadoLabel(item.estado) }</span>
+                            <p v-if="item.radicado" class="mai-radicado">Radicado: ${ item.radicado }</p>
+                        </template>
+
+                        <button type="button" class="ce-btn ce-btn--secondary" @click="abrirModalCompletar(item)">
+                            ${ item.estado ? 'Editar respuesta' : 'Completar' }
+                        </button>
+
+                        <!-- Relación con entidad: el checklist completo de este caso,
+                             no solo la acción de esta fila. -->
+                        <div class="mai-checklist">
+                            <div class="mai-checklist-head">
+                                <p class="mai-checklist-title">Relación con entidad</p>
+                                <span class="mai-checklist-count">
+                                    ${ checklistDe(item).completadas } de ${ checklistDe(item).total } completadas
+                                </span>
+                            </div>
+
+                            <ul v-if="checklistDe(item).items.length > 0" class="mai-checklist-list">
+                                <li
+                                    v-for="accion in checklistDe(item).items"
+                                    :key="accion.entityObligationId"
+                                    class="mai-checklist-item"
+                                    :class="{ 'mai-checklist-item--done': accion.completada }"
+                                >
+                                    <span class="mai-checklist-mark" aria-hidden="true">${ accion.completada ? '✓' : '○' }</span>
+                                    <span>${ accion.label }</span>
+                                </li>
+                            </ul>
+                            <p v-else class="mai-checklist-empty">Sin acciones registradas para este caso.</p>
+
+                            <button type="button" class="ce-link" @click="verDetalle(item)">Ver detalle →</button>
+                        </div>
+                    </div>
+                </article>
+
+                <nav v-if="totalPages > 1" class="ce-pagination" aria-label="Paginación">
+                    <button
+                        type="button"
+                        class="ce-page-btn"
+                        :disabled="currentPage === 0"
+                        @click="changePage(currentPage - 1)"
+                    >Anterior</button>
+                    <button
+                        v-for="n in totalPages"
+                        :key="'p-' + (n - 1)"
+                        type="button"
+                        class="ce-page-btn"
+                        :class="{ 'ce-page-btn--active': currentPage === (n - 1) }"
+                        @click="changePage(n - 1)"
+                    >${ n }</button>
+                    <button
+                        type="button"
+                        class="ce-page-btn"
+                        :disabled="currentPage >= totalPages - 1"
+                        @click="changePage(currentPage + 1)"
+                    >Siguiente</button>
+                </nav>
+            </section>
+        </template>
+    </template>
+
+    <!-- Completar acción institucional. Es el mismo modal para registrar y para
+         corregir: el backend hace upsert sobre (caso, acción). -->
+    <div v-if="modal.visible" class="mai-modal-overlay" @click.self="cerrarModal">
+        <div class="mai-modal" role="dialog" aria-modal="true" aria-labelledby="mai-modal-title">
+            <div class="mai-modal-header">
+                <h5 id="mai-modal-title">Completar acción institucional</h5>
+                <button type="button" class="mai-modal-close" @click="cerrarModal" aria-label="Cerrar">&times;</button>
+            </div>
+
+            <div class="mai-modal-body">
+                <p v-if="modal.item" class="mai-modal-context">
+                    <b>${ modal.item.label }</b><br>
+                    Caso ${ modal.item.caseId } · ${ modal.item.victimFullName || 'Sin nombre' }
+                </p>
+
+                <div class="mai-field">
+                    <label class="ce-label" for="mai-radicado">Radicado / NUNC / MP</label>
+                    <input
+                        id="mai-radicado"
+                        type="text"
+                        class="ce-input"
+                        v-model="modal.radicado"
+                        placeholder="Ej: NUNC 110016000000202400001"
+                        :disabled="isSaving"
+                    >
+                    <p class="mai-hint">Número con el que quedó registrada la gestión en tu entidad.</p>
+                </div>
+
+                <div class="mai-field">
+                    <label class="ce-label" for="mai-ampliacion">Ampliación de la respuesta</label>
+                    <textarea
+                        id="mai-ampliacion"
+                        class="ce-input"
+                        rows="4"
+                        v-model="modal.ampliacion"
+                        placeholder="Describe qué gestión se hizo frente a esta acción."
+                        :disabled="isSaving"
+                    ></textarea>
+                </div>
+
+                <div class="mai-field">
+                    <label class="ce-label" for="mai-estado">
+                        Estado general de la respuesta <span class="mai-required">*</span>
+                    </label>
+                    <select id="mai-estado" class="ce-input" v-model="modal.estado" :disabled="isSaving">
+                        <option value="">Selecciona un estado</option>
+                        <option v-for="o in estadoOptions" :key="o.value" :value="o.value">${ o.label }</option>
+                    </select>
+                </div>
+
+                <p v-if="saveError" class="mai-modal-error">${ saveError }</p>
+
+                <div class="mai-modal-footer">
+                    <button type="button" class="ce-btn ce-btn--secondary" @click="cerrarModal" :disabled="isSaving">
+                        Cancelar
+                    </button>
+                    <button type="button" class="ce-btn mai-btn-primary" @click="guardarRespuesta" :disabled="isSaving">
+                        ${ isSaving ? 'Guardando…' : 'Guardar respuesta' }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+</main>
+
+{{ template "standard_scripts.html" . }}
+{{ template "overlay.html" . }}
+
+<script>
+    window.__MisAccionesInstitucionalesConfig = {
+        windowTitle: {{.windowTitle}},
+        currentUser: "{{.currentUser}}",
+        currentRole: "{{.currentRole}}",
+        entityBranchId: {{.entityBranchId}},
+        menu: {{.menu}}
+    };
+</script>
+<script src="/static/js/components/mis-acciones-institucionales.js"></script>
