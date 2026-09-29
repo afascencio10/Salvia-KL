@@ -55,6 +55,14 @@ func StartRouter(router *gin.Engine) {
 		secRouter.POST("/public", VictimContactPOST_Public)
 		secRouter.GET("/public/"+translatedNew, VictimContactPOST_GET_Public)
 
+		/*
+			VictimContact V2 (PSWYA-755) — segunda versión pública del reporte
+			ciudadano, ruta y handlers propios. No reemplaza ni modifica las
+			rutas /public de arriba (V1).
+		*/
+		secRouter.POST("/public-v2", VictimContactPOST_Public_V2)
+		secRouter.GET("/public-v2/"+translatedNew, VictimContactPOST_GET_Public_V2)
+
 		secRouter.POST("/"+translatedEntity, VictimContactPOST)
 		secRouter.PUT("/"+translatedEntity+"/:id/"+translatedInvalidate, VictimContactPUT) // Invalidar
 		secRouter.GET("/"+translatedEntity, VictimContactGET)

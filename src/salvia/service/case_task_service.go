@@ -53,7 +53,7 @@ type CaseTaskService interface {
 	// ListByAssignedUserIDPaged es la consulta de la pantalla "Mis Tareas":
 	// todas las tareas del agente (no solo las de barrera), paginadas y con
 	// filtro opcional por estado.
-	ListByAssignedUserIDPaged(ctx context.Context, assignedUserID, status string, page, pageSize int) (repository.PageResult[models.CaseTaskWithRelations], error)
+	ListByAssignedUserIDPaged(ctx context.Context, assignedUserID, status, role string, page, pageSize int) (repository.PageResult[models.CaseTaskWithRelations], error)
 
 	// Complete ejecuta el flujo "Cuando Guardar Gestionar":
 	//   1. Actualiza CaseTask → status=Done, result, completedAt
@@ -227,8 +227,8 @@ func (s *caseTaskService) ListByAssignedUserIDWithRelations(ctx context.Context,
 	return s.repo.FindByAssignedUserIDWithRelations(ctx, assignedUserID)
 }
 
-func (s *caseTaskService) ListByAssignedUserIDPaged(ctx context.Context, assignedUserID, status string, page, pageSize int) (repository.PageResult[models.CaseTaskWithRelations], error) {
-	return s.repo.FindByAssignedUserIDPaged(ctx, assignedUserID, status, page, pageSize)
+func (s *caseTaskService) ListByAssignedUserIDPaged(ctx context.Context, assignedUserID, status, role string, page, pageSize int) (repository.PageResult[models.CaseTaskWithRelations], error) {
+	return s.repo.FindByAssignedUserIDPaged(ctx, assignedUserID, status, role, page, pageSize)
 }
 
 // Complete ejecuta el flujo "Cuando Guardar Gestionar":
@@ -376,11 +376,19 @@ func (s *caseTaskService) CompleteWithFormData(ctx context.Context, id string, u
 		go s.sideEffectsGestionLlamada(context.Background(), task, fd, userId, now)
 
 	case "comite_caso":
-		if err := s.repo.UpdateFields(ctx, id, map[string]interface{}{
+		// La tarea comite_caso nace en el pool del Equipo Técnico (assigned_user_id
+		// vacío). Al completarla, el integrante 'te' que la gestionó la "reclama":
+		// se registra su icode en assigned_user_id para dejar constancia de quién la
+		// resolvió (se muestra luego como "Completado por").
+		comiteUpdates := map[string]interface{}{
 			"form_data":    formData,
 			"status":       models.CaseTaskStatusDone,
 			"completed_at": now,
-		}); err != nil {
+		}
+		if userId != "" {
+			comiteUpdates["assigned_user_id"] = userId
+		}
+		if err := s.repo.UpdateFields(ctx, id, comiteUpdates); err != nil {
 			return nil, fmt.Errorf("CompleteWithFormData: marcar Done: %w", err)
 		}
 		go s.sideEffectsComiteCaso(context.Background(), task, fd, userId, now)

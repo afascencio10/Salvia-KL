@@ -254,6 +254,18 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 
 	}
 
+	// Actualización perezosa de vencimiento: los seguimientos que siguen
+	// PENDIENTE/REPROGRAMADO pero cuya fecha programada ya quedó atrás (comparando
+	// contra la fecha actual en hora Colombia) se marcan como VENCIDO en la BD.
+	// Esto mantiene el estado consistente sin depender de un job programado; se
+	// hace por caso al abrir el detalle, con un UPDATE acotado a este caso.
+	r.db.WithContext(ctx).
+		Model(&models.FollowUpV2{}).
+		Where("case_id = ?", vc.VictimCaseICode).
+		Where("status IN ?", []string{models.FollowUpStatusPendiente, models.FollowUpStatusReprogramado}).
+		Where("(scheduled_date AT TIME ZONE 'America/Bogota')::date < (now() AT TIME ZONE 'America/Bogota')::date").
+		Update("status", models.FollowUpStatusVencido)
+
 	// Query 4: seguimientos v2 del caso (por icode) — ordenados por fecha programada
 	var followUpsV2 []models.FollowUpV2
 	r.db.WithContext(ctx).

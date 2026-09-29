@@ -286,7 +286,8 @@ func (s *caseDetailService) EditFollowUpDate(ctx context.Context, followUpID, sc
 	}
 
 	// Validar que no sea fecha pasada
-	hoy := time.Now().In(loc).Truncate(24 * time.Hour)
+	ahora := time.Now().In(loc)
+	hoy := time.Date(ahora.Year(), ahora.Month(), ahora.Day(), 0, 0, 0, 0, loc)
 	if fecha.Before(hoy) {
 		return errors.New("no se permiten fechas anteriores a hoy")
 	}

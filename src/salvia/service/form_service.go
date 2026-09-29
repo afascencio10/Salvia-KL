@@ -163,6 +163,7 @@ type FormServiceDeps struct {
 	RepeaterEntryRepo         repository.RepeaterEntryRepository
 	AnswerRepo                repository.AnswerRepository
 	FollowUpRepo              repository.FollowUpRepository
+	FollowUpAttemptRepo       repository.FollowUpAttemptRepository
 	EmergencyMeasureRepo      repository.EmergencyMeasureRepository
 	PsychosocialSupportRepo   repository.PsychosocialSupportRepository
 	EconomicStabilizationRepo repository.EconomicStabilizationRepository
@@ -198,6 +199,7 @@ type formService struct {
 	repeaterEntryRepo         repository.RepeaterEntryRepository
 	answerRepo                repository.AnswerRepository
 	followUpRepo              repository.FollowUpRepository
+	followUpAttemptRepo       repository.FollowUpAttemptRepository
 	emergencyMeasureRepo      repository.EmergencyMeasureRepository
 	psychosocialSupportRepo   repository.PsychosocialSupportRepository
 	economicStabilizationRepo repository.EconomicStabilizationRepository
@@ -234,6 +236,7 @@ func NewFormService(deps FormServiceDeps) FormService {
 		repeaterEntryRepo:         deps.RepeaterEntryRepo,
 		answerRepo:                deps.AnswerRepo,
 		followUpRepo:              deps.FollowUpRepo,
+		followUpAttemptRepo:       deps.FollowUpAttemptRepo,
 		emergencyMeasureRepo:      deps.EmergencyMeasureRepo,
 		psychosocialSupportRepo:   deps.PsychosocialSupportRepo,
 		economicStabilizationRepo: deps.EconomicStabilizationRepo,
@@ -2873,6 +2876,33 @@ func (s *formService) processCaseClosureSubmission(ctx context.Context, submissi
 	return nil
 }
 
+// competencesStateOptionsPath es el rasgo que identifica a la pregunta de
+// competencias del repeater de barreras: es la única cuyas opciones se resuelven
+// contra formState.newBarriers[i].competencias. Ver ListCompetences y
+// _updateCompetenciaOptions en hacer_seguimiento.html.
+const competencesStateOptionsPath = "newBarriers.{_entryIndex}.competencias"
+
+// resolveCompetencesQuestionID devuelve el ID de la pregunta de competencias del
+// repeater, o "" si todavía no se ha creado. Resolverla por su state_options_path
+// en vez de por UUID o por orden evita dos cosas: recompilar cuando la pregunta se
+// cree en cada ambiente, y que insertar una pregunta antes le corra el orden.
+func (s *formService) resolveCompetencesQuestionID(ctx context.Context, repeaterGroupID string) string {
+	if s.questionRepo == nil {
+		return ""
+	}
+	questions, err := s.questionRepo.FindByRepeaterGroupID(ctx, repeaterGroupID)
+	if err != nil {
+		log.Printf("⚠️  [processFollowUp] no se pudieron leer las preguntas del repeater de barreras: %v", err)
+		return ""
+	}
+	for _, q := range questions {
+		if q.StateOptionsPath != nil && *q.StateOptionsPath == competencesStateOptionsPath {
+			return q.ID
+		}
+	}
+	return ""
+}
+
 // processFollowUpSubmission marca el follow_up_v2 asociado como REALIZADO y crea las entidades
 // derivadas (barreras, medidas de emergencia, derivaciones) a partir de las respuestas.
 func (s *formService) processFollowUpSubmission(ctx context.Context, submissionID, actorID string) error {
@@ -3039,6 +3069,13 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		return fmt.Errorf("processFollowUpSubmission: leer entradas de barreras: %w", err)
 	}
 	log.Printf("[processFollowUp] barreras: %d entradas encontradas", len(barrierEntries))
+
+	// La pregunta de competencias se resuelve en runtime por su state_options_path
+	// y no con un UUID hardcodeado: se crea por API después del despliegue (ver
+	// DocsMD/Screens/hacer-seguimiento/form-barreras-repeater.md), así que un UUID
+	// fijo obligaría a recompilar. Si todavía no existe devuelve "" y la barrera se
+	// guarda sin competencias, igual que hoy.
+	qBarreraCompetencias := s.resolveCompetencesQuestionID(ctx, rgBarreras)
 	for _, entry := range barrierEntries {
 		entryAnswers, err := s.answerRepo.FindByRepeaterEntryID(ctx, entry.ID)
 		if err != nil {
@@ -3080,7 +3117,8 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 			Description:        entryMap[qBarreraDescripcion],
 			ManagementActions:  entryMap[qBarreraGestion],
 
-			EntityBranchID: barreraEntityBranchID,
+			EntityBranchID:     barreraEntityBranchID,
+			Competences:        entryMap[qBarreraCompetencias],
 		}
 		log.Printf("[processFollowUp] creando barrera sector=%s entry=%s", sector, entry.ID)
 		if err := s.barrierV2Repo.Create(ctx, b); err != nil {
@@ -3158,15 +3196,15 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 					taskType = "comite_caso"
 				}
 
-				// La tarea "Decisiones del Comité" (comite_caso) se asigna al Equipo
-				// Técnico (rol 'te'), no al agente. Las demás tareas siguen yendo al agente.
+				// La tarea "Decisiones del Comité" (comite_caso) queda disponible para
+				// TODO el Equipo Técnico (rol 'te') como un pool, no se asigna a un
+				// agente concreto: assigned_user_id vacío = "sin dueño, la toma cualquier
+				// 'te'". Cuando un 'te' la gestiona, el completado registra su icode en
+				// assigned_user_id (ver CompleteWithFormData, rama comite_caso). Las demás
+				// tareas siguen asignándose al agente que hace el seguimiento.
 				assignedTo := actorID
 				if taskType == "comite_caso" {
-					if teUser := s.resolverEquipoTecnico(ctx); teUser != "" {
-						assignedTo = teUser
-					} else {
-						log.Printf("[processFollowUp] WARN: no hay usuario Equipo Técnico (rol 'te') activo; comite_caso se asigna al agente %s", actorID)
-					}
+					assignedTo = ""
 				}
 
 				task := &models.CaseTask{
@@ -3523,6 +3561,28 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 	// 6. Marcar el follow_up como REALIZADO
 	if err := s.followUpRepo.UpdateStatus(ctx, fu.ID, models.FollowUpStatusRealizado); err != nil {
 		return fmt.Errorf("processFollowUpSubmission: actualizar estado followUp: %w", err)
+	}
+
+	// 6b. Registrar el intento EFECTIVO (was_answered = true) en el mismo punto
+	// donde el seguimiento pasa a REALIZADO. Antes esto se hacía desde el
+	// frontend (hacer_seguimiento.html con ?register_attempt=true), lo que
+	// generaba intentos exitosos duplicados cada vez que se re-disparaba el
+	// evento form-completed sin que el seguimiento llegara a ejecutarse. Al
+	// hacerlo aquí queda garantizado: solo hay un intento efectivo y solo si el
+	// formulario realmente se completó (el guard inicial de esta función impide
+	// re-ejecución cuando ya está REALIZADO).
+	if s.followUpAttemptRepo != nil {
+		now := time.Now()
+		effectiveAttempt := &models.FollowUpAttempt{
+			FollowUpID:  fu.ID,
+			Reason:      "Sí contestó",
+			WasAnswered: true,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		}
+		if err := s.followUpAttemptRepo.CreateAttempt(ctx, effectiveAttempt); err != nil {
+			log.Printf("[processFollowUpSubmission] advertencia: no se pudo registrar intento efectivo para followUp=%s: %v", fu.ID, err)
+		}
 	}
 
 	// 7. Crear evento en el timeline del caso
@@ -4175,24 +4235,6 @@ func splitCSVValues(v string) []string {
 		}
 	}
 	return out
-}
-
-// resolverEquipoTecnico devuelve el icode del primer usuario activo con rol
-// "Equipo Técnico" ('te'), destinatario de las tareas "Decisiones del Comité".
-// Retorna "" si no hay ninguno (el llamador decide el fallback).
-func (s *formService) resolverEquipoTecnico(ctx context.Context) string {
-	if s.agentLightRepo == nil {
-		return ""
-	}
-	users, err := s.agentLightRepo.FindAllByRole(ctx, "te")
-	if err != nil {
-		log.Printf("[resolverEquipoTecnico] WARN: error consultando usuarios 'te': %v", err)
-		return ""
-	}
-	if len(users) == 0 {
-		return ""
-	}
-	return users[0].ICode
 }
 
 // createEntityCaseObligationIfNotExists evita duplicar obligaciones: si eco referencia

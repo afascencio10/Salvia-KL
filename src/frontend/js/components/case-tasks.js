@@ -88,10 +88,24 @@ app.component('case-tasks', {
     computed: {
         scopedTasks: function() {
             var self = this;
-            if (this.userRole !== 'et') return this.tasks;
-            return this.tasks.filter(function(t) {
-                return String(t.assignedUserId || '') === String(self.userId || '');
-            });
+            // Rol Entidad ('et'): filtro original del equipo — solo sus tareas asignadas.
+            if (this.userRole === 'et') {
+                return this.tasks.filter(function(t) {
+                    return String(t.assignedUserId || '') === String(self.userId || '');
+                });
+            }
+            // Equipo Técnico ('te'): ve las tareas asignadas a sí mismo y, además, las
+            // tareas "comite_caso" del pool (sin dueño), disponibles para que cualquier
+            // integrante del equipo técnico las tome y gestione. El backend ya aplica
+            // este mismo criterio; aquí se replica para mantener la vista consistente.
+            if (this.userRole === 'te') {
+                return this.tasks.filter(function(t) {
+                    if (String(t.assignedUserId || '') === String(self.userId || '')) return true;
+                    if (t.type === 'comite_caso' && !t.assignedUserId) return true;
+                    return false;
+                });
+            }
+            return this.tasks;
         },
         pendingTasks: function() {
             return this.scopedTasks.filter(function(t) { return t.status === 'ToDo'; });
@@ -143,9 +157,16 @@ app.component('case-tasks', {
                 barrierDescription: this.barrierDescription || '',
             });
         },
+        // esComiteDelPool: tarea "comite_caso" sin dueño que cualquier integrante del
+        // Equipo Técnico ('te') puede tomar y gestionar.
+        esComiteDelPool: function(task) {
+            return task && task.type === 'comite_caso' && !task.assignedUserId;
+        },
         puedeCompletar: function(task) {
             if ((this.userRole === 'ps' || this.userRole === 'ts') && !this.allowPsicoManage) return false;
             if (this.userRole === 'sv') return true;
+            // El Equipo Técnico puede gestionar las comite_caso del pool.
+            if (this.userRole === 'te' && this.esComiteDelPool(task)) return true;
             return String(task.assignedUserId || '') === String(this.userId || '');
         },
         esAsignadoOSv: function(task) {
@@ -155,6 +176,8 @@ app.component('case-tasks', {
             }
             // Para las demás tareas: sv siempre puede, o ser el asignado
             if (this.userRole === 'sv') return true;
+            // El Equipo Técnico puede gestionar las comite_caso del pool aunque no le estén asignadas.
+            if (this.userRole === 'te' && this.esComiteDelPool(task)) return true;
             return String(task.assignedUserId || '') === String(this.userId || '');
         },
         async abrirReasignar(task) {
@@ -214,6 +237,25 @@ app.component('case-tasks', {
             }
             return task.description || this.labelTipo(task);
         },
+        // entidadTarea resuelve el nombre de la entidad relacionada a la tarea.
+        // El backend expone la entidad por dos rutas: 'entityName' (cuando la tarea
+        // apunta a una entidad concreta del caso vía entity_case) y 'barrierEntityName'
+        // (la sede/entidad ligada a la barrera). Se prioriza la primera.
+        entidadTarea: function(task) {
+            return (task && (task.entityName || task.barrierEntityName)) || '';
+        },
+        // solicitudTarea es el texto de la solicitud que se le hace a la entidad.
+        // Corresponde a la descripción de la tarea del enlace territorial.
+        solicitudTarea: function(task) {
+            return (task && task.description) || '';
+        },
+        // esTareaEnlace indica si la tarjeta corresponde a una gestión hacia una
+        // entidad (barrera/solicitud), para mostrar el bloque "Entidad / Solicitud".
+        // Se muestra cuando hay una entidad resuelta o la tarea nace de una barrera.
+        esTareaEnlace: function(task) {
+            if (!task) return false;
+            return !!this.entidadTarea(task) || !!task.barrierId;
+        },
     },
     template: `
 <div class="ct-container">
@@ -257,6 +299,11 @@ app.component('case-tasks', {
                             <span class="ct-badge ct-badge-todo">Pendiente</span>
                         </div>
                         <div style="font-size:.84rem;font-weight:700;color:#1f2937">\${ tituloTarea(task) }</div>
+                        <!-- Entidad y solicitud: guían al enlace territorial sobre cómo gestionar -->
+                        <div v-if="esTareaEnlace(task)" style="margin-top:4px;display:flex;flex-direction:column;gap:2px">
+                            <div v-if="entidadTarea(task)" style="font-size:.74rem;color:#374151"><i class="fa fa-building" style="color:#2563eb;margin-right:5px"></i><strong>Entidad:</strong> \${ entidadTarea(task) }</div>
+                            <div v-if="solicitudTarea(task)" style="font-size:.74rem;color:#374151"><i class="fa fa-file-lines" style="color:#7c3aed;margin-right:5px"></i><strong>Solicitud:</strong> \${ solicitudTarea(task) }</div>
+                        </div>
                         <div style="font-size:.73rem;color:#9ca3af;margin-top:2px">Asignado a: \${ task.assignedUserName || 'Sin asignar' }</div>
                     </div>
                     <div style="display:flex;gap:6px;flex-shrink:0">
@@ -284,6 +331,11 @@ app.component('case-tasks', {
                             <span class="ct-badge ct-badge-done">Completada</span>
                         </div>
                         <div style="font-size:.84rem;font-weight:700;color:#1f2937">\${ tituloTarea(task) }</div>
+                        <!-- Entidad y solicitud: guían al enlace territorial sobre cómo gestionar -->
+                        <div v-if="esTareaEnlace(task)" style="margin-top:4px;display:flex;flex-direction:column;gap:2px">
+                            <div v-if="entidadTarea(task)" style="font-size:.74rem;color:#374151"><i class="fa fa-building" style="color:#2563eb;margin-right:5px"></i><strong>Entidad:</strong> \${ entidadTarea(task) }</div>
+                            <div v-if="solicitudTarea(task)" style="font-size:.74rem;color:#374151"><i class="fa fa-file-lines" style="color:#7c3aed;margin-right:5px"></i><strong>Solicitud:</strong> \${ solicitudTarea(task) }</div>
+                        </div>
                         <div style="font-size:.73rem;color:#9ca3af;margin-top:2px">Completada por: \${ task.assignedUserName || '—' }</div>
                     </div>
                     <div style="display:flex;gap:6px;flex-shrink:0">

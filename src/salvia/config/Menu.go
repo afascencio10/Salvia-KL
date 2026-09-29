@@ -52,7 +52,6 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"op": true,
 		"ro": true,
 		"do": true,
-		"et": true,
 		"us": true,
 		"sv": true,
 		"no": true,
@@ -83,6 +82,13 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"do": true,
 		"fo": true,
 		"ad": true,
+		"an": true,
+	},
+	// view_new_victim_case: controla el acceso a la pantalla /casos/nuevo.
+	// Solo agente integral (op), agente de seguimiento (ro) y agente de notificaciones (an).
+	"view_new_victim_case": {
+		"op": true,
+		"ro": true,
 		"an": true,
 	},
 	"update_victim_case": {
@@ -274,7 +280,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	"get_mis_seguimientos_dia":     {"op": true},
 	// Carga de la pantalla HTML: mismos roles que get_notificaciones; uso real solo op/ro (validación en frontend).
 	"get_my_cases":                    {"op": true, "an": true, "no": true, "sv": true, "ad": true, "ro": true, "et": true},
-	"get_list_cases":                  {"op": true, "an": true, "no": true, "sv": true, "ad": true, "ro": true, "et": true, "en": true, "do": true, "us": true, "fo": true, "te": true, "ps": true, "ts": true},
+	"get_list_cases":                  {"op": true, "an": true, "no": true, "sv": true, "ad": true, "ro": true, "do": true, "us": true, "fo": true, "ps": true, "ts": true},
 	"get_seguimientos_area":           {"ad": true, "sv": true},
 	"get_hacer_seguimiento":           {"ro": true, "op": true, "ad": true},
 	"generate_calendario_seguimiento": {"ad": true, "sv": true, "op": true},
@@ -294,6 +300,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"an": true,
 		"te": true,
 		"mc": true,
+		"mn": true,
 	},
 
 	// ── Dashboard KPIs (Salvia_KPIs_v1) ──────────────────────────────────────

@@ -17,7 +17,9 @@ type DuplaRepository interface {
 	ListActiveEnriched(ctx context.Context) ([]models.DuplaAdminItem, error)
 	FindEnrichedByID(ctx context.Context, id string) (*models.DuplaAdminItem, error)
 	ExistsActiveByName(ctx context.Context, name string, excludeID string) (bool, error)
-	ExistsActivePsychologistConflict(ctx context.Context, psychologistID, excludeID string) (bool, error)
+	// ExistsActiveMemberConflict verifica si memberID ya pertenece a otra dupla activa,
+	// sin importar si figura como psychologist_id o social_worker_id.
+	ExistsActiveMemberConflict(ctx context.Context, memberID, excludeID string) (bool, error)
 	Create(ctx context.Context, name, psychologistID, socialWorkerID string) (*models.Dupla, error)
 	UpdateActive(ctx context.Context, id, name, psychologistID, socialWorkerID string) error
 	ExistsActiveByID(ctx context.Context, id string) (bool, error)
@@ -123,16 +125,16 @@ func (r *duplaRepository) ExistsActiveByName(ctx context.Context, name string, e
 	return id != "", nil
 }
 
-func (r *duplaRepository) ExistsActivePsychologistConflict(ctx context.Context, psychologistID, excludeID string) (bool, error) {
+func (r *duplaRepository) ExistsActiveMemberConflict(ctx context.Context, memberID, excludeID string) (bool, error) {
 	var id string
 	q := r.db.WithContext(ctx).Raw(`
 SELECT id
 FROM salvia.dupla
 WHERE deleted_at IS NULL
-  AND BTRIM(psychologist_id::text) = BTRIM(?)
+  AND (BTRIM(psychologist_id::text) = BTRIM(?) OR BTRIM(social_worker_id::text) = BTRIM(?))
   AND (? = '' OR id <> ?)
 LIMIT 1
-`, psychologistID, excludeID, excludeID)
+`, memberID, memberID, excludeID, excludeID)
 	err := q.Scan(&id).Error
 	if err != nil {
 		return false, err

@@ -95,6 +95,13 @@ PASO 2 — Construir answerMap
 PASO 3 — Crear barreras nuevas (rgBarreras)
 
   DB.repeater_entries.FindBySubmissionIDAndGroupIDs({ submissionId, groupIds: [rgBarreras] })
+
+  qBarreraCompetencias = resolveCompetencesQuestionID(rgBarreras)
+    // Los demás q* son UUIDs constantes en form_service.go. Este se resuelve en
+    // runtime buscando la pregunta cuyo state_options_path sea
+    // "newBarriers.{_entryIndex}.competencias", porque la pregunta se crea por API
+    // en cada ambiente. Si aún no existe vale "" y competences queda vacío.
+
   → Por cada entry del repeater:
 
       3.1 Leer answers de la entry → entryMap
@@ -122,6 +129,7 @@ PASO 3 — Crear barreras nuevas (rgBarreras)
                 official_dependency:   entryMap[qBarreraFuncionario],
                 description:           entryMap[qBarreraDescripcion],
                 management_actions:    entryMap[qBarreraGestion],
+                competences:           entryMap[qBarreraCompetencias],
             })
           SI falla el insert:
             → Retornar error (aborta la ejecución)

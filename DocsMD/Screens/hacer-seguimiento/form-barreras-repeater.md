@@ -363,6 +363,47 @@
 | 5 | Escalamiento a organismo de control | `escalamiento_organismo_control` |
 | 6 | Alerta por barreras | `alerta_barreras` |
 
+#### 23. Competencias u obligaciones de la entidad que aplican a esta barrera
+| Campo | Valor |
+|---|---|
+| ID actual | ⏳ se asigna al crearla — ver abajo |
+| Tipo | `multiple` |
+| Requerido | ❌ |
+| Condición | — |
+| Fuente | `state_options_path` = `newBarriers.{_entryIndex}.competencias` |
+
+> ⚠️ **Sin opciones en BD:** igual que Q13 y Q14, las opciones no se registran en la tabla `option`. El frontend las carga de `GET /api/v1/competences?sector=<Q1>&institutions=<Q3|Q6|Q9>`, que sirve el catálogo embebido de 237 competencias (`src/salvia/config/competences.json`, hoja "4.EntidadesAcciones" del consolidado de rutas).
+
+> ℹ️ **Sin condición de visibilidad a propósito.** Con sector `barrera_transversal` el endpoint devuelve `[]` y la pregunta se muestra sin opciones — el mismo comportamiento que ya tienen Ciudad y Municipio antes de elegir departamento. Agregar una VC exigiría una condición por cada sector válido, y el motor no aclara si las combina con OR.
+
+**Cómo crearla** (el `order` y el `formSectionId` se leen del repeater para no adivinarlos):
+
+```bash
+BASE=https://<host-de-qa>
+FORM=2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff
+GRUPO=5fd3ecdc-2e5f-4b31-97ef-8a994580586a
+
+curl -s "$BASE/api/v1/forms/$FORM/questions" | python -c "
+import json,sys
+qs=[q for q in json.load(sys.stdin) if q.get('repeaterGroupId')=='$GRUPO']
+print('formSectionId:', qs[0]['formSectionId'])
+print('order sugerido:', max(q['order'] for q in qs)+1)"
+```
+
+```bash
+curl -s -X POST "$BASE/api/v1/forms/$FORM/questions" -H 'Content-Type: application/json' -d '{
+  "formSectionId": "<el del paso anterior>",
+  "repeaterGroupId": "5fd3ecdc-2e5f-4b31-97ef-8a994580586a",
+  "questionTypeId": "multiple",
+  "description": "¿Qué competencias u obligaciones de la entidad aplican a esta barrera?",
+  "required": false,
+  "order": 23,
+  "stateOptionsPath": "newBarriers.{_entryIndex}.competencias"
+}'
+```
+
+El `id` que devuelve esa respuesta es el que se pega en `qBarreraCompetencias` (`form_service.go`) para que la respuesta se guarde en `barrier_v2.competences`.
+
 ---
 
 ## Resumen de VCs del repeater

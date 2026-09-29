@@ -1,0 +1,421 @@
+<!-- PSWYA-755 — Registro de Contacto Víctima V2 (Flujo A). Wizard de 4 pasos,
+     Vue standalone (decisión de arquitectura 1A — no usa dinamic-form).
+     Coexiste con set_victim_contact.html (V1) sin modificarlo. Ver
+     DocsMD/Screens/Registro de Contacto Víctima V2/ para la planeación. -->
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+
+      <div id="alert" v-if="errors.default && errors.default.global_msg" class="alert alert-danger alert-dismissible">${errors.default.global_msg}</div>
+      <div id="global-errors-live" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+
+      <!-- ============================================== -->
+      <!-- PASO 1: AUTORIZACIÓN DE DATOS                  -->
+      <!-- ============================================== -->
+      <div v-if="step === 'auth'">
+        <div class="tituloform">
+          <i class="fas fa-list-alt fa-2x"></i>
+          <h2>Autorización de datos personales</h2>
+        </div>
+        <h5>Lectura y aceptación de la ley de protección de Datos</h5>
+        <p>Declaro de manera libre, expresa, inequívoca e informada, que AUTORIZO al Ministerio de Igualdad y Equidad para que de acuerdo con lo establecido en el literal a) del artículo 6 de la Ley 1581 de 2012, realice la recolección y tratamiento de mis datos personales que suministro de manera veraz y completa, los cuales serán utilizados para los diferentes aspectos asociados al Registro de Igualdad y Equidad, en cumplimiento de la Resolución 772 de 2024.</p>
+        <p>A su vez, reconozco que se me ha informado de manera clara que tengo derecho a conocer, actualizar y rectificar los datos personales proporcionados, a solicitar prueba de esta autorización, a enterarme sobre el uso que se le ha dado a mis datos personales, a presentar quejas ante la Superintendencia de Industria y Comercio por el uso indebido de mis datos personales, a revocar esta autorización o solicitar la supresión de los datos personales suministrados y a acceder de forma gratuita a los mismos.</p>
+        <p>Igualmente, manifiesto que de conformidad con el artículo 56 del Código de Procedimiento Administrativo y de lo Contencioso Administrativo - Ley 1437 de 2011 modificado por el artículo 10 de la Ley 2080 de 2021, autorizo expresamente al Ministerio de Igualdad y Equidad a remitir notificaciones electrónicas al correo electrónico proporcionado por mi parte.</p>
+
+        <div class="form-group">
+          <label class="font-weight-bold">De acuerdo con lo enunciado, ¿Autoriza el tratamiento de sus datos personales por parte del Ministerio de Igualdad y Equidad? *</label>
+          <select class="form-control" v-model="form.autorizacion" data-entity="form" data-field="autorizacion" data-label="Autorización de datos personales">
+            <option :value="null" disabled>Seleccione una opción</option>
+            <option v-for="o in enums.yes_no" :key="o.icode" :value="o">${ o.code === 'y' ? 'Sí, autorizo' : 'No autorizo' }</option>
+          </select>
+        </div>
+
+        <div v-if="form.autorizacion && form.autorizacion.code === 'n'" class="alert alert-danger">
+          No es posible continuar con el reporte sin la autorización de tratamiento de datos. Hasta aquí llega el formulario.
+        </div>
+
+        <div class="row justify-content-end botones">
+          <button type="button" class="btn btn-success" :disabled="!form.autorizacion || form.autorizacion.code !== 'y'" @click="goTo('perfil')">Continuar</button>
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- PASO 2: TIPO DE REPORTE Y AJUSTES RAZONABLES   -->
+      <!-- ============================================== -->
+      <div v-else-if="step === 'perfil'">
+        <div class="tituloform">
+          <i class="fas fa-user-check fa-2x"></i>
+          <h2>Perfil de Ingreso</h2>
+        </div>
+
+        <div class="form-group">
+          <label class="font-weight-bold">Seleccione el tipo de reporte / perfil: *</label>
+          <select class="form-control" v-model="form.tipoReporte" data-entity="form" data-field="tipoReporte" data-label="Tipo de reporte">
+            <option :value="null" disabled>Seleccione una opción</option>
+            <option v-for="o in enums.reportTypeV2" :key="o.icode" :value="o">${ o.name }</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="font-weight-bold">Indique si requiere de algún ajuste razonable en el marco de la atención a su caso de VBG y/o VpP: *</label>
+          <select class="form-control" v-model="form.ajusteRazonable" data-entity="form" data-field="ajusteRazonable" data-label="Ajuste razonable">
+            <option :value="null" disabled>Seleccione una opción</option>
+            <option v-for="o in enums.adjustmentsGBV" :key="o.icode" :value="o">${ o.name }</option>
+          </select>
+        </div>
+
+        <div class="row justify-content-between botones">
+          <button type="button" class="btn btn-secondary" @click="goTo('auth')">Atrás</button>
+          <button type="button" class="btn btn-success" :disabled="!form.tipoReporte || !form.ajusteRazonable" @click="goTo('formulario')">Continuar</button>
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- PASO 3: FORMULARIO ESPECÍFICO                  -->
+      <!-- ============================================== -->
+      <div v-else-if="step === 'formulario'">
+        <div class="tituloform">
+          <i class="fas fa-file-alt fa-2x"></i>
+          <h2>Datos del Reporte (${ tipoReporteTexto })</h2>
+        </div>
+
+        <!-- Datos de quien reporta (Tercero / Familiar / Hombre — no Víctima) -->
+        <template v-if="form.tipoReporte && form.tipoReporte.code !== 'v'">
+          <h4 class="text-primary">Datos de quien reporta</h4>
+
+          <div class="form-group" v-if="form.tipoReporte.code === 'r'">
+            <label>El reporte se hace de forma: *</label>
+            <select class="form-control" v-model="form.anonimato" data-entity="form" data-field="anonimato" data-label="Forma del reporte">
+              <option :value="null" disabled>Seleccione</option>
+              <option v-for="o in enums.anonimato" :key="o.icode" :value="o">${ o.name }</option>
+            </select>
+          </div>
+
+          <div class="row" v-if="mostrarNombreReportante">
+            <div class="form-group col-md-6">
+              <label>Nombres *</label>
+              <input type="text" class="form-control" v-model="form.nombreReportante" placeholder="Sus nombres" data-entity="form" data-field="nombreReportante" data-label="Nombres de quien reporta">
+            </div>
+            <div class="form-group col-md-6">
+              <label>Apellidos *</label>
+              <input type="text" class="form-control" v-model="form.apellidoReportante" placeholder="Sus apellidos" data-entity="form" data-field="apellidoReportante" data-label="Apellidos de quien reporta">
+            </div>
+            <div class="form-group col-md-12">
+              <label>Correo electrónico</label>
+              <input type="email" class="form-control" v-model="form.correoReportante" placeholder="ejemplo@correo.com" data-entity="form" data-field="correoReportante" data-label="Correo de quien reporta">
+            </div>
+          </div>
+
+          <div class="form-group" v-if="form.tipoReporte.code === 'fm'">
+            <label>Parentesco o vínculo con la víctima *</label>
+            <select class="form-control" v-model="form.parentesco" data-entity="form" data-field="parentesco" data-label="Parentesco">
+              <option :value="null" disabled>Seleccione</option>
+              <option v-for="o in enums.parentesco" :key="o.icode" :value="o">${ o.name }</option>
+            </select>
+          </div>
+
+          <div class="form-group" v-if="form.tipoReporte.code === 'fm' || form.tipoReporte.code === 'ho'">
+            <label>Teléfono de contacto en Colombia de quien reporta *</label>
+            <input type="tel" class="form-control" v-model="form.telefonoReportante" placeholder="Número celular" data-entity="form" data-field="telefonoReportante" data-label="Teléfono de quien reporta">
+          </div>
+
+          <div class="form-group" v-if="form.tipoReporte.code === 'r' || form.tipoReporte.code === 'fm'">
+            <label>¿Tiene algún rol de cuidado, representación o acompañamiento de la víctima? *</label>
+            <select class="form-control" v-model="form.rolCuidado" data-entity="form" data-field="rolCuidado" data-label="Rol de cuidado">
+              <option :value="null" disabled>Seleccione</option>
+              <option v-for="o in enums.yes_no" :key="o.icode" :value="o">${ o.name }</option>
+            </select>
+          </div>
+
+          <div class="form-group" v-if="form.tipoReporte.code === 'r'">
+            <label>¿La víctima tiene conocimiento de este reporte? *</label>
+            <select class="form-control" v-model="form.victimaConoce" data-entity="form" data-field="victimaConoce" data-label="Víctima conoce el reporte">
+              <option :value="null" disabled>Seleccione</option>
+              <option v-for="o in enums.yes_no" :key="o.icode" :value="o">${ o.name }</option>
+            </select>
+          </div>
+
+          <template v-if="form.tipoReporte.code === 'fm' || form.tipoReporte.code === 'ho'">
+            <div class="form-group">
+              <label>¿Tiene disposición para recibir una llamada en la cual ahondar en la descripción de los hechos? *</label>
+              <select class="form-control" v-model="form.disposicionReportante" data-entity="form" data-field="disposicionReportante" data-label="Disposición de quien reporta">
+                <option :value="null" disabled>Seleccione</option>
+                <option v-for="o in enums.yes_no" :key="o.icode" :value="o">${ o.name }</option>
+              </select>
+            </div>
+            <div class="form-group" v-if="form.disposicionReportante && form.disposicionReportante.code === 'y'">
+              <label>Mejor hora de contacto para devolverle la llamada</label>
+              <input type="time" class="form-control" v-model="form.horaReportante" data-entity="form" data-field="horaReportante" data-label="Hora de contacto de quien reporta">
+            </div>
+          </template>
+        </template>
+
+        <!-- Datos de la persona afectada (Tercero / Víctima / Familiar — no Hombre) -->
+        <template v-if="form.tipoReporte && form.tipoReporte.code !== 'ho'">
+          <h4 class="text-primary mt-4">Datos de la persona afectada</h4>
+
+          <div class="row">
+            <div class="form-group col-md-6">
+              <label>Nombres *</label>
+              <input type="text" class="form-control" v-model="form.nombreVictima" data-entity="form" data-field="nombreVictima" data-label="Nombres de la víctima">
+            </div>
+            <div class="form-group col-md-6">
+              <label>Apellidos *</label>
+              <input type="text" class="form-control" v-model="form.apellidoVictima" data-entity="form" data-field="apellidoVictima" data-label="Apellidos de la víctima">
+            </div>
+          </div>
+
+          <template v-if="form.tipoReporte.code === 'r' || form.tipoReporte.code === 'v'">
+            <div class="row">
+              <div class="form-group col-md-6">
+                <label>Teléfono de contacto en Colombia de la víctima *</label>
+                <input type="tel" class="form-control" v-model="form.telefonoVictima" placeholder="Número celular" data-entity="form" data-field="telefonoVictima" data-label="Teléfono de la víctima">
+              </div>
+              <div class="form-group col-md-6">
+                <label>¿Tiene disposición para recibir una llamada en la cual ahondar en la descripción de los hechos? *</label>
+                <select class="form-control" v-model="form.disposicionLlamada" data-entity="form" data-field="disposicionLlamada" data-label="Disposición de la víctima">
+                  <option :value="null" disabled>Seleccione</option>
+                  <option v-for="o in enums.yes_no" :key="o.icode" :value="o">${ o.name }</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group" v-if="form.disposicionLlamada && form.disposicionLlamada.code === 'y'">
+              <label>Mejor hora de contacto para devolver la llamada</label>
+              <input type="time" class="form-control" v-model="form.horaContacto" data-entity="form" data-field="horaContacto" data-label="Hora de contacto de la víctima">
+            </div>
+          </template>
+
+          <div class="alert alert-warning" v-if="form.tipoReporte.code === 'fm'">
+            Para reportes de Familiar no se solicita teléfono ni disposición de la víctima (fallecida) — el recontacto se hace al teléfono de quien reporta, capturado arriba.
+          </div>
+        </template>
+
+        <!-- Descripción de los hechos -->
+        <h4 class="text-primary mt-4">Descripción</h4>
+        <div class="form-group">
+          <label>Descripción detallada de los hechos *</label>
+          <textarea class="form-control" rows="4" v-model="form.descripcionHechos" placeholder="Describa la situación de violencia..." data-entity="form" data-field="descripcionHechos" data-label="Descripción de los hechos"></textarea>
+        </div>
+
+        <!-- Captcha -->
+        <div class="form-group">
+          <img id="captchaIMG" :src="captchaImgURL" alt="CAPTCHA">
+          <audio id="captchaAudio" :src="captchaAudioURL" alt="CAPTCHA" controls></audio>
+          <label class="d-block mt-2">Escriba el texto de la imagen *</label>
+          <input type="text" class="form-control" v-model="form.captchaSolution" data-entity="form" data-field="captchaSolution" data-label="Captcha">
+        </div>
+
+        <div class="row justify-content-between botones">
+          <button type="button" class="btn btn-secondary" @click="goTo('perfil')">Atrás</button>
+          <button type="button" class="btn btn-success" :disabled="!isFormValid" @click="submitForm">Enviar Reporte</button>
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- PASO 4: CONFIRMACIÓN                            -->
+      <!-- ============================================== -->
+      <div v-else-if="step === 'confirmacion'" class="text-center py-5">
+        <i class="fas fa-check-circle fa-3x text-success"></i>
+        <h2 class="mt-3">¡Reporte Enviado!</h2>
+        <p>Salvia le agradece por aportar a la identificación de hechos de violencia.<br>Su reporte ha quedado ingresado en el sistema.</p>
+
+        <div class="border rounded p-4 d-inline-block text-left mt-3">
+          <p><strong>Fecha:</strong> ${ fechaActual }</p>
+          <p><strong>Hora:</strong> ${ horaActual }</p>
+          <p class="mb-0"><strong>Número de Radicado:</strong> ${ radicado }</p>
+        </div>
+
+        <p class="text-muted mt-4">Un agente integral intentará comunicarse al número de contacto proporcionado para la validación y posible apertura del caso.</p>
+
+        <div class="mt-4">
+          <button type="button" class="btn btn-link" @click="resetForm">← Volver al Inicio</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{{ template "standard_scripts.html" .}}
+{{ template "overlay.html" .}}
+{{ template "html_helper_scripts.html" .}}
+<script>
+  var appV2 = Vue.createApp({
+    delimiters: ['${', '}'],
+    data() {
+      return {
+        windowTitle: {{.windowTitle}},
+        step: 'auth',
+        errors: {},
+        enums: {
+          yes_no: {{.yes_no}},
+          reportTypeV2: {{.reportTypeV2}},
+          adjustmentsGBV: {{.adjustmentsGBV}},
+          anonimato: {{.anonimato}},
+          parentesco: {{.parentesco}},
+        },
+        form: this.blankForm({{.CaptchaID}}),
+        radicado: '',
+        fechaActual: '',
+        horaActual: '',
+      }
+    },
+    computed: {
+      captchaImgURL() {
+        return `/seguridad/login/captcha/${this.form.captchaID}/img`;
+      },
+      captchaAudioURL() {
+        return `/seguridad/login/captcha/${this.form.captchaID}/audio`;
+      },
+      mostrarNombreReportante() {
+        if (!this.form.tipoReporte) return false;
+        const code = this.form.tipoReporte.code;
+        if (code === 'fm' || code === 'ho') return true;
+        if (code === 'r') return !!(this.form.anonimato && this.form.anonimato.code === 'pr');
+        return false;
+      },
+      tipoReporteTexto() {
+        return this.form.tipoReporte ? this.form.tipoReporte.name : '';
+      },
+      isFormValid() {
+        const f = this.form;
+        if (!f.tipoReporte || !f.ajusteRazonable || !f.descripcionHechos || f.descripcionHechos.trim().length < 10) return false;
+        if (!f.captchaSolution) return false;
+        const code = f.tipoReporte.code;
+
+        if (code === 'v' || code === 'r') {
+          if (!f.nombreVictima || !f.apellidoVictima || !f.telefonoVictima || !f.disposicionLlamada) return false;
+          if (f.disposicionLlamada.code === 'y' && !f.horaContacto) return false;
+        }
+        if (code === 'r') {
+          if (!f.anonimato) return false;
+          if (f.anonimato.code === 'pr' && (!f.nombreReportante || !f.apellidoReportante)) return false;
+          if (!f.rolCuidado || !f.victimaConoce) return false;
+        }
+        if (code === 'fm' || code === 'ho') {
+          if (!f.nombreReportante || !f.apellidoReportante || !f.telefonoReportante) return false;
+          if (!f.disposicionReportante) return false;
+          if (f.disposicionReportante.code === 'y' && !f.horaReportante) return false;
+        }
+        if (code === 'fm') {
+          if (!f.nombreVictima || !f.apellidoVictima || !f.parentesco || !f.rolCuidado) return false;
+        }
+        return true;
+      }
+    },
+    mounted() {
+      document.title = this.windowTitle;
+      document.getElementById('app').style.display = 'block';
+    },
+    methods: {
+      blankForm(captchaID) {
+        return {
+          autorizacion: null, tipoReporte: null, ajusteRazonable: null,
+          anonimato: null, nombreReportante: '', apellidoReportante: '', correoReportante: '',
+          parentesco: null, telefonoReportante: '',
+          rolCuidado: null, victimaConoce: null,
+          disposicionReportante: null, horaReportante: '',
+          nombreVictima: '', apellidoVictima: '', telefonoVictima: '',
+          disposicionLlamada: null, horaContacto: '',
+          descripcionHechos: '',
+          captchaID: captchaID, captchaSolution: '',
+        };
+      },
+      goTo(nextStep) {
+        this.step = nextStep;
+      },
+      resetForm() {
+        this.form = this.blankForm(this.form.captchaID);
+        this.radicado = '';
+        this.step = 'auth';
+      },
+      buildPayload() {
+        const f = this.form;
+        return {
+          victimContact: {
+            names: f.tipoReporte.code === 'ho' ? '' : f.nombreVictima,
+            lastNames: f.tipoReporte.code === 'ho' ? '' : f.apellidoVictima,
+            captchaID: f.captchaID,
+            captchaSolution: f.captchaSolution,
+            form2: {
+              reportType: f.tipoReporte,
+              adjustmentsGBV: [f.ajusteRazonable],
+              reporterNames: f.nombreReportante || '',
+              reporterPhone: f.telefonoReportante ? parseInt(f.telefonoReportante.replace(/\D/g, ''), 10) : 0,
+              hasCareRole: f.rolCuidado,
+              victimAwareOfReport: f.victimaConoce,
+              victimColPhone: f.telefonoVictima ? parseInt(f.telefonoVictima.replace(/\D/g, ''), 10) : 0,
+              willReceiveCall: f.disposicionLlamada,
+              bestContactTime: f.horaContacto ? (f.horaContacto + ':00') : '00:00:00',
+              factsDescription: f.descripcionHechos,
+            },
+            form2V2: {
+              authorizationAnswer: f.autorizacion,
+              anonimato: f.anonimato,
+              parentesco: f.parentesco,
+              reporterLastNames: f.apellidoReportante || '',
+              reporterEmail: f.correoReportante || '',
+              reporterWillReceiveCall: f.disposicionReportante,
+              reporterBestContactTime: f.horaReportante ? (f.horaReportante + ':00') : null,
+            }
+          }
+        };
+      },
+      submitForm() {
+        const payload = this.buildPayload();
+        newEntity("{{.formPath}}", payload, (function (status, response) {
+          this.form.captchaSolution = "";
+          if (status === 200) {
+            this.radicado = response.icode;
+            const now = new Date();
+            this.fechaActual = now.toLocaleDateString('es-CO');
+            this.horaActual = now.toLocaleTimeString('es-CO');
+            this.step = 'confirmacion';
+            // El popup de éxito compartido (overlay.html) no se auto-oculta
+            // (a diferencia del de error, que sí tiene timeout) — sin este
+            // ocultado explícito queda tapando el botón "Volver al Inicio".
+            const successOverlay = document.getElementById('successOverlay');
+            if (successOverlay) successOverlay.style.display = 'none';
+          } else if (status === 400) {
+            this.errors = response;
+            if (this.errors.default && this.errors.default.captchaID) {
+              this.form.captchaID = this.errors.default.captchaID;
+            }
+          } else {
+            alert("Se produjo un error interno, por favor vuelva a intentarlo");
+          }
+        }).bind(this), true);
+      }
+    },
+    watch: {
+      errors: {
+        handler(newErrors) {
+          if (!newErrors) return;
+          this.$nextTick(() => {
+            const mensajes = [];
+            Object.keys(newErrors).forEach(entidad => {
+              Object.keys(newErrors[entidad]).forEach(campo => {
+                const input = document.querySelector(`[data-entity="${entidad}"][data-field="${campo}"]`);
+                let label = campo;
+                if (input) {
+                  label = input.getAttribute("data-label") || campo;
+                }
+                const error = newErrors[entidad][campo];
+                if (campo !== "global_msg" && campo !== "default" && campo !== "captchaID") {
+                  mensajes.push(`${label}: ${error}`);
+                }
+              });
+            });
+            const live = document.getElementById("global-errors-live");
+            if (live && mensajes.length > 0) {
+              live.textContent = `El formulario tiene ${mensajes.length} errores. ` + mensajes.join(". ");
+            }
+          });
+        },
+        deep: true
+      }
+    }
+  });
+
+  appV2.mount("#app");
+</script>

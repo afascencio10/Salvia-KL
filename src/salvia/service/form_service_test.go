@@ -523,8 +523,8 @@ func (m *MockCaseTaskRepo) FindByAssignedUserIDWithRelations(ctx context.Context
 	args := m.Called(ctx, assignedUserID)
 	return args.Get(0).([]models.CaseTaskWithRelations), args.Error(1)
 }
-func (m *MockCaseTaskRepo) FindByAssignedUserIDPaged(ctx context.Context, assignedUserID, status string, page, pageSize int) (repository.PageResult[models.CaseTaskWithRelations], error) {
-	args := m.Called(ctx, assignedUserID, status, page, pageSize)
+func (m *MockCaseTaskRepo) FindByAssignedUserIDPaged(ctx context.Context, assignedUserID, status, role string, page, pageSize int) (repository.PageResult[models.CaseTaskWithRelations], error) {
+	args := m.Called(ctx, assignedUserID, status, role, page, pageSize)
 	return args.Get(0).(repository.PageResult[models.CaseTaskWithRelations]), args.Error(1)
 }
 func (m *MockCaseTaskRepo) FindByCaseID(ctx context.Context, caseID string) ([]models.CaseTask, error) {

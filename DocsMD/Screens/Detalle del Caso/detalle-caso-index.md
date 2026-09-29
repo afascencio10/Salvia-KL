@@ -184,7 +184,7 @@
 
 **Evento:** Cuando presiona "Reabrir caso"
 **Tipo:** User Interaction
-**Descripción:** Visible solo si el caso está cerrado (`victimCaseStatus === 'cd'`) y con la misma regla de roles que "+ Nuevo seguimiento" (`puedeReasignar` / `ro` / `op` asignado). Pone `modalReabrir = true`.
+**Descripción:** Visible solo si el caso está cerrado (`victimCaseStatus === 'cd'`) y el rol es `sv` (`puedeReasignar`). Pone `modalReabrir = true`.
 **Requerido:** Sí
 
 ---
@@ -193,7 +193,7 @@
 
 **Evento:** Cuando confirma reapertura
 **Tipo:** User Interaction
-**Descripción:** POST `/api/v1/casos/:id/reabrir` con `actor_id = userICode`. El backend pasa el caso de `cd` a `ra` (Activo) y registra el evento de timeline "Reapertura de Caso". Recarga datos; el badge pasa a Activo y el botón se oculta.
+**Descripción:** POST `/api/v1/casos/:id/reabrir`. El backend valida sesión y exige rol `sv` (403 si no) vía `requireCaseDetailAccess`; el `actor_id` del timeline se toma de la sesión, no del body enviado por el cliente. Si autorizado, pasa el caso de `cd` a `ra` (Activo) y registra el evento de timeline "Reapertura de Caso". Recarga datos; el badge pasa a Activo y el botón se oculta.
 **Requerido:** Sí
 
 ---

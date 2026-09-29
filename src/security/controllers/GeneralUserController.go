@@ -321,6 +321,7 @@ func SetGeneralUser(dataInput string, s utils.CommonSession, connData *db.ConnDa
 	var departmentOperatorRoleFound bool = false
 	var mechanismRoleFound bool = false
 	var riskOperatorRoleFound bool = false
+	var enlaceTerritorialRoleFound bool = false
 
 	// Se especifican los campos obligatorios para el usuario
 	var checkFields map[string]bool = map[string]bool{"GeneralUserPassword": true, "GeneralUserPasswordRepeat": true, "GeneralUserLanguage": true, "GeneralUserLogin": true}
@@ -425,6 +426,9 @@ func SetGeneralUser(dataInput string, s utils.CommonSession, connData *db.ConnDa
 			if r.RoleCode == "ro" {
 				riskOperatorRoleFound = true
 			}
+			if r.RoleCode == "en" {
+				enlaceTerritorialRoleFound = true
+			}
 		}
 
 		// El rol "ro" (Operador de seguimiento) requiere indicar el equipo de seguimiento
@@ -435,6 +439,15 @@ func SetGeneralUser(dataInput string, s utils.CommonSession, connData *db.ConnDa
 			}
 		} else {
 			userRequest.User.GeneralUserTeam = ""
+		}
+
+		// El rol "en" (Enlace territorial) requiere indicar el departamento asignado.
+		if enlaceTerritorialRoleFound {
+			if userRequest.User.GeneralUserAssignedDepartment == "" {
+				utils.SetError(collectedErrors, security_daos.GeneralUserJSONName, utils.GetTag(&userRequest.User, "GeneralUserAssignedDepartment", "json"), "common_validation_field_required_error", "", common_config.Locale)
+			}
+		} else {
+			userRequest.User.GeneralUserAssignedDepartment = ""
 		}
 
 		if entityRoleFound || departmentOperatorRoleFound {
@@ -1082,6 +1095,7 @@ func UpdateGeneralUserByICode(dataInput string, id string, s utils.CommonSession
 	var departmentOperatorRoleFound bool = false
 	var mechanismRoleFound bool = false
 	var riskOperatorRoleFound bool = false
+	var enlaceTerritorialRoleFound bool = false
 
 	// Se obtiene el usuario actual a actualizar basado en su ICode
 	var by common_controllers.By = common_controllers.By{
@@ -1197,6 +1211,9 @@ func UpdateGeneralUserByICode(dataInput string, id string, s utils.CommonSession
 			if r.RoleCode == "ro" {
 				riskOperatorRoleFound = true
 			}
+			if r.RoleCode == "en" {
+				enlaceTerritorialRoleFound = true
+			}
 		}
 
 		// El rol "ro" (Operador de seguimiento) requiere indicar el equipo de seguimiento
@@ -1207,6 +1224,14 @@ func UpdateGeneralUserByICode(dataInput string, id string, s utils.CommonSession
 			}
 		} else {
 			userRequest.User.GeneralUserTeam = ""
+		}
+
+		if enlaceTerritorialRoleFound {
+			if userRequest.User.GeneralUserAssignedDepartment == "" {
+				utils.SetError(collectedErrors, security_daos.GeneralUserJSONName, utils.GetTag(&userRequest.User, "GeneralUserAssignedDepartment", "json"), "common_validation_field_required_error", "", common_config.Locale)
+			}
+		} else {
+			userRequest.User.GeneralUserAssignedDepartment = ""
 		}
 
 		if entityRoleFound || departmentOperatorRoleFound {
@@ -1301,6 +1326,7 @@ func UpdateGeneralUserByICode(dataInput string, id string, s utils.CommonSession
 	// Actualización de los campos del usuario
 	usrToUpdate.GeneralUserLanguage = userRequest.User.GeneralUserLanguage
 	usrToUpdate.GeneralUserTeam = userRequest.User.GeneralUserTeam
+	usrToUpdate.GeneralUserAssignedDepartment = userRequest.User.GeneralUserAssignedDepartment
 
 	usrToUpdate.GeneralUserGeneralUserProfile.GeneralUserProfileGender = userRequest.User.GeneralUserGeneralUserProfile.GeneralUserProfileGender
 	usrToUpdate.GeneralUserGeneralUserProfile.GeneralUserProfileDescription = userRequest.User.GeneralUserGeneralUserProfile.GeneralUserProfileDescription
