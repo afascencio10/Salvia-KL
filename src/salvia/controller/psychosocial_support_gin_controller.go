@@ -5,6 +5,7 @@ import (
 	"bitsflow/internal/repository"
 	"bitsflow/salvia/service"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -16,10 +17,15 @@ import (
 type PsychosocialSupportGinController struct {
 	svc            service.PsychosocialSupportService
 	victimCaseRepo repository.VictimCaseLightRepository
+	caseTaskRepo   repository.CaseTaskRepository
 }
 
-func NewPsychosocialSupportGinController(svc service.PsychosocialSupportService, victimCaseRepo repository.VictimCaseLightRepository) *PsychosocialSupportGinController {
-	return &PsychosocialSupportGinController{svc: svc, victimCaseRepo: victimCaseRepo}
+func NewPsychosocialSupportGinController(
+	svc service.PsychosocialSupportService,
+	victimCaseRepo repository.VictimCaseLightRepository,
+	caseTaskRepo repository.CaseTaskRepository,
+) *PsychosocialSupportGinController {
+	return &PsychosocialSupportGinController{svc: svc, victimCaseRepo: victimCaseRepo, caseTaskRepo: caseTaskRepo}
 }
 
 // RegisterRoutes registra las rutas de creación manual en el grupo /api/v1.
@@ -79,5 +85,37 @@ func (c *PsychosocialSupportGinController) CreateManual(ctx *gin.Context) {
 		return
 	}
 
+	// La remisión manual también necesita su tarea de validación. La pantalla de
+	// detalle habilita "recepcionar / devolver" solo cuando existe una case_task
+	// validar_remision en ToDo (ver validationPending en
+	// psychosocial_detail_service.go), así que sin esta tarea la remisión nace sin
+	// forma de validarse — que es el bug que esto corrige. La vía del seguimiento
+	// ya la creaba; esta se había quedado atrás.
+	if err := c.crearTareaValidacion(ctx, ps); err != nil {
+		// No se devuelve error: la remisión ya existe y anularla sería peor. Se
+		// registra para que la reparación sea rastreable.
+		log.Printf("[PsychosocialSupportGin] WARN: remisión %s creada sin case_task validar_remision: %v", ps.ID, err)
+	}
+
 	ctx.JSON(http.StatusCreated, ps)
+}
+
+// crearTareaValidacion crea la case_task con la que el equipo psicosocial
+// recepciona o devuelve la remisión. Mismos campos que la que crea el flujo de
+// seguimiento (ver processFollowUpSubmission), sin follow_up_id porque esta
+// remisión no nace de un seguimiento. Queda sin asignar: todavía no hay dupla ni
+// profesional, igual que en la otra vía.
+func (c *PsychosocialSupportGinController) crearTareaValidacion(ctx *gin.Context, ps *models.PsychosocialSupport) error {
+	if c.caseTaskRepo == nil {
+		return errors.New("caseTaskRepo no inyectado")
+	}
+	psID := ps.ID
+	return c.caseTaskRepo.Create(ctx.Request.Context(), &models.CaseTask{
+		Category:              "Psicosocial",
+		Type:                  "validar_remision",
+		Description:           "Validar que remision a psicosocial es valida",
+		Status:                models.CaseTaskStatusToDo,
+		CaseID:                ps.CaseID,
+		PsychosocialSupportID: &psID,
+	})
 }

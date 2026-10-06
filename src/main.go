@@ -7,6 +7,7 @@ import (
     internaldb "bitsflow/internal/db"
     "bitsflow/internal/models"
     "bitsflow/internal/repository"
+    "bitsflow/internal/seed"
     salvia_ctrl "bitsflow/salvia/controller"
     salvia_legacy "bitsflow/salvia/controllers"
     salvia_facades "bitsflow/salvia/facades"
@@ -94,6 +95,26 @@ func main() {
     // Agrega columnas faltantes sin ALTER TABLE manual.
     // Si se necesita un campo nuevo en una tabla legacy, agregarlo aquí.
     migrateLegacyTables(gormDB)
+
+    // ─── Datos indispensables ───
+    // El formulario de cierre psicosocial se abre por un UUID fijo; si falta en la
+    // base, el cierre por imposibilidad de contacto responde 404. Se aplica acá
+    // para que ningún ambiente dependa de que alguien se acuerde del seed manual.
+    // Warning y no fatal: el resto de la aplicación funciona sin él.
+    if aplicado, err := seed.EnsureClosureForm(gormDB, service.ClosureFormID); err != nil {
+        log.Printf("[WARN] seed del formulario de cierre psicosocial: %v", err)
+    } else if aplicado {
+        log.Printf("[INFO] formulario de cierre psicosocial creado (%s)", service.ClosureFormID)
+    }
+
+    // Remisiones psicosociales sin su tarea de validación: sin ella la pantalla no
+    // ofrece recepcionar ni devolver. Se repara en cada arranque porque en la vía
+    // del seguimiento la tarea se crea best-effort y un fallo pasa desapercibido.
+    if creadas, err := seed.EnsureValidationTasks(gormDB); err != nil {
+        log.Printf("[WARN] reparación de tareas de validación de remisiones: %v", err)
+    } else if creadas > 0 {
+        log.Printf("[INFO] %d remisión(es) psicosocial(es) recuperaron su tarea de validación", creadas)
+    }
 
     // Fix: asignar sequence_number a seguimientos que lo tienen en 0 (bug de buildFollowUps).
     // Ordena por scheduled_date ASC dentro de cada caso para asignar 1, 2, 3...
@@ -248,7 +269,7 @@ func main() {
     casesListCtrl          := salvia_ctrl.NewCasesListController(casesListSvc)
     casesReassignCtrl      := salvia_ctrl.NewCasesReassignController(casesReassignSvc)
     agentsSearchCtrl       := salvia_ctrl.NewAgentsSearchController(agentsSearchSvc)
-    psychosocialSupportManualCtrl := salvia_ctrl.NewPsychosocialSupportGinController(psychosocialSupportSvc, victimCaseLightRepo)
+    psychosocialSupportManualCtrl := salvia_ctrl.NewPsychosocialSupportGinController(psychosocialSupportSvc, victimCaseLightRepo, caseTaskRepo)
     psychosocialListCtrl   := salvia_ctrl.NewPsychosocialListController(psychosocialListSvc)
     psychosocialDetailCtrl := salvia_ctrl.NewPsychosocialDetailController(gormDB)
     psychosocialReassignCtrl := salvia_ctrl.NewPsychosocialReassignController(psychosocialReassignSvc)
