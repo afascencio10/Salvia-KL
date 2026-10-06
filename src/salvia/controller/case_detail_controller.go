@@ -25,7 +25,11 @@ import (
 
 // entidadMecanismoRoles — roles externos (entidad, mecanismo) sin visibilidad sobre la
 // gestión interna de SALVIA en el detalle de caso (Timeline, Derivaciones, Tareas, Seguimientos).
-var entidadMecanismoRoles = map[string]bool{"et": true, "mn": true}
+//
+// "mc" es el rol del mecanismo articulador (models.ArticulatingMechanismRoleCode) y
+// entra acá porque Casos Mecanismo abre esta misma pantalla
+// (/salvia/casos/:id/detalle, ver casos-mecanismo.js).
+var entidadMecanismoRoles = map[string]bool{"et": true, "mn": true, "mc": true}
 
 // stripInternalCaseData oculta, a nivel de backend, los datos de gestión interna de SALVIA
 // (Derivaciones y Seguimientos) del payload de detalle de caso cuando el usuario autenticado
