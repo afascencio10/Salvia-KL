@@ -5,6 +5,7 @@ import (
 	salvia_config "bitsflow/salvia/config"
 	"bitsflow/salvia/service"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -54,6 +55,11 @@ func (c *EntityObligationResponseController) List(ctx *gin.Context) {
 		PageSize:       ginQueryInt(ctx, "pageSize", 10),
 	})
 	if err != nil {
+		// El detalle va al log y no a la respuesta: al usuario no se le muestran
+		// errores de base de datos, pero sin esta línea un 500 acá no deja rastro
+		// de qué falló y no hay forma de diagnosticarlo desde QA.
+		log.Printf("[MisAccionesInstitucionales] List falló (branch=%d status=%q document=%q cityId=%q): %v",
+			s.EntityBranchId, ctx.Query("status"), ctx.Query("document"), ctx.Query("cityId"), err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
 		return
 	}
@@ -106,6 +112,8 @@ func (c *EntityObligationResponseController) SaveResponse(ctx *gin.Context) {
 		// 404 y no 403: si la acción es de otra entidad, no se confirma que exista.
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "la acción institucional no está asignada a esta entidad"})
 	default:
+		log.Printf("[MisAccionesInstitucionales] SaveResponse falló (branch=%d caso=%s accion=%s): %v",
+			s.EntityBranchId, body.EntityCaseID, body.EntityObligationID, err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
 	}
 }

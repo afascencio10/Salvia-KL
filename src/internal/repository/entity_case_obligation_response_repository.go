@@ -154,7 +154,10 @@ func appendEntityObligationFilters(sql string, args []interface{}, filter Entity
 		args = append(args, "%"+doc+"%")
 	}
 	if filter.CityID != "" {
-		sql += " AND case_city.city_id = ?"
+		// Comparación en texto: el filtro llega del querystring, y si trae algo que
+		// no sea un número la comparación contra un entero tumbaría la consulta con
+		// el mismo 22P02. Así, un valor inválido simplemente no encuentra nada.
+		sql += " AND case_city.city_id::text = ?"
 		args = append(args, filter.CityID)
 	}
 	return sql, args
@@ -198,7 +201,9 @@ SELECT
     ec.case_id                   AS case_id,
     TRIM(CONCAT(COALESCE(vc.victim_case_victim_names, ''), ' ', COALESCE(vc.victim_case_victim_last_names, ''))) AS victim_full_name,
     COALESCE(vc.victim_case_victim_doc_number, '') AS document,
-    COALESCE(case_city.city_id, '')   AS city_id,
+    -- city_id es entero en security.city: sin el ::text, el COALESCE intenta
+    -- convertir '' a entero y la consulta falla entera (SQLSTATE 22P02).
+    COALESCE(case_city.city_id::text, '') AS city_id,
     COALESCE(case_city.city_name, '') AS city_name,
     (` + riskLevelSelect + `)         AS risk_level,
     eo.id                        AS entity_obligation_id,
