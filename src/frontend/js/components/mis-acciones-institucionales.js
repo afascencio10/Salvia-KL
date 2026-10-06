@@ -113,6 +113,14 @@
                 };
             },
 
+            // Porcentaje para la barra de avance de la tarjeta. Se calcula acá y no
+            // en la plantilla para no dejar aritmética suelta en el HTML.
+            progresoDe: function (item) {
+                var checklist = this.checklistDe(item);
+                if (!checklist.total) return 0;
+                return Math.round((checklist.completadas / checklist.total) * 100);
+            },
+
             verDetalle: function (item) {
                 if (!item || !item.entityCaseId) {
                     this.showToast('No se encontró el identificador de la relación.', 'info');
