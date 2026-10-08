@@ -367,6 +367,7 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 			IsPsicoSession: c.IsPsicoSession,
 			Status:         c.Status,
 			Summary:        c.Summary,
+			SessionType:    c.SessionType,
 			CreatedAt:      formatContactDateTimeUTC(c.CreatedAt),
 		}
 		if c.ScheduledDate != nil {
@@ -491,17 +492,23 @@ func (s *psychosocialDetailService) CreateContact(ctx context.Context, psicosoci
 		}
 
 	case "realizar":
-		// Realicé sesión — es sesión psico, ya completada.
-		// El frontend redirige de inmediato a ?contact_id=X (registrar-contacto-modal.js,
-		// modo "inmediato"), y LoadSession entra por la rama viewByID, que exige
+		// Contacto inmediato: se crea la sesión en estado PENDIENTE (no completada).
+		// El frontend redirige a ?contact_id=X (registrar-contacto-modal.js, modo
+		// "inmediato") y LoadSession entra por la rama viewByID, que exige
 		// FormSubmissionID ya seteado — por eso se fija el formulario y se crea su
 		// submission acá, antes del alta. Sin esto la primera apertura del formulario
-		// tras "Contacto inmediato" fallaba siempre con ErrPsicosocialContactNoSubmission.
+		// tras "Contacto inmediato" fallaba con ErrPsicosocialContactNoSubmission.
+		//
+		// IMPORTANTE: NO se marca is_completed=true ni se incrementa session_count
+		// aquí. Antes se hacía, lo que generaba una sesión "realizada" fantasma sin
+		// datos del formulario y, al abrir la pantalla sin contact_id, un segundo
+		// team_contact (findOrInitPendingContact no reutilizaba el ya completado) +
+		// doble incremento del contador. Ahora el contacto queda pendiente y es
+		// processPsicosocialSessionSubmission quien lo completa e incrementa el
+		// contador una sola vez, al terminar el formulario.
 		contact.IsPsicoSession = true
-		contact.IsCompleted = true
-		now := time.Now()
-		contact.CompletedAt = &now
-		status := "realizado"
+		contact.IsCompleted = false
+		status := "en_proceso"
 		contact.Status = &status
 
 		formKey, formID := selectPsicosocialForm(ps)
@@ -549,9 +556,13 @@ func (s *psychosocialDetailService) CreateContact(ctx context.Context, psicosoci
 		icon = models.TimelineIconSeguimiento
 		color = models.TimelineColorGreen
 	case "realizar":
-		desc = "Sesión realizada"
-		tlType = "Sesión realizada"
-		icon = "circle-check"
+		// El contacto inmediato ahora queda pendiente hasta que se diligencia el
+		// formulario; el evento "Sesión realizada" lo crea
+		// processPsicosocialSessionSubmission al completar. Aquí solo se registra
+		// que la sesión se inició, para no marcar como realizada una atención sin datos.
+		desc = "Sesión iniciada"
+		tlType = "Sesión iniciada"
+		icon = models.TimelineIconSeguimiento
 		color = models.TimelineColorGreen
 	}
 	s.db.WithContext(ctx).Create(&models.CaseTimelineEvent{
@@ -1056,7 +1067,7 @@ func (s *psychosocialDetailService) CheckSessionAvailability(ctx context.Context
 	day := fecha.Format("2006-01-02")
 	var contacts []models.TeamContact
 	if err := s.db.WithContext(ctx).
-		Where("scheduled_date IS NOT NULL AND (scheduled_date AT TIME ZONE 'UTC')::date = ?::date AND is_psico_session = true AND deleted_at IS NULL", day).
+		Where("scheduled_date IS NOT NULL AND (scheduled_date AT TIME ZONE 'America/Bogota')::date = ?::date AND is_psico_session = true AND deleted_at IS NULL", day).
 		Find(&contacts).Error; err != nil {
 		return false, "", err
 	}

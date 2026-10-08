@@ -66,9 +66,13 @@ app.component('barrier-follow-up-timeline', {
         formatFecha: function(iso) {
             if (!iso) return '';
             var d = new Date(iso);
-            if (d.getFullYear() < 2000) return '';
+            if (isNaN(d.getTime()) || d.getFullYear() < 2000) return '';
+            // Zona Colombia (SALVIA solo se usa en Colombia): componentes en Bogotá.
+            var p = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit'
+            }).formatToParts(d).reduce(function(acc, x) { acc[x.type] = x.value; return acc; }, {});
             var meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-            return d.getDate() + ' ' + meses[d.getMonth()] + '. ' + d.getFullYear();
+            return parseInt(p.day, 10) + ' ' + meses[parseInt(p.month, 10) - 1] + '. ' + p.year;
         },
         resolveRespuesta: function(val) {
             var map = {

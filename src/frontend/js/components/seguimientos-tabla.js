@@ -53,11 +53,13 @@ app.component('seguimientos-tabla', {
         },
         formatFecha(d) {
             if (!d) return '-';
-            return new Date(d).toLocaleDateString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            // SALVIA se usa solo en Colombia: forzar zona America/Bogota para que la
+            // fecha no dependa de la zona del navegador.
+            return new Date(d).toLocaleDateString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
         },
         formatHora(d) {
             if (!d) return '-';
-            return new Date(d).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+            return new Date(d).toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit' });
         },
         irPagina(p) {
             if (p >= 0 && p < this.totalPages) this.$emit('paginar', p);

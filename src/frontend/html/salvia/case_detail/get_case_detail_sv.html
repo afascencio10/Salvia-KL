@@ -334,9 +334,10 @@
                       <td style="padding:6px 10px;color:#374151">${ s.scheduledTime || '—' }</td>
                       <td style="padding:6px 10px;color:#374151">${ s.professionalName || '—' }</td>
                       <td style="padding:6px 10px">
-                        <span :style="{background: s.isCompleted ? '#dcfce7' : '#fef3c7', color: s.isCompleted ? '#166534' : '#92400e', padding:'2px 8px', borderRadius:'12px', fontSize:'.7rem', fontWeight:600}">${ s.status }</span>
+                        <span v-if="esContactoSinVoluntariedad(s)" :style="{background:'#ffedd5', color:'#c2410c', padding:'2px 8px', borderRadius:'12px', fontSize:'.7rem', fontWeight:600}">No efectivo — sin voluntariedad</span>
+                        <span v-else :style="{background: s.isCompleted ? '#dcfce7' : '#fef3c7', color: s.isCompleted ? '#166534' : '#92400e', padding:'2px 8px', borderRadius:'12px', fontSize:'.7rem', fontWeight:600}">${ s.status }</span>
                       </td>
-                      <td style="padding:6px 10px;color:#6b7280">${ s.summary || '—' }</td>
+                      <td style="padding:6px 10px;color:#6b7280">${ esContactoSinVoluntariedad(s) ? 'La ciudadana no dio voluntariedad para la atención' : (s.summary || '—') }</td>
                       <td style="padding:6px 10px;color:#6b7280">${ s.observations || '—' }</td>
                       <td style="padding:6px 10px;color:#374151">${ s.registeredByName || '—' }</td>
                     </tr>
@@ -1466,9 +1467,8 @@ var home = Vue.createApp({
     },
     iniciarSeguimiento(seg) {
       // Validar que la fecha programada ya haya llegado (solo fecha, sin hora)
-      var ahora = new Date();
-      var hoy = ahora.getFullYear() + '-' + String(ahora.getMonth() + 1).padStart(2, '0') + '-' + String(ahora.getDate()).padStart(2, '0');
-      var fechaSeg = seg.scheduled_date ? seg.scheduled_date.substring(0, 10) : '';
+      var hoy = this.hoyBogota();
+      var fechaSeg = seg.scheduled_date ? this.formatFecha(seg.scheduled_date) : '';
       if (fechaSeg && fechaSeg > hoy) {
         this.showToast('error', 'No es posible iniciar este seguimiento. La fecha programada (' + fechaSeg + ') aún no ha llegado.');
         return;
@@ -1655,7 +1655,32 @@ var home = Vue.createApp({
       if (Array.isArray(fd.decisionesTexto) && fd.decisionesTexto.length > 0) return fd.decisionesTexto;
       return Array.isArray(fd.decisiones) ? fd.decisiones : [];
     },
-    formatFecha(f) { return f ? f.substring(0, 10) : '—'; },
+    // hoyBogota devuelve la fecha de hoy (YYYY-MM-DD) en hora Colombia, sin depender
+    // de la zona del navegador. Se usa para comparaciones de "¿ya llegó / ya pasó la
+    // fecha?" de forma consistente con el backend (que opera en America/Bogota).
+    hoyBogota() {
+      var parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Bogota',
+        year: 'numeric', month: '2-digit', day: '2-digit'
+      }).formatToParts(new Date()).reduce(function(acc, p) { acc[p.type] = p.value; return acc; }, {});
+      return parts.year + '-' + parts.month + '-' + parts.day;
+    },
+    // formatFecha muestra una fecha de BD en hora Colombia (YYYY-MM-DD).
+    // - Si el string es una fecha pura (sin 'T'), se toma tal cual (ya es la fecha).
+    // - Si trae hora/offset (ISO con 'T'), se convierte explícitamente a America/Bogota
+    //   antes de recortar, para no depender del offset ni de la zona del navegador.
+    // SALVIA se usa solo en Colombia, así que el criterio es siempre Bogotá.
+    formatFecha(f) {
+      if (!f) return '—';
+      if (f.indexOf('T') === -1) return f.substring(0, 10);
+      var d = new Date(f);
+      if (isNaN(d.getTime())) return f.substring(0, 10);
+      var parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Bogota',
+        year: 'numeric', month: '2-digit', day: '2-digit'
+      }).formatToParts(d).reduce(function(acc, p) { acc[p.type] = p.value; return acc; }, {});
+      return parts.year + '-' + parts.month + '-' + parts.day;
+    },
     formatFechaHora(f) {
       if (!f) return '—';
       // Si no tiene hora (solo fecha, sin 'T'), no hay timestamp real que convertir
@@ -1688,6 +1713,13 @@ var home = Vue.createApp({
       };
       return map[String(status || '').toLowerCase()] || { background: '#e5e7eb', color: '#374151' };
     },
+    // esContactoSinVoluntariedad: primer contacto registrado donde la ciudadana no dio
+    // voluntariedad para la atención. El backend lo deja completado pero no como sesión
+    // efectiva (isPsicoSession=false) conservando sessionType PRIMER_CONTACTO, para
+    // distinguirlo del "contacto sin atención" genérico. No cuenta como atención.
+    esContactoSinVoluntariedad(s) {
+      return !!s && s.isCompleted && !s.isPsicoSession && s.sessionType === 'PRIMER_CONTACTO';
+    },
     nombreAgente(agentId) {
       // Buscar en todosAgentes (sin filtro de team) para resolver nombres siempre
       var ag = this.todosAgentes.find(function(a) { return a.icode === agentId; });
@@ -1707,11 +1739,9 @@ var home = Vue.createApp({
       if (!seg) return false;
       if (seg.is_completed || seg.status === 'REALIZADO' || seg.status === 'CERRADO') return false;
       if (seg.status === 'VENCIDO') return true;
-      var fechaSeg = seg.scheduled_date ? seg.scheduled_date.substring(0, 10) : '';
+      var fechaSeg = seg.scheduled_date ? this.formatFecha(seg.scheduled_date) : '';
       if (!fechaSeg) return false;
-      var ahora = new Date();
-      var hoy = ahora.getFullYear() + '-' + String(ahora.getMonth() + 1).padStart(2, '0') + '-' + String(ahora.getDate()).padStart(2, '0');
-      return fechaSeg < hoy;
+      return fechaSeg < this.hoyBogota();
     },
     // segNumero calcula el número visible del seguimiento ("Seguimiento #N")
     // contando únicamente los seguimientos NO vencidos (realizados y pendientes),
@@ -1924,9 +1954,8 @@ var home = Vue.createApp({
       var self = this;
       if (self.creandoEIniciando) return;
       self.creandoEIniciando = true;
-      // Calcular fecha de hoy en hora local (evita desfase UTC)
-      var ahora = new Date();
-      var scheduledDate = ahora.getFullYear() + '-' + String(ahora.getMonth()+1).padStart(2,'0') + '-' + String(ahora.getDate()).padStart(2,'0');
+      // Fecha de hoy en hora Colombia (criterio único del sistema, no la zona del navegador)
+      var scheduledDate = this.hoyBogota();
       var url = '/api/v1/casos/' + CASE_ICODE + '/seguimiento';
       fetch(url, {
         method: 'POST',
