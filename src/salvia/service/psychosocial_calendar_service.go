@@ -5,13 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
 // PsychosocialCalendarService reglas del calendario psicosocial.
 type PsychosocialCalendarService interface {
 	MineEvents(ctx context.Context, agentID string, from, to time.Time) ([]repository.CalendarEvent, error)
-	TeamEvents(ctx context.Context, filterAgentID string, from, to time.Time) ([]repository.CalendarEvent, error)
+	TeamEvents(ctx context.Context, filterAgentID, filterDuplaID string, from, to time.Time) ([]repository.CalendarEvent, error)
 	ListAgents(ctx context.Context) ([]repository.CalendarAgentOption, error)
 	MyVictims(ctx context.Context, agentID string) ([]repository.CalendarVictimOption, error)
 	CreateSession(ctx context.Context, in repository.CreateSessionInput) (string, error)
@@ -38,8 +39,16 @@ func (s *psychosocialCalendarService) MineEvents(ctx context.Context, agentID st
 	return s.repo.MineEvents(ctx, agentID, from, to)
 }
 
-func (s *psychosocialCalendarService) TeamEvents(ctx context.Context, filterAgentID string, from, to time.Time) ([]repository.CalendarEvent, error) {
-	return s.repo.TeamEvents(ctx, filterAgentID, from, to)
+// TeamEvents — el filtro del supervisor es uno solo: o una dupla o un profesional.
+// La pantalla manda uno u otro, pero el endpoint acepta los dos; si llegan juntos
+// gana la dupla, en vez de cruzarlos y devolver un calendario vacío que parecería
+// "esta dupla no tiene nada agendado".
+func (s *psychosocialCalendarService) TeamEvents(ctx context.Context, filterAgentID, filterDuplaID string, from, to time.Time) ([]repository.CalendarEvent, error) {
+	filterDuplaID = strings.TrimSpace(filterDuplaID)
+	if filterDuplaID != "" {
+		filterAgentID = ""
+	}
+	return s.repo.TeamEvents(ctx, strings.TrimSpace(filterAgentID), filterDuplaID, from, to)
 }
 
 func (s *psychosocialCalendarService) ListAgents(ctx context.Context) ([]repository.CalendarAgentOption, error) {

@@ -96,7 +96,7 @@ type MeetingAgentInfo struct {
 // PsychosocialCalendarRepository acceso a datos del calendario psicosocial.
 type PsychosocialCalendarRepository interface {
 	MineEvents(ctx context.Context, agentID string, from, to time.Time) ([]CalendarEvent, error)
-	TeamEvents(ctx context.Context, filterAgentID string, from, to time.Time) ([]CalendarEvent, error)
+	TeamEvents(ctx context.Context, filterAgentID, filterDuplaID string, from, to time.Time) ([]CalendarEvent, error)
 	ListAgents(ctx context.Context) ([]CalendarAgentOption, error)
 	MyVictims(ctx context.Context, agentID string) ([]CalendarVictimOption, error)
 	CreateSession(ctx context.Context, in CreateSessionInput) (string, error)
@@ -250,6 +250,41 @@ const userUUIDLookup = `(SELECT gu.general_user_id::text FROM security.general_u
 // guardan i_code (no UUID) — ver FindProfessionalForReassign, que los resuelve así.
 const calSessionsAgentMatch = `(tc.professional_id IN (` + userUUIDLookup + `, ?) OR d.psychologist_id = ? OR d.social_worker_id = ?)`
 
+// duplaMemberLookup — los dos integrantes de una dupla, resueltos a UUID e i_code.
+// dupla.psychologist_id/social_worker_id guardan i_code, igual que en
+// calSessionsAgentMatch. Se usa para el filtro por dupla del calendario del
+// supervisor. Requiere 1 parámetro: duplaID.
+const duplaMemberLookup = `
+	SELECT gu2.general_user_id::text AS uuid, gu2.general_user_i_code::text AS icode
+	FROM salvia.dupla d2
+	JOIN security.general_user gu2
+	  ON gu2.general_user_i_code::text IN (BTRIM(d2.psychologist_id::text), BTRIM(d2.social_worker_id::text))
+	WHERE d2.id = ? AND d2.deleted_at IS NULL
+`
+
+// calSessionsDuplaMatch — la agenda de una dupla es lo que hacen sus dos
+// integrantes: las sesiones registradas a nombre de la dupla (tc.dupla_id) más las
+// que cada integrante agendó de forma individual. Filtrar solo por tc.dupla_id
+// mostraría menos que elegir a los dos profesionales por separado, que es justo lo
+// contrario de "ver la agenda agrupada". Requiere 2 parámetros: duplaID × 2.
+const calSessionsDuplaMatch = `(
+	tc.dupla_id = ?
+	OR EXISTS (SELECT 1 FROM (` + duplaMemberLookup + `) m
+	           WHERE tc.professional_id IN (m.uuid, m.icode))
+)`
+
+// calMeetingsDuplaMatch — una reunión es de la dupla si participa cualquiera de
+// sus integrantes. Va como EXISTS y no como JOIN a tma: si los dos integrantes
+// están invitados, un JOIN devolvería la misma reunión dos veces y el calendario
+// la pintaría duplicada. Requiere 1 parámetro: duplaID.
+const calMeetingsDuplaMatch = `EXISTS (
+	SELECT 1
+	FROM salvia.team_meeting_agent tma2
+	JOIN (` + duplaMemberLookup + `) m
+	  ON tma2.agent_id IN (m.uuid, m.icode)
+	WHERE tma2.meeting_id = tm.id AND tma2.deleted_at IS NULL
+)`
+
 func (r *psychosocialCalendarRepository) MineEvents(ctx context.Context, agentICode string, from, to time.Time) ([]CalendarEvent, error) {
 	// agentICode = i_code (viene de la sesión). Resolvemos a UUID via subquery.
 	// Aceptamos coincidencia contra UUID (nuevo estándar) o contra i_code (rows legacy).
@@ -274,26 +309,48 @@ func (r *psychosocialCalendarRepository) MineEvents(ctx context.Context, agentIC
 	return rows, nil
 }
 
-func (r *psychosocialCalendarRepository) TeamEvents(ctx context.Context, filterAgentICode string, from, to time.Time) ([]CalendarEvent, error) {
+// TeamEvents — calendario del equipo para el supervisor. El filtro es excluyente:
+// o una dupla o un profesional. Cuando llegan los dos, manda la dupla (la regla se
+// aplica en el servicio, acá solo se refleja).
+func (r *psychosocialCalendarRepository) TeamEvents(ctx context.Context, filterAgentICode, filterDuplaID string, from, to time.Time) ([]CalendarEvent, error) {
+	sql, args := buildTeamEventsQuery(filterAgentICode, filterDuplaID, from, to)
+	var rows []CalendarEvent
+	if err := r.db.WithContext(ctx).Raw(sql, args...).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// buildTeamEventsQuery arma la consulta y sus argumentos. Está aparte de TeamEvents
+// para poder comprobar sin base de datos que cada '?' tiene su argumento: los tres
+// caminos usan distinto número de parámetros y desalinearlos rompe en ejecución.
+func buildTeamEventsQuery(filterAgentICode, filterDuplaID string, from, to time.Time) (string, []interface{}) {
 	sessionWhere := ""
 	args := []interface{}{from, to}
-	if filterAgentICode != "" {
+	switch {
+	case filterDuplaID != "":
+		sessionWhere = " AND " + calSessionsDuplaMatch
+		args = append(args, filterDuplaID, filterDuplaID)
+	case filterAgentICode != "":
 		sessionWhere = " AND " + calSessionsAgentMatch
 		args = append(args, filterAgentICode, filterAgentICode, filterAgentICode, filterAgentICode)
 	}
 	args = append(args, from, to)
 
-	// Sin filtro por agente: mostrar reuniones una vez (sin JOIN a tma).
-	// Con filtro: reuniones donde el agente participa.
+	// Sin filtro: las reuniones se muestran una sola vez (sin JOIN a tma).
+	// Con filtro: solo las reuniones en las que participa el agente o la dupla.
 	meetingsQuery := ""
-	if filterAgentICode == "" {
+	switch {
+	case filterDuplaID != "":
 		meetingsQuery = `
 		SELECT ` + calMeetingsSelectNoAgent + `
 		FROM salvia.team_meeting tm
 		WHERE tm.deleted_at IS NULL
 		  AND tm.scheduled_date BETWEEN ? AND ?
+		  AND ` + calMeetingsDuplaMatch + `
 		`
-	} else {
+		args = append(args, filterDuplaID)
+	case filterAgentICode != "":
 		meetingsQuery = `
 		SELECT ` + calMeetingsSelect + `
 		` + calMeetingsFrom + `
@@ -302,6 +359,13 @@ func (r *psychosocialCalendarRepository) TeamEvents(ctx context.Context, filterA
 		  AND tma.agent_id IN (` + userUUIDLookup + `, ?)
 		`
 		args = append(args, filterAgentICode, filterAgentICode)
+	default:
+		meetingsQuery = `
+		SELECT ` + calMeetingsSelectNoAgent + `
+		FROM salvia.team_meeting tm
+		WHERE tm.deleted_at IS NULL
+		  AND tm.scheduled_date BETWEEN ? AND ?
+		`
 	}
 
 	sql := `
@@ -316,11 +380,7 @@ func (r *psychosocialCalendarRepository) TeamEvents(ctx context.Context, filterA
 	) e
 	ORDER BY start ASC
 	`
-	var rows []CalendarEvent
-	if err := r.db.WithContext(ctx).Raw(sql, args...).Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-	return rows, nil
+	return sql, args
 }
 
 // ListAgents alimenta el filtro del calendario, el selector de agente al crear
