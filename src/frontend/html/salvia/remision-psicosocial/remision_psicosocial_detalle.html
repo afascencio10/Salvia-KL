@@ -66,12 +66,12 @@
                                 <div v-if="remision.psychologistName" style="font-size:.78rem;color:#374151;display:flex;align-items:center;gap:6px">
                                     <span style="width:22px;height:22px;border-radius:50%;background:#ede9fe;color:#5106A7;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700">${ remision.psychologistName.charAt(0).toUpperCase() }</span>
                                     <span style="font-weight:600">${ remision.psychologistName }</span>
-                                    <span style="font-size:.68rem;color:#9ca3af">— Psicóloga</span>
+                                    <span style="font-size:.68rem;color:#9ca3af">— Profesional en Psicología</span>
                                 </div>
                                 <div v-if="remision.socialWorkerName" style="font-size:.78rem;color:#374151;display:flex;align-items:center;gap:6px;margin-top:3px">
                                     <span style="width:22px;height:22px;border-radius:50%;background:#dbeafe;color:#1d4ed8;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700">${ remision.socialWorkerName.charAt(0).toUpperCase() }</span>
                                     <span style="font-weight:600">${ remision.socialWorkerName }</span>
-                                    <span style="font-size:.68rem;color:#9ca3af">— Trab. Social</span>
+                                    <span style="font-size:.68rem;color:#9ca3af">— Profesional en Trabajo Social</span>
                                 </div>
                             </div>
                         </div>
@@ -160,7 +160,7 @@
                     <span v-else style="font-size:.88rem;color:#9ca3af">Pendiente</span>
                 </div>
                 <div>
-                    <span style="font-size:.68rem;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">Psicóloga asignada</span>
+                    <span style="font-size:.68rem;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">Profesional en Psicología asignada</span>
                     <span style="font-size:.88rem;font-weight:700;color:#5106A7">${ remision.professionalName || 'Sin asignar' }</span>
                 </div>
             </div>
