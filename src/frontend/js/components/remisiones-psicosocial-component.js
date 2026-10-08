@@ -651,10 +651,10 @@
 
             professionalRoleLabel: function(team) {
                 if (team === 'psicologia') {
-                    return 'Profesional Psicosocial';
+                    return 'Profesional en Psicología';
                 }
                 if (team === 'trab. social') {
-                    return 'Trab. Social';
+                    return 'Profesional en Trabajo Social';
                 }
                 if (team === 'psicosocial') {
                     return 'Profesional';
