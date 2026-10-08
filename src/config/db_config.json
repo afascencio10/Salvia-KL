@@ -1,10 +1,10 @@
 {
-    "hostname":      "aws-1-us-west-1.pooler.supabase.com",
-    "port":          "5432",
-    "database":      "postgres",
-    "sslmode":       "require",
-    "user":          "salvia_legacy.pwwelwfhauspznpatuqm",
-    "password":      "LegacySalvia2026@",
-    "gorm_user":     "salvia_gorm.pwwelwfhauspznpatuqm",
-    "gorm_password": "GormSalvia2026@"
+    "hostname": "aws-1-us-west-1.pooler.supabase.com",
+    "port": "6543",
+    "database": "postgres",
+    "sslmode": "require",
+    "user": "postgres.pwwelwfhauspznpatuqm",
+    "password": "Salvia2026@",
+    "gorm_user": "postgres.pwwelwfhauspznpatuqm",
+    "gorm_password": "Salvia2026@"
 }

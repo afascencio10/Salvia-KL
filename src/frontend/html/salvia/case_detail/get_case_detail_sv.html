@@ -253,7 +253,7 @@
         <!-- ══ TAB: DERIVACIONES ══ -->
         <template v-if="tabActiva === 'derivaciones'">
 
-          <div v-if="userRole === 'te'" style="display:flex;justify-content:flex-end;margin-bottom:14px">
+          <div v-if="userRole === 'te' || userRole === 'sv'" style="display:flex;justify-content:flex-end;margin-bottom:14px">
             <button type="button" @click="abrirModalRemisionEquipos"
               style="font-size:.82rem;font-weight:600;padding:8px 14px;border-radius:8px;background:#5106A7;color:#fff;border:none;cursor:pointer">
               + Remisión a equipos
@@ -283,7 +283,7 @@
             <div class="cd-deriv-header" style="border-bottom-color:#93c5fd">
               🩷 Psicosocial
               <span class="cd-count" style="color:#1d4ed8">${ psychosocialSupports.length } registro${ psychosocialSupports.length !== 1 ? 's' : '' }</span>
-              <button v-if="puedeReasignar" class="btn-crear-remision-psico" @click="abrirModalRemisionPsico">+ Crear remisión</button>
+              <button v-if="puedeReasignar && userRole !== 'sv'" class="btn-crear-remision-psico" @click="abrirModalRemisionPsico">+ Crear remisión</button>
             </div>
             <div v-if="psychosocialSupports.length === 0" class="cd-deriv-empty">Sin registros</div>
             <div v-for="item in psychosocialSupports" :key="item.id" class="cd-deriv-item" style="flex-direction:column;align-items:stretch">
