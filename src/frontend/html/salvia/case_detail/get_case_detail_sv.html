@@ -1321,7 +1321,10 @@ var home = Vue.createApp({
     esEntidadOMecanismo() {
       // Entidad/Mecanismo: solo ven Gestión Institucional e Info General,
       // sin visibilidad de la gestión interna de SALVIA (ver DoD).
-      return this.userRole === 'et' || this.userRole === 'mn';
+      // 'mc' es el mecanismo articulador, que llega a esta misma pantalla desde
+      // Casos Mecanismo. Misma lista que entidadMecanismoRoles en el backend
+      // (case_detail_controller.go).
+      return this.userRole === 'et' || this.userRole === 'mn' || this.userRole === 'mc';
     },
     tabs() {
       if (!this.esEntidadOMecanismo) return this.allTabs;

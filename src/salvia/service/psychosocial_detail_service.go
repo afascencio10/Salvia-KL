@@ -226,17 +226,20 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 		`, *ps.ProfessionalID).Scan(&profName)
 		resp.ProfessionalName = strings.TrimSpace(profName)
 
-		// Rol del profesional
-		var roleName string
+		// Rol del profesional: derivado del role_code, igual que psychosocialProfSpecialtySelect.
+		var specialty string
 		s.db.WithContext(ctx).Raw(`
-			SELECT COALESCE(r.role_name, '')
+			SELECT CASE
+				WHEN COUNT(*) FILTER (WHERE LOWER(r.role_code) IN ('psicologia', 'ps')) > 0 THEN 'psicologia'
+				WHEN COUNT(*) FILTER (WHERE LOWER(r.role_code) IN ('ts', 'trab. social', 'trab_social')) > 0 THEN 'trab. social'
+				ELSE ''
+			END
 			FROM security.general_user gu
 			JOIN security.rel_role_general_user rr ON rr.general_user_id = gu.general_user_id
 			JOIN security.role r ON r.role_id = rr.role_id
 			WHERE gu.general_user_i_code = ?
-			LIMIT 1
-		`, *ps.ProfessionalID).Scan(&roleName)
-		resp.ProfessionalRole = roleName
+		`, *ps.ProfessionalID).Scan(&specialty)
+		resp.ProfessionalRole = psicosocialRoleLabel(specialty)
 	}
 
 	// 3b. Dupla asignada (si existe)
