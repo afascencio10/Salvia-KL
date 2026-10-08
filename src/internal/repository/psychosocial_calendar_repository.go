@@ -545,7 +545,7 @@ func (r *psychosocialCalendarRepository) AgentSessionTimesOnDate(ctx context.Con
 
 	q := r.db.WithContext(ctx).Model(&models.TeamContact{}).
 		Where("professional_id = ? AND is_psico_session = true AND deleted_at IS NULL", agentUUID).
-		Where("scheduled_date IS NOT NULL AND (scheduled_date AT TIME ZONE 'UTC')::date = ?::date", day).
+		Where("scheduled_date IS NOT NULL AND (scheduled_date AT TIME ZONE 'America/Bogota')::date = ?::date", day).
 		Where("scheduled_time IS NOT NULL AND scheduled_time != ''")
 	if excludeID != "" {
 		q = q.Where("id != ?", excludeID)

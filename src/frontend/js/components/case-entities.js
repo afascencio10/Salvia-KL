@@ -307,7 +307,7 @@ app.component('case-entities', {
             if (!iso) return '';
             var d = new Date(iso);
             if (isNaN(d.getTime())) return '';
-            return d.toLocaleDateString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            return d.toLocaleDateString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
         },
 
         onVerDetalle: function(entidad) {

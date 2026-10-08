@@ -356,8 +356,8 @@ app.component('case-oficios', {
             if (!isoStr) return '—';
             try {
                 const d = new Date(isoStr);
-                return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                    + ' ' + d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+                return d.toLocaleDateString('es-CO', { timeZone: 'America/Bogota', day: '2-digit', month: '2-digit', year: 'numeric' })
+                    + ' ' + d.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit' });
             } catch (e) {
                 return isoStr;
             }

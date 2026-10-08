@@ -34,6 +34,17 @@ var frontendAssets embed.FS
 
 func main() {
 
+	// SALVIA se usa únicamente en Colombia. Fijamos la zona horaria del proceso a
+	// America/Bogota para que todo time.Now() y time.Time.Format() del backend opere
+	// en hora Colombia por defecto, sin depender de la zona del contenedor/servidor
+	// (que suele correr en UTC). Combinado con TimeZone=America/Bogota en el DSN de
+	// GORM, deja un criterio de zona único y estable en todo el sistema.
+	if loc, errTz := time.LoadLocation("America/Bogota"); errTz == nil {
+		time.Local = loc
+	} else {
+		log.Printf("[main] WARN: no se pudo cargar America/Bogota, se usa la zona por defecto: %v", errTz)
+	}
+
 	// Definimos todos los archivos estáticos
 	utils.ConfigAssets = configAssets
 	utils.FrontendAssets = frontendAssets

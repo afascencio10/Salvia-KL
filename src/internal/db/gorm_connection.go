@@ -28,8 +28,14 @@ func NewGormDB(cfg commondb.DBClientConfig) (*gorm.DB, error) {
 	if sslmode == "" {
 		sslmode = "disable"
 	}
+	// TimeZone=America/Bogota fija la zona de la sesión de PostgreSQL para esta
+	// conexión. SALVIA se usa únicamente en Colombia, así que toda fecha/hora debe
+	// interpretarse en hora Colombia de forma consistente en todo el sistema. Con
+	// esto, las comparaciones por fecha, los ::date y la serialización de los
+	// time.Time que GORM lee quedan alineados a Bogotá, sin depender de la zona del
+	// servidor/pooler (que corre en UTC).
 	dsn := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=America/Bogota",
 		cfg.Hostname, cfg.Port, cfg.UserName, cfg.Password, cfg.DatabaseName, sslmode,
 	)
 	// PreferSimpleProtocol evita prepared statements en el driver pgx.
