@@ -128,10 +128,6 @@ app.component('psychosocial-contact-modal', {
             if (window.Swal) { Swal.fire({ icon: 'error', title: 'Error', text: msg }); }
             else { alert(msg); }
         },
-        futureNote: function(msg) {
-            if (window.Swal) { Swal.fire({ icon: 'info', title: 'Pendiente', text: msg }); }
-            else { alert(msg); }
-        },
 
         // ── ¿Contestó? ─────────────────────────────────────────────────
         handleYesAnswer: function() {
@@ -224,7 +220,8 @@ app.component('psychosocial-contact-modal', {
                     if (!res.ok) { self.showError(json.error || 'Error al agendar la atención'); return; }
                     self.$emit('completed', { type: 'scheduled', psicosocialId: self.proc.id, sessionId: json.session ? json.session.id : null });
                     if (immediate && json.redirectUrl) {
-                        self.futureNote('Atención inmediata creada. El formulario de atención está pendiente de implementar (' + json.redirectUrl + ').');
+                        window.location.href = json.redirectUrl;
+                        return;
                     }
                     self.closeAll();
                     self.flashSuccess();

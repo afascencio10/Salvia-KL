@@ -357,7 +357,10 @@ func (s *psychosocial3x3Service) ScheduleSession(ctx context.Context, psicosocia
 
 	result := &SessionResult{Session: session}
 	if immediate {
-		url := "/salvia/psicosocial/sesion/" + session.ID
+		// La pantalla "Registrar Sesión Psicosocial" ya resuelve/reutiliza el
+		// team_contact pendiente (is_completed=false, is_psico_session=true) que
+		// acabamos de crear — ver findOrInitPendingContact en psychosocial_detail_service.go.
+		url := "/salvia/psicosocial/registrar/" + psicosocialID
 		result.RedirectURL = &url
 	}
 	return result, nil
