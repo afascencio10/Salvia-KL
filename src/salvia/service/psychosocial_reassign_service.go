@@ -81,8 +81,8 @@ func (s *psychosocialReassignService) ListProfessionalsForReassign(ctx context.C
 		return ReassignProfessionalsResponse{}, err
 	}
 
-	psGroup := ReassignProfessionalGroup{Role: "ps", Label: "Psicólogas", Professionals: []ReassignProfessionalItem{}}
-	tsGroup := ReassignProfessionalGroup{Role: "ts", Label: "Trabajadoras Sociales", Professionals: []ReassignProfessionalItem{}}
+	psGroup := ReassignProfessionalGroup{Role: "ps", Label: "Profesionales en Psicología", Professionals: []ReassignProfessionalItem{}}
+	tsGroup := ReassignProfessionalGroup{Role: "ts", Label: "Profesionales en Trabajo Social", Professionals: []ReassignProfessionalItem{}}
 
 	for _, row := range rows {
 		name := strings.TrimSpace(row.FullName)

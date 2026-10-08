@@ -7,6 +7,7 @@ import (
 	internaldb "bitsflow/internal/db"
 	"bitsflow/internal/models"
 	"bitsflow/internal/repository"
+	"bitsflow/internal/seed"
 	salvia_ctrl "bitsflow/salvia/controller"
 	salvia_legacy "bitsflow/salvia/controllers"
 	salvia_facades "bitsflow/salvia/facades"
@@ -32,6 +33,17 @@ var configAssets embed.FS
 var frontendAssets embed.FS
 
 func main() {
+
+	// SALVIA se usa únicamente en Colombia. Fijamos la zona horaria del proceso a
+	// America/Bogota para que todo time.Now() y time.Time.Format() del backend opere
+	// en hora Colombia por defecto, sin depender de la zona del contenedor/servidor
+	// (que suele correr en UTC). Combinado con TimeZone=America/Bogota en el DSN de
+	// GORM, deja un criterio de zona único y estable en todo el sistema.
+	if loc, errTz := time.LoadLocation("America/Bogota"); errTz == nil {
+		time.Local = loc
+	} else {
+		log.Printf("[main] WARN: no se pudo cargar America/Bogota, se usa la zona por defecto: %v", errTz)
+	}
 
 	// Definimos todos los archivos estáticos
 	utils.ConfigAssets = configAssets
@@ -116,6 +128,19 @@ func main() {
 	// Agrega columnas faltantes sin ALTER TABLE manual.
 	// Si se necesita un campo nuevo en una tabla legacy, agregarlo aquí.
 	migrateLegacyTables(gormDB)
+
+	// ─── Datos indispensables ───
+	if aplicado, err := seed.EnsureClosureForm(gormDB, service.ClosureFormID); err != nil {
+		log.Printf("[WARN] seed del formulario de cierre psicosocial: %v", err)
+	} else if aplicado {
+		log.Printf("[INFO] formulario de cierre psicosocial creado (%s)", service.ClosureFormID)
+	}
+
+	if creadas, err := seed.EnsureValidationTasks(gormDB); err != nil {
+		log.Printf("[WARN] reparación de tareas de validación de remisiones: %v", err)
+	} else if creadas > 0 {
+		log.Printf("[INFO] %d remisión(es) psicosocial(es) recuperaron su tarea de validación", creadas)
+	}
 
 	// Fix: asignar sequence_number a seguimientos que lo tienen en 0 (bug de buildFollowUps).
 	// Ordena por scheduled_date ASC dentro de cada caso para asignar 1, 2, 3...
@@ -291,7 +316,7 @@ func main() {
 	casesListCtrl := salvia_ctrl.NewCasesListController(casesListSvc)
 	casesReassignCtrl := salvia_ctrl.NewCasesReassignController(casesReassignSvc)
 	agentsSearchCtrl := salvia_ctrl.NewAgentsSearchController(agentsSearchSvc)
-	psychosocialSupportManualCtrl := salvia_ctrl.NewPsychosocialSupportGinController(psychosocialSupportSvc, victimCaseLightRepo)
+	psychosocialSupportManualCtrl := salvia_ctrl.NewPsychosocialSupportGinController(psychosocialSupportSvc, victimCaseLightRepo, caseTaskRepo)
 	psychosocialListCtrl := salvia_ctrl.NewPsychosocialListController(psychosocialListSvc)
 	psychosocialDetailCtrl := salvia_ctrl.NewPsychosocialDetailController(gormDB)
 	psychosocialReassignCtrl := salvia_ctrl.NewPsychosocialReassignController(psychosocialReassignSvc)

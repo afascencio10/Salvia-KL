@@ -293,9 +293,9 @@
                 try {
                     var d = new Date(isoStr);
                     return d.toLocaleDateString('es-CO', {
-                        year: 'numeric', month: '2-digit', day: '2-digit',
+                        timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit',
                     }) + ' ' + d.toLocaleTimeString('es-CO', {
-                        hour: '2-digit', minute: '2-digit',
+                        timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit',
                     });
                 } catch (e) {
                     return isoStr;

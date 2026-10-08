@@ -1449,19 +1449,19 @@ app.component('case-task-modal', {
 
             <div v-if="form.entidadId === 'otra'" class="ctm-field">
                 <label class="ctm-label">Nombre de la entidad <span class="req">*</span></label>
-                <input class="ctm-input" v-model="form.entidadNombre" placeholder="Escribe el nombre de la entidad" maxlength="150"/>
+                <input class="ctm-input" v-model="form.entidadNombre" placeholder="Escribe el nombre de la entidad" maxlength="5000"/>
             </div>
 
             <p class="ctm-section-title">Contacto</p>
 
             <div class="ctm-field">
                 <label class="ctm-label">Funcionario contactado <span class="req">*</span></label>
-                <input class="ctm-input" v-model="form.funcionario" placeholder="Nombre del funcionario" maxlength="50"/>
+                <input class="ctm-input" v-model="form.funcionario" placeholder="Nombre del funcionario" maxlength="5000"/>
             </div>
 
             <div class="ctm-field">
                 <label class="ctm-label">Descripción / Notas</label>
-                <textarea class="ctm-textarea" v-model="form.descripcion" rows="3" placeholder="Resumen de la gestión..." maxlength="500"></textarea>
+                <textarea class="ctm-textarea" v-model="form.descripcion" rows="3" placeholder="Resumen de la gestión..." maxlength="5000"></textarea>
             </div>
 
             <p class="ctm-section-title">Oficio</p>
@@ -1483,11 +1483,11 @@ app.component('case-task-modal', {
             <template v-if="form.generaOficio === true">
                 <div class="ctm-field">
                     <label class="ctm-label">Asunto del oficio <span class="req">*</span></label>
-                    <input class="ctm-input" v-model="form.asunto" placeholder="Asunto…" maxlength="80"/>
+                    <input class="ctm-input" v-model="form.asunto" placeholder="Asunto…" maxlength="5000"/>
                 </div>
                 <div class="ctm-field">
                     <label class="ctm-label">Ruta Kofax / URL del archivo <span class="req">*</span></label>
-                    <input class="ctm-input" v-model="form.rutaKofax" placeholder="\\\\servidor\\ruta\\archivo.pdf" maxlength="255"/>
+                    <input class="ctm-input" v-model="form.rutaKofax" placeholder="\\\\servidor\\ruta\\archivo.pdf" maxlength="5000"/>
                 </div>
             </template>
 
@@ -1557,24 +1557,24 @@ app.component('case-task-modal', {
 
             <div v-if="form.entidadId === 'otra'" class="ctm-field">
                 <label class="ctm-label">Nombre de la entidad</label>
-                <input class="ctm-input" v-model="form.entidadNombre" placeholder="Escribe el nombre de la entidad" maxlength="150"/>
+                <input class="ctm-input" v-model="form.entidadNombre" placeholder="Escribe el nombre de la entidad" maxlength="5000"/>
             </div>
 
             <p class="ctm-section-title">Datos del oficio</p>
 
             <div class="ctm-field">
                 <label class="ctm-label">Dependencia del funcionario</label>
-                <input class="ctm-input" v-model="form.funcionario" placeholder="Ej. Departamento de Protección Social" maxlength="50"/>
+                <input class="ctm-input" v-model="form.funcionario" placeholder="Ej. Departamento de Protección Social" maxlength="5000"/>
             </div>
 
             <div class="ctm-field">
                 <label class="ctm-label">Asunto</label>
-                <input class="ctm-input" v-model="form.asunto" placeholder="Asunto del oficio…" maxlength="80"/>
+                <input class="ctm-input" v-model="form.asunto" placeholder="Asunto del oficio…" maxlength="5000"/>
             </div>
 
             <div class="ctm-field">
                 <label class="ctm-label">Ruta Kofax / URL del archivo</label>
-                <input class="ctm-input" v-model="form.rutaKofax" placeholder="\\\\servidor\\ruta\\archivo.pdf" maxlength="255"/>
+                <input class="ctm-input" v-model="form.rutaKofax" placeholder="\\\\servidor\\ruta\\archivo.pdf" maxlength="5000"/>
             </div>
 
             <div class="ctm-field">
@@ -1593,7 +1593,7 @@ app.component('case-task-modal', {
             <!-- Análisis de la mesa técnica (obligatorio, aplica a toda la sesión) -->
             <div class="ctm-field">
                 <label class="ctm-label">Análisis de la mesa técnica <span class="req">*</span></label>
-                <textarea class="ctm-textarea" v-model="form.analisisMesaTecnica" rows="4" placeholder="Resumen de lo que se determinó en la mesa técnica y por qué se toman estas decisiones…" maxlength="1000"></textarea>
+                <textarea class="ctm-textarea" v-model="form.analisisMesaTecnica" rows="4" placeholder="Resumen de lo que se determinó en la mesa técnica y por qué se toman estas decisiones…" maxlength="5000"></textarea>
             </div>
 
             <p class="ctm-section-title">Decisiones tomadas <span style="color:#dc2626">*</span></p>
@@ -1643,7 +1643,7 @@ app.component('case-task-modal', {
 
                     <div class="ctm-field">
                         <label class="ctm-label">Solicitud para el enlace <span class="req">*</span></label>
-                        <textarea class="ctm-textarea" v-model="form.solicitudEnlace" rows="3" placeholder="Explica la tarea que debe realizar el enlace territorial…" maxlength="500"></textarea>
+                        <textarea class="ctm-textarea" v-model="form.solicitudEnlace" rows="3" placeholder="Explica la tarea que debe realizar el enlace territorial…" maxlength="5000"></textarea>
                     </div>
 
                     <!-- Dropdown de enlace solo si hay más de uno -->
@@ -1792,7 +1792,7 @@ app.component('case-task-modal', {
 
             <div class="ctm-field">
                 <label class="ctm-label">Tu respuesta <span class="req">*</span></label>
-                <textarea class="ctm-textarea" v-model="form.respuesta" rows="4" placeholder="Explica o justifica la remisión para que vuelva a revisión…" maxlength="500"></textarea>
+                <textarea class="ctm-textarea" v-model="form.respuesta" rows="4" placeholder="Explica o justifica la remisión para que vuelva a revisión…" maxlength="5000"></textarea>
             </div>
 
         </template>
@@ -1872,7 +1872,7 @@ app.component('case-task-modal', {
                             </div>
                         </div>
                         <div v-if="form.seleccion[item.id] && form.seleccion[item.id].selected" class="ctm-ob-desc" @click.stop>
-                            <textarea class="ctm-textarea" v-model="form.seleccion[item.id].descripcion" rows="3" maxlength="500" placeholder="Describe la solicitud para este ítem del checklist entidad..."></textarea>
+                            <textarea class="ctm-textarea" v-model="form.seleccion[item.id].descripcion" rows="3" maxlength="5000" placeholder="Describe la solicitud para este ítem del checklist entidad..."></textarea>
                         </div>
                     </div>
                 </div>
@@ -1895,12 +1895,12 @@ app.component('case-task-modal', {
 
             <div class="ctm-field">
                 <label class="ctm-label">En línea con las acciones adelantadas, ¿cuenta con un Nº de radicado, NUNC, MP, etc.?</label>
-                <input class="ctm-input" v-model="form.radicado" placeholder="Ej: NUNC 123456789012" maxlength="80"/>
+                <input class="ctm-input" v-model="form.radicado" placeholder="Ej: NUNC 123456789012" maxlength="5000"/>
             </div>
 
             <div class="ctm-field">
                 <label class="ctm-label">¿Desea ampliar información sobre la gestión y atención del caso?</label>
-                <textarea class="ctm-textarea" v-model="form.ampliacion" rows="4" maxlength="500" placeholder="Describe cómo se atendió esta acción institucional..."></textarea>
+                <textarea class="ctm-textarea" v-model="form.ampliacion" rows="4" maxlength="5000" placeholder="Describe cómo se atendió esta acción institucional..."></textarea>
             </div>
 
             <div class="ctm-field">
@@ -1976,7 +1976,7 @@ app.component('case-task-modal', {
                     </div>
                     <div class="ctm-field">
                         <label class="ctm-label">Compromisos de la sesión</label>
-                        <textarea class="ctm-textarea" rows="3" maxlength="500" v-model="form.compromisos"
+                        <textarea class="ctm-textarea" rows="3" maxlength="5000" v-model="form.compromisos"
                             placeholder="Si el caso se abordó en varias sesiones, consigne los compromisos de todas."></textarea>
                     </div>
                 </template>
@@ -1987,7 +1987,7 @@ app.component('case-task-modal', {
                     </div>
                     <div class="ctm-field">
                         <label class="ctm-label">Detalle de la próxima sesión</label>
-                        <textarea class="ctm-textarea" rows="3" maxlength="500" v-model="form.detalleProxima"
+                        <textarea class="ctm-textarea" rows="3" maxlength="5000" v-model="form.detalleProxima"
                             placeholder="Indique cuándo se citará, según la urgencia del caso."></textarea>
                     </div>
                 </template>
@@ -2000,21 +2000,21 @@ app.component('case-task-modal', {
                 </div>
                 <div class="ctm-field">
                     <label class="ctm-label">Detalle de la próxima sesión o mesa técnica <span class="req">*</span></label>
-                    <textarea class="ctm-textarea" rows="3" maxlength="500" v-model="form.detalleProxima"
+                    <textarea class="ctm-textarea" rows="3" maxlength="5000" v-model="form.detalleProxima"
                         placeholder="Indique cuándo se citará la próxima sesión o mesa técnica."></textarea>
                 </div>
             </template>
 
             <div class="ctm-field">
                 <label class="ctm-label">Reporte de gestión <span class="req">*</span></label>
-                <textarea class="ctm-textarea" rows="4" maxlength="2000" v-model="form.reporteGestion"
+                <textarea class="ctm-textarea" rows="4" maxlength="5000" v-model="form.reporteGestion"
                     placeholder="Acciones adelantadas y, si aplica, enlace a la documentación."></textarea>
                 <p class="ctm-hint">Describa las acciones adelantadas. Si hay documentación de soporte, incluya el enlace.</p>
             </div>
 
             <div v-if="mecanismoCtx && mecanismoCtx.scope !== 'nacional'" class="ctm-field">
                 <label class="ctm-label">Remisión a responsables</label>
-                <textarea class="ctm-textarea" rows="3" maxlength="500" v-model="form.remisionResponsables"
+                <textarea class="ctm-textarea" rows="3" maxlength="5000" v-model="form.remisionResponsables"
                     placeholder="Opcional"></textarea>
                 <p class="ctm-hint">Según el Decreto 1710. Este campo se guarda; no dispara un escalamiento automático.</p>
             </div>
@@ -2026,7 +2026,7 @@ app.component('case-task-modal', {
                 </div>
                 <div class="ctm-field">
                     <label class="ctm-label">Asistencias técnicas <span class="req">*</span></label>
-                    <textarea class="ctm-textarea" rows="3" maxlength="500" v-model="form.asistenciasTexto"
+                    <textarea class="ctm-textarea" rows="3" maxlength="5000" v-model="form.asistenciasTexto"
                         placeholder="Si no aplica, escriba «No aplica» y explique."></textarea>
                     <p class="ctm-hint">Si no aplica, escriba «No aplica» y la explicación.</p>
                 </div>

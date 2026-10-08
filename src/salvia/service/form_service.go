@@ -2203,6 +2203,26 @@ func extractAgendaAnswers(formID string, answerMap map[string]string) psicosocia
 	return psicosocialAgendaAnswers{}
 }
 
+// primerContactoSinVoluntariedad detecta si en el formulario de Primer Contacto la
+// pregunta "¿Hay voluntariedad para la atención?" se respondió "No". La pregunta se
+// resuelve por su descripción (su UUID lo genera el seed con gen_random_uuid, no es
+// fijo). Devuelve true solo cuando la respuesta es explícitamente "no"; cualquier
+// otro valor (sí, vacío, pregunta ausente) devuelve false para no alterar el flujo
+// normal de un primer contacto efectivo.
+func primerContactoSinVoluntariedad(questions []models.Question, answerMap map[string]string) bool {
+	for _, q := range questions {
+		if q.RepeaterGroupID != nil {
+			continue
+		}
+		desc := strings.ToLower(q.Description)
+		if strings.Contains(desc, "voluntariedad para la atencion") || strings.Contains(desc, "voluntariedad para la atención") {
+			v := strings.ToLower(strings.TrimSpace(answerMap[q.ID]))
+			return v == "no"
+		}
+	}
+	return false
+}
+
 // resolvePsicosocialAgendaMode lee "¿La atención es individual o en dupla?" (preferencia)
 // o infiere de ps.DuplaID / ProfessionalID.
 func resolvePsicosocialAgendaMode(answerMap map[string]string, questions []models.Question, ps *models.PsychosocialSupport) string {
@@ -2391,12 +2411,32 @@ func (s *formService) processPsicosocialSessionSubmission(ctx context.Context, f
 		}
 	}
 
+	// ── Voluntariedad en Primer Contacto ──────────────────────────────────────
+	// Si en el Primer Contacto la pregunta "¿Hay voluntariedad para la atención?"
+	// se respondió "No", ESE contacto NO es efectivo (la ciudadana no autoriza la
+	// atención en este momento). Pero la remisión NO se bloquea ni se devuelve: queda
+	// en 'abierto' para que el equipo pueda intentar otro primer contacto más adelante.
+	// Por eso NO se reasigna el sessionType (se mantiene PRIMER_CONTACTO para registro),
+	// solo se marca el team_contact como no-sesión y se omite el avance de estado.
+	// La pregunta tiene UUID generado por el seed (no fijo), así que se resuelve por
+	// su descripción entre las preguntas del formulario, igual que
+	// resolvePsicosocialAgendaMode. El flag acota el efecto a este caso puntual.
+	primerContactoNoEfectivo := formID == constants.FormIDPrimerContacto &&
+		primerContactoSinVoluntariedad(formQuestions, answerMap)
+	if primerContactoNoEfectivo {
+		log.Printf("[processPsicosocialSessionSubmission] primer contacto sin voluntariedad → se marca NO efectivo; remisión queda 'abierto' para reintentar (team_contact=%s)", tc.ID)
+	}
+
 	// ── Actualizar team_contact ──────────────────────────────────────────────
 	now := time.Now()
 	tc.SessionType = &sessionType
 	tc.IsCompleted = true
 	tc.CompletedAt = &now
-	if sessionType == models.SessionTypeContactoSinAtencion {
+	// El contacto sin atención NO es sesión psicosocial efectiva. El primer contacto
+	// sin voluntariedad tampoco: no deben contar como "Atención realizada" ni sumar al
+	// contador, por lo que se dejan registrados (is_completed) pero con
+	// is_psico_session=false.
+	if sessionType == models.SessionTypeContactoSinAtencion || primerContactoNoEfectivo {
 		tc.IsPsicoSession = false
 	}
 	// Observaciones registradas por el equipo psicosocial en el formulario de contacto
@@ -2414,6 +2454,14 @@ func (s *formService) processPsicosocialSessionSubmission(ctx context.Context, f
 	}
 
 	// ── Actualizar psychosocial_support según sessionType ────────────────────
+	// Primer contacto sin voluntariedad: no se avanza el estado de la remisión.
+	// Queda en 'abierto' (sin marcar ya_hizo_primer_contacto ni incrementar contador),
+	// de modo que el equipo pueda registrar otro primer contacto más adelante y el
+	// contacto actual quede como no efectivo. Se omite el switch de avance de estado.
+	switch {
+	case primerContactoNoEfectivo:
+		// no-op: la remisión permanece en su estado actual (abierto)
+	default:
 	switch sessionType {
 	case models.SessionTypePrimerContacto, models.SessionTypePrimerContactoSinConsentimiento:
 		ps.YaHizoPrimerContacto = true
@@ -2447,6 +2495,7 @@ func (s *formService) processPsicosocialSessionSubmission(ctx context.Context, f
 				log.Printf("[processPsicosocialSessionSubmission] advertencia: fecha nueva no parseable %q: %v", fechaNueva, err)
 			}
 		}
+	}
 	}
 
 	if err := s.psychosocialSupportRepo.Update(ctx, ps); err != nil {

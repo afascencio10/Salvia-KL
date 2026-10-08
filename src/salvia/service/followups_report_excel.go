@@ -5,9 +5,30 @@ import (
 	salvia_config "bitsflow/salvia/config"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/xuri/excelize/v2"
 )
+
+// bogotaLoc es la zona horaria de Colombia. SALVIA se usa únicamente en Colombia,
+// así que toda fecha/hora del Excel se formatea en hora Colombia para que coincida
+// con lo que se ve en el portal. Si por algún motivo no se puede cargar la zona,
+// bogotaLoc queda nil y los helpers caen al valor sin conversión (comportamiento
+// previo), pero con time.Local ya fijado a Bogotá en main.go eso no debería ocurrir.
+var bogotaLoc, _ = time.LoadLocation("America/Bogota")
+
+// formatDateTimeBogota formatea un time.Time en hora Colombia (YYYY-MM-DD HH:MM:SS).
+// Centraliza el formato de fecha-hora del reporte para no depender de la zona del
+// proceso ni imprimir en UTC.
+func formatDateTimeBogota(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	if bogotaLoc != nil {
+		t = t.In(bogotaLoc)
+	}
+	return t.Format("2006-01-02 15:04:05")
+}
 
 // Header definitions for each sheet
 var (
@@ -24,6 +45,7 @@ var (
 		"Departamento",
 		"Equipo Asignado",
 		"Estado Caso",
+		"Responsable de caso",
 	}
 
 	registroHeaders = []string{
@@ -191,6 +213,8 @@ var (
 		"Equipo",
 		"Nivel Riesgo",
 		"Resumen / Notas",
+		"Responsable del seguimiento",
+		"Responsable del caso",
 	}
 
 	answersHeaders = []string{
@@ -393,7 +417,7 @@ func BuildFollowUpsExcel(
 	for rowIdx, c := range cases {
 		rNum := rowIdx + 2
 		_ = f.SetCellValue("Casos", fmt.Sprintf("A%d", rNum), c.VictimCaseICode)
-		_ = f.SetCellValue("Casos", fmt.Sprintf("B%d", rNum), c.VictimCaseCreatedAt.Format("2006-01-02 15:04:05"))
+		_ = f.SetCellValue("Casos", fmt.Sprintf("B%d", rNum), formatDateTimeBogota(c.VictimCaseCreatedAt))
 		_ = f.SetCellValue("Casos", fmt.Sprintf("C%d", rNum), c.VictimCaseVictimDocNumber)
 		_ = f.SetCellValue("Casos", fmt.Sprintf("D%d", rNum), c.VictimCaseVictimName)
 		_ = f.SetCellValue("Casos", fmt.Sprintf("E%d", rNum), c.VictimCaseVictimLastName)
@@ -408,6 +432,7 @@ func BuildFollowUpsExcel(
 		_ = f.SetCellValue("Casos", fmt.Sprintf("J%d", rNum), c.DeptName)
 		_ = f.SetCellValue("Casos", fmt.Sprintf("K%d", rNum), c.VictimCaseTeam)
 		_ = f.SetCellValue("Casos", fmt.Sprintf("L%d", rNum), c.VictimCaseStatus)
+		_ = f.SetCellValue("Casos", fmt.Sprintf("M%d", rNum), c.AgentResponsible)
 	}
 
 	// 2. Llenar hoja "Registro" (Form 1 / Form 2)
@@ -565,7 +590,7 @@ func BuildFollowUpsExcel(
 		_ = f.SetCellValue("Registro", fmt.Sprintf("EG%d", rNum), translateEnumKey(c.F2CampesinoRecognition))
 		_ = f.SetCellValue("Registro", fmt.Sprintf("EH%d", rNum), translateEnumKey(c.F2AggressorUnemployed))
 		// Columnas finales (movidas al final por solicitud)
-		_ = f.SetCellValue("Registro", fmt.Sprintf("EI%d", rNum), c.VictimCaseCreatedAt.Format("2006-01-02 15:04:05"))
+		_ = f.SetCellValue("Registro", fmt.Sprintf("EI%d", rNum), formatDateTimeBogota(c.VictimCaseCreatedAt))
 		_ = f.SetCellValue("Registro", fmt.Sprintf("EJ%d", rNum), c.AgentResponsible)
 		_ = f.SetCellValue("Registro", fmt.Sprintf("EK%d", rNum), c.OwnerDescription)
 	}
@@ -577,11 +602,11 @@ func BuildFollowUpsExcel(
 		_ = f.SetCellValue("Seguimientos", fmt.Sprintf("B%d", rNum), fu.VictimDocNumber)
 		_ = f.SetCellValue("Seguimientos", fmt.Sprintf("C%d", rNum), fu.ID)
 		_ = f.SetCellValue("Seguimientos", fmt.Sprintf("D%d", rNum), fu.SequenceNumber)
-		_ = f.SetCellValue("Seguimientos", fmt.Sprintf("E%d", rNum), fu.ScheduledDate.Format("2006-01-02 15:04:05"))
+		_ = f.SetCellValue("Seguimientos", fmt.Sprintf("E%d", rNum), formatDateTimeBogota(fu.ScheduledDate))
 
 		completedStr := ""
 		if fu.CompletedAt != nil {
-			completedStr = fu.CompletedAt.Format("2006-01-02 15:04:05")
+			completedStr = formatDateTimeBogota(*fu.CompletedAt)
 		}
 		_ = f.SetCellValue("Seguimientos", fmt.Sprintf("F%d", rNum), completedStr)
 		_ = f.SetCellValue("Seguimientos", fmt.Sprintf("G%d", rNum), fu.Status)
@@ -598,6 +623,8 @@ func BuildFollowUpsExcel(
 			summaryStr = *fu.Summary
 		}
 		_ = f.SetCellValue("Seguimientos", fmt.Sprintf("J%d", rNum), summaryStr)
+		_ = f.SetCellValue("Seguimientos", fmt.Sprintf("K%d", rNum), fu.FollowUpAgentResponsible)
+		_ = f.SetCellValue("Seguimientos", fmt.Sprintf("L%d", rNum), fu.CaseAgentResponsible)
 	}
 
 	// 4. Llenar hoja "Respuestas de formulario" (formato pivotado: 1 fila por seguimiento)
@@ -637,7 +664,7 @@ func BuildFollowUpsExcel(
 			if !exists {
 				dateStr := ""
 				if ans.FollowUpDate != nil {
-					dateStr = ans.FollowUpDate.Format("2006-01-02 15:04:05")
+					dateStr = formatDateTimeBogota(*ans.FollowUpDate)
 				}
 				row = &followUpRow{
 					CaseICode:    ans.CaseICode,
@@ -705,7 +732,7 @@ func BuildFollowUpsExcel(
 		rNum := rowIdx + 2
 		_ = f.SetCellValue("Timeline", fmt.Sprintf("A%d", rNum), ev.CaseID)
 		_ = f.SetCellValue("Timeline", fmt.Sprintf("B%d", rNum), ev.VictimDocNumber)
-		_ = f.SetCellValue("Timeline", fmt.Sprintf("C%d", rNum), ev.Date.Format("2006-01-02 15:04:05"))
+		_ = f.SetCellValue("Timeline", fmt.Sprintf("C%d", rNum), formatDateTimeBogota(ev.Date))
 		_ = f.SetCellValue("Timeline", fmt.Sprintf("D%d", rNum), ev.Category)
 		_ = f.SetCellValue("Timeline", fmt.Sprintf("E%d", rNum), ev.Type)
 		_ = f.SetCellValue("Timeline", fmt.Sprintf("F%d", rNum), ev.Description)

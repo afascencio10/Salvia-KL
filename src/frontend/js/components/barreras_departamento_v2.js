@@ -126,10 +126,11 @@
                 if (isNaN(d.getTime())) {
                     return value;
                 }
-                var y = d.getFullYear();
-                var m = String(d.getMonth() + 1).padStart(2, '0');
-                var day = String(d.getDate()).padStart(2, '0');
-                return y + '-' + m + '-' + day;
+                // Zona Colombia (SALVIA solo se usa en Colombia): evita desfase de día.
+                var parts = new Intl.DateTimeFormat('en-CA', {
+                    timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit'
+                }).formatToParts(d).reduce(function(acc, p) { acc[p.type] = p.value; return acc; }, {});
+                return parts.year + '-' + parts.month + '-' + parts.day;
             },
 
             mapApiItem: function (b) {

@@ -10,7 +10,8 @@ engine: PostgreSQL
 schema: salvia
 table: form
 code_refs:
-  - "src/cmd/seed/seed_cierre_psicosocial.sql"
+  - "src/internal/seed/closure_form.sql"
+  - "src/internal/seed/seed.go"
 last_updated: "2026-07-10"
 ---
 
@@ -93,4 +94,15 @@ Formulario dinámico (motor `dinamic-form`) que registra el cierre de un proceso
 
 ## Seed
 
-El seed vive en `src/cmd/seed/seed_cierre_psicosocial.sql` (patrón `seed_cierre_caso.sql`). Nota: `*.sql` está en `.gitignore`; el seed se aplica manualmente. Este documento es la fuente canónica de los UUIDs.
+El seed vive en `src/internal/seed/closure_form.sql`, está versionado (hay una excepción explícita en `.gitignore`, que ignora `*.sql`) y **la aplicación lo aplica sola al arrancar**: va embebido en el binario con `go:embed` y `seed.EnsureClosureForm` lo ejecuta después del AutoMigrate si el formulario no está o quedó borrado lógicamente. Ningún ambiente depende ya de que alguien recuerde correrlo.
+
+Es idempotente y también se puede aplicar a mano:
+
+```
+go run cmd/seed/main.go internal/seed/closure_form.sql
+psql "$DATABASE_URL" -f src/internal/seed/closure_form.sql
+```
+
+Este documento sigue siendo la fuente canónica de los UUIDs.
+
+> **Historia:** durante un tiempo este documento decía que el seed vivía en esa ruta, pero el archivo nunca se agregó al repositorio. El formulario existía solo en las bases donde alguien lo había insertado a mano, y en las demás el cierre del flujo 3x3 fallaba con "Error 404 al cargar el formulario". Las pruebas de `src/salvia/service/psychosocial_3x3_closure_seed_test.go` comprueban que los UUIDs del código sigan existiendo en el seed.

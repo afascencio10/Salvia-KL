@@ -213,7 +213,15 @@ app.component('case-tasks', {
         },
         formatFecha: function(fecha) {
             if (!fecha) return '';
-            return fecha.substring(0, 10);
+            // Fecha pura (sin 'T') se toma tal cual; ISO con hora se convierte a hora
+            // Colombia antes de recortar (SALVIA se usa solo en Colombia).
+            if (fecha.indexOf('T') === -1) return fecha.substring(0, 10);
+            var d = new Date(fecha);
+            if (isNaN(d.getTime())) return fecha.substring(0, 10);
+            var parts = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit'
+            }).formatToParts(d).reduce(function(acc, p) { acc[p.type] = p.value; return acc; }, {});
+            return parts.year + '-' + parts.month + '-' + parts.day;
         },
         labelTipo: function(task) {
             var type = task.type || '';

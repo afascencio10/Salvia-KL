@@ -53,6 +53,11 @@ type PsychosocialSessionView struct {
 	ScheduledTime    string  `json:"scheduledTime"`
 	Status           string  `json:"status"`
 	IsCompleted      bool    `json:"isCompleted"`
+	// IsPsicoSession indica si el contacto fue una sesión psicosocial efectiva.
+	// Un primer contacto sin voluntariedad queda completado pero con isPsicoSession=false,
+	// lo que permite al frontend mostrarlo como "no efectivo por voluntariedad".
+	IsPsicoSession   bool    `json:"isPsicoSession"`
+	SessionType      string  `json:"sessionType"`
 	Summary          string  `json:"summary"`
 	ProfessionalName string  `json:"professionalName"`
 	ProfessionalID   string  `json:"professionalId"`
@@ -334,6 +339,8 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 				COALESCE(tc.scheduled_time, '') AS scheduled_time,
 				CASE WHEN tc.is_completed THEN 'realizada' ELSE COALESCE(tc.status, 'programada') END AS status,
 				tc.is_completed AS is_completed,
+				tc.is_psico_session AS is_psico_session,
+				COALESCE(tc.session_type, '') AS session_type,
 				COALESCE(tc.summary, '') AS summary,
 				COALESCE(TRIM(CONCAT(gup.general_user_profile_names, ' ', gup.general_user_profile_last_names)), '') AS professional_name,
 				COALESCE(gu.general_user_i_code::text, tc.professional_id, '') AS professional_id,
@@ -345,8 +352,13 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 			       OR gu.general_user_i_code::text = BTRIM(COALESCE(tc.professional_id,''))
 			LEFT JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
 			WHERE tc.deleted_at IS NULL
-			  AND tc.is_psico_session = true
 			  AND (tc.psicosocial_id = ? OR tc.case_id = ?)
+			  AND (
+			        tc.is_psico_session = true
+			        -- Primer contacto sin voluntariedad: completado, no es sesión efectiva,
+			        -- pero debe listarse como "no efectivo por voluntariedad".
+			     OR (tc.is_completed = true AND tc.is_psico_session = false AND tc.session_type = 'PRIMER_CONTACTO')
+			  )
 			ORDER BY tc.scheduled_date DESC
 		`, remision.ID, vc.VictimCaseICode).Scan(&sessions)
 		psViews = append(psViews, PsychosocialSupportView{

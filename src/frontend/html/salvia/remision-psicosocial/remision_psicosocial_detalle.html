@@ -66,12 +66,12 @@
                                 <div v-if="remision.psychologistName" style="font-size:.78rem;color:#374151;display:flex;align-items:center;gap:6px">
                                     <span style="width:22px;height:22px;border-radius:50%;background:#ede9fe;color:#5106A7;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700">${ remision.psychologistName.charAt(0).toUpperCase() }</span>
                                     <span style="font-weight:600">${ remision.psychologistName }</span>
-                                    <span style="font-size:.68rem;color:#9ca3af">— Psicóloga</span>
+                                    <span style="font-size:.68rem;color:#9ca3af">— Profesional en Psicología</span>
                                 </div>
                                 <div v-if="remision.socialWorkerName" style="font-size:.78rem;color:#374151;display:flex;align-items:center;gap:6px;margin-top:3px">
                                     <span style="width:22px;height:22px;border-radius:50%;background:#dbeafe;color:#1d4ed8;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700">${ remision.socialWorkerName.charAt(0).toUpperCase() }</span>
                                     <span style="font-weight:600">${ remision.socialWorkerName }</span>
-                                    <span style="font-size:.68rem;color:#9ca3af">— Trab. Social</span>
+                                    <span style="font-size:.68rem;color:#9ca3af">— Profesional en Trabajo Social</span>
                                 </div>
                             </div>
                         </div>
@@ -160,7 +160,7 @@
                     <span v-else style="font-size:.88rem;color:#9ca3af">Pendiente</span>
                 </div>
                 <div>
-                    <span style="font-size:.68rem;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">Psicóloga asignada</span>
+                    <span style="font-size:.68rem;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px">Profesional en Psicología asignada</span>
                     <span style="font-size:.88rem;font-weight:700;color:#5106A7">${ remision.professionalName || 'Sin asignar' }</span>
                 </div>
             </div>
@@ -235,8 +235,9 @@
                 <div style="display:flex;justify-content:space-between;align-items:flex-start">
                     <div style="display:flex;gap:12px;align-items:flex-start">
                         <!-- Icono -->
-                        <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.9rem" :style="contact.isCompleted ? 'background:#dcfce7;color:#16a34a' : contact.isPsicoSession && !contact.isCompleted ? 'background:#fef3c7;color:#92400e' : 'background:#f3f4f6;color:#6b7280'">
-                            <span v-if="contact.isCompleted">✓</span>
+                        <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.9rem" :style="esContactoSinVoluntariedad(contact) ? 'background:#ffedd5;color:#c2410c' : contact.isCompleted ? 'background:#dcfce7;color:#16a34a' : contact.isPsicoSession && !contact.isCompleted ? 'background:#fef3c7;color:#92400e' : 'background:#f3f4f6;color:#6b7280'">
+                            <span v-if="esContactoSinVoluntariedad(contact)">⊘</span>
+                            <span v-else-if="contact.isCompleted">✓</span>
                             <span v-else-if="contact.isPsicoSession && !contact.isCompleted">📅</span>
                             <span v-else>💬</span>
                         </div>
@@ -246,10 +247,11 @@
                             </div>
                             <div style="font-size:.88rem;font-weight:700;color:#111827" :style="contact.status === 'cancelada' ? 'text-decoration:line-through;color:#9ca3af' : ''">
                                 <span v-if="contact.status === 'cancelada'">Atención ${ contarSesionesHasta(idx) } cancelada</span>
+                                <span v-else-if="esContactoSinVoluntariedad(contact)">Contacto no efectivo — sin voluntariedad para la atención</span>
                                 <span v-else-if="contact.isPsicoSession && contact.isCompleted">Atención ${ contarSesionesHasta(idx) } realizada</span>
                                 <span v-else-if="contact.isPsicoSession && !contact.isCompleted">Atención ${ contarSesionesHasta(idx) } agendada</span>
                                 <span v-else>Contacto sin atención</span>
-                                <span v-if="contact.sessionType"> — ${ labelSessionType(contact.sessionType) }</span>
+                                <span v-if="contact.sessionType && !esContactoSinVoluntariedad(contact)"> — ${ labelSessionType(contact.sessionType) }</span>
                             </div>
                             <div v-if="contact.summary" style="font-size:.8rem;color:#6b7280;margin-top:4px">${ contact.summary }</div>
                             <!-- Fecha agendada para sesiones pendientes -->
@@ -259,15 +261,15 @@
                         </div>
                     </div>
                     <!-- Badge estado -->
-                    <span style="font-size:.7rem;font-weight:700;padding:4px 12px;border-radius:20px;flex-shrink:0" :style="contact.status === 'cancelada' ? 'background:#f3f4f6;color:#9ca3af;border:1px solid #e5e7eb' : contact.isCompleted ? 'background:#dcfce7;color:#15803d;border:1px solid #bbf7d0' : contact.isPsicoSession && !contact.isCompleted ? 'background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0' : 'background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb'">
-                        ${ contact.status === 'cancelada' ? 'Cancelada' : contact.isCompleted ? 'Realizada' : contact.isPsicoSession && !contact.isCompleted ? 'Agendada' : 'Contacto' }
+                    <span style="font-size:.7rem;font-weight:700;padding:4px 12px;border-radius:20px;flex-shrink:0" :style="contact.status === 'cancelada' ? 'background:#f3f4f6;color:#9ca3af;border:1px solid #e5e7eb' : esContactoSinVoluntariedad(contact) ? 'background:#ffedd5;color:#c2410c;border:1px solid #fed7aa' : contact.isCompleted ? 'background:#dcfce7;color:#15803d;border:1px solid #bbf7d0' : contact.isPsicoSession && !contact.isCompleted ? 'background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0' : 'background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb'">
+                        ${ contact.status === 'cancelada' ? 'Cancelada' : esContactoSinVoluntariedad(contact) ? 'No efectivo' : contact.isCompleted ? 'Realizada' : contact.isPsicoSession && !contact.isCompleted ? 'Agendada' : 'Contacto' }
                     </span>
                 </div>
 
                 <!-- Botones -->
                 <div style="display:flex;gap:8px;margin-top:12px;padding-left:48px">
-                    <!-- Ver sesión: solo si está completada Y (es ps/ts O la remisión está cerrada) -->
-                    <button v-if="contact.isCompleted && (esProfesionalPsico || remision.status === 'cerrado')" @click="verSesion(contact)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #5106A7;background:#fff;color:#5106A7;cursor:pointer;font-weight:600">Ver atención</button>
+                    <!-- Ver sesión: solo si está completada, hubo atención efectiva Y (es ps/ts O la remisión está cerrada) -->
+                    <button v-if="contact.isCompleted && !esContactoSinVoluntariedad(contact) && (esProfesionalPsico || remision.status === 'cerrado')" @click="verSesion(contact)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:1px solid #5106A7;background:#fff;color:#5106A7;cursor:pointer;font-weight:600">Ver atención</button>
                     <!-- Registrar sesión, reprogramar, cancelar: solo ps/ts y remisión no cerrada -->
                     <template v-if="esProfesionalPsico && contact.isPsicoSession && !contact.isCompleted && contact.status !== 'cancelada' && remision.status !== 'cerrado'">
                         <button @click="registrarSesion(contact)" style="font-size:.75rem;padding:6px 14px;border-radius:6px;border:none;background:#5106A7;color:#fff;cursor:pointer;font-weight:600">Registrar atención</button>
@@ -555,6 +557,19 @@
             labelSessionType(type) {
                 var map = { 'PRIMER_CONTACTO': 'Primer contacto', 'PRIMERA_ATENCION': 'Primera atención', 'SEGUIMIENTO': 'Seguimiento', 'CIERRE': 'Cierre' };
                 return map[type] || type || '';
+            },
+
+            // esContactoSinVoluntariedad identifica un primer contacto que se registró
+            // pero la ciudadana no dio voluntariedad para la atención: el backend lo deja
+            // como completado pero NO como sesión psicosocial (isPsicoSession=false) y
+            // conserva el sessionType PRIMER_CONTACTO. Así se distingue del "contacto sin
+            // atención" genérico (sessionType CONTACTO_SIN_ATENCION). No cuenta como
+            // atención realizada y la remisión sigue abierta para reintentar.
+            esContactoSinVoluntariedad(contact) {
+                return !!contact
+                    && contact.isCompleted
+                    && !contact.isPsicoSession
+                    && contact.sessionType === 'PRIMER_CONTACTO';
             },
 
             contarSesionesHasta(idx) {

@@ -108,6 +108,11 @@ func formatContactDateTime(t time.Time) string {
 	if t.IsZero() {
 		return ""
 	}
+	// SALVIA se usa solo en Colombia: formatear en hora Colombia (bogotaLoc definido
+	// en followups_report_excel.go, mismo paquete) para no imprimir en UTC.
+	if bogotaLoc != nil {
+		t = t.In(bogotaLoc)
+	}
 	return t.Format("02/01/2006 15:04")
 }
 

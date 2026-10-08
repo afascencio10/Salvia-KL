@@ -43,9 +43,18 @@
         </div>
 
         <div class="pc-toolbar-actions">
-            <select v-if="isSupervisor" class="pc-filter-select" v-model="filterAgentID" @change="loadEvents">
-                <option value="">Todos los agentes</option>
-                <option v-for="a in agents" :key="a.id" :value="a.id">${ a.name }</option>
+            <!-- Un solo filtro con los dos modos: si fueran dos selects habría que
+                 decidir qué hacer cuando el supervisor elige dupla y profesional a
+                 la vez. El valor lleva prefijo (dupla:/agente:) porque un id de
+                 dupla y uno de agente pueden verse iguales. -->
+            <select v-if="isSupervisor" class="pc-filter-select" v-model="filterSelection" @change="loadEvents">
+                <option value="">Todo el equipo</option>
+                <optgroup v-if="duplas.length" label="Duplas">
+                    <option v-for="d in duplas" :key="'d-' + d.id" :value="'dupla:' + d.id">${ duplaLabel(d) }</option>
+                </optgroup>
+                <optgroup label="Profesionales">
+                    <option v-for="a in agents" :key="'a-' + a.id" :value="'agente:' + a.id">${ a.name }</option>
+                </optgroup>
             </select>
             <div class="pc-new-dropdown" @click.stop>
                 <button class="pc-btn-primary pc-new-btn" @click="showNewMenu = !showNewMenu">
@@ -321,11 +330,11 @@
                          calSessionsAgentMatch en psychosocial_calendar_repository.go. -->
                     <template v-if="selectedEvent.kind === 'session' && (selectedEvent.psychologistName || selectedEvent.socialWorkerName)">
                         <div class="pc-preview-prop">
-                            <span class="pc-preview-prop-label">Psicóloga</span>
+                            <span class="pc-preview-prop-label">Profesional en Psicología</span>
                             <span class="pc-preview-prop-value pc-preview-capitalize">${ selectedEvent.psychologistName ? capitalizeName(selectedEvent.psychologistName) : 'Sin asignar' }</span>
                         </div>
                         <div class="pc-preview-prop">
-                            <span class="pc-preview-prop-label">Trabajadora social</span>
+                            <span class="pc-preview-prop-label">Profesional en Trabajo Social</span>
                             <span class="pc-preview-prop-value pc-preview-capitalize">${ selectedEvent.socialWorkerName ? capitalizeName(selectedEvent.socialWorkerName) : 'Sin asignar' }</span>
                         </div>
                     </template>
@@ -378,8 +387,10 @@ var pcApp = Vue.createApp({
             successMsg: '',
             events: [],
             agents: [],
+            duplas: [],
             myVictims: [],
-            filterAgentID: '',
+            // "", "dupla:<id>" o "agente:<icode>" — ver el select de la barra.
+            filterSelection: '',
             showSessionModal: false,
             showMeetingModal: false,
             showNewMenu: false,
@@ -429,6 +440,7 @@ var pcApp = Vue.createApp({
         },
         canEditSession() {
             if (!this.selectedEvent || this.selectedEvent.kind !== 'session') return false;
+            if (!this.selectedEvent.remissionId) return false;
             const status = (this.selectedEvent.status || '').toUpperCase();
             if (status && status !== 'PENDIENTE') return false;
             return this.isSupervisor || this.selectedEvent.agentId === this.currentUserICode;
@@ -448,6 +460,7 @@ var pcApp = Vue.createApp({
         document.body.style.display = 'block';
         this.$nextTick(() => this.initCalendar());
         this.loadAgents();
+        if (this.isSupervisor) this.loadDuplas();
         if (!this.isSupervisor) this.loadMyVictims();
         document.addEventListener('click', this.closeNewMenu);
     },
@@ -541,7 +554,12 @@ var pcApp = Vue.createApp({
                     ? '/api/v1/psychosocial/calendar/team'
                     : '/api/v1/psychosocial/calendar/mine';
                 const qs = new URLSearchParams({ from, to });
-                if (this.isSupervisor && this.filterAgentID) qs.set('agentId', this.filterAgentID);
+                if (this.isSupervisor && this.filterSelection) {
+                    const sep = this.filterSelection.indexOf(':');
+                    const modo = this.filterSelection.substring(0, sep);
+                    const id = this.filterSelection.substring(sep + 1);
+                    qs.set(modo === 'dupla' ? 'duplaId' : 'agentId', id);
+                }
                 const r = await fetch(url + '?' + qs.toString(), { credentials: 'same-origin' });
                 if (!r.ok) throw new Error('Error HTTP ' + r.status);
                 const data = await r.json();
@@ -642,6 +660,24 @@ var pcApp = Vue.createApp({
                 const data = await r.json();
                 this.agents = data.agents || [];
             } catch (e) { /* noop */ }
+        },
+        // Mismo catálogo que usa Administrar Duplas, con los nombres de los dos
+        // integrantes ya resueltos: el nombre de la dupla solo ("Dupla 3") no le
+        // dice al supervisor de quién es la agenda que está mirando.
+        async loadDuplas() {
+            try {
+                const r = await fetch('/api/v1/duplas/activas', { credentials: 'same-origin' });
+                if (!r.ok) return;
+                const data = await r.json();
+                this.duplas = data.items || [];
+            } catch (e) { /* noop */ }
+        },
+        duplaLabel(d) {
+            const miembros = [d.psychologistName, d.socialWorkerName]
+                .filter(Boolean)
+                .map(n => this.capitalizeName(n))
+                .join(' y ');
+            return miembros ? d.name + ' · ' + miembros : d.name;
         },
         async loadMyVictims(agentId) {
             try {
