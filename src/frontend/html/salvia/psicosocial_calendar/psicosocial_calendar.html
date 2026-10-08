@@ -330,11 +330,11 @@
                          calSessionsAgentMatch en psychosocial_calendar_repository.go. -->
                     <template v-if="selectedEvent.kind === 'session' && (selectedEvent.psychologistName || selectedEvent.socialWorkerName)">
                         <div class="pc-preview-prop">
-                            <span class="pc-preview-prop-label">Psicóloga</span>
+                            <span class="pc-preview-prop-label">Profesional en Psicología</span>
                             <span class="pc-preview-prop-value pc-preview-capitalize">${ selectedEvent.psychologistName ? capitalizeName(selectedEvent.psychologistName) : 'Sin asignar' }</span>
                         </div>
                         <div class="pc-preview-prop">
-                            <span class="pc-preview-prop-label">Trabajadora social</span>
+                            <span class="pc-preview-prop-label">Profesional en Trabajo Social</span>
                             <span class="pc-preview-prop-value pc-preview-capitalize">${ selectedEvent.socialWorkerName ? capitalizeName(selectedEvent.socialWorkerName) : 'Sin asignar' }</span>
                         </div>
                     </template>
@@ -440,6 +440,7 @@ var pcApp = Vue.createApp({
         },
         canEditSession() {
             if (!this.selectedEvent || this.selectedEvent.kind !== 'session') return false;
+            if (!this.selectedEvent.remissionId) return false;
             const status = (this.selectedEvent.status || '').toUpperCase();
             if (status && status !== 'PENDIENTE') return false;
             return this.isSupervisor || this.selectedEvent.agentId === this.currentUserICode;
