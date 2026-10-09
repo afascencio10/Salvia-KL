@@ -360,7 +360,10 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 	var contacts []models.TeamContact
 	s.db.WithContext(ctx).
 		Where("psicosocial_id = ? AND deleted_at IS NULL", ps.ID).
-		Order("COALESCE(scheduled_date, created_at) ASC").
+		// Orden cronológico por fecha y, cuando varias caen el mismo día,
+		// desempatando por la hora agendada (scheduled_time, HH:MM). Los que no
+		// tienen hora quedan primero ese día (NULLS FIRST).
+		Order("COALESCE(scheduled_date, created_at) ASC, scheduled_time ASC NULLS FIRST").
 		Find(&contacts)
 
 	for _, c := range contacts {
