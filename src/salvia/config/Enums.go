@@ -50,6 +50,7 @@ var HTML_Templates map[string]string = map[string]string{
 	"get_victim_contact_sv_v2": "get_victim_contact_sv_v2.html",
 	"get_victim_contact_sv_v1": "get_victim_contact_sv_v1.html",
 	"set_victim_contact":       "set_victim_contact.html",
+	"set_victim_contact_v2":    "set_victim_contact_v2.html",
 	"get_alerts":               "get_alerts.html",
 	"load_plain_files":         "load_plain_files.html",
 	"assign_operators":         "assign_operators.html",
@@ -81,8 +82,12 @@ var FormPaths map[string]map[string]string = map[string]map[string]string{
 		"VictimContactGET":             "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["VictimContact"],
 		"VictimContactPOST_Public":     "/" + Locale["sp"]["public"] + "/" + Locale["sp"]["VictimContact"],
 		"VictimContactPOST_GET_Public": "/" + Locale["sp"]["public"] + "/" + Locale["sp"]["VictimContact"] + "/" + Locale["sp"]["new"],
-		"VictimContactPOST_GET":        "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["VictimContact"] + "/" + Locale["sp"]["new"],
-		"VictimContactPUT":             "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["VictimContact"],
+		// PSWYA-755 — Registro de Contacto Víctima V2 (Flujo A). Ruta y grupo
+		// propios (/salvia/public-v2), separados de /salvia/public (V1).
+		"VictimContactPOST_Public_V2":     "/" + Locale["sp"]["salvia"] + "/public-v2",
+		"VictimContactPOST_GET_Public_V2": "/" + Locale["sp"]["salvia"] + "/public-v2/" + Locale["sp"]["new"],
+		"VictimContactPOST_GET":           "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["VictimContact"] + "/" + Locale["sp"]["new"],
+		"VictimContactPUT":                "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["VictimContact"],
 		//Vitim case
 		"VictimCasePOST_GET":  "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["VictimCase"] + "/" + Locale["sp"]["new"],
 		"VictimCaseReportGET": "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["VictimCase"] + "/" + Locale["sp"]["report"],

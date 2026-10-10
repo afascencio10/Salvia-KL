@@ -17,6 +17,9 @@ Page  (.container.mt-4)
 │
 └── #seguimiento-app  (Vue mount)
     │
+    ├── [v-if !canEdit]
+    │   ReadonlyBanner  (.ms-readonly-banner)  🔒 "Este seguimiento no se puede editar" + noEditReason
+    │
     ├── [v-if victimInfo]
     │   VictimCard  (.hs-victim-card)
     │   └── .card-body
@@ -177,10 +180,15 @@ Page  (.container.mt-4)
 
 ## Estados del modo canEdit
 
-`canEdit` se calcula en `loadFollowUp()` del app raíz (no del componente):
+`canEdit` se calcula en `loadFollowUp()` del app raíz (no del componente), en cascada por prioridad (la primera condición que aplica gana). Cuando queda en `false`, `noEditReason` guarda el motivo exacto que muestra el `ReadonlyBanner` al inicio de la pantalla.
 
-| Condición | canEdit | Efecto visual |
-|---|---|---|
-| `status !== 'REALIZADO'` | `true` | Formulario editable, botón final "Guardar seguimiento ✓" |
-| `status === 'REALIZADO'` y `completed_at` hace ≤ 5 días | `true` | Ídem |
-| `status === 'REALIZADO'` y `completed_at` hace > 5 días | `false` | Badge "🔒 Solo lectura" en header, todos los inputs `:disabled`, NextBtn solo navega sin guardar |
+| # | Condición | canEdit | noEditReason |
+|---|---|---|---|
+| 1 | `formId !== FORM_ID_DEFAULT` (seguimiento migrado — Kobo, Bases Salvia, u otra fuente) | `false` permanente | "Fue migrado desde un formulario anterior (Kobo o Bases Salvia) y quedó fijo como solo lectura." |
+| 2 | `caseStatus === 'cd'` (caso cerrado) | `false` permanente | "El caso asociado está cerrado." |
+| 3 | `status === 'REALIZADO'` y `completed_at` hace > 5 días | `false` | "Se completó hace más de 5 días." |
+| 3b | `status === 'REALIZADO'` y `completed_at` hace ≤ 5 días | `true` | — |
+| 4 | Cualquier otro estado | `true` | — |
+| 5 | **Override final** — `userRole === 'ps'` o `'ts'`: se evalúa después de las anteriores y pisa cualquier resultado, incluso si alguna de 1-4 dio `true` | `false` | "Tu rol solo tiene acceso de lectura a los seguimientos." |
+
+Efecto visual cuando `canEdit = false`: `ReadonlyBanner` (🔒 + `noEditReason`) al inicio de la pantalla, badge "🔒 Solo lectura" en el header de la sección activa, todos los inputs `:disabled`, y el botón final de navegación solo avanza sin guardar.
