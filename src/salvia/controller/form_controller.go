@@ -214,7 +214,7 @@ func (c *FormController) SaveSection(ctx *gin.Context) {
 		if s, err := utils.GetCommonSession(sessionID); err == nil {
 			body.ActorID = s.UserICode
 
-			// El seguimiento es de solo lectura para psicólogo/a (ps) y trabajador social (ts):
+			// El seguimiento es de solo lectura para profesional en Psicología (ps) y trabajador social (ts):
 			// no pueden guardar respuestas del formulario "vivo" de seguimiento, sólo consultarlo.
 			if body.FormID == service.SeguimientoFormID && (s.CurrentRole == "ps" || s.CurrentRole == "ts") {
 				ctx.JSON(http.StatusForbidden, gin.H{"error": "el rol actual no tiene permiso para editar el seguimiento"})

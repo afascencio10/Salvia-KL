@@ -38,7 +38,7 @@ func (f *fakeReassignRepoConflict) FindProfessionalForReassign(ctx context.Conte
 
 // TestValidateSave_ConflictAppliesToBothRoles reproduce el bug "Trabajador social puede estar
 // en varias duplas": la trabajadora social ya asignada a otra dupla debe rechazarse igual que
-// pasaría con una psicóloga ya asignada.
+// pasaría con una profesional en Psicología ya asignada.
 func TestValidateSave_ConflictAppliesToBothRoles(t *testing.T) {
 	svc := &duplaAdminService{
 		duplaRepo: &fakeDuplaRepoConflict{

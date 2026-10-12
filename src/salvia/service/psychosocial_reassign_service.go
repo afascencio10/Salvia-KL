@@ -81,7 +81,7 @@ func (s *psychosocialReassignService) ListProfessionalsForReassign(ctx context.C
 		return ReassignProfessionalsResponse{}, err
 	}
 
-	psGroup := ReassignProfessionalGroup{Role: "ps", Label: "Psicólogas", Professionals: []ReassignProfessionalItem{}}
+	psGroup := ReassignProfessionalGroup{Role: "ps", Label: "Profesionales en Psicología", Professionals: []ReassignProfessionalItem{}}
 	tsGroup := ReassignProfessionalGroup{Role: "ts", Label: "Trabajadoras Sociales", Professionals: []ReassignProfessionalItem{}}
 
 	for _, row := range rows {
@@ -166,7 +166,7 @@ func (s *psychosocialReassignService) ReassignBulk(ctx context.Context, input Ps
 		}
 		taskAssigneeID = strings.TrimSpace(dupla.PsychologistID)
 		if taskAssigneeID == "" {
-			return PsychosocialReassignBulkResult{}, errors.New("la dupla no tiene psicóloga asignada")
+			return PsychosocialReassignBulkResult{}, errors.New("la dupla no tiene profesional en Psicología asignada")
 		}
 	}
 

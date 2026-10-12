@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// Dupla representa un par psicóloga + trabajador social del equipo de Atención Psicosocial.
+// Dupla representa un par profesional en Psicología + trabajador social del equipo de Atención Psicosocial.
 //
 // SQL equivalente:
 //

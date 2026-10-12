@@ -245,7 +245,7 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 		var dupla models.Dupla
 		if err := s.db.WithContext(ctx).Where("id = ?", *ps.DuplaID).First(&dupla).Error; err == nil {
 			resp.DuplaName = dupla.Name
-			// Resolver nombre de la psicóloga
+			// Resolver nombre de la profesional en Psicología
 			if dupla.PsychologistID != "" {
 				var psyName string
 				s.db.WithContext(ctx).Raw(`
@@ -811,7 +811,7 @@ func (s *psychosocialDetailService) loadActivePsicosocialBarriers(ctx context.Co
 }
 
 // checkSessionAccess valida que agentID sea el profesional directo asignado a la
-// remisión, o que pertenezca a la dupla asignada (psicóloga o trabajador social).
+// remisión, o que pertenezca a la dupla asignada (profesional en Psicología o trabajador social).
 func (s *psychosocialDetailService) checkSessionAccess(ctx context.Context, ps models.PsychosocialSupport, agentID string) error {
 	if ps.ProfessionalID != nil && *ps.ProfessionalID == agentID {
 		return nil

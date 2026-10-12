@@ -326,11 +326,11 @@
                         <span class="pc-preview-prop-value">${ [selectedEvent.victimDocType, selectedEvent.victimDocNumber].filter(Boolean).join(' ') }</span>
                     </div>
                     <!-- Una sesión queda asignada a un solo profesional (agente) o a una dupla
-                         (psicóloga + trabajadora social), nunca a ambos — ver comentario de
+                         (profesional en Psicología + trabajadora social), nunca a ambos — ver comentario de
                          calSessionsAgentMatch en psychosocial_calendar_repository.go. -->
                     <template v-if="selectedEvent.kind === 'session' && (selectedEvent.psychologistName || selectedEvent.socialWorkerName)">
                         <div class="pc-preview-prop">
-                            <span class="pc-preview-prop-label">Psicóloga</span>
+                            <span class="pc-preview-prop-label">Profesional en Psicología</span>
                             <span class="pc-preview-prop-value pc-preview-capitalize">${ selectedEvent.psychologistName ? capitalizeName(selectedEvent.psychologistName) : 'Sin asignar' }</span>
                         </div>
                         <div class="pc-preview-prop">

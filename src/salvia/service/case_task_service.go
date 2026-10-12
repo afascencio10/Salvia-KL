@@ -608,7 +608,7 @@ func (s *caseTaskService) sideEffectsComiteCaso(ctx context.Context, task *model
 // sideEffectsJustificarRemision se ejecuta cuando el agente responde al
 // motivo de devolución de una remisión psicosocial (case_task
 // "justificar_remision"): reabre la remisión (status → 'abierto') y crea una
-// nueva case_task "validar_remision" para que el psicólogo/a vuelva a
+// nueva case_task "validar_remision" para que la profesional psicosocial vuelva a
 // evaluarla. La nueva tarea se asigna al profesional de la dupla (o al
 // profesional individual) que tiene la remisión — si no hay ninguno asignado,
 // la tarea queda sin asignar, igual que la remisión.

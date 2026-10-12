@@ -651,7 +651,7 @@
 
             professionalRoleLabel: function(team) {
                 if (team === 'psicologia') {
-                    return 'Profesional Psicosocial';
+                    return 'Profesional psicosocial';
                 }
                 if (team === 'trab. social') {
                     return 'Trab. Social';

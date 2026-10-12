@@ -241,7 +241,7 @@ const userUUIDLookup = `(SELECT gu.general_user_id::text FROM security.general_u
 
 // calSessionsAgentMatch — una sesión "pertenece" al agente si es el professional_id
 // directo (modo individual) o si la remisión está en una dupla de la que el agente
-// es psicólogo o trabajador social. En modo dupla, professional_id se guarda NULL
+// es profesional en Psicología o trabajador social. En modo dupla, professional_id se guarda NULL
 // a propósito (ver applyContactAssignment en psychosocial_detail_service.go: "nunca
 // se guardan ambos campos a la vez"), así que sin este OR la sesión no matchea con
 // ningún profesional — el bug que este cambio corrige.
@@ -385,8 +385,8 @@ func buildTeamEventsQuery(filterAgentICode, filterDuplaID string, from, to time.
 
 // ListAgents alimenta el filtro del calendario, el selector de agente al crear
 // una sesión, y el multiselect de reuniones (una sola query, this.agents en el
-// frontend) — trae psicólogos (ps) y trabajadores sociales (ts), los dos roles
-// que agendan sesiones psicosociales. Antes solo traía psicólogos: el filtro no
+// frontend) — trae profesionales en Psicología (ps) y trabajadores sociales (ts), los dos roles
+// que agendan sesiones psicosociales. Antes solo traía profesionales en Psicología: el filtro no
 // dejaba elegir trabajadores sociales porque la query nunca los devolvía.
 func (r *psychosocialCalendarRepository) ListAgents(ctx context.Context) ([]CalendarAgentOption, error) {
 	sql := `

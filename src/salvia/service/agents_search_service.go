@@ -128,7 +128,7 @@ func (s *agentsSearchService) ListByRole(ctx context.Context, roleCode string) (
 func psicosocialRoleLabel(specialty string) string {
 	switch strings.ToLower(strings.TrimSpace(specialty)) {
 	case "psicologia":
-		return "Psicóloga"
+		return "Profesional en Psicología"
 	case "trab. social":
 		return "Trab. Social"
 	default:
