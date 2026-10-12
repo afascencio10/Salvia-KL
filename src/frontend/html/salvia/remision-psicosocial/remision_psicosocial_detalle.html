@@ -344,12 +344,19 @@
         <p style="font-size:1.2rem;font-weight:800;color:#111827;margin:0 0 6px">Validar remisión</p>
         <p style="font-size:.85rem;color:#6b7280;margin:0 0 20px">Revisa si la remisión cumple los criterios de atención psicosocial.</p>
 
+        <!-- Sin criterios el bloque no se mostraba y quien valida no sabía por qué. -->
         <!-- Criterios -->
         <div v-if="remision && remision.validationCriteria && remision.validationCriteria.length" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:20px">
             <p style="font-size:.75rem;font-weight:600;color:#6b7280;margin:0 0 8px">Criterios reportados por el agente</p>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <span v-for="c in remision.validationCriteria" :key="c" style="font-size:.75rem;font-weight:600;padding:4px 12px;border-radius:20px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa">${ c }</span>
             </div>
+        </div>
+        <div v-else style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;margin-bottom:20px">
+            <p style="font-size:.78rem;color:#92400e;margin:0;line-height:1.5">
+                Esta remisión no tiene criterios registrados: se creó por una vía que no los pedía.
+                Valídala con la información del caso.
+            </p>
         </div>
 
         <!-- Botones decisión -->

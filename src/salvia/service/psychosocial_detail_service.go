@@ -401,7 +401,17 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 	// remisiones creadas manualmente (sin seguimiento de origen) — en ese caso
 	// no hay respuestas que leer.
 	resp.ValidationCriteria = []string{}
-	if ps.FollowUpID != nil {
+
+	// Manda lo guardado en la remisión; el seguimiento queda de respaldo para
+	// las anteriores a este cambio.
+	if ps.ReferralCriteria != nil {
+		resp.ValidationCriteria = etiquetasCriteriosPsico(*ps.ReferralCriteria)
+	}
+	if ps.ReferralEvidence != nil {
+		resp.ReferralEvidence = strings.TrimSpace(*ps.ReferralEvidence)
+	}
+
+	if ps.FollowUpID != nil && ps.ReferralCriteria == nil && ps.ReferralEvidence == nil {
 		const qCriteriosPsico = "71c42c4a-f640-47ad-b2c1-5d4c18480449" // Criterios de remisión — Atención Psicosocial
 
 		var fu models.FollowUpV2
@@ -411,28 +421,10 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 				Where("form_submission_id = ? AND question_id IN ?", *fu.FormSubmissionID, []string{qCriteriosPsico, qFollowUpReferralEvidence}).
 				Find(&answers)
 
-			criterioLabels := map[string]string{
-				"conducta_suicida":          "Conducta suicida",
-				"interseccionalidad":        "Interseccionalidad",
-				"sin_ruta":                  "Sin ruta de atención",
-				"condiciones_territoriales": "Condiciones territoriales",
-				"sin_acceso_psico":          "Sin acceso a atención psicosocial",
-				"naturalizacion_vbg":        "Naturalización de VBG",
-			}
 			for _, a := range answers {
 				switch a.QuestionID {
 				case qCriteriosPsico:
-					for _, c := range strings.Split(a.Value, ",") {
-						c = strings.TrimSpace(c)
-						if c == "" || c == "criterio_obligatorio" {
-							continue
-						}
-						if label, ok := criterioLabels[c]; ok {
-							resp.ValidationCriteria = append(resp.ValidationCriteria, label)
-						} else {
-							resp.ValidationCriteria = append(resp.ValidationCriteria, c)
-						}
-					}
+					resp.ValidationCriteria = append(resp.ValidationCriteria, etiquetasCriteriosPsico(a.Value)...)
 				case qFollowUpReferralEvidence:
 					resp.ReferralEvidence = strings.TrimSpace(a.Value)
 				}
@@ -441,6 +433,33 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 	}
 
 	return resp, nil
+}
+
+// etiquetasCriteriosPsico traduce los códigos separados por coma de los
+// criterios de remisión. "criterio_obligatorio" es la casilla que habilita el
+// conteo, no un criterio; uno desconocido se devuelve tal cual.
+func etiquetasCriteriosPsico(valor string) []string {
+	etiquetas := map[string]string{
+		"conducta_suicida":          "Conducta suicida",
+		"interseccionalidad":        "Interseccionalidad",
+		"sin_ruta":                  "Sin ruta de atención",
+		"condiciones_territoriales": "Condiciones territoriales",
+		"sin_acceso_psico":          "Sin acceso a atención psicosocial",
+		"naturalizacion_vbg":        "Naturalización de VBG",
+	}
+	out := []string{}
+	for _, c := range strings.Split(valor, ",") {
+		c = strings.TrimSpace(c)
+		if c == "" || c == "criterio_obligatorio" {
+			continue
+		}
+		if label, ok := etiquetas[c]; ok {
+			out = append(out, label)
+		} else {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 func (s *psychosocialDetailService) CreateContact(ctx context.Context, psicosocialID, contactType, contactDate, contactTime, summary, sessionType, scheduledDate, scheduledTime string) (*models.TeamContact, error) {

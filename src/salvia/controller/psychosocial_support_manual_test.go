@@ -47,16 +47,22 @@ func (f *fakeCaseTaskRepo) Create(_ context.Context, t *models.CaseTask) error {
 	return nil
 }
 
+const cuerpoRemisionManual = `{"caseId":"CASO-1","criterios":["criterio_obligatorio","conducta_suicida"],"evidencia":"Refiere ideación suicida"}`
+
 func postRemisionManual(t *testing.T, tareas *fakeCaseTaskRepo) *httptest.ResponseRecorder {
+	return postRemisionManualConCuerpo(t, tareas, &fakeSupportSvc{}, cuerpoRemisionManual)
+}
+
+func postRemisionManualConCuerpo(t *testing.T, tareas *fakeCaseTaskRepo, svc *fakeSupportSvc, cuerpo string) *httptest.ResponseRecorder {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
-	ctrl := NewPsychosocialSupportGinController(&fakeSupportSvc{}, &fakeVictimCaseRepo{}, tareas)
+	ctrl := NewPsychosocialSupportGinController(svc, &fakeVictimCaseRepo{}, tareas)
 	router := gin.New()
 	ctrl.RegisterRoutes(router.Group("/api/v1"))
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/psychosocial-support/manual",
-		strings.NewReader(`{"caseId":"CASO-1"}`))
+		strings.NewReader(cuerpo))
 	req.Header.Set("Content-Type", "application/json")
 
 	rec := httptest.NewRecorder()
@@ -108,5 +114,50 @@ func TestRemisionManualSobreviveAFalloDeLaTarea(t *testing.T) {
 	}
 	if cuerpo["id"] != "ps-1" {
 		t.Fatalf("la respuesta debe traer la remisión creada, trajo %v", cuerpo["id"])
+	}
+}
+
+// Los criterios y la evidencia quedan en la remisión: es lo único que verá quien
+// valide, porque esta vía no pasa por un formulario de seguimiento.
+func TestRemisionManualGuardaCriteriosYEvidencia(t *testing.T) {
+	svc := &fakeSupportSvc{}
+	rec := postRemisionManualConCuerpo(t, &fakeCaseTaskRepo{}, svc, cuerpoRemisionManual)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("se esperaba 201, llegó %d: %s", rec.Code, rec.Body.String())
+	}
+	if svc.creada.ReferralCriteria == nil || *svc.creada.ReferralCriteria != "criterio_obligatorio,conducta_suicida" {
+		t.Errorf("criterios guardados: %v — el detalle los lee separados por coma", svc.creada.ReferralCriteria)
+	}
+	if svc.creada.ReferralEvidence == nil || *svc.creada.ReferralEvidence != "Refiere ideación suicida" {
+		t.Errorf("evidencia guardada: %v", svc.creada.ReferralEvidence)
+	}
+}
+
+// Sin criterios o sin evidencia no se crea nada: una remisión así deja al equipo
+// psicosocial sin con qué validarla, que es el bug que esto corrige.
+func TestRemisionManualExigeCriteriosYEvidencia(t *testing.T) {
+	casos := map[string]string{
+		"sin criterios":       `{"caseId":"CASO-1","criterios":[],"evidencia":"algo"}`,
+		"sin evidencia":       `{"caseId":"CASO-1","criterios":["conducta_suicida"],"evidencia":"   "}`,
+		"criterios en blanco": `{"caseId":"CASO-1","criterios":["  "],"evidencia":"algo"}`,
+		"cuerpo antiguo":      `{"caseId":"CASO-1"}`,
+	}
+	for nombre, cuerpo := range casos {
+		t.Run(nombre, func(t *testing.T) {
+			svc := &fakeSupportSvc{}
+			tareas := &fakeCaseTaskRepo{}
+			rec := postRemisionManualConCuerpo(t, tareas, svc, cuerpo)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("se esperaba 400, llegó %d: %s", rec.Code, rec.Body.String())
+			}
+			if svc.creada != nil {
+				t.Error("no debería crearse la remisión")
+			}
+			if len(tareas.creadas) != 0 {
+				t.Error("no debería crearse la tarea de validación")
+			}
+		})
 	}
 }

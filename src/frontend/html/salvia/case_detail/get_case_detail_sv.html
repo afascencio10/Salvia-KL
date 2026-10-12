@@ -852,7 +852,7 @@
 
 <!-- ══ MODAL: CREAR REMISIÓN PSICOSOCIAL ══ -->
 <div v-if="modalRemisionPsico" class="ns-backdrop" @click.self="modalRemisionPsico = false">
-  <div class="ns-modal">
+  <div class="ns-modal" style="max-width:640px;max-height:85vh;overflow-y:auto">
     <div class="ns-header">
       <div>
         <p class="ns-title">Crear remisión a Atención Psicosocial</p>
@@ -860,15 +860,38 @@
       </div>
       <button class="ns-close" @click="modalRemisionPsico = false">✕</button>
     </div>
-    <div class="ns-body">
+    <div class="ns-body" style="display:flex;flex-direction:column;gap:16px">
       <p style="margin:0;font-size:.88rem;color:#374151;line-height:1.5">
         Se creará una remisión manual a Atención Psicosocial para este caso, con equipo remitente
-        <strong>Supervisor</strong>. ¿Desea continuar?
+        <strong>Supervisor</strong>.
       </p>
+
+      <!-- Sin criterios ni evidencia el equipo psicosocial no tiene con qué validar. -->
+      <div>
+        <label style="font-size:.82rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">
+          Criterios de remisión <span style="color:#dc2626">*</span>
+        </label>
+        <div>
+          <button type="button" v-for="opt in remisionOpcionesCriteriosPsico" :key="opt.value"
+            @click="toggleRemisionValor(remisionPsicoForm.criterios, opt.value)"
+            :style="{padding:'6px 12px',borderRadius:'20px',fontSize:'.76rem',border: remisionPsicoForm.criterios.indexOf(opt.value) !== -1 ? '1px solid #1d4ed8' : '1px solid #d1d5db',background: remisionPsicoForm.criterios.indexOf(opt.value) !== -1 ? '#1d4ed8' : '#fff',color: remisionPsicoForm.criterios.indexOf(opt.value) !== -1 ? '#fff' : '#374151',cursor:'pointer',marginRight:'6px',marginBottom:'6px',textAlign:'left'}">
+            ${ opt.label }
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label style="font-size:.82rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">
+          Elementos que evidencian la remisión <span style="color:#dc2626">*</span>
+        </label>
+        <textarea v-model="remisionPsicoForm.evidencia" rows="3"
+          placeholder="Describe los elementos que sustentan la remisión"
+          style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:8px 10px;font-size:.85rem;font-family:inherit;resize:vertical"></textarea>
+      </div>
     </div>
     <div class="ns-footer">
       <button class="ns-btn-cancel" @click="modalRemisionPsico = false">Cancelar</button>
-      <button class="ns-btn-save" :disabled="creandoRemisionPsico" @click="confirmarRemisionPsico">
+      <button class="ns-btn-save" :disabled="creandoRemisionPsico || !remisionPsicoValida" @click="confirmarRemisionPsico">
         ${ creandoRemisionPsico ? 'Creando...' : 'Confirmar' }
       </button>
     </div>
@@ -1148,6 +1171,7 @@ var home = Vue.createApp({
       reabriendo: false,
       modalRemisionPsico: false,
       creandoRemisionPsico: false,
+      remisionPsicoForm: { criterios: [], evidencia: '' },
       modalRemisionEquipos: false,
       guardandoRemision: false,
       remisionForm: {
@@ -1285,6 +1309,9 @@ var home = Vue.createApp({
       var total = 0;
       criterios.forEach(function(c) { total += puntajes[c] || 0; });
       return (tieneObligatorio && total >= 3) ? 'Cumple' : 'No cumple';
+    },
+    remisionPsicoValida() {
+      return this.remisionPsicoForm.criterios.length > 0 && !!this.remisionPsicoForm.evidencia.trim();
     },
     remisionValida() {
       var f = this.remisionForm;
@@ -2073,6 +2100,7 @@ var home = Vue.createApp({
         });
     },
     abrirModalRemisionPsico() {
+      this.remisionPsicoForm = { criterios: [], evidencia: '' };
       this.modalRemisionPsico = true;
     },
     confirmarRemisionPsico() {
@@ -2081,7 +2109,11 @@ var home = Vue.createApp({
       fetch('/api/v1/psychosocial-support/manual', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ caseId: CASE_ICODE })
+        body: JSON.stringify({
+          caseId: CASE_ICODE,
+          criterios: this.remisionPsicoForm.criterios,
+          evidencia: this.remisionPsicoForm.evidencia.trim()
+        })
       })
         .then(function(res) {
           if (res.ok) {

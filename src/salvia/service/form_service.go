@@ -3776,13 +3776,25 @@ func (s *formService) processEquiposYMedidas(ctx context.Context, caseID string,
 				} else {
 					log.Printf("[processEquiposYMedidas] WARN: no se pudo resolver submitted_by_team (actor=%s)", actorID)
 				}
+				// En la remisión y no solo en el seguimiento: por acá pasan también
+				// las remisiones manuales, que no tienen seguimiento de origen.
+				var criteriosGuardados, evidenciaGuardada *string
+				if v := strings.TrimSpace(criteriosVal); v != "" {
+					criteriosGuardados = &v
+				}
+				if v := strings.TrimSpace(answerMap[qFollowUpReferralEvidence]); v != "" {
+					evidenciaGuardada = &v
+				}
+
 				ps := &models.PsychosocialSupport{
-					CaseID:          caseID,
-					FollowUpID:      followUpID,
-					Type:            "derivacion",
-					Status:          models.PsychosocialSupportStatusAbierto,
-					SubmittedBy:     submittedBy,
-					SubmittedByTeam: submittedByTeam,
+					CaseID:           caseID,
+					FollowUpID:       followUpID,
+					Type:             "derivacion",
+					Status:           models.PsychosocialSupportStatusAbierto,
+					SubmittedBy:      submittedBy,
+					SubmittedByTeam:  submittedByTeam,
+					ReferralCriteria: criteriosGuardados,
+					ReferralEvidence: evidenciaGuardada,
 				}
 				if err := s.psychosocialSupportRepo.Create(ctx, ps); err != nil {
 					return remisionCount, fmt.Errorf("crear derivacion psicosocial: %w", err)

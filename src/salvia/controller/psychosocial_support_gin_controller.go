@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -36,16 +37,23 @@ func (c *PsychosocialSupportGinController) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 type createManualPsychosocialSupportRequest struct {
-	CaseID string `json:"caseId"`
-	Cedula string `json:"cedula"`
+	CaseID    string   `json:"caseId"`
+	Cedula    string   `json:"cedula"`
+	Criterios []string `json:"criterios"`
+	Evidencia string   `json:"evidencia"`
 }
 
 // CreateManual crea una remisión a Atención Psicosocial directamente para un caso,
-// sin pasar por el flujo de seguimiento (form-based) ni sus criterios de puntaje.
-// Prioriza caseId sobre cedula cuando llegan ambos. No requiere autenticación.
+// sin pasar por el flujo de seguimiento (form-based). Prioriza caseId sobre cedula
+// cuando llegan ambos.
+//
+// Criterios y evidencia son obligatorios: sin ellos el equipo psicosocial no tiene
+// con qué validar la remisión. No se aplica la regla de puntaje del formulario de
+// seguimiento — esta vía es para casos ya en proceso y la procedencia la decide
+// quien valida.
 //
 //	POST /api/v1/psychosocial-support/manual
-//	Body: { "caseId": "..." } o { "cedula": "..." }
+//	Body: { "caseId": "...", "criterios": ["..."], "evidencia": "..." }
 func (c *PsychosocialSupportGinController) CreateManual(ctx *gin.Context) {
 	var body createManualPsychosocialSupportRequest
 	if err := ctx.ShouldBindJSON(&body); err != nil {
@@ -54,6 +62,18 @@ func (c *PsychosocialSupportGinController) CreateManual(ctx *gin.Context) {
 	}
 	if body.CaseID == "" && body.Cedula == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "se requiere 'caseId' o 'cedula'"})
+		return
+	}
+
+	criterios := make([]string, 0, len(body.Criterios))
+	for _, c := range body.Criterios {
+		if c = strings.TrimSpace(c); c != "" {
+			criterios = append(criterios, c)
+		}
+	}
+	evidencia := strings.TrimSpace(body.Evidencia)
+	if len(criterios) == 0 || evidencia == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "se requieren los criterios de la remisión y la evidencia"})
 		return
 	}
 
@@ -74,11 +94,15 @@ func (c *PsychosocialSupportGinController) CreateManual(ctx *gin.Context) {
 	}
 
 	team := "Supervisor"
+	criteriosGuardados := strings.Join(criterios, ",")
 	ps := &models.PsychosocialSupport{
 		CaseID:          victimCase.VictimICode,
 		Type:            "derivacion",
 		Status:          models.PsychosocialSupportStatusAbierto,
 		SubmittedByTeam: &team,
+		// Mismo formato que la respuesta del formulario, para que el detalle los lea igual.
+		ReferralCriteria: &criteriosGuardados,
+		ReferralEvidence: &evidencia,
 	}
 	if err := c.svc.Create(ctx.Request.Context(), ps); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})

@@ -42,6 +42,10 @@ type PsychosocialSupport struct {
 	CreatedAt             time.Time      `json:"createdAt"`
 	UpdatedAt             time.Time      `json:"updatedAt"`
 	DeletedAt             gorm.DeletedAt `gorm:"index" json:"-"`
+	// Con qué se remitió, en el formato crudo del formulario. NULL en las
+	// remisiones anteriores a este cambio.
+	ReferralCriteria *string `gorm:"type:text;column:referral_criteria" json:"referralCriteria,omitempty"`
+	ReferralEvidence *string `gorm:"type:text;column:referral_evidence" json:"referralEvidence,omitempty"`
 }
 
 func (PsychosocialSupport) TableName() string {
