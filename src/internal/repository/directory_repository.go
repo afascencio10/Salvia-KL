@@ -60,7 +60,8 @@ func (r *directoryRepository) FindByFilters(ctx context.Context, f DirectoryFilt
 		query = query.Where("sector = ?", f.Sector)
 	}
 	if f.DepartmentID != nil {
-		query = query.Where("department_id = ?", *f.DepartmentID)
+		cond, args := departmentFilterSQL(*f.DepartmentID)
+		query = query.Where(cond, args...)
 	}
 	if q := strings.TrimSpace(f.NameQuery); q != "" {
 		query = query.Where("name ILIKE ?", "%"+q+"%")
@@ -78,6 +79,24 @@ func (r *directoryRepository) FindByFilters(ctx context.Context, f DirectoryFilt
 		Limit(limit).
 		Find(&items).Error
 	return items, total, err
+}
+
+// departmentFilterSQL arma la condición de "filtrar por departamento" del Directorio.
+//
+// directories.department_id está denormalizado y llegó después: solo lo llenan la
+// pantalla y la carga masiva. Las entidades que cargó SOG antes lo tienen en NULL,
+// así que comparar contra la columna devolvía cero resultados para departamentos
+// enteros aunque el listado sí mostrara esas entidades — la respuesta ya deduce el
+// departamento del municipio cuando la columna viene vacía (ver directory_service).
+// Acá se aplica el mismo criterio al filtro: la columna manda si está, y si no, el
+// departamento sale de security.city a través de city_id, que guarda city_i_code.
+//
+// La condición va entre paréntesis a propósito: lleva un OR y se encadena con AND
+// al resto de los filtros, así que sin ellos el OR se los tragaría.
+func departmentFilterSQL(departmentID uint64) (string, []interface{}) {
+	return "(department_id = ? OR (department_id IS NULL AND city_id IN " +
+			"(SELECT city_i_code FROM security.city WHERE department_id = ?)))",
+		[]interface{}{departmentID, departmentID}
 }
 
 func (r *directoryRepository) FindAll(ctx context.Context) ([]models.Directory, error) {
