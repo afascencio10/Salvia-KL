@@ -4,7 +4,7 @@ SOG Salvia (Sistema de Orientación y Gestión) es una plataforma web para organ
 
 El flujo principal comienza cuando un operador registra un caso: completa un formulario con datos de la víctima, los hechos, el agresor y un tamizaje de riesgo (sí/no) que el backend recalcula para asignar un nivel (bajo, moderado, alto o extremo). Al guardar, se genera automáticamente un calendario de seguimientos según el nivel de riesgo y se asigna un agente de forma balanceada entre el equipo.
 
-Los agentes realizan los seguimientos desde la pantalla **Hacer Seguimiento**, que carga un formulario dinámico por secciones. Cada sección registra si la víctima visitó la entidad, si recibió atención y qué barreras encontró. Las barreras activas se gestionan desde **Mis Barreras**, donde el agente puede enviar oficios a las entidades y registrar las respuestas. El historial completo del caso se visualiza en el componente **Timeline**.
+Los agentes realizan los seguimientos desde la pantalla **Hacer Seguimiento**, que carga un formulario dinámico por secciones. Cada sección registra si la víctima visitó la entidad, si recibió atención y qué barreras encontró. Las barreras activas del Enlace Territorial se gestionan desde **Mis Barreras**. El historial completo del caso se visualiza en el componente **Timeline**.
 
 El sistema también gestiona casos de **feminicidio** y **riesgo de feminicidio** con formularios propios.
 
@@ -47,7 +47,8 @@ cd SOG_SALVIA/src && PORT=9090 go run . >> /tmp/salvia_server.log 2>&1 &
 | [`Hacer Seguimiento`](../Screens/hacer-seguimiento/hacer-seguimiento-index.md) | Pantalla donde el agente completa el formulario dinámico de un seguimiento programado.           | `src/frontend/html/salvia/follow_up_v2/hacer_seguimiento.html`    |
 | `Mis Seguimientos`                                                             | Vista del agente con sus seguimientos del día: pendientes, prioritarios y completados.           | `src/frontend/html/salvia/my_follow_ups/get_my_follow_ups.html`   |
 | `Seguimientos Área`                                                            | Vista del supervisor con todos los seguimientos del área organizados por estado y equipo.        | `src/frontend/html/salvia/follow_up_v2/seguimientos_area.html`    |
-| `Mis Barreras`                                                                 | Lista de barreras activas asignadas al agente con acciones para gestionar oficios y respuestas.  | `src/frontend/html/salvia/barriers/barrieris.html`                |
+| [`Mis Barreras`](../Screens/Mis%20Barreras/mis-barreras-index.md)              | Barreras activas asignadas al Enlace territorial (`user_territory_link_id`) con acción Gestionar. | `src/frontend/html/salvia/barriers/barrieris.html`                |
+| [`Barreras Departamento`](../Screens/Barreras%20Departamento/barreras-departamento-index.md) | Listado de barreras del departamento asignado al Enlace territorial (`en`), todos los estados. | `src/frontend/html/salvia/barriers/barreras_departamento_v2.html` |
 | [`Barrera Detalle`](../Screens/Barrera%20Detalle/barrera-detalle-index.md)     | Vista interna de una barrera: historial de actuaciones, oficios enviados y respuestas recibidas. | `src/frontend/html/salvia/barriers/barrera_detalle.html`          |
 | `Notificaciones`                                                               | Centro de notificaciones del sistema para alertas de casos y seguimientos.                       | `src/frontend/html/salvia/notifications/notificaciones.html`      |
 | `Registro de Contacto Víctima`                                                 | Formulario de ingreso inicial de la víctima como contacto antes de abrir un caso formal.         | `src/frontend/html/salvia/victim_contact/set_victim_contact.html` |
@@ -55,6 +56,8 @@ cd SOG_SALVIA/src && PORT=9090 go run . >> /tmp/salvia_server.log 2>&1 &
 | `Feminicidio`                                                                  | Listado y registro de casos de feminicidio con formulario de datos de la víctima y familia.      | `src/frontend/html/salvia/feminicide/set_feminicide.html`         |
 | `Riesgo de Feminicidio`                                                        | Listado y registro de casos de riesgo de feminicidio con formulario propio.                      | `src/frontend/html/salvia/feminicide/set_feminicide_risk.html`    |
 | [`Casos Entidad`](../Screens/Casos%20Entidad/casos-entidad-index.md)           | Listado de casos con víctimas referidas a la entidad: filtros, última acción y acceso a detalle. | `src/frontend/html/salvia/entity_case/casos_entidad.html` |
+| [`Casos Mecanismo`](../Screens/Casos%20Mecanismo/casos-mecanismo-index.md)     | Listado de escalamientos activos del rol `mc`: filtros, último comentario y Gestionar.           | `src/frontend/html/salvia/casos-mecanismo/casos_mecanismo.html` |
+| [`Lista de casos`](../Screens/Lista%20de%20Casos/lista-casos-index.md)         | Tabla reutilizable de `victim_case`. El rol `en` ve solo los casos de su departamento asignado. | `src/frontend/html/salvia/list-cases/list_cases.html` |
 | `Entidades`                                                                    | Catálogo de entidades institucionales que participan en la ruta de atención.                     | —                                                                 |
 | `Sedes`                                                                        | Gestión de sedes (branches) de entidades con ubicación geográfica y municipio.                   | `src/frontend/html/salvia/entity_branch/get_entity_branches.html` |
 | `Asignar Operadores`                                                           | Herramienta para asignar manualmente operadores a casos.                                         | `src/frontend/html/salvia/victim_case/assign_operators.html`      |
@@ -64,8 +67,10 @@ cd SOG_SALVIA/src && PORT=9090 go run . >> /tmp/salvia_server.log 2>&1 &
 
 | Componente | Descripción | Archivo principal |
 |---|---|---|
+| `casos-component` | Tabla reutilizable de casos con filtros, paginación y acciones de fila. | `src/frontend/js/components/casos-component.js` |
 | `dinamic-form` | Componente reutilizable que renderiza formularios dinámicos por secciones con guardado parcial. | `src/frontend/js/components/dinamic-form.js` |
 | `case-timeline` | Componente reutilizable que muestra el historial cronológico de eventos de un caso. | `src/frontend/js/components/case-timeline.js` |
+| `case-mecanismos` | Cadena de escalamiento a mecanismos articuladores en Gestión institucional. | `src/frontend/js/components/case-mecanismos.js` |
 
 Línea de prueba.
 Otra linea de prueba de felipe

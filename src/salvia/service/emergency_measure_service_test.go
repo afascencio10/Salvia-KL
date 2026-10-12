@@ -20,6 +20,9 @@ func (m *MockEmergencyMeasureRepo) Create(ctx context.Context, e *models.Emergen
 func (m *MockEmergencyMeasureRepo) Update(ctx context.Context, e *models.EmergencyMeasure) error {
 	return m.Called(ctx, e).Error(0)
 }
+func (m *MockEmergencyMeasureRepo) UpdateFields(ctx context.Context, id string, fields map[string]interface{}) error {
+	return m.Called(ctx, id, fields).Error(0)
+}
 func (m *MockEmergencyMeasureRepo) Delete(ctx context.Context, id string) error {
 	return m.Called(ctx, id).Error(0)
 }
@@ -68,7 +71,8 @@ func TestEmergencyMeasureService_GetByID(t *testing.T) {
 func TestEmergencyMeasureService_Create(t *testing.T) {
 	ctx := context.Background()
 	repo := new(MockEmergencyMeasureRepo)
-	em := &models.EmergencyMeasure{CaseID: "c-1", FollowUpID: "f-1", Type: "PROTECCION"}
+	followUpID := "f-1"
+	em := &models.EmergencyMeasure{CaseID: "c-1", FollowUpID: &followUpID, Type: "PROTECCION"}
 	repo.On("Create", ctx, em).Return(nil)
 	svc := service.NewEmergencyMeasureService(repo)
 	err := svc.Create(ctx, em)

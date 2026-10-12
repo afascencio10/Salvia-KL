@@ -5,6 +5,8 @@ Archivo fuente: `src/frontend/components/casos-component.js` *(pendiente de crea
 Usado por: Pantallas que necesitan visualizar y filtrar listas de casos
 
 > **Nota de alcance:** Este componente es reutilizable. Recibe props para configurar columnas visibles, filtros disponibles, filtro inicial, botones de acción por fila y modo de reasignación. La interacción hacia afuera ocurre a través de dos eventos emitidos: `action-clicked` (botón de acción en una fila) y `reasignar-casos` (reasignación masiva de casos seleccionados). La lógica de filtrado, búsqueda, ordenamiento y selección de casos es interna al componente.
+>
+> **Alcance por rol `en`:** `GET /api/v1/cases/list` acota los casos al `AssignedDepartmentID` de sesión (municipio de la víctima → ciudad → departamento). El cliente no envía el departamento. Si el Enlace territorial no tiene departamento, el API responde 403. Esto aplica a Lista de casos y a Mis casos si se usan con ese rol.
 
 ---
 

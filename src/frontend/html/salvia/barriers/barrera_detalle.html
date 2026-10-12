@@ -290,7 +290,17 @@
 
         <!-- ─── Tab: Tareas ─── -->
         <div v-if="activeTab === 'tareas'" class="brd-tab-content-card">
-            <case-tasks :case-id="barrera.caseId" :barrier-id="barrierICode" :user-id="currentUserId" :user-role="currentRole" :puede-gestion-propia="puedeRegistrarGestionPropia" @task-completed="onTaskCompleted"></case-tasks>
+            <case-tasks
+                :case-id="barrera.caseId"
+                :barrier-id="barrierICode"
+                :user-id="currentUserId"
+                :user-role="currentRole"
+                :puede-gestion-propia="puedeRegistrarGestionPropia"
+                :entity-branch-id="barrera.entityBranchId"
+                :entity-name="barrera.institutionName || barrera.specificInstitutions || ''"
+                :barrier-description="barrera.description || ''"
+                @task-completed="onTaskCompleted"
+            ></case-tasks>
         </div>
 
         <!-- ─── Tab: Timeline ─── -->

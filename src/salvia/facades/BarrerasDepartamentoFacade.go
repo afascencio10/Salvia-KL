@@ -32,13 +32,20 @@ func BarrerasDepartamentoGET(c *gin.Context) {
 		return
 	}
 
+	common_facades.SetHeaderNoCache(c)
+
+	var menu map[string][]map[string]string
+	if s != nil {
+		menu = s.CurrentMenu
+	}
+
 	common_facades.RenderTemplate(
 		c,
 		"barreras_departamento",
 		"salvia",
 		"barriers/",
 		salvia_config.HTML_Templates,
-		"barreras_departamento",
+		"barreras_departamento_v2",
 		utils.GetFullHtmlTemplates(),
 		utils.DEFAULT_VIEW,
 		utils.DEFAULT_PANIC_TEMPLATE,
@@ -46,9 +53,11 @@ func BarrerasDepartamentoGET(c *gin.Context) {
 			"windowTitle":   "Barreras Departamento",
 			"currentUser":   s.Names + " " + s.LastNames,
 			"currentRole":   s.CurrentRole,
-			"currentUserId": s.UserICode,
+			"currentUserId":          s.UserICode,
+			"assignedDepartmentId":   s.AssignedDepartmentID,
 			"locale":        salvia_config.Locale,
 			"lang":          s.Lang,
+			"menu":          menu,
 		},
 		utils.GetFullHtmlFuncMap(),
 	)

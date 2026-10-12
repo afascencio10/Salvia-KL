@@ -1,6 +1,6 @@
 # `case-task-modal` — Guía de uso
 
-Componente modal para completar tareas de tipo `gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio` y `justificar_remision`. El padre lo controla mediante una referencia Vue (`ref`) y el método público `open(taskId)`.
+Componente modal para completar tareas de tipo `gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio`, `justificar_remision`, `solicitud_entidad`, `respuesta_entidad`, `articulacion_territorial` y `gestion_mecanismo`. El padre lo controla mediante una referencia Vue (`ref`) y los métodos públicos `open(taskId)`, `openArticulacion(ctx)` o `openMecanismo(ctx)`.
 
 ---
 
@@ -15,6 +15,8 @@ El componente no recibe props. Se controla exclusivamente mediante el método `o
 | Método | Parámetros | Descripción |
 |---|---|---|
 | `open(taskId)` | `taskId: string` — UUID de la `case_task` | Carga la tarea del API, inicializa el formulario según su tipo y muestra el modal |
+| `openArticulacion(ctx)` | `{ taskId?, barrierId, caseId, entityBranchId, entityName, barrierDescription }` | Mis Barreras y «Registrar gestión propia» en Detalle de barrera: formulario de Articulación territorial con o sin tarea previa |
+| `openMecanismo(ctx)` | `{ mechanismId, caseId, scope }` | Casos Mecanismo (rol `mc`): formulario según `scope` (`municipal` / `departamental` / `nacional`). No carga una tarea previa. |
 
 ---
 
@@ -31,6 +33,8 @@ El componente no recibe props. Se controla exclusivamente mediante el método `o
 Al montarse, carga la lista de departamentos y ciudades desde el API para pre-poblar los dropdowns de los formularios `gestion_llamada` y `proyectar_oficio`. No muestra el modal hasta que el padre llame a `open()`.
 
 Si la tarea abierta es de tipo `Corregir oficio`, además hace un `GET /api/v1/entity-letters/:letterId` (usando `tarea.entityLetterId`) para mostrar en modo lectura la razón de corrección y la ruta Kofax del oficio devuelto.
+
+Si la tarea abierta es de tipo `solicitud_entidad`, además hace un `GET /api/v1/entity-cases/:entityCaseId/obligations?status=pendiente` (usando `tarea.entityCaseId`) para pintar el checklist de obligaciones pendientes y el nombre de la organización.
 
 ---
 
@@ -51,6 +55,10 @@ Si la tarea abierta es de tipo `Corregir oficio`, además hace un `GET /api/v1/e
 | `comite_caso` | "Decisiones del Comité" | Checkbox group de decisiones + campos condicionales por decisión |
 | `Corregir oficio` | "Corregir Oficio" | Sin formulario editable — vista de solo lectura con la razón de corrección y la ruta Kofax del `entity_letter` vinculado (`tarea.entityLetterId`). Solo pide confirmación. |
 | `justificar_remision` | "Justificar Remisión" | Caja de solo lectura con `tarea.description` (motivo de devolución del psicólogo/a) + textarea "Tu respuesta" (required, maxlength 500) |
+| `solicitud_entidad` | "Solicitudes a {entityName}" | Checklist de obligaciones pendientes (`entity_case_obligation`); cada ítem seleccionado exige una descripción (maxlength 500). Botón "Enviar solicitudes". |
+| `respuesta_entidad` | "Respuesta institucional" | Caja de solo lectura (obligación + solicitud del agente) + radicado opcional + ampliación opcional + select de estado institucional required. Botón "Enviar respuesta". |
+| `articulacion_territorial` | "Gestionar barrera" | Fecha de contacto, compromiso, seguimiento condicional, sugerencias opcionales. Botón "Guardar". POST `/api/v1/case-tasks/articulacion-territorial`. |
+| `gestion_mecanismo` | Según `scope`: "Gestión del Comité Municipal" / "Gestión del Comité Departamental" / "Gestión de la Instancia Nacional" | Formulario hardcodeado por alcance. Botón "Guardar". POST `/api/v1/case-tasks/gestion-mecanismo` — siempre crea una `case_task` Done. |
 
 ---
 
@@ -63,6 +71,13 @@ Si la tarea abierta es de tipo `Corregir oficio`, además hace un `GET /api/v1/e
 methods: {
   abrirTarea(taskId) {
     this.$refs.taskModal.open(taskId);
+  },
+  abrirMecanismo(item) {
+    this.$refs.taskModal.openMecanismo({
+      mechanismId: item.id,
+      caseId: item.caseId,
+      scope: item.scope,
+    });
   },
   onTaskCompleted(task) {
     // Reflejar el nuevo estado en la UI o recargar datos
@@ -79,7 +94,10 @@ methods: {
 |---|---|---|
 | Cargar tarea | GET | `/api/v1/case-tasks/:taskId` |
 | Completar tarea | PUT | `/api/v1/case-tasks/:taskId/complete` |
+| Guardar articulación territorial | POST | `/api/v1/case-tasks/articulacion-territorial` |
+| Guardar gestión mecanismo | POST | `/api/v1/case-tasks/gestion-mecanismo` |
 | Cargar oficio vinculado (solo `Corregir oficio`) | GET | `/api/v1/entity-letters/:letterId` |
+| Cargar obligaciones pendientes (solo `solicitud_entidad`) | GET | `/api/v1/entity-cases/:entityCaseId/obligations?status=pendiente` |
 | Cargar departamentos | GET | `/api/v1/locations/departments` (al montar) |
 | Cargar ciudades | GET | `/api/v1/locations/cities` (al montar) |
 | Cargar municipios | GET | `/api/v1/locations/towns?city_id={id}` (al seleccionar ciudad) |
@@ -168,3 +186,59 @@ Objeto vacío — no hay campos que enviar. El componente solo confirma la corre
 ```
 
 El motivo de devolución que el agente está respondiendo **no** viaja en el payload — ya está en `tarea.description` (lo dejó `sideEffectsValidateRemision`/`ValidateRemision` al crear esta `case_task`: `"Justificar remisión devuelta — Motivo: {motivo}"`). El backend, al completar esta tarea, reabre la `psychosocial_support` vinculada y crea una nueva `case_task` `validar_remision` — ver tabla "Efectos de lado por tipo de tarea" en `case-task-modal-interface.md`.
+
+#### `formData` para `solicitud_entidad`
+```json
+{
+  "entityName": "string — nombre de la organización",
+  "solicitudes": [
+    {
+      "obligationId": "uuid de entity_case_obligation",
+      "label": "string — texto del ítem",
+      "descripcion": "string — requerida, máx. 500 caracteres"
+    }
+  ]
+}
+```
+
+El backend crea una `case_task` `respuesta_entidad` por cada elemento de `solicitudes`, asignada al único usuario de `security.general_user` con la `entity_branch_id` de la sede. Si no hay exactamente un usuario, responde 400 y no completa la tarea original.
+
+#### `formData` para `respuesta_entidad`
+```json
+{
+  "solicitudTaskId": "uuid de la solicitud_entidad origen",
+  "obligationId": "uuid de entity_case_obligation",
+  "label": "string — obligación (heredado)",
+  "descripcionSolicitud": "string — texto que escribió el agente (heredado)",
+  "radicado": "string | null — opcional, máx. 80",
+  "ampliacion": "string | null — opcional, máx. 500",
+  "estadoInstitucional": "iniciado | en_proceso | concluido",
+  "estadoInstitucionalTexto": "Iniciado | En proceso | Concluido"
+}
+```
+
+El backend solo valida el estado, guarda el JSON y marca `Done`. No cambia `entity_case_obligation.status`.
+
+#### `formData` para `gestion_mecanismo`
+
+Se envía en `POST /api/v1/case-tasks/gestion-mecanismo` junto a `mechanismId`. El backend valida según el `scope` del mecanismo (no un campo del cliente).
+
+```json
+{
+  "mechanismId": "uuid del case_articulating_mechanism",
+  "formData": {
+    "abordadoEnSesion": "si_ordinaria | si_extraordinaria | no  (municipal)",
+    "abordadoEnSesionTexto": "Sí, sesión ordinaria | Sí, sesión extraordinaria | No",
+    "fechaSesion": "YYYY-MM-DD  (municipal, si Sí; opcional)",
+    "compromisos": "string  (municipal, si Sí; opcional)",
+    "fechaProxima": "YYYY-MM-DD  (departamental required; municipal si No, opcional)",
+    "detalleProxima": "string  (departamental required; municipal si No, opcional)",
+    "reporteGestion": "string required",
+    "remisionResponsables": "string opcional (municipal / departamental)",
+    "asistenciasFecha": "YYYY-MM-DD  (nacional required)",
+    "asistenciasTexto": "string  (nacional required)"
+  }
+}
+```
+
+El backend persiste `form_data`, arma `result` concatenando `label: valor` de los campos con dato (separados por `. `) y crea la tarea ya `Done`. No actualiza una tarea previa ni cierra el `case_articulating_mechanism`.

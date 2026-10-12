@@ -244,6 +244,8 @@ app.component('case-task-history', {
                 comite_caso:      'Decisiones del Comité',
                 'Corregir oficio': 'Corregir Oficio',
                 gestion_propia:   'Gestión Propia',
+                solicitud_entidad: 'Solicitud a entidad',
+                respuesta_entidad: 'Respuesta institucional',
             }[this.tarea.type] || 'Detalle de tarea';
         },
 
@@ -255,6 +257,8 @@ app.component('case-task-history', {
                 comite_caso:      'fa-users',
                 'Corregir oficio': 'fa-pencil-alt',
                 gestion_propia:   'fa-link',
+                solicitud_entidad: 'fa-folder',
+                respuesta_entidad: 'fa-reply',
             }[this.tarea.type] || 'fa-tasks';
         },
 
@@ -412,26 +416,18 @@ app.component('case-task-history', {
 
             <!-- Detalle formData: comite_caso -->
             <template v-else-if="tarea.type === 'comite_caso'">
+                <div class="cth-field" v-if="tarea.formData.analisisMesaTecnica">
+                    <label class="cth-field-label">Análisis de la mesa técnica</label>
+                    <div class="cth-field-value">\${ tarea.formData.analisisMesaTecnica }</div>
+                </div>
                 <p class="cth-section-title">Decisiones tomadas</p>
                 <div class="cth-chips">
                     <span class="cth-chip" v-for="d in (tarea.formData.decisionesTexto || [])" :key="d">\${ d }</span>
-                </div>
-                <div class="cth-field" v-if="tarea.formData.observacionesOficio">
-                    <label class="cth-field-label">Obs. oficio</label>
-                    <div class="cth-field-value">\${ tarea.formData.observacionesOficio }</div>
-                </div>
-                <div class="cth-field" v-if="tarea.formData.observacionesRecomendaciones">
-                    <label class="cth-field-label">Obs. recomendaciones</label>
-                    <div class="cth-field-value">\${ tarea.formData.observacionesRecomendaciones }</div>
                 </div>
                 <template v-if="tarea.formData.nivelMecanismo">
                     <div class="cth-field">
                         <label class="cth-field-label">Nivel del mecanismo</label>
                         <div class="cth-field-value">\${ tarea.formData.nivelMecanismoTexto || tarea.formData.nivelMecanismo }</div>
-                    </div>
-                    <div class="cth-field" v-if="tarea.formData.observacionesMecanismo">
-                        <label class="cth-field-label">Obs. mecanismo</label>
-                        <div class="cth-field-value">\${ tarea.formData.observacionesMecanismo }</div>
                     </div>
                 </template>
             </template>
@@ -447,6 +443,44 @@ app.component('case-task-history', {
                 <div class="cth-field">
                     <label class="cth-field-label">Tipo de gestión</label>
                     <div class="cth-field-value">\${ (tarea.formData && tarea.formData.subtipo) || '—' }</div>
+                </div>
+            </template>
+
+            <!-- Detalle formData: solicitud_entidad -->
+            <template v-else-if="tarea.type === 'solicitud_entidad'">
+                <p class="cth-section-title">Solicitudes enviadas</p>
+                <div v-if="tarea.formData && tarea.formData.entityName" class="cth-field">
+                    <label class="cth-field-label">Entidad</label>
+                    <div class="cth-field-value">\${ tarea.formData.entityName }</div>
+                </div>
+                <div v-for="(s, idx) in ((tarea.formData && tarea.formData.solicitudes) || [])" :key="s.obligationId || idx" class="cth-field">
+                    <label class="cth-field-label">\${ s.label || ('Ítem ' + (idx + 1)) }</label>
+                    <div class="cth-field-value">\${ s.descripcion || '—' }</div>
+                </div>
+            </template>
+
+            <!-- Detalle formData: respuesta_entidad -->
+            <template v-else-if="tarea.type === 'respuesta_entidad'">
+                <p class="cth-section-title">Respuesta institucional</p>
+                <div class="cth-field">
+                    <label class="cth-field-label">Obligación</label>
+                    <div class="cth-field-value">\${ (tarea.formData && tarea.formData.label) || '—' }</div>
+                </div>
+                <div class="cth-field">
+                    <label class="cth-field-label">Solicitud</label>
+                    <div class="cth-field-value">\${ (tarea.formData && tarea.formData.descripcionSolicitud) || '—' }</div>
+                </div>
+                <div class="cth-field" v-if="tarea.formData && tarea.formData.radicado">
+                    <label class="cth-field-label">Nº de radicado / NUNC / MP</label>
+                    <div class="cth-field-value">\${ tarea.formData.radicado }</div>
+                </div>
+                <div class="cth-field" v-if="tarea.formData && tarea.formData.ampliacion">
+                    <label class="cth-field-label">Ampliación</label>
+                    <div class="cth-field-value">\${ tarea.formData.ampliacion }</div>
+                </div>
+                <div class="cth-field">
+                    <label class="cth-field-label">Estado institucional</label>
+                    <div class="cth-field-value">\${ (tarea.formData && (tarea.formData.estadoInstitucionalTexto || tarea.formData.estadoInstitucional)) || '—' }</div>
                 </div>
             </template>
 

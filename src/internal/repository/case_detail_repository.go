@@ -27,6 +27,7 @@ type CaseDetailData struct {
 	EmergencyMeasures      []models.EmergencyMeasure      `json:"emergencyMeasures"`
 	PsychosocialSupports   []PsychosocialSupportView      `json:"psychosocialSupports"`
 	EconomicStabilizations []models.EconomicStabilization `json:"economicStabilizations"`
+	ComentariosEquipoTecnico []models.CaseTaskCommentItem  `json:"comentariosEquipoTecnico"`
 	Barriers               []models.BarrierV2              `json:"barriers"`
 	// Campos resumen del caso (form2 enums resueltos)
 	TipoViolencia     []string `json:"tipoViolencia"`
@@ -80,11 +81,12 @@ type CaseDetailRepository interface {
 }
 
 type caseDetailRepository struct {
-	db *gorm.DB
+	db           *gorm.DB
+	caseTaskRepo CaseTaskRepository
 }
 
-func NewCaseDetailRepository(db *gorm.DB) CaseDetailRepository {
-	return &caseDetailRepository{db: db}
+func NewCaseDetailRepository(db *gorm.DB, caseTaskRepo CaseTaskRepository) CaseDetailRepository {
+	return &caseDetailRepository{db: db, caseTaskRepo: caseTaskRepo}
 }
 
 func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string) (*CaseDetailData, error) {
@@ -363,6 +365,13 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 	var es []models.EconomicStabilization
 	r.db.WithContext(ctx).Where("case_id = ?", vc.VictimCaseICode).Find(&es)
 	result.EconomicStabilizations = es
+
+	comentarios, cErr := r.caseTaskRepo.FindCommentsByCaseID(ctx, vc.VictimCaseICode)
+	if cErr == nil {
+		result.ComentariosEquipoTecnico = comentarios
+	} else {
+		result.ComentariosEquipoTecnico = []models.CaseTaskCommentItem{}
+	}
 
 	var barriers []models.BarrierV2
 	r.db.WithContext(ctx).Where("case_id = ?", vc.VictimCaseICode).Find(&barriers)

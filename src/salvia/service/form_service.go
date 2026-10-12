@@ -35,26 +35,26 @@ type UpdateFormInput struct {
 
 type QuestionStructure struct {
 	models.Question
-	Options       []models.Option               `json:"options"`
-	Conditions    []models.VisibilityCondition  `json:"conditions"`
-	Modifications []models.RenderModification   `json:"modifications"`
+	Options       []models.Option              `json:"options"`
+	Conditions    []models.VisibilityCondition `json:"conditions"`
+	Modifications []models.RenderModification  `json:"modifications"`
 }
 
 type RepeaterStructure struct {
 	models.RepeaterGroup
-	Questions     []QuestionStructure           `json:"questions"`
-	Conditions    []models.VisibilityCondition  `json:"conditions"`
-	Modifications []models.RenderModification   `json:"modifications"`
+	Questions     []QuestionStructure          `json:"questions"`
+	Conditions    []models.VisibilityCondition `json:"conditions"`
+	Modifications []models.RenderModification  `json:"modifications"`
 }
 
 type SectionStructure struct {
 	models.FormSection
-	Questions     []QuestionStructure           `json:"questions"`
-	Repeaters     []RepeaterStructure           `json:"repeaters"`
-	Conditions    []models.VisibilityCondition  `json:"conditions"`
-	Modifications []models.RenderModification   `json:"modifications"`
-	IsAnswered    bool                          `json:"isAnswered"`
-	IsVisible     bool                          `json:"isVisible"`
+	Questions     []QuestionStructure          `json:"questions"`
+	Repeaters     []RepeaterStructure          `json:"repeaters"`
+	Conditions    []models.VisibilityCondition `json:"conditions"`
+	Modifications []models.RenderModification  `json:"modifications"`
+	IsAnswered    bool                         `json:"isAnswered"`
+	IsVisible     bool                         `json:"isVisible"`
 }
 
 type FormStructure struct {
@@ -79,16 +79,16 @@ type SubmissionStructure struct {
 
 type QuestionStructured struct {
 	QuestionStructure
-	SubmissionVisible bool             `json:"submissionVisible"`
+	SubmissionVisible bool              `json:"submissionVisible"`
 	FailedConditions  []FailedCondition `json:"failedConditions,omitempty"`
-	Answer            *models.Answer   `json:"answer,omitempty"`
+	Answer            *models.Answer    `json:"answer,omitempty"`
 }
 
 type RepeaterEntryQuestion struct {
 	QuestionStructure
-	SubmissionVisible bool             `json:"submissionVisible"`
+	SubmissionVisible bool              `json:"submissionVisible"`
 	FailedConditions  []FailedCondition `json:"failedConditions,omitempty"`
-	Answer            *models.Answer   `json:"answer,omitempty"`
+	Answer            *models.Answer    `json:"answer,omitempty"`
 }
 
 type RepeaterEntryStructured struct {
@@ -101,7 +101,7 @@ type RepeaterStructured struct {
 	Questions         []QuestionStructure          `json:"questions"`
 	Conditions        []models.VisibilityCondition `json:"conditions"`
 	SubmissionVisible bool                         `json:"submissionVisible"`
-	FailedConditions  []FailedCondition             `json:"failedConditions,omitempty"`
+	FailedConditions  []FailedCondition            `json:"failedConditions,omitempty"`
 	Entries           []RepeaterEntryStructured    `json:"entries"`
 }
 
@@ -111,7 +111,7 @@ type SectionStructured struct {
 	Repeaters         []RepeaterStructured         `json:"repeaters"`
 	Conditions        []models.VisibilityCondition `json:"conditions"`
 	SubmissionVisible bool                         `json:"submissionVisible"`
-	FailedConditions  []FailedCondition             `json:"failedConditions,omitempty"`
+	FailedConditions  []FailedCondition            `json:"failedConditions,omitempty"`
 }
 
 type FormSubmissionStructured struct {
@@ -137,70 +137,90 @@ type FormService interface {
 	// completar el formulario. Ver comentario en su implementación.
 	OnSectionUpdate(ctx context.Context, formID, submissionID, actorID string) error
 	TestFunction(ctx context.Context, fn, id, submissionID string) (interface{}, error)
+
+	// ProcessVictimCaseEntidadEntries procesa la sección "Identificación de
+	// Entidades" de Registro de Caso (pantalla legacy, sin dinamic-form) —
+	// llamado post-commit desde VictimCaseController.SetVictimCase. Ver
+	// DocsMD/Otros/temp/agregar-identificacion-entidades-registro-caso-legacy.md.
+	ProcessVictimCaseEntidadEntries(ctx context.Context, caseID, actorID string, acudidas, activacion []VictimCaseEntidadEntryInput) error
+
+	// ProcessManualRemision crea derivaciones a equipos SALVIA (y medidas de
+	// emergencia) directamente para un caso, sin pasar por el formulario de
+	// seguimiento — usado por el modal "Remisión a equipos" del Equipo Técnico
+	// en Detalle del Caso → Derivaciones. Ver remision_manual_equipos.go.
+	ProcessManualRemision(ctx context.Context, caseID, actorID string, answerMap map[string]string) (int, error)
 }
 
 type FormServiceDeps struct {
-	FormRepo                   repository.FormRepository
-	FormSectionRepo            repository.FormSectionRepository
-	QuestionRepo               repository.QuestionRepository
-	RepeaterGroupRepo          repository.RepeaterGroupRepository
-	OptionRepo                 repository.OptionRepository
-	VisibilityCondRepo         repository.VisibilityConditionRepository
-	RenderModificationRepo     repository.RenderModificationRepository
-	FormSubmissionRepo         repository.FormSubmissionRepository
-	RepeaterEntryRepo          repository.RepeaterEntryRepository
-	AnswerRepo                 repository.AnswerRepository
-	FollowUpRepo               repository.FollowUpRepository
-	FollowUpAttemptRepo        repository.FollowUpAttemptRepository
-	EmergencyMeasureRepo       repository.EmergencyMeasureRepository
-	PsychosocialSupportRepo    repository.PsychosocialSupportRepository
-	EconomicStabilizationRepo  repository.EconomicStabilizationRepository
-	BarrierV2Repo              repository.BarrierV2Repository
-	CaseTimelineEventRepo      repository.CaseTimelineEventRepository
-	AgentLightRepo             repository.AgentLightRepository
-	MenTeamRemisionRepo        repository.MenTeamRemisionRepository
-	DiscapacidadRemisionRepo   repository.DiscapacidadRemisionRepository
-	CasoCierreService          CasoCierreService
-	CaseRepo                   repository.VictimCaseLightRepository
-	FollowUpV2Svc              FollowUpV2Service
-	CaseTaskRepo               repository.CaseTaskRepository
-	EntityLetterRepo           repository.EntityLetterRepository
-	BarrierFollowUpRepo        repository.BarrierFollowUpRepository
-	TeamContactRepo            repository.TeamContactRepository
-	DuplaRepo                  repository.DuplaRepository
-	VictimCaseFormSvc          VictimCaseFormService
+	FormRepo                  repository.FormRepository
+	FormSectionRepo           repository.FormSectionRepository
+	QuestionRepo              repository.QuestionRepository
+	RepeaterGroupRepo         repository.RepeaterGroupRepository
+	OptionRepo                repository.OptionRepository
+	VisibilityCondRepo        repository.VisibilityConditionRepository
+	RenderModificationRepo    repository.RenderModificationRepository
+	FormSubmissionRepo        repository.FormSubmissionRepository
+	RepeaterEntryRepo         repository.RepeaterEntryRepository
+	AnswerRepo                repository.AnswerRepository
+	FollowUpRepo              repository.FollowUpRepository
+	FollowUpAttemptRepo       repository.FollowUpAttemptRepository
+	EmergencyMeasureRepo      repository.EmergencyMeasureRepository
+	PsychosocialSupportRepo   repository.PsychosocialSupportRepository
+	EconomicStabilizationRepo repository.EconomicStabilizationRepository
+	BarrierV2Repo             repository.BarrierV2Repository
+	CaseTimelineEventRepo     repository.CaseTimelineEventRepository
+	AgentLightRepo            repository.AgentLightRepository
+	MenTeamRemisionRepo       repository.MenTeamRemisionRepository
+	DiscapacidadRemisionRepo  repository.DiscapacidadRemisionRepository
+	CasoCierreService         CasoCierreService
+	CaseRepo                  repository.VictimCaseLightRepository
+	FollowUpV2Svc             FollowUpV2Service
+	CaseTaskRepo              repository.CaseTaskRepository
+	EntityLetterRepo          repository.EntityLetterRepository
+	BarrierFollowUpRepo       repository.BarrierFollowUpRepository
+	TeamContactRepo           repository.TeamContactRepository
+	DuplaRepo                 repository.DuplaRepository
+	VictimCaseFormSvc         VictimCaseFormService
+	EntityCaseSvc             EntityCaseService
+	EntityObligationRepo      repository.EntityObligationRepository
+	EntityCaseObligationRepo  repository.EntityCaseObligationRepository
+	EntityCaseFollowUpRepo    repository.EntityCaseFollowUpRepository
 }
 
 type formService struct {
-	repo                   repository.FormRepository
-	formSectionRepo        repository.FormSectionRepository
-	questionRepo           repository.QuestionRepository
-	repeaterGroupRepo      repository.RepeaterGroupRepository
-	optionRepo             repository.OptionRepository
-	visibilityCondRepo         repository.VisibilityConditionRepository
-	renderModificationRepo     repository.RenderModificationRepository
-	submissionRepo         repository.FormSubmissionRepository
-	repeaterEntryRepo      repository.RepeaterEntryRepository
-	answerRepo             repository.AnswerRepository
-	followUpRepo           repository.FollowUpRepository
-	followUpAttemptRepo    repository.FollowUpAttemptRepository
-	emergencyMeasureRepo   repository.EmergencyMeasureRepository
-	psychosocialSupportRepo    repository.PsychosocialSupportRepository
-	economicStabilizationRepo  repository.EconomicStabilizationRepository
-	barrierV2Repo              repository.BarrierV2Repository
-	caseTimelineRepo           repository.CaseTimelineEventRepository
-	agentLightRepo             repository.AgentLightRepository
-	menTeamRemisionRepo        repository.MenTeamRemisionRepository
-	discapacidadRemisionRepo   repository.DiscapacidadRemisionRepository
-	casoCierreService          CasoCierreService
-	caseRepo                   repository.VictimCaseLightRepository
-	followUpV2Svc              FollowUpV2Service
-	caseTaskRepo               repository.CaseTaskRepository
-	entityLetterRepo           repository.EntityLetterRepository
-	barrierFollowUpRepo        repository.BarrierFollowUpRepository
-	teamContactRepo            repository.TeamContactRepository
-	duplaRepo                  repository.DuplaRepository
-	victimCaseFormSvc          VictimCaseFormService
+	repo                      repository.FormRepository
+	formSectionRepo           repository.FormSectionRepository
+	questionRepo              repository.QuestionRepository
+	repeaterGroupRepo         repository.RepeaterGroupRepository
+	optionRepo                repository.OptionRepository
+	visibilityCondRepo        repository.VisibilityConditionRepository
+	renderModificationRepo    repository.RenderModificationRepository
+	submissionRepo            repository.FormSubmissionRepository
+	repeaterEntryRepo         repository.RepeaterEntryRepository
+	answerRepo                repository.AnswerRepository
+	followUpRepo              repository.FollowUpRepository
+	followUpAttemptRepo       repository.FollowUpAttemptRepository
+	emergencyMeasureRepo      repository.EmergencyMeasureRepository
+	psychosocialSupportRepo   repository.PsychosocialSupportRepository
+	economicStabilizationRepo repository.EconomicStabilizationRepository
+	barrierV2Repo             repository.BarrierV2Repository
+	caseTimelineRepo          repository.CaseTimelineEventRepository
+	agentLightRepo            repository.AgentLightRepository
+	menTeamRemisionRepo       repository.MenTeamRemisionRepository
+	discapacidadRemisionRepo  repository.DiscapacidadRemisionRepository
+	casoCierreService         CasoCierreService
+	caseRepo                  repository.VictimCaseLightRepository
+	followUpV2Svc             FollowUpV2Service
+	caseTaskRepo              repository.CaseTaskRepository
+	entityLetterRepo          repository.EntityLetterRepository
+	barrierFollowUpRepo       repository.BarrierFollowUpRepository
+	teamContactRepo           repository.TeamContactRepository
+	duplaRepo                 repository.DuplaRepository
+	victimCaseFormSvc         VictimCaseFormService
+	entityCaseSvc             EntityCaseService
+	entityObligationRepo      repository.EntityObligationRepository
+	entityCaseObligationRepo  repository.EntityCaseObligationRepository
+	entityCaseFollowUpRepo    repository.EntityCaseFollowUpRepository
 }
 
 func NewFormService(deps FormServiceDeps) FormService {
@@ -234,6 +254,10 @@ func NewFormService(deps FormServiceDeps) FormService {
 		teamContactRepo:           deps.TeamContactRepo,
 		duplaRepo:                 deps.DuplaRepo,
 		victimCaseFormSvc:         deps.VictimCaseFormSvc,
+		entityCaseSvc:             deps.EntityCaseSvc,
+		entityObligationRepo:      deps.EntityObligationRepo,
+		entityCaseObligationRepo:  deps.EntityCaseObligationRepo,
+		entityCaseFollowUpRepo:    deps.EntityCaseFollowUpRepo,
 	}
 }
 
@@ -270,9 +294,15 @@ func (s *formService) Create(ctx context.Context, input CreateFormInput) (*model
 
 func (s *formService) Update(ctx context.Context, id string, input UpdateFormInput) (*models.Form, error) {
 	fields := map[string]interface{}{}
-	if input.Name != nil        { fields["name"] = *input.Name }
-	if input.Description != nil { fields["description"] = *input.Description }
-	if input.Status != nil      { fields["status"] = *input.Status }
+	if input.Name != nil {
+		fields["name"] = *input.Name
+	}
+	if input.Description != nil {
+		fields["description"] = *input.Description
+	}
+	if input.Status != nil {
+		fields["status"] = *input.Status
+	}
 
 	if err := s.repo.UpdateFields(ctx, id, fields); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -384,7 +414,7 @@ func (s *formService) GetFormStructure(ctx context.Context, formID string) (*For
 	}
 
 	// questions by sectionID (section-level) and by repeaterGroupID
-	sectionQuestions  := map[string][]QuestionStructure{}
+	sectionQuestions := map[string][]QuestionStructure{}
 	repeaterQuestions := map[string][]QuestionStructure{}
 	for _, q := range questions {
 		qs := QuestionStructure{
@@ -393,9 +423,15 @@ func (s *formService) GetFormStructure(ctx context.Context, formID string) (*For
 			Conditions:    vcByKey["QUESTION:"+q.ID],
 			Modifications: rmByTargetID[q.ID],
 		}
-		if qs.Options == nil        { qs.Options = []models.Option{} }
-		if qs.Conditions == nil     { qs.Conditions = []models.VisibilityCondition{} }
-		if qs.Modifications == nil  { qs.Modifications = []models.RenderModification{} }
+		if qs.Options == nil {
+			qs.Options = []models.Option{}
+		}
+		if qs.Conditions == nil {
+			qs.Conditions = []models.VisibilityCondition{}
+		}
+		if qs.Modifications == nil {
+			qs.Modifications = []models.RenderModification{}
+		}
 
 		if q.RepeaterGroupID != nil {
 			repeaterQuestions[*q.RepeaterGroupID] = append(repeaterQuestions[*q.RepeaterGroupID], qs)
@@ -413,9 +449,15 @@ func (s *formService) GetFormStructure(ctx context.Context, formID string) (*For
 			Conditions:    vcByKey["REPEATER_GROUP:"+rg.ID],
 			Modifications: rmByTargetID[rg.ID],
 		}
-		if rs.Questions == nil      { rs.Questions = []QuestionStructure{} }
-		if rs.Conditions == nil     { rs.Conditions = []models.VisibilityCondition{} }
-		if rs.Modifications == nil  { rs.Modifications = []models.RenderModification{} }
+		if rs.Questions == nil {
+			rs.Questions = []QuestionStructure{}
+		}
+		if rs.Conditions == nil {
+			rs.Conditions = []models.VisibilityCondition{}
+		}
+		if rs.Modifications == nil {
+			rs.Modifications = []models.RenderModification{}
+		}
 		repeatersBySection[rg.FormSectionID] = append(repeatersBySection[rg.FormSectionID], rs)
 	}
 
@@ -426,10 +468,18 @@ func (s *formService) GetFormStructure(ctx context.Context, formID string) (*For
 		rs := repeatersBySection[sec.ID]
 		cs := vcByKey["SECTION:"+sec.ID]
 		ms := rmByTargetID[sec.ID]
-		if qs == nil { qs = []QuestionStructure{} }
-		if rs == nil { rs = []RepeaterStructure{} }
-		if cs == nil { cs = []models.VisibilityCondition{} }
-		if ms == nil { ms = []models.RenderModification{} }
+		if qs == nil {
+			qs = []QuestionStructure{}
+		}
+		if rs == nil {
+			rs = []RepeaterStructure{}
+		}
+		if cs == nil {
+			cs = []models.VisibilityCondition{}
+		}
+		if ms == nil {
+			ms = []models.RenderModification{}
+		}
 		sectionStructures[i] = SectionStructure{
 			FormSection:   sec,
 			Questions:     qs,
@@ -705,11 +755,11 @@ func (s *formService) TestFunction(ctx context.Context, fn, id, submissionID str
 	// ?fn=validateAnswer
 	case "validateAnswer":
 		type testCase struct {
-			Desc   string              `json:"desc"`
-			Input  string              `json:"input"`
-			Want   bool                `json:"want"`
+			Desc   string               `json:"desc"`
+			Input  string               `json:"input"`
+			Want   bool                 `json:"want"`
 			Result ValidateAnswerResult `json:"result"`
-			Pass   bool                `json:"pass"`
+			Pass   bool                 `json:"pass"`
 		}
 
 		makeQ := func(typeID string, required bool) QuestionStructure {
@@ -723,59 +773,62 @@ func (s *formService) TestFunction(ctx context.Context, fn, id, submissionID str
 
 		cases := []testCase{
 			// required=false → siempre válido sin importar el valor
-			{"required=false ignora valor vacío",   "",            true,  ValidateAnswerResult{}, false},
-			{"required=false ignora valor inválido","abc",         true,  ValidateAnswerResult{}, false},
+			{"required=false ignora valor vacío", "", true, ValidateAnswerResult{}, false},
+			{"required=false ignora valor inválido", "abc", true, ValidateAnswerResult{}, false},
 
 			// text
-			{"text requerido vacío",                "",            false, ValidateAnswerResult{}, false},
-			{"text requerido solo espacios",        "   ",         false, ValidateAnswerResult{}, false},
-			{"text requerido con valor",            "hola",        true,  ValidateAnswerResult{}, false},
+			{"text requerido vacío", "", false, ValidateAnswerResult{}, false},
+			{"text requerido solo espacios", "   ", false, ValidateAnswerResult{}, false},
+			{"text requerido con valor", "hola", true, ValidateAnswerResult{}, false},
 
 			// number
-			{"number requerido vacío",              "",            false, ValidateAnswerResult{}, false},
-			{"number requerido texto",              "abc",         false, ValidateAnswerResult{}, false},
-			{"number requerido decimal",            "3.14",        true,  ValidateAnswerResult{}, false},
-			{"number requerido negativo",           "-5",          true,  ValidateAnswerResult{}, false},
+			{"number requerido vacío", "", false, ValidateAnswerResult{}, false},
+			{"number requerido texto", "abc", false, ValidateAnswerResult{}, false},
+			{"number requerido decimal", "3.14", true, ValidateAnswerResult{}, false},
+			{"number requerido negativo", "-5", true, ValidateAnswerResult{}, false},
 
 			// date
-			{"date requerido vacío",                "",            false, ValidateAnswerResult{}, false},
-			{"date requerido mes inválido",         "2026-13-01",  false, ValidateAnswerResult{}, false},
-			{"date requerido formato incorrecto",   "11/04/2026",  false, ValidateAnswerResult{}, false},
-			{"date requerido formato correcto",     "2026-04-11",  true,  ValidateAnswerResult{}, false},
+			{"date requerido vacío", "", false, ValidateAnswerResult{}, false},
+			{"date requerido mes inválido", "2026-13-01", false, ValidateAnswerResult{}, false},
+			{"date requerido formato incorrecto", "11/04/2026", false, ValidateAnswerResult{}, false},
+			{"date requerido formato correcto", "2026-04-11", true, ValidateAnswerResult{}, false},
 
 			// datetime
-			{"datetime requerido vacío",            "",                    false, ValidateAnswerResult{}, false},
-			{"datetime requerido solo fecha",       "2026-04-11",          false, ValidateAnswerResult{}, false},
-			{"datetime requerido datetime-local",   "2026-04-11T17:30",    true,  ValidateAnswerResult{}, false},
-			{"datetime requerido RFC3339",          "2026-04-11T17:30:00Z",true,  ValidateAnswerResult{}, false},
+			{"datetime requerido vacío", "", false, ValidateAnswerResult{}, false},
+			{"datetime requerido solo fecha", "2026-04-11", false, ValidateAnswerResult{}, false},
+			{"datetime requerido datetime-local", "2026-04-11T17:30", true, ValidateAnswerResult{}, false},
+			{"datetime requerido RFC3339", "2026-04-11T17:30:00Z", true, ValidateAnswerResult{}, false},
 
 			// single / dropdown
-			{"single requerido vacío",              "",       false, ValidateAnswerResult{}, false},
-			{"single requerido con valor",          "Alto",   true,  ValidateAnswerResult{}, false},
-			{"dropdown requerido vacío",            "",       false, ValidateAnswerResult{}, false},
-			{"dropdown requerido con valor",        "Ana M.", true,  ValidateAnswerResult{}, false},
+			{"single requerido vacío", "", false, ValidateAnswerResult{}, false},
+			{"single requerido con valor", "Alto", true, ValidateAnswerResult{}, false},
+			{"dropdown requerido vacío", "", false, ValidateAnswerResult{}, false},
+			{"dropdown requerido con valor", "Ana M.", true, ValidateAnswerResult{}, false},
 
 			// boolean
-			{"boolean requerido vacío",             "",       false, ValidateAnswerResult{}, false},
-			{"boolean requerido valor inválido",    "maybe",  false, ValidateAnswerResult{}, false},
-			{"boolean requerido false es válido",   "false",  true,  ValidateAnswerResult{}, false},
-			{"boolean requerido true es válido",    "true",   true,  ValidateAnswerResult{}, false},
+			{"boolean requerido vacío", "", false, ValidateAnswerResult{}, false},
+			{"boolean requerido valor inválido", "maybe", false, ValidateAnswerResult{}, false},
+			{"boolean requerido false es válido", "false", true, ValidateAnswerResult{}, false},
+			{"boolean requerido true es válido", "true", true, ValidateAnswerResult{}, false},
 
 			// multiple
-			{"multiple requerido vacío",            "",               false, ValidateAnswerResult{}, false},
-			{"multiple requerido con valores csv",  "Salud,Justicia", true,  ValidateAnswerResult{}, false},
+			{"multiple requerido vacío", "", false, ValidateAnswerResult{}, false},
+			{"multiple requerido con valores csv", "Salud,Justicia", true, ValidateAnswerResult{}, false},
 		}
 
 		// Tipos correspondientes a cada caso (alineados con el slice anterior)
-		types := []struct{ typeID string; required bool }{
-			{"text",     false}, {"number",   false},
-			{"text",     true},  {"text",     true},  {"text",     true},
-			{"number",   true},  {"number",   true},  {"number",   true},  {"number",   true},
-			{"date",     true},  {"date",     true},  {"date",     true},  {"date",     true},
-			{"datetime", true},  {"datetime", true},  {"datetime", true},  {"datetime", true},
-			{"single",   true},  {"single",   true},  {"dropdown", true},  {"dropdown", true},
-			{"boolean",  true},  {"boolean",  true},  {"boolean",  true},  {"boolean",  true},
-			{"multiple", true},  {"multiple", true},
+		types := []struct {
+			typeID   string
+			required bool
+		}{
+			{"text", false}, {"number", false},
+			{"text", true}, {"text", true}, {"text", true},
+			{"number", true}, {"number", true}, {"number", true}, {"number", true},
+			{"date", true}, {"date", true}, {"date", true}, {"date", true},
+			{"datetime", true}, {"datetime", true}, {"datetime", true}, {"datetime", true},
+			{"single", true}, {"single", true}, {"dropdown", true}, {"dropdown", true},
+			{"boolean", true}, {"boolean", true}, {"boolean", true}, {"boolean", true},
+			{"multiple", true}, {"multiple", true},
 		}
 
 		passed, failed := 0, 0
@@ -841,13 +894,13 @@ func (s *formService) TestFunction(ctx context.Context, fn, id, submissionID str
 		}
 
 		type testCase struct {
-			Desc       string          `json:"desc"`
-			QuestionID string          `json:"questionId"`
-			HasAnswer  bool            `json:"hasAnswer"`
-			AnswerVal  string          `json:"answerValue"`
+			Desc       string           `json:"desc"`
+			QuestionID string           `json:"questionId"`
+			HasAnswer  bool             `json:"hasAnswer"`
+			AnswerVal  string           `json:"answerValue"`
 			Want       IsAnsweredResult `json:"want"`
 			Got        IsAnsweredResult `json:"got"`
-			Pass       bool            `json:"pass"`
+			Pass       bool             `json:"pass"`
 		}
 
 		makeAnswer := func(qID, val string) *models.Answer {
@@ -857,11 +910,11 @@ func (s *formService) TestFunction(ctx context.Context, fn, id, submissionID str
 
 		// IDs conocidos del form de prueba
 		const (
-			qNivelRiesgo       = "a1937f54-9282-48bb-bf6b-2a8bd9933c85" // single, required
-			qNuevosHechos      = "da90b1c9-45a1-4e2a-83dd-a2ae77cf5227" // boolean, required
-			qDescHechos        = "f8453544-2a8c-461d-9986-302ee4719492" // text, NOT required — visible solo si nuevos_hechos=true
-			qCodigoInterno     = "81d7b17f-3438-4d07-b72f-b45f858d56c4" // text, NOT required
-			qInfoPsicosocial   = "6891fbec-da1d-46e6-9c3b-3bb824d19631" // text, required
+			qNivelRiesgo     = "a1937f54-9282-48bb-bf6b-2a8bd9933c85" // single, required
+			qNuevosHechos    = "da90b1c9-45a1-4e2a-83dd-a2ae77cf5227" // boolean, required
+			qDescHechos      = "f8453544-2a8c-461d-9986-302ee4719492" // text, NOT required — visible solo si nuevos_hechos=true
+			qCodigoInterno   = "81d7b17f-3438-4d07-b72f-b45f858d56c4" // text, NOT required
+			qInfoPsicosocial = "6891fbec-da1d-46e6-9c3b-3bb824d19631" // text, required
 		)
 
 		// Para los casos de visibilidad condicional construimos un sub sintético
@@ -879,33 +932,33 @@ func (s *formService) TestFunction(ctx context.Context, fn, id, submissionID str
 		}
 
 		cases := []struct {
-			desc     string
-			qID      string
-			answer   *models.Answer
-			sub      *SubmissionStructure
-			wantVis  bool
-			wantAns  bool
+			desc    string
+			qID     string
+			answer  *models.Answer
+			sub     *SubmissionStructure
+			wantVis bool
+			wantAns bool
 		}{
 			// visible, required, sin respuesta → not answered
-			{"required sin respuesta (nil)",          qNivelRiesgo,     nil,                          sub,         true,  false},
+			{"required sin respuesta (nil)", qNivelRiesgo, nil, sub, true, false},
 			// visible, required, answer vacío → not answered
-			{"required answer vacío",                 qNivelRiesgo,     makeAnswer(qNivelRiesgo, ""), sub,         true,  false},
+			{"required answer vacío", qNivelRiesgo, makeAnswer(qNivelRiesgo, ""), sub, true, false},
 			// visible, required, answer válido → answered
-			{"required answer válido",                qNivelRiesgo,     makeAnswer(qNivelRiesgo, "Alto"), sub,     true,  true},
+			{"required answer válido", qNivelRiesgo, makeAnswer(qNivelRiesgo, "Alto"), sub, true, true},
 			// visible, NOT required, sin respuesta → answered (no es requerida)
-			{"not required sin respuesta",            qCodigoInterno,   nil,                          sub,         true,  true},
+			{"not required sin respuesta", qCodigoInterno, nil, sub, true, true},
 			// NOT visible (condición no cumplida: nuevos_hechos=false) → answered
-			{"not visible por condición false",       qDescHechos,      nil,                          subConFalse, false, true},
+			{"not visible por condición false", qDescHechos, nil, subConFalse, false, true},
 			// SÍ visible (condición cumplida: nuevos_hechos=true), not required, sin answer → answered
-			{"visible por condición true, not req",   qDescHechos,      nil,                          subConTrue,  true,  true},
+			{"visible por condición true, not req", qDescHechos, nil, subConTrue, true, true},
 			// sin submission (sub=nil): condición no evaluable → visible por defecto, required, sin answer
-			{"sub nil, required sin respuesta",       qInfoPsicosocial, nil,                          nil,         true,  false},
+			{"sub nil, required sin respuesta", qInfoPsicosocial, nil, nil, true, false},
 		}
 
 		type result struct {
-			Desc   string          `json:"desc"`
-			Got    IsAnsweredResult `json:"got"`
-			Pass   bool            `json:"pass"`
+			Desc string           `json:"desc"`
+			Got  IsAnsweredResult `json:"got"`
+			Pass bool             `json:"pass"`
 		}
 		var results []result
 		passed, failed := 0, 0
@@ -919,16 +972,20 @@ func (s *formService) TestFunction(ctx context.Context, fn, id, submissionID str
 			}
 			got := isAnsweredQuestion(qwo.q, qwo.order, c.answer, fs, c.sub, nil)
 			pass := got.IsVisible == c.wantVis && got.IsAnswered == c.wantAns
-			if pass { passed++ } else { failed++ }
+			if pass {
+				passed++
+			} else {
+				failed++
+			}
 			results = append(results, result{c.desc, got, pass})
 		}
 
 		return map[string]interface{}{
-			"passed":  passed,
-			"failed":  failed,
-			"total":   len(cases),
-			"ok":      failed == 0,
-			"cases":   results,
+			"passed": passed,
+			"failed": failed,
+			"total":  len(cases),
+			"ok":     failed == 0,
+			"cases":  results,
 		}, nil
 
 	// Pruebas de isAnsweredRepeater
@@ -958,12 +1015,12 @@ func (s *formService) TestFunction(ctx context.Context, fn, id, submissionID str
 		}
 
 		// Encontrar el repeater y su sección en el form
-		var repeater    RepeaterStructure
+		var repeater RepeaterStructure
 		var sectionOrder int
 		for _, sec := range fs.Sections {
 			for _, r := range sec.Repeaters {
 				if r.ID == repeaterID {
-					repeater     = r
+					repeater = r
 					sectionOrder = sec.Order
 				}
 			}
@@ -1004,15 +1061,15 @@ func (s *formService) TestFunction(ctx context.Context, fn, id, submissionID str
 		//  y verificamos que sin condiciones siempre es visible)
 
 		type testCase struct {
-			Desc       string                   `json:"desc"`
-			WantVis    bool                     `json:"wantVisible"`
-			WantAns    bool                     `json:"wantAnswered"`
-			Got        IsAnsweredRepeaterResult `json:"got"`
-			Pass       bool                     `json:"pass"`
+			Desc    string                   `json:"desc"`
+			WantVis bool                     `json:"wantVisible"`
+			WantAns bool                     `json:"wantAnswered"`
+			Got     IsAnsweredRepeaterResult `json:"got"`
+			Pass    bool                     `json:"pass"`
 		}
 
 		runCase := func(desc string, r RepeaterStructure, entries []RepeaterEntryStructure, sub *SubmissionStructure, wantVis, wantAns bool) testCase {
-			got  := isAnsweredRepeater(r, sectionOrder, entries, fs, sub, nil)
+			got := isAnsweredRepeater(r, sectionOrder, entries, fs, sub, nil)
 			pass := got.IsVisible == wantVis && got.IsAnswered == wantAns
 			return testCase{desc, wantVis, wantAns, got, pass}
 		}
@@ -1042,7 +1099,11 @@ func (s *formService) TestFunction(ctx context.Context, fn, id, submissionID str
 
 		passed, failed := 0, 0
 		for _, c := range cases {
-			if c.Pass { passed++ } else { failed++ }
+			if c.Pass {
+				passed++
+			} else {
+				failed++
+			}
 		}
 
 		return map[string]interface{}{
@@ -1076,10 +1137,10 @@ func (s *formService) TestFunction(ctx context.Context, fn, id, submissionID str
 			return sub
 		}
 
-		subVacio  := loadSub(subSinRespuestasID)
-		subSec1   := loadSub(subSec1ID)
-		subSec2   := loadSub(subSec2ID)
-		subSec4   := loadSub(subSec4ID)
+		subVacio := loadSub(subSinRespuestasID)
+		subSec1 := loadSub(subSec1ID)
+		subSec2 := loadSub(subSec2ID)
+		subSec4 := loadSub(subSec4ID)
 
 		// Índice de secciones por order
 		secByOrder := map[int]SectionStructure{}
@@ -1088,34 +1149,34 @@ func (s *formService) TestFunction(ctx context.Context, fn, id, submissionID str
 		}
 
 		type testCase struct {
-			Desc    string          `json:"desc"`
-			WantVis bool            `json:"wantVisible"`
-			WantAns bool            `json:"wantAnswered"`
+			Desc    string           `json:"desc"`
+			WantVis bool             `json:"wantVisible"`
+			WantAns bool             `json:"wantAnswered"`
 			Got     IsAnsweredResult `json:"got"`
-			Pass    bool            `json:"pass"`
+			Pass    bool             `json:"pass"`
 		}
 
 		run := func(desc string, secOrder int, sub *SubmissionStructure, wantVis, wantAns bool) testCase {
-			got  := isAnsweredSection(secByOrder[secOrder], fs, sub, nil)
+			got := isAnsweredSection(secByOrder[secOrder], fs, sub, nil)
 			pass := got.IsVisible == wantVis && got.IsAnswered == wantAns
 			return testCase{desc, wantVis, wantAns, got, pass}
 		}
 
 		cases := []testCase{
 			// sub nil con sección que tiene required → no respondida
-			run("sub nil, sección 1 (tiene required)",         1, nil,      true, false),
+			run("sub nil, sección 1 (tiene required)", 1, nil, true, false),
 			// sin ninguna respuesta, sección 1 tiene required → no respondida
-			run("sin respuestas, sección 1",                   1, subVacio, true, false),
+			run("sin respuestas, sección 1", 1, subVacio, true, false),
 			// sub con sección 1 completa → respondida
-			run("sub sec1, sección 1 → ok",                    1, subSec1,  true, true),
+			run("sub sec1, sección 1 → ok", 1, subSec1, true, true),
 			// mismo sub pero evaluando sección 2 → no respondida (no llega a sec2)
-			run("sub sec1, sección 2 → no ok",                 2, subSec1,  true, false),
+			run("sub sec1, sección 2 → no ok", 2, subSec1, true, false),
 			// sub hasta sec2, sección 2 → respondida
-			run("sub sec2, sección 2 → ok",                    2, subSec2,  true, true),
+			run("sub sec2, sección 2 → ok", 2, subSec2, true, true),
 			// sub hasta sec2, sección 3 → no respondida
-			run("sub sec2, sección 3 → no ok",                 3, subSec2,  true, false),
+			run("sub sec2, sección 3 → no ok", 3, subSec2, true, false),
 			// sub hasta sec4 con repeater (minRep=0) → sección 4 respondida
-			run("sub sec4, sección 4 (repeater minRep=0) → ok",4, subSec4,  true, true),
+			run("sub sec4, sección 4 (repeater minRep=0) → ok", 4, subSec4, true, true),
 		}
 
 		passed, failed := 0, 0
@@ -1160,25 +1221,29 @@ func (s *formService) TestFunction(ctx context.Context, fn, id, submissionID str
 				return testCase{desc + " [ERROR: " + e.Error() + "]", wantOrder, -1, "", false}
 			}
 			gotOrder := 0
-			gotName  := ""
+			gotName := ""
 			if res.CurrentSection != nil {
 				gotOrder = res.CurrentSection.Order
-				gotName  = res.CurrentSection.Name
+				gotName = res.CurrentSection.Name
 			}
 			return testCase{desc, wantOrder, gotOrder, gotName, gotOrder == wantOrder}
 		}
 
 		cases := []testCase{
-			run("sin submission → sec 1",                    "",              1),
-			run("sub sin respuestas → sec 1",                subSinRespuestasID, 1),
-			run("sub sec1 completa → sec 2",                 subSec1ID,       2),
-			run("sub sec1+2 completa → sec 3",               subSec2ID,       3),
-			run("sub sec1-4 completa → sec 5",               subSec4ID,       5),
+			run("sin submission → sec 1", "", 1),
+			run("sub sin respuestas → sec 1", subSinRespuestasID, 1),
+			run("sub sec1 completa → sec 2", subSec1ID, 2),
+			run("sub sec1+2 completa → sec 3", subSec2ID, 3),
+			run("sub sec1-4 completa → sec 5", subSec4ID, 5),
 		}
 
 		passed, failed := 0, 0
 		for _, c := range cases {
-			if c.Pass { passed++ } else { failed++ }
+			if c.Pass {
+				passed++
+			} else {
+				failed++
+			}
 		}
 
 		return map[string]interface{}{
@@ -1291,8 +1356,9 @@ func findQuestion(fs *FormStructure, questionID string) *questionRef {
 // ─── isBeforeInFlow ───────────────────────────────────────────────────────────
 // Determina si una trigger directa viene ANTES de item en el flujo del form.
 // Regla unificada (funciona para Section, RepeaterGroup y direct Question):
-//   trigger.SectionOrder < item.SectionOrder
-//   OR (misma sección AND trigger.OrderInSection < item.OrderInSection)
+//
+//	trigger.SectionOrder < item.SectionOrder
+//	OR (misma sección AND trigger.OrderInSection < item.OrderInSection)
 func isBeforeInFlow(trigger *questionRef, item visibilityItem) bool {
 	return trigger.SectionOrder < item.SectionOrder ||
 		(trigger.SectionOrder == item.SectionOrder &&
@@ -1344,17 +1410,17 @@ type VisibilityResult struct {
 
 // checkVisibility evalúa si un item es visible según sus condiciones (todas AND).
 //
-//   fs           → árbol completo del form (getFormStructure)
-//   submission   → submission con directAnswers y repeaterEntries (getFormSubmission), puede ser nil
-//   entryAnswers → respuestas de la entry actual (solo cuando itemToCheck está en un repeaterGroup)
-//   item         → elemento a evaluar
-//   formState    → estado externo del padre; nil = sin condiciones de estado
+//	fs           → árbol completo del form (getFormStructure)
+//	submission   → submission con directAnswers y repeaterEntries (getFormSubmission), puede ser nil
+//	entryAnswers → respuestas de la entry actual (solo cuando itemToCheck está en un repeaterGroup)
+//	item         → elemento a evaluar
+//	formState    → estado externo del padre; nil = sin condiciones de estado
 func checkVisibility(
-	fs          *FormStructure,
-	submission  *SubmissionStructure,
+	fs *FormStructure,
+	submission *SubmissionStructure,
 	entryAnswers []models.Answer,
-	item        visibilityItem,
-	formState   map[string]interface{},
+	item visibilityItem,
+	formState map[string]interface{},
 ) VisibilityResult {
 	if len(item.Conditions) == 0 {
 		return VisibilityResult{Name: item.Name, Visible: true}
@@ -1508,18 +1574,18 @@ type IsAnsweredRepeaterResult struct {
 
 // isAnsweredQuestion evalúa si una pregunta directa (no repeater) está respondida.
 //
-//   q            → pregunta a evaluar
-//   sectionOrder → order de la sección que la contiene (para checkVisibility)
-//   answer       → respuesta encontrada en el submission, nil si no existe
-//   fs           → resultado de GetFormStructure (árbol completo del form)
-//   sub          → resultado de GetFormSubmission, puede ser nil
+//	q            → pregunta a evaluar
+//	sectionOrder → order de la sección que la contiene (para checkVisibility)
+//	answer       → respuesta encontrada en el submission, nil si no existe
+//	fs           → resultado de GetFormStructure (árbol completo del form)
+//	sub          → resultado de GetFormSubmission, puede ser nil
 func isAnsweredQuestion(
-	q            QuestionStructure,
+	q QuestionStructure,
 	sectionOrder int,
-	answer       *models.Answer,
-	fs           *FormStructure,
-	sub          *SubmissionStructure,
-	formState    map[string]interface{},
+	answer *models.Answer,
+	fs *FormStructure,
+	sub *SubmissionStructure,
+	formState map[string]interface{},
 ) IsAnsweredResult {
 	// PASO 1 — evaluar visibilidad
 	vis := checkVisibility(fs, sub, nil, directQuestionItem(q, sectionOrder), formState)
@@ -1546,18 +1612,18 @@ func isAnsweredQuestion(
 
 // isAnsweredRepeater evalúa si un repeater group está respondido.
 //
-//   r            → repeater a evaluar (incluye .Questions y .MinRepetitions)
-//   sectionOrder → order de la sección que lo contiene (para checkVisibility)
-//   entries      → entries ya filtradas para este repeater group
-//   fs           → resultado de GetFormStructure
-//   sub          → resultado de GetFormSubmission, puede ser nil
+//	r            → repeater a evaluar (incluye .Questions y .MinRepetitions)
+//	sectionOrder → order de la sección que lo contiene (para checkVisibility)
+//	entries      → entries ya filtradas para este repeater group
+//	fs           → resultado de GetFormStructure
+//	sub          → resultado de GetFormSubmission, puede ser nil
 func isAnsweredRepeater(
-	r            RepeaterStructure,
+	r RepeaterStructure,
 	sectionOrder int,
-	entries      []RepeaterEntryStructure,
-	fs           *FormStructure,
-	sub          *SubmissionStructure,
-	formState    map[string]interface{},
+	entries []RepeaterEntryStructure,
+	fs *FormStructure,
+	sub *SubmissionStructure,
+	formState map[string]interface{},
 ) IsAnsweredRepeaterResult {
 	// PASO 1 — visibilidad del repeater group
 	vis := checkVisibility(fs, sub, nil, repeaterItem(r, sectionOrder), formState)
@@ -1626,13 +1692,13 @@ func isAnsweredRepeater(
 // isAnsweredSection evalúa si una sección completa está respondida.
 // Retorna IsAnsweredResult reutilizando { IsVisible, IsAnswered }.
 //
-//   sec → sección a evaluar (incluye .Questions y .Repeaters)
-//   fs  → resultado de GetFormStructure
-//   sub → resultado de GetFormSubmission, puede ser nil
+//	sec → sección a evaluar (incluye .Questions y .Repeaters)
+//	fs  → resultado de GetFormStructure
+//	sub → resultado de GetFormSubmission, puede ser nil
 func isAnsweredSection(
-	sec       SectionStructure,
-	fs        *FormStructure,
-	sub       *SubmissionStructure,
+	sec SectionStructure,
+	fs *FormStructure,
+	sub *SubmissionStructure,
 	formState map[string]interface{},
 ) IsAnsweredResult {
 	// PASO 1 — visibilidad de la sección
@@ -1643,7 +1709,7 @@ func isAnsweredSection(
 
 	// PASO 2 — construir índices desde sub (vacíos si sub == nil)
 	answerByQuestion := map[string]models.Answer{}
-	entriesByGroup   := map[string][]RepeaterEntryStructure{}
+	entriesByGroup := map[string][]RepeaterEntryStructure{}
 
 	if sub != nil {
 		for _, a := range sub.DirectAnswers {
@@ -1669,7 +1735,7 @@ func isAnsweredSection(
 	// PASO 4 — iterar repeaters
 	for _, r := range sec.Repeaters {
 		entries := entriesByGroup[r.ID]
-		result  := isAnsweredRepeater(r, sec.Order, entries, fs, sub, formState)
+		result := isAnsweredRepeater(r, sec.Order, entries, fs, sub, formState)
 		if !result.IsAnswered {
 			return IsAnsweredResult{IsVisible: true, IsAnswered: false}
 		}
@@ -1715,7 +1781,7 @@ func (s *formService) LoadForm(ctx context.Context, formID, submissionID string,
 		sec := &fs.Sections[i]
 		result := isAnsweredSection(*sec, fs, sub, formState)
 		sec.IsAnswered = result.IsAnswered
-		sec.IsVisible  = result.IsVisible
+		sec.IsVisible = result.IsVisible
 		if !result.IsVisible {
 			continue
 		}
@@ -1749,17 +1815,17 @@ type SaveRepeaterEntryInput struct {
 	RepeaterGroupID string            `json:"repeaterGroupId"`
 	Iteration       int               `json:"iteration"`
 	IsTemp          bool              `json:"isTemp"`
-	Answers         []SaveAnswerInput  `json:"answers"`
+	Answers         []SaveAnswerInput `json:"answers"`
 }
 
 type SaveSectionInput struct {
 	FormID           string                   `json:"formId"`
 	FormSectionID    string                   `json:"formSectionId"`
 	FormSubmissionID string                   `json:"formSubmissionId"` // vacío = crear nuevo
-	DirectAnswers    []SaveAnswerInput         `json:"directAnswers"`
-	RepeaterEntries  []SaveRepeaterEntryInput  `json:"repeaterEntries"`
-	ActorID          string                   `json:"actorId"`          // general_user_i_code — inyectado por el controller desde la sesión
-	FormState        map[string]interface{}   `json:"formState"`        // estado externo del padre para condiciones de visibilidad
+	DirectAnswers    []SaveAnswerInput        `json:"directAnswers"`
+	RepeaterEntries  []SaveRepeaterEntryInput `json:"repeaterEntries"`
+	ActorID          string                   `json:"actorId"`   // general_user_i_code — inyectado por el controller desde la sesión
+	FormState        map[string]interface{}   `json:"formState"` // estado externo del padre para condiciones de visibilidad
 }
 
 func (s *formService) SaveSection(ctx context.Context, input SaveSectionInput) (*LoadFormResult, error) {
@@ -1778,7 +1844,7 @@ func (s *formService) SaveSection(ctx context.Context, input SaveSectionInput) (
 	if err != nil {
 		return nil, fmt.Errorf("saveSection: cargar opciones válidas: %w", err)
 	}
-	input.DirectAnswers   = filterAnswers(input.DirectAnswers, validOptionValues)
+	input.DirectAnswers = filterAnswers(input.DirectAnswers, validOptionValues)
 	input.RepeaterEntries = filterRepeaterAnswers(input.RepeaterEntries, validOptionValues)
 
 	// 4. Procesar directAnswers
@@ -2406,6 +2472,11 @@ func (s *formService) processPsicosocialSessionSubmission(ctx context.Context, f
 		log.Printf("[processPsicosocialSessionSubmission] advertencia: error procesando barreras: %v", err)
 	}
 
+	// ── Entidades: "Seguimiento a Entidades" + "Identificación de Entidades" ──
+	if err := s.processPsicosocialEntidadEntries(ctx, formID, submissionID, actorID, tc.ID, ps); err != nil {
+		log.Printf("[processPsicosocialSessionSubmission] advertencia: error procesando entidades: %v", err)
+	}
+
 	// ── Seguimiento a Barreras (§9.6): actualizar/cerrar barreras activas ────────────────
 	if err := s.processPsicosocialBarrierFollowUps(ctx, formID, submissionID, actorID, ps); err != nil {
 		log.Printf("[processPsicosocialSessionSubmission] advertencia: error en seguimiento a barreras: %v", err)
@@ -2439,6 +2510,18 @@ func (s *formService) processPsicosocialSessionSubmission(ctx context.Context, f
 	// ── Timeline hechos de violencia (paridad PASO 7b de processFollowUpSubmission) ─────
 	if err := s.processPsicosocialHechosViolenciaTimeline(ctx, formID, answerMap, ps, actorID); err != nil {
 		log.Printf("[processPsicosocialSessionSubmission] advertencia: hechos de violencia: %v", err)
+	}
+
+	// ── Derivación a equipos SALVIA (Sep 2026) ────────────────────────────────────────────
+	// Procesa la nueva sección "Derivación a equipos SALVIA" presente en los 4 formularios.
+	// Solo ejecuta si la sesión fue atención efectiva (la sección solo se muestra en ese caso,
+	// pero se verifica igual para robustez).
+	// Lógica:
+	//   - medidas_emergencia → crear 1 EmergencyMeasure por cada medida seleccionada (igual que en seguimiento).
+	//   - estabilizacion, atencion_hombres, salvia_dignidad, discapacidad → solo se guardan como answers;
+	//     NO se crea psychosocial_support ni case_task (a diferencia del formulario de seguimiento).
+	if err := s.processPsicosocialDerivacionEquipos(ctx, formID, answerMap, ps, tc.CaseID); err != nil {
+		log.Printf("[processPsicosocialSessionSubmission] advertencia: derivación equipos SALVIA: %v", err)
 	}
 
 	log.Printf("[processPsicosocialSessionSubmission] psicosocialId=%s sessionType=%s sessionCount=%d status=%s ya_hizo_pc=%v ya_hizo_pa=%v",
@@ -2544,6 +2627,101 @@ func (s *formService) processPsicosocialHechosViolenciaTimeline(ctx context.Cont
 		return err
 	}
 	log.Printf("[processPsicosocialSessionSubmission] ✅ evento 'Nuevos hechos de violencia' creado → fecha=%s", fechaStr)
+	return nil
+}
+
+// processPsicosocialDerivacionEquipos procesa la sección "Derivación a equipos SALVIA" (Sep 2026)
+// presente en los 4 formularios psicosociales. Resuelve las preguntas por UUID fijo (serie d1000NXX).
+//
+// Comportamiento por equipo seleccionado:
+//   - medidas_emergencia → crear 1 EmergencyMeasure por cada medida seleccionada en la pregunta Q3.
+//   - estabilizacion, atencion_hombres, salvia_dignidad, discapacidad → solo answers (no se crean
+//     registros adicionales desde este formulario, a diferencia del formulario de seguimiento).
+//
+// Si emergencyMeasureRepo es nil, se omite la creación de medidas y se registra una advertencia.
+func (s *formService) processPsicosocialDerivacionEquipos(ctx context.Context, formID string, answerMap map[string]string, ps *models.PsychosocialSupport, caseID string) error {
+	// Mapa de question IDs fijos por formulario (serie d1000NXX).
+	// N: 1=PC, 2=PA, 3=SEG, 4=CIE
+	type derivIDs struct {
+		qRemision       string // Q1: ¿Remisión a equipos SALVIA? (boolean)
+		qEquipos        string // Q2: ¿Cuáles equipos? (multiple)
+		qMedidasEmergen string // Q3: ¿Cuáles medidas de emergencia? (multiple)
+	}
+	formDerivIDs := map[string]derivIDs{
+		constants.FormIDPrimerContacto: {
+			qRemision:       constants.QPCDerivacionRemision,
+			qEquipos:        constants.QPCDerivacionEquipos,
+			qMedidasEmergen: constants.QPCDerivacionMedidasEmergen,
+		},
+		constants.FormIDPrimeraAtencion: {
+			qRemision:       constants.QPADerivacionRemision,
+			qEquipos:        constants.QPADerivacionEquipos,
+			qMedidasEmergen: constants.QPADerivacionMedidasEmergen,
+		},
+		constants.FormIDAtencionPsicosocial: {
+			qRemision:       constants.QSEGDerivacionRemision,
+			qEquipos:        constants.QSEGDerivacionEquipos,
+			qMedidasEmergen: constants.QSEGDerivacionMedidasEmergen,
+		},
+		constants.FormIDCierre: {
+			qRemision:       constants.QCIEDerivacionRemision,
+			qEquipos:        constants.QCIEDerivacionEquipos,
+			qMedidasEmergen: constants.QCIEDerivacionMedidasEmergen,
+		},
+	}
+
+	ids, ok := formDerivIDs[formID]
+	if !ok {
+		return nil // formulario no reconocido — no es un form psicosocial
+	}
+
+	// Si Q1 (remisión) no es true, no hay nada que procesar
+	if !answerIsTrueish(answerMap[ids.qRemision]) {
+		return nil
+	}
+
+	equiposVal := answerMap[ids.qEquipos]
+	if equiposVal == "" {
+		log.Printf("[processPsicosocialDerivacionEquipos] Q1=true pero Q2 (equipos) vacío — formID=%s psicosocialId=%s", formID, ps.ID)
+		return nil
+	}
+
+	log.Printf("[processPsicosocialDerivacionEquipos] formID=%s psicosocialId=%s equipos=%s", formID, ps.ID, equiposVal)
+
+	for _, equipo := range splitCSVValues(equiposVal) {
+		switch equipo {
+		case "medidas_emergencia":
+			// Crear 1 EmergencyMeasure por cada medida seleccionada
+			if s.emergencyMeasureRepo == nil {
+				log.Printf("[processPsicosocialDerivacionEquipos] WARN: emergencyMeasureRepo es nil — medidas de emergencia NO creadas (psicosocialId=%s)", ps.ID)
+				break
+			}
+			medidasVal := answerMap[ids.qMedidasEmergen]
+			if medidasVal == "" {
+				log.Printf("[processPsicosocialDerivacionEquipos] equipo medidas_emergencia seleccionado pero Q3 vacío — psicosocialId=%s", ps.ID)
+				break
+			}
+			for _, medida := range splitCSVValues(medidasVal) {
+				em := &models.EmergencyMeasure{
+					CaseID: caseID,
+					Type:   medida,
+					Status: "ACTIVE",
+				}
+				if err := s.emergencyMeasureRepo.Create(ctx, em); err != nil {
+					log.Printf("[processPsicosocialDerivacionEquipos] WARN: no se pudo crear EmergencyMeasure tipo=%s: %v", medida, err)
+				} else {
+					log.Printf("[processPsicosocialDerivacionEquipos] ✅ EmergencyMeasure creada tipo=%s id=%s psicosocialId=%s", medida, em.ID, ps.ID)
+				}
+			}
+		case "estabilizacion", "atencion_hombres", "salvia_dignidad", "discapacidad":
+			// Solo se guardan como answers en la BD — no se crean registros adicionales
+			// desde el formulario psicosocial (a diferencia del formulario de seguimiento).
+			log.Printf("[processPsicosocialDerivacionEquipos] equipo '%s' registrado como answer — psicosocialId=%s", equipo, ps.ID)
+		default:
+			log.Printf("[processPsicosocialDerivacionEquipos] equipo desconocido '%s' ignorado — psicosocialId=%s", equipo, ps.ID)
+		}
+	}
+
 	return nil
 }
 
@@ -2784,43 +2962,37 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 	// ── IDs de las preguntas del formulario de seguimiento ────────────────────
 	const (
 		// Repeater group de Sección 3 — Seguimiento a Barreras
-		rgSeguimientoBarreras      = "b536f16c-67b3-4370-810d-7cc8c9d5463e"
-		qSBPersiste                = "4325a514-332a-42a9-9a89-a1d249b87c71" // Q2 boolean
-		qSBRespuestaInstitucional  = "a234a906-7b02-4a43-b18d-b802d430d272" // Q3 single
-		qSBGestion                 = "c785a994-3a38-4337-bd96-67329144affa" // Q4 multiple
-		qSBActuaciones             = "c808b590-128c-43cf-af94-c191a4bc31ac" // Q5 text
-		qSBCierra                  = "7442394d-256a-45f4-a63a-ca1164e865c2" // Q6 boolean
-		qSBMotivoCierre            = "d2d3cee8-b5d3-422f-8ae0-e5a40effc983" // Q7 single
+		rgSeguimientoBarreras     = "b536f16c-67b3-4370-810d-7cc8c9d5463e"
+		qSBPersiste               = "4325a514-332a-42a9-9a89-a1d249b87c71" // Q2 boolean
+		qSBRespuestaInstitucional = "a234a906-7b02-4a43-b18d-b802d430d272" // Q3 single
+		qSBGestion                = "c785a994-3a38-4337-bd96-67329144affa" // Q4 multiple
+		qSBActuaciones            = "c808b590-128c-43cf-af94-c191a4bc31ac" // Q5 text
+		qSBCierra                 = "7442394d-256a-45f4-a63a-ca1164e865c2" // Q6 boolean
+		qSBMotivoCierre           = "d2d3cee8-b5d3-422f-8ae0-e5a40effc983" // Q7 single
 		// Repeater group de barreras
 		rgBarreras = "5fd3ecdc-2e5f-4b31-97ef-8a994580586a"
 		// Preguntas dentro del repeater de barreras — bloque sector
 		qBarreraSector          = "f19378b6-55c5-4fdf-b765-7ebcc3978741" // Q1  Sector (dropdown)
 		qBarreraSalud           = "5fc1f2af-cc30-41f0-aa31-4731e5cb674c" // Q2  Barreras Salud (multiple)
-		qInstitucionSalud       = "e88fb2bf-7196-4bea-91e6-fe78ccdedac1" // Q3  Institución Salud (multiple)
 		qOtraBarreraSalud       = "bebf6e6c-0200-4b53-886c-c01f591eaa62" // Q4  Otra barrera Salud (text)
 		qBarreraJusticia        = "2bec977e-97c7-42d7-a00a-b536af8038eb" // Q5  Barreras Justicia (multiple)
-		qInstitucionJusticia    = "4b4997fa-67a0-4479-852d-df9e7bfb2b3e" // Q6  Institución Justicia (multiple)
 		qOtraBarreraJusticia    = "96f0c507-64c1-446b-b07d-83d5ad1d7172" // Q7  Otra barrera Justicia (text)
 		qBarreraProteccion      = "66c9fc1e-9b5e-4ad4-999f-7aeb483d84dc" // Q8  Barreras Protección (multiple)
-		qInstitucionProteccion  = "78474c82-61b9-4a0c-beca-439274813c03" // Q9  Institución Protección (multiple)
 		qOtraBarreraProteccion  = "68f6bf06-a6a8-443f-9a1e-001148d4eb45" // Q10 Otra barrera Protección (text)
-		qBarreraOtraInstitucion = "a1573bc3-28f6-485e-8d8b-b3567db42ae3" // Q11 Nombre institución (text)
+		qBarreraEntidadAsignada = "a18d63fa-477f-47b1-8462-9a1b0fafa9b9" // Entidad a la que se asignará la barrera (dropdown, entity_branch_id)
 		// Preguntas comunes del repeater de barreras
-		qBarreraDepartamento           = "31c7f8ba-880e-4c9a-89f0-1a6a1e43b7b9" // Q12 Departamento (dropdown)
-		qBarreraCiudad                 = "c6f2d54a-3c61-4ae7-b2bf-50a884031fa4" // Q13 Ciudad (dropdown)
-		qBarreraMunicipio              = "8225d03f-8de9-4ff0-9345-67b5e71bf02d" // Q14 Municipio (dropdown)
 		qBarreraEstructuralInstitucional = "64754fb5-04a8-43e4-ac86-d60f0a84010b" // Q15 (multiple)
-		qBarreraEstructuralEconomico   = "94dfc417-b59f-4afe-b63b-c6839a8dfecc" // Q16 (multiple)
-		qBarreraEstructuralTerritorial = "cf162686-0327-4b28-9639-e4d947272483" // Q17 (multiple)
-		qBarreraEstructuralDiferencial = "81275638-2837-4ecc-8686-675dfeab4f32" // Q18 (multiple)
-		qBarreraFecha                  = "4592d85f-8c11-4785-ad32-06aa810cc491" // Q19 date
-		qBarreraFuncionario            = "33c3961e-4252-4b02-b491-615b11d6bf56" // Q20 text
-		qBarreraDescripcion            = "d2be610f-44eb-4526-b4ec-86eaaaba08c8" // Q21 text
-		qBarreraGestion                = "572ad72a-8174-4ff3-9c56-5c8c65ac63ac" // Q22 (multiple)
+		qBarreraEstructuralEconomico     = "94dfc417-b59f-4afe-b63b-c6839a8dfecc" // Q16 (multiple)
+		qBarreraEstructuralTerritorial   = "cf162686-0327-4b28-9639-e4d947272483" // Q17 (multiple)
+		qBarreraEstructuralDiferencial   = "81275638-2837-4ecc-8686-675dfeab4f32" // Q18 (multiple)
+		qBarreraFecha                    = "4592d85f-8c11-4785-ad32-06aa810cc491" // Q19 date
+		qBarreraFuncionario              = "33c3961e-4252-4b02-b491-615b11d6bf56" // Q20 text
+		qBarreraDescripcion              = "d2be610f-44eb-4526-b4ec-86eaaaba08c8" // Q21 text
+		qBarreraGestion                  = "572ad72a-8174-4ff3-9c56-5c8c65ac63ac" // Q22 (multiple)
 		// Preguntas directas del form
-		qEquipos            = "e0d38cf5-fe3f-45cb-9fd3-f5b8f7b2f7dc" // Derivaciones a equipos (multi-select)
-		qMedidasEmergencia  = "1a36260c-33a4-4ebd-bffb-e387d7964b96" // Medidas de emergencia (multi-select)
-		qCriteriosPsico     = "71c42c4a-f640-47ad-b2c1-5d4c18480449" // Criterios de remisión — Atención Psicosocial (multiple)
+		qEquipos                 = "e0d38cf5-fe3f-45cb-9fd3-f5b8f7b2f7dc" // Derivaciones a equipos (multi-select)
+		qMedidasEmergencia       = "1a36260c-33a4-4ebd-bffb-e387d7964b96" // Medidas de emergencia (multi-select)
+		qCriteriosPsico          = "71c42c4a-f640-47ad-b2c1-5d4c18480449" // Criterios de remisión — Atención Psicosocial (multiple)
 		qCriteriosHombres        = "f7edf4fc-d1cd-4591-a358-31566c806365" // Criterios de remisión — Atención Hombres (multiple)
 		qCriteriosEstabilizacion = "28accaa6-99dc-4ec4-967b-f26045ad707c" // Criterios de remisión — Estabilización (multiple)
 		qServiciosDiscapacidad   = "47b122b1-0151-4b58-a007-d4afb722c1b9" // Servicios del Equipo de Discapacidad (multiple)
@@ -2836,16 +3008,39 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		qCierreAccionesInst = "0e7b61c8-9401-4429-81ed-61c8fc97808e" // boolean — ¿Realizó acciones institucionales?
 	)
 
+	// ── IDs — Sección 5: Seguimiento a Entidades (repeater controlado por estado) ──
+	const (
+		rgSeguimientoEntidades      = "d4227fe1-87ce-403f-a7f8-91b221d5cb57"
+		qSegObligacionesCompletadas = "05f1f307-44e8-4c45-ad5a-0b1d520d2278"
+		qSegRutaActualizada         = "de2cce0d-6f33-4f08-bc64-51b96c297dfe"
+		qSegMotivo                  = "084c406b-ecfe-4bfa-9627-f47294ef194b"
+		qSegRequiereActivacion      = "e0403dc7-3017-49ab-be05-e19ed89301ca"
+		qSegCanalActivacion         = "32bff8d9-14c4-456d-bccf-0c2285757d31"
+	)
+
+	// ── IDs — Sección 6: Identificación de Entidades ──────────────────────────
+	const (
+		rgEntidadesAcudidas = "ee42ef36-ec09-4652-a7bd-85263297482f"
+		qAcEntidad          = "3f814a7c-9e7f-46cd-88ce-7699a00429fa"
+		qAcCompletadas      = "b85f28a6-3dd6-4904-96bb-d236501ff0c9"
+		qAcCompletadasOtra  = "b40710d4-d8d2-4292-8980-a95cb9961b0e"
+		qAcPendientes       = "0982fa51-6349-4a9b-826a-317f5f1a02cf"
+		qAcPendientesOtra   = "3fc2ce53-e83b-4d3f-9c01-2a262fa42f69"
+		qAcRadicado         = "6c1b8cd5-bb04-4bde-a3ea-72fdf56633db"
+		qAcInfoRuta         = "ce08ba3f-a310-48f6-96af-2fb058d80b04"
+
+		rgEntidadesActivacion = "5b5b7713-03fb-4263-9dc4-ac981130878d"
+		qAvEntidad            = "4e9cf995-c891-422d-a778-8ff8d34032e7"
+		qAvPendientes         = "d2417efc-509f-4226-aaf4-d6c6b0cd9c93"
+		qAvPendientesOtra     = "001a001a-9654-4bfc-91c3-e442a5d83cb7"
+		qAvCanalActivacion    = "50ee518a-5743-4f6a-8647-d39c7a4b973c"
+	)
+
 	// Mapas sector → pregunta de barreras, instituciones y "otra barrera"
 	sectorBarrierQ := map[string]string{
 		"salud":      qBarreraSalud,
 		"justicia":   qBarreraJusticia,
 		"proteccion": qBarreraProteccion,
-	}
-	sectorInstitutionQ := map[string]string{
-		"salud":      qInstitucionSalud,
-		"justicia":   qInstitucionJusticia,
-		"proteccion": qInstitucionProteccion,
 	}
 	sectorOtherBarrierQ := map[string]string{
 		"salud":      qOtraBarreraSalud,
@@ -2865,7 +3060,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 	}
 
 	// Contadores para la descripción del evento en el timeline
-	barrierCount  := 0
+	barrierCount := 0
 	remisionCount := 0
 
 	// 3. Crear un BarrierV2 por cada entrada del repeater de barreras
@@ -2893,21 +3088,24 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 
 		sector := strings.TrimSpace(entryMap[qBarreraSector])
 
+		var barreraEntityBranchID *int64
+		if raw := strings.TrimSpace(entryMap[qBarreraEntidadAsignada]); raw != "" {
+			if id, err := strconv.ParseInt(raw, 10, 64); err == nil {
+				barreraEntityBranchID = &id
+			} else {
+				log.Printf("[processFollowUp] WARN: entity_branch_id inválido %q en entry [%s]: %v", raw, entry.ID, err)
+			}
+		}
+
 		b := &models.BarrierV2{
 			CaseID:      fu.CaseID,
 			FollowUpID:  &fu.ID,
 			CreatedByID: actorID,
 			Status:      models.BarrierV2StatusOpen,
 
-			Sector:               sector,
-			SpecificBarriers:     entryMap[sectorBarrierQ[sector]],
-			SpecificInstitutions: entryMap[sectorInstitutionQ[sector]],
-			OtherBarrierDesc:     entryMap[sectorOtherBarrierQ[sector]],
-			InstitutionName:      entryMap[qBarreraOtraInstitucion],
-
-			DepartmentID: entryMap[qBarreraDepartamento],
-			CityID:       entryMap[qBarreraCiudad],
-			TownID:       entryMap[qBarreraMunicipio],
+			Sector:           sector,
+			SpecificBarriers: entryMap[sectorBarrierQ[sector]],
+			OtherBarrierDesc: entryMap[sectorOtherBarrierQ[sector]],
 
 			StructuralInstitutional: entryMap[qBarreraEstructuralInstitucional],
 			StructuralEconomic:      entryMap[qBarreraEstructuralEconomico],
@@ -2918,6 +3116,8 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 			OfficialDependency: entryMap[qBarreraFuncionario],
 			Description:        entryMap[qBarreraDescripcion],
 			ManagementActions:  entryMap[qBarreraGestion],
+
+			EntityBranchID:     barreraEntityBranchID,
 			Competences:        entryMap[qBarreraCompetencias],
 		}
 		log.Printf("[processFollowUp] creando barrera sector=%s entry=%s", sector, entry.ID)
@@ -2996,11 +3196,22 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 					taskType = "comite_caso"
 				}
 
+				// La tarea "Decisiones del Comité" (comite_caso) se asigna al Equipo
+				// Técnico (rol 'te'), no al agente. Las demás tareas siguen yendo al agente.
+				assignedTo := actorID
+				if taskType == "comite_caso" {
+					if teUser := s.resolverEquipoTecnico(ctx); teUser != "" {
+						assignedTo = teUser
+					} else {
+						log.Printf("[processFollowUp] WARN: no hay usuario Equipo Técnico (rol 'te') activo; comite_caso se asigna al agente %s", actorID)
+					}
+				}
+
 				task := &models.CaseTask{
 					Category:       "Barreras",
 					Type:           taskType,
 					Description:    label,
-					AssignedUserID: actorID,
+					AssignedUserID: assignedTo,
 					Status:         models.CaseTaskStatusToDo,
 					CaseID:         fu.CaseID,
 					FollowUpID:     &followUpID,
@@ -3106,194 +3317,246 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 		}
 	}
 
-	// 4. Crear registros de derivación por equipo
-	if equiposVal, ok := answerMap[qEquipos]; ok && equiposVal != "" {
-		log.Printf("[processFollowUp] derivaciones a equipos: %s", equiposVal)
-		for _, equipo := range splitValues(equiposVal) {
-			switch equipo {
-			case "atencion_psico":
-				// Regla de exclusión: si también se seleccionó medidas_emergencia, solo se crea
-				// la derivación de emergencia. La remisión psicosocial se omite.
-				equiposSeleccionados := splitValues(equiposVal)
-				tieneMedidasEmergencia := false
-				for _, e := range equiposSeleccionados {
-					if e == "medidas_emergencia" {
-						tieneMedidasEmergencia = true
-						break
+	// 3c. Seguimiento a Entidades (Sección 5 — repeater controlado por estado)
+	// Relación entry↔entity_case por POSICIÓN, igual que PASO 3b con barreras:
+	// se re-consulta EntityCaseService.ListByCase con el mismo orden
+	// (created_at ASC) que usó E-01 para construir formState.currentEntities.
+	if s.entityCaseSvc != nil {
+		entidadesDelCaso, err := s.entityCaseSvc.ListByCase(ctx, fu.CaseID)
+		if err != nil {
+			log.Printf("[processFollowUp] WARN: no se pudo listar entity_case del caso %s: %v", fu.CaseID, err)
+		} else if len(entidadesDelCaso) > 0 {
+			segEntries, err := s.repeaterEntryRepo.FindBySubmissionIDAndGroupIDs(ctx, submissionID, []string{rgSeguimientoEntidades})
+			if err != nil {
+				return fmt.Errorf("processFollowUpSubmission: leer entradas seguimiento a entidades: %w", err)
+			}
+			log.Printf("[processFollowUp] seguimiento a entidades: %d entries encontradas (entidades del caso: %d)", len(segEntries), len(entidadesDelCaso))
+			for idx, entry := range segEntries {
+				if idx >= len(entidadesDelCaso) {
+					log.Printf("[processFollowUp] WARN: entry de seguimiento a entidades [%d] sin entity_case correspondiente — se omite", idx)
+					continue
+				}
+				entityCaseID := entidadesDelCaso[idx].RelID
+				entityBranchID := entidadesDelCaso[idx].EntityBranchID
+
+				segAnswers, err := s.answerRepo.FindByRepeaterEntryID(ctx, entry.ID)
+				if err != nil {
+					return fmt.Errorf("processFollowUpSubmission: leer respuestas seguimiento a entidad [%s]: %w", entry.ID, err)
+				}
+				segMap := make(map[string]string, len(segAnswers))
+				for _, a := range segAnswers {
+					segMap[a.QuestionID] = a.Value
+				}
+
+				rutaActualizada := segMap[qSegRutaActualizada] == "true"
+				requiereActivacion := segMap[qSegRequiereActivacion] == "true"
+				motivo := strings.TrimSpace(segMap[qSegMotivo])
+				canal := strings.TrimSpace(segMap[qSegCanalActivacion])
+
+				if s.entityCaseFollowUpRepo != nil {
+					ecfu := &models.EntityCaseFollowUp{
+						EntityCaseID:            entityCaseID,
+						FollowUpID:              fu.ID,
+						RutaActualizada:         rutaActualizada,
+						RequiereNuevaActivacion: requiereActivacion,
+						CreatedByID:             actorID,
+					}
+					if motivo != "" {
+						ecfu.MotivoActualizacion = &motivo
+					}
+					if canal != "" {
+						ecfu.CanalActivacion = &canal
+					}
+					if err := s.entityCaseFollowUpRepo.Create(ctx, ecfu); err != nil {
+						log.Printf("[processFollowUp] WARN: no se pudo crear entity_case_follow_up para entity_case %s: %v", entityCaseID, err)
 					}
 				}
-				if tieneMedidasEmergencia {
-					log.Printf("[processFollowUp] atencion_psico omitida — incompatible con medidas_emergencia seleccionada al mismo tiempo")
-					break
+
+				resumen := "Seguimiento registrado sin cambios en la ruta"
+				if rutaActualizada && motivo != "" {
+					resumen = fmt.Sprintf("Ruta actualizada: %s", motivo)
 				}
-				// Validar criterios de remisión psicosocial antes de crear la derivación.
-				// Regla: debe estar marcado "criterio_obligatorio" Y sumar mínimo 3 puntos.
-				criteriosVal := answerMap[qCriteriosPsico]
-				criteriosSelected := splitValues(criteriosVal)
-				tieneCriterioObligatorio := false
-				for _, c := range criteriosSelected {
-					if c == "criterio_obligatorio" {
-						tieneCriterioObligatorio = true
-						break
+				if err := s.entityCaseSvc.UpdateLastAction(ctx, entityCaseID, resumen); err != nil {
+					log.Printf("[processFollowUp] WARN: no se pudo actualizar last_action de entity_case %s: %v", entityCaseID, err)
+				}
+
+				// Marcar como completadas las obligaciones pendientes seleccionadas por el agente.
+				// El valor de la respuesta es el entity_case_obligation.id (la fila misma, no el
+				// id del catálogo) — se actualiza in-place, no se crea una fila nueva.
+				if s.entityCaseObligationRepo != nil {
+					for _, obligationRowID := range splitValues(segMap[qSegObligacionesCompletadas]) {
+						if obligationRowID == "" {
+							continue
+						}
+						if err := s.entityCaseObligationRepo.UpdateFields(ctx, obligationRowID, map[string]interface{}{
+							"status": models.EntityCaseObligationStatusCompletada,
+						}); err != nil {
+							log.Printf("[processFollowUp] WARN: no se pudo marcar completada entity_case_obligation %s: %v", obligationRowID, err)
+						}
 					}
 				}
-				puntajesPsico := map[string]int{
-					"conducta_suicida":         3,
-					"interseccionalidad":       2,
-					"sin_ruta":                 1,
-					"condiciones_territoriales": 1,
-					"sin_acceso_psico":         1,
-					"naturalizacion_vbg":       1,
+
+				if requiereActivacion {
+					s.procesarCanalActivacion(ctx, fu.CaseID, &fu.ID, actorID, entityCaseID, entityBranchID, canal, nil)
 				}
-				totalPuntos := 0
-				for _, c := range criteriosSelected {
-					totalPuntos += puntajesPsico[c]
+			}
+		}
+	}
+
+	// 3d. Identificación de Entidades (Sección 6 — dos repeaters)
+	if s.entityCaseSvc != nil {
+		type entidadRepeaterCfg struct {
+			groupID          string
+			qEntidad         string
+			qCompletadas     string
+			qCompletadasOtra string
+			qPendientes      string
+			qPendientesOtra  string
+			qObjetivo        string // "" si no aplica
+			qRadicado        string // "" si no aplica
+			qCanalActivacion string // "" si no aplica
+		}
+		repeaterConfigs := []entidadRepeaterCfg{
+			{
+				groupID: rgEntidadesAcudidas, qEntidad: qAcEntidad,
+				qCompletadas: qAcCompletadas, qCompletadasOtra: qAcCompletadasOtra,
+				qPendientes: qAcPendientes, qPendientesOtra: qAcPendientesOtra,
+				qObjetivo: qAcInfoRuta, qRadicado: qAcRadicado,
+			},
+			{
+				groupID: rgEntidadesActivacion, qEntidad: qAvEntidad,
+				qPendientes: qAvPendientes, qPendientesOtra: qAvPendientesOtra,
+				qCanalActivacion: qAvCanalActivacion,
+			},
+		}
+
+		for _, cfg := range repeaterConfigs {
+			idEntries, err := s.repeaterEntryRepo.FindBySubmissionIDAndGroupIDs(ctx, submissionID, []string{cfg.groupID})
+			if err != nil {
+				return fmt.Errorf("processFollowUpSubmission: leer entradas identificación de entidades [%s]: %w", cfg.groupID, err)
+			}
+			log.Printf("[processFollowUp] identificación de entidades [%s]: %d entries", cfg.groupID, len(idEntries))
+
+			for _, entry := range idEntries {
+				idAnswers, err := s.answerRepo.FindByRepeaterEntryID(ctx, entry.ID)
+				if err != nil {
+					return fmt.Errorf("processFollowUpSubmission: leer respuestas identificación de entidad [%s]: %w", entry.ID, err)
 				}
-				if !tieneCriterioObligatorio || totalPuntos < 3 {
-					log.Printf("[processFollowUp] derivacion psicosocial NO cumple criterios (obligatorio=%v, puntos=%d) — omitida", tieneCriterioObligatorio, totalPuntos)
-					break
+				idMap := make(map[string]string, len(idAnswers))
+				for _, a := range idAnswers {
+					idMap[a.QuestionID] = a.Value
 				}
-				log.Printf("[processFollowUp] creando derivacion -> atencion_psico (obligatorio=%v, puntos=%d)", tieneCriterioObligatorio, totalPuntos)
-				var submittedBy *string
-				if actorID != "" {
-					submittedBy = &actorID
+
+				entityBranchIDStr := strings.TrimSpace(idMap[cfg.qEntidad])
+				if entityBranchIDStr == "" {
+					continue
 				}
-				var submittedByTeam *string
-				if s.agentLightRepo != nil && actorID != "" {
-					agent, err := s.agentLightRepo.FindByICode(ctx, actorID)
-					if err != nil {
-						log.Printf("[processFollowUp] WARN: no se pudo resolver equipo del remitente (actor=%s): %v", actorID, err)
-					} else if agent != nil && strings.TrimSpace(agent.Team) != "" {
-						team := strings.TrimSpace(agent.Team)
-						submittedByTeam = &team
+				entityBranchID, err := strconv.ParseInt(entityBranchIDStr, 10, 64)
+				if err != nil {
+					log.Printf("[processFollowUp] WARN: entity_branch_id inválido %q en entry [%s]: %v", entityBranchIDStr, entry.ID, err)
+					continue
+				}
+
+				var objetivo *string
+				if cfg.qObjetivo != "" {
+					if v := strings.TrimSpace(idMap[cfg.qObjetivo]); v != "" {
+						objetivo = &v
+					}
+				}
+
+				var radicado *string
+				if cfg.qRadicado != "" {
+					if v := strings.TrimSpace(idMap[cfg.qRadicado]); v != "" {
+						radicado = &v
+					}
+				}
+
+				var entityCaseID string
+				created, err := s.entityCaseSvc.Create(ctx, CreateEntityCaseInput{
+					CaseID: fu.CaseID, EntityBranchID: entityBranchID,
+					Objetivo: objetivo, Radicado: radicado, CreatedByID: actorID,
+				})
+				if err != nil {
+					if errors.Is(err, ErrEntityCaseDuplicate) {
+						existentes, findErr := s.entityCaseSvc.ListByCase(ctx, fu.CaseID)
+						if findErr != nil {
+							log.Printf("[processFollowUp] WARN: no se pudo resolver entity_case existente tras duplicado (caso=%s, branch=%d): %v", fu.CaseID, entityBranchID, findErr)
+							continue
+						}
+						found := false
+						for _, e := range existentes {
+							if e.EntityBranchID == entityBranchID {
+								entityCaseID = e.RelID
+								found = true
+								break
+							}
+						}
+						if !found {
+							log.Printf("[processFollowUp] WARN: entity_case duplicado no encontrado en re-consulta (caso=%s, branch=%d)", fu.CaseID, entityBranchID)
+							continue
+						}
 					} else {
-						log.Printf("[processFollowUp] WARN: agente %s sin general_user_team — submitted_by_team quedará vacío", actorID)
+						return fmt.Errorf("processFollowUpSubmission: crear entity_case (branch=%d): %w", entityBranchID, err)
 					}
 				} else {
-					log.Printf("[processFollowUp] WARN: no se pudo resolver submitted_by_team (actor=%s)", actorID)
+					entityCaseID = created.ID
 				}
-				ps := &models.PsychosocialSupport{
-					CaseID:          fu.CaseID,
-					FollowUpID:      &fu.ID,
-					Type:            "derivacion",
-					Status:          models.PsychosocialSupportStatusAbierto,
-					SubmittedBy:     submittedBy,
-					SubmittedByTeam: submittedByTeam,
-				}
-				if err := s.psychosocialSupportRepo.Create(ctx, ps); err != nil {
-					return fmt.Errorf("processFollowUpSubmission: crear derivacion psicosocial: %w", err)
-				}
-				log.Printf("[processFollowUp] ✅ derivacion creada -> atencion_psico (id=%s)", ps.ID)
-				remisionCount++
 
-				// Tarea para que el equipo psicosocial valide si la remisión es procedente.
-				psID := ps.ID
-				followUpID := fu.ID
-				validarTask := &models.CaseTask{
-					Category:              "Psicosocial",
-					Type:                  "validar_remision",
-					Description:           "Validar que remision a psicosocial es valida",
-					AssignedUserID:        "",
-					Status:                models.CaseTaskStatusToDo,
-					CaseID:                fu.CaseID,
-					FollowUpID:            &followUpID,
-					PsychosocialSupportID: &psID,
+				// Registrar obligaciones seleccionadas (completadas + pendientes)
+				type obligGroup struct {
+					raw     string
+					otraTxt string
+					status  string
 				}
-				if s.caseTaskRepo != nil {
-					if err := s.caseTaskRepo.Create(ctx, validarTask); err != nil {
-						log.Printf("[processFollowUp] WARN: no se pudo crear case_task de validación psicosocial (psychosocial_support=%s): %v", ps.ID, err)
+				var groups []obligGroup
+				if cfg.qCompletadas != "" {
+					groups = append(groups, obligGroup{
+						raw: idMap[cfg.qCompletadas], otraTxt: idMap[cfg.qCompletadasOtra],
+						status: models.EntityCaseObligationStatusCompletada,
+					})
+				}
+				groups = append(groups, obligGroup{
+					raw: idMap[cfg.qPendientes], otraTxt: idMap[cfg.qPendientesOtra],
+					status: models.EntityCaseObligationStatusPendiente,
+				})
+
+				if s.entityCaseObligationRepo != nil {
+					for _, g := range groups {
+						for _, val := range splitValues(g.raw) {
+							eco := &models.EntityCaseObligation{
+								EntityCaseID: entityCaseID,
+								Status:       g.status,
+								FollowUpID:   &fu.ID,
+								CreatedByID:  actorID,
+							}
+							if val == "otra" {
+								label := strings.TrimSpace(g.otraTxt)
+								eco.CustomLabel = &label
+							} else {
+								obligID := val
+								eco.EntityObligationID = &obligID
+							}
+							if err := s.createEntityCaseObligationIfNotExists(ctx, eco); err != nil {
+								log.Printf("[processFollowUp] WARN: no se pudo crear entity_case_obligation (%s) para entity_case %s: %v", g.status, entityCaseID, err)
+							}
+						}
 					}
 				}
-			case "atencion_hombres":
-				// Validar criterio de remisión al equipo de hombres antes de crear la derivación.
-				// Regla: debe estar marcado "criterio_hombres".
-				criteriosHombresVal := answerMap[qCriteriosHombres]
-				criteriosHombresSelected := splitValues(criteriosHombresVal)
-				tieneCriterioHombres := false
-				for _, c := range criteriosHombresSelected {
-					if c == "criterio_hombres" {
-						tieneCriterioHombres = true
-						break
-					}
+
+				// Canal de activación (solo aplica en el repeater de activación)
+				if cfg.qCanalActivacion != "" {
+					s.procesarCanalActivacion(ctx, fu.CaseID, &fu.ID, actorID, entityCaseID, entityBranchID, idMap[cfg.qCanalActivacion], nil)
 				}
-				if !tieneCriterioHombres {
-					log.Printf("[processFollowUp] derivacion atencion_hombres NO cumple criterio — omitida")
-					break
-				}
-				log.Printf("[processFollowUp] creando derivacion -> atencion_hombres")
-				mtr := &models.MenTeamRemision{
-					CaseID:     fu.CaseID,
-					FollowUpID: fu.ID,
-					Type:       "derivacion",
-					Status:     "ACTIVE",
-				}
-				if err := s.menTeamRemisionRepo.Create(ctx, mtr); err != nil {
-					return fmt.Errorf("processFollowUpSubmission: crear derivacion atencion_hombres: %w", err)
-				}
-				log.Printf("[processFollowUp] ✅ derivacion creada -> atencion_hombres (id=%s)", mtr.ID)
-				remisionCount++
-			case "discapacidad":
-				// Crear un registro por cada servicio seleccionado del Equipo de Discapacidad.
-				serviciosVal := answerMap[qServiciosDiscapacidad]
-				if serviciosVal == "" {
-					log.Printf("[processFollowUp] derivacion discapacidad sin servicios seleccionados — omitida")
-					break
-				}
-				for _, svc := range splitValues(serviciosVal) {
-					log.Printf("[processFollowUp] creando derivacion -> discapacidad servicio=%s", svc)
-					dr := &models.DiscapacidadRemision{
-						CaseID:     fu.CaseID,
-						FollowUpID: fu.ID,
-						Service:    svc,
-						Status:     "ACTIVE",
-					}
-					if err := s.discapacidadRemisionRepo.Create(ctx, dr); err != nil {
-						return fmt.Errorf("processFollowUpSubmission: crear derivacion discapacidad [%s]: %w", svc, err)
-					}
-					log.Printf("[processFollowUp] ✅ derivacion creada -> discapacidad servicio=%s (id=%s)", svc, dr.ID)
-					remisionCount++
-				}
-			case "estabilizacion":
-				// Validar que se haya seleccionado al menos 1 criterio de estabilización.
-				criteriosEstVal := answerMap[qCriteriosEstabilizacion]
-				if criteriosEstVal == "" || len(splitValues(criteriosEstVal)) == 0 {
-					log.Printf("[processFollowUp] derivacion estabilizacion sin criterios seleccionados — omitida")
-					break
-				}
-				log.Printf("[processFollowUp] creando derivacion -> estabilizacion (criterios: %s)", criteriosEstVal)
-				ec := &models.EconomicStabilization{
-					CaseID:     fu.CaseID,
-					FollowUpID: fu.ID,
-					Type:       "derivacion",
-					Status:     "ACTIVE",
-				}
-				if err := s.economicStabilizationRepo.Create(ctx, ec); err != nil {
-					return fmt.Errorf("processFollowUpSubmission: crear derivacion economica: %w", err)
-				}
-				log.Printf("[processFollowUp] ✅ derivacion creada -> estabilizacion (id=%s)", ec.ID)
-				remisionCount++
 			}
 		}
 	}
 
-	// 5. Crear una EmergencyMeasure por cada medida de emergencia seleccionada
-	if medidasVal, ok := answerMap[qMedidasEmergencia]; ok && medidasVal != "" {
-		log.Printf("[processFollowUp] medidas de emergencia: %s", medidasVal)
-		for _, medida := range splitValues(medidasVal) {
-			log.Printf("[processFollowUp] creando medida emergencia tipo=%s", medida)
-			em := &models.EmergencyMeasure{
-				CaseID:     fu.CaseID,
-				FollowUpID: fu.ID,
-				Type:       medida,
-				Status:     "ACTIVE",
-			}
-			if err := s.emergencyMeasureRepo.Create(ctx, em); err != nil {
-				return fmt.Errorf("processFollowUpSubmission: crear medida emergencia [%s]: %w", medida, err)
-			}
-			log.Printf("[processFollowUp] ✅ medida emergencia creada tipo=%s (id=%s)", medida, em.ID)
-			remisionCount++
-		}
+	// 4-5. Crear registros de derivación por equipo y medidas de emergencia
+	rc, err := s.processEquiposYMedidas(ctx, fu.CaseID, &fu.ID, actorID, answerMap)
+	if err != nil {
+		return fmt.Errorf("processFollowUpSubmission: %w", err)
 	}
+	remisionCount += rc
 
 	// 6. Marcar el follow_up como REALIZADO
 	if err := s.followUpRepo.UpdateStatus(ctx, fu.ID, models.FollowUpStatusRealizado); err != nil {
@@ -3418,6 +3681,226 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 	return nil
 }
 
+// processEquiposYMedidas crea las derivaciones a equipos SALVIA (Sección 5,
+// "¿Cuáles equipos?") y las medidas de emergencia, a partir de un answerMap ya
+// indexado por questionId. Es la lógica de los PASO 4-5 de
+// processFollowUpSubmission, extraída para poder reutilizarla también desde el
+// modal de remisión manual del Equipo Técnico (Detalle del Caso → Derivaciones),
+// que no pasa por un seguimiento — de ahí que followUpID sea *string: nil en
+// ese caso, &fu.ID cuando sí viene de un seguimiento real.
+func (s *formService) processEquiposYMedidas(ctx context.Context, caseID string, followUpID *string, actorID string, answerMap map[string]string) (int, error) {
+	const (
+		qEquipos                 = "e0d38cf5-fe3f-45cb-9fd3-f5b8f7b2f7dc" // Derivaciones a equipos (multi-select)
+		qMedidasEmergencia       = "1a36260c-33a4-4ebd-bffb-e387d7964b96" // Medidas de emergencia (multi-select)
+		qCriteriosPsico          = "71c42c4a-f640-47ad-b2c1-5d4c18480449" // Criterios de remisión — Atención Psicosocial (multiple)
+		qCriteriosHombres        = "f7edf4fc-d1cd-4591-a358-31566c806365" // Criterios de remisión — Atención Hombres (multiple)
+		qCriteriosEstabilizacion = "28accaa6-99dc-4ec4-967b-f26045ad707c" // Criterios de remisión — Estabilización (multiple)
+		qServiciosDiscapacidad   = "47b122b1-0151-4b58-a007-d4afb722c1b9" // Servicios del Equipo de Discapacidad (multiple)
+	)
+
+	splitValues := func(v string) []string {
+		var out []string
+		for _, part := range strings.Split(v, ",") {
+			if t := strings.TrimSpace(part); t != "" {
+				out = append(out, t)
+			}
+		}
+		return out
+	}
+
+	remisionCount := 0
+
+	// 4. Crear registros de derivación por equipo
+	if equiposVal, ok := answerMap[qEquipos]; ok && equiposVal != "" {
+		log.Printf("[processEquiposYMedidas] derivaciones a equipos: %s", equiposVal)
+		for _, equipo := range splitValues(equiposVal) {
+			switch equipo {
+			case "atencion_psico":
+				// Regla de exclusión: si también se seleccionó medidas_emergencia, solo se crea
+				// la derivación de emergencia. La remisión psicosocial se omite.
+				equiposSeleccionados := splitValues(equiposVal)
+				tieneMedidasEmergencia := false
+				for _, e := range equiposSeleccionados {
+					if e == "medidas_emergencia" {
+						tieneMedidasEmergencia = true
+						break
+					}
+				}
+				if tieneMedidasEmergencia {
+					log.Printf("[processEquiposYMedidas] atencion_psico omitida — incompatible con medidas_emergencia seleccionada al mismo tiempo")
+					break
+				}
+				// Validar criterios de remisión psicosocial antes de crear la derivación.
+				// Regla: debe estar marcado "criterio_obligatorio" Y sumar mínimo 3 puntos.
+				criteriosVal := answerMap[qCriteriosPsico]
+				criteriosSelected := splitValues(criteriosVal)
+				tieneCriterioObligatorio := false
+				for _, c := range criteriosSelected {
+					if c == "criterio_obligatorio" {
+						tieneCriterioObligatorio = true
+						break
+					}
+				}
+				puntajesPsico := map[string]int{
+					"conducta_suicida":          3,
+					"interseccionalidad":        2,
+					"sin_ruta":                  1,
+					"condiciones_territoriales": 1,
+					"sin_acceso_psico":          1,
+					"naturalizacion_vbg":        1,
+				}
+				totalPuntos := 0
+				for _, c := range criteriosSelected {
+					totalPuntos += puntajesPsico[c]
+				}
+				if !tieneCriterioObligatorio || totalPuntos < 3 {
+					log.Printf("[processEquiposYMedidas] derivacion psicosocial NO cumple criterios (obligatorio=%v, puntos=%d) — omitida", tieneCriterioObligatorio, totalPuntos)
+					break
+				}
+				log.Printf("[processEquiposYMedidas] creando derivacion -> atencion_psico (obligatorio=%v, puntos=%d)", tieneCriterioObligatorio, totalPuntos)
+				var submittedBy *string
+				if actorID != "" {
+					submittedBy = &actorID
+				}
+				var submittedByTeam *string
+				if s.agentLightRepo != nil && actorID != "" {
+					agent, err := s.agentLightRepo.FindByICode(ctx, actorID)
+					if err != nil {
+						log.Printf("[processEquiposYMedidas] WARN: no se pudo resolver equipo del remitente (actor=%s): %v", actorID, err)
+					} else if agent != nil && strings.TrimSpace(agent.Team) != "" {
+						team := strings.TrimSpace(agent.Team)
+						submittedByTeam = &team
+					} else {
+						log.Printf("[processEquiposYMedidas] WARN: agente %s sin general_user_team — submitted_by_team quedará vacío", actorID)
+					}
+				} else {
+					log.Printf("[processEquiposYMedidas] WARN: no se pudo resolver submitted_by_team (actor=%s)", actorID)
+				}
+				ps := &models.PsychosocialSupport{
+					CaseID:          caseID,
+					FollowUpID:      followUpID,
+					Type:            "derivacion",
+					Status:          models.PsychosocialSupportStatusAbierto,
+					SubmittedBy:     submittedBy,
+					SubmittedByTeam: submittedByTeam,
+				}
+				if err := s.psychosocialSupportRepo.Create(ctx, ps); err != nil {
+					return remisionCount, fmt.Errorf("crear derivacion psicosocial: %w", err)
+				}
+				log.Printf("[processEquiposYMedidas] ✅ derivacion creada -> atencion_psico (id=%s)", ps.ID)
+				remisionCount++
+
+				// Tarea para que el equipo psicosocial valide si la remisión es procedente.
+				psID := ps.ID
+				validarTask := &models.CaseTask{
+					Category:              "Psicosocial",
+					Type:                  "validar_remision",
+					Description:           "Validar que remision a psicosocial es valida",
+					AssignedUserID:        "",
+					Status:                models.CaseTaskStatusToDo,
+					CaseID:                caseID,
+					FollowUpID:            followUpID,
+					PsychosocialSupportID: &psID,
+				}
+				if s.caseTaskRepo != nil {
+					if err := s.caseTaskRepo.Create(ctx, validarTask); err != nil {
+						log.Printf("[processEquiposYMedidas] WARN: no se pudo crear case_task de validación psicosocial (psychosocial_support=%s): %v", ps.ID, err)
+					}
+				}
+			case "atencion_hombres":
+				// Validar criterio de remisión al equipo de hombres antes de crear la derivación.
+				// Regla: debe estar marcado "criterio_hombres".
+				criteriosHombresVal := answerMap[qCriteriosHombres]
+				criteriosHombresSelected := splitValues(criteriosHombresVal)
+				tieneCriterioHombres := false
+				for _, c := range criteriosHombresSelected {
+					if c == "criterio_hombres" {
+						tieneCriterioHombres = true
+						break
+					}
+				}
+				if !tieneCriterioHombres {
+					log.Printf("[processEquiposYMedidas] derivacion atencion_hombres NO cumple criterio — omitida")
+					break
+				}
+				log.Printf("[processEquiposYMedidas] creando derivacion -> atencion_hombres")
+				mtr := &models.MenTeamRemision{
+					CaseID:     caseID,
+					FollowUpID: followUpID,
+					Type:       "derivacion",
+					Status:     "ACTIVE",
+				}
+				if err := s.menTeamRemisionRepo.Create(ctx, mtr); err != nil {
+					return remisionCount, fmt.Errorf("crear derivacion atencion_hombres: %w", err)
+				}
+				log.Printf("[processEquiposYMedidas] ✅ derivacion creada -> atencion_hombres (id=%s)", mtr.ID)
+				remisionCount++
+			case "discapacidad":
+				// Crear un registro por cada servicio seleccionado del Equipo de Discapacidad.
+				serviciosVal := answerMap[qServiciosDiscapacidad]
+				if serviciosVal == "" {
+					log.Printf("[processEquiposYMedidas] derivacion discapacidad sin servicios seleccionados — omitida")
+					break
+				}
+				for _, svc := range splitValues(serviciosVal) {
+					log.Printf("[processEquiposYMedidas] creando derivacion -> discapacidad servicio=%s", svc)
+					dr := &models.DiscapacidadRemision{
+						CaseID:     caseID,
+						FollowUpID: followUpID,
+						Service:    svc,
+						Status:     "ACTIVE",
+					}
+					if err := s.discapacidadRemisionRepo.Create(ctx, dr); err != nil {
+						return remisionCount, fmt.Errorf("crear derivacion discapacidad [%s]: %w", svc, err)
+					}
+					log.Printf("[processEquiposYMedidas] ✅ derivacion creada -> discapacidad servicio=%s (id=%s)", svc, dr.ID)
+					remisionCount++
+				}
+			case "estabilizacion":
+				// Validar que se haya seleccionado al menos 1 criterio de estabilización.
+				criteriosEstVal := answerMap[qCriteriosEstabilizacion]
+				if criteriosEstVal == "" || len(splitValues(criteriosEstVal)) == 0 {
+					log.Printf("[processEquiposYMedidas] derivacion estabilizacion sin criterios seleccionados — omitida")
+					break
+				}
+				log.Printf("[processEquiposYMedidas] creando derivacion -> estabilizacion (criterios: %s)", criteriosEstVal)
+				ec := &models.EconomicStabilization{
+					CaseID:     caseID,
+					FollowUpID: followUpID,
+					Type:       "derivacion",
+					Status:     "ACTIVE",
+				}
+				if err := s.economicStabilizationRepo.Create(ctx, ec); err != nil {
+					return remisionCount, fmt.Errorf("crear derivacion economica: %w", err)
+				}
+				log.Printf("[processEquiposYMedidas] ✅ derivacion creada -> estabilizacion (id=%s)", ec.ID)
+				remisionCount++
+			}
+		}
+	}
+
+	// 5. Crear una EmergencyMeasure por cada medida de emergencia seleccionada
+	if medidasVal, ok := answerMap[qMedidasEmergencia]; ok && medidasVal != "" {
+		log.Printf("[processEquiposYMedidas] medidas de emergencia: %s", medidasVal)
+		for _, medida := range splitValues(medidasVal) {
+			log.Printf("[processEquiposYMedidas] creando medida emergencia tipo=%s", medida)
+			em := &models.EmergencyMeasure{
+				CaseID:     caseID,
+				FollowUpID: followUpID,
+				Type:       medida,
+				Status:     "ACTIVE",
+			}
+			if err := s.emergencyMeasureRepo.Create(ctx, em); err != nil {
+				return remisionCount, fmt.Errorf("crear medida emergencia [%s]: %w", medida, err)
+			}
+			log.Printf("[processEquiposYMedidas] ✅ medida emergencia creada tipo=%s (id=%s)", medida, em.ID)
+			remisionCount++
+		}
+	}
+
+	return remisionCount, nil
+}
+
 // reasignarCaso evalúa las respuestas del formulario de seguimiento y, si corresponde,
 // actualiza el nivel de riesgo del caso y reasigna el calendario o el agente.
 //
@@ -3457,10 +3940,10 @@ func (s *formService) reasignarCaso(ctx context.Context, fu *models.FollowUpV2, 
 		return out
 	}
 	protectores := sinNinguno(splitCSV(answerMap[qProtectores]))
-	riesgos     := sinNinguno(splitCSV(answerMap[qRiesgos]))
-	extremos    := sinNinguno(splitCSV(answerMap[qExtremo]))
+	riesgos := sinNinguno(splitCSV(answerMap[qRiesgos]))
+	extremos := sinNinguno(splitCSV(answerMap[qExtremo]))
 	confirmHigh := answerMap[qConfirmHigh] == "true"
-	confirmLow  := answerMap[qConfirmLow]  == "true"
+	confirmLow := answerMap[qConfirmLow] == "true"
 
 	// Leer nivel de riesgo actual del caso desde victim_case_form2
 	currentLevel, err := s.caseRepo.FindRiskLevelByICode(ctx, fu.CaseID)
@@ -3735,13 +4218,137 @@ func validateAnswer(answer models.Answer, question QuestionStructure) ValidateAn
 		// Los banners informativos no tienen respuesta — siempre válidos
 		return validateAnswerOK
 
-	// DEFAULT — tipo desconocido, no bloquear
+		// DEFAULT — tipo desconocido, no bloquear
 	}
 
 	return validateAnswerOK
 }
 
 // FormSection fue movido a form_section_service.go
+
+// splitCSVValues parsea un valor comma-separated y filtra vacíos.
+func splitCSVValues(v string) []string {
+	var out []string
+	for _, part := range strings.Split(v, ",") {
+		if t := strings.TrimSpace(part); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// resolverEquipoTecnico devuelve el icode del primer usuario activo con rol
+// "Equipo Técnico" ('te'), destinatario de las tareas "Decisiones del Comité".
+// Retorna "" si no hay ninguno (el llamador decide el fallback).
+func (s *formService) resolverEquipoTecnico(ctx context.Context) string {
+	if s.agentLightRepo == nil {
+		return ""
+	}
+	users, err := s.agentLightRepo.FindAllByRole(ctx, "te")
+	if err != nil {
+		log.Printf("[resolverEquipoTecnico] WARN: error consultando usuarios 'te': %v", err)
+		return ""
+	}
+	if len(users) == 0 {
+		return ""
+	}
+	return users[0].ICode
+}
+
+// createEntityCaseObligationIfNotExists evita duplicar obligaciones: si eco referencia
+// una obligación de catálogo (EntityObligationID) que ya está registrada para ese
+// entity_case, no crea una fila nueva. Compartido por los 3 flujos que registran
+// checklist de entidades: Hacer Seguimiento, Registro de Caso y Psicosocial. Los
+// ítems "otra" (CustomLabel, sin EntityObligationID) no tienen clave de deduplicación
+// confiable y siempre se crean.
+func (s *formService) createEntityCaseObligationIfNotExists(ctx context.Context, eco *models.EntityCaseObligation) error {
+	if eco.EntityObligationID != nil {
+		exists, err := s.entityCaseObligationRepo.ExistsForObligation(ctx, eco.EntityCaseID, *eco.EntityObligationID)
+		if err != nil {
+			return err
+		}
+		if exists {
+			return nil
+		}
+	}
+	return s.entityCaseObligationRepo.Create(ctx, eco)
+}
+
+// procesarCanalActivacion genera tareas (y oficio si aplica) según el/los
+// canal(es) seleccionados para una entidad — reutilizado por Hacer Seguimiento
+// (processFollowUpSubmission, Secciones "Seguimiento a Entidades" e
+// "Identificación de Entidades") y por Psicosocial
+// (processPsicosocialEntidadEntries, mismas 2 secciones clonadas en cada
+// formulario). psychosocialSupportID es nil cuando se llama desde Hacer
+// Seguimiento; se fija en el case_task cuando se llama desde Psicosocial,
+// igual que ya hace processPsicosocialBarrierEntries con sus tareas.
+func (s *formService) procesarCanalActivacion(ctx context.Context, caseID string, followUpID *string, actorID, entityCaseID string, entityBranchID int64, canalRaw string, psychosocialSupportID *string) {
+	canalRaw = strings.TrimSpace(canalRaw)
+	if canalRaw == "" {
+		return
+	}
+	for _, canal := range splitCSVValues(canalRaw) {
+		ecID := entityCaseID
+		switch canal {
+		case "notificacion":
+			var entityLetterID *string
+			letter := &models.EntityLetter{
+				CaseID:         caseID,
+				State:          models.EntityLetterStatePorProyectar,
+				AgentID:        &actorID,
+				EntityBranchID: &entityBranchID,
+			}
+			if s.entityLetterRepo != nil {
+				if err := s.entityLetterRepo.Create(ctx, letter); err != nil {
+					log.Printf("[procesarCanalActivacion] WARN: no se pudo crear entity_letter para entity_case %s: %v", entityCaseID, err)
+				} else {
+					entityLetterID = &letter.ID
+				}
+			}
+			task := &models.CaseTask{
+				Category: "Entidades", Type: "proyectar_oficio",
+				Description:    "Proyectar oficio de activación de ruta",
+				AssignedUserID: actorID, Status: models.CaseTaskStatusToDo,
+				CaseID: caseID, FollowUpID: followUpID,
+				EntityCaseID: &ecID, EntityLetterID: entityLetterID,
+				PsychosocialSupportID: psychosocialSupportID,
+			}
+			if s.caseTaskRepo != nil {
+				if err := s.caseTaskRepo.Create(ctx, task); err != nil {
+					log.Printf("[procesarCanalActivacion] WARN: no se pudo crear case_task 'proyectar_oficio' para entity_case %s: %v", entityCaseID, err)
+				}
+			}
+		case "llamada":
+			task := &models.CaseTask{
+				Category: "Entidades", Type: "gestion_llamada",
+				Description:    "Llamar a la entidad para gestionar la activación",
+				AssignedUserID: actorID, Status: models.CaseTaskStatusToDo,
+				CaseID: caseID, FollowUpID: followUpID,
+				EntityCaseID:          &ecID,
+				PsychosocialSupportID: psychosocialSupportID,
+			}
+			if s.caseTaskRepo != nil {
+				if err := s.caseTaskRepo.Create(ctx, task); err != nil {
+					log.Printf("[procesarCanalActivacion] WARN: no se pudo crear case_task 'gestion_llamada' para entity_case %s: %v", entityCaseID, err)
+				}
+			}
+		case "mi_salvia":
+			task := &models.CaseTask{
+				Category: "Entidades", Type: "solicitud_entidad",
+				Description:    "Hacer solicitudes a la entidad sobre obligaciones pendientes",
+				AssignedUserID: actorID, Status: models.CaseTaskStatusToDo,
+				CaseID: caseID, FollowUpID: followUpID,
+				EntityCaseID:          &ecID,
+				PsychosocialSupportID: psychosocialSupportID,
+			}
+			if s.caseTaskRepo != nil {
+				if err := s.caseTaskRepo.Create(ctx, task); err != nil {
+					log.Printf("[procesarCanalActivacion] WARN: no se pudo crear case_task 'solicitud_entidad' para entity_case %s: %v", entityCaseID, err)
+				}
+			}
+		}
+	}
+}
 
 // buildBarrierFollowUpSummary genera un texto resumen del seguimiento a una barrera.
 func buildBarrierFollowUpSummary(persiste, respuestaInstitucional, actuaciones string) string {

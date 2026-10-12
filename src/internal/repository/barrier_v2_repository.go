@@ -3,6 +3,7 @@ package repository
 import (
 	"bitsflow/internal/models"
 	"context"
+	"strings"
 
 	"gorm.io/gorm"
 )
@@ -21,21 +22,25 @@ type BarrierV2Repository interface {
 	// FindByCreatedByIDWithRelations devuelve barreras del agente enriquecidas
 	// con datos de victim_case (nombres, documento, i_code).
 	FindByCreatedByIDWithRelations(ctx context.Context, createdByID string) ([]models.BarrierV2WithRelations, error)
-	// FindActiveByDepartmentWithRelations devuelve todas las barreras activas
-	// (status != MANAGED) de los casos del departamento dado, enriquecidas con
-	// datos de victim_case, entity_branch y ciudad. Es la consulta principal
-	// para la pantalla "Barreras Departamento" — no filtra por asignación de
-	// tareas, a diferencia de FindByAssignedUserIDWithRelations (Mis Barreras).
-	FindActiveByDepartmentWithRelations(ctx context.Context, departmentID string, filters DepartmentBarrierFilters) ([]models.BarrierV2DepartmentItem, error)
+	// FindByDepartmentWithRelations lista barreras del department_id dado
+	// (todas las no eliminadas), enriquecidas con victim_case, entity_branch y
+	// ciudad. Pantalla "Barreras Departamento": no filtra por case_task.
+	FindByDepartmentWithRelations(ctx context.Context, departmentID string, filters DepartmentBarrierFilters) ([]models.BarrierV2DepartmentItem, int64, error)
+	// FindMineWithRelations lista barreras activas cuyo user_territory_link_id
+	// coincide con el Enlace autenticado, con caso y tarea de articulación ToDo.
+	FindMineWithRelations(ctx context.Context, userTerritoryLinkID string) ([]models.BarrierV2MineItem, error)
 	GetDB() *gorm.DB
 }
 
-// DepartmentBarrierFilters agrupa los filtros opcionales de la pantalla
-// "Barreras Departamento": documento de identidad, entidad y ciudad.
+// DepartmentBarrierFilters agrupa los filtros y la paginación de la pantalla
+// "Barreras Departamento".
 type DepartmentBarrierFilters struct {
 	DocNumber string
 	Entidad   string
 	CityID    string
+	Status    string
+	Page      int
+	PageSize  int
 }
 
 type barrierV2Repository struct {
@@ -129,10 +134,19 @@ func (r *barrierV2Repository) FindByCreatedByIDWithRelations(ctx context.Context
 	return items, err
 }
 
-// barrierDepartmentWithRelationsSQL enriquece barrier_v2 con datos de
-// victim_case, victim_case_form2 (nivel de riesgo/prioridad), entity_branch
-// (entidad involucrada) y security.city (ciudad) mediante LEFT JOIN.
-const barrierDepartmentWithRelationsSQL = `
+const barrierDepartmentFromSQL = `
+FROM salvia.barrier_v2 b
+LEFT JOIN salvia.victim_case vc
+    ON vc.victim_case_i_code = b.case_id
+LEFT JOIN salvia.entity_branch eb
+    ON eb.entity_branch_id = b.entity_branch_id
+LEFT JOIN security.city ci
+    ON ci.city_id::text = b.city_id
+WHERE b.deleted_at IS NULL
+  AND b.department_id = ?
+`
+
+const barrierDepartmentSelectSQL = `
 SELECT
     b.id,
     b.case_id,
@@ -147,41 +161,149 @@ SELECT
     COALESCE(vc.victim_case_victim_last_names, '')  AS victim_last_name,
     COALESCE(vc.victim_case_victim_doc_number, '')  AS victim_doc_number,
     COALESCE(vc.victim_case_i_code, '')             AS case_code,
-    vf2.victim_case_form2_risk_level                AS risk_level
+    COALESCE(
+        (
+            SELECT NULLIF(vf2p.victim_case_form2_victim_phone::text, '')
+            FROM salvia.victim_case_form2 vf2p
+            WHERE vf2p.victim_case_form2_victim_case = vc.victim_case_id
+            LIMIT 1
+        ),
+        (
+            SELECT vcf1.victim_contact_form1_phone::text
+            FROM salvia.victim_contact_form1 vcf1
+            WHERE vcf1.victim_contact_form1_victim_contact = vc.victim_case_victim_contact
+            ORDER BY vcf1.victim_contact_form1_id DESC
+            LIMIT 1
+        ),
+        ''
+    ) AS victim_phone,
+    (
+        SELECT vf2.victim_case_form2_risk_level
+        FROM salvia.victim_case_form2 vf2
+        WHERE vf2.victim_case_form2_victim_case = vc.victim_case_id
+        LIMIT 1
+    ) AS risk_level
+` + barrierDepartmentFromSQL
+
+func departmentBarrierWhereExtra(filters DepartmentBarrierFilters) (string, []interface{}) {
+	var extra string
+	var args []interface{}
+	if doc := strings.TrimSpace(filters.DocNumber); doc != "" {
+		extra += " AND vc.victim_case_victim_doc_number ILIKE ?"
+		args = append(args, "%"+doc+"%")
+	}
+	if entidad := strings.TrimSpace(filters.Entidad); entidad != "" {
+		extra += " AND eb.entity_branch_name ILIKE ?"
+		args = append(args, "%"+entidad+"%")
+	}
+	if cityID := strings.TrimSpace(filters.CityID); cityID != "" {
+		extra += " AND b.city_id = ?"
+		args = append(args, cityID)
+	}
+	if status := strings.TrimSpace(filters.Status); status != "" {
+		extra += " AND b.status = ?"
+		args = append(args, status)
+	}
+	return extra, args
+}
+
+func (r *barrierV2Repository) FindByDepartmentWithRelations(ctx context.Context, departmentID string, filters DepartmentBarrierFilters) ([]models.BarrierV2DepartmentItem, int64, error) {
+	page := filters.Page
+	if page < 0 {
+		page = 0
+	}
+	pageSize := filters.PageSize
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+
+	extra, extraArgs := departmentBarrierWhereExtra(filters)
+	args := append([]interface{}{departmentID}, extraArgs...)
+
+	var total int64
+	countSQL := "SELECT COUNT(*) " + barrierDepartmentFromSQL + extra
+	if err := r.db.WithContext(ctx).Raw(countSQL, args...).Scan(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	listSQL := barrierDepartmentSelectSQL + extra + `
+ORDER BY b.created_at DESC
+LIMIT ? OFFSET ?`
+	listArgs := append(append([]interface{}{}, args...), pageSize, page*pageSize)
+
+	items := make([]models.BarrierV2DepartmentItem, 0)
+	err := r.db.WithContext(ctx).Raw(listSQL, listArgs...).Scan(&items).Error
+	return items, total, err
+}
+
+const barrierMineSQL = `
+SELECT
+    b.id,
+    b.case_id,
+    b.sector,
+    b.description,
+    b.status,
+    b.entity_branch_id,
+    COALESCE(eb.entity_branch_name, '')             AS entity_branch_name,
+    COALESCE(b.city_id, '')                         AS city_id,
+    COALESCE(ci.city_name, '')                      AS city_name,
+    COALESCE(vc.victim_case_victim_names, '')       AS victim_name,
+    COALESCE(vc.victim_case_victim_last_names, '')  AS victim_last_name,
+    COALESCE(vc.victim_case_victim_doc_number, '')  AS victim_doc_number,
+    COALESCE(vc.victim_case_i_code, '')             AS case_code,
+    COALESCE(
+        (
+            SELECT NULLIF(vf2p.victim_case_form2_victim_phone::text, '')
+            FROM salvia.victim_case_form2 vf2p
+            WHERE vf2p.victim_case_form2_victim_case = vc.victim_case_id
+            LIMIT 1
+        ),
+        (
+            SELECT vcf1.victim_contact_form1_phone::text
+            FROM salvia.victim_contact_form1 vcf1
+            WHERE vcf1.victim_contact_form1_victim_contact = vc.victim_case_victim_contact
+            ORDER BY vcf1.victim_contact_form1_id DESC
+            LIMIT 1
+        ),
+        ''
+    ) AS victim_phone,
+    COALESCE(t.id::text, '')                        AS task_id,
+    COALESCE(t.type, '')                            AS task_type,
+    COALESCE(t.description, '')                     AS task_description
 FROM salvia.barrier_v2 b
 LEFT JOIN salvia.victim_case vc
     ON vc.victim_case_i_code = b.case_id
-LEFT JOIN salvia.victim_case_form2 vf2
-    ON vf2.victim_case_form2_victim_case = vc.victim_case_id
 LEFT JOIN salvia.entity_branch eb
     ON eb.entity_branch_id = b.entity_branch_id
 LEFT JOIN security.city ci
-    ON ci.city_id = b.city_id
+    ON ci.city_id::text = b.city_id
+LEFT JOIN LATERAL (
+    SELECT ct.id, ct.type, ct.description
+    FROM salvia.case_task ct
+    WHERE ct.barrier_id = b.id
+      AND ct.assigned_user_id = ?
+      AND ct.type = ?
+      AND ct.status = ?
+      AND ct.deleted_at IS NULL
+    ORDER BY ct.created_at DESC
+    LIMIT 1
+) t ON true
 WHERE b.deleted_at IS NULL
-  AND b.status != ?
-  AND b.department_id = ?
+  AND b.user_territory_link_id = ?
+  AND b.status IN (?, ?)
+ORDER BY b.created_at DESC
 `
 
-func (r *barrierV2Repository) FindActiveByDepartmentWithRelations(ctx context.Context, departmentID string, filters DepartmentBarrierFilters) ([]models.BarrierV2DepartmentItem, error) {
-	sql := barrierDepartmentWithRelationsSQL
-	args := []interface{}{models.BarrierV2StatusManaged, departmentID}
-
-	if filters.DocNumber != "" {
-		sql += " AND vc.victim_case_victim_doc_number ILIKE ?"
-		args = append(args, "%"+filters.DocNumber+"%")
-	}
-	if filters.Entidad != "" {
-		sql += " AND eb.entity_branch_name ILIKE ?"
-		args = append(args, "%"+filters.Entidad+"%")
-	}
-	if filters.CityID != "" {
-		sql += " AND b.city_id = ?"
-		args = append(args, filters.CityID)
-	}
-
-	sql += " ORDER BY b.created_at DESC"
-
-	var items []models.BarrierV2DepartmentItem
-	err := r.db.WithContext(ctx).Raw(sql, args...).Scan(&items).Error
+func (r *barrierV2Repository) FindMineWithRelations(ctx context.Context, userTerritoryLinkID string) ([]models.BarrierV2MineItem, error) {
+	items := make([]models.BarrierV2MineItem, 0)
+	err := r.db.WithContext(ctx).Raw(
+		barrierMineSQL,
+		userTerritoryLinkID,
+		models.CaseTaskTypeArticulacionTerritorial,
+		models.CaseTaskStatusToDo,
+		userTerritoryLinkID,
+		models.BarrierV2StatusOpen,
+		models.BarrierV2StatusEnGestion,
+	).Scan(&items).Error
 	return items, err
 }

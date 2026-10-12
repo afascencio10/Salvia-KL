@@ -26,6 +26,12 @@ func NewCaseTaskController(svc service.CaseTaskService) *CaseTaskController {
 // restringidos por departamento del Enlace Territorial.
 var enlaceTerritorialRoles = map[string]bool{"en": true}
 
+// misBarrerasRoles — roles con acceso a "Mis Barreras" (barreras asignadas
+// personalmente al usuario vía user_territory_link_id). A diferencia de
+// enlaceTerritorialRoles, no exige departamento asignado porque "no"
+// (Operador territorial nacional) no tiene ámbito departamental.
+var misBarrerasRoles = map[string]bool{"en": true, "no": true}
+
 // requireEnlaceAccess valida la sesión (sessions.Default + utils.GetCommonSession,
 // mismo patrón que entity_case_controller.go), exige rol "en" y que el usuario
 // tenga un departamento asignado. No reutiliza salvia_config.PermissionsByRole
@@ -45,6 +51,13 @@ func requireEnlaceAccess(ctx *gin.Context) *utils.CommonSession {
 		return nil
 	}
 	return s
+}
+
+// requireMisBarrerasAccess valida la sesión y exige que el rol esté en
+// misBarrerasRoles. Usado por ListMine (barrier_v2_gin_controller.go), que
+// se filtra por s.UserICode y no depende del departamento asignado.
+func requireMisBarrerasAccess(ctx *gin.Context) *utils.CommonSession {
+	return requireSessionRole(ctx, misBarrerasRoles)
 }
 
 // requireSessionRole resuelve la sesión y exige que el rol actual esté entre los
@@ -68,7 +81,11 @@ func requireSessionRole(ctx *gin.Context, allowed map[string]bool) *utils.Common
 }
 
 // misTareasRoles — roles con acceso a la bandeja de "Mis Tareas".
-var misTareasRoles = map[string]bool{"op": true, "ro": true, "et": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true, "mn": true}
+var misTareasRoles = map[string]bool{"op": true, "ro": true, "et": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true, "mn": true, "te": true}
+
+// equipoTecnicoRoles — único rol que puede agregar comentarios del Equipo
+// Técnico en el tab Derivaciones de Detalle del Caso.
+var equipoTecnicoRoles = map[string]bool{"te": true}
 
 // misTareasRolesExcludingEntidadMecanismo — mismos roles que misTareasRoles salvo
 // entidad y mecanismo. Gatea las tareas de un caso completo (caseId sin barrierId ni
@@ -91,6 +108,9 @@ func (c *CaseTaskController) RegisterRoutes(rg *gin.RouterGroup) {
 	group.PUT("/:id/complete", c.CompleteWithFormData)
 	group.POST("/:id/reassign", c.Reassign)
 	group.POST("/gestion-propia", c.CreateGestionPropia)
+	group.POST("/articulacion-territorial", c.SaveArticulacionTerritorial)
+	group.POST("/gestion-mecanismo", c.SaveGestionMecanismo)
+	group.POST("/comentario-equipo-tecnico", c.SaveComentarioEquipoTecnico)
 }
 
 // ListByAssignedUser devuelve las tareas con barrierId asignadas al usuario,
@@ -116,6 +136,7 @@ func (c *CaseTaskController) GetByID(ctx *gin.Context) {
 }
 
 // ListByAssignedUser devuelve las tareas asignadas a un usuario o las de un caso.
+//
 //	GET /api/v1/case-tasks?assignedUserId=<userICode>
 //	GET /api/v1/case-tasks?caseId=<caseICode>
 func (c *CaseTaskController) ListByAssignedUser(ctx *gin.Context) {
@@ -135,7 +156,7 @@ func (c *CaseTaskController) ListByAssignedUser(ctx *gin.Context) {
 				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
 				return
 			}
-			ctx.JSON(http.StatusOK, c.enrichTasksWithNames(items))
+			ctx.JSON(http.StatusOK, c.enrichTasksWithNames(c.filterTasksForEntityRole(ctx, items)))
 			return
 		}
 		psychosocialID := ctx.Query("psychosocialId")
@@ -145,7 +166,7 @@ func (c *CaseTaskController) ListByAssignedUser(ctx *gin.Context) {
 				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
 				return
 			}
-			ctx.JSON(http.StatusOK, c.enrichTasksWithNames(items))
+			ctx.JSON(http.StatusOK, c.enrichTasksWithNames(c.filterTasksForEntityRole(ctx, items)))
 			return
 		}
 		// La pestaña Tareas (caseId sin barrierId/psychosocialId) es gestión interna de
@@ -159,7 +180,7 @@ func (c *CaseTaskController) ListByAssignedUser(ctx *gin.Context) {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
 			return
 		}
-		ctx.JSON(http.StatusOK, c.enrichTasksWithNames(items))
+		ctx.JSON(http.StatusOK, c.enrichTasksWithNames(c.filterTasksForEntityRole(ctx, items)))
 		return
 	}
 
@@ -170,6 +191,36 @@ func (c *CaseTaskController) ListByAssignedUser(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, items)
+}
+
+// optionalSession lee la sesión si existe; no responde 401 cuando falta
+// (GET /case-tasks por caseId sigue abierto para otros roles).
+func optionalSession(ctx *gin.Context) *utils.CommonSession {
+	sessionID, ok := sessions.Default(ctx).Get("userData").(string)
+	if !ok || sessionID == "" {
+		return nil
+	}
+	s, err := utils.GetCommonSession(sessionID)
+	if err != nil {
+		return nil
+	}
+	return s
+}
+
+// filterTasksForEntityRole deja solo las asignadas al usuario si el rol de
+// sesión es et. Otros roles y ausencia de sesión no filtran.
+func (c *CaseTaskController) filterTasksForEntityRole(ctx *gin.Context, items []models.CaseTask) []models.CaseTask {
+	s := optionalSession(ctx)
+	if s == nil || s.CurrentRole != "et" {
+		return items
+	}
+	out := make([]models.CaseTask, 0, len(items))
+	for _, t := range items {
+		if t.AssignedUserID == s.UserICode {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 // ListMine devuelve, paginadas, las tareas del agente autenticado — pantalla
@@ -290,6 +341,8 @@ func (c *CaseTaskController) CompleteWithFormData(ctx *gin.Context) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "tarea no encontrada"})
 		case errors.Is(err, service.ErrEntityLetterInvalidState):
 			ctx.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		case errors.Is(err, service.ErrEntityUserNotFound), errors.Is(err, service.ErrEntityUserNotUnique):
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		default:
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		}
@@ -297,7 +350,6 @@ func (c *CaseTaskController) CompleteWithFormData(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, task)
 }
-
 
 // Reassign reasigna una CaseTask a otro usuario.
 // POST /api/v1/case-tasks/:id/reassign
@@ -332,10 +384,10 @@ func (c *CaseTaskController) Reassign(ctx *gin.Context) {
 // tiposGestionPropiaValidos — opciones válidas para el campo "tipo" del
 // endpoint de gestión propia (mismas 4 opciones del modal ModalRegistrarGestion).
 var tiposGestionPropiaValidos = map[string]bool{
-	"Llamada":            true,
-	"Visita presencial":  true,
-	"Oficio a entidad":   true,
-	"Otra gestión":       true,
+	"Llamada":           true,
+	"Visita presencial": true,
+	"Oficio a entidad":  true,
+	"Otra gestión":      true,
 }
 
 // CreateGestionPropia crea una CaseTask ya completada para una gestión que el
@@ -382,6 +434,125 @@ func (c *CaseTaskController) CreateGestionPropia(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, c.enrichTaskWithName(*task))
 }
 
+// SaveArticulacionTerritorial completa o crea+completa una tarea de
+// Articulación territorial (Mis Barreras y «Registrar gestión propia» en Detalle).
+//
+//	POST /api/v1/case-tasks/articulacion-territorial
+//	Body: { "barrierId": "...", "taskId": "...", "formData": { ... } }
+func (c *CaseTaskController) SaveArticulacionTerritorial(ctx *gin.Context) {
+	s := requireEnlaceAccess(ctx)
+	if s == nil {
+		return
+	}
+
+	var body struct {
+		BarrierID string         `json:"barrierId" binding:"required"`
+		TaskID    string         `json:"taskId"`
+		FormData  datatypes.JSON `json:"formData" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "campos 'barrierId' y 'formData' requeridos"})
+		return
+	}
+
+	task, err := c.svc.SaveArticulacionTerritorial(ctx.Request.Context(), s.UserICode, s.AssignedDepartmentID, body.BarrierID, body.TaskID, body.FormData)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrBarrierNotFound):
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "barrera no encontrada"})
+		case errors.Is(err, service.ErrBarrierLinkMismatch):
+			ctx.JSON(http.StatusForbidden, gin.H{"error": "esta barrera no está asignada a tu usuario"})
+		case errors.Is(err, service.ErrBarrierDepartmentMismatch):
+			ctx.JSON(http.StatusForbidden, gin.H{"error": "esta barrera no pertenece a tu departamento asignado"})
+		case errors.Is(err, service.ErrCaseTaskNotFound):
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "tarea no encontrada"})
+		case errors.Is(err, service.ErrArticulacionInvalid):
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "completa fecha de contacto, compromiso y seguimiento si aplica"})
+		case errors.Is(err, service.ErrArticulacionTaskMismatch):
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "la tarea no corresponde a esta barrera"})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		}
+		return
+	}
+
+	ctx.JSON(http.StatusOK, c.enrichTaskWithName(*task))
+}
+
+// SaveGestionMecanismo crea una case_task Done con el formulario del mecanismo.
+//
+//	POST /api/v1/case-tasks/gestion-mecanismo
+//	Body: { "mechanismId": "...", "formData": { ... } }
+func (c *CaseTaskController) SaveGestionMecanismo(ctx *gin.Context) {
+	s := requireMcAccess(ctx)
+	if s == nil {
+		return
+	}
+
+	var body struct {
+		MechanismID string         `json:"mechanismId" binding:"required"`
+		FormData    datatypes.JSON `json:"formData" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "campos 'mechanismId' y 'formData' requeridos"})
+		return
+	}
+
+	task, err := c.svc.SaveGestionMecanismo(ctx.Request.Context(), s.UserICode, body.MechanismID, body.FormData)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrMechanismNotFound):
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "mecanismo no encontrado"})
+		case errors.Is(err, service.ErrMechanismNotAssigned):
+			ctx.JSON(http.StatusForbidden, gin.H{"error": "este caso no está asignado a tu usuario"})
+		case errors.Is(err, service.ErrMechanismNotActive):
+			ctx.JSON(http.StatusConflict, gin.H{"error": "este escalamiento ya no está activo"})
+		case errors.Is(err, service.ErrGestionMecanismoInvalid),
+			errors.Is(err, service.ErrMechanismInvalidScope):
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "completa los campos requeridos del formulario"})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		}
+		return
+	}
+
+	ctx.JSON(http.StatusOK, c.enrichTaskWithName(*task))
+}
+
+// SaveComentarioEquipoTecnico crea una case_task Done con un comentario del
+// Equipo Técnico sobre un caso (tab Derivaciones → Comentarios del Equipo
+// Técnico). Solo accesible para el rol 'te'.
+//
+//	POST /api/v1/case-tasks/comentario-equipo-tecnico
+//	Body: { "caseId": "...", "texto": "..." }
+func (c *CaseTaskController) SaveComentarioEquipoTecnico(ctx *gin.Context) {
+	s := requireSessionRole(ctx, equipoTecnicoRoles)
+	if s == nil {
+		return
+	}
+
+	var body struct {
+		CaseID string `json:"caseId" binding:"required"`
+		Texto  string `json:"texto" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "campos 'caseId' y 'texto' requeridos"})
+		return
+	}
+
+	task, err := c.svc.SaveComentarioEquipoTecnico(ctx.Request.Context(), s.UserICode, body.CaseID, body.Texto)
+	if err != nil {
+		if errors.Is(err, service.ErrComentarioEquipoTecnicoInvalid) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "el comentario no puede estar vacío"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		return
+	}
+
+	ctx.JSON(http.StatusCreated, c.enrichTaskWithName(*task))
+}
+
 // lookupUserName resuelve el nombre completo de un usuario a partir de su icode.
 // Devuelve "" si el icode está vacío o no se encuentra.
 func (c *CaseTaskController) lookupUserName(userID string) string {
@@ -401,7 +572,7 @@ func (c *CaseTaskController) lookupUserName(userID string) string {
 // taskToJSON arma el gin.H completo de una tarea, incluyendo el nombre del
 // usuario asignado ya resuelto. Centraliza el shape para que GetByID y el
 // listado devuelvan siempre el mismo conjunto de campos.
-func (c *CaseTaskController) taskToJSON(t models.CaseTask, assignedUserName string) gin.H {
+func (c *CaseTaskController) taskToJSON(t models.CaseTask, assignedUserName, entityName string) gin.H {
 	result := gin.H{
 		"id":               t.ID,
 		"caseId":           t.CaseID,
@@ -413,6 +584,7 @@ func (c *CaseTaskController) taskToJSON(t models.CaseTask, assignedUserName stri
 		"assignedUserName": assignedUserName,
 		"barrierId":        t.BarrierID,
 		"entityLetterId":   t.EntityLetterID,
+		"entityCaseId":     t.EntityCaseID,
 		"followUpId":       t.FollowUpID,
 		"result":           t.Result,
 		"formData":         t.FormData,
@@ -420,20 +592,65 @@ func (c *CaseTaskController) taskToJSON(t models.CaseTask, assignedUserName stri
 		"createdAt":        t.CreatedAt,
 		"updatedAt":        t.UpdatedAt,
 	}
-	// Resolver sector de la barrera si tiene barrierId
+	if entityName != "" {
+		result["entityName"] = entityName
+	}
+	// Resolver sector y entidad de la barrera si tiene barrierId
 	if t.BarrierID != nil && *t.BarrierID != "" {
-		var sector string
-		c.svc.GetDB().Raw("SELECT COALESCE(sector, '') FROM salvia.barrier_v2 WHERE id = ? LIMIT 1", *t.BarrierID).Scan(&sector)
-		result["barrierSector"] = sector
+		var barrierRow struct {
+			Sector           string `gorm:"column:sector"`
+			EntityBranchID   *int64 `gorm:"column:entity_branch_id"`
+			EntityBranchName string `gorm:"column:entity_branch_name"`
+		}
+		c.svc.GetDB().Raw(`
+			SELECT COALESCE(b.sector, '') AS sector,
+			       b.entity_branch_id,
+			       COALESCE(eb.entity_branch_name, '') AS entity_branch_name
+			FROM salvia.barrier_v2 b
+			LEFT JOIN salvia.entity_branch eb ON eb.entity_branch_id = b.entity_branch_id
+			WHERE b.id = ? LIMIT 1`, *t.BarrierID).Scan(&barrierRow)
+		result["barrierSector"] = barrierRow.Sector
+		result["barrierEntityBranchId"] = barrierRow.EntityBranchID
+		result["barrierEntityName"] = barrierRow.EntityBranchName
 	}
 	return result
+}
+
+func (c *CaseTaskController) lookupEntityNames(entityCaseIDs []string) map[string]string {
+	out := make(map[string]string)
+	if len(entityCaseIDs) == 0 {
+		return out
+	}
+	type row struct {
+		ID   string `gorm:"column:id"`
+		Name string `gorm:"column:entity_name"`
+	}
+	var rows []row
+	c.svc.GetDB().Raw(`
+		SELECT ec.id, COALESCE(e.entity_name, '') AS entity_name
+		FROM salvia.entity_case ec
+		JOIN salvia.entity_branch eb ON eb.entity_branch_id = ec.entity_branch_id
+		JOIN salvia.entity e ON e.entity_id = eb.entity_id
+		WHERE ec.id IN ?
+	`, entityCaseIDs).Scan(&rows)
+	for _, r := range rows {
+		out[r.ID] = r.Name
+	}
+	return out
+}
+
+func (c *CaseTaskController) entityNameForTask(t models.CaseTask) string {
+	if t.EntityCaseID == nil || *t.EntityCaseID == "" {
+		return ""
+	}
+	return c.lookupEntityNames([]string{*t.EntityCaseID})[*t.EntityCaseID]
 }
 
 // enrichTaskWithName enriquece una tarea individual con el nombre del usuario
 // asignado. Usado por GetByID — vistas de detalle como case-task-history
 // necesitan "todos los datos" de una sola tarea, incluyendo el nombre legible.
 func (c *CaseTaskController) enrichTaskWithName(t models.CaseTask) gin.H {
-	return c.taskToJSON(t, c.lookupUserName(t.AssignedUserID))
+	return c.taskToJSON(t, c.lookupUserName(t.AssignedUserID), c.entityNameForTask(t))
 }
 
 // enrichTasksWithNames agrega el nombre del usuario asignado a cada tarea.
@@ -442,9 +659,13 @@ func (c *CaseTaskController) enrichTaskWithName(t models.CaseTask) gin.H {
 func (c *CaseTaskController) enrichTasksWithNames(tasks []models.CaseTask) []gin.H {
 	// Recolectar IDs únicos
 	idsMap := make(map[string]bool)
+	ecIDsMap := make(map[string]bool)
 	for _, t := range tasks {
 		if t.AssignedUserID != "" {
 			idsMap[t.AssignedUserID] = true
+		}
+		if t.EntityCaseID != nil && *t.EntityCaseID != "" {
+			ecIDsMap[*t.EntityCaseID] = true
 		}
 	}
 
@@ -456,10 +677,20 @@ func (c *CaseTaskController) enrichTasksWithNames(tasks []models.CaseTask) []gin
 		}
 	}
 
+	ecIDs := make([]string, 0, len(ecIDsMap))
+	for id := range ecIDsMap {
+		ecIDs = append(ecIDs, id)
+	}
+	entityNames := c.lookupEntityNames(ecIDs)
+
 	// Construir response enriquecido
 	var result []gin.H
 	for _, t := range tasks {
-		result = append(result, c.taskToJSON(t, namesMap[t.AssignedUserID]))
+		entityName := ""
+		if t.EntityCaseID != nil {
+			entityName = entityNames[*t.EntityCaseID]
+		}
+		result = append(result, c.taskToJSON(t, namesMap[t.AssignedUserID], entityName))
 	}
 	if result == nil {
 		result = []gin.H{}

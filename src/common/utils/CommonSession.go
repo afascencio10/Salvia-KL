@@ -19,7 +19,7 @@ type CommonSession struct {
 	EntityBrandICode  string
 	TownCode          string
 	TownICode         string
-	AssignedDepartmentID string // Departamento asignado al Enlace Territorial (rol "en"), independiente de su residencia
+	AssignedDepartmentID string // Departamento asignado al Enlace Territorial (rol "en"); value = department_id como texto
 	EntityBranchICode    string
 	// EntityBranchId: sede (salvia.entity_branch) del usuario rol et; 0 si no aplica.
 	EntityBranchId int64

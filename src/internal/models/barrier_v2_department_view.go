@@ -2,10 +2,8 @@ package models
 
 import "time"
 
-// BarrierV2DepartmentItem es el DTO de lectura enriquecido para la pantalla
-// "Barreras Departamento". A diferencia de CaseTaskWithRelations (Mis
-// Barreras), no depende de case_task — trae directamente todas las barreras
-// activas de un departamento, sin filtrar por asignación de tareas.
+// BarrierV2DepartmentItem es el DTO de lectura para "Barreras Departamento".
+// No depende de case_task: lista barrier_v2 del departamento del Enlace.
 //
 // Joins:
 //
@@ -33,6 +31,7 @@ type BarrierV2DepartmentItem struct {
 	VictimName      string `gorm:"column:victim_name"       json:"victimName"`
 	VictimLastName  string `gorm:"column:victim_last_name"  json:"victimLastName"`
 	VictimDocNumber string `gorm:"column:victim_doc_number" json:"victimDocNumber"`
+	VictimPhone     string `gorm:"column:victim_phone"      json:"victimPhone"`
 	CaseCode        string `gorm:"column:case_code"         json:"caseCode"`
 
 	// ── Nivel de prioridad del caso (victim_case_form2_risk_level 1-4) ──────

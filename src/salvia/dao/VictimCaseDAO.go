@@ -81,6 +81,35 @@ type VictimCaseDTO struct {
 	VictimCaseFormName           string                                  `json:"-"`
 	VictimCaseForm1              VictimCaseForm1DTO                      `json:"form"`
 	VictimCaseForm2              VictimCaseForm2DTO                      `json:"form2"`
+
+	// Identificación de Entidades — datos de tránsito, no se mapean a ninguna
+	// columna de victim_case/victim_case_form2 (mismo patrón que
+	// VictimCaseEntityBranches). Se procesan post-commit por
+	// ProcessVictimCaseEntidadEntries. Ver DocsMD/Otros/temp/agregar-identificacion-entidades-registro-caso-legacy.md.
+	VictimCaseHasReportedToEntity    bool                        `json:"hasReportedToEntity"`
+	VictimCaseAcceptsRouteActivation bool                        `json:"acceptsRouteActivation"`
+	VictimCaseEntidadesAcudidas      []VictimCaseEntidadEntryDTO `json:"entidadesAcudidas"`
+	VictimCaseEntidadesActivacion    []VictimCaseEntidadEntryDTO `json:"entidadesActivacion"`
+}
+
+// VictimCaseEntidadEntryDTO — una fila del repeater "Identificación de
+// Entidades" en Registro de Caso. No pasa por ValidateJSONInput/checkFields
+// (no soportan arrays anidados) — el frontend garantiza que las filas
+// agregadas estén completas antes de enviar el POST (validación bloqueante,
+// ver F-5 del plan); el backend simplemente ignora cualquier fila sin
+// EntityBranchID al procesar.
+type VictimCaseEntidadEntryDTO struct {
+	Sector           string   `json:"sector"`
+	TownCode         string   `json:"townCode"`
+	EntityBranchID   string   `json:"entityBranchId"`
+	Radicado         string   `json:"radicado"`         // solo "acudidas"
+	FechaReporte     string   `json:"fechaReporte"`      // solo "acudidas"
+	Completadas      []string `json:"completadas"`       // solo "acudidas"
+	CompletadasOtra  string   `json:"completadasOtra"`
+	Pendientes       []string `json:"pendientes"`
+	PendientesOtra   string   `json:"pendientesOtra"`
+	InfoRuta         string   `json:"infoRuta"`          // solo "acudidas" → entity_case.objetivo
+	CanalActivacion  []string `json:"canalActivacion"`   // solo "activacion"
 }
 type VictimCasePgDB struct {
 	VictimCaseId           sql.NullInt64

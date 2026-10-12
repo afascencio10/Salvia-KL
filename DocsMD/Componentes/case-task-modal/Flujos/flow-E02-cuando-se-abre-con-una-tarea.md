@@ -82,6 +82,17 @@ PASO 2 — Cargar la tarea del API
         observacionesMecanismo:      "",
       }
 
+    CASO 'justificar_remision':
+      form = { respuesta: "" }
+
+    CASO 'solicitud_entidad':
+      form = { items: [], seleccion: {} }
+      → Llamar SUB-FLUJO: Cargar obligaciones pendientes
+
+    CASO 'respuesta_entidad':
+      form = { radicado: "", ampliacion: "", estadoInstitucional: "" }
+      // contexto (label, descripcionSolicitud) se lee de tarea.formData — sin fetch extra
+
     CASO 'Corregir oficio':
       form = {}   // sin campos — es una vista de solo lectura
       → Llamar SUB-FLUJO: Cargar oficio vinculado
@@ -117,6 +128,34 @@ PASO 2 — Cargar la tarea del API
   → FIN SUB-FLUJO → CONTINÚA FLUJO GENERAL
 
 
+┌─────────────────────────────────────────────────────────────────┐
+│  SUB-FLUJO: Cargar obligaciones pendientes                       │
+│  Solo aplica si tarea.type === 'solicitud_entidad'               │
+└─────────────────────────────────────────────────────────────────┘
+
+  entityCaseId = tarea.entityCaseId
+
+  SI !entityCaseId:
+    → errorObligaciones = "Esta tarea no está vinculada a una entidad del caso."
+    → FIN SUB-FLUJO
+
+  cargandoObligaciones = true
+
+  GET /api/v1/entity-cases/{entityCaseId}/obligations?status=pendiente
+  → { entityName, items: [{ id, entityObligationId, label, status }] }
+
+  SI ok:
+    → entityName = resultado.entityName
+    → form.items = resultado.items
+    → form.seleccion[id] = { selected: false, descripcion: "" } para cada ítem
+  SI error:
+    → errorObligaciones = mensaje de carga
+
+  → cargandoObligaciones = false
+
+  → FIN SUB-FLUJO → CONTINÚA FLUJO GENERAL
+
+
 PASO 3 — Vue re-evalúa reactivamente
 
   → El título del modal muestra el label correspondiente a tarea.type
@@ -124,6 +163,36 @@ PASO 3 — Vue re-evalúa reactivamente
   → BtnConfirmar queda deshabilitado (formulario vacío → formularioValido = false)
     EXCEPTO 'Corregir oficio': BtnConfirmar se habilita en cuanto cargandoOficio = false
     (no depende de campos de formulario)
+
+    CASO 'articulacion_territorial':
+      form = {
+        fechaContacto:        hoy (YYYY-MM-DD local),
+        compromiso:           "",
+        requiereSeguimiento:  true,
+        fechaSeguimiento:     "",
+        sugerenciasRemision:  "",
+      }
+      BtnConfirmar = "Guardar"
+
+Variante openArticulacion(ctx) sin taskId:
+  No hace GET. tarea = { id: null, type: 'articulacion_territorial', description: 'Gestión propia' }
+  articulacionCtx = ctx (barrierId, entityName, barrierDescription, …)
+
+Variante openMecanismo(ctx):
+  No hace GET. tarea = { id: null, type: 'gestion_mecanismo', scope }
+  mecanismoCtx = { mechanismId, caseId, scope }
+  form = {
+    abordadoEnSesion: '',
+    fechaSesion: '',
+    compromisos: '',
+    fechaProxima: '',
+    detalleProxima: '',
+    reporteGestion: '',
+    remisionResponsables: '',
+    asistenciasFecha: '',
+    asistenciasTexto: '',
+  }
+  BtnConfirmar = "Guardar"
 
 → FIN EJECUCIÓN ✓
 

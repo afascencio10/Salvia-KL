@@ -1,6 +1,6 @@
 # `case-task-modal` — Interfaz del Componente
 
-Modal reutilizable para completar tareas (`case_task`). El padre lo activa vía `open(taskId)`, el componente carga la tarea del API, renderiza el formulario específico según `case_task.type` (`gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio` o `justificar_remision`) y al confirmar la marca como completada ejecutando los efectos de lado correspondientes en el backend.
+Modal reutilizable para completar tareas (`case_task`). El padre lo activa vía `open(taskId)`, `openArticulacion(ctx)` (Mis Barreras) o `openMecanismo(ctx)` (Casos Mecanismo). El componente carga la tarea del API (si hay id), renderiza el formulario según `case_task.type` (`gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio`, `justificar_remision`, `solicitud_entidad`, `respuesta_entidad`, `articulacion_territorial` o `gestion_mecanismo`) y al confirmar ejecuta el complete correspondiente.
 
 ## Archivos relevantes
 
@@ -29,6 +29,13 @@ case-task-modal
         │   │     'comite_caso'         → "Decisiones del Comité"
         │   │     'Corregir oficio'     → "Corregir Oficio"
         │   │     'justificar_remision' → "Justificar Remisión"
+        │   │     'solicitud_entidad'   → "Solicitudes a {entityName}"
+        │   │     'respuesta_entidad'   → "Respuesta institucional"
+        │   │     'articulacion_territorial' → "Gestionar barrera"
+        │   │     'gestion_mecanismo'        → según scope:
+        │   │         municipal     → "Gestión del Comité Municipal"
+        │   │         departamental → "Gestión del Comité Departamental"
+        │   │         nacional      → "Gestión de la Instancia Nacional"
         │   └── BtnCerrar  "✕"  → cancelar()
         │
         ├── [v-if cargandoTarea]
@@ -90,6 +97,59 @@ case-task-modal
             │           │   opciones: Municipal | Departamental | Nacional
             │           └── <textarea> Observaciones del mecanismo  (.ctm-textarea)
             │
+            │   [tarea.type === 'solicitud_entidad']
+            │   FormSolicitudEntidad  (.ctm-form)
+            │   ├── Intro  "Selecciona los ítems pendientes..."
+            │   ├── [v-if cargandoObligaciones]
+            │   │   └── Spinner  "Cargando obligaciones..."
+            │   ├── [v-else-if errorObligaciones]
+            │   │   └── ErrorMsg  errorObligaciones
+            │   └── [v-else]
+            │       ├── Label  "Checklist entidad pendientes"
+            │       ├── [v-if !form.items.length]
+            │       │   └── Empty  "No hay obligaciones pendientes"
+            │       └── Item × N  [v-for item in form.items]
+            │           ├── Chip  item.label  → toggleObligacion(item.id)
+            │           │   selected → fondo púrpura + check
+            │           └── [v-if seleccionado]
+            │               └── <textarea> Describe la solicitud*  maxlength=500
+            │
+            │   [tarea.type === 'respuesta_entidad']
+            │   FormRespuestaEntidad  (.ctm-form)
+            │   ├── ContextBox  (solo lectura)
+            │   │   ├── Campo  "Obligación"  tarea.formData.label
+            │   │   └── Campo  "Solicitud"   tarea.formData.descripcionSolicitud
+            │   ├── <input> Nº de radicado / NUNC / MP  maxlength=80  (opcional)
+            │   ├── <textarea> Ampliar información  maxlength=500  (opcional)
+            │   └── <select> Estado institucional*  iniciado | en_proceso | concluido
+            │
+            │   [tarea.type === 'articulacion_territorial']
+            │   FormArticulacion  (.ctm-form)
+            │   ├── ContextBox  entidad + descripción de barrera
+            │   ├── <input type=date> Fecha de contacto*
+            │   ├── <textarea> Compromiso adquirido*
+            │   ├── Toggle  ¿El compromiso requiere seguimiento?*  Sí/No
+            │   ├── [v-if requiereSeguimiento] <input type=date> Fecha de seguimiento* + nota
+            │   └── <textarea> Sugerencias de remisión interna o externa  (opcional)
+            │
+            │   [tarea.type === 'gestion_mecanismo']
+            │   FormMecanismo  (.ctm-form)  // campos según mecanismoCtx.scope
+            │   ├── [scope === 'municipal']
+            │   │   ├── <select> ¿Abordado en sesión del Comité Municipal?*
+            │   │   │     si_ordinaria | si_extraordinaria | no
+            │   │   ├── [Si] <input type=date> Fecha de la sesión  (opcional)
+            │   │   ├── [Si] <textarea> Compromisos  (opcional)
+            │   │   ├── [No] <input type=date> Fecha próxima sesión  (opcional)
+            │   │   └── [No] <textarea> Detalle próxima sesión  (opcional)
+            │   ├── [scope === 'departamental']
+            │   │   ├── <input type=date> Fecha próxima sesión o mesa* 
+            │   │   └── <textarea> Detalle próxima sesión o mesa*
+            │   ├── <textarea> Reporte de gestión*  (todos los scopes)
+            │   ├── [scope !== 'nacional'] <textarea> Remisión a responsables  (opcional)
+            │   └── [scope === 'nacional']
+            │       ├── <input type=date> Fecha asistencias técnicas*
+            │       └── <textarea> Asistencias técnicas*  (si no aplica: «No aplica» + explicación)
+            │
             │   [tarea.type === 'justificar_remision']
             │   FormJustificarRemision  (.ctm-form)
             │   ├── MotivoDevolucion  (fondo rojo claro)
@@ -124,8 +184,12 @@ case-task-modal
                 ├── BtnCancelar  "Cancelar"  → cancelar()
                 └── BtnConfirmar
                     │   SEGÚN tarea.type:
-                    │     'Corregir oficio'  → "Marcar como corregido"
-                    │     default             → "Completar tarea"
+                    │     'Corregir oficio'     → "Marcar como corregido"
+                    │     'solicitud_entidad'   → "Enviar solicitudes"
+                    │     'respuesta_entidad'   → "Enviar respuesta"
+                    │     'articulacion_territorial' → "Guardar"
+                    │     'gestion_mecanismo'        → "Guardar"
+                    │     default               → "Completar tarea"
                     :disabled si !formularioValido || guardando || cargandoTarea
                     → confirmar()
 ```
@@ -143,27 +207,39 @@ case-task-modal
 | `comite_caso` | `decisiones.includes('oficio')` | Crea `entity_letter` (estado `por_proyectar`) + nueva `case_task` de tipo `proyectar_oficio` asignada al agente del caso + guarda JSON + Done |
 | `Corregir oficio` | — | Transiciona el `entity_letter` vinculado (`case_task.entity_letter_id`) de `en_correccion` → `para_revisar` + marca la tarea `Done`. No hay `form_data` que guardar — es solo confirmación. |
 | `justificar_remision` | — | Guarda JSON (`respuesta`) + Done. Reabre la `psychosocial_support` vinculada (`status → 'abierto'`) y crea una nueva `case_task` `validar_remision` (`ToDo`) para que el psicólogo/a vuelva a evaluarla — asignada al `psychologist_id` de la `dupla` si la remisión tiene una, si no al `professional_id` individual, si no queda sin asignar (igual que la remisión). Crea `case_timeline_event` "Remisión Justificada". Ver `DocsMD/Screens/Remision Psicosocial Detalle/QA/validar-remision-justificar-qa-cases.md`. |
+| `solicitud_entidad` | — | Valida ≥1 ítem con descripción. Resuelve exactamente un `general_user` con `entity_branch_id` = sede del `entity_case`. Si hay 0 o N usuarios, **no** marca Done y responde 400. Si hay uno: transacción — marca esta tarea Done + `form_data` y crea N `case_task` `respuesta_entidad` (`ToDo`) asignadas a ese usuario, una por ítem. Tras éxito, crea `case_timeline_event` categoría Entidades, type "Solicitud a entidad" (si el insert falla, WARN; la tarea permanece Done). No cambia el status de `entity_case_obligation`. |
+| `respuesta_entidad` | — | Guarda JSON fusionado (contexto de la solicitud + radicado, ampliación, estado) + `Done`. Crea `case_timeline_event` categoría Entidades, type "Respuesta institucional" (si el insert falla, WARN; la tarea permanece Done). No cambia `entity_case_obligation` ni crea más tareas. |
+| `articulacion_territorial` | — | `POST /api/v1/case-tasks/articulacion-territorial`. Si hay `taskId` ToDo válida: Done + `form_data`. Si no: crea tarea ya Done (`description=Gestión propia`). Si `requiereSeguimiento`: crea ToDo `compromiso_con_enlace` con `form_data.fechaSeguimiento`. No marca la barrera `Articulada`; si estaba `OPEN` pasa a `En Gestion`. |
+| `gestion_mecanismo` | — | `POST /api/v1/case-tasks/gestion-mecanismo`. **Siempre inserta** una `case_task` ya `Done` (`category=Mecanismos`, `case_articulating_mechanism_id`, `form_data`, `result` resumen). Nunca completa una ToDo previa. El `case_articulating_mechanism` permanece `active`. |
 
 ---
 
 ## Validaciones por tipo de tarea
 
-| Campo | `gestion_llamada` | `proyectar_oficio` | `comite_caso` | `Corregir oficio` | `justificar_remision` |
-|---|---|---|---|---|---|
-| Departamento | required | required | — | — | — |
-| Ciudad | required | required | — | — | — |
-| Municipio | required | required | — | — | — |
-| Entidad | required | required | — | — | — |
-| Nombre entidad (si "otra") | required | required | — | — | — |
-| Funcionario | required | required | — | — | — |
-| Descripción | opcional | — | — | — | — |
-| Asunto | required si `generaOficio` | required | — | — | — |
-| Ruta al archivo en Kofax | required si `generaOficio` | required | — | — | — |
-| Decisiones del comité | — | — | min 1 requerida | — | — |
-| Nivel (mecanismo articulador) | — | — | required si decisión activa | — | — |
-| Tu respuesta | — | — | — | — | required |
+| Campo | `gestion_llamada` | `proyectar_oficio` | `comite_caso` | `Corregir oficio` | `justificar_remision` | `solicitud_entidad` |
+|---|---|---|---|---|---|---|
+| Departamento | required | required | — | — | — | — |
+| Ciudad | required | required | — | — | — | — |
+| Municipio | required | required | — | — | — | — |
+| Entidad | required | required | — | — | — | — |
+| Nombre entidad (si "otra") | required | required | — | — | — | — |
+| Funcionario | required | required | — | — | — | — |
+| Descripción | opcional | — | — | — | — | — |
+| Asunto | required si `generaOficio` | required | — | — | — | — |
+| Ruta al archivo en Kofax | required si `generaOficio` | required | — | — | — | — |
+| Decisiones del comité | — | — | min 1 requerida | — | — | — |
+| Nivel (mecanismo articulador) | — | — | required si decisión activa | — | — | — |
+| Tu respuesta | — | — | — | — | required | — |
+| Ítems del checklist | — | — | — | — | — | min 1 seleccionado |
+| Descripción por ítem | — | — | — | — | — | required en cada seleccionado |
 
 > `Corregir oficio` no tiene campos editables. `formularioValido` solo exige que `cargandoOficio === false` (que haya terminado de cargar el `entity_letter` vinculado en modo lectura).
+>
+> `respuesta_entidad`: radicado y ampliación opcionales; `estadoInstitucional` required (`iniciado` | `en_proceso` | `concluido`).
+>
+> `articulacion_territorial`: fecha de contacto y compromiso required; fecha de seguimiento required si Sí; sugerencias opcionales.
+>
+> `gestion_mecanismo`: `reporteGestion` required en los tres scopes. Municipal: `abordadoEnSesion` required; fecha/compromisos o próxima sesión opcionales según Sí/No. Departamental: `fechaProxima` + `detalleProxima` required. Nacional: `asistenciasFecha` + `asistenciasTexto` required. Remisión a responsables opcional (municipal/departamental).
 
 ---
 
@@ -180,3 +256,8 @@ Todos los `<input>`/`<textarea>` de texto libre tienen `maxlength` (atributo HTM
 | Descripción / Notas (`gestion_llamada`) | 500 |
 | Observaciones del oficio / para el agente / del mecanismo (`comite_caso`) | 500 |
 | Tu respuesta (`justificar_remision`) | 500 |
+| Descripción por ítem (`solicitud_entidad`) | 500 |
+| Nº de radicado / NUNC / MP (`respuesta_entidad`) | 80 |
+| Ampliar información (`respuesta_entidad`) | 500 |
+| Compromisos / detalle próxima / remisión / asistencias (`gestion_mecanismo`) | 500 |
+| Reporte de gestión (`gestion_mecanismo`) | 2000 |

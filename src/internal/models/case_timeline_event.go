@@ -14,28 +14,32 @@ const (
 	TimelineCategoryBarreras       = "Barreras"
 	TimelineCategorySeguimientos   = "Seguimientos"
 	TimelineCategoryOficios        = "Oficios"
+	TimelineCategoryEntidades      = "Entidades"
 	TimelineCategoryMedidas        = "Medidas"
 	TimelineCategoryPsicosocial    = "Psicosocial"
 	TimelineCategoryEstabilizacion = "Estabilización"
+	TimelineCategoryMecanismos     = "Mecanismos"
+	TimelineCategoryEquipoTecnico  = "Equipo Técnico"
 )
 
 // ─── Tipos de evento (Type) ──────────────────────────────────────────────────
 const (
-	TimelineTypeCreacionCaso          = "Creación de Caso"
-	TimelineTypeIntentoSeguimiento    = "Intento de Seguimiento"
-	TimelineTypeSeguimientoPospuesto  = "Seguimiento Pospuesto"
-	TimelineTypeReasignacionCaso      = "Reasignación de Caso"
-	TimelineTypeReasignacionSeg       = "Reasignación de Seguimiento"
-	TimelineTypeSeguimientoProgramado = "Seguimiento Programado"
-	TimelineTypeSeguimientoEjecutado  = "Seguimiento Ejecutado"
-	TimelineTypeSeguimientoEditado    = "Seguimiento Editado"
-	TimelineTypeCierreCaso            = "Cierre de Caso"
-	TimelineTypeReabrirCaso           = "Reapertura de Caso"
-	TimelineTypeCambioEstado          = "Cambio de Estado"
-	TimelineTypeBarreraIdentificada   = "Barrera Identificada"
-	TimelineTypeBarreraArticulada     = "Barrera Articulada"
-	TimelineTypeGestionPropia         = "Gestión propia registrada"
-	TimelineTypeNota                  = "Nota"
+	TimelineTypeCreacionCaso            = "Creación de Caso"
+	TimelineTypeIntentoSeguimiento      = "Intento de Seguimiento"
+	TimelineTypeSeguimientoPospuesto    = "Seguimiento Pospuesto"
+	TimelineTypeReasignacionCaso        = "Reasignación de Caso"
+	TimelineTypeReasignacionSeg         = "Reasignación de Seguimiento"
+	TimelineTypeSeguimientoProgramado   = "Seguimiento Programado"
+	TimelineTypeSeguimientoEjecutado    = "Seguimiento Ejecutado"
+	TimelineTypeSeguimientoEditado      = "Seguimiento Editado"
+	TimelineTypeCierreCaso              = "Cierre de Caso"
+	TimelineTypeReabrirCaso             = "Reapertura de Caso"
+	TimelineTypeCambioEstado            = "Cambio de Estado"
+	TimelineTypeBarreraIdentificada     = "Barrera Identificada"
+	TimelineTypeBarreraArticulada       = "Barrera Articulada"
+	TimelineTypeGestionPropia           = "Gestión propia registrada"
+	TimelineTypeArticulacionTerritorial = "Articulación territorial"
+	TimelineTypeNota                    = "Nota"
 
 	// Oficios (EntityLetter) — un Type por estado destino
 	TimelineTypeOficioParaRevisar        = "Oficio para revisar"
@@ -46,20 +50,29 @@ const (
 	TimelineTypeOficioRespondido         = "Oficio respondido"
 
 	TimelineTypeHechosCaso = "Hechos del caso"
+
+	TimelineTypeSolicitudEntidad = "Solicitud a entidad"
+	TimelineTypeRespuestaEntidad = "Respuesta institucional"
+
+	TimelineTypeMecanismoRegistrado = "Mecanismo articulador registrado"
+	TimelineTypeGestionMecanismo    = "Gestión del mecanismo"
+
+	TimelineTypeComentarioEquipoTecnico = "Comentario del Equipo Técnico"
+	TimelineTypeRemisionEquipos         = "Remisión a equipos registrada"
 )
 
 // ─── Iconos ──────────────────────────────────────────────────────────────────
 const (
-	TimelineIconRegistro     = "clipboard-list"
-	TimelineIconSeguimiento  = "calendar-check"
-	TimelineIconReasignacion = "arrows-rotate"
-	TimelineIconPospuesto    = "calendar-days"
-	TimelineIconEstado       = "shuffle"
-	TimelineIconBarrera          = "triangle-exclamation"
+	TimelineIconRegistro          = "clipboard-list"
+	TimelineIconSeguimiento       = "calendar-check"
+	TimelineIconReasignacion      = "arrows-rotate"
+	TimelineIconPospuesto         = "calendar-days"
+	TimelineIconEstado            = "shuffle"
+	TimelineIconBarrera           = "triangle-exclamation"
 	TimelineIconBarreraArticulada = "circle-check"
 	TimelineIconGestionPropia     = "link"
-	TimelineIconNota         = "note-sticky"
-	TimelineIconCierre       = "circle-xmark"
+	TimelineIconNota              = "note-sticky"
+	TimelineIconCierre            = "circle-xmark"
 
 	TimelineIconHechosCaso = "file-lines"
 
@@ -69,6 +82,11 @@ const (
 	TimelineIconOficioJuridica   = "scale-balanced"
 	TimelineIconOficioRadicar    = "paper-plane"
 	TimelineIconOficioRespondido = "envelope-open"
+
+	TimelineIconSolicitudEntidad = "folder"
+	TimelineIconRespuestaEntidad = "reply"
+	TimelineIconMecanismo        = "scale-balanced"
+	TimelineIconComentario       = "comment-dots"
 )
 
 // ─── Colores ─────────────────────────────────────────────────────────────────
@@ -88,27 +106,33 @@ const (
 
 // ─── Constantes legacy (compatibilidad con eventos existentes en BD) ─────────
 const (
-	TimelineEventRegistro        = "REGISTRO"
-	TimelineEventSeguimiento     = "SEGUIMIENTO_CREADO"
-	TimelineEventReasignacion    = "REASIGNACION"
-	TimelineEventReasignSeg      = "REASIGNACION_SEGUIMIENTO"
-	TimelineEventEstadoCambio    = "CAMBIO_ESTADO"
-	TimelineEventBarrera           = "BARRERA_IDENTIFICADA"
-	TimelineEventBarreraArticulada = "BARRERA_ARTICULADA"
-	TimelineEventGestionPropia     = "GESTION_PROPIA_REGISTRADA"
-	TimelineEventNota              = "NOTA"
-	TimelineEventOficioActualizado = "OFICIO_ACTUALIZADO"
+	TimelineEventRegistro                = "REGISTRO"
+	TimelineEventSeguimiento             = "SEGUIMIENTO_CREADO"
+	TimelineEventReasignacion            = "REASIGNACION"
+	TimelineEventReasignSeg              = "REASIGNACION_SEGUIMIENTO"
+	TimelineEventEstadoCambio            = "CAMBIO_ESTADO"
+	TimelineEventBarrera                 = "BARRERA_IDENTIFICADA"
+	TimelineEventBarreraArticulada       = "BARRERA_ARTICULADA"
+	TimelineEventGestionPropia           = "GESTION_PROPIA_REGISTRADA"
+	TimelineEventArticulacionTerritorial = "ARTICULACION_TERRITORIAL"
+	TimelineEventNota                    = "NOTA"
+	TimelineEventOficioActualizado       = "OFICIO_ACTUALIZADO"
+	TimelineEventSolicitudEntidad        = "SOLICITUD_ENTIDAD"
+	TimelineEventRespuestaEntidad        = "RESPUESTA_ENTIDAD"
+	TimelineEventMecanismo               = "MECANISMO_REGISTRADO"
+	TimelineEventGestionMecanismo        = "GESTION_MECANISMO"
+	TimelineEventComentarioEquipoTecnico = "COMENTARIO_EQUIPO_TECNICO"
 )
 
 // CaseTimelineEvent registra un evento en la vida de un caso.
 // Es append-only — los eventos no se modifican ni eliminan.
 type CaseTimelineEvent struct {
-	ID          string    `gorm:"type:varchar(36);primaryKey;default:gen_random_uuid()" json:"id"`
-	CaseID      string    `gorm:"type:varchar(36);index;not null"                       json:"case_id"`
-	EventType   string    `gorm:"type:varchar(30)"                                      json:"event_type"` // Legacy — se mantiene para compatibilidad
-	Description string    `gorm:"type:text"                                             json:"description"`
-	ActorID     string    `gorm:"type:varchar(36)"                                      json:"actor_id"`
-	ActorName   string    `gorm:"type:varchar(128)"                                     json:"actor_name"`
+	ID          string `gorm:"type:varchar(36);primaryKey;default:gen_random_uuid()" json:"id"`
+	CaseID      string `gorm:"type:varchar(36);index;not null"                       json:"case_id"`
+	EventType   string `gorm:"type:varchar(30)"                                      json:"event_type"` // Legacy — se mantiene para compatibilidad
+	Description string `gorm:"type:text"                                             json:"description"`
+	ActorID     string `gorm:"type:varchar(36)"                                      json:"actor_id"`
+	ActorName   string `gorm:"type:varchar(128)"                                     json:"actor_name"`
 
 	// Campos del esquema nuevo
 	Category    string    `gorm:"type:varchar(50)"                                      json:"category"`
@@ -126,9 +150,10 @@ type CaseTimelineEvent struct {
 	EmergencyMeasureID      string `gorm:"type:varchar(36)" json:"emergency_measure_id"`
 	PsychosocialSupportID   string `gorm:"type:varchar(36)" json:"psychosocial_support_id"`
 	EconomicStabilizationID string `gorm:"type:varchar(36)" json:"economic_stabilization_id"`
+	ArticulatingMechanismID string `gorm:"type:varchar(36)" json:"articulating_mechanism_id"`
 
-	CreatedAt   time.Time      `json:"created_at"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+	CreatedAt time.Time      `json:"created_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (CaseTimelineEvent) TableName() string { return "salvia.case_timeline_event" }

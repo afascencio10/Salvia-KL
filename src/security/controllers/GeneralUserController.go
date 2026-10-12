@@ -8,6 +8,7 @@ import (
 	common_dao "bitsflow/common/dao"
 	"bitsflow/common/db"
 	"bitsflow/common/utils"
+	"bitsflow/internal/models"
 	salvia_config "bitsflow/salvia/config"
 	salvia_daos "bitsflow/salvia/dao"
 	security_config "bitsflow/security/config"
@@ -318,6 +319,7 @@ func SetGeneralUser(dataInput string, s utils.CommonSession, connData *db.ConnDa
 
 	var entityRoleFound bool = false
 	var departmentOperatorRoleFound bool = false
+	var mechanismRoleFound bool = false
 	var riskOperatorRoleFound bool = false
 	var enlaceTerritorialRoleFound bool = false
 
@@ -414,11 +416,12 @@ func SetGeneralUser(dataInput string, s utils.CommonSession, connData *db.ConnDa
 			//Revisamos si es un rol que requiere de ubicación geográfica
 			if r.RoleCode == "et" {
 				entityRoleFound = true
-				break
 			}
 			if r.RoleCode == "do" {
 				departmentOperatorRoleFound = true
-				break
+			}
+			if r.RoleCode == models.ArticulatingMechanismRoleCode {
+				mechanismRoleFound = true
 			}
 			if r.RoleCode == "ro" {
 				riskOperatorRoleFound = true
@@ -460,6 +463,9 @@ func SetGeneralUser(dataInput string, s utils.CommonSession, connData *db.ConnDa
 				utils.SetError(collectedErrors, security_daos.GeneralUserProfileJSONName, utils.GetTag(&profileRequest.Profile, "GeneralUserProfileTownCode", "json"), "security_general_user_profile_town", "common_global_error", security_config.Locale)
 			}
 
+		}
+		if mechanismRoleFound {
+			validateMechanismProfile(&profileRequest.Profile, collectedErrors)
 		}
 
 		// Manejo del correo: se procesa la cadena de correos y se separan en DTOs individuales
@@ -665,6 +671,15 @@ func SetGeneralUser(dataInput string, s utils.CommonSession, connData *db.ConnDa
 
 	}
 
+	if mechanismRoleFound {
+		mechID, mechErr := persistUserMechanism("", &profileRequest.Profile)
+		if mechErr != nil {
+			db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
+			return http.StatusInternalServerError, mechErr.Error()
+		}
+		userRequest.User.GeneralUserArticulatingMechanismId = mechID
+	}
+
 	// Se crea el usuario en la base de datos
 	if err = security_daos.SetGeneralUser(&userRequest.User, connData, &dbClientConfig, &dbServerConfig); err != nil {
 		db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
@@ -865,6 +880,8 @@ func GetGeneralUserByICode(id string, connData *db.ConnData, dbClientConfig db.D
 			usr.GeneralUserGeneralUserProfile.GeneralUserProfileDepartment = department
 			usr.GeneralUserGeneralUserProfile.GeneralUserProfileTownCode = town.TownCode
 		}
+
+		hydrateProfileFromMechanism(&usr)
 
 		if cowner.EntityBranch.EntityBranchId > 0 {
 			var branch salvia_daos.EntityBranchDTO = salvia_daos.EntityBranchDTO{}
@@ -1076,6 +1093,7 @@ func UpdateGeneralUserByICode(dataInput string, id string, s utils.CommonSession
 
 	var entityRoleFound bool = false
 	var departmentOperatorRoleFound bool = false
+	var mechanismRoleFound bool = false
 	var riskOperatorRoleFound bool = false
 	var enlaceTerritorialRoleFound bool = false
 
@@ -1183,11 +1201,12 @@ func UpdateGeneralUserByICode(dataInput string, id string, s utils.CommonSession
 			//Revisamos si es un rol que requiere de ubicación geográfica
 			if r.RoleCode == "et" {
 				entityRoleFound = true
-				break
 			}
 			if r.RoleCode == "do" {
 				departmentOperatorRoleFound = true
-				break
+			}
+			if r.RoleCode == models.ArticulatingMechanismRoleCode {
+				mechanismRoleFound = true
 			}
 			if r.RoleCode == "ro" {
 				riskOperatorRoleFound = true
@@ -1227,6 +1246,9 @@ func UpdateGeneralUserByICode(dataInput string, id string, s utils.CommonSession
 				utils.SetError(collectedErrors, security_daos.GeneralUserProfileJSONName, utils.GetTag(&userRequest.User.GeneralUserGeneralUserProfile, "GeneralUserProfileTownCode", "json"), "security_general_user_profile_town", "common_global_error", security_config.Locale)
 			}
 
+		}
+		if mechanismRoleFound {
+			validateMechanismProfile(&userRequest.User.GeneralUserGeneralUserProfile, collectedErrors)
 		}
 
 		// Manejo del correo: se procesa la cadena de correos y se separan en DTOs individuales
@@ -1313,6 +1335,9 @@ func UpdateGeneralUserByICode(dataInput string, id string, s utils.CommonSession
 	usrToUpdate.GeneralUserGeneralUserProfile.GeneralUserProfileDocType = userRequest.User.GeneralUserGeneralUserProfile.GeneralUserProfileDocType
 	usrToUpdate.GeneralUserGeneralUserProfile.GeneralUserProfileDocNumber = userRequest.User.GeneralUserGeneralUserProfile.GeneralUserProfileDocNumber
 	usrToUpdate.GeneralUserGeneralUserProfile.GeneralUserProfileTownCode = userRequest.User.GeneralUserGeneralUserProfile.GeneralUserProfileTownCode
+	usrToUpdate.GeneralUserGeneralUserProfile.GeneralUserProfileMechanismType = userRequest.User.GeneralUserGeneralUserProfile.GeneralUserProfileMechanismType
+	usrToUpdate.GeneralUserGeneralUserProfile.GeneralUserProfileMechanismDepartmentId = userRequest.User.GeneralUserGeneralUserProfile.GeneralUserProfileMechanismDepartmentId
+	usrToUpdate.GeneralUserGeneralUserProfile.GeneralUserProfileMechanismCityId = userRequest.User.GeneralUserGeneralUserProfile.GeneralUserProfileMechanismCityId
 
 	// Se determinan los correos y teléfonos a eliminar y a crear mediante funciones de limpieza
 	mailsToDelete, userRequest.User.GeneralUserGeneralUserProfile.GeneralUserProfileEmails = cleanEMails(mailsToDelete, userRequest.User.GeneralUserGeneralUserProfile.GeneralUserProfileEmails)
@@ -1436,6 +1461,15 @@ func UpdateGeneralUserByICode(dataInput string, id string, s utils.CommonSession
 	}
 
 	// Se actualiza el usuario y su perfil en la base de datos
+	if mechanismRoleFound {
+		mechID, mechErr := persistUserMechanism(usrToUpdate.GeneralUserArticulatingMechanismId, &userRequest.User.GeneralUserGeneralUserProfile)
+		if mechErr != nil {
+			db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
+			return http.StatusInternalServerError, mechErr.Error()
+		}
+		usrToUpdate.GeneralUserArticulatingMechanismId = mechID
+	}
+
 	if err = security_daos.UpdateGeneralUserByICode(&usrToUpdate, connData, &dbClientConfig, &dbServerConfig); err != nil {
 		db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
 		return http.StatusInternalServerError, err.Error()

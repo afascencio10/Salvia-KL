@@ -19,6 +19,8 @@ Tabla principal del usuario. Contiene credenciales, estado y equipo.
 | `general_user_language` | varchar | Idioma (ej. `sp`) |
 | `general_user_general_user_profile` | uuid | FK → `general_user_profile.general_user_profile_id` |
 | `general_user_team` | varchar | Nombre del equipo (ej. `Riesgo alto`, `Riesgo bajo`) |
+| `entity_branch_id` | bigint | FK opcional → sede (`et`) |
+| `articulating_mechanism_id` | varchar(36) | FK opcional 1:1 → `salvia.articulating_mechanism` (rol `mc`) |
 
 ---
 
@@ -42,6 +44,21 @@ Datos personales del usuario. Debe existir y estar vinculado en `general_user` p
 
 ---
 
+### `salvia.articulating_mechanism`
+Registro 1:1 del usuario con rol `mc`. Se crea al guardar el usuario (no es un catálogo compartido).
+
+| Columna | Descripción |
+|---|---|
+| `id` | PK varchar(36) |
+| `type` | `municipal` \| `departamental` \| `nacional` |
+| `department_id` | Requerido si departamental o municipal |
+| `city_id` / `town_code` | Requeridos si municipal |
+| nombres denormalizados | `department_name`, `city_name`, `town_name` |
+
+En el alta de usuario: Nacional no pide ubicación; Departamental solo departamento; Municipal depto + ciudad + municipio.
+
+---
+
 ### `role`
 Catálogo de roles del sistema.
 
@@ -57,6 +74,7 @@ Catálogo de roles del sistema.
 | `et` | Entidad |
 | `an` | A notificaciones |
 | `us` | Usuario externo |
+| `mc` | Mecanismo (tipo Municipal / Departamental / Nacional persistido en `salvia.articulating_mechanism`, 1:1 con el usuario) |
 
 ---
 

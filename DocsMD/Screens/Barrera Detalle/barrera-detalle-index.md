@@ -6,7 +6,7 @@
 |---|---|
 | Interfaz | [barrera-detalle-interface.md](barrera-detalle-interface.md) |
 
-**Changelogs:** [changelogJul2026.md](changelogJul2026.md)
+**Changelogs:** [changelogSep2026.md](changelogSep2026.md) · [changelogJul2026.md](changelogJul2026.md)
 
 ## Resumen de eventos
 
@@ -40,7 +40,7 @@
 
 **Evento:** Cuando el Enlace registra una gestión propia
 **Tipo:** User Interaction
-**Descripción:** Aplica solo al rol `en` (Enlace Territorial) sobre una barrera de su mismo departamento asignado. Desde el tab "Tareas", completa tipo + descripción en el modal y confirma. El frontend llama `POST /api/v1/case-tasks/gestion-propia`, que crea la `case_task` ya en `Done` (sin pasar por `ToDo`), registra un evento de timeline, y transiciona la barrera de `OPEN` a `"En Gestion"` si aplicaba. Implementado dentro del componente reutilizable `case-tasks.js` (sin doc propio en `Componentes/`).
+**Descripción:** Aplica solo al rol `en` (Enlace Territorial) sobre una barrera de su mismo departamento asignado. El botón "+ Registrar gestión propia" abre el mismo `case-task-modal` que Mis Barreras (`openArticulacion` sin `taskId`). Al guardar llama `POST /api/v1/case-tasks/articulacion-territorial`, que crea+completa `articulacion_territorial` (descripción «Gestión propia») y, si hay seguimiento, un ToDo `compromiso_con_enlace`. Si la barrera estaba `OPEN`, pasa a `"En Gestion"`.
 **Requerido:** Sí
 
 ---

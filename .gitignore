@@ -24,6 +24,7 @@ node_modules
 /test-results/
 /playwright-report/
 /playwright/.cache/
+/.playwright-cli/
 .gocache_agent/
 .chrome_debug_profile/
 .gomodcache_agent/
