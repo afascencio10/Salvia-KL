@@ -28,13 +28,13 @@ func (c *RemisionManualController) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 // SaveRemisionManual crea derivaciones a equipos SALVIA (y medidas de
-// emergencia) directamente para el caso, sin pasar por un seguimiento. Solo
-// accesible para el rol 'te' (Equipo Técnico).
+// emergencia) directamente para el caso, sin pasar por un seguimiento.
+// Accesible para el rol 'te' (Equipo Técnico) y 'sv' (Supervisor).
 //
 //	POST /api/v1/casos/:id/remision-equipos
 //	Body: { "answers": { "<questionId>": "valor1,valor2", ... } }
 func (c *RemisionManualController) SaveRemisionManual(ctx *gin.Context) {
-	s := requireSessionRole(ctx, equipoTecnicoRoles)
+	s := requireSessionRole(ctx, map[string]bool{"te": true, "sv": true})
 	if s == nil {
 		return
 	}

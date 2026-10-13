@@ -122,7 +122,7 @@
                 if (!value) return '—';
                 var d = new Date(value);
                 if (isNaN(d.getTime())) return value;
-                return d.toLocaleDateString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                return d.toLocaleDateString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
             },
 
             cambiarEstado: function (valor) {

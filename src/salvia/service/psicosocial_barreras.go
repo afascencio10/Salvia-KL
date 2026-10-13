@@ -289,11 +289,18 @@ func (s *formService) processPsicosocialBarrierEntries(ctx context.Context, form
 				taskType = "comite_caso"
 			}
 
+			// comite_caso queda como pool del Equipo Técnico (assigned_user_id vacío):
+			// la toma y gestiona cualquier 'te'. Las demás tareas van al agente.
+			assignedTo := actorID
+			if taskType == "comite_caso" {
+				assignedTo = ""
+			}
+
 			task := &models.CaseTask{
 				Category:              "Barreras",
 				Type:                  taskType,
 				Description:           label,
-				AssignedUserID:        actorID,
+				AssignedUserID:        assignedTo,
 				Status:                models.CaseTaskStatusToDo,
 				CaseID:                ps.CaseID,
 				BarrierID:             &barrierID,

@@ -91,7 +91,7 @@ var equipoTecnicoRoles = map[string]bool{"te": true}
 // entidad y mecanismo. Gatea las tareas de un caso completo (caseId sin barrierId ni
 // psychosocialId), que alimentan la pestaña "Tareas" del detalle de caso — gestión
 // interna de SALVIA oculta para esos dos roles.
-var misTareasRolesExcludingEntidadMecanismo = map[string]bool{"op": true, "ro": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true}
+var misTareasRolesExcludingEntidadMecanismo = map[string]bool{"op": true, "ro": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true, "te": true}
 
 // RegisterRoutes registra las rutas de CaseTask en el grupo /api/v1.
 //
@@ -156,7 +156,7 @@ func (c *CaseTaskController) ListByAssignedUser(ctx *gin.Context) {
 				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
 				return
 			}
-			ctx.JSON(http.StatusOK, c.enrichTasksWithNames(c.filterTasksForEntityRole(ctx, items)))
+			ctx.JSON(http.StatusOK, c.enrichTasksWithNames(c.filterTasksForTeamRole(ctx, c.filterTasksForEntityRole(ctx, items))))
 			return
 		}
 		psychosocialID := ctx.Query("psychosocialId")
@@ -166,7 +166,7 @@ func (c *CaseTaskController) ListByAssignedUser(ctx *gin.Context) {
 				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
 				return
 			}
-			ctx.JSON(http.StatusOK, c.enrichTasksWithNames(c.filterTasksForEntityRole(ctx, items)))
+			ctx.JSON(http.StatusOK, c.enrichTasksWithNames(c.filterTasksForTeamRole(ctx, c.filterTasksForEntityRole(ctx, items))))
 			return
 		}
 		// La pestaña Tareas (caseId sin barrierId/psychosocialId) es gestión interna de
@@ -180,7 +180,7 @@ func (c *CaseTaskController) ListByAssignedUser(ctx *gin.Context) {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
 			return
 		}
-		ctx.JSON(http.StatusOK, c.enrichTasksWithNames(c.filterTasksForEntityRole(ctx, items)))
+		ctx.JSON(http.StatusOK, c.enrichTasksWithNames(c.filterTasksForTeamRole(ctx, c.filterTasksForEntityRole(ctx, items))))
 		return
 	}
 
@@ -223,6 +223,31 @@ func (c *CaseTaskController) filterTasksForEntityRole(ctx *gin.Context, items []
 	return out
 }
 
+// filterTasksForTeamRole ajusta la visibilidad de tareas para el Equipo Técnico
+// (rol 'te'): un integrante ve las tareas asignadas a él y, además, todas las
+// tareas "comite_caso" que estén en el pool (sin dueño, assigned_user_id vacío),
+// para que cualquiera del equipo técnico pueda tomarlas y gestionarlas. Las tareas
+// comite_caso ya reclamadas por otro 'te' (assigned_user_id con su icode) no se
+// muestran. Otros roles y ausencia de sesión no filtran.
+func (c *CaseTaskController) filterTasksForTeamRole(ctx *gin.Context, items []models.CaseTask) []models.CaseTask {
+	s := optionalSession(ctx)
+	if s == nil || s.CurrentRole != "te" {
+		return items
+	}
+	out := make([]models.CaseTask, 0, len(items))
+	for _, t := range items {
+		if t.AssignedUserID == s.UserICode {
+			out = append(out, t)
+			continue
+		}
+		// Pool del Equipo Técnico: comite_caso sin dueño visible para todos los 'te'.
+		if t.Type == "comite_caso" && t.AssignedUserID == "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
 // ListMine devuelve, paginadas, las tareas del agente autenticado — pantalla
 // "Mis Tareas". El usuario se resuelve siempre desde la sesión y nunca desde un
 // parámetro del cliente, a diferencia de GET /api/v1/case-tasks?assignedUserId=.
@@ -243,7 +268,7 @@ func (c *CaseTaskController) ListMine(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.Query("page"))
 	pageSize, _ := strconv.Atoi(ctx.Query("pageSize"))
 
-	res, err := c.svc.ListByAssignedUserIDPaged(ctx.Request.Context(), s.UserICode, status, page, pageSize)
+	res, err := c.svc.ListByAssignedUserIDPaged(ctx.Request.Context(), s.UserICode, status, s.CurrentRole, page, pageSize)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
 		return
@@ -334,7 +359,17 @@ func (c *CaseTaskController) CompleteWithFormData(ctx *gin.Context) {
 		return
 	}
 
-	task, err := c.svc.CompleteWithFormData(ctx.Request.Context(), id, body.UserID, body.FormData)
+	// El usuario que gestiona la tarea se toma de la sesión cuando está disponible,
+	// no del body: así el registro de "quién gestionó" (usado, entre otros, por la
+	// tarea comite_caso del Equipo Técnico) es confiable y no manipulable desde el
+	// cliente. Si no hay sesión, se cae al userId del body para no romper llamadas
+	// existentes.
+	effectiveUserID := body.UserID
+	if s := optionalSession(ctx); s != nil && s.UserICode != "" {
+		effectiveUserID = s.UserICode
+	}
+
+	task, err := c.svc.CompleteWithFormData(ctx.Request.Context(), id, effectiveUserID, body.FormData)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrCaseTaskNotFound):

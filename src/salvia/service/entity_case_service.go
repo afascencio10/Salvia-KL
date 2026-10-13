@@ -80,14 +80,103 @@ type EntityCaseService interface {
 type entityCaseService struct {
 	repo           repository.EntityCaseRepository
 	obligationRepo repository.EntityCaseObligationRepository
+	responseRepo   repository.EntityCaseObligationResponseRepository
 }
 
-func NewEntityCaseService(repo repository.EntityCaseRepository, obligationRepo repository.EntityCaseObligationRepository) EntityCaseService {
-	return &entityCaseService{repo: repo, obligationRepo: obligationRepo}
+func NewEntityCaseService(
+	repo repository.EntityCaseRepository,
+	obligationRepo repository.EntityCaseObligationRepository,
+	responseRepo repository.EntityCaseObligationResponseRepository,
+) EntityCaseService {
+	return &entityCaseService{repo: repo, obligationRepo: obligationRepo, responseRepo: responseRepo}
 }
 
 func (s *entityCaseService) ListByCase(ctx context.Context, caseID string) ([]models.EntityCaseWithRelations, error) {
-	return s.repo.FindByCaseIDWithRelations(ctx, caseID)
+	items, err := s.repo.FindByCaseIDWithRelations(ctx, caseID)
+	if err != nil || len(items) == 0 {
+		return items, err
+	}
+	// Si falla lo de las respuestas, las tarjetas se devuelven igual sin ese bloque:
+	// es información añadida, y tumbar toda la pestaña por ella sería peor.
+	_ = s.attachEntityResponses(ctx, caseID, items)
+	return items, nil
+}
+
+// attachEntityResponses llena RespuestaEntidad leyendo la misma tabla que "Mis
+// Acciones Institucionales". Son dos consultas para toda la grilla, no una por
+// tarjeta.
+func (s *entityCaseService) attachEntityResponses(ctx context.Context, caseID string, items []models.EntityCaseWithRelations) error {
+	if s.responseRepo == nil {
+		return nil
+	}
+
+	ids := make([]string, 0, len(items))
+	for _, item := range items {
+		if item.RelID != "" {
+			ids = append(ids, item.RelID)
+		}
+	}
+
+	// Los conteos salen del checklist y no de contar respuestas, para que la tarjeta
+	// y la pantalla de la entidad usen el mismo criterio de "completada".
+	checklists, err := s.responseRepo.FindChecklistsByEntityCaseIDs(ctx, ids)
+	if err != nil {
+		return err
+	}
+	respuestas, err := s.responseRepo.FindByCaseID(ctx, caseID)
+	if err != nil {
+		return err
+	}
+
+	totales := make(map[string]int, len(ids))
+	respondidas := make(map[string]int, len(ids))
+	labels := make(map[string]string, len(checklists))
+	for _, accion := range checklists {
+		totales[accion.EntityCaseID]++
+		if accion.Completada {
+			respondidas[accion.EntityCaseID]++
+		}
+		labels[accion.EntityCaseID+"|"+accion.EntityObligationID] = accion.Label
+	}
+
+	// La más reciente por entidad se decide comparando fechas, no confiando en el
+	// orden en que vengan las filas.
+	ultimas := make(map[string]models.EntityCaseObligationResponse, len(ids))
+	for _, respuesta := range respuestas {
+		anterior, ok := ultimas[respuesta.EntityCaseID]
+		if !ok || respuesta.UpdatedAt.After(anterior.UpdatedAt) {
+			ultimas[respuesta.EntityCaseID] = respuesta
+		}
+	}
+
+	for i := range items {
+		relID := items[i].RelID
+		ultima, respondio := ultimas[relID]
+		if totales[relID] == 0 && !respondio {
+			continue // sin acciones institucionales: la tarjeta no muestra el bloque
+		}
+
+		resumen := &models.EntityCaseObligationResponseSummary{
+			Total:       totales[relID],
+			Respondidas: respondidas[relID],
+		}
+		if respondio {
+			respondedAt := ultima.UpdatedAt
+			resumen.AccionLabel = labels[relID+"|"+ultima.EntityObligationID]
+			resumen.Estado = ultima.Estado
+			resumen.EstadoLabel = models.EntityCaseObligationEstadoLabels[ultima.Estado]
+			resumen.RespondedAt = &respondedAt
+			if ultima.Radicado != nil {
+				resumen.Radicado = *ultima.Radicado
+			}
+			if ultima.Ampliacion != nil {
+				resumen.Ampliacion = *ultima.Ampliacion
+			}
+		}
+		items[i].RespuestaEntidad = resumen
+	}
+
+	return nil
 }
 
 func (s *entityCaseService) Create(ctx context.Context, input CreateEntityCaseInput) (*models.EntityCase, error) {

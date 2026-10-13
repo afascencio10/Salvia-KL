@@ -65,6 +65,7 @@ type caseListRow struct {
 	DocNumber               string        `gorm:"column:victim_case_victim_doc_number"`
 	VictimPhone             string        `gorm:"column:victim_phone"`
 	CreationDate            time.Time     `gorm:"column:victim_case_creation_date"`
+	CreationDateCO          string        `gorm:"column:creation_date_co"`
 	Status                  string        `gorm:"column:victim_case_status"`
 	OwnerNames              string        `gorm:"column:owner_names"`
 	OwnerLastNames          string        `gorm:"column:owner_last_names"`
@@ -72,6 +73,7 @@ type caseListRow struct {
 	CaseTeam                string        `gorm:"column:case_team"`
 	RiskStatus              *string       `gorm:"column:risk_status"`
 	NextFollowUpDate        *time.Time    `gorm:"column:next_follow_up_date"`
+	NextFollowUpDateCO      string        `gorm:"column:next_follow_up_date_co"`
 	CompletedFollowUpsCount int           `gorm:"column:completed_follow_ups_count"`
 	CurrentContactAttempts  sql.NullInt64 `gorm:"column:current_contact_attempts"`
 }
@@ -130,6 +132,7 @@ const casesListSelectCols = `
     vc.victim_case_victim_doc_number,
     (` + victimPhoneSelect + `) AS victim_phone,
     vc.victim_case_creation_date,
+    TO_CHAR(vc.victim_case_creation_date AT TIME ZONE '` + casesListTimezone + `', 'YYYY-MM-DD') AS creation_date_co,
     vc.victim_case_status,
     COALESCE(gup.general_user_profile_names, '')      AS owner_names,
     COALESCE(gup.general_user_profile_last_names, '') AS owner_last_names,
@@ -150,6 +153,18 @@ const casesListSelectCols = `
         ORDER BY scheduled_date ASC
         LIMIT 1
     ) AS next_follow_up_date,
+    (
+        -- Misma fecha del próximo seguimiento ya formateada en hora Colombia (string),
+        -- para que el frontend la muestre sin re-convertir y sin desfase de día.
+        SELECT TO_CHAR(scheduled_date AT TIME ZONE '` + casesListTimezone + `', 'YYYY-MM-DD')
+        FROM salvia.follow_up_v2
+        WHERE case_id = vc.victim_case_i_code
+          AND status = 'PENDIENTE'
+          AND deleted_at IS NULL
+          AND (scheduled_date AT TIME ZONE '` + casesListTimezone + `')::date >= (NOW() AT TIME ZONE '` + casesListTimezone + `')::date
+        ORDER BY scheduled_date ASC
+        LIMIT 1
+    ) AS next_follow_up_date_co,
     (` + completedFollowUpsCountSubquery + `) AS completed_follow_ups_count,
     (` + currentContactAttemptsSubquery + `) AS current_contact_attempts
 `
@@ -232,6 +247,7 @@ func (r *casesListRepository) List(ctx context.Context, filters CasesListFilters
 			DocNumber:               row.DocNumber,
 			VictimPhone:             row.VictimPhone,
 			CreationDate:            row.CreationDate,
+			CreationDateCO:          row.CreationDateCO,
 			Status:                  row.Status,
 			OwnerNames:              row.OwnerNames,
 			OwnerLastNames:          row.OwnerLastNames,
@@ -239,6 +255,7 @@ func (r *casesListRepository) List(ctx context.Context, filters CasesListFilters
 			CaseTeam:                row.CaseTeam,
 			RiskStatus:              row.RiskStatus,
 			NextFollowUpDate:        row.NextFollowUpDate,
+			NextFollowUpDateCO:      row.NextFollowUpDateCO,
 			CompletedFollowUpsCount: row.CompletedFollowUpsCount,
 			CurrentContactAttempts:  contactAttemptsPtr(row.CurrentContactAttempts),
 			OpenBarriers:            barriers,

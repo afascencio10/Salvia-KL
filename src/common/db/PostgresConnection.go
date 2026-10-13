@@ -98,7 +98,7 @@ func GetConnection(connData *ConnData, clientConfig *DBClientConfig, serverConfi
 				if sslmode == "" {
 					sslmode = "disable"
 				}
-				psqlconn := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=%s",
+				psqlconn := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=%s&timezone=America/Bogota",
 					clientConfig.UserName, clientConfig.Password,
 					clientConfig.Hostname, clientConfig.Port,
 					clientConfig.DatabaseName, sslmode)
@@ -166,7 +166,9 @@ func getClientConnection(clientConfig *DBClientConfig, serverConfig *DBServerCon
 				}
 				
 				// AQUI SE APLICA LA CONEXIÓN SEGURA SSL OBLIGATORIA PARA RENDER SIN ROMPER LA LÓGICA (configurable)
-				var psqlconn = fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=%s",
+				// timezone=America/Bogota fija la zona de la sesión Postgres (SALVIA solo se
+				// usa en Colombia); unifica el criterio de fecha/hora con el pool GORM.
+				var psqlconn = fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=%s&timezone=America/Bogota",
 					clientConfig.UserName, clientConfig.Password, clientConfig.Hostname, clientConfig.Port, clientConfig.DatabaseName, sslmode)
 
 				var conn, err = pgx.Connect(context.Background(), psqlconn)

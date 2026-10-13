@@ -38,6 +38,15 @@
         .ce-btn-guardar { background:#5106A7;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:600;cursor:pointer }
         .ce-btn-guardar:disabled { opacity:.5;cursor:not-allowed }
         .ce-hint { font-size:.75rem;color:#9ca3af }
+        .ce-resp { border-top:1px solid #f3f4f6;margin-top:8px;padding-top:8px }
+        .ce-resp-head { display:flex;align-items:baseline;justify-content:space-between;gap:8px }
+        .ce-resp-title { font-size:.7rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em }
+        .ce-resp-count { font-size:.74rem;font-weight:700;color:#5106A7;white-space:nowrap }
+        .ce-resp-accion { font-size:.78rem;color:#374151;margin-top:5px }
+        .ce-resp-estado { display:inline-block;font-size:.7rem;font-weight:600;padding:2px 8px;border-radius:4px;border:1px solid #bbf7d0;background:#f0fdf4;color:#15803d;margin-top:4px }
+        .ce-resp-dato { font-size:.74rem;color:#6b7280;margin-top:4px }
+        .ce-resp-ampliacion { font-size:.76rem;color:#4b5563;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden }
+        .ce-resp-vacia { font-size:.76rem;color:#9ca3af;font-style:italic;margin-top:4px }
     `;
     document.head.appendChild(style);
 })();
@@ -293,6 +302,14 @@ app.component('case-entities', {
             return this.form.obligaciones.indexOf(value) > -1;
         },
 
+        // Mismo formato que el resto de la pestaña (ver case-gestion-institucional.js).
+        fechaRespuesta: function(iso) {
+            if (!iso) return '';
+            var d = new Date(iso);
+            if (isNaN(d.getTime())) return '';
+            return d.toLocaleDateString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
+        },
+
         onVerDetalle: function(entidad) {
             if (!entidad || !entidad.relId) {
                 console.warn('[case-entities] entidad sin relId, no se puede abrir detalle');
@@ -344,6 +361,33 @@ app.component('case-entities', {
                             <span v-if="entidad.lastAction">Última acción: \${ entidad.lastAction }</span>
                             <span v-else>Sin acciones registradas</span>
                         </div>
+                        <!-- Lo que la propia entidad reportó desde "Mis Acciones
+                             Institucionales": misma tabla, no una copia. -->
+                        <div v-if="entidad.respuestaEntidad" class="ce-resp">
+                            <div class="ce-resp-head">
+                                <span class="ce-resp-title">Respuesta de la entidad</span>
+                                <span class="ce-resp-count">
+                                    \${ entidad.respuestaEntidad.respondidas } de \${ entidad.respuestaEntidad.total }
+                                </span>
+                            </div>
+                            <template v-if="entidad.respuestaEntidad.estado">
+                                <div class="ce-resp-accion" v-if="entidad.respuestaEntidad.accionLabel">
+                                    \${ entidad.respuestaEntidad.accionLabel }
+                                </div>
+                                <div class="ce-resp-estado">\${ entidad.respuestaEntidad.estadoLabel || entidad.respuestaEntidad.estado }</div>
+                                <div class="ce-resp-dato" v-if="entidad.respuestaEntidad.radicado">
+                                    Radicado de la entidad: \${ entidad.respuestaEntidad.radicado }
+                                </div>
+                                <div class="ce-resp-ampliacion" v-if="entidad.respuestaEntidad.ampliacion">
+                                    \${ entidad.respuestaEntidad.ampliacion }
+                                </div>
+                                <div class="ce-resp-dato" v-if="entidad.respuestaEntidad.respondedAt">
+                                    Reportado el \${ fechaRespuesta(entidad.respuestaEntidad.respondedAt) }
+                                </div>
+                            </template>
+                            <div v-else class="ce-resp-vacia">La entidad aún no ha reportado su gestión.</div>
+                        </div>
+
                         <div class="ce-actions">
                             <button class="ce-btn-detalle" @click="onVerDetalle(entidad)">Ver Detalle →</button>
                         </div>
