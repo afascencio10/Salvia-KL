@@ -65,6 +65,12 @@ type EntityCaseWithRelations struct {
 	BarrerasActivasCount int64     `gorm:"column:barreras_activas_count"  json:"barrerasActivasCount"`
 	CreatedByID          string    `gorm:"column:created_by_id"           json:"createdById"`
 	CreatedAt            time.Time `gorm:"column:created_at"              json:"createdAt"`
+
+	// RespuestaEntidad es la gestión que reportó la propia entidad desde "Mis
+	// Acciones Institucionales". gorm:"-" porque no sale de esta consulta: la
+	// agrega el servicio leyendo entity_case_obligation_response. Nil cuando la
+	// entidad no tiene acciones institucionales en el caso.
+	RespuestaEntidad *EntityCaseObligationResponseSummary `gorm:"-" json:"respuestaEntidad,omitempty"`
 }
 
 // EntityCaseListItem es una fila del listado Casos Entidad

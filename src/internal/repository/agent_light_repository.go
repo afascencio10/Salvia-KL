@@ -190,7 +190,26 @@ FROM security.general_user gu
 JOIN security.general_user_profile gup
      ON gup.general_user_profile_id = gu.general_user_general_user_profile
 WHERE gu.general_user_status = 'e'
-  AND LOWER(BTRIM(gu.general_user_team)) = 'psicosocial'
+  -- Solo profesionales que estén asignados a alguna remisión psicosocial, ya sea
+  -- de forma individual (psychosocial_support.professional_id) o en dupla
+  -- (dupla.psychologist_id / social_worker_id). Así el autocomplete no ofrece
+  -- usuarios que nunca fueron asignados (p. ej. administradores/supervisores),
+  -- por los que no tiene sentido filtrar el historial de remisiones.
+  AND (
+        EXISTS (
+            SELECT 1 FROM salvia.psychosocial_support ps
+            WHERE ps.deleted_at IS NULL
+              AND ps.professional_id = gu.general_user_i_code
+        )
+     OR EXISTS (
+            SELECT 1
+            FROM salvia.psychosocial_support ps
+            JOIN salvia.dupla d ON d.id = ps.dupla_id
+            WHERE ps.deleted_at IS NULL
+              AND (d.psychologist_id = gu.general_user_i_code
+                OR d.social_worker_id = gu.general_user_i_code)
+        )
+      )
   AND (
         gup.general_user_profile_names ILIKE ?
      OR gup.general_user_profile_last_names ILIKE ?

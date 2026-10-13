@@ -685,27 +685,18 @@
         // HELPERS DE PRESENTACIÓN
         // ----------------------------------------------------------------
 
-        formatDate: function(dateStr) {
+        // formatFechaCO muestra una fecha que el backend YA entregó en hora Colombia
+        // como string "YYYY-MM-DD" (campos creationDateCO / nextFollowUpDateCO). Se
+        // reformatea a DD/MM/YYYY por split, SIN new Date(): así nunca se reinterpreta
+        // la zona en el navegador y la fecha coincide exactamente con el resto del
+        // portal (Detalle, Seguimientos, Excel). Acepta también timestamps ISO como
+        // respaldo, tomando solo la parte de fecha.
+        formatFechaCO: function(dateStr) {
             if (!dateStr) return '—';
-            var d = new Date(dateStr);
-            if (isNaN(d.getTime())) return '—';
-            var dd   = String(d.getDate()).padStart(2, '0');
-            var mm   = String(d.getMonth() + 1).padStart(2, '0');
-            var yyyy = d.getFullYear();
-            return dd + '/' + mm + '/' + yyyy;
-        },
-
-        // Igual que formatDate pero leyendo los componentes en UTC, para mostrar la
-        // fecha de registro tal como se guardó sin aplicar el desfase de zona horaria
-        // local (UTC-5 en Colombia restaría un día cuando la hora es medianoche UTC).
-        formatDateUTC: function(dateStr) {
-            if (!dateStr) return '—';
-            var d = new Date(dateStr);
-            if (isNaN(d.getTime())) return '—';
-            var dd   = String(d.getUTCDate()).padStart(2, '0');
-            var mm   = String(d.getUTCMonth() + 1).padStart(2, '0');
-            var yyyy = d.getUTCFullYear();
-            return dd + '/' + mm + '/' + yyyy;
+            var ymd = String(dateStr).substring(0, 10); // "YYYY-MM-DD"
+            var parts = ymd.split('-');
+            if (parts.length !== 3) return '—';
+            return parts[2] + '/' + parts[1] + '/' + parts[0];
         },
 
         // Igual que formatFecha del detalle del caso: usa el día calendario

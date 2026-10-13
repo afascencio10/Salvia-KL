@@ -317,6 +317,10 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 
 	// ── Casos Entidad (rol et + ro, op, sv, en Enlace Territorial) ─────────
 	"get_casos_entidad": {"et": true, "ro": true, "op": true, "sv": true, "en": true},
+	// Mis Acciones Institucionales es solo del rol entidad: la pantalla se acota
+	// con el entity_branch_id de la sesión, y los roles sin sede no tienen nada que
+	// consultar ahí.
+	"get_mis_acciones_institucionales": {"et": true},
 
 	// ── Casos Mecanismo (rol mc — mecanismos articuladores) ────────────────
 	"get_casos_mecanismo": {"mc": true},

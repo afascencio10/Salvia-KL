@@ -1320,8 +1320,15 @@ func (s *followUpV2Service) calcularAgente(ctx context.Context, caseID string, d
 	agentDateLoad := make(map[string]int64, len(agents))
 
 	// 4. Dense-rank por fecha
+	// La matriz de carga tiene claves de fecha en hora Colombia (ver FindWorkloadByDates),
+	// así que la clave de búsqueda también se construye en America/Bogota para que coincida.
+	bogotaLocMatrix, _ := time.LoadLocation("America/Bogota")
 	for _, date := range dates {
-		dateStr := date.UTC().Format("2006-01-02")
+		dKey := date
+		if bogotaLocMatrix != nil {
+			dKey = date.In(bogotaLocMatrix)
+		}
+		dateStr := dKey.Format("2006-01-02")
 		dayMatrix := fullMatrix[dateStr] // nil si nadie tiene carga ese día
 
 		loadByAgent := make(map[string]int64, len(agents))

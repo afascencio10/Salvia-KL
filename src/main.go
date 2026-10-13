@@ -34,6 +34,17 @@ var frontendAssets embed.FS
 
 func main() {
 
+	// SALVIA se usa únicamente en Colombia. Fijamos la zona horaria del proceso a
+	// America/Bogota para que todo time.Now() y time.Time.Format() del backend opere
+	// en hora Colombia por defecto, sin depender de la zona del contenedor/servidor
+	// (que suele correr en UTC). Combinado con TimeZone=America/Bogota en el DSN de
+	// GORM, deja un criterio de zona único y estable en todo el sistema.
+	if loc, errTz := time.LoadLocation("America/Bogota"); errTz == nil {
+		time.Local = loc
+	} else {
+		log.Printf("[main] WARN: no se pudo cargar America/Bogota, se usa la zona por defecto: %v", errTz)
+	}
+
 	// Definimos todos los archivos estáticos
 	utils.ConfigAssets = configAssets
 	utils.FrontendAssets = frontendAssets
@@ -99,6 +110,7 @@ func main() {
 		&models.EntityCase{},
 		&models.EntityObligation{},
 		&models.EntityCaseObligation{},
+		&models.EntityCaseObligationResponse{},
 		&models.EntityCaseFollowUp{},
 		&models.TeamMeeting{},
 		&models.TeamMeetingAgent{},
@@ -178,6 +190,7 @@ func main() {
 	duplaRepo := repository.NewDuplaRepository(gormDB)
 	psychosocialReassignRepo := repository.NewPsychosocialReassignRepository(gormDB)
 	entityCaseRepo := repository.NewEntityCaseRepository(gormDB)
+	entityObligationResponseRepo := repository.NewEntityCaseObligationResponseRepository(gormDB)
 	caseProfessionalRepo := repository.NewCaseProfessionalRepository(gormDB)
 	psychosocialCalendarRepo := repository.NewPsychosocialCalendarRepository(gormDB)
 	victimCaseFormRepo := repository.NewVictimCaseFormRepository(gormDB)
@@ -201,7 +214,8 @@ func main() {
 	optionSvc := service.NewOptionService(optionRepo)
 	followUpV2Svc := service.NewFollowUpV2Service(followUpRepo, formSubmissionRepo, barrierV2Repo, victimCaseLightRepo, townLightRepo, attemptRepo, emRepo, psRepo, esRepo, agentLightRepo, caseTimelineRepo, answerRepo, repeaterEntryRepo, appLogRepo)
 	victimCaseFormSvc := service.NewVictimCaseFormService(victimCaseFormRepo, victimCaseLightRepo, caseTimelineRepo, followUpV2Svc)
-	entityCaseSvc := service.NewEntityCaseService(entityCaseRepo, entityCaseObligationRepo)
+	entityCaseSvc := service.NewEntityCaseService(entityCaseRepo, entityCaseObligationRepo, entityObligationResponseRepo)
+	entityObligationResponseSvc := service.NewEntityObligationResponseService(entityObligationResponseRepo, entityCaseRepo)
 	caseProfessionalSvc := service.NewCaseProfessionalService(caseProfessionalRepo)
 	articulatingMechanismSvc := service.NewCaseArticulatingMechanismService(articulatingMechanismRepo, caseTimelineRepo)
 
@@ -281,6 +295,7 @@ func main() {
 	entityLetterCtrl := salvia_ctrl.NewEntityLetterController(entityLetterSvc)
 
 	entityCaseCtrl := salvia_ctrl.NewEntityCaseController(entityCaseSvc)
+	entityObligationResponseCtrl := salvia_ctrl.NewEntityObligationResponseController(entityObligationResponseSvc)
 	caseProfessionalCtrl := salvia_ctrl.NewCaseProfessionalController(caseProfessionalSvc)
 	articulatingMechanismCtrl := salvia_ctrl.NewCaseArticulatingMechanismController(articulatingMechanismSvc)
 	entityAPICtrl := salvia_ctrl.NewEntityAPIController(entityCaseSvc)
@@ -341,6 +356,7 @@ func main() {
 	reportAsyncCtrl.RegisterRoutes(api)
 	entityLetterCtrl.RegisterRoutes(api)
 	entityCaseCtrl.RegisterRoutes(api)
+	entityObligationResponseCtrl.RegisterRoutes(api)
 	caseProfessionalCtrl.RegisterRoutes(api)
 	articulatingMechanismCtrl.RegisterRoutes(api)
 	entityAPICtrl.RegisterRoutes(api)

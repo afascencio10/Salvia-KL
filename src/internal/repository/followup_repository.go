@@ -330,27 +330,33 @@ func (r *followUpRepository) Reschedule(ctx context.Context, id string, fields m
 }
 
 // FindWorkloadByDates retorna la carga de cada agente para un conjunto de fechas en
-// una sola query, usando AT TIME ZONE 'UTC' para garantizar comparaciones consistentes
-// sin importar la configuración de timezone del servidor PostgreSQL.
+// una sola query. La comparación por día se hace en hora Colombia (America/Bogota),
+// que es la zona única del sistema, para que la carga por fecha coincida con el día
+// calendario que ve el usuario (antes se usaba UTC, lo que podía contar la carga en
+// un día distinto para seguimientos agendados cerca de la medianoche).
 func (r *followUpRepository) FindWorkloadByDates(ctx context.Context, team string, dates []time.Time) ([]AgentDateWorkload, error) {
 	if len(dates) == 0 {
 		return nil, nil
 	}
+	loc, _ := time.LoadLocation("America/Bogota")
 	dateStrings := make([]string, len(dates))
 	for i, d := range dates {
-		dateStrings[i] = d.UTC().Format("2006-01-02")
+		if loc != nil {
+			d = d.In(loc)
+		}
+		dateStrings[i] = d.Format("2006-01-02")
 	}
 	var results []AgentDateWorkload
 	err := r.db.WithContext(ctx).
 		Model(&models.FollowUpV2{}).
-		Select("agent_id, (scheduled_date AT TIME ZONE 'UTC')::date::text AS date_str, COUNT(*) AS total").
+		Select("agent_id, (scheduled_date AT TIME ZONE 'America/Bogota')::date::text AS date_str, COUNT(*) AS total").
 		Where(
-			"team = ? AND status IN ? AND (scheduled_date AT TIME ZONE 'UTC')::date::text IN ?",
+			"team = ? AND status IN ? AND (scheduled_date AT TIME ZONE 'America/Bogota')::date::text IN ?",
 			team,
 			[]string{models.FollowUpStatusPendiente, models.FollowUpStatusReprogramado},
 			dateStrings,
 		).
-		Group("agent_id, (scheduled_date AT TIME ZONE 'UTC')::date::text").
+		Group("agent_id, (scheduled_date AT TIME ZONE 'America/Bogota')::date::text").
 		Scan(&results).Error
 	return results, err
 }

@@ -25,7 +25,7 @@ func freshConn(clientConfig *DBClientConfig) (*pgx.Conn, error) {
 	if sslmode == "" {
 		sslmode = "disable"
 	}
-	dsn := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=%s",
+	dsn := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=%s&timezone=America/Bogota",
 		clientConfig.UserName, clientConfig.Password,
 		clientConfig.Hostname, clientConfig.Port,
 		clientConfig.DatabaseName, sslmode)

@@ -378,7 +378,7 @@ func psychosocialRoleLabelFromSpecialty(specialty string) string {
 	case "psicologia":
 		return "Profesional en Psicología"
 	case "trab. social":
-		return "Trab. Social"
+		return "Profesional en Trabajo Social"
 	default:
 		return "Profesional"
 	}

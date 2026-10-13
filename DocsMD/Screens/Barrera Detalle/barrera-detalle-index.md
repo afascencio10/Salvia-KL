@@ -31,7 +31,7 @@
 
 **Evento:** Cuando cambia de tab
 **Tipo:** User Interaction
-**Descripción:** Actualiza `activeTab` ('info' | 'tareas' | 'timeline'). El tab "Tareas" monta `<case-tasks>` (pendientes/completadas + gestión propia); el tab "Timeline" monta `<case-timeline>`.
+**Descripción:** Actualiza `activeTab` ('info' | 'tareas' | 'oficios' | 'timeline'). El tab "Tareas" monta `<case-tasks>` (pendientes/completadas + gestión propia); el tab "Oficios" monta `<case-oficios>` filtrado por `barrierId`; el tab "Timeline" monta `<case-timeline>`.
 **Requerido:** Sí
 
 ---

@@ -185,9 +185,12 @@ app.component('case-mecanismos', {
             if (!iso) return '';
             var d = new Date(iso);
             if (isNaN(d.getTime())) return iso;
-            var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
-            return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() +
-                ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+            // Zona Colombia (SALVIA solo se usa en Colombia): no depender del navegador.
+            var p = new Intl.DateTimeFormat('en-GB', {
+                timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', hour12: false
+            }).formatToParts(d).reduce(function(acc, x) { acc[x.type] = x.value; return acc; }, {});
+            return p.day + '/' + p.month + '/' + p.year + ' ' + p.hour + ':' + p.minute;
         },
         toggleComments: function(id) {
             this.commentsOpen[id] = this.commentsOpen[id] === false;

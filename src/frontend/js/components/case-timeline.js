@@ -242,8 +242,10 @@ function ctFormatDate(raw) {
     if (!raw) return '';
     var d = new Date(raw);
     if (isNaN(d.getTime())) return raw;
-    return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-        + ' ' + d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    // SALVIA se usa solo en Colombia: fijar zona America/Bogota para que la fecha/hora
+    // del timeline no dependa de la zona del navegador.
+    return d.toLocaleDateString('es-CO', { timeZone: 'America/Bogota', day: '2-digit', month: 'short', year: 'numeric' })
+        + ' ' + d.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit' });
 }
 
 /* ─── Componente Vue ─────────────────────────────────────────────────────── */
