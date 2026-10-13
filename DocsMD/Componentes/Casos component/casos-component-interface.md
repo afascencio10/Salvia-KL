@@ -357,7 +357,7 @@ Ejemplo: caso con dos barreras OPEN (salud + proteccion) → `Abierta → Sector
 | `risk_level` | `FollowUpV2.risk_status` | Nivel de riesgo del último seguimiento activo |
 | `team` | `AgentLight.team` (del agente asignado vía `rel_case_owner`) | Equipo del profesional asignado al caso |
 | `assigned_person` | `rel_case_owner_victim_case` (status=`'a'`) → perfil del agente | Persona con el caso asignado |
-| `next_follow_up_date` | `FollowUpV2.scheduled_date` (status=`PENDIENTE`, más próximo) | Fecha del próximo seguimiento sin ejecutar |
+| `next_follow_up_date` | `FollowUpV2.scheduled_date` (status=`PENDIENTE`, más próximo, día UTC ≥ hoy UTC) | Fecha del próximo seguimiento. El día es el mismo que `formatFecha` del detalle (sin conversión a America/Bogota) |
 | `completed_follow_ups` | `COUNT(follow_up_v2)` donde `status = 'REALIZADO'` y `case_id = victim_case_i_code` | Número de seguimientos ya realizados del caso |
 | `contact_attempts_3x3` | `follow_up_v2.attempts` del seguimiento en curso (`PENDIENTE` o `REPROGRAMADO` más antiguo, incluidas fechas vencidas). `null` si no hay seguimiento abierto | Progreso 3x3: `{attempts}/9`. Gris si es menor a 3, naranja si es 3 o más, rojo si es 9 o más. `—` si no hay seguimiento abierto |
 | `case_status` | `victim_case.victim_case_status` (código) → etiqueta vía `caseStatusLabel` | Estado del caso (Activo, Cerrado, etc.) |
