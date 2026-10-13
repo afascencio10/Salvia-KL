@@ -89,7 +89,8 @@ PASO 4 — Renderizar tabla y controles de paginación
       'team'              → case.caseTeam  (victim_case_team; o "—" si vacío)
       'assigned_person'   → case.ownerNames + " " + case.ownerLastNames  (o "—" si vacío)
       'next_follow_up_date' →
-          SI case.nextFollowUpDate existe: mostrar fecha formateada DD/MM/YYYY
+          SI case.nextFollowUpDate existe: DD/MM/YYYY del día guardado
+          // mismos 10 caracteres que formatFecha del detalle, sin America/Bogota
           SI no existe: mostrar "—"
       'completed_follow_ups' →
           case.completedFollowUpsCount   // entero >= 0
@@ -183,6 +184,9 @@ PASO 5 — Construir query base
       WHERE  case_id = vc.victim_case_i_code
       AND    status  = 'PENDIENTE'
       AND    deleted_at IS NULL
+      -- Mismo día que formatFecha del detalle (substring 0,10 del timestamp UTC).
+      -- No usar America/Bogota: medianoche UTC cae en el día anterior.
+      AND    (scheduled_date AT TIME ZONE 'UTC')::date >= (NOW() AT TIME ZONE 'UTC')::date
       ORDER  BY scheduled_date ASC
       LIMIT  1
     ) AS next_follow_up_date,

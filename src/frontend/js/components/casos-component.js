@@ -699,6 +699,16 @@
             return parts[2] + '/' + parts[1] + '/' + parts[0];
         },
 
+        // Igual que formatFecha del detalle del caso: usa el día calendario
+        // guardado (YYYY-MM-DD al inicio del timestamp) y no la hora de Colombia.
+        formatScheduledDate: function(dateStr) {
+            if (!dateStr) return '—';
+            var iso = String(dateStr).substring(0, 10);
+            var parts = iso.split('-');
+            if (parts.length !== 3 || parts[0].length !== 4) return this.formatDateUTC(dateStr);
+            return parts[2] + '/' + parts[1] + '/' + parts[0];
+        },
+
         riskBadgeClass: function(riskStatus) {
             var map = {
                 'extremo':     'cc-risk-badge extremo',
