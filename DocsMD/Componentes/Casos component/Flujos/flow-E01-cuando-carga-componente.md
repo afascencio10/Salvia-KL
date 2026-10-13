@@ -96,6 +96,11 @@ PASO 4 — Renderizar tabla y controles de paginación
           // Conteo de filas en salvia.follow_up_v2 del caso con status = 'REALIZADO'
           SI count === 0: mostrar "0"
           SI count > 0: mostrar el número como texto (sin decimales)
+      'contact_attempts_3x3' →
+          SI case.currentContactAttempts === null: mostrar "—"
+          SI no: badge "{currentContactAttempts}/9"
+          // attempts del seguimiento en curso (PENDIENTE o REPROGRAMADO más antiguo)
+          // Color: gris si < 3, naranja si >= 3, rojo si >= 9
       'case_status' →
           caseStatusLabel(case.status)   // victim_case.victim_case_status (código)
           // Mapeo de códigos → etiquetas (misma tabla que get_case_detail_sv labelEstado):
@@ -188,6 +193,15 @@ PASO 5 — Construir query base
       AND    fu.status  = 'REALIZADO'
       AND    fu.deleted_at IS NULL
     ) AS completed_follow_ups_count,
+    (
+      SELECT fu.attempts
+      FROM   salvia.follow_up_v2 fu
+      WHERE  fu.case_id = vc.victim_case_i_code
+      AND    fu.status IN ('PENDIENTE', 'REPROGRAMADO')
+      AND    fu.deleted_at IS NULL
+      ORDER  BY fu.scheduled_date ASC, fu.created_at ASC
+      LIMIT  1
+    ) AS current_contact_attempts,
     (
       SELECT COALESCE(
         json_agg(
@@ -309,6 +323,7 @@ PASO 9 — Construir y retornar response
         riskStatus:        risk_status,        // victim_case_form2_risk_level: 1=bajo, 2=moderado, 3=alto, 4=extremo
         nextFollowUpDate:       next_follow_up_date       // null si no hay pendiente
         completedFollowUpsCount: completed_follow_ups_count  // seguimientos con status REALIZADO
+        currentContactAttempts:  current_contact_attempts     // null si no hay seguimiento PENDIENTE o REPROGRAMADO
         openBarriers: [
           { id, status, sector }, ...   // solo status OPEN; array vacío si ninguna
         ]                                 // parseado desde open_barriers_json

@@ -302,6 +302,15 @@
                                     ${ completedFollowUpsDisplay(caseObj) }
                                 </td>
 
+                                <!-- contact_attempts_3x3 -->
+                                <td v-else-if="col.key === 'contact_attempts_3x3'" class="cc-cell cc-cell-contact-attempts">
+                                    <span v-if="caseObj.currentContactAttempts !== null && caseObj.currentContactAttempts !== undefined"
+                                          :class="contactAttemptsBadgeClass(caseObj)">
+                                        ${ contactAttemptsDisplay(caseObj) }
+                                    </span>
+                                    <span v-else class="cc-follow-up-none">—</span>
+                                </td>
+
                                 <!-- case_status -->
                                 <td v-else-if="col.key === 'case_status'" class="cc-cell">
                                     <span :class="caseStatusBadgeClass(caseObj.status)">${ caseStatusLabel(caseObj.status) }</span>

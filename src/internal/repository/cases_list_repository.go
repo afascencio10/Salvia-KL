@@ -3,6 +3,7 @@ package repository
 import (
 	"bitsflow/internal/models"
 	"context"
+	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -17,22 +18,22 @@ const casesListTimezone = "America/Bogota"
 // CasesListFilters parámetros de consulta para el listado de casos del componente casos-component.
 // Los filtros chip y dropdown son aditivos (combinables entre sí).
 type CasesListFilters struct {
-	FilterKey           string
-	FilterValue         string
-	ChipFilter          string // Filtro chip aditivo (p. ej. casos_nuevos) combinable con FilterKey
-	DropdownFilterKey   string // Legacy: un solo dropdown (filter_* preferido)
-	DropdownFilterValue string
+	FilterKey                    string
+	FilterValue                  string
+	ChipFilter                   string // Filtro chip aditivo (p. ej. casos_nuevos) combinable con FilterKey
+	DropdownFilterKey            string // Legacy: un solo dropdown (filter_* preferido)
+	DropdownFilterValue          string
 	FilterRiesgo                 string // filter_riesgo (E-10)
 	FilterEquipo                 string // filter_equipo (E-11)
 	FilterSeguimientosEjecutados string // filter_seguimientos_ejecutados (E-12)
 	FilterEstadoCaso             string // filter_estado_caso (E-13)
 	FilterBarrerasActivas        string // filter_barreras_activas (E-16)
 	AssignedDepartmentID         string // Scope servidor rol en (city.department_id); vacío = sin acotar
-	Search      string
-	Sort        string
-	Order       string
-	Page        int
-	PageSize    int
+	Search                       string
+	Sort                         string
+	Order                        string
+	Page                         int
+	PageSize                     int
 }
 
 // CasesListResult respuesta paginada del listado de casos.
@@ -57,21 +58,31 @@ func NewCasesListRepository(db *gorm.DB) CasesListRepository {
 }
 
 type caseListRow struct {
-	ID               int64      `gorm:"column:victim_case_id"`
-	ICode            string     `gorm:"column:victim_case_i_code"`
-	Names            string     `gorm:"column:victim_case_victim_names"`
-	LastNames        string     `gorm:"column:victim_case_victim_last_names"`
-	DocNumber        string     `gorm:"column:victim_case_victim_doc_number"`
-	VictimPhone      string     `gorm:"column:victim_phone"`
-	CreationDate     time.Time  `gorm:"column:victim_case_creation_date"`
-	Status           string     `gorm:"column:victim_case_status"`
-	OwnerNames       string     `gorm:"column:owner_names"`
-	OwnerLastNames   string     `gorm:"column:owner_last_names"`
-	OwnerTeam        string     `gorm:"column:owner_team"`
-	CaseTeam         string     `gorm:"column:case_team"`
-	RiskStatus       *string    `gorm:"column:risk_status"`
-	NextFollowUpDate          *time.Time `gorm:"column:next_follow_up_date"`
-	CompletedFollowUpsCount int        `gorm:"column:completed_follow_ups_count"`
+	ID                      int64         `gorm:"column:victim_case_id"`
+	ICode                   string        `gorm:"column:victim_case_i_code"`
+	Names                   string        `gorm:"column:victim_case_victim_names"`
+	LastNames               string        `gorm:"column:victim_case_victim_last_names"`
+	DocNumber               string        `gorm:"column:victim_case_victim_doc_number"`
+	VictimPhone             string        `gorm:"column:victim_phone"`
+	CreationDate            time.Time     `gorm:"column:victim_case_creation_date"`
+	Status                  string        `gorm:"column:victim_case_status"`
+	OwnerNames              string        `gorm:"column:owner_names"`
+	OwnerLastNames          string        `gorm:"column:owner_last_names"`
+	OwnerTeam               string        `gorm:"column:owner_team"`
+	CaseTeam                string        `gorm:"column:case_team"`
+	RiskStatus              *string       `gorm:"column:risk_status"`
+	NextFollowUpDate        *time.Time    `gorm:"column:next_follow_up_date"`
+	CompletedFollowUpsCount int           `gorm:"column:completed_follow_ups_count"`
+	CurrentContactAttempts  sql.NullInt64 `gorm:"column:current_contact_attempts"`
+}
+
+// contactAttemptsPtr distingue NULL (sin seguimiento abierto) de 0 intentos.
+func contactAttemptsPtr(v sql.NullInt64) *int {
+	if !v.Valid {
+		return nil
+	}
+	n := int(v.Int64)
+	return &n
 }
 
 // riskStatusSelect mapea victim_case_form2_risk_level (1-4) al slug usado por el frontend.
@@ -139,7 +150,8 @@ const casesListSelectCols = `
         ORDER BY scheduled_date ASC
         LIMIT 1
     ) AS next_follow_up_date,
-    (` + completedFollowUpsCountSubquery + `) AS completed_follow_ups_count
+    (` + completedFollowUpsCountSubquery + `) AS completed_follow_ups_count,
+    (` + currentContactAttemptsSubquery + `) AS current_contact_attempts
 `
 
 // completedFollowUpsCountSubquery conteo de follow_up_v2 REALIZADO por caso (E-01, E-12).
@@ -149,6 +161,18 @@ const completedFollowUpsCountSubquery = `(
     WHERE fu.case_id = vc.victim_case_i_code
       AND fu.status = 'REALIZADO'
       AND fu.deleted_at IS NULL
+)`
+
+// currentContactAttemptsSubquery attempts del seguimiento en curso: el más antiguo
+// con status PENDIENTE o REPROGRAMADO, incluidas fechas vencidas. NULL si no hay.
+const currentContactAttemptsSubquery = `(
+    SELECT fu.attempts
+    FROM salvia.follow_up_v2 fu
+    WHERE fu.case_id = vc.victim_case_i_code
+      AND fu.status IN ('PENDIENTE', 'REPROGRAMADO')
+      AND fu.deleted_at IS NULL
+    ORDER BY fu.scheduled_date ASC, fu.created_at ASC
+    LIMIT 1
 )`
 
 func (r *casesListRepository) List(ctx context.Context, filters CasesListFilters) (CasesListResult, error) {
@@ -216,6 +240,7 @@ func (r *casesListRepository) List(ctx context.Context, filters CasesListFilters
 			RiskStatus:              row.RiskStatus,
 			NextFollowUpDate:        row.NextFollowUpDate,
 			CompletedFollowUpsCount: row.CompletedFollowUpsCount,
+			CurrentContactAttempts:  contactAttemptsPtr(row.CurrentContactAttempts),
 			OpenBarriers:            barriers,
 		}
 	}

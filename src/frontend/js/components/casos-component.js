@@ -762,6 +762,20 @@
             return String(n);
         },
 
+        contactAttemptsDisplay: function(caseObj) {
+            var n = caseObj.currentContactAttempts;
+            if (n === undefined || n === null) return '—';
+            return String(n) + '/9';
+        },
+
+        contactAttemptsBadgeClass: function(caseObj) {
+            var n = caseObj.currentContactAttempts;
+            if (n === undefined || n === null) return '';
+            if (n >= 9) return 'cc-attempts-badge alto';
+            if (n >= 3) return 'cc-attempts-badge medio';
+            return 'cc-attempts-badge bajo';
+        },
+
         caseStatusLabel: function(code) {
             var map = {
                 ra: 'Activo',
