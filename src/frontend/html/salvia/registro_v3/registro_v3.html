@@ -1,0 +1,392 @@
+<main class="salvia-main">
+<div class="container" id="app" style="display:none;">
+
+  <div class="welcome-section">
+    <h2><b>Registro V3</b></h2>
+  </div>
+
+  <!-- ───────────────────────── Habeas Data ───────────────────────── -->
+  <div v-if="etapa==='habeas'">
+    <div class="tituloform"><i class="fas fa-list-alt fa-2x"></i><h2>Autorización de datos personales</h2></div>
+    <p>Antes de continuar, le informamos que el Ministerio de Igualdad y Equidad va a registrar algunos de sus datos personales para prestarle la atención y para los procesos del Sistema SALVIA, conforme a la ley colombiana de protección de datos (Ley 1581 de 2012 y Resolución 772 de 2024).</p>
+    <p>Sus datos serán usados únicamente para fines institucionales relacionados con su atención y los servicios del Ministerio. Usted tiene derecho a conocer, actualizar, corregir o solicitar la eliminación de sus datos, así como a presentar quejas ante la Superintendencia de Industria y Comercio.</p>
+    <p>Cuando durante la atención se identifiquen situaciones que requieran protección o intervención institucional, el Sistema SALVIA podrá activar las rutas de atención correspondientes y remitir la información a las entidades competentes.</p>
+    <button class="btn btn-primary" @click="aceptarHabeasData">Acepto y continuar</button>
+  </div>
+
+  <!-- ───────────────────────── Cabezote ──────────────────────────── -->
+  <div v-if="etapa==='cabezote'">
+    <h4>Buscar registro existente</h4>
+    <p class="text-muted">Búsqueda únicamente por documento y/o teléfono (nunca por nombre).</p>
+    <div class="row g-2 align-items-end mb-2">
+      <div class="col-md-3">
+        <label class="form-label">Documento</label>
+        <input class="form-control" v-model="buscar.documento" placeholder="Número de documento">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Teléfono</label>
+        <input class="form-control" v-model="buscar.telefono" placeholder="Teléfono">
+      </div>
+      <div class="col-md-3">
+        <button class="btn btn-secondary" :disabled="buscando" @click="ejecutarBusqueda">Buscar</button>
+      </div>
+    </div>
+    <div v-if="errorBusqueda" class="alert alert-danger">${errorBusqueda}</div>
+
+    <table class="table" v-if="resultadosBusqueda.length">
+      <thead><tr><th>Nombre</th><th>Documento</th><th>Teléfono</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+        <tr v-for="r in resultadosBusqueda" :key="r.icode">
+          <td>${r.names} ${r.lastNames}</td>
+          <td>${r.docType}-${r.docNumber}</td>
+          <td>${r.phone}</td>
+          <td>${r.status}</td>
+          <td><button class="btn btn-sm btn-outline-primary" @click="abrirCaso(r.icode)">Abrir</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <div v-else-if="buscando">Buscando...</div>
+
+    <hr>
+    <button class="btn btn-primary" @click="crearNuevoRegistro">+ Nuevo registro</button>
+  </div>
+
+  <!-- ───────────────────────── Formulario ────────────────────────── -->
+  <div v-if="etapa==='formulario'">
+    <div class="mb-2" v-if="resumenCaso">
+      <b>${resumenCaso.names} ${resumenCaso.lastNames}</b> — ${resumenCaso.docType}-${resumenCaso.docNumber}
+      <span class="badge bg-info">${resumenCaso.status}</span>
+    </div>
+    <div v-if="triadaCompleta" class="alert alert-success">La información mínima de contacto, víctima y hecho está completa — el Caso pasó a <b>Iniciado</b>.</div>
+
+    <ul class="nav nav-tabs mb-3">
+      <li class="nav-item" v-for="m in modulos" :key="m.id">
+        <a class="nav-link" href="#" :class="{active: moduloActivo===m.id}" @click.prevent="irAModulo(m.id)">${m.label}</a>
+      </li>
+    </ul>
+
+    <!-- Módulos genéricos: CI / DP / CA / HV / AG -->
+    <div v-if="['CI','DP','CA','HV','AG'].indexOf(moduloActivo)>=0">
+      <div v-for="campo in camposVisibles(moduloActivo)" :key="campo.id" class="mb-3">
+        <label class="form-label">${campo.label}</label>
+
+        <input v-if="campo.tipo==='text'" class="form-control" :value="getVal(campo.id)" :placeholder="campo.placeholder||''" @input="setVal(campo.id,$event.target.value)">
+
+        <textarea v-else-if="campo.tipo==='textarea'" class="form-control" rows="3" :value="getVal(campo.id)" @input="setVal(campo.id,$event.target.value)"></textarea>
+
+        <input v-else-if="campo.tipo==='date'" type="date" class="form-control" :value="getVal(campo.id)" @input="setVal(campo.id,$event.target.value)">
+
+        <select v-else-if="campo.tipo==='dropdown' && campo.opciones" class="form-control" :value="getVal(campo.id)" @change="setVal(campo.id,$event.target.value)">
+          <option value="">Seleccione...</option>
+          <option v-for="o in campo.opciones" :key="o" :value="o">${o}</option>
+        </select>
+
+        <select v-else-if="campo.tipo==='dropdown'" class="form-control" :value="getVal(campo.id)" @change="setVal(campo.id,$event.target.value)">
+          <option value="">Seleccione...</option>
+          <option v-for="o in opcionesPara(campo)" :key="o.icode" :value="o.icode">${etiqueta(campo,o)}</option>
+        </select>
+
+        <div v-else-if="campo.tipo==='boolean'">
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" :name="campo.id" :checked="answers[campo.id]==='true'" @change="setBool(campo.id,true)">
+            <label class="form-check-label">Sí</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" :name="campo.id" :checked="answers[campo.id]==='false'" @change="setBool(campo.id,false)">
+            <label class="form-check-label">No</label>
+          </div>
+        </div>
+
+        <div v-else-if="campo.tipo==='multiple'">
+          <div class="form-check" v-for="o in opcionesPara(campo)" :key="o.icode">
+            <input class="form-check-input" type="checkbox" :checked="estaMarcado(campo.id,o.icode)" @change="toggleMarcado(campo.id,o.icode,campo.max)">
+            <label class="form-check-label">${etiqueta(campo,o)}</label>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" :disabled="guardando" @click="guardarModulo(moduloActivo)">Guardar sección</button>
+      <span class="ms-2">${mensajeGuardado}</span>
+    </div>
+
+    <!-- Tamizaje -->
+    <div v-if="moduloActivo==='TZ'">
+      <p class="text-muted">Se evalúan primero 7 preguntas generales. Si alguna de las marcadas como obligatorias se responde "Sí", se habilita el resto del Tamizaje.</p>
+
+      <div v-for="c in TAMIZAJE_GENERALES_V3" :key="c.id" class="mb-2" v-show="tzCampoVisible(c)">
+        <label class="form-label">${c.label} <span v-if="c.inicial" class="badge bg-secondary">inicial</span></label>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" :name="c.id" :checked="answers[c.id]==='true'" @change="tzToggle(c.id,true)">
+          <label class="form-check-label">Sí</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" :name="c.id" :checked="answers[c.id]==='false'" @change="tzToggle(c.id,false)">
+          <label class="form-check-label">No</label>
+        </div>
+      </div>
+
+      <div v-show="tzRevelarResto">
+        <div class="mb-2">
+          <label class="form-label">${TAMIZAJE_VPP_V3.label}</label>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="TZ_8" :checked="answers['TZ_8']==='true'" @change="setBool('TZ_8',true)">
+            <label class="form-check-label">Sí</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="TZ_8" :checked="answers['TZ_8']==='false'" @change="setBool('TZ_8',false)">
+            <label class="form-check-label">No</label>
+          </div>
+        </div>
+
+        <p class="text-muted">Rama detectada automáticamente según AG — Características del agresor: <b>${tzWasPartner() ? 'Pareja/expareja' : 'No pareja'}</b>.</p>
+
+        <div v-for="(preg, idx) in (tzWasPartner() ? tzListaPareja() : tzListaNoPareja())" :key="idx" class="mb-2">
+          <label class="form-label">${preg}</label>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" :name="(tzWasPartner()?'TZP_':'TZNP_')+(idx+1)" :checked="answers[(tzWasPartner()?'TZP_':'TZNP_')+(idx+1)]==='true'" @change="setBool((tzWasPartner()?'TZP_':'TZNP_')+(idx+1), true)">
+            <label class="form-check-label">Sí</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" :name="(tzWasPartner()?'TZP_':'TZNP_')+(idx+1)" :checked="answers[(tzWasPartner()?'TZP_':'TZNP_')+(idx+1)]==='false'" @change="setBool((tzWasPartner()?'TZP_':'TZNP_')+(idx+1), false)">
+            <label class="form-check-label">No</label>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" :disabled="tzGuardando" @click="guardarTamizaje">Calcular y guardar Tamizaje</button>
+      </div>
+
+      <div v-if="tzResultado" class="alert alert-info mt-3">
+        Tipo de riesgo: <b>${tzResultado.riskType}</b> — Nivel: <b>${tzResultado.riskLevel}</b> — Puntaje: ${tzResultado.score}
+        <span v-if="tzResultado.tieFlag"> — (empate Feminicidio/Homicidio abyecto: se priorizó Feminicidio)</span>
+      </div>
+    </div>
+
+    <!-- Gestión Salvia -->
+    <div v-if="moduloActivo==='GS'">
+      <h5>A. Denuncia y gestión general</h5>
+      <div v-for="campo in camposVisibles('GS')" :key="campo.id" class="mb-3">
+        <label class="form-label">${campo.label}</label>
+        <div v-if="campo.tipo==='boolean'">
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" :name="campo.id" :checked="answers[campo.id]==='true'" @change="setBool(campo.id,true)"><label class="form-check-label">Sí</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" :name="campo.id" :checked="answers[campo.id]==='false'" @change="setBool(campo.id,false)"><label class="form-check-label">No</label>
+          </div>
+        </div>
+        <textarea v-else-if="campo.tipo==='textarea'" class="form-control" rows="2" :value="getVal(campo.id)" @input="setVal(campo.id,$event.target.value)"></textarea>
+        <div v-else-if="campo.tipo==='multiple'">
+          <div class="form-check" v-for="o in opcionesPara(campo)" :key="o.icode">
+            <input class="form-check-input" type="checkbox" :checked="estaMarcado(campo.id,o.icode)" @change="toggleMarcado(campo.id,o.icode)">
+            <label class="form-check-label">${etiqueta(campo,o)}</label>
+          </div>
+        </div>
+      </div>
+
+      <hr>
+      <h5>B. Remisión a otros equipos de Salvia</h5>
+      <div class="form-check form-check-inline mb-2">
+        <input class="form-check-input" type="radio" name="GS_5" :checked="answers['GS_5']==='true'" @change="setBool('GS_5',true)"><label class="form-check-label">Requiere remisión: Sí</label>
+      </div>
+      <div class="form-check form-check-inline mb-2">
+        <input class="form-check-input" type="radio" name="GS_5" :checked="answers['GS_5']==='false'" @change="setBool('GS_5',false)"><label class="form-check-label">No</label>
+      </div>
+
+      <div v-if="answers['GS_5']==='true'">
+        <div v-for="o in opcionesPara(campoPorId('GS_6'))" :key="o.icode" class="mb-2">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" :checked="estaMarcado('GS_6',o.icode)" @change="toggleMarcado('GS_6',o.icode)">
+            <label class="form-check-label"><b>${etiqueta(campoPorId('GS_6'),o)}</b></label>
+          </div>
+          <div v-if="estaMarcado('GS_6',o.icode) && equipoMeta(o.code) && equipoMeta(o.code).criterioFieldId" class="ms-4 ps-3 border-start">
+            <div class="form-check" v-for="co in opcionesPara(campoPorId(equipoMeta(o.code).criterioFieldId))" :key="co.icode">
+              <input class="form-check-input" type="checkbox" :checked="estaMarcado(equipoMeta(o.code).criterioFieldId, co.icode)" @change="toggleMarcado(equipoMeta(o.code).criterioFieldId, co.icode)">
+              <label class="form-check-label small">${etiqueta(campoPorId(equipoMeta(o.code).criterioFieldId), co)}</label>
+            </div>
+            <div class="small" :class="cumpleCriterioEquipo(equipoMeta(o.code)) ? 'text-success' : 'text-danger'">
+              ${cumpleCriterioEquipo(equipoMeta(o.code)) ? '✓ Cumple criterios de remisión' : '✗ Aún no cumple los criterios mínimos'}
+            </div>
+          </div>
+          <div v-if="estaMarcado('GS_6',o.icode) && o.code==='me'" class="ms-4 ps-3 border-start">
+            <div class="form-check" v-for="mo in opcionesPara(campoPorId('GS_7'))" :key="mo.icode">
+              <input class="form-check-input" type="checkbox" :checked="estaMarcado('GS_7',mo.icode)" @change="toggleMarcado('GS_7',mo.icode)">
+              <label class="form-check-label small">${etiqueta(campoPorId('GS_7'),mo)}</label>
+            </div>
+          </div>
+        </div>
+
+        <label class="form-label mt-2">Justificación de la remisión</label>
+        <textarea class="form-control" rows="2" :value="getVal('GS_13')" @input="setVal('GS_13',$event.target.value)"></textarea>
+      </div>
+
+      <hr>
+      <h5>C. Registrar entidades (acudidas / activación de ruta)</h5>
+      <div class="form-check form-check-inline mb-2">
+        <input class="form-check-input" type="radio" name="GS_14" :checked="answers['GS_14']==='true'" @change="setBool('GS_14',true)"><label class="form-check-label">¿Ya se reportó a alguna entidad? Sí</label>
+      </div>
+      <div class="form-check form-check-inline mb-2">
+        <input class="form-check-input" type="radio" name="GS_14" :checked="answers['GS_14']==='false'" @change="setBool('GS_14',false)"><label class="form-check-label">No</label>
+      </div>
+
+      <table class="table table-sm" v-if="entidades.length">
+        <thead><tr><th>Tipo</th><th>Nombre</th><th>N° radicado</th><th></th></tr></thead>
+        <tbody>
+          <tr v-for="(e,idx) in entidades" :key="e.ICode||idx">
+            <td>${e.Kind}</td><td>${e.Name}</td><td>${e.FileNumber}</td>
+            <td><button class="btn btn-sm btn-outline-danger" @click="eliminarEntidad(e.ICode, idx)">Eliminar</button></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="card card-body mb-3">
+        <div class="row g-2">
+          <div class="col-md-3">
+            <label class="form-label">Tipo</label>
+            <select class="form-control" v-model="nuevaEntidad.Kind">
+              <option value="acudida">Entidad acudida</option>
+              <option value="activacion">Activación de ruta</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Sector</label>
+            <select class="form-control" v-model="nuevaEntidad.SectorCode">
+              <option value="">Seleccione...</option>
+              <option v-for="s in SECTORES_ENTIDAD_BARRERA_V3" :key="s.value" :value="s.value">${s.label}</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Nombre de la entidad</label>
+            <input class="form-control" v-model="nuevaEntidad.Name">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">N° radicado</label>
+            <input class="form-control" v-model="nuevaEntidad.FileNumber">
+          </div>
+          <div class="col-md-3" v-if="nuevaEntidad.Kind==='activacion'">
+            <label class="form-label">Canal de activación</label>
+            <select class="form-control" v-model="nuevaEntidad.ActivationChannel">
+              <option value="">Seleccione...</option>
+              <option v-for="c in CANAL_ACTIVACION_V3" :key="c.value" :value="c.value">${c.label}</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Información adicional</label>
+            <input class="form-control" v-model="nuevaEntidad.OtherInfo">
+          </div>
+        </div>
+        <button class="btn btn-secondary mt-2" @click="agregarEntidad" :disabled="!nuevaEntidad.SectorCode">+ Siguiente entidad</button>
+      </div>
+
+      <hr>
+      <h5>D. Registrar barreras</h5>
+      <div class="form-check form-check-inline mb-2">
+        <input class="form-check-input" type="radio" name="GS_17" :checked="answers['GS_17']==='true'" @change="setBool('GS_17',true)"><label class="form-check-label">¿Se identificaron barreras? Sí</label>
+      </div>
+      <div class="form-check form-check-inline mb-2">
+        <input class="form-check-input" type="radio" name="GS_17" :checked="answers['GS_17']==='false'" @change="setBool('GS_17',false)"><label class="form-check-label">No</label>
+      </div>
+
+      <table class="table table-sm" v-if="barreras.length">
+        <thead><tr><th>Sector</th><th>Descripción</th><th></th></tr></thead>
+        <tbody>
+          <tr v-for="(b,idx) in barreras" :key="b.ICode||idx">
+            <td>${b.SectorCode}</td><td>${b.Description}</td>
+            <td><button class="btn btn-sm btn-outline-danger" @click="eliminarBarrera(b.ICode, idx)">Eliminar</button></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="card card-body mb-3" v-if="answers['GS_17']==='true'">
+        <div class="row g-2">
+          <div class="col-md-3">
+            <label class="form-label">Sector</label>
+            <select class="form-control" v-model="nuevaBarrera.SectorCode">
+              <option value="">Seleccione...</option>
+              <option v-for="s in SECTORES_ENTIDAD_BARRERA_V3" :key="s.value" :value="s.value">${s.label}</option>
+            </select>
+          </div>
+          <div class="col-md-5">
+            <label class="form-label">Entidad</label>
+            <input class="form-control" v-model="nuevaBarrera.EntityName">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Fecha</label>
+            <input type="date" class="form-control" v-model="nuevaBarrera.Date">
+          </div>
+        </div>
+
+        <div class="mt-2" v-if="barreraCategoriaSector()">
+          <label class="form-label">Barreras específicas del sector</label>
+          <div class="form-check" v-for="o in opcionesBarreraSector()" :key="o.icode">
+            <input class="form-check-input" type="checkbox" :checked="nuevaBarrera.Specific.indexOf(o.icode)>=0" @change="toggleEnArray(nuevaBarrera.Specific, o.icode)">
+            <label class="form-check-label small">${o.label}</label>
+          </div>
+        </div>
+
+        <div class="mt-2" v-for="cat in categoriasTransversales()" :key="cat.campo">
+          <label class="form-label">${cat.label}</label>
+          <div class="form-check" v-for="o in opcionesTransversal(cat.enumCategory)" :key="o.icode">
+            <input class="form-check-input" type="checkbox" :checked="nuevaBarrera[cat.campo==='institutional'?'Institutional':cat.campo==='economic'?'Economic':cat.campo==='territorial'?'Territorial':'Differential'].indexOf(o.icode)>=0"
+              @change="toggleEnArray(nuevaBarrera[cat.campo==='institutional'?'Institutional':cat.campo==='economic'?'Economic':cat.campo==='territorial'?'Territorial':'Differential'], o.icode)">
+            <label class="form-check-label small">${o.label}</label>
+          </div>
+        </div>
+
+        <label class="form-label mt-2">Funcionario(a) que atendió</label>
+        <input class="form-control" v-model="nuevaBarrera.Official">
+        <label class="form-label mt-2">Descripción de la barrera</label>
+        <textarea class="form-control" rows="2" v-model="nuevaBarrera.Description"></textarea>
+
+        <label class="form-label mt-2">Gestión realizada</label>
+        <div class="form-check" v-for="o in opcionesGestionBarrera()" :key="o.icode">
+          <input class="form-check-input" type="checkbox" :checked="nuevaBarrera.Management.indexOf(o.icode)>=0" @change="toggleEnArray(nuevaBarrera.Management, o.icode)">
+          <label class="form-check-label small">${o.label}</label>
+        </div>
+
+        <button class="btn btn-secondary mt-2" @click="agregarBarrera" :disabled="!nuevaBarrera.SectorCode || !nuevaBarrera.Description">+ Siguiente barrera</button>
+      </div>
+
+      <hr>
+      <h5>E. Alerta Inminente</h5>
+      <div class="form-check form-check-inline mb-2">
+        <input class="form-check-input" type="radio" name="GS_18" :checked="answers['GS_18']==='true'" @change="setBool('GS_18',true)"><label class="form-check-label">¿Activar alerta inminente? Sí</label>
+      </div>
+      <div class="form-check form-check-inline mb-2">
+        <input class="form-check-input" type="radio" name="GS_18" :checked="answers['GS_18']==='false'" @change="setBool('GS_18',false)"><label class="form-check-label">No</label>
+      </div>
+      <div v-if="answers['GS_18']==='true'">
+        <label class="form-label">Justificación de la alerta</label>
+        <textarea class="form-control" rows="2" :value="getVal('GS_19')" @input="setVal('GS_19',$event.target.value)"></textarea>
+      </div>
+
+      <div class="mt-3">
+        <button class="btn btn-primary" :disabled="guardando" @click="guardarModulo('GS')">Guardar sección</button>
+        <span class="ms-2">${mensajeGuardado}</span>
+      </div>
+
+      <hr>
+      <button class="btn btn-success" @click="finalizarRegistro">Finalizar registro y enrutar a Seguimiento</button>
+    </div>
+  </div>
+
+  <!-- ───────────────────────── Cierre ────────────────────────────── -->
+  <div v-if="etapa==='cierre'">
+    <div class="alert alert-success">Registro finalizado.</div>
+    <h5>Párrafo síntesis</h5>
+    <p>${parrafoSintesis()}</p>
+  </div>
+
+</div>
+</main>
+
+{{ template "standard_scripts.html" . }}
+{{ template "overlay.html" . }}
+
+<script src="/static/js/components/registro-v3-campos.js"></script>
+<script src="/static/js/components/registro-v3-app.js"></script>
+
+<script>
+    RegistroV3App.mount("#app");
+    document.title = {{.windowTitle}};
+    document.getElementById('app').style.display = 'block';
+</script>

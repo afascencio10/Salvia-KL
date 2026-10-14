@@ -316,3 +316,33 @@ El supervisor (ActorID / ActorName del timeline) se obtiene en el **servidor** d
 | `reassigned` | `{ cases, agent, updated }` |
 
 El padre debe recargar `casos-component` (método público `reload()` pendiente de implementar).
+
+---
+
+## Extensión: Gestión de reportes (implementada — 2026-10-12, probada 2026-10-13)
+
+> **Estado:** Implementada y probada. Ver [`Listado Reportes` → flow-E05](../../Screens/Listado%20Reportes/Flujos/flow-E05-cuando-presiona-reasignar-reportes.md) / [flow-E06](../../Screens/Listado%20Reportes/Flujos/flow-E06-cuando-confirma-reasignacion.md) y [`QA/gestion-reportes-qa-plan.md`](../../Screens/Listado%20Reportes/QA/gestion-reportes-qa-plan.md).
+
+### Prop nuevo
+
+| Prop | Tipo | Requerido | Default | Descripción |
+|---|---|---|---|---|
+| `entityKind` | `String` | No | `'casos'` | `'reportes'` cambia la lista de candidatos (solo agentes `op`), el endpoint de M-05 y los textos del modal. |
+
+### Diferencias cuando `entityKind === 'reportes'`
+
+| Aspecto | Modo `casos` | Modo `reportes` (implementado) |
+|---|---|---|
+| Resolución de equipo (M-01) | Contingencia (`true` hoy): no se resuelve. Modo normal: obligatoria (`resolveTeam`) | **Sin lógica propia para reportes**: depende del flag de contingencia (`true` hoy → no se resuelve equipo). Con el flag en `false`, `resolveTeam` lee `caseTeam`/`riskStatus` (un reporte no los tiene) y el modal mostraría "No se pudo determinar el equipo del caso seleccionado." — ver *Limitación conocida* |
+| Banner | "Modo contingencia: puede elegir agente de cualquier equipo." | Igual — es el banner de contingencia, no se oculta |
+| Carga de agentes | `GET /api/v1/equipo-operadores?role=ro` (contingencia; `AGENT_ROLE_CODES = ['ro']`) | `GET /api/v1/equipo-operadores?role=op` — todo agente integral con `status = 'e'`, sin filtro de equipo |
+| Endpoint de guardado (M-05) | `POST /api/v1/cases/reasignar-bulk` con `{ case_icodes, agent_icode }` | `POST /api/v1/victim-contacts/reasignar-bulk` con `{ report_icodes, agent_icode }` — solo rol `sv` |
+| Reglas de actualización (M-05) | `victim_case.agent_id`, `victim_case_team` (solo si vacío), `follow_up_v2.agent_id`, `case_timeline_event` | `victim_contact.victim_contact_agent_id` y `victim_contact_team` (**siempre** se pisa con el equipo del agente destino; queda `''` si el agente no tiene equipo) + una fila en `salvia.app_log` por reporte. Sin follow-ups ni timeline |
+| Textos | "Reasignar casos", "Casos seleccionados (n)", "caso(s)", advertencia "El caso y sus seguimientos pendientes quedarán asignados…" | "Reasignar reportes", "Reportes seleccionados (n)", "reporte(s)", "El reporte quedará asignado a la nueva persona seleccionada." — condicionales `entityKind === 'reportes'` en el template |
+| Datos de cada fila | Nombre, `Doc:`, badge de riesgo, dueño actual | Nombre y dueño actual (`assignedAgentName`); **sin** `Doc:` ni badge de riesgo (un reporte aún no tiene riesgo evaluado) |
+
+El resto del modal (selección de agente M-03, cancelar M-04, confirmación) es idéntico en ambos modos. El padre recarga la tabla con `reload()` al recibir `reassigned`; `closed` no recarga y la selección de filas se conserva.
+
+### Limitación conocida — `REASSIGN_CROSS_TEAM_CONTINGENCY`
+
+Igual que en `casos-component` (`reasignar-casos-modal.js:31`): el modo reportes funciona porque la contingencia está activa. Antes de pasar el flag a `false` hay que dar a `open()` una rama para `entityKind === 'reportes'` que no resuelva equipo.

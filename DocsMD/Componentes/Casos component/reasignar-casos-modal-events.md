@@ -144,3 +144,13 @@ Requerido:    Sí
 | M-05 | Cuando confirma la reasignación | User Interaction / Backend write | Sí |
 
 **Total: 6 eventos — 1 Lifecycle, 2 Backend read (M-02 / M-02-C mutuamente excluyentes), 2 User Interaction, 1 Backend write**
+
+---
+
+## Extensión: Gestión de reportes (implementada — 2026-10-12, probada 2026-10-13)
+
+> **Estado:** Implementada y probada. Ver [`QA/gestion-reportes-qa-plan.md`](../../Screens/Listado%20Reportes/QA/gestion-reportes-qa-plan.md).
+
+Con `entityKind === 'reportes'` (ver `reasignar-casos-modal-interface.md`): M-01 abre igual y, mientras la contingencia esté activa, no resuelve equipo; M-02-C carga `GET /api/v1/equipo-operadores?role=op` (solo agentes `op` activos, de cualquier equipo); y M-05 llama `POST /api/v1/victim-contacts/reasignar-bulk` en vez de `/api/v1/cases/reasignar-bulk`. M-03 y M-04 no cambian. No se agregan eventos nuevos — es la misma máquina de estados con un destino distinto.
+
+**Limitación conocida:** con `REASSIGN_CROSS_TEAM_CONTINGENCY = false`, M-01 intentaría resolver el equipo desde `caseTeam`/`riskStatus` y fallaría para un reporte (ver la interfaz del modal).

@@ -112,7 +112,10 @@ func VictimContactGET(c *gin.Context) {
 
 	// Variables para almacenar los resultados y el código de respuesta.
 	var victimContactRes string
-	var victimCaseRes string
+	// "[]" y no "": los templates get_victim_contacts(_sv).html hacen JSON.parse({{.victimCases}}); con la cadena vacía
+	// JSON.parse lanza "Unexpected end of JSON input", Vue no monta y /salvia/primer_contacto quedaba en blanco
+	// para todos los roles. Esta pantalla ya no lista casos (eso lo hace /salvia/lista-casos), así que va vacío.
+	var victimCaseRes string = "[]"
 	var code int = http.StatusOK
 	var tplName string
 
@@ -353,6 +356,82 @@ func VictimContactPOST_GET_Public(c *gin.Context) {
 			utils.GetFullHtmlFuncMap())
 	}
 
+}
+
+// reportesTemplates — partials exclusivos de Gestión de reportes, usados por
+// Listado Reportes y Mis Reportes.
+var reportesTemplates = []string{
+	"frontend/html/salvia/reportes/gestion_reporte_modal.html",
+}
+
+// listReportesTemplates — partial de reasignación, reutilizado de list-cases
+// (extendido con :entity-kind="'reportes'"), solo necesario en Listado Reportes.
+var listReportesTemplates = []string{
+	"frontend/html/salvia/list-cases/reasignar_casos_modal.html",
+}
+
+// ListReportsGET renderiza "Listado Reportes" (roles op, sv) — ve todos los
+// reportes, con reasignación para sv. Ver DocsMD/Screens/Listado Reportes/.
+func ListReportsGET(c *gin.Context) {
+	session := sessions.Default(c)
+	var sessionID string = session.Get("userData").(string)
+	s, _ := utils.GetCommonSession(sessionID)
+
+	if !utils.CheckPermission(salvia_config.PermissionsByRole, "get_list_reports", s.CurrentRole, c) {
+		return
+	}
+
+	setHeaderNoCache(c)
+
+	var menu map[string][]map[string]string
+	if s != nil {
+		menu = s.CurrentMenu
+	}
+
+	extraTemplates := append(utils.GetFullHtmlTemplates(), casosComponentTemplates...)
+	extraTemplates = append(extraTemplates, reportesTemplates...)
+	extraTemplates = append(extraTemplates, listReportesTemplates...)
+	common_routers.RenderTemplate(c, salvia_daos.VictimContactEntityName, "salvia", "reportes/", salvia_config.HTML_Templates, "list_reportes", extraTemplates, utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
+		map[string]interface{}{
+			"windowTitle": "Reportes",
+			"currentUser": s.Names + " " + s.LastNames,
+			"currentRole": s.CurrentRole,
+			"locale":      salvia_config.Locale,
+			"lang":        s.Lang,
+			"menu":        menu,
+		}, utils.GetFullHtmlFuncMap())
+}
+
+// MyReportsGET renderiza "Mis Reportes" (rol op) — reportes asignados al
+// agente logueado, sin reasignación.
+func MyReportsGET(c *gin.Context) {
+	session := sessions.Default(c)
+	var sessionID string = session.Get("userData").(string)
+	s, _ := utils.GetCommonSession(sessionID)
+
+	if !utils.CheckPermission(salvia_config.PermissionsByRole, "get_my_reports", s.CurrentRole, c) {
+		return
+	}
+
+	setHeaderNoCache(c)
+
+	var menu map[string][]map[string]string
+	if s != nil {
+		menu = s.CurrentMenu
+	}
+
+	extraTemplates := append(utils.GetFullHtmlTemplates(), casosComponentTemplates...)
+	extraTemplates = append(extraTemplates, reportesTemplates...)
+	common_routers.RenderTemplate(c, salvia_daos.VictimContactEntityName, "salvia", "reportes/", salvia_config.HTML_Templates, "get_my_reportes", extraTemplates, utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
+		map[string]interface{}{
+			"windowTitle":   "Mis Reportes",
+			"currentUser":   s.Names + " " + s.LastNames,
+			"currentRole":   s.CurrentRole,
+			"currentUserId": s.UserICode,
+			"locale":        salvia_config.Locale,
+			"lang":          s.Lang,
+			"menu":          menu,
+		}, utils.GetFullHtmlFuncMap())
 }
 
 // setHeaderNoCache es una función auxiliar que establece los encabezados HTTP necesarios

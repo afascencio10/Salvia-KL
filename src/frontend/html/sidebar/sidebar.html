@@ -40,6 +40,20 @@
                 <span>Lista Casos</span>
             </a>
             {{ end }}
+            {{/* Gestión de reportes (FigJam l25jrzyf): Listado Reportes para op y sv (get_list_reports), Mis Reportes solo op (get_my_reports).
+                 El ítem "Reportes" de arriba es el listado de casos (/salvia/casos), no esta pantalla. */}}
+            {{ if or (eq .currentRole "op") (eq .currentRole "sv") }}
+            <a href="/salvia/reportes" class="salvia-sidebar__nav-link">
+                <i class="fas fa-file-alt" aria-hidden="true"></i>
+                <span>Listado Reportes</span>
+            </a>
+            {{ end }}
+            {{ if eq .currentRole "op" }}
+            <a href="/salvia/mis-reportes" class="salvia-sidebar__nav-link">
+                <i class="fas fa-clipboard-check" aria-hidden="true"></i>
+                <span>Mis Reportes</span>
+            </a>
+            {{ end }}
             {{ if or (eq .currentRole "ps") (eq .currentRole "ts") }}
             <a href="/salvia/mis-remisiones-psicosocial" class="salvia-sidebar__nav-link">
                 <i class="fas fa-hand-holding-heart" aria-hidden="true"></i>

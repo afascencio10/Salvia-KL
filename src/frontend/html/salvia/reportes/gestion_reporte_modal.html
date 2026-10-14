@@ -1,0 +1,164 @@
+{{ define "salvia/reportes/gestion_reporte_modal.html" }}
+<link rel="stylesheet" href="/static/css/gestion-reporte-modal.css">
+
+<script type="text/x-template" id="tpl-gestion-reporte-modal">
+<div v-if="visible" class="grm-backdrop" @click.self="onBackdropClick">
+    <div class="grm-dialog" role="dialog" aria-modal="true" aria-labelledby="grm-title">
+
+        <div class="grm-header">
+            <div>
+                <div class="grm-icode">${ icode }</div>
+                <h3 id="grm-title" class="grm-title">${ nombreMostrado || 'Reporte' }</h3>
+            </div>
+            <span v-if="reportTypeLabel" class="grm-type-badge">${ reportTypeLabel }</span>
+            <button type="button" class="grm-close" aria-label="Cerrar" @click="close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="grm-body">
+
+            <div v-if="loading" class="grm-loading">
+                <div class="grm-spinner"></div>
+                <span>Cargando reporte...</span>
+            </div>
+
+            <div v-else-if="loadError" class="grm-error">
+                <i class="fas fa-exclamation-circle"></i>
+                <span>${ loadError }</span>
+            </div>
+
+            <template v-else>
+
+                <div v-if="actionError" class="grm-action-error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>${ actionError }</span>
+                </div>
+
+                <!-- Solo-lectura: el permiso de gestión se evalúa en el backend
+                     (GAP-2: op y sv pueden gestionar cualquier reporte visible
+                     para ellos — en la práctica canManage siempre es true aquí) -->
+                <div v-if="!canManage && step !== 'cerrado'" class="grm-readonly-notice">
+                    Solo un agente integral o supervisor puede gestionar este reporte.
+                </div>
+
+                <!-- ═══════════════ STEP: validacionPrevia ═══════════════ -->
+                <div v-if="step === 'validacionPrevia'">
+                    <div class="grm-info">
+                        <p v-if="report.reporterNames"><strong>Quien reporta:</strong> ${ report.reporterNames } ${ report.reporterLastNames }
+                            <span v-if="report.parentesco">(${ report.parentesco })</span>
+                        </p>
+                        <p><strong>Teléfono de contacto:</strong> ${ report.telefono || 'No suministrado' }</p>
+                        <p v-if="report.reporterEmail"><strong>Correo:</strong> ${ report.reporterEmail }</p>
+                        <p v-if="report.ajusteRazonable"><strong>Ajuste razonable solicitado:</strong> ${ report.ajusteRazonable }</p>
+                        <p><strong>Descripción de los hechos:</strong></p>
+                        <p class="grm-hechos-box">${ report.descripcionHechos || '—' }</p>
+                    </div>
+
+                    <p class="grm-help-text">
+                        Según su criterio técnico, verifique si en la Base de Datos SALVIA
+                        existe información asociada antes de intentar el recontacto.
+                    </p>
+
+                    <div v-if="canManage" class="grm-button-grid grm-button-grid--2">
+                        <button type="button" class="grm-btn grm-btn--outline" :disabled="saving" @click="cerrarPrevio('ni')">
+                            No información mínima
+                        </button>
+                        <button type="button" class="grm-btn grm-btn--primary" :disabled="saving" @click="irAEsquema3x3">
+                            Procede recontacto
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ═══════════════ STEP: esquema3x3 ═══════════════ -->
+                <div v-else-if="step === 'esquema3x3'">
+                    <div class="grm-3x3-header">
+                        <h4>Esquema de Recontacto 3x3</h4>
+                        <span class="grm-3x3-counter">Hoy: ${ intentosHoy }/3 · Días completos: ${ diasCompletos }/3</span>
+                    </div>
+                    <p class="grm-help-text">
+                        Diferencie los horarios de los intentos diarios (franja 6:00–18:00h).
+                    </p>
+
+                    <div v-if="intentosHoy >= 3 && diasCompletos < 3" class="grm-banner grm-banner--warning">
+                        Cuota diaria alcanzada. Puede continuar intentando hoy, o retomar mañana —
+                        el cierre por no contacto requiere 3 días distintos con 3 intentos cada uno.
+                    </div>
+
+                    <div v-if="diasCompletos >= 3" class="grm-banner grm-banner--complete">
+                        <p><strong>Se completó el esquema 3x3</strong> (3 intentos fallidos en 3 días distintos, sin respuesta)</p>
+                        <button type="button" class="grm-btn grm-btn--danger" :disabled="saving" @click="cerrarPorNoContacto">
+                            Cerrar por no contacto
+                        </button>
+                    </div>
+
+                    <div v-if="canManage" class="grm-action-buttons">
+                        <button type="button" class="grm-btn grm-btn--danger" :disabled="saving" @click="registrarIntento('fallido')">
+                            Intento Fallido
+                        </button>
+                        <button type="button" class="grm-btn grm-btn--success" :disabled="saving" @click="registrarIntento('exitoso')">
+                            Intento Exitoso
+                        </button>
+                    </div>
+
+                    <div class="grm-attempts-log">
+                        <p v-if="!intentos.length" class="grm-attempts-empty">No hay intentos registrados</p>
+                        <div v-for="dia in intentosPorDia" :key="dia.fecha" class="grm-day-group">
+                            <div class="grm-day-header">
+                                <span class="grm-day-date">${ dia.fecha }</span>
+                                <span class="grm-day-badge" :class="{ 'grm-day-badge--complete': dia.fallidos >= 3 }">${ dia.fallidos }/3</span>
+                            </div>
+                            <div v-for="(it, idx) in dia.items" :key="idx" class="grm-attempt-row">
+                                <span>${ formatDateTime(it.date) }</span>
+                                <span :class="it.result === 'exitoso' ? 'grm-result--exitoso' : 'grm-result--fallido'">${ resultLabel(it.result) }</span>
+                                <span>${ it.agentName || '—' }</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════ STEP: postContacto ═══════════════ -->
+                <div v-else-if="step === 'postContacto'">
+                    <h4>Contacto establecido</h4>
+                    <p class="grm-help-text">Según lo conversado con la víctima o persona reportante, seleccione el resultado que corresponda:</p>
+
+                    <div v-if="!pendingClose && canManage" class="grm-button-grid grm-button-grid--2">
+                        <button type="button" class="grm-btn grm-btn--outline" @click="seleccionarPendingClose('competencia')">
+                            Cierre por no competencia
+                        </button>
+                        <button type="button" class="grm-btn grm-btn--outline" @click="seleccionarPendingClose('decision')">
+                            Cierre por decisión de la persona
+                        </button>
+                    </div>
+
+                    <div v-if="pendingClose === 'competencia' || pendingClose === 'decision'" class="grm-confirm-box">
+                        <label class="grm-label">
+                            ${ pendingClose === 'competencia' ? 'Registre el motivo de no competencia:' : 'Registre la manifestación de la persona:' } *
+                        </label>
+                        <textarea v-model="motivoTexto" rows="3" maxlength="500" class="grm-textarea" placeholder="Escriba aquí..."></textarea>
+                        <div class="grm-confirm-actions">
+                            <button type="button" class="grm-btn grm-btn--secondary" @click="cancelarPendingClose">Cancelar</button>
+                            <button type="button" class="grm-btn grm-btn--primary" :disabled="!motivoTexto.trim() || saving" @click="confirmarCierrePostContacto">
+                                Confirmar cierre
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════ STEP: cerrado (solo lectura) ═══════════════ -->
+                <div v-else-if="step === 'cerrado'" class="grm-closed">
+                    <div class="grm-closed-icon" :class="closeCategory === 'Válido' ? 'grm-closed-icon--valid' : 'grm-closed-icon--invalid'">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <h3>Reporte ${ icode } cerrado</h3>
+                    <p>Categoría: <strong>${ closeCategory }</strong></p>
+                    <p>Motivo: <strong>${ closeReasonLabel }</strong></p>
+                    <button type="button" class="grm-btn grm-btn--primary" @click="close">Cerrar</button>
+                </div>
+
+            </template>
+        </div>
+    </div>
+</div>
+</script>
+{{ end }}

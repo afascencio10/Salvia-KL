@@ -919,6 +919,62 @@
     border-color: #e5e7eb;
 }
 
+/* ── Gestión de reportes (2026-10-12) ── */
+
+.cc-report-type-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+    background: #ede9fe;
+    color: #5106a7;
+    border: 1px solid #c4b5fd;
+}
+
+.cc-report-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.5;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+
+/* sin_asignar */
+.cc-report-status-sin_asignar {
+    background: #f3f4f6;
+    color: #6b7280;
+    border-color: #d1d5db;
+}
+
+/* asignado */
+.cc-report-status-asignado {
+    background: #dbeafe;
+    color: #1d4ed8;
+    border-color: #93c5fd;
+}
+
+/* cerrado_valido */
+.cc-report-status-cerrado_valido {
+    background: #d1fae5;
+    color: #047857;
+    border-color: #6ee7b7;
+}
+
+/* cerrado_invalido */
+.cc-report-status-cerrado_invalido {
+    background: #fee2e2;
+    color: #dc2626;
+    border-color: #fca5a5;
+}
+
 /* ====================================================================
    COLUMNA BARRERAS (barrier_v2 OPEN — E-01)
    ==================================================================== */

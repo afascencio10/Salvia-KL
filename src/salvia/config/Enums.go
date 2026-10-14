@@ -9,6 +9,9 @@ var HTML_Templates map[string]string = map[string]string{
 	"get_my_follow_ups":            "get_my_follow_ups.html",
 	"get_my_cases":                 "get_my_cases.html",
 	"list_cases":                   "list_cases.html",
+	"list_reportes":                "list_reportes.html",
+	"registro_v3":                  "registro_v3.html",
+	"get_my_reportes":              "get_my_reportes.html",
 	"historial_remisiones":         "historial_remisiones.html",
 	"administrar_duplas":           "administrar_duplas.html",
 	"casos_entidad":                "casos_entidad.html",
@@ -324,6 +327,8 @@ var VICTIM_CASE_STATUS map[string]map[string]string = map[string]map[string]stri
 		"cd": "cerrado",
 		"iv": "inválido",
 		"bo": "borrador",
+		"in": "iniciado",  // Registro V3 -- tríada víctima+hecho+agresor completa (ver DocsMD/Screens/Registro V3)
+		"te": "terminado", // Registro V3 -- formulario completo, enruta a Seguimiento
 	},
 }
 

@@ -219,6 +219,17 @@ func StartRouter(router *gin.Engine) {
 		secRouter.GET("/lista-casos", ListCasesGET)
 
 		/*
+			Gestión de reportes (FigJam l25jrzyf) — Listado Reportes / Mis Reportes
+		*/
+		secRouter.GET("/reportes", ListReportsGET)
+		secRouter.GET("/mis-reportes", MyReportsGET)
+
+		/*
+			Registro V3 (DocsMD/Screens/Registro V3)
+		*/
+		secRouter.GET("/registro-v3", RegistroV3GET)
+
+		/*
 			Historial de Remisiones (Atención Psicosocial — solo sv)
 		*/
 		secRouter.GET("/historial-remisiones", HistorialRemisionesGET)

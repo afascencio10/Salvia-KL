@@ -147,6 +147,14 @@ func main() {
     victimCaseFormRepo     := repository.NewVictimCaseFormRepository(gormDB)
     appLogRepo             := repository.NewAppLogRepository(gormDB)
 
+    // Gestión de reportes (FigJam l25jrzyf)
+    victimContactsListRepo       := repository.NewVictimContactsListRepository(gormDB)
+    victimContactsManagementRepo := repository.NewVictimContactsManagementRepository(gormDB)
+    victimContactsReassignRepo   := repository.NewVictimContactsReassignRepository(gormDB)
+
+    // Registro V3 (DocsMD/Screens/Registro V3) — sin dinamic-form, decisión A1
+    victimCaseV3Repo := repository.NewVictimCaseV3Repository(gormDB)
+
     // Services
     casoCierreSvc := service.NewCasoCierreService(victimCaseLightRepo, caseTimelineRepo)
 
@@ -203,6 +211,14 @@ func main() {
     psychosocialReassignSvc := service.NewPsychosocialReassignService(psychosocialReassignRepo, gormDB)
     duplaAdminSvc         := service.NewDuplaAdminService(duplaRepo, psychosocialReassignRepo)
     psychosocialCalendarSvc := service.NewPsychosocialCalendarService(psychosocialCalendarRepo)
+
+    // Registro V3
+    victimCaseV3Svc := service.NewVictimCaseV3Service(victimCaseV3Repo)
+
+    // Gestión de reportes (FigJam l25jrzyf)
+    victimContactsListSvc       := service.NewVictimContactsListService(victimContactsListRepo)
+    victimContactsManagementSvc := service.NewVictimContactsManagementService(victimContactsManagementRepo)
+    victimContactsReassignSvc   := service.NewVictimContactsReassignService(victimContactsReassignRepo, appLogRepo)
 
     // Inyectar el servicio en el controller legacy para generación automática del calendario
     salvia_legacy.FollowUpSvc = followUpV2Svc
@@ -269,6 +285,14 @@ func main() {
     directorySvc := service.NewDirectoryService(directoryRepo, locationRepo)
     directoryCtrl := salvia_ctrl.NewDirectoryController(directorySvc)
 
+    // Registro V3
+    victimCaseV3Ctrl := salvia_ctrl.NewVictimCaseV3Controller(victimCaseV3Svc)
+
+    // Gestión de reportes (FigJam l25jrzyf)
+    victimContactsListCtrl       := salvia_ctrl.NewVictimContactsListController(victimContactsListSvc)
+    victimContactsManagementCtrl := salvia_ctrl.NewVictimContactsManagementController(victimContactsManagementSvc)
+    victimContactsReassignCtrl   := salvia_ctrl.NewVictimContactsReassignController(victimContactsReassignSvc)
+
     // Routes
     api := router.Group("/api/v1")
     formCtrl.RegisterRoutes(api)
@@ -304,6 +328,10 @@ func main() {
     psychosocialContactCtrl.RegisterRoutes(api)
     psychosocialCalendarCtrl.RegisterRoutes(api)
     assignCaseCtrl.RegisterRoutes(api)
+    victimCaseV3Ctrl.RegisterRoutes(api)
+    victimContactsListCtrl.RegisterRoutes(api)
+    victimContactsManagementCtrl.RegisterRoutes(api)
+    victimContactsReassignCtrl.RegisterRoutes(api)
 
     // Admin: endpoints de migración (protegidos por X-Security-Key)
     migrateCtrl := salvia_ctrl.NewMigrateController(gormDB)
@@ -388,5 +416,23 @@ func migrateLegacyTables(db *gorm.DB) {
     }
     if err := db.Table("salvia.victim_case").AutoMigrate(&VictimCaseSync{}); err != nil {
         log.Printf("[WARN] AutoMigrate salvia.victim_case: %v", err)
+    }
+
+    // ─── salvia.victim_contact ─── Gestión de reportes (FigJam l25jrzyf).
+    // Columnas ya creadas manualmente (migrations/add_victim_contact_management.sql,
+    // 2026-10-12, corrida como superusuario — victim_contact es owned por
+    // postgres, igual que victim_case). Este struct queda registrado aquí
+    // para que una columna nueva futura se agregue sola al desplegar, sin
+    // ALTER TABLE manual — mismo patrón ya establecido para victim_case arriba.
+    type VictimContactSync struct {
+        ID               uint    `gorm:"column:victim_contact_id;primaryKey"`
+        AgentID          string  `gorm:"column:victim_contact_agent_id;type:varchar(64)"`
+        Team             string  `gorm:"column:victim_contact_team;type:varchar(64)"`
+        CloseReason      *int64  `gorm:"column:victim_contact_close_reason"`
+        CloseObservation string  `gorm:"column:victim_contact_close_observation;type:varchar(500)"`
+        ClosedDate       *time.Time `gorm:"column:victim_contact_closed_date"`
+    }
+    if err := db.Table("salvia.victim_contact").AutoMigrate(&VictimContactSync{}); err != nil {
+        log.Printf("[WARN] AutoMigrate salvia.victim_contact: %v", err)
     }
 }
