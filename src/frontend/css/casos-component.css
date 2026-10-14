@@ -854,6 +854,34 @@
     color: #9ca3af;
 }
 
+/* Intentos de contacto 3x3. El gris usa texto oscuro: el tono del detalle
+   (#6b7280 sobre #f3f4f6) no se lee en la tabla. */
+.cc-attempts-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+.cc-attempts-badge.bajo {
+    background: #e5e7eb;
+    color: #1f2937;
+}
+
+.cc-attempts-badge.medio {
+    background: #fff7ed;
+    color: #ea580c;
+}
+
+.cc-attempts-badge.alto {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
 /* ====================================================================
    BADGE ESTADO DEL CASO (victim_case_status — 6 códigos + desconocido)
    ==================================================================== */

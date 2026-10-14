@@ -1059,13 +1059,14 @@ func ListCasesGET(c *gin.Context) {
 	extraTemplates = append(extraTemplates, listCasesTemplates...)
 	common_facades.RenderTemplate(c, salvia_daos.VictimCaseEntityName, "salvia", "list-cases/", salvia_config.HTML_Templates, "list_cases", extraTemplates, utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
 		map[string]interface{}{
-			"windowTitle": "Lista de casos",
-			"currentUser": s.Names + " " + s.LastNames,
-			"currentRole": s.CurrentRole,
-			"nav_rules":   salvia_config.TranslateNavigationRule(s.Lang, salvia_config.NAVIGATION_RULES["get_victim_case"]),
-			"locale":      salvia_config.Locale,
-			"lang":        s.Lang,
-			"menu":        menu,
+			"windowTitle":          "Lista de casos",
+			"currentUser":          s.Names + " " + s.LastNames,
+			"currentRole":          s.CurrentRole,
+			"assignedDepartmentId": s.AssignedDepartmentID,
+			"nav_rules":            salvia_config.TranslateNavigationRule(s.Lang, salvia_config.NAVIGATION_RULES["get_victim_case"]),
+			"locale":               salvia_config.Locale,
+			"lang":                 s.Lang,
+			"menu":                 menu,
 		}, utils.GetFullHtmlFuncMap())
 }
 

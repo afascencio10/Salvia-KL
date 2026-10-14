@@ -110,8 +110,8 @@
     </div>
 
     <!-- ── Banner tareas pendientes global ── -->
-    <div v-if="caseTasks.filter(t => t.status === 'ToDo').length > 0" style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
-      <span style="font-size:.82rem;color:#92400e"><i class="fa fa-bell" style="margin-right:6px"></i>Tienes <strong>${ caseTasks.filter(t => t.status === 'ToDo').length }</strong> tarea(s) pendiente(s) con este caso</span>
+    <div v-if="tareasPendientesTotal().length > 0" style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:.82rem;color:#92400e"><i class="fa fa-bell" style="margin-right:6px"></i>Tienes <strong>${ tareasPendientesTotal().length }</strong> tarea(s) pendiente(s) con este caso</span>
       <button @click="tabActiva = 'tareas'" style="background:#5106A7;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:.75rem;font-weight:600;cursor:pointer">Ver tareas</button>
     </div>
 
@@ -253,6 +253,13 @@
         <!-- ══ TAB: DERIVACIONES ══ -->
         <template v-if="tabActiva === 'derivaciones'">
 
+          <div v-if="userRole === 'te' || userRole === 'sv'" style="display:flex;justify-content:flex-end;margin-bottom:14px">
+            <button type="button" @click="abrirModalRemisionEquipos"
+              style="font-size:.82rem;font-weight:600;padding:8px 14px;border-radius:8px;background:#5106A7;color:#fff;border:none;cursor:pointer">
+              + Remisión a equipos
+            </button>
+          </div>
+
           <!-- Medidas de Emergencia -->
           <div class="cd-deriv-section" style="background:#fef2f2;border-color:#fca5a5">
             <div class="cd-deriv-header" style="border-bottom-color:#fca5a5">
@@ -276,7 +283,7 @@
             <div class="cd-deriv-header" style="border-bottom-color:#93c5fd">
               🩷 Psicosocial
               <span class="cd-count" style="color:#1d4ed8">${ psychosocialSupports.length } registro${ psychosocialSupports.length !== 1 ? 's' : '' }</span>
-              <button v-if="puedeReasignar" class="btn-crear-remision-psico" @click="abrirModalRemisionPsico">+ Crear remisión</button>
+              <button v-if="puedeReasignar && userRole !== 'sv'" class="btn-crear-remision-psico" @click="abrirModalRemisionPsico">+ Crear remisión</button>
             </div>
             <div v-if="psychosocialSupports.length === 0" class="cd-deriv-empty">Sin registros</div>
             <div v-for="item in psychosocialSupports" :key="item.id" class="cd-deriv-item" style="flex-direction:column;align-items:stretch">
@@ -289,7 +296,7 @@
                   <div style="margin-top:4px;font-size:.78rem;color:#374151">
                     <template v-if="item.duplaId">
                       <span style="font-weight:600;color:#1e3a8a">${ item.duplaName || 'Dupla' }</span>
-                      <div v-if="item.psychologistName">${ item.psychologistName } - Psicóloga</div>
+                      <div v-if="item.psychologistName">${ item.psychologistName } - Profesional psicosocial</div>
                       <div v-if="item.socialWorkerName">${ item.socialWorkerName } - Trab. Social</div>
                     </template>
                     <template v-else-if="item.professionalId">
@@ -327,9 +334,10 @@
                       <td style="padding:6px 10px;color:#374151">${ s.scheduledTime || '—' }</td>
                       <td style="padding:6px 10px;color:#374151">${ s.professionalName || '—' }</td>
                       <td style="padding:6px 10px">
-                        <span :style="{background: s.isCompleted ? '#dcfce7' : '#fef3c7', color: s.isCompleted ? '#166534' : '#92400e', padding:'2px 8px', borderRadius:'12px', fontSize:'.7rem', fontWeight:600}">${ s.status }</span>
+                        <span v-if="esContactoSinVoluntariedad(s)" :style="{background:'#ffedd5', color:'#c2410c', padding:'2px 8px', borderRadius:'12px', fontSize:'.7rem', fontWeight:600}">No efectivo — sin voluntariedad</span>
+                        <span v-else :style="{background: s.isCompleted ? '#dcfce7' : '#fef3c7', color: s.isCompleted ? '#166534' : '#92400e', padding:'2px 8px', borderRadius:'12px', fontSize:'.7rem', fontWeight:600}">${ s.status }</span>
                       </td>
-                      <td style="padding:6px 10px;color:#6b7280">${ s.summary || '—' }</td>
+                      <td style="padding:6px 10px;color:#6b7280">${ esContactoSinVoluntariedad(s) ? 'La ciudadana no dio voluntariedad para la atención' : (s.summary || '—') }</td>
                       <td style="padding:6px 10px;color:#6b7280">${ s.observations || '—' }</td>
                       <td style="padding:6px 10px;color:#374151">${ s.registeredByName || '—' }</td>
                     </tr>
@@ -398,10 +406,64 @@
             </div>
           </div>
 
+          <!-- Profesionales de atención (componente reutilizable) -->
+          <case-professionals :case-id="caseICode"></case-professionals>
+
+          <!-- Análisis del caso: análisis de la mesa técnica + comentarios del equipo técnico -->
+          <div class="cd-deriv-section" style="background:#f5f3ff;border-color:#c4b5fd">
+            <div class="cd-deriv-header" style="border-bottom-color:#c4b5fd">
+              💬 Análisis del caso
+              <button v-if="userRole === 'te'" type="button" @click="abrirModalComentarioEquipoTecnico"
+                style="margin-left:8px;font-size:.72rem;font-weight:600;padding:4px 10px;border-radius:8px;background:#7c3aed;color:#fff;border:none;cursor:pointer">
+                + Comentario
+              </button>
+            </div>
+
+            <div v-if="analisisMesaTecnica.length === 0 && comentariosEquipoTecnico.length === 0" class="cd-deriv-empty">
+              Sin análisis ni comentarios registrados
+            </div>
+
+            <!-- Resumen del formulario de Decisión de la Mesa Técnica: análisis y decisiones -->
+            <template v-if="analisisMesaTecnica.length > 0">
+              <p style="font-size:.72rem;color:#6b7280;font-weight:700;margin:12px 16px 6px;text-transform:uppercase;letter-spacing:.04em">
+                Mesa técnica
+                <span style="color:#7c3aed">· ${ analisisMesaTecnica.length } sesión${ analisisMesaTecnica.length !== 1 ? 'es' : '' }</span>
+              </p>
+              <div v-for="t in analisisMesaTecnica" :key="t.id" class="cd-deriv-item" style="flex-direction:column;align-items:stretch">
+                <p v-if="t.formData.analisisMesaTecnica" style="margin:0;font-size:.83rem;color:#374151;white-space:pre-wrap">${ t.formData.analisisMesaTecnica }</p>
+                <div v-if="decisionesMesaTecnica(t).length > 0" style="margin-top:6px">
+                  <div style="font-size:.72rem;color:#6b7280;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Decisiones tomadas</div>
+                  <div style="display:flex;flex-wrap:wrap;gap:4px">
+                    <span v-for="d in decisionesMesaTecnica(t)" :key="d" style="font-size:.75rem;background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:4px;border:1px solid #e5e7eb">${ d }</span>
+                  </div>
+                </div>
+                <div v-if="t.formData.gestionaOficioTexto" style="margin-top:6px;font-size:.78rem;color:#374151">
+                  <i class="fa fa-file-lines" style="color:#7c3aed;margin-right:5px"></i><strong>Gestión del oficio:</strong> ${ t.formData.gestionaOficioTexto }
+                </div>
+                <div class="cd-deriv-date">${ t.assignedUserName || 'Mesa técnica' } · 📅 ${ formatFecha(t.completedAt) }</div>
+              </div>
+            </template>
+
+            <!-- Comentarios libres del equipo técnico -->
+            <template v-if="comentariosEquipoTecnico.length > 0">
+              <p style="font-size:.72rem;color:#6b7280;font-weight:700;margin:12px 16px 6px;text-transform:uppercase;letter-spacing:.04em">
+                Comentarios del equipo técnico
+                <span style="color:#7c3aed">· ${ comentariosEquipoTecnico.length }</span>
+              </p>
+              <div v-for="item in comentariosEquipoTecnico" :key="item.id" class="cd-deriv-item" style="flex-direction:column;align-items:stretch">
+                <p style="margin:0;font-size:.83rem;color:#374151;white-space:pre-wrap">${ item.result }</p>
+                <div class="cd-deriv-date">${ item.assignedUserName || 'Equipo Técnico' } · 📅 ${ formatFecha(item.completedAt) }</div>
+              </div>
+            </template>
+          </div>
+
         </template>
 
         <!-- ══ TAB: BARRERAS (Gestión institucional) ══ -->
         <template v-if="tabActiva === 'barreras'">
+          <!-- Resumen de gestión institucional (componente reutilizable) -->
+          <case-gestion-institucional :case-id="caseICode" :barriers="barriers"></case-gestion-institucional>
+
           <!-- Entidades relacionadas con el caso (componente reutilizable) -->
           <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid #e5e7eb">
             <p style="font-size:.72rem;color:#6b7280;font-weight:700;margin:0 0 12px;text-transform:uppercase;letter-spacing:.04em">🏛️ Entidades</p>
@@ -488,6 +550,13 @@
                 <case-tasks :case-id="caseICode" :barrier-id="b.id" :user-id="userICode" :user-role="userRole" ></case-tasks>
               </div>
             </div>
+          </div>
+
+          <!-- Mecanismos del caso (componente reutilizable) — va después de Barreras
+               por decisión de producto: primero la barrera identificada, luego el
+               mecanismo con el que se gestiona. -->
+          <div style="margin-top:24px;padding-top:20px;border-top:1px solid #e5e7eb">
+            <case-mecanismos :case-id="caseICode" :user-id="userICode" :user-role="userRole"></case-mecanismos>
           </div>
 
           <!-- Oficios del caso (componente reutilizable) -->
@@ -762,9 +831,32 @@
   </div>
 </div>
 
+<!-- ══ MODAL: COMENTARIO EQUIPO TÉCNICO ══ -->
+<div v-if="modalComentarioEquipoTecnico" class="ns-backdrop" @click.self="modalComentarioEquipoTecnico = false">
+  <div class="ns-modal">
+    <div class="ns-header">
+      <div>
+        <p class="ns-title">Agregar comentario</p>
+        <p class="ns-subtitle">Equipo Técnico</p>
+      </div>
+      <button class="ns-close" @click="modalComentarioEquipoTecnico = false">✕</button>
+    </div>
+    <div class="ns-body">
+      <textarea v-model="nuevoComentarioTexto" rows="4" placeholder="Escribe una observación o comentario sobre el caso..."
+        style="width:100%;font-size:.88rem;border:1px solid #d1d5db;border-radius:8px;padding:8px 12px;resize:none;outline:none;box-sizing:border-box"></textarea>
+    </div>
+    <div class="ns-footer">
+      <button class="ns-btn-cancel" @click="modalComentarioEquipoTecnico = false">Cancelar</button>
+      <button class="ns-btn-save" :disabled="guardandoComentario || !nuevoComentarioTexto.trim()" @click="guardarComentarioEquipoTecnico">
+        ${ guardandoComentario ? 'Guardando...' : 'Agregar comentario' }
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL: CREAR REMISIÓN PSICOSOCIAL ══ -->
 <div v-if="modalRemisionPsico" class="ns-backdrop" @click.self="modalRemisionPsico = false">
-  <div class="ns-modal">
+  <div class="ns-modal" style="max-width:640px;max-height:85vh;overflow-y:auto">
     <div class="ns-header">
       <div>
         <p class="ns-title">Crear remisión a Atención Psicosocial</p>
@@ -772,16 +864,153 @@
       </div>
       <button class="ns-close" @click="modalRemisionPsico = false">✕</button>
     </div>
-    <div class="ns-body">
+    <div class="ns-body" style="display:flex;flex-direction:column;gap:16px">
       <p style="margin:0;font-size:.88rem;color:#374151;line-height:1.5">
         Se creará una remisión manual a Atención Psicosocial para este caso, con equipo remitente
-        <strong>Supervisor</strong>. ¿Desea continuar?
+        <strong>Supervisor</strong>.
       </p>
+
+      <!-- Sin criterios ni evidencia el equipo psicosocial no tiene con qué validar. -->
+      <div>
+        <label style="font-size:.82rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">
+          Criterios de remisión <span style="color:#dc2626">*</span>
+        </label>
+        <div>
+          <button type="button" v-for="opt in remisionOpcionesCriteriosPsico" :key="opt.value"
+            @click="toggleRemisionValor(remisionPsicoForm.criterios, opt.value)"
+            :style="{padding:'6px 12px',borderRadius:'20px',fontSize:'.76rem',border: remisionPsicoForm.criterios.indexOf(opt.value) !== -1 ? '1px solid #1d4ed8' : '1px solid #d1d5db',background: remisionPsicoForm.criterios.indexOf(opt.value) !== -1 ? '#1d4ed8' : '#fff',color: remisionPsicoForm.criterios.indexOf(opt.value) !== -1 ? '#fff' : '#374151',cursor:'pointer',marginRight:'6px',marginBottom:'6px',textAlign:'left'}">
+            ${ opt.label }
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label style="font-size:.82rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">
+          Elementos que evidencian la remisión <span style="color:#dc2626">*</span>
+        </label>
+        <textarea v-model="remisionPsicoForm.evidencia" rows="3"
+          placeholder="Describe los elementos que sustentan la remisión"
+          style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:8px 10px;font-size:.85rem;font-family:inherit;resize:vertical"></textarea>
+      </div>
     </div>
     <div class="ns-footer">
       <button class="ns-btn-cancel" @click="modalRemisionPsico = false">Cancelar</button>
-      <button class="ns-btn-save" :disabled="creandoRemisionPsico" @click="confirmarRemisionPsico">
+      <button class="ns-btn-save" :disabled="creandoRemisionPsico || !remisionPsicoValida" @click="confirmarRemisionPsico">
         ${ creandoRemisionPsico ? 'Creando...' : 'Confirmar' }
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: REMISIÓN A EQUIPOS (Equipo Técnico) ══ -->
+<div v-if="modalRemisionEquipos" class="ns-backdrop" @click.self="modalRemisionEquipos = false">
+  <div class="ns-modal" style="max-width:640px;max-height:85vh;overflow-y:auto">
+    <div class="ns-header">
+      <div>
+        <p class="ns-title">Remisión a equipos</p>
+        <p class="ns-subtitle" v-if="caso">${ caso.victimCaseVictimName }</p>
+      </div>
+      <button class="ns-close" @click="modalRemisionEquipos = false">✕</button>
+    </div>
+    <div class="ns-body" style="display:flex;flex-direction:column;gap:16px">
+
+      <div>
+        <label style="font-size:.82rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">
+          ¿Cuáles equipos? <span style="color:#dc2626">*</span>
+        </label>
+        <div>
+          <button type="button" v-for="opt in remisionOpcionesEquipos" :key="opt.value"
+            @click="toggleRemisionValor(remisionForm.equipos, opt.value)"
+            :style="{padding:'6px 12px',borderRadius:'20px',fontSize:'.78rem',border: remisionForm.equipos.indexOf(opt.value) !== -1 ? '1px solid #5106A7' : '1px solid #d1d5db',background: remisionForm.equipos.indexOf(opt.value) !== -1 ? '#5106A7' : '#fff',color: remisionForm.equipos.indexOf(opt.value) !== -1 ? '#fff' : '#374151',cursor:'pointer',marginRight:'6px',marginBottom:'6px'}">
+            ${ opt.label }
+          </button>
+        </div>
+      </div>
+
+      <div v-if="remisionMuestraAvisoConflicto" style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;font-size:.8rem;color:#92400e">
+        Has seleccionado Medidas de Emergencia y Apoyo Psicosocial, pero no se puede remitir a estos equipos al tiempo, solo se remitirá a Medidas de Emergencia.
+      </div>
+
+      <div v-if="remisionMuestraMedidas">
+        <label style="font-size:.82rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">¿Cuáles medidas de emergencia?</label>
+        <div>
+          <button type="button" v-for="opt in remisionOpcionesMedidas" :key="opt.value"
+            @click="toggleRemisionValor(remisionForm.medidas, opt.value)"
+            :style="{padding:'6px 12px',borderRadius:'20px',fontSize:'.78rem',border: remisionForm.medidas.indexOf(opt.value) !== -1 ? '1px solid #dc2626' : '1px solid #d1d5db',background: remisionForm.medidas.indexOf(opt.value) !== -1 ? '#dc2626' : '#fff',color: remisionForm.medidas.indexOf(opt.value) !== -1 ? '#fff' : '#374151',cursor:'pointer',marginRight:'6px',marginBottom:'6px'}">
+            ${ opt.label }
+          </button>
+        </div>
+      </div>
+
+      <template v-if="remisionMuestraPsico">
+        <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:10px 12px;font-size:.8rem;color:#1e3a8a">
+          Para que la remisión sea válida se debe marcar el criterio obligatorio y sumar mínimo 3 puntos con los otros criterios.
+          Estado de la remisión: <strong>${ remisionPsicoEstado }</strong>
+        </div>
+        <div>
+          <label style="font-size:.82rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">Criterios de remisión — Atención Psicosocial</label>
+          <div>
+            <button type="button" v-for="opt in remisionOpcionesCriteriosPsico" :key="opt.value"
+              @click="toggleRemisionValor(remisionForm.criteriosPsico, opt.value)"
+              :style="{padding:'6px 12px',borderRadius:'20px',fontSize:'.76rem',border: remisionForm.criteriosPsico.indexOf(opt.value) !== -1 ? '1px solid #1d4ed8' : '1px solid #d1d5db',background: remisionForm.criteriosPsico.indexOf(opt.value) !== -1 ? '#1d4ed8' : '#fff',color: remisionForm.criteriosPsico.indexOf(opt.value) !== -1 ? '#fff' : '#374151',cursor:'pointer',marginRight:'6px',marginBottom:'6px'}">
+              ${ opt.label }
+            </button>
+          </div>
+        </div>
+      </template>
+
+      <div v-if="remisionMuestraHombres">
+        <label style="font-size:.82rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">
+          Criterios de remisión — Atención Hombres <span style="color:#dc2626">*</span>
+        </label>
+        <div>
+          <button type="button" v-for="opt in remisionOpcionesCriteriosHombres" :key="opt.value"
+            @click="toggleRemisionValor(remisionForm.criteriosHombres, opt.value)"
+            :style="{padding:'6px 12px',borderRadius:'20px',fontSize:'.78rem',border: remisionForm.criteriosHombres.indexOf(opt.value) !== -1 ? '1px solid #0369a1' : '1px solid #d1d5db',background: remisionForm.criteriosHombres.indexOf(opt.value) !== -1 ? '#0369a1' : '#fff',color: remisionForm.criteriosHombres.indexOf(opt.value) !== -1 ? '#fff' : '#374151',cursor:'pointer',marginRight:'6px',marginBottom:'6px'}">
+            ${ opt.label }
+          </button>
+        </div>
+      </div>
+
+      <div v-if="remisionMuestraDiscapacidad">
+        <label style="font-size:.82rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">
+          Seleccione los servicios del Equipo de Discapacidad <span style="color:#dc2626">*</span>
+        </label>
+        <div>
+          <button type="button" v-for="opt in remisionOpcionesDiscapacidad" :key="opt.value"
+            @click="toggleRemisionValor(remisionForm.serviciosDiscapacidad, opt.value)"
+            :style="{padding:'6px 12px',borderRadius:'20px',fontSize:'.78rem',border: remisionForm.serviciosDiscapacidad.indexOf(opt.value) !== -1 ? '1px solid #7c3aed' : '1px solid #d1d5db',background: remisionForm.serviciosDiscapacidad.indexOf(opt.value) !== -1 ? '#7c3aed' : '#fff',color: remisionForm.serviciosDiscapacidad.indexOf(opt.value) !== -1 ? '#fff' : '#374151',cursor:'pointer',marginRight:'6px',marginBottom:'6px'}">
+            ${ opt.label }
+          </button>
+        </div>
+      </div>
+
+      <div v-if="remisionMuestraEstabilizacion">
+        <label style="font-size:.82rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">
+          Criterios de remisión — Estabilización <span style="color:#dc2626">*</span>
+        </label>
+        <div>
+          <button type="button" v-for="opt in remisionOpcionesEstabilizacion" :key="opt.value"
+            @click="toggleRemisionValor(remisionForm.criteriosEstabilizacion, opt.value)"
+            :style="{padding:'6px 12px',borderRadius:'20px',fontSize:'.78rem',border: remisionForm.criteriosEstabilizacion.indexOf(opt.value) !== -1 ? '1px solid #15803d' : '1px solid #d1d5db',background: remisionForm.criteriosEstabilizacion.indexOf(opt.value) !== -1 ? '#15803d' : '#fff',color: remisionForm.criteriosEstabilizacion.indexOf(opt.value) !== -1 ? '#fff' : '#374151',cursor:'pointer',marginRight:'6px',marginBottom:'6px'}">
+            ${ opt.label }
+          </button>
+        </div>
+      </div>
+
+      <div v-if="remisionForm.equipos.length > 0">
+        <label style="font-size:.82rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">
+          Describa los elementos que evidencia para realizar la remisión <span style="color:#dc2626">*</span>
+        </label>
+        <textarea v-model="remisionForm.evidencia" rows="3" placeholder="Describa los elementos que evidencian la necesidad de esta remisión..."
+          style="width:100%;font-size:.85rem;border:1px solid #d1d5db;border-radius:8px;padding:8px 12px;resize:none;outline:none;box-sizing:border-box"></textarea>
+      </div>
+
+    </div>
+    <div class="ns-footer">
+      <button class="ns-btn-cancel" @click="modalRemisionEquipos = false">Cancelar</button>
+      <button class="ns-btn-save" :disabled="!remisionValida || guardandoRemision" @click="guardarRemisionEquipos">
+        ${ guardandoRemision ? 'Guardando...' : 'Guardar remisión' }
       </button>
     </div>
   </div>
@@ -910,6 +1139,10 @@ var home = Vue.createApp({
       psychosocialSupports: [],
       sessionsExpanded: {},
       economicStabilizations: [],
+      comentariosEquipoTecnico: [],
+      modalComentarioEquipoTecnico: false,
+      nuevoComentarioTexto: '',
+      guardandoComentario: false,
       barriers: [],
       caseTasks: [],
       tipoViolencia: [],
@@ -942,6 +1175,50 @@ var home = Vue.createApp({
       reabriendo: false,
       modalRemisionPsico: false,
       creandoRemisionPsico: false,
+      remisionPsicoForm: { criterios: [], evidencia: '' },
+      modalRemisionEquipos: false,
+      guardandoRemision: false,
+      remisionForm: {
+        equipos: [], medidas: [], criteriosPsico: [], criteriosHombres: [],
+        serviciosDiscapacidad: [], criteriosEstabilizacion: [], evidencia: ''
+      },
+      remisionOpcionesEquipos: [
+        { value: 'medidas_emergencia', label: 'Medidas de Emergencia' },
+        { value: 'atencion_psico', label: 'Atención Psicosocial' },
+        { value: 'estabilizacion', label: 'Estabilización' },
+        { value: 'atencion_hombres', label: 'Atención Hombres' },
+        { value: 'salvia_dignidad', label: 'Salvia Dignidad' },
+        { value: 'discapacidad', label: 'Discapacidad' }
+      ],
+      remisionOpcionesMedidas: [
+        { value: 'alojamiento', label: 'Alojamiento' },
+        { value: 'transporte', label: 'Transporte' },
+        { value: 'alimentacion', label: 'Alimentación' },
+        { value: 'vestuario', label: 'Vestuario' },
+        { value: 'apoyo_psico', label: 'Apoyo psicosocial' },
+        { value: 'otras_me', label: 'Otras ME' }
+      ],
+      remisionOpcionesCriteriosPsico: [
+        { value: 'criterio_obligatorio', label: 'Mujeres en todas sus diversidades y personas no binarias, mayores de 18 años, víctimas de VBG o VpP con voluntariedad para la atención y en post-emergencia (criterio obligatorio)' },
+        { value: 'conducta_suicida', label: 'Conducta suicida derivada de VBG o VpP (3 puntos)' },
+        { value: 'interseccionalidad', label: 'Interseccionalidad (2 puntos)' },
+        { value: 'sin_ruta', label: 'Que no haya activado la ruta (1 punto)' },
+        { value: 'condiciones_territoriales', label: 'Condiciones territoriales y de orden público que impiden la atención (1 punto)' },
+        { value: 'sin_acceso_psico', label: 'Sin acceso a la atención psicosocial o psicológica (1 punto)' },
+        { value: 'naturalizacion_vbg', label: 'Naturalización de la Violencia Basada en Género y de los roles de género (1 punto)' }
+      ],
+      remisionOpcionesCriteriosHombres: [
+        { value: 'criterio_hombres', label: 'Hombres diversos victimarios o posibles victimarios.' }
+      ],
+      remisionOpcionesDiscapacidad: [
+        { value: 'apoyo_lsc', label: 'Apoyo comunicativo en Lengua de Señas Colombiana (LSC)' },
+        { value: 'enfoque_discapacidad', label: 'Apoyo con enfoque de discapacidad (ley de capacidad legal)' }
+      ],
+      remisionOpcionesEstabilizacion: [
+        { value: 'sin_ingresos', label: 'No tiene ninguna forma de ingresos o tiene ingresos de forma inestable' },
+        { value: 'vivienda_temporal', label: 'La persona reside actualmente en vivienda temporal o familiar' },
+        { value: 'personas_cargo', label: 'La persona tiene personas a cargo que limitan su tiempo para trabajar/estudiar' }
+      ],
       reasignarOperador: '',
       reasignando: false,
       autoAsignando: false,
@@ -1010,6 +1287,45 @@ var home = Vue.createApp({
   },
 
   computed: {
+    // Análisis de la mesa técnica: las tareas comite_caso ya completadas del caso.
+    // No requiere consulta nueva — cargarTareasCaso() ya trae todas las tareas con
+    // su formData, que es donde el modal guarda el formulario de decisión.
+    // Ver case-task-modal.js (caso 'comite_caso') y case-task-history.js, que
+    // renderiza estos mismos campos en el histórico de la tarea.
+    analisisMesaTecnica() {
+      return this.caseTasks
+        .filter(function(t) { return t.type === 'comite_caso' && t.status === 'Done' && t.formData; })
+        .slice()
+        .sort(function(a, b) { return String(a.completedAt || '').localeCompare(String(b.completedAt || '')); });
+    },
+    remisionMuestraMedidas() { return this.remisionForm.equipos.indexOf('medidas_emergencia') !== -1; },
+    remisionMuestraPsico() { return this.remisionForm.equipos.indexOf('atencion_psico') !== -1; },
+    remisionMuestraHombres() { return this.remisionForm.equipos.indexOf('atencion_hombres') !== -1; },
+    remisionMuestraDiscapacidad() { return this.remisionForm.equipos.indexOf('discapacidad') !== -1; },
+    remisionMuestraEstabilizacion() { return this.remisionForm.equipos.indexOf('estabilizacion') !== -1; },
+    remisionMuestraAvisoConflicto() {
+      return this.remisionMuestraMedidas && this.remisionMuestraPsico;
+    },
+    remisionPsicoEstado() {
+      var criterios = this.remisionForm.criteriosPsico;
+      var tieneObligatorio = criterios.indexOf('criterio_obligatorio') !== -1;
+      var puntajes = { conducta_suicida: 3, interseccionalidad: 2, sin_ruta: 1, condiciones_territoriales: 1, sin_acceso_psico: 1, naturalizacion_vbg: 1 };
+      var total = 0;
+      criterios.forEach(function(c) { total += puntajes[c] || 0; });
+      return (tieneObligatorio && total >= 3) ? 'Cumple' : 'No cumple';
+    },
+    remisionPsicoValida() {
+      return this.remisionPsicoForm.criterios.length > 0 && !!this.remisionPsicoForm.evidencia.trim();
+    },
+    remisionValida() {
+      var f = this.remisionForm;
+      if (f.equipos.length === 0) return false;
+      if (this.remisionMuestraHombres && f.criteriosHombres.length === 0) return false;
+      if (this.remisionMuestraDiscapacidad && f.serviciosDiscapacidad.length === 0) return false;
+      if (this.remisionMuestraEstabilizacion && f.criteriosEstabilizacion.length === 0) return false;
+      if (!f.evidencia.trim()) return false;
+      return true;
+    },
     nuevoSegValido() {
       if (!this.nuevoSeg.fecha) return false;
       if (this.userRole === 'sv' && !this.nuevoSeg.agente) return false;
@@ -1032,7 +1348,10 @@ var home = Vue.createApp({
     esEntidadOMecanismo() {
       // Entidad/Mecanismo: solo ven Gestión Institucional e Info General,
       // sin visibilidad de la gestión interna de SALVIA (ver DoD).
-      return this.userRole === 'et' || this.userRole === 'mn';
+      // 'mc' es el mecanismo articulador, que llega a esta misma pantalla desde
+      // Casos Mecanismo. Misma lista que entidadMecanismoRoles en el backend
+      // (case_detail_controller.go).
+      return this.userRole === 'et' || this.userRole === 'mn' || this.userRole === 'mc';
     },
     tabs() {
       if (!this.esEntidadOMecanismo) return this.allTabs;
@@ -1178,9 +1497,8 @@ var home = Vue.createApp({
     },
     iniciarSeguimiento(seg) {
       // Validar que la fecha programada ya haya llegado (solo fecha, sin hora)
-      var ahora = new Date();
-      var hoy = ahora.getFullYear() + '-' + String(ahora.getMonth() + 1).padStart(2, '0') + '-' + String(ahora.getDate()).padStart(2, '0');
-      var fechaSeg = seg.scheduled_date ? seg.scheduled_date.substring(0, 10) : '';
+      var hoy = this.hoyBogota();
+      var fechaSeg = seg.scheduled_date ? this.formatFecha(seg.scheduled_date) : '';
       if (fechaSeg && fechaSeg > hoy) {
         this.showToast('error', 'No es posible iniciar este seguimiento. La fecha programada (' + fechaSeg + ') aún no ha llegado.');
         return;
@@ -1251,6 +1569,7 @@ var home = Vue.createApp({
           self.emergencyMeasures = data.emergencyMeasures || [];
           self.psychosocialSupports = data.psychosocialSupports || [];
           self.economicStabilizations = data.economicStabilizations || [];
+          self.comentariosEquipoTecnico = data.comentariosEquipoTecnico || [];
           self.barriers = data.barriers || [];
           self.cargarTareasCaso();
           self.tipoViolencia = data.tipoViolencia || [];
@@ -1341,9 +1660,57 @@ var home = Vue.createApp({
       return this.caseTasks.filter(function(t) { return t.barrierId === barrierId && t.status === 'ToDo'; });
     },
     tareasPendientesTotal() {
-      return this.caseTasks.filter(function(t) { return t.status === 'ToDo'; });
+      var self = this;
+      return this.caseTasks.filter(function(t) {
+        if (t.status !== 'ToDo') return false;
+        // Rol Entidad ('et'): filtro original del equipo — solo sus tareas asignadas.
+        if (self.userRole === 'et') {
+          return String(t.assignedUserId || '') === String(self.userICode || '');
+        }
+        // Equipo Técnico ('te'): cuenta sus tareas asignadas y las comite_caso del
+        // pool (sin dueño), coherente con la visibilidad de la pestaña Tareas.
+        if (self.userRole === 'te') {
+          if (String(t.assignedUserId || '') === String(self.userICode || '')) return true;
+          return t.type === 'comite_caso' && !t.assignedUserId;
+        }
+        return true;
+      });
     },
-    formatFecha(f) { return f ? f.substring(0, 10) : '—'; },
+    // Etiquetas de las decisiones de una mesa técnica. El modal guarda las dos
+    // formas: 'decisiones' con los códigos y 'decisionesTexto' con las etiquetas.
+    // Las tareas anteriores a que se agregara decisionesTexto solo tienen los
+    // códigos, así que se usan como respaldo antes que no mostrar nada.
+    decisionesMesaTecnica(tarea) {
+      var fd = tarea.formData || {};
+      if (Array.isArray(fd.decisionesTexto) && fd.decisionesTexto.length > 0) return fd.decisionesTexto;
+      return Array.isArray(fd.decisiones) ? fd.decisiones : [];
+    },
+    // hoyBogota devuelve la fecha de hoy (YYYY-MM-DD) en hora Colombia, sin depender
+    // de la zona del navegador. Se usa para comparaciones de "¿ya llegó / ya pasó la
+    // fecha?" de forma consistente con el backend (que opera en America/Bogota).
+    hoyBogota() {
+      var parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Bogota',
+        year: 'numeric', month: '2-digit', day: '2-digit'
+      }).formatToParts(new Date()).reduce(function(acc, p) { acc[p.type] = p.value; return acc; }, {});
+      return parts.year + '-' + parts.month + '-' + parts.day;
+    },
+    // formatFecha muestra una fecha de BD en hora Colombia (YYYY-MM-DD).
+    // - Si el string es una fecha pura (sin 'T'), se toma tal cual (ya es la fecha).
+    // - Si trae hora/offset (ISO con 'T'), se convierte explícitamente a America/Bogota
+    //   antes de recortar, para no depender del offset ni de la zona del navegador.
+    // SALVIA se usa solo en Colombia, así que el criterio es siempre Bogotá.
+    formatFecha(f) {
+      if (!f) return '—';
+      if (f.indexOf('T') === -1) return f.substring(0, 10);
+      var d = new Date(f);
+      if (isNaN(d.getTime())) return f.substring(0, 10);
+      var parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Bogota',
+        year: 'numeric', month: '2-digit', day: '2-digit'
+      }).formatToParts(d).reduce(function(acc, p) { acc[p.type] = p.value; return acc; }, {});
+      return parts.year + '-' + parts.month + '-' + parts.day;
+    },
     formatFechaHora(f) {
       if (!f) return '—';
       // Si no tiene hora (solo fecha, sin 'T'), no hay timestamp real que convertir
@@ -1376,6 +1743,13 @@ var home = Vue.createApp({
       };
       return map[String(status || '').toLowerCase()] || { background: '#e5e7eb', color: '#374151' };
     },
+    // esContactoSinVoluntariedad: primer contacto registrado donde la ciudadana no dio
+    // voluntariedad para la atención. El backend lo deja completado pero no como sesión
+    // efectiva (isPsicoSession=false) conservando sessionType PRIMER_CONTACTO, para
+    // distinguirlo del "contacto sin atención" genérico. No cuenta como atención.
+    esContactoSinVoluntariedad(s) {
+      return !!s && s.isCompleted && !s.isPsicoSession && s.sessionType === 'PRIMER_CONTACTO';
+    },
     nombreAgente(agentId) {
       // Buscar en todosAgentes (sin filtro de team) para resolver nombres siempre
       var ag = this.todosAgentes.find(function(a) { return a.icode === agentId; });
@@ -1395,11 +1769,9 @@ var home = Vue.createApp({
       if (!seg) return false;
       if (seg.is_completed || seg.status === 'REALIZADO' || seg.status === 'CERRADO') return false;
       if (seg.status === 'VENCIDO') return true;
-      var fechaSeg = seg.scheduled_date ? seg.scheduled_date.substring(0, 10) : '';
+      var fechaSeg = seg.scheduled_date ? this.formatFecha(seg.scheduled_date) : '';
       if (!fechaSeg) return false;
-      var ahora = new Date();
-      var hoy = ahora.getFullYear() + '-' + String(ahora.getMonth() + 1).padStart(2, '0') + '-' + String(ahora.getDate()).padStart(2, '0');
-      return fechaSeg < hoy;
+      return fechaSeg < this.hoyBogota();
     },
     // segNumero calcula el número visible del seguimiento ("Seguimiento #N")
     // contando únicamente los seguimientos NO vencidos (realizados y pendientes),
@@ -1612,9 +1984,8 @@ var home = Vue.createApp({
       var self = this;
       if (self.creandoEIniciando) return;
       self.creandoEIniciando = true;
-      // Calcular fecha de hoy en hora local (evita desfase UTC)
-      var ahora = new Date();
-      var scheduledDate = ahora.getFullYear() + '-' + String(ahora.getMonth()+1).padStart(2,'0') + '-' + String(ahora.getDate()).padStart(2,'0');
+      // Fecha de hoy en hora Colombia (criterio único del sistema, no la zona del navegador)
+      var scheduledDate = this.hoyBogota();
       var url = '/api/v1/casos/' + CASE_ICODE + '/seguimiento';
       fetch(url, {
         method: 'POST',
@@ -1656,6 +2027,91 @@ var home = Vue.createApp({
     abrirModalReabrir() {
       this.modalReabrir = true;
     },
+    abrirModalComentarioEquipoTecnico() {
+      this.nuevoComentarioTexto = '';
+      this.modalComentarioEquipoTecnico = true;
+    },
+    guardarComentarioEquipoTecnico() {
+      if (!this.nuevoComentarioTexto.trim()) return;
+      var self = this;
+      self.guardandoComentario = true;
+      fetch('/api/v1/case-tasks/comentario-equipo-tecnico', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ caseId: self.caseICode, texto: self.nuevoComentarioTexto.trim() })
+      })
+        .then(function(res) {
+          if (res.ok) {
+            self.modalComentarioEquipoTecnico = false;
+            self.guardandoComentario = false;
+            self.showToast('success', 'Comentario agregado');
+            self.cargarDatos();
+          } else {
+            return res.json().then(function(data) {
+              self.guardandoComentario = false;
+              self.showToast('error', data.error || 'Error al agregar el comentario');
+            }).catch(function() {
+              self.guardandoComentario = false;
+              self.showToast('error', 'Error al agregar el comentario');
+            });
+          }
+        })
+        .catch(function() {
+          self.guardandoComentario = false;
+          self.showToast('error', 'Error de conexión al agregar el comentario');
+        });
+    },
+    toggleRemisionValor(arr, val) {
+      var idx = arr.indexOf(val);
+      if (idx === -1) arr.push(val); else arr.splice(idx, 1);
+    },
+    abrirModalRemisionEquipos() {
+      this.remisionForm = {
+        equipos: [], medidas: [], criteriosPsico: [], criteriosHombres: [],
+        serviciosDiscapacidad: [], criteriosEstabilizacion: [], evidencia: ''
+      };
+      this.modalRemisionEquipos = true;
+    },
+    guardarRemisionEquipos() {
+      if (!this.remisionValida) return;
+      var self = this;
+      self.guardandoRemision = true;
+      var f = this.remisionForm;
+      var answers = {};
+      answers['e0d38cf5-fe3f-45cb-9fd3-f5b8f7b2f7dc'] = f.equipos.join(',');
+      if (f.medidas.length) answers['1a36260c-33a4-4ebd-bffb-e387d7964b96'] = f.medidas.join(',');
+      if (f.criteriosPsico.length) answers['71c42c4a-f640-47ad-b2c1-5d4c18480449'] = f.criteriosPsico.join(',');
+      if (f.criteriosHombres.length) answers['f7edf4fc-d1cd-4591-a358-31566c806365'] = f.criteriosHombres.join(',');
+      if (f.serviciosDiscapacidad.length) answers['47b122b1-0151-4b58-a007-d4afb722c1b9'] = f.serviciosDiscapacidad.join(',');
+      if (f.criteriosEstabilizacion.length) answers['28accaa6-99dc-4ec4-967b-f26045ad707c'] = f.criteriosEstabilizacion.join(',');
+      answers['1bdc8b52-2472-46b1-a8ab-52ea2b22f986'] = f.evidencia.trim();
+
+      fetch('/api/v1/casos/' + CASE_ICODE + '/remision-equipos', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ answers: answers })
+      })
+        .then(function(res) {
+          if (res.ok) {
+            self.modalRemisionEquipos = false;
+            self.guardandoRemision = false;
+            self.showToast('success', 'Remisión a equipos registrada correctamente');
+            self.cargarDatos();
+          } else {
+            return res.json().then(function(data) {
+              self.guardandoRemision = false;
+              self.showToast('error', data.error || 'Error al registrar la remisión');
+            }).catch(function() {
+              self.guardandoRemision = false;
+              self.showToast('error', 'Error al registrar la remisión');
+            });
+          }
+        })
+        .catch(function() {
+          self.guardandoRemision = false;
+          self.showToast('error', 'Error de conexión al registrar la remisión');
+        });
+    },
     confirmarReabrirCaso() {
       var self = this;
       self.reabriendo = true;
@@ -1686,6 +2142,7 @@ var home = Vue.createApp({
         });
     },
     abrirModalRemisionPsico() {
+      this.remisionPsicoForm = { criterios: [], evidencia: '' };
       this.modalRemisionPsico = true;
     },
     confirmarRemisionPsico() {
@@ -1694,7 +2151,11 @@ var home = Vue.createApp({
       fetch('/api/v1/psychosocial-support/manual', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ caseId: CASE_ICODE })
+        body: JSON.stringify({
+          caseId: CASE_ICODE,
+          criterios: this.remisionPsicoForm.criterios,
+          evidencia: this.remisionPsicoForm.evidencia.trim()
+        })
       })
         .then(function(res) {
           if (res.ok) {
@@ -1929,6 +2390,9 @@ var app = home;
 <script src="/static/js/components/case-task-history.js"></script>
 <script src="/static/js/components/case-oficios.js"></script>
 <script src="/static/js/components/case-entities.js"></script>
+<script src="/static/js/components/case-professionals.js"></script>
+<script src="/static/js/components/case-mecanismos.js"></script>
+<script src="/static/js/components/case-gestion-institucional.js"></script>
 <script>
 home.mount('#app');
 </script>

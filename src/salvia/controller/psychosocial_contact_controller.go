@@ -227,6 +227,13 @@ func (c *PsychosocialContactController) InitClosureForm(ctx *gin.Context) {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "reason inválido"})
 		case errors.Is(err, service.ErrPsychosocial3x3NotFound):
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "proceso psicosocial no encontrado"})
+		case errors.Is(err, service.ErrClosureFormMissing):
+			// Falta un dato de configuración del ambiente, no es un error de quien
+			// hace la gestión: el mensaje lo dice para que se escale en vez de que
+			// la profesional reintente contra un formulario que no existe.
+			ctx.JSON(http.StatusServiceUnavailable, gin.H{
+				"error": "el formulario de cierre no está configurado en este ambiente; reportar al equipo técnico de SALVIA",
+			})
 		default:
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		}

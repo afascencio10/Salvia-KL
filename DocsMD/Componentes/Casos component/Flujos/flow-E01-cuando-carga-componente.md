@@ -89,13 +89,19 @@ PASO 4 — Renderizar tabla y controles de paginación
       'team'              → case.caseTeam  (victim_case_team; o "—" si vacío)
       'assigned_person'   → case.ownerNames + " " + case.ownerLastNames  (o "—" si vacío)
       'next_follow_up_date' →
-          SI case.nextFollowUpDate existe: mostrar fecha formateada DD/MM/YYYY
+          SI case.nextFollowUpDate existe: DD/MM/YYYY del día guardado
+          // mismos 10 caracteres que formatFecha del detalle, sin America/Bogota
           SI no existe: mostrar "—"
       'completed_follow_ups' →
           case.completedFollowUpsCount   // entero >= 0
           // Conteo de filas en salvia.follow_up_v2 del caso con status = 'REALIZADO'
           SI count === 0: mostrar "0"
           SI count > 0: mostrar el número como texto (sin decimales)
+      'contact_attempts_3x3' →
+          SI case.currentContactAttempts === null: mostrar "—"
+          SI no: badge "{currentContactAttempts}/9"
+          // attempts del seguimiento en curso (PENDIENTE o REPROGRAMADO más antiguo)
+          // Color: gris si < 3, naranja si >= 3, rojo si >= 9
       'case_status' →
           caseStatusLabel(case.status)   // victim_case.victim_case_status (código)
           // Mapeo de códigos → etiquetas (misma tabla que get_case_detail_sv labelEstado):
@@ -136,6 +142,10 @@ INPUT: {
   order:         dirección                  → query param: 'asc' | 'desc'
   page:          número de página           → query param (default: 1)
   page_size:     registros por página       → query param (default: 20)
+  // El departamento NUNCA llega como query param.
+  // Si la sesión tiene CurrentRole = 'en':
+  //   SI AssignedDepartmentID vacío → 403 { error: 'su usuario no tiene un departamento asignado' }
+  //   SI AssignedDepartmentID presente → scope servidor (PASO 5b)
 }
 
 
@@ -174,6 +184,9 @@ PASO 5 — Construir query base
       WHERE  case_id = vc.victim_case_i_code
       AND    status  = 'PENDIENTE'
       AND    deleted_at IS NULL
+      -- Mismo día que formatFecha del detalle (substring 0,10 del timestamp UTC).
+      -- No usar America/Bogota: medianoche UTC cae en el día anterior.
+      AND    (scheduled_date AT TIME ZONE 'UTC')::date >= (NOW() AT TIME ZONE 'UTC')::date
       ORDER  BY scheduled_date ASC
       LIMIT  1
     ) AS next_follow_up_date,
@@ -184,6 +197,15 @@ PASO 5 — Construir query base
       AND    fu.status  = 'REALIZADO'
       AND    fu.deleted_at IS NULL
     ) AS completed_follow_ups_count,
+    (
+      SELECT fu.attempts
+      FROM   salvia.follow_up_v2 fu
+      WHERE  fu.case_id = vc.victim_case_i_code
+      AND    fu.status IN ('PENDIENTE', 'REPROGRAMADO')
+      AND    fu.deleted_at IS NULL
+      ORDER  BY fu.scheduled_date ASC, fu.created_at ASC
+      LIMIT  1
+    ) AS current_contact_attempts,
     (
       SELECT COALESCE(
         json_agg(
@@ -213,6 +235,16 @@ PASO 5 — Construir query base
   -- Nivel de riesgo del tamizaje (formulario 2 del caso)
   LEFT JOIN salvia.victim_case_form2 vf2
          ON vf2.victim_case_form2_victim_case = vc.victim_case_id
+
+  // PASO 5b — Scope departamento (solo rol en, AssignedDepartmentID de sesión):
+  LEFT JOIN security.town t_dept
+         ON t_dept.town_code = vc.victim_case_victim_town_code
+  LEFT JOIN security.city c_dept
+         ON c_dept.city_id = t_dept.city_id
+  WHERE c_dept.department_id::text = {AssignedDepartmentID}
+  // Cadena: municipio de la víctima → ciudad → departamento.
+  // Los filtros de PASO 6 son aditivos sobre este universo.
+  // Otros roles: estos JOIN/WHERE no se aplican.
 
 
 PASO 6 — Aplicar filtro según filter_key
@@ -295,6 +327,7 @@ PASO 9 — Construir y retornar response
         riskStatus:        risk_status,        // victim_case_form2_risk_level: 1=bajo, 2=moderado, 3=alto, 4=extremo
         nextFollowUpDate:       next_follow_up_date       // null si no hay pendiente
         completedFollowUpsCount: completed_follow_ups_count  // seguimientos con status REALIZADO
+        currentContactAttempts:  current_contact_attempts     // null si no hay seguimiento PENDIENTE o REPROGRAMADO
         openBarriers: [
           { id, status, sector }, ...   // solo status OPEN; array vacío si ninguna
         ]                                 // parseado desde open_barriers_json

@@ -45,6 +45,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"sv": true,
 		"no": true,
 		"fo": true,
+		"te": true,
 		"an": true,
 	},
 	"get_victim_cases": {
@@ -257,15 +258,16 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	"get_notificaciones": {"op": true, "an": true, "no": true, "sv": true, "ad": true, "ro": true, "et": true},
 
 	// ── Módulo de Mis Barreras ────────────────────────────────────────────────
-	// Solo el agente de seguimiento (op) puede gestionar sus barreras.
-	"get_mis_barreras": {"en": true},
+	// Barreras personalmente asignadas al usuario (en = Enlace Territorial,
+	// no = Operador territorial nacional).
+	"get_mis_barreras": {"en": true, "no": true},
 
 	// ── Módulo de Mis Tareas ─────────────────────────────────────────────────
 	// Visible para todos los roles internos, no para externos — mismo set que
 	// get_directorio_entidades ("Opción A: todos los roles internos pueden ver"),
 	// que ya es la clasificación interno/externo vigente en este código. en
 	// (Enlace Territorial) queda fuera a propósito, igual que en ese permiso.
-	"get_mis_tareas": {"op": true, "ro": true, "et": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true, "mn": true},
+	"get_mis_tareas": {"op": true, "ro": true, "et": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true, "mn": true, "te": true},
 
 	// ── Módulo de Barreras Departamento ──────────────────────────────────────
 	// Solo el enlace territorial (en) puede ver el panorama de barreras de su departamento.
@@ -301,6 +303,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"ro": true,
 		"do": true,
 		"et": true,
+		"en": true,
 		"us": true,
 		"sv": true,
 		"no": true,
@@ -308,8 +311,9 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 		"ps": true,
 		"ts": true,
 		"an": true,
+		"te": true,
+		"mc": true,
 		"mn": true,
-		"en": true,
 	},
 
 	// ── Dashboard KPIs (Salvia_KPIs_v1) ──────────────────────────────────────
@@ -324,8 +328,15 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	// ── Administrar Duplas (Atención Psicosocial — solo sv) ────────────────
 	"get_administrar_duplas": {"sv": true},
 
-	// ── Casos Entidad (solo rol et) ───────────────────────────────────────
-	"get_casos_entidad": {"et": true},
+	// ── Casos Entidad (rol et + ro, op, sv, en Enlace Territorial) ─────────
+	"get_casos_entidad": {"et": true, "ro": true, "op": true, "sv": true, "en": true},
+	// Mis Acciones Institucionales es solo del rol entidad: la pantalla se acota
+	// con el entity_branch_id de la sesión, y los roles sin sede no tienen nada que
+	// consultar ahí.
+	"get_mis_acciones_institucionales": {"et": true},
+
+	// ── Casos Mecanismo (rol mc — mecanismos articuladores) ────────────────
+	"get_casos_mecanismo": {"mc": true},
 
 	// ── Mis remisiones Psicosocial (profesional ps / ts) ────────────────────
 	"get_mis_remisiones_psicosocial": {"ps": true, "ts": true},

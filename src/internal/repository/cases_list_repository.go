@@ -3,6 +3,7 @@ package repository
 import (
 	"bitsflow/internal/models"
 	"context"
+	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -17,21 +18,22 @@ const casesListTimezone = "America/Bogota"
 // CasesListFilters parámetros de consulta para el listado de casos del componente casos-component.
 // Los filtros chip y dropdown son aditivos (combinables entre sí).
 type CasesListFilters struct {
-	FilterKey           string
-	FilterValue         string
-	ChipFilter          string // Filtro chip aditivo (p. ej. casos_nuevos) combinable con FilterKey
-	DropdownFilterKey   string // Legacy: un solo dropdown (filter_* preferido)
-	DropdownFilterValue string
+	FilterKey                    string
+	FilterValue                  string
+	ChipFilter                   string // Filtro chip aditivo (p. ej. casos_nuevos) combinable con FilterKey
+	DropdownFilterKey            string // Legacy: un solo dropdown (filter_* preferido)
+	DropdownFilterValue          string
 	FilterRiesgo                 string // filter_riesgo (E-10)
 	FilterEquipo                 string // filter_equipo (E-11)
 	FilterSeguimientosEjecutados string // filter_seguimientos_ejecutados (E-12)
 	FilterEstadoCaso             string // filter_estado_caso (E-13)
 	FilterBarrerasActivas        string // filter_barreras_activas (E-16)
-	Search      string
-	Sort        string
-	Order       string
-	Page        int
-	PageSize    int
+	AssignedDepartmentID         string // Scope servidor rol en (city.department_id); vacío = sin acotar
+	Search                       string
+	Sort                         string
+	Order                        string
+	Page                         int
+	PageSize                     int
 }
 
 // CasesListResult respuesta paginada del listado de casos.
@@ -56,21 +58,33 @@ func NewCasesListRepository(db *gorm.DB) CasesListRepository {
 }
 
 type caseListRow struct {
-	ID               int64      `gorm:"column:victim_case_id"`
-	ICode            string     `gorm:"column:victim_case_i_code"`
-	Names            string     `gorm:"column:victim_case_victim_names"`
-	LastNames        string     `gorm:"column:victim_case_victim_last_names"`
-	DocNumber        string     `gorm:"column:victim_case_victim_doc_number"`
-	VictimPhone      string     `gorm:"column:victim_phone"`
-	CreationDate     time.Time  `gorm:"column:victim_case_creation_date"`
-	Status           string     `gorm:"column:victim_case_status"`
-	OwnerNames       string     `gorm:"column:owner_names"`
-	OwnerLastNames   string     `gorm:"column:owner_last_names"`
-	OwnerTeam        string     `gorm:"column:owner_team"`
-	CaseTeam         string     `gorm:"column:case_team"`
-	RiskStatus       *string    `gorm:"column:risk_status"`
-	NextFollowUpDate          *time.Time `gorm:"column:next_follow_up_date"`
-	CompletedFollowUpsCount int        `gorm:"column:completed_follow_ups_count"`
+	ID                      int64         `gorm:"column:victim_case_id"`
+	ICode                   string        `gorm:"column:victim_case_i_code"`
+	Names                   string        `gorm:"column:victim_case_victim_names"`
+	LastNames               string        `gorm:"column:victim_case_victim_last_names"`
+	DocNumber               string        `gorm:"column:victim_case_victim_doc_number"`
+	VictimPhone             string        `gorm:"column:victim_phone"`
+	CreationDate            time.Time     `gorm:"column:victim_case_creation_date"`
+	CreationDateCO          string        `gorm:"column:creation_date_co"`
+	Status                  string        `gorm:"column:victim_case_status"`
+	OwnerNames              string        `gorm:"column:owner_names"`
+	OwnerLastNames          string        `gorm:"column:owner_last_names"`
+	OwnerTeam               string        `gorm:"column:owner_team"`
+	CaseTeam                string        `gorm:"column:case_team"`
+	RiskStatus              *string       `gorm:"column:risk_status"`
+	NextFollowUpDate        *time.Time    `gorm:"column:next_follow_up_date"`
+	NextFollowUpDateCO      string        `gorm:"column:next_follow_up_date_co"`
+	CompletedFollowUpsCount int           `gorm:"column:completed_follow_ups_count"`
+	CurrentContactAttempts  sql.NullInt64 `gorm:"column:current_contact_attempts"`
+}
+
+// contactAttemptsPtr distingue NULL (sin seguimiento abierto) de 0 intentos.
+func contactAttemptsPtr(v sql.NullInt64) *int {
+	if !v.Valid {
+		return nil
+	}
+	n := int(v.Int64)
+	return &n
 }
 
 // riskStatusSelect mapea victim_case_form2_risk_level (1-4) al slug usado por el frontend.
@@ -118,6 +132,7 @@ const casesListSelectCols = `
     vc.victim_case_victim_doc_number,
     (` + victimPhoneSelect + `) AS victim_phone,
     vc.victim_case_creation_date,
+    TO_CHAR(vc.victim_case_creation_date AT TIME ZONE '` + casesListTimezone + `', 'YYYY-MM-DD') AS creation_date_co,
     vc.victim_case_status,
     COALESCE(gup.general_user_profile_names, '')      AS owner_names,
     COALESCE(gup.general_user_profile_last_names, '') AS owner_last_names,
@@ -130,15 +145,29 @@ const casesListSelectCols = `
         WHERE case_id = vc.victim_case_i_code
           AND status = 'PENDIENTE'
           AND deleted_at IS NULL
-          -- Se descarta cualquier seguimiento cuya fecha programada ya quedó atrás
-          -- (comparando por fecha calendario en hora Colombia). Así el "próximo
-          -- seguimiento" de la lista coincide con el detalle: un seguimiento
-          -- vencido no se muestra como próximo, se pasa al siguiente futuro.
-          AND (scheduled_date AT TIME ZONE '` + casesListTimezone + `')::date >= (NOW() AT TIME ZONE '` + casesListTimezone + `')::date
+          -- La fecha que pinta el detalle es formatFecha: los 10 primeros
+          -- caracteres del timestamp, sin convertir a America/Bogota.
+          -- scheduled_date suele guardarse a medianoche UTC; AT TIME ZONE
+          -- 'America/Bogota' la corre al día anterior y la lista adelantaba
+          -- el próximo seguimiento. Se compara el día UTC, el mismo del detalle.
+          AND (scheduled_date AT TIME ZONE 'UTC')::date >= (NOW() AT TIME ZONE 'UTC')::date
         ORDER BY scheduled_date ASC
         LIMIT 1
     ) AS next_follow_up_date,
-    (` + completedFollowUpsCountSubquery + `) AS completed_follow_ups_count
+    (
+        -- Misma fecha del próximo seguimiento ya formateada en hora Colombia (string),
+        -- para que el frontend la muestre sin re-convertir y sin desfase de día.
+        SELECT TO_CHAR(scheduled_date AT TIME ZONE '` + casesListTimezone + `', 'YYYY-MM-DD')
+        FROM salvia.follow_up_v2
+        WHERE case_id = vc.victim_case_i_code
+          AND status = 'PENDIENTE'
+          AND deleted_at IS NULL
+          AND (scheduled_date AT TIME ZONE '` + casesListTimezone + `')::date >= (NOW() AT TIME ZONE '` + casesListTimezone + `')::date
+        ORDER BY scheduled_date ASC
+        LIMIT 1
+    ) AS next_follow_up_date_co,
+    (` + completedFollowUpsCountSubquery + `) AS completed_follow_ups_count,
+    (` + currentContactAttemptsSubquery + `) AS current_contact_attempts
 `
 
 // completedFollowUpsCountSubquery conteo de follow_up_v2 REALIZADO por caso (E-01, E-12).
@@ -148,6 +177,18 @@ const completedFollowUpsCountSubquery = `(
     WHERE fu.case_id = vc.victim_case_i_code
       AND fu.status = 'REALIZADO'
       AND fu.deleted_at IS NULL
+)`
+
+// currentContactAttemptsSubquery attempts del seguimiento en curso: el más antiguo
+// con status PENDIENTE o REPROGRAMADO, incluidas fechas vencidas. NULL si no hay.
+const currentContactAttemptsSubquery = `(
+    SELECT fu.attempts
+    FROM salvia.follow_up_v2 fu
+    WHERE fu.case_id = vc.victim_case_i_code
+      AND fu.status IN ('PENDIENTE', 'REPROGRAMADO')
+      AND fu.deleted_at IS NULL
+    ORDER BY fu.scheduled_date ASC, fu.created_at ASC
+    LIMIT 1
 )`
 
 func (r *casesListRepository) List(ctx context.Context, filters CasesListFilters) (CasesListResult, error) {
@@ -162,8 +203,12 @@ func (r *casesListRepository) List(ctx context.Context, filters CasesListFilters
 
 	whereSQL, args := buildCasesListWhere(filters)
 	orderSQL := buildCasesListOrder(filters)
+	fromSQL := casesListBaseFrom
+	if strings.TrimSpace(filters.AssignedDepartmentID) != "" {
+		fromSQL += casesListDepartmentJoins
+	}
 
-	countSQL := "SELECT COUNT(*) " + casesListBaseFrom + " " + whereSQL
+	countSQL := "SELECT COUNT(*) " + fromSQL + " " + whereSQL
 	var total int64
 	if err := r.db.WithContext(ctx).Raw(countSQL, args...).Scan(&total).Error; err != nil {
 		return CasesListResult{}, err
@@ -172,7 +217,7 @@ func (r *casesListRepository) List(ctx context.Context, filters CasesListFilters
 	offset := (page - 1) * pageSize
 	dataSQL := fmt.Sprintf(
 		"SELECT %s %s %s %s LIMIT %d OFFSET %d",
-		casesListSelectCols, casesListBaseFrom, whereSQL, orderSQL, pageSize, offset,
+		casesListSelectCols, fromSQL, whereSQL, orderSQL, pageSize, offset,
 	)
 
 	var rows []caseListRow
@@ -203,6 +248,7 @@ func (r *casesListRepository) List(ctx context.Context, filters CasesListFilters
 			DocNumber:               row.DocNumber,
 			VictimPhone:             row.VictimPhone,
 			CreationDate:            row.CreationDate,
+			CreationDateCO:          row.CreationDateCO,
 			Status:                  row.Status,
 			OwnerNames:              row.OwnerNames,
 			OwnerLastNames:          row.OwnerLastNames,
@@ -210,7 +256,9 @@ func (r *casesListRepository) List(ctx context.Context, filters CasesListFilters
 			CaseTeam:                row.CaseTeam,
 			RiskStatus:              row.RiskStatus,
 			NextFollowUpDate:        row.NextFollowUpDate,
+			NextFollowUpDateCO:      row.NextFollowUpDateCO,
 			CompletedFollowUpsCount: row.CompletedFollowUpsCount,
+			CurrentContactAttempts:  contactAttemptsPtr(row.CurrentContactAttempts),
 			OpenBarriers:            barriers,
 		}
 	}
@@ -252,9 +300,21 @@ func (r *casesListRepository) loadOpenBarriersByCaseIDs(ctx context.Context, cas
 // E-09: casos creados hoy y hasta 5 días calendario antes (zona Bogotá).
 const casosNuevosRangeClause = `(vc.victim_case_creation_date AT TIME ZONE '` + casesListTimezone + `')::date BETWEEN (NOW() AT TIME ZONE '` + casesListTimezone + `')::date - INTERVAL '5 days' AND (NOW() AT TIME ZONE '` + casesListTimezone + `')::date`
 
+const casesListDepartmentJoins = `
+LEFT JOIN security.town t_dept
+       ON t_dept.town_code = vc.victim_case_victim_town_code
+LEFT JOIN security.city c_dept
+       ON c_dept.city_id = t_dept.city_id
+`
+
 func buildCasesListWhere(filters CasesListFilters) (string, []interface{}) {
 	clauses := []string{"1=1"}
 	args := []interface{}{}
+
+	if deptID := strings.TrimSpace(filters.AssignedDepartmentID); deptID != "" {
+		clauses = append(clauses, "c_dept.department_id::text = ?")
+		args = append(args, deptID)
+	}
 
 	casosNuevosActive := filters.ChipFilter == "casos_nuevos" || filters.FilterKey == "casos_nuevos"
 	if casosNuevosActive {

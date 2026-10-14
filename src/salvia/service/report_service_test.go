@@ -196,9 +196,9 @@ func TestReportService_GenerateConsolidatedFollowUpsReport_WithData(t *testing.T
 		t.Errorf("se esperaba documento víctima en Seguimientos B2, se obtuvo: %s", val)
 	}
 
-	val, _ = excelFile.GetCellValue("Respuestas de formulario", "F2")
+	val, _ = excelFile.GetCellValue("Respuestas de formulario", "E1")
 	if val != "¿Sufre amenazas?" {
-		t.Errorf("se esperaba la pregunta en F2, se obtuvo: %s", val)
+		t.Errorf("se esperaba la pregunta en E1, se obtuvo: %s", val)
 	}
 
 	val, _ = excelFile.GetCellValue("Timeline", "B2")

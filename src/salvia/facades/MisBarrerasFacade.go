@@ -10,14 +10,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// misBarrerasModalTemplates lista los partials de modales de Mis Barreras.
-var misBarrerasModalTemplates = []string{
-	"frontend/html/salvia/barriers/modal_gestionar.html",
-}
+// misBarrerasModalTemplates queda vacío: el modal de gestión vive en case-task-modal.js.
+var misBarrerasModalTemplates = []string{}
 
 // MisBarrerasGET renderiza la pantalla de Mis Barreras.
 // Ruta: GET /salvia/mis-barreras
-// Roles permitidos: en (Enlace Territorial)
+// Roles permitidos: en (Enlace Territorial), no (Operador territorial nacional)
 func MisBarrerasGET(c *gin.Context) {
 	session := sessions.Default(c)
 	sessionIDVal := session.Get("userData")
@@ -50,12 +48,13 @@ func MisBarrerasGET(c *gin.Context) {
 		utils.DEFAULT_VIEW,
 		utils.DEFAULT_PANIC_TEMPLATE,
 		map[string]interface{}{
-			"windowTitle":   "Mis Barreras",
-			"currentUser":   s.Names + " " + s.LastNames,
-			"currentRole":   s.CurrentRole,
-			"currentUserId": s.UserICode,
-			"locale":        salvia_config.Locale,
-			"lang":          s.Lang,
+			"windowTitle":          "Mis Barreras",
+			"currentUser":          s.Names + " " + s.LastNames,
+			"currentRole":          s.CurrentRole,
+			"currentUserId":        s.UserICode,
+			"assignedDepartmentId": s.AssignedDepartmentID,
+			"locale":               salvia_config.Locale,
+			"lang":                 s.Lang,
 		},
 		utils.GetFullHtmlFuncMap(),
 	)

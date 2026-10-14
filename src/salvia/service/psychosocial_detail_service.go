@@ -226,17 +226,20 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 		`, *ps.ProfessionalID).Scan(&profName)
 		resp.ProfessionalName = strings.TrimSpace(profName)
 
-		// Rol del profesional
-		var roleName string
+		// Rol del profesional: derivado del role_code, igual que psychosocialProfSpecialtySelect.
+		var specialty string
 		s.db.WithContext(ctx).Raw(`
-			SELECT COALESCE(r.role_name, '')
+			SELECT CASE
+				WHEN COUNT(*) FILTER (WHERE LOWER(r.role_code) IN ('psicologia', 'ps')) > 0 THEN 'psicologia'
+				WHEN COUNT(*) FILTER (WHERE LOWER(r.role_code) IN ('ts', 'trab. social', 'trab_social')) > 0 THEN 'trab. social'
+				ELSE ''
+			END
 			FROM security.general_user gu
 			JOIN security.rel_role_general_user rr ON rr.general_user_id = gu.general_user_id
 			JOIN security.role r ON r.role_id = rr.role_id
 			WHERE gu.general_user_i_code = ?
-			LIMIT 1
-		`, *ps.ProfessionalID).Scan(&roleName)
-		resp.ProfessionalRole = roleName
+		`, *ps.ProfessionalID).Scan(&specialty)
+		resp.ProfessionalRole = psicosocialRoleLabel(specialty)
 	}
 
 	// 3b. Dupla asignada (si existe)
@@ -245,7 +248,7 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 		var dupla models.Dupla
 		if err := s.db.WithContext(ctx).Where("id = ?", *ps.DuplaID).First(&dupla).Error; err == nil {
 			resp.DuplaName = dupla.Name
-			// Resolver nombre de la psicóloga
+			// Resolver nombre de la profesional en Psicología
 			if dupla.PsychologistID != "" {
 				var psyName string
 				s.db.WithContext(ctx).Raw(`
@@ -357,7 +360,10 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 	var contacts []models.TeamContact
 	s.db.WithContext(ctx).
 		Where("psicosocial_id = ? AND deleted_at IS NULL", ps.ID).
-		Order("COALESCE(scheduled_date, created_at) ASC").
+		// Orden cronológico por fecha y, cuando varias caen el mismo día,
+		// desempatando por la hora agendada (scheduled_time, HH:MM). Los que no
+		// tienen hora quedan primero ese día (NULLS FIRST).
+		Order("COALESCE(scheduled_date, created_at) ASC, scheduled_time ASC NULLS FIRST").
 		Find(&contacts)
 
 	for _, c := range contacts {
@@ -367,6 +373,7 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 			IsPsicoSession: c.IsPsicoSession,
 			Status:         c.Status,
 			Summary:        c.Summary,
+			SessionType:    c.SessionType,
 			CreatedAt:      formatContactDateTimeUTC(c.CreatedAt),
 		}
 		if c.ScheduledDate != nil {
@@ -401,7 +408,17 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 	// remisiones creadas manualmente (sin seguimiento de origen) — en ese caso
 	// no hay respuestas que leer.
 	resp.ValidationCriteria = []string{}
-	if ps.FollowUpID != nil {
+
+	// Manda lo guardado en la remisión; el seguimiento queda de respaldo para
+	// las anteriores a este cambio.
+	if ps.ReferralCriteria != nil {
+		resp.ValidationCriteria = etiquetasCriteriosPsico(*ps.ReferralCriteria)
+	}
+	if ps.ReferralEvidence != nil {
+		resp.ReferralEvidence = strings.TrimSpace(*ps.ReferralEvidence)
+	}
+
+	if ps.FollowUpID != nil && ps.ReferralCriteria == nil && ps.ReferralEvidence == nil {
 		const qCriteriosPsico = "71c42c4a-f640-47ad-b2c1-5d4c18480449" // Criterios de remisión — Atención Psicosocial
 
 		var fu models.FollowUpV2
@@ -411,28 +428,10 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 				Where("form_submission_id = ? AND question_id IN ?", *fu.FormSubmissionID, []string{qCriteriosPsico, qFollowUpReferralEvidence}).
 				Find(&answers)
 
-			criterioLabels := map[string]string{
-				"conducta_suicida":          "Conducta suicida",
-				"interseccionalidad":        "Interseccionalidad",
-				"sin_ruta":                  "Sin ruta de atención",
-				"condiciones_territoriales": "Condiciones territoriales",
-				"sin_acceso_psico":          "Sin acceso a atención psicosocial",
-				"naturalizacion_vbg":        "Naturalización de VBG",
-			}
 			for _, a := range answers {
 				switch a.QuestionID {
 				case qCriteriosPsico:
-					for _, c := range strings.Split(a.Value, ",") {
-						c = strings.TrimSpace(c)
-						if c == "" || c == "criterio_obligatorio" {
-							continue
-						}
-						if label, ok := criterioLabels[c]; ok {
-							resp.ValidationCriteria = append(resp.ValidationCriteria, label)
-						} else {
-							resp.ValidationCriteria = append(resp.ValidationCriteria, c)
-						}
-					}
+					resp.ValidationCriteria = append(resp.ValidationCriteria, etiquetasCriteriosPsico(a.Value)...)
 				case qFollowUpReferralEvidence:
 					resp.ReferralEvidence = strings.TrimSpace(a.Value)
 				}
@@ -441,6 +440,33 @@ func (s *psychosocialDetailService) GetDetail(ctx context.Context, id string) (*
 	}
 
 	return resp, nil
+}
+
+// etiquetasCriteriosPsico traduce los códigos separados por coma de los
+// criterios de remisión. "criterio_obligatorio" es la casilla que habilita el
+// conteo, no un criterio; uno desconocido se devuelve tal cual.
+func etiquetasCriteriosPsico(valor string) []string {
+	etiquetas := map[string]string{
+		"conducta_suicida":          "Conducta suicida",
+		"interseccionalidad":        "Interseccionalidad",
+		"sin_ruta":                  "Sin ruta de atención",
+		"condiciones_territoriales": "Condiciones territoriales",
+		"sin_acceso_psico":          "Sin acceso a atención psicosocial",
+		"naturalizacion_vbg":        "Naturalización de VBG",
+	}
+	out := []string{}
+	for _, c := range strings.Split(valor, ",") {
+		c = strings.TrimSpace(c)
+		if c == "" || c == "criterio_obligatorio" {
+			continue
+		}
+		if label, ok := etiquetas[c]; ok {
+			out = append(out, label)
+		} else {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 func (s *psychosocialDetailService) CreateContact(ctx context.Context, psicosocialID, contactType, contactDate, contactTime, summary, sessionType, scheduledDate, scheduledTime string) (*models.TeamContact, error) {
@@ -491,17 +517,23 @@ func (s *psychosocialDetailService) CreateContact(ctx context.Context, psicosoci
 		}
 
 	case "realizar":
-		// Realicé sesión — es sesión psico, ya completada.
-		// El frontend redirige de inmediato a ?contact_id=X (registrar-contacto-modal.js,
-		// modo "inmediato"), y LoadSession entra por la rama viewByID, que exige
+		// Contacto inmediato: se crea la sesión en estado PENDIENTE (no completada).
+		// El frontend redirige a ?contact_id=X (registrar-contacto-modal.js, modo
+		// "inmediato") y LoadSession entra por la rama viewByID, que exige
 		// FormSubmissionID ya seteado — por eso se fija el formulario y se crea su
 		// submission acá, antes del alta. Sin esto la primera apertura del formulario
-		// tras "Contacto inmediato" fallaba siempre con ErrPsicosocialContactNoSubmission.
+		// tras "Contacto inmediato" fallaba con ErrPsicosocialContactNoSubmission.
+		//
+		// IMPORTANTE: NO se marca is_completed=true ni se incrementa session_count
+		// aquí. Antes se hacía, lo que generaba una sesión "realizada" fantasma sin
+		// datos del formulario y, al abrir la pantalla sin contact_id, un segundo
+		// team_contact (findOrInitPendingContact no reutilizaba el ya completado) +
+		// doble incremento del contador. Ahora el contacto queda pendiente y es
+		// processPsicosocialSessionSubmission quien lo completa e incrementa el
+		// contador una sola vez, al terminar el formulario.
 		contact.IsPsicoSession = true
-		contact.IsCompleted = true
-		now := time.Now()
-		contact.CompletedAt = &now
-		status := "realizado"
+		contact.IsCompleted = false
+		status := "en_proceso"
 		contact.Status = &status
 
 		formKey, formID := selectPsicosocialForm(ps)
@@ -549,9 +581,13 @@ func (s *psychosocialDetailService) CreateContact(ctx context.Context, psicosoci
 		icon = models.TimelineIconSeguimiento
 		color = models.TimelineColorGreen
 	case "realizar":
-		desc = "Sesión realizada"
-		tlType = "Sesión realizada"
-		icon = "circle-check"
+		// El contacto inmediato ahora queda pendiente hasta que se diligencia el
+		// formulario; el evento "Sesión realizada" lo crea
+		// processPsicosocialSessionSubmission al completar. Aquí solo se registra
+		// que la sesión se inició, para no marcar como realizada una atención sin datos.
+		desc = "Sesión iniciada"
+		tlType = "Sesión iniciada"
+		icon = models.TimelineIconSeguimiento
 		color = models.TimelineColorGreen
 	}
 	s.db.WithContext(ctx).Create(&models.CaseTimelineEvent{
@@ -811,7 +847,7 @@ func (s *psychosocialDetailService) loadActivePsicosocialBarriers(ctx context.Co
 }
 
 // checkSessionAccess valida que agentID sea el profesional directo asignado a la
-// remisión, o que pertenezca a la dupla asignada (psicóloga o trabajador social).
+// remisión, o que pertenezca a la dupla asignada (profesional en Psicología o trabajador social).
 func (s *psychosocialDetailService) checkSessionAccess(ctx context.Context, ps models.PsychosocialSupport, agentID string) error {
 	if ps.ProfessionalID != nil && *ps.ProfessionalID == agentID {
 		return nil
@@ -1056,7 +1092,7 @@ func (s *psychosocialDetailService) CheckSessionAvailability(ctx context.Context
 	day := fecha.Format("2006-01-02")
 	var contacts []models.TeamContact
 	if err := s.db.WithContext(ctx).
-		Where("scheduled_date IS NOT NULL AND (scheduled_date AT TIME ZONE 'UTC')::date = ?::date AND is_psico_session = true AND deleted_at IS NULL", day).
+		Where("scheduled_date IS NOT NULL AND (scheduled_date AT TIME ZONE 'America/Bogota')::date = ?::date AND is_psico_session = true AND deleted_at IS NULL", day).
 		Find(&contacts).Error; err != nil {
 		return false, "", err
 	}

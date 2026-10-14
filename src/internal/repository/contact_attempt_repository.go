@@ -72,10 +72,20 @@ func (r *contactAttemptRepository) Counters(ctx context.Context, psicosocialID s
 	}{}
 	err := r.db.WithContext(ctx).
 		Model(&models.ContactAttempt{}).
+		// Los días se cuentan en hora de Colombia, no en la del servidor. Con
+		// attempt_at::date a secas, un intento hecho después de las 19:00 en
+		// Colombia cae en el día siguiente UTC: los 3 fallidos de una misma
+		// jornada se parten entre dos días, el contador diario nunca llega a 3 y
+		// el bloque de acciones —donde vive el cierre por imposibilidad— no se le
+		// muestra a la profesional.
 		Select(`
-			COUNT(*) FILTER (WHERE was_answered = false AND attempt_at::date = CURRENT_DATE) AS daily_failed_count,
+			COUNT(*) FILTER (
+				WHERE was_answered = false
+				  AND (attempt_at AT TIME ZONE 'America/Bogota')::date
+				      = (NOW() AT TIME ZONE 'America/Bogota')::date
+			) AS daily_failed_count,
 			COUNT(*) AS total_count,
-			COUNT(DISTINCT attempt_at::date) AS distinct_days_count`).
+			COUNT(DISTINCT (attempt_at AT TIME ZONE 'America/Bogota')::date) AS distinct_days_count`).
 		Where("psicosocial_id = ?", psicosocialID).
 		Scan(&row).Error
 	if err != nil {

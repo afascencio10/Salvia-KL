@@ -66,7 +66,7 @@ func TestEconomicStabilizationController_Create(t *testing.T) {
 		svc := new(MockEconomicStabilizationService)
 		svc.On("Create", mock.Anything, mock.AnythingOfType("*models.EconomicStabilization")).Return(nil)
 		ctrl := controller.NewEconomicStabilizationController(svc)
-		body, _ := json.Marshal(map[string]string{"case_id": "c-1", "follow_up_id": "f-1", "type": "SUBSIDIO"})
+		body, _ := json.Marshal(map[string]string{"caseId": "c-1", "followUpId": "f-1", "type": "SUBSIDIO"})
 		req := httptest.NewRequest(http.MethodPost, "/economic", bytes.NewReader(body))
 		rec := httptest.NewRecorder()
 		ctrl.CreateHandler(rec, req)

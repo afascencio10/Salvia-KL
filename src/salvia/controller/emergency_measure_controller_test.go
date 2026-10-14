@@ -66,7 +66,7 @@ func TestEmergencyMeasureController_Create(t *testing.T) {
 		svc := new(MockEmergencyMeasureService)
 		svc.On("Create", mock.Anything, mock.AnythingOfType("*models.EmergencyMeasure")).Return(nil)
 		ctrl := controller.NewEmergencyMeasureController(svc)
-		body, _ := json.Marshal(map[string]string{"case_id": "c-1", "follow_up_id": "f-1", "type": "PROTECCION"})
+		body, _ := json.Marshal(map[string]string{"caseId": "c-1", "followUpId": "f-1", "type": "PROTECCION"})
 		req := httptest.NewRequest(http.MethodPost, "/emergency-measures", bytes.NewReader(body))
 		rec := httptest.NewRecorder()
 		ctrl.CreateHandler(rec, req)

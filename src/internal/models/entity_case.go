@@ -17,6 +17,16 @@ type EntityCase struct {
 	CaseID         string  `gorm:"type:varchar(36);not null;index;column:case_id" json:"caseId"`
 	EntityBranchID int64   `gorm:"not null;index;column:entity_branch_id" json:"entityBranchId"`
 	Objetivo       *string `gorm:"type:text;column:objetivo" json:"objetivo,omitempty"`
+	// Solicitud a la entidad — texto libre opcional, complementa el checklist
+	// de acciones institucionales (HU: capturar una solicitud puntual dirigida
+	// a la entidad, además del checklist). Columna creada vía AutoMigrate.
+	Solicitud *string `gorm:"type:text;column:solicitud" json:"solicitud,omitempty"`
+
+	// Radicado: N° de radicado/NUNC/MP con el que la víctima ya acudió a esta
+	// entidad — viene de la pregunta homónima del repeater "Entidades a las
+	// que ya acudió" (Identificación de Entidades). Solo se fija al crear el
+	// entity_case; no se sobreescribe en seguimientos posteriores.
+	Radicado *string `gorm:"type:text;column:radicado" json:"radicado,omitempty"`
 
 	// LastAction es un campo de texto libre editado directamente — no se calcula.
 	// Pendiente definir el mecanismo exacto para poblarlo (ver GAP en related-tables.md).
@@ -48,11 +58,19 @@ type EntityCaseWithRelations struct {
 	CityName             string    `gorm:"column:city_name"               json:"cityName"`
 	TownName             string    `gorm:"column:town_name"               json:"townName"`
 	Objetivo             *string   `gorm:"column:objetivo"                json:"objetivo,omitempty"`
+	Solicitud            *string   `gorm:"column:solicitud"               json:"solicitud,omitempty"`
+	Radicado             *string   `gorm:"column:radicado"                json:"radicado,omitempty"`
 	LastAction           *string   `gorm:"column:last_action"             json:"lastAction,omitempty"`
 	OficiosCount         int64     `gorm:"column:oficios_count"           json:"oficiosCount"`
 	BarrerasActivasCount int64     `gorm:"column:barreras_activas_count"  json:"barrerasActivasCount"`
 	CreatedByID          string    `gorm:"column:created_by_id"           json:"createdById"`
 	CreatedAt            time.Time `gorm:"column:created_at"              json:"createdAt"`
+
+	// RespuestaEntidad es la gestión que reportó la propia entidad desde "Mis
+	// Acciones Institucionales". gorm:"-" porque no sale de esta consulta: la
+	// agrega el servicio leyendo entity_case_obligation_response. Nil cuando la
+	// entidad no tiene acciones institucionales en el caso.
+	RespuestaEntidad *EntityCaseObligationResponseSummary `gorm:"-" json:"respuestaEntidad,omitempty"`
 }
 
 // EntityCaseListItem es una fila del listado Casos Entidad
@@ -97,4 +115,67 @@ type EntityBranchMeta struct {
 	EntityBranchID int64  `gorm:"column:entity_branch_id" json:"entityBranchId"`
 	EntityName     string `gorm:"column:entity_name"      json:"entityName"`
 	Sector         string `gorm:"column:sector"           json:"sector"`
+}
+
+// ObligacionesResumenGlobal es el agregado total de obligaciones de un caso —
+// suma de todos los sectores. Se calcula en Go a partir de PorSector, no en SQL.
+type ObligacionesResumenGlobal struct {
+	Completadas int64 `json:"completadas"`
+	Total       int64 `json:"total"`
+}
+
+// ObligacionesResumenSector es el agregado de un sector para
+// GET /api/v1/casos/:caseId/obligaciones-resumen. Solo incluye sectores con
+// al menos una entidad — el frontend completa los que falten (Salud/Justicia/
+// Protección) como "Sin obligaciones".
+type ObligacionesResumenSector struct {
+	Sector            string `gorm:"column:sector"             json:"sector"`
+	CantidadEntidades int64  `gorm:"column:cantidad_entidades" json:"cantidadEntidades"`
+	Completadas       int64  `gorm:"column:completadas"        json:"completadas"`
+	Total             int64  `gorm:"column:total"              json:"total"`
+}
+
+// ObligacionesResumenItem es una fila de detalle (una obligación de una
+// entidad del caso) para el modal de drill-down de case-gestion-institucional.
+type ObligacionesResumenItem struct {
+	Entidad    string `gorm:"column:entidad"    json:"entidad"`
+	Sector     string `gorm:"column:sector"     json:"sector"`
+	Obligacion string `gorm:"column:obligacion" json:"obligacion"`
+	Completada bool   `gorm:"column:completada" json:"completada"`
+}
+
+// ObligacionesResumenResponse es la respuesta completa de
+// GET /api/v1/casos/:caseId/obligaciones-resumen.
+type ObligacionesResumenResponse struct {
+	Global    ObligacionesResumenGlobal   `json:"global"`
+	PorSector []ObligacionesResumenSector `json:"porSector"`
+	Items     []ObligacionesResumenItem   `json:"items"`
+}
+
+// EntityCaseDetailRow es el shape del detalle completo de un entity_case,
+// usado por GET /api/v1/entity-cases/:entityCaseId/detail.
+type EntityCaseDetailRow struct {
+	EntityCaseID     string  `gorm:"column:entity_case_id"      json:"entityCaseId"`
+	CaseID           string  `gorm:"column:case_id"             json:"caseId"`
+	CaseCode         string  `gorm:"column:case_code"           json:"caseCode"`
+	VictimFullName   string  `gorm:"column:victim_full_name"    json:"victimFullName"`
+	Document         string  `gorm:"column:document"            json:"document"`
+	RiskLevel        string  `gorm:"column:risk_level"          json:"riskLevel"`
+	CaseStatus       string  `gorm:"column:case_status"         json:"caseStatus"`
+	CaseStatusLabel  string  `gorm:"-"                          json:"caseStatusLabel"`
+	AgentName        string  `gorm:"column:agent_name"          json:"agentName"`
+	City             string  `gorm:"column:city"                json:"city"`
+	DepartmentName   string  `gorm:"column:department_name"     json:"departmentName"`
+	EntityBranchName string  `gorm:"column:entity_branch_name"  json:"entityBranchName"`
+	Sector           string  `gorm:"column:sector"              json:"sector"`
+	SectorLabel      string  `gorm:"-"                          json:"sectorLabel"`
+	Address          string  `gorm:"column:address"             json:"address"`
+	TownName         string  `gorm:"column:town_name"           json:"townName"`
+	EntityCityName   string  `gorm:"column:entity_city_name"    json:"entityCityName"`
+	EntityDeptName   string  `gorm:"column:entity_dept_name"    json:"entityDeptName"`
+	Objetivo         *string `gorm:"column:objetivo"            json:"objetivo,omitempty"`
+	LastAction       *string `gorm:"column:last_action"         json:"lastAction,omitempty"`
+	OficiosCount     int64   `gorm:"column:oficios_count"       json:"oficiosCount"`
+	BarrerasCount    int64   `gorm:"column:barreras_count"      json:"barrerasCount"`
+	CreatedAt        string  `gorm:"column:created_at"          json:"createdAt"`
 }

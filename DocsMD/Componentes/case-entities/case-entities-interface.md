@@ -5,7 +5,7 @@ Lista las entidades institucionales (`entity_branch`) relacionadas manualmente c
 Montado dentro del tab **"Gestión institucional"** (antes "Barreras") de la pantalla Detalle del Caso, antes de la sección de Barreras — mismo lugar que ocupa `SeccionEntidades` en el mockup React, y hermano de `case-oficios` (que va después de la lista de barreras).
 
 **Permisos:**
-- **Ver y filtrar entidades:** cualquier rol con acceso a la pantalla Detalle del Caso — es decir, cualquiera de los roles listados en `salvia_config.PermissionsByRole["get_case_detail_sv"]` (`op`, `ro`, `do`, `et`, `us`, `sv`, `no`, `fo`, `ps`, `ts`, `an` — todos menos `ad`). El backend reutiliza ese mismo permiso en vez de mantener una lista de roles propia, para que ambos permisos no se desincronicen.
+- **Ver y filtrar entidades:** cualquier rol con acceso a la pantalla Detalle del Caso — es decir, cualquiera de los roles listados en `salvia_config.PermissionsByRole["get_case_detail_sv"]` (`op`, `ro`, `do`, `et`, `en`, `us`, `sv`, `no`, `fo`, `ps`, `ts`, `an` — todos menos `ad`). El backend reutiliza ese mismo permiso en vez de mantener una lista de roles propia, para que ambos permisos no se desincronicen.
 - **Agregar una entidad:** solo `sv`, `op`, `ro` — el botón "+ Agregar entidad" no se renderiza para el resto (`v-if="puedeAgregar"` en el frontend) y el backend rechaza la petición con 403 aunque se llame directamente.
 
 ## Archivos relevantes

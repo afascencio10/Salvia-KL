@@ -25,7 +25,11 @@ import (
 
 // entidadMecanismoRoles — roles externos (entidad, mecanismo) sin visibilidad sobre la
 // gestión interna de SALVIA en el detalle de caso (Timeline, Derivaciones, Tareas, Seguimientos).
-var entidadMecanismoRoles = map[string]bool{"et": true, "mn": true}
+//
+// "mc" es el rol del mecanismo articulador (models.ArticulatingMechanismRoleCode) y
+// entra acá porque Casos Mecanismo abre esta misma pantalla
+// (/salvia/casos/:id/detalle, ver casos-mecanismo.js).
+var entidadMecanismoRoles = map[string]bool{"et": true, "mn": true, "mc": true}
 
 // stripInternalCaseData oculta, a nivel de backend, los datos de gestión interna de SALVIA
 // (Derivaciones y Seguimientos) del payload de detalle de caso cuando el usuario autenticado
@@ -98,6 +102,7 @@ func (c *CaseDetailController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.POST("/casos/:id/seguimiento", c.CrearSeguimiento)
 	rg.POST("/casos/:id/timeline", c.AddTimelineEvent)
 	rg.GET("/casos/:id/timeline-events", c.GetTimelineEvents)
+	rg.GET("/casos/:id/enlaces", c.GetEnlacesDepartamento)
 	rg.POST("/casos/:id/reasignar", c.ReasignarCaso)
 	rg.POST("/casos/:id/reabrir", c.ReabrirCaso)
 	rg.PUT("/seguimiento/:segId/reasignar", c.ReassignFollowUp)
@@ -348,6 +353,51 @@ func (c *CaseDetailController) GetTimelineEvents(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, events)
+}
+
+// GetEnlacesDepartamento devuelve los enlaces territoriales (rol 'en') del
+// departamento al que pertenece el caso, resuelto vía victim_case → town → city
+// → department. Lo usa el modal "Decisiones del Comité" (Activar Enlace): si hay
+// más de uno, muestra un dropdown para elegir.
+// GET /api/v1/casos/:id/enlaces
+func (c *CaseDetailController) GetEnlacesDepartamento(ctx *gin.Context) {
+	caseICode := ctx.Param("id")
+	type EnlaceResult struct {
+		ICode    string `json:"icode" gorm:"column:general_user_i_code"`
+		FullName string `json:"fullName" gorm:"column:full_name"`
+	}
+	var results []EnlaceResult
+	// Resuelve el departamento del caso y busca los enlaces 'en' cuyo departamento
+	// (por su municipio de perfil) coincide con el del caso.
+	err := c.svc.GetDB().WithContext(ctx.Request.Context()).Raw(`
+		WITH caso_dept AS (
+			SELECT ci.department_id AS department_id
+			FROM salvia.victim_case vc
+			JOIN security.town t ON t.town_code = vc.victim_case_victim_town_code
+			JOIN security.city ci ON ci.city_id = t.city_id
+			WHERE vc.victim_case_i_code = ?
+			LIMIT 1
+		)
+		SELECT DISTINCT gu.general_user_i_code,
+			   gup.general_user_profile_names || ' ' || gup.general_user_profile_last_names AS full_name
+		FROM security.general_user gu
+		JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+		JOIN security.town et ON et.town_code = gup.general_user_profile_town
+		JOIN security.city eci ON eci.city_id = et.city_id
+		JOIN security.rel_role_general_user rr ON rr.general_user_id = gu.general_user_id
+		JOIN security.role r ON r.role_id = rr.role_id
+		JOIN caso_dept cd ON cd.department_id = eci.department_id
+		WHERE r.role_code = 'en'
+		  AND gu.general_user_status = 'e'
+		ORDER BY full_name ASC`, caseICode).Scan(&results).Error
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error al cargar enlaces del departamento"})
+		return
+	}
+	if results == nil {
+		results = []EnlaceResult{}
+	}
+	ctx.JSON(http.StatusOK, results)
 }
 
 // ReassignFollowUp actualiza el agent_id de un seguimiento.

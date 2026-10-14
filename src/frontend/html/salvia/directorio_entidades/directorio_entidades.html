@@ -40,7 +40,7 @@
             <option v-for="d in departments" :key="d.value" :value="d.value">${ d.label }</option>
         </select>
         <select class="de-select-sm" v-model="filters.cityICode" @change="loadEntities" :disabled="!filters.departmentId">
-            <option value="">Ciudad</option>
+            <option value="">Municipio</option>
             <option v-for="c in filteredCities" :key="c.iCode" :value="c.iCode">${ c.label }</option>
         </select>
         <button v-if="hasActiveFilters" class="de-link-clear" @click="clearFilters">
@@ -137,8 +137,12 @@
                         <option v-for="d in departments" :key="d.value" :value="d.value">${ d.label }</option>
                     </select>
                 </div>
+                <!-- Nomenclatura DIVIPOLA: security.city son los municipios y
+                     security.town los centros poblados. Las etiquetas dicen eso;
+                     los campos conservan los nombres cityICode/townICode porque
+                     son los de la tabla y los del payload de la API. -->
                 <div class="de-field">
-                    <label>Ciudad *</label>
+                    <label>Municipio *</label>
                     <select v-model="form.cityICode" @change="onFormCityChange" :disabled="!form.departmentId">
                         <option value="">Seleccionar…</option>
                         <option v-for="c in formCities" :key="c.iCode" :value="c.iCode">${ c.label }</option>
@@ -146,9 +150,9 @@
                 </div>
 
                 <div class="de-field">
-                    <label>Municipio</label>
+                    <label>Centro poblado</label>
                     <select v-model="form.townICode" :disabled="!form.cityICode">
-                        <option value="">Sin municipio</option>
+                        <option value="">Sin centro poblado</option>
                         <option v-for="m in formTowns" :key="m.value" :value="m.value">${ m.label }</option>
                     </select>
                 </div>
@@ -470,7 +474,7 @@ var deApp = Vue.createApp({
             if (!this.form.name.trim())    return 'El nombre es obligatorio';
             if (!this.form.type)           return 'Selecciona un tipo';
             if (!this.form.departmentId)   return 'Selecciona un departamento';
-            if (!this.form.cityICode)      return 'Selecciona una ciudad';
+            if (!this.form.cityICode)      return 'Selecciona un municipio';
             if (!this.form.address.trim()) return 'La dirección es obligatoria';
             return '';
         },

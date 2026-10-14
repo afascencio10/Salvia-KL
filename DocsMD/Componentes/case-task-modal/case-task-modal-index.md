@@ -7,7 +7,7 @@
 | Interfaz | [case-task-modal-interface.md](case-task-modal-interface.md) |
 | Uso | [case-task-modal-usage.md](case-task-modal-usage.md) |
 
-**Changelogs:** [changelogAgo2026.md](changelogAgo2026.md)
+**Changelogs:** [changelogAgo2026.md](changelogAgo2026.md) · [changelogSep2026.md](changelogSep2026.md)
 
 ---
 
@@ -24,6 +24,7 @@
 | E07 | Cuando activa "¿Genera oficio?" | User Interaction | [📄 Ver flujo](Flujos/flow-E07-cuando-activa-genera-oficio.md) |
 | E08 | Cuando cambia decisiones del comité | User Interaction | [📄 Ver flujo](Flujos/flow-E08-cuando-cambia-decisiones-del-comite.md) |
 | E09 | Cuando confirma el formulario | User Interaction | [📄 Ver flujo](Flujos/flow-E09-cuando-confirma-formulario.md) |
+| E10 | Cuando selecciona ítem del checklist entidad | User Interaction | [📄 Ver flujo](Flujos/flow-E10-cuando-selecciona-item-checklist-entidad.md) |
 
 ---
 
@@ -42,7 +43,7 @@
 
 **Evento:** Cuando se abre con una tarea
 **Tipo:** User Interaction
-**Descripción:** El padre llama al método público `open(taskId)`. El componente setea `taskId`, muestra el modal, resetea el formulario y hace `GET /api/v1/case-tasks/:taskId` para cargar la tarea. Una vez cargada, inicializa el formulario según `tarea.type`. Si `tarea.type === 'Corregir oficio'`, además hace `GET /api/v1/entity-letters/:letterId` (usando `tarea.entityLetterId`) para mostrar en solo lectura la razón de corrección y la ruta Kofax.
+**Descripción:** El componente padre llama a `open(taskId)`, `openArticulacion(ctx)` o `openMecanismo(ctx)`. Con `taskId` hace `GET /api/v1/case-tasks/:taskId`. Sin `taskId` (Mis Barreras / Casos Mecanismo) arma una tarea en memoria (`articulacion_territorial` o `gestion_mecanismo`). Luego inicializa el formulario según `tarea.type`.
 **Requerido:** Sí
 
 ---
@@ -103,7 +104,16 @@
 
 **Evento:** Cuando confirma el formulario
 **Tipo:** User Interaction
-**Descripción:** El usuario presiona "Completar tarea" (o "Marcar como corregido" si `tarea.type === 'Corregir oficio'`). Valida los campos requeridos según `tarea.type` (ver tabla en interface) — `Corregir oficio` no tiene campos, solo requiere que haya terminado de cargar el oficio vinculado. Si válido, construye el payload con `formData` como JSON (`{}` para `Corregir oficio`) y llama `PUT /api/v1/case-tasks/:taskId/complete`. Si responde 200, cierra el modal y emite `@completed` con la tarea actualizada. Si error, muestra `saveError` sin cerrar el modal.
+**Descripción:** El usuario presiona el botón de confirmar ("Guardar" si `articulacion_territorial` o `gestion_mecanismo`). Valida según `tarea.type`. Articulación: `POST /api/v1/case-tasks/articulacion-territorial`. Mecanismo: `POST /api/v1/case-tasks/gestion-mecanismo`. El resto usa `PUT /api/v1/case-tasks/:taskId/complete`. Si 200, emite `@completed` y cierra.
+**Requerido:** Sí
+
+---
+
+📄 [Ver flujo → flow-E10-cuando-selecciona-item-checklist-entidad.md](Flujos/flow-E10-cuando-selecciona-item-checklist-entidad.md)
+
+**Evento:** Cuando selecciona ítem del checklist entidad
+**Tipo:** User Interaction
+**Descripción:** Aplica únicamente en el formulario `solicitud_entidad`. El usuario pulsa un ítem del checklist de obligaciones pendientes. Alterna `form.seleccion[id].selected`. Si queda seleccionado, Vue muestra el textarea de descripción debajo; si se deselecciona, limpia la descripción.
 **Requerido:** Sí
 
 ---

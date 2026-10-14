@@ -1,7 +1,10 @@
 <main class="salvia-main">
 <div class="container">
     <div class="welcome-section">
-        <h2><b>Lista de casos</b></h2>
+        <div>
+            <h2><b>Lista de casos</b></h2>
+            <p v-if="isEnDepartmentScope" class="text-muted mb-0">Casos del departamento asignado al usuario</p>
+        </div>
         <div style="display:flex; gap:8px; align-items:center;">
             <button v-if="canDescargarReporte" class="btn btn-secondary" @click="onDescargarReporte">Descargar reporte consolidado <i class="fas fa-file-excel"></i></button>
             <a v-if="canCrearCaso" href="/salvia/casos/nuevo"><button class="btn btn-primary">Crear Nuevo caso <i class="fas fa-plus-circle"></i></button></a>
@@ -12,7 +15,12 @@
     {{ template "salvia/list-cases/reasignar_casos_modal.html" . }}
     {{ template "salvia/list-cases/consolidated_report_modal.html" . }}
 
-    <div class="mt-4 mb-4">
+    <div v-if="enMissingDepartment" class="alert alert-danger mt-4" role="alert">
+        <i class="fas fa-exclamation-triangle"></i>
+        Tu usuario no tiene un departamento asignado. Contacta a un administrador para que te lo asigne.
+    </div>
+
+    <div v-else class="mt-4 mb-4">
         <casos-component
             ref="casosComponent"
             :default-filter="casosDefaultFilter"
@@ -51,6 +59,7 @@
                 windowTitle: {{.windowTitle}},
                 currentUser: "{{.currentUser}}",
                 currentRole: "{{.currentRole}}",
+                assignedDepartmentId: "{{.assignedDepartmentId}}",
                 menu: {{.menu}},
 
                 casosDefaultFilter: {},
@@ -100,6 +109,7 @@
                     { key: 'barriers',             label: 'Barreras'              },
                     { key: 'next_follow_up_date',  label: 'Próximo seguimiento'   },
                     { key: 'completed_follow_ups', label: 'Seguimientos ejecutados' },
+                    { key: 'contact_attempts_3x3', label: 'Intentos de contacto (3x3)' },
                 ],
             };
         },
@@ -109,6 +119,12 @@
             },
             canDescargarReporte: function() {
                 return this.currentRole === 'sv' || this.currentRole === 'ad';
+            },
+            isEnDepartmentScope: function() {
+                return this.currentRole === 'en' && !!this.assignedDepartmentId;
+            },
+            enMissingDepartment: function() {
+                return this.currentRole === 'en' && !this.assignedDepartmentId;
             },
             isPsicosocialRole: function() {
                 return this.currentRole === 'ps' || this.currentRole === 'ts';

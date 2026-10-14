@@ -20,6 +20,9 @@ func (m *MockEconomicStabilizationRepo) Create(ctx context.Context, e *models.Ec
 func (m *MockEconomicStabilizationRepo) Update(ctx context.Context, e *models.EconomicStabilization) error {
 	return m.Called(ctx, e).Error(0)
 }
+func (m *MockEconomicStabilizationRepo) UpdateFields(ctx context.Context, id string, fields map[string]interface{}) error {
+	return m.Called(ctx, id, fields).Error(0)
+}
 func (m *MockEconomicStabilizationRepo) Delete(ctx context.Context, id string) error {
 	return m.Called(ctx, id).Error(0)
 }
@@ -68,7 +71,8 @@ func TestEconomicStabilizationService_GetByID(t *testing.T) {
 func TestEconomicStabilizationService_Create(t *testing.T) {
 	ctx := context.Background()
 	repo := new(MockEconomicStabilizationRepo)
-	es := &models.EconomicStabilization{CaseID: "c-1", FollowUpID: "f-1", Type: "SUBSIDIO"}
+	followUpID := "f-1"
+	es := &models.EconomicStabilization{CaseID: "c-1", FollowUpID: &followUpID, Type: "SUBSIDIO"}
 	repo.On("Create", ctx, es).Return(nil)
 	svc := service.NewEconomicStabilizationService(repo)
 	err := svc.Create(ctx, es)

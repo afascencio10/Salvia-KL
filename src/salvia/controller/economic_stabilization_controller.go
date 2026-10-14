@@ -51,8 +51,8 @@ func (c *EconomicStabilizationController) CreateHandler(w http.ResponseWriter, r
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "body inválido"})
 		return
 	}
-	if es.CaseID == "" || es.FollowUpID == "" || es.Type == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "campos requeridos: case_id, follow_up_id, type"})
+	if es.CaseID == "" || es.Type == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "campos requeridos: case_id, type"})
 		return
 	}
 	if err := c.svc.Create(r.Context(), &es); err != nil {

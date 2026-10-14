@@ -21,6 +21,11 @@ var (
 	ErrConsentNotAccepted      = errors.New("informed consent not accepted")
 	ErrInvalidAttempt          = errors.New("invalid contact attempt")
 	ErrInvalidReason           = errors.New("invalid closure reason")
+
+	// ErrClosureFormMissing — el formulario de cierre no está en esta base de
+	// datos. Se seedéa aparte (src/cmd/seed/seed_cierre_psicosocial.sql); sin él
+	// el cierre por imposibilidad de contacto no se puede completar.
+	ErrClosureFormMissing = errors.New("closure form not seeded")
 )
 
 // Formulario de Cierre de proceso psicosocial (ver closure-form-model.md).
@@ -352,7 +357,10 @@ func (s *psychosocial3x3Service) ScheduleSession(ctx context.Context, psicosocia
 
 	result := &SessionResult{Session: session}
 	if immediate {
-		url := "/salvia/psicosocial/sesion/" + session.ID
+		// La pantalla "Registrar Sesión Psicosocial" ya resuelve/reutiliza el
+		// team_contact pendiente (is_completed=false, is_psico_session=true) que
+		// acabamos de crear — ver findOrInitPendingContact en psychosocial_detail_service.go.
+		url := "/salvia/psicosocial/registrar/" + psicosocialID
 		result.RedirectURL = &url
 	}
 	return result, nil
@@ -380,6 +388,18 @@ func (s *psychosocial3x3Service) InitClosureForm(ctx context.Context, psicosocia
 	}
 	if _, err := s.loadProcess(ctx, psicosocialID); err != nil {
 		return nil, err
+	}
+
+	// Se comprueba antes de escribir: sin esta guarda, un ambiente sin el seed
+	// respondía 200, el modal abría y el motor de formularios fallaba después con
+	// un 404 sin explicación, dejando además una submission y una respuesta
+	// huérfanas por cada intento de cierre.
+	var existe int64
+	if err := s.db.WithContext(ctx).Model(&models.Form{}).Where("id = ?", ClosureFormID).Count(&existe).Error; err != nil {
+		return nil, err
+	}
+	if existe == 0 {
+		return nil, ErrClosureFormMissing
 	}
 
 	submission := &models.FormSubmission{FormID: ClosureFormID}

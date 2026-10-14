@@ -212,12 +212,30 @@ func GeneralUserLOGIN_POST(c *gin.Context) {
 					navByte, _ := json.Marshal(navMap)
 					navStr = string(navByte)
 
+				case "mc":
+					// Mecanismo articulador: redirigir a Casos Mecanismo.
+					navMap := map[string]string{
+						"login": "/salvia/casos-mecanismo",
+						"role":  currentRole,
+					}
+					navByte, _ := json.Marshal(navMap)
+					navStr = string(navByte)
+
 				case "ps", "ts":
 					// Profesional psicosocial: redirigir a Mis remisiones Psicosocial.
 					navMap := map[string]string{
 						"login": "/salvia/mis-remisiones-psicosocial",
 						"role":  currentRole,
 					}
+					navByte, _ := json.Marshal(navMap)
+					navStr = string(navByte)
+
+				case "te":
+					// Equipo Técnico: redirigir a Mis Tareas (donde llegan las
+					// tareas "Decisiones del Comité").
+					navMap := salvia_config.TranslateNavigationRule(usr.GeneralUserLanguage, salvia_config.NAVIGATION_RULES["login"])
+					navMap["login"] = "/salvia/mis-tareas"
+					navMap["role"] = currentRole
 					navByte, _ := json.Marshal(navMap)
 					navStr = string(navByte)
 				}

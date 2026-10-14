@@ -90,8 +90,9 @@ func (c *PsychosocialCalendarController) Team(ctx *gin.Context) {
 	}
 	from, to := parseRange(ctx)
 	filterAgent := strings.TrimSpace(ctx.Query("agentId"))
-	fmt.Printf("[Calendar.Team] from=%s to=%s filterAgent=%q\n", from.Format("2006-01-02"), to.Format("2006-01-02"), filterAgent)
-	events, err := c.svc.TeamEvents(ctx.Request.Context(), filterAgent, from, to)
+	filterDupla := strings.TrimSpace(ctx.Query("duplaId"))
+	fmt.Printf("[Calendar.Team] from=%s to=%s filterAgent=%q filterDupla=%q\n", from.Format("2006-01-02"), to.Format("2006-01-02"), filterAgent, filterDupla)
+	events, err := c.svc.TeamEvents(ctx.Request.Context(), filterAgent, filterDupla, from, to)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error al cargar calendario del equipo"})
 		return

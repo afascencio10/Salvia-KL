@@ -6,7 +6,7 @@
  * Props:
  *   - caseId   (String, required): icode del caso
  *   - userId   (String, optional): icode del usuario logueado (para permisos)
- *   - userRole (String, optional): rol del usuario ('sv', 'ro', 'op', 'ps', 'ts')
+ *   - userRole (String, optional): rol del usuario ('sv', 'ro', 'op', 'ps', 'ts', 'et')
  *   - allowPsicoManage (Boolean, optional): si true, ps/ts pueden gestionar
  *     tareas asignadas a ellos (p. ej. detalle de remisión psicosocial).
  *     Default false: en detalle de caso ps/ts son solo lectura.
@@ -69,6 +69,9 @@ app.component('case-tasks', {
         psychosocialId: { type: String, default: '' },
         puedeGestionPropia: { type: Boolean, default: false },
         allowPsicoManage: { type: Boolean, default: false },
+        entityBranchId: { default: null },
+        entityName: { type: String, default: '' },
+        barrierDescription: { type: String, default: '' },
     },
     emits: ['task-completed'],
     data: function() {
@@ -80,20 +83,35 @@ app.component('case-tasks', {
             reasignarAgente: '',
             agentesEquipo: [],
             reasignando: false,
-            modalGestionPropiaAbierto: false,
-            gestionPropiaTipo: 'Llamada',
-            gestionPropiaDescripcion: '',
-            guardandoGestionPropia: false,
-            errorGestionPropia: null,
-            tiposGestionPropia: ['Llamada', 'Visita presencial', 'Oficio a entidad', 'Otra gestión'],
         };
     },
     computed: {
+        scopedTasks: function() {
+            var self = this;
+            // Rol Entidad ('et'): filtro original del equipo — solo sus tareas asignadas.
+            if (this.userRole === 'et') {
+                return this.tasks.filter(function(t) {
+                    return String(t.assignedUserId || '') === String(self.userId || '');
+                });
+            }
+            // Equipo Técnico ('te'): ve las tareas asignadas a sí mismo y, además, las
+            // tareas "comite_caso" del pool (sin dueño), disponibles para que cualquier
+            // integrante del equipo técnico las tome y gestione. El backend ya aplica
+            // este mismo criterio; aquí se replica para mantener la vista consistente.
+            if (this.userRole === 'te') {
+                return this.tasks.filter(function(t) {
+                    if (String(t.assignedUserId || '') === String(self.userId || '')) return true;
+                    if (t.type === 'comite_caso' && !t.assignedUserId) return true;
+                    return false;
+                });
+            }
+            return this.tasks;
+        },
         pendingTasks: function() {
-            return this.tasks.filter(function(t) { return t.status === 'ToDo'; });
+            return this.scopedTasks.filter(function(t) { return t.status === 'ToDo'; });
         },
         completedTasks: function() {
-            return this.tasks.filter(function(t) { return t.status === 'Done'; });
+            return this.scopedTasks.filter(function(t) { return t.status === 'Done'; });
         },
         visibleTasks: function() {
             return this.activeTab === 'pending' ? this.pendingTasks : this.completedTasks;
@@ -130,44 +148,25 @@ app.component('case-tasks', {
             this.$emit('task-completed');
         },
         abrirModalGestionPropia: function() {
-            this.gestionPropiaTipo = 'Llamada';
-            this.gestionPropiaDescripcion = '';
-            this.errorGestionPropia = null;
-            this.modalGestionPropiaAbierto = true;
+            if (!this.$refs.taskModal) return;
+            this.$refs.taskModal.openArticulacion({
+                barrierId: this.barrierId,
+                caseId: this.caseId,
+                entityBranchId: this.entityBranchId,
+                entityName: this.entityName || '',
+                barrierDescription: this.barrierDescription || '',
+            });
         },
-        cerrarModalGestionPropia: function() {
-            this.modalGestionPropiaAbierto = false;
-        },
-        async confirmarGestionPropia() {
-            if (!this.gestionPropiaDescripcion.trim()) return;
-            this.guardandoGestionPropia = true;
-            this.errorGestionPropia = null;
-            try {
-                var res = await fetch('/api/v1/case-tasks/gestion-propia', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        caseId: this.caseId,
-                        barrierId: this.barrierId,
-                        tipo: this.gestionPropiaTipo,
-                        descripcion: this.gestionPropiaDescripcion.trim(),
-                    })
-                });
-                var data = await res.json().catch(function() { return {}; });
-                if (!res.ok) {
-                    throw new Error(data.error || ('Error ' + res.status));
-                }
-                this.modalGestionPropiaAbierto = false;
-                this.onTaskCompleted();
-            } catch (e) {
-                this.errorGestionPropia = e.message;
-            } finally {
-                this.guardandoGestionPropia = false;
-            }
+        // esComiteDelPool: tarea "comite_caso" sin dueño que cualquier integrante del
+        // Equipo Técnico ('te') puede tomar y gestionar.
+        esComiteDelPool: function(task) {
+            return task && task.type === 'comite_caso' && !task.assignedUserId;
         },
         puedeCompletar: function(task) {
             if ((this.userRole === 'ps' || this.userRole === 'ts') && !this.allowPsicoManage) return false;
             if (this.userRole === 'sv') return true;
+            // El Equipo Técnico puede gestionar las comite_caso del pool.
+            if (this.userRole === 'te' && this.esComiteDelPool(task)) return true;
             return String(task.assignedUserId || '') === String(this.userId || '');
         },
         esAsignadoOSv: function(task) {
@@ -177,6 +176,8 @@ app.component('case-tasks', {
             }
             // Para las demás tareas: sv siempre puede, o ser el asignado
             if (this.userRole === 'sv') return true;
+            // El Equipo Técnico puede gestionar las comite_caso del pool aunque no le estén asignadas.
+            if (this.userRole === 'te' && this.esComiteDelPool(task)) return true;
             return String(task.assignedUserId || '') === String(this.userId || '');
         },
         async abrirReasignar(task) {
@@ -212,7 +213,15 @@ app.component('case-tasks', {
         },
         formatFecha: function(fecha) {
             if (!fecha) return '';
-            return fecha.substring(0, 10);
+            // Fecha pura (sin 'T') se toma tal cual; ISO con hora se convierte a hora
+            // Colombia antes de recortar (SALVIA se usa solo en Colombia).
+            if (fecha.indexOf('T') === -1) return fecha.substring(0, 10);
+            var d = new Date(fecha);
+            if (isNaN(d.getTime())) return fecha.substring(0, 10);
+            var parts = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit'
+            }).formatToParts(d).reduce(function(acc, p) { acc[p.type] = p.value; return acc; }, {});
+            return parts.year + '-' + parts.month + '-' + parts.day;
         },
         labelTipo: function(task) {
             var type = task.type || '';
@@ -223,8 +232,37 @@ app.component('case-tasks', {
                 'llamar_entidad_barrera': 'Llamar a entidad barrera',
                 'gestion_enlace_territorial': 'Gestión barrera enlace territorial',
                 'gestion_propia': 'Gestión propia',
+                'articulacion_territorial': 'Articulación territorial',
+                'compromiso_con_enlace': 'Compromiso con Enlace',
+                'solicitud_entidad': 'Hacer solicitudes a la entidad',
+                'respuesta_entidad': 'Responder solicitud de la entidad',
             };
             return labels[type] || type || task.category || 'Tarea';
+        },
+        tituloTarea: function(task) {
+            if (task.type === 'solicitud_entidad') {
+                return 'Hacer solicitudes a ' + (task.entityName || 'la entidad');
+            }
+            return task.description || this.labelTipo(task);
+        },
+        // entidadTarea resuelve el nombre de la entidad relacionada a la tarea.
+        // El backend expone la entidad por dos rutas: 'entityName' (cuando la tarea
+        // apunta a una entidad concreta del caso vía entity_case) y 'barrierEntityName'
+        // (la sede/entidad ligada a la barrera). Se prioriza la primera.
+        entidadTarea: function(task) {
+            return (task && (task.entityName || task.barrierEntityName)) || '';
+        },
+        // solicitudTarea es el texto de la solicitud que se le hace a la entidad.
+        // Corresponde a la descripción de la tarea del enlace territorial.
+        solicitudTarea: function(task) {
+            return (task && task.description) || '';
+        },
+        // esTareaEnlace indica si la tarjeta corresponde a una gestión hacia una
+        // entidad (barrera/solicitud), para mostrar el bloque "Entidad / Solicitud".
+        // Se muestra cuando hay una entidad resuelta o la tarea nace de una barrera.
+        esTareaEnlace: function(task) {
+            if (!task) return false;
+            return !!this.entidadTarea(task) || !!task.barrierId;
         },
     },
     template: `
@@ -254,7 +292,13 @@ app.component('case-tasks', {
             </div>
             <div v-else class="ct-list">
                 <div v-for="task in pendingTasks" :key="task.id" class="ct-task" style="flex-direction:row;align-items:center;gap:12px;padding:14px 20px">
-                    <div style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0" :style="task.type && task.type.indexOf('oficio') !== -1 ? 'background:#f3f4f6' : task.type && (task.type.indexOf('llamar') !== -1 || task.type.indexOf('llamada') !== -1) ? 'background:#fce7f3' : task.type && task.type.indexOf('comite') !== -1 ? 'background:#fef9c3' : 'background:#ede9fe'">
+                    <div v-if="task.type === 'solicitud_entidad'" style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#dbeafe">
+                        <i class="fa fa-folder" style="color:#2563eb;font-size:.82rem"></i>
+                    </div>
+                    <div v-else-if="task.type === 'respuesta_entidad'" style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#ecfdf5">
+                        <i class="fa fa-reply" style="color:#059669;font-size:.82rem"></i>
+                    </div>
+                    <div v-else style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0" :style="task.type && task.type.indexOf('oficio') !== -1 ? 'background:#f3f4f6' : task.type && (task.type.indexOf('llamar') !== -1 || task.type.indexOf('llamada') !== -1) ? 'background:#fce7f3' : task.type && task.type.indexOf('comite') !== -1 ? 'background:#fef9c3' : 'background:#ede9fe'">
                         <i :class="task.type && task.type.indexOf('oficio') !== -1 ? 'fa fa-file-alt' : task.type && (task.type.indexOf('llamar') !== -1 || task.type.indexOf('llamada') !== -1) ? 'fa fa-phone' : task.type && task.type.indexOf('comite') !== -1 ? 'fa fa-clipboard-list' : 'fa fa-tasks'" :style="task.type && task.type.indexOf('oficio') !== -1 ? 'color:#1f2937' : task.type && (task.type.indexOf('llamar') !== -1 || task.type.indexOf('llamada') !== -1) ? 'color:#db2777' : task.type && task.type.indexOf('comite') !== -1 ? 'color:#92400e' : 'color:#7c3aed'" style="font-size:.82rem"></i>
                     </div>
                     <div style="flex:1;min-width:0">
@@ -262,7 +306,12 @@ app.component('case-tasks', {
                             <span style="font-size:.7rem;font-weight:800;color:#1f2937;text-transform:uppercase;letter-spacing:.04em">\${ task.category }</span>
                             <span class="ct-badge ct-badge-todo">Pendiente</span>
                         </div>
-                        <div style="font-size:.84rem;font-weight:700;color:#1f2937">\${ task.description || labelTipo(task) }</div>
+                        <div style="font-size:.84rem;font-weight:700;color:#1f2937">\${ tituloTarea(task) }</div>
+                        <!-- Entidad y solicitud: guían al enlace territorial sobre cómo gestionar -->
+                        <div v-if="esTareaEnlace(task)" style="margin-top:4px;display:flex;flex-direction:column;gap:2px">
+                            <div v-if="entidadTarea(task)" style="font-size:.74rem;color:#374151"><i class="fa fa-building" style="color:#2563eb;margin-right:5px"></i><strong>Entidad:</strong> \${ entidadTarea(task) }</div>
+                            <div v-if="solicitudTarea(task)" style="font-size:.74rem;color:#374151"><i class="fa fa-file-lines" style="color:#7c3aed;margin-right:5px"></i><strong>Solicitud:</strong> \${ solicitudTarea(task) }</div>
+                        </div>
                         <div style="font-size:.73rem;color:#9ca3af;margin-top:2px">Asignado a: \${ task.assignedUserName || 'Sin asignar' }</div>
                     </div>
                     <div style="display:flex;gap:6px;flex-shrink:0">
@@ -289,7 +338,12 @@ app.component('case-tasks', {
                             <span style="font-size:.7rem;font-weight:800;color:#1f2937;text-transform:uppercase;letter-spacing:.04em">\${ task.category }</span>
                             <span class="ct-badge ct-badge-done">Completada</span>
                         </div>
-                        <div style="font-size:.84rem;font-weight:700;color:#1f2937">\${ task.description || labelTipo(task) }</div>
+                        <div style="font-size:.84rem;font-weight:700;color:#1f2937">\${ tituloTarea(task) }</div>
+                        <!-- Entidad y solicitud: guían al enlace territorial sobre cómo gestionar -->
+                        <div v-if="esTareaEnlace(task)" style="margin-top:4px;display:flex;flex-direction:column;gap:2px">
+                            <div v-if="entidadTarea(task)" style="font-size:.74rem;color:#374151"><i class="fa fa-building" style="color:#2563eb;margin-right:5px"></i><strong>Entidad:</strong> \${ entidadTarea(task) }</div>
+                            <div v-if="solicitudTarea(task)" style="font-size:.74rem;color:#374151"><i class="fa fa-file-lines" style="color:#7c3aed;margin-right:5px"></i><strong>Solicitud:</strong> \${ solicitudTarea(task) }</div>
+                        </div>
                         <div style="font-size:.73rem;color:#9ca3af;margin-top:2px">Completada por: \${ task.assignedUserName || '—' }</div>
                     </div>
                     <div style="display:flex;gap:6px;flex-shrink:0">
@@ -305,34 +359,6 @@ app.component('case-tasks', {
     <case-task-history ref="taskHistory"></case-task-history>
     <!-- Modal gestionar tarea pendiente (autosuficiente) -->
     <case-task-modal ref="taskModal" :current-user-id="userId" @completed="onTaskCompleted"></case-task-modal>
-    <!-- Modal Registrar gestión propia (Enlace Territorial) -->
-    <div v-if="modalGestionPropiaAbierto" class="ct-modal-backdrop" @click.self="cerrarModalGestionPropia">
-        <div class="ct-modal">
-            <p class="ct-modal-title">Registrar gestión propia</p>
-            <p style="font-size:.8rem;color:#6b7280;margin:-8px 0 16px">
-                Documenta una gestión que realizaste por iniciativa propia para atender esta barrera. Quedará registrada como tarea completada.
-            </p>
-            <div class="ct-modal-field">
-                <label class="ct-modal-label">Tipo de gestión</label>
-                <select v-model="gestionPropiaTipo" class="ct-modal-input" style="min-height:auto;resize:none;padding:8px 12px">
-                    <option v-for="t in tiposGestionPropia" :key="t" :value="t">\${ t }</option>
-                </select>
-            </div>
-            <div class="ct-modal-field">
-                <label class="ct-modal-label">Descripción de la gestión</label>
-                <textarea v-model="gestionPropiaDescripcion" class="ct-modal-input" rows="4" placeholder="Ej: Visité la entidad y hablé directamente con el encargado…"></textarea>
-            </div>
-            <div v-if="errorGestionPropia" style="font-size:.78rem;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;margin-bottom:12px">
-                \${ errorGestionPropia }
-            </div>
-            <div class="ct-modal-footer">
-                <button class="ct-modal-btn-cancel" @click="cerrarModalGestionPropia" :disabled="guardandoGestionPropia">Cancelar</button>
-                <button class="ct-modal-btn-save" :disabled="!gestionPropiaDescripcion.trim() || guardandoGestionPropia" @click="confirmarGestionPropia">
-                    \${ guardandoGestionPropia ? 'Guardando...' : 'Registrar como completada' }
-                </button>
-            </div>
-        </div>
-    </div>
     <!-- Modal reasignar tarea -->
     <div v-if="reasignarTask" class="ct-modal-backdrop" @click.self="reasignarTask = null">
         <div class="ct-modal">

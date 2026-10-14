@@ -13,10 +13,10 @@ import (
 //
 // Estados posibles:
 //
-//	"ToDo" → tarea pendiente   (tab "Por Articular" en Mis Barreras)
-//	"Done" → tarea completada  (tab "Articuladas" en Mis Barreras)
+//	"ToDo" → tarea pendiente
+//	"Done" → tarea completada
 type CaseTask struct {
-	ID          string `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	ID string `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 
 	// Clasificación
 	Category string `gorm:"type:varchar(100)" json:"category"`
@@ -40,6 +40,8 @@ type CaseTask struct {
 	EmergencyMeasureID      *string `gorm:"type:uuid;column:emergency_measure_id"                  json:"emergencyMeasureId,omitempty"`
 	PsychosocialSupportID   *string `gorm:"type:uuid;column:psychosocial_support_id"               json:"psychosocialSupportId,omitempty"`
 	EconomicStabilizationID *string `gorm:"type:uuid;column:economic_stabilization_id"             json:"economicStabilizationId,omitempty"`
+	EntityCaseID            *string `gorm:"type:varchar(36);column:entity_case_id;index"           json:"entityCaseId,omitempty"`
+	CaseArticulatingMechanismID *string `gorm:"type:varchar(36);column:case_articulating_mechanism_id;index" json:"caseArticulatingMechanismId,omitempty"`
 
 	// Timestamps
 	CreatedAt time.Time      `json:"createdAt"`
@@ -56,3 +58,27 @@ const (
 	CaseTaskStatusToDo = "ToDo"
 	CaseTaskStatusDone = "Done"
 )
+
+// Tipos de tarea usados por Mis Barreras (Enlace Territorial).
+const (
+	CaseTaskTypeArticulacionTerritorial = "articulacion_territorial"
+	CaseTaskTypeCompromisoConEnlace     = "compromiso_con_enlace"
+	CaseTaskTypeGestionMecanismo        = "gestion_mecanismo"
+	CaseTaskCategoryMecanismos          = "Mecanismos"
+)
+
+// Comentarios del Equipo Técnico en el tab Derivaciones de Detalle del Caso.
+// Cada comentario es una case_task Done: el texto va en Result, sin pasar por ToDo.
+const (
+	CaseTaskTypeComentarioEquipoTecnico = "comentario_equipo_tecnico"
+	CaseTaskCategoryEquipoTecnico       = "Equipo Técnico"
+)
+
+// CaseTaskCommentItem es un comentario del Equipo Técnico — una case_task Done
+// del tipo comentario_equipo_tecnico — con el nombre de quien lo creó resuelto.
+type CaseTaskCommentItem struct {
+	ID               string     `gorm:"column:id" json:"id"`
+	Result           *string    `gorm:"column:result" json:"result"`
+	CompletedAt      *time.Time `gorm:"column:completed_at" json:"completedAt"`
+	AssignedUserName string     `gorm:"column:assigned_user_name" json:"assignedUserName"`
+}

@@ -2,12 +2,14 @@
 
 Tabla reutilizable para visualizar y filtrar casos de víctimas. Acepta props para configurar columnas visibles, filtros disponibles, filtro inicial, botones de acción por fila y modo de reasignación masiva. Emite eventos hacia el padre cuando el usuario presiona un botón de acción en una fila o cuando solicita reasignar los casos seleccionados.
 
+El alcance por departamento del rol `en` no es un prop: lo aplica el backend de `GET /api/v1/cases/list` con la sesión.
+
 ## Archivos relevantes
 
 | Archivo | Rol |
 |---|---|
-| `src/frontend/components/casos-component.js` | Componente principal — template y lógica *(pendiente de crear)* |
-| `src/frontend/css/casos-component.css` | Estilos de layout y estados visuales *(pendiente de crear)* |
+| `src/frontend/js/components/casos-component.js` | Componente principal — template y lógica |
+| `src/frontend/css/casos-component.css` | Estilos de layout y estados visuales |
 
 ---
 
@@ -209,6 +211,17 @@ casos-component  (.cc-wrapper)
             │           │   └── case.completedFollowUpsCount  (entero; "0" si es 0)
             │           │   // COUNT follow_up_v2 WHERE status = 'REALIZADO'
             │           │
+            │           ├── [col.key === 'contact_attempts_3x3']
+            │           │   <td>  (.cc-cell-contact-attempts)
+            │           │   ├── [case.currentContactAttempts !== null]
+            │           │   │   AttemptsBadge  (.cc-attempts-badge)
+            │           │   │   "{currentContactAttempts}/9"
+            │           │   │   bajo (< 3, texto oscuro sobre gris) | medio (≥ 3) | alto (≥ 9)
+            │           │   │   // attempts del seguimiento en curso: el más antiguo
+            │           │   │   // con status PENDIENTE o REPROGRAMADO (incluye vencidos)
+            │           │   └── [v-else]
+            │           │       NoOpen  (.cc-follow-up-none)  "—"
+            │           │
             │           ├── [col.key === 'case_status']
             │           │   <td>  (.cc-cell)
             │           │   └── caseStatusLabel(case.status)
@@ -355,8 +368,9 @@ Ejemplo: caso con dos barreras OPEN (salud + proteccion) → `Abierta → Sector
 | `risk_level` | `FollowUpV2.risk_status` | Nivel de riesgo del último seguimiento activo |
 | `team` | `AgentLight.team` (del agente asignado vía `rel_case_owner`) | Equipo del profesional asignado al caso |
 | `assigned_person` | `rel_case_owner_victim_case` (status=`'a'`) → perfil del agente | Persona con el caso asignado |
-| `next_follow_up_date` | `FollowUpV2.scheduled_date` (status=`PENDIENTE`, más próximo) | Fecha del próximo seguimiento sin ejecutar |
+| `next_follow_up_date` | `FollowUpV2.scheduled_date` (status=`PENDIENTE`, más próximo, día UTC ≥ hoy UTC) | Fecha del próximo seguimiento. El día es el mismo que `formatFecha` del detalle (sin conversión a America/Bogota) |
 | `completed_follow_ups` | `COUNT(follow_up_v2)` donde `status = 'REALIZADO'` y `case_id = victim_case_i_code` | Número de seguimientos ya realizados del caso |
+| `contact_attempts_3x3` | `follow_up_v2.attempts` del seguimiento en curso (`PENDIENTE` o `REPROGRAMADO` más antiguo, incluidas fechas vencidas). `null` si no hay seguimiento abierto | Progreso 3x3: `{attempts}/9`. Gris si es menor a 3, naranja si es 3 o más, rojo si es 9 o más. `—` si no hay seguimiento abierto |
 | `case_status` | `victim_case.victim_case_status` (código) → etiqueta vía `caseStatusLabel` | Estado del caso (Activo, Cerrado, etc.) |
 | `barriers` | `salvia.barrier_v2` (`status = 'OPEN'`, `case_id = victim_case_i_code`) → sectores únicos vía `formatOpenBarriers` | Barreras abiertas del caso y sector de cada una. Celda vacía si no hay barreras OPEN. |
 

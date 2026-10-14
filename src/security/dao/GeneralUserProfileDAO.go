@@ -63,16 +63,19 @@ type GeneralUserProfileDTO struct {
 	GeneralUserProfilePhoneNumbers []PhoneNumberDTO `json:"phoneNumbers"`
 	GeneralUserProfileTown         TownDTO          `json:"town"`
 	//Campos de formulario que no hacen parte del modelo o no direcxtamente en la BD -----------------------------------
-	GeneralUserProfileTownCode             string        `json:"townSelected"`
-	GeneralUserProfileEntityBranchSelected string        `json:"branchSelected"`
-	GeneralUserProfileEmailStr             string        `json:"emailStr"`
-	GeneralUserProfilePhoneNumberStr       string        `json:"phoneNumberStr"`
-	GeneralUserProfileDepartment           DepartmentDTO `json:"department"`
-	GeneralUserProfileCity                 CityDTO       `json:"city"`
-	GeneralUserProfileSelectedCities       []CityDTO     `json:"selectedCities"`
-	GeneralUserProfileSelectedTowns        []TownDTO     `json:"selectedTowns"`
-	GeneralUserProfileSelectedBranches     []interface{} `json:"selectedBranches"` //Está ripo interface para que no haya un ciclo concurrente entre paquetes
-	GeneralUserProfileEntity               interface{}   `json:"entity"`
+	GeneralUserProfileTownCode              string        `json:"townSelected"`
+	GeneralUserProfileEntityBranchSelected  string        `json:"branchSelected"`
+	GeneralUserProfileMechanismType         string        `json:"mechanismType"`
+	GeneralUserProfileMechanismDepartmentId string        `json:"mechanismDepartmentId"`
+	GeneralUserProfileMechanismCityId       string        `json:"mechanismCityId"`
+	GeneralUserProfileEmailStr              string        `json:"emailStr"`
+	GeneralUserProfilePhoneNumberStr        string        `json:"phoneNumberStr"`
+	GeneralUserProfileDepartment            DepartmentDTO `json:"department"`
+	GeneralUserProfileCity                  CityDTO       `json:"city"`
+	GeneralUserProfileSelectedCities        []CityDTO     `json:"selectedCities"`
+	GeneralUserProfileSelectedTowns         []TownDTO     `json:"selectedTowns"`
+	GeneralUserProfileSelectedBranches      []interface{} `json:"selectedBranches"` //Está ripo interface para que no haya un ciclo concurrente entre paquetes
+	GeneralUserProfileEntity                interface{}   `json:"entity"`
 }
 
 // GeneralUserProfilePgDB representa la estructura que mapea los datos del perfil de usuario

@@ -9,13 +9,13 @@ import (
 // BarrierV2 modelo GORM que mapea la tabla salvia.barrier_v2.
 // Cada registro representa una entrada completa del repeater de barreras.
 type BarrierV2 struct {
-	ID          string         `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	CaseID      string         `gorm:"type:varchar(36);not null" json:"caseId"`
+	ID          string `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	CaseID      string `gorm:"type:varchar(36);not null" json:"caseId"`
 	// FollowUpID es nil cuando la barrera se identifica en un contacto psicosocial
 	// (no en un seguimiento) — ver TeamContactID para el origen en ese caso.
-	FollowUpID  *string        `gorm:"type:uuid;column:follow_up_id" json:"followUpId,omitempty"`
-	CreatedByID string         `gorm:"type:varchar(36);index" json:"createdById"`
-	Status      string         `gorm:"type:varchar(20);default:'OPEN'" json:"status"`
+	FollowUpID  *string `gorm:"type:uuid;column:follow_up_id" json:"followUpId,omitempty"`
+	CreatedByID string  `gorm:"type:varchar(36);index" json:"createdById"`
+	Status      string  `gorm:"type:varchar(20);default:'OPEN'" json:"status"`
 	// TeamContactID identifica el salvia.team_contact (sesión psicosocial) en el que se
 	// identificó esta barrera. Nulo para barreras creadas por hacer_seguimiento (no aplica) o
 	// por remisiones psicosociales anteriores a esta columna. Permite que la pantalla de
@@ -26,11 +26,11 @@ type BarrierV2 struct {
 	TeamContactID *string `gorm:"type:varchar(36);column:team_contact_id;index" json:"teamContactId,omitempty"`
 
 	// Sector y barreras específicas del bloque condicional
-	Sector               string `gorm:"type:varchar(50)" json:"sector"`                 // Q1  dropdown
-	SpecificBarriers     string `gorm:"type:text" json:"specificBarriers"`               // Q2/Q5/Q8  CSV de opciones del sector
-	SpecificInstitutions string `gorm:"type:text" json:"specificInstitutions"`           // Q3/Q6/Q9  CSV de instituciones del sector
-	OtherBarrierDesc     string `gorm:"type:text" json:"otherBarrierDesc"`               // Q4/Q7/Q10 texto "otra barrera"
-	InstitutionName      string `gorm:"type:text" json:"institutionName"`                // Q11 nombre (solo otras_instituciones)
+	Sector               string `gorm:"type:varchar(50)" json:"sector"`        // Q1  dropdown
+	SpecificBarriers     string `gorm:"type:text" json:"specificBarriers"`     // Q2/Q5/Q8  CSV de opciones del sector
+	SpecificInstitutions string `gorm:"type:text" json:"specificInstitutions"` // Q3/Q6/Q9  CSV de instituciones del sector
+	OtherBarrierDesc     string `gorm:"type:text" json:"otherBarrierDesc"`     // Q4/Q7/Q10 texto "otra barrera"
+	InstitutionName      string `gorm:"type:text" json:"institutionName"`      // Q11 nombre (solo otras_instituciones)
 
 	// Ubicación geográfica
 	DepartmentID string `gorm:"type:varchar(20)" json:"departmentId"` // Q12
@@ -44,10 +44,10 @@ type BarrierV2 struct {
 	StructuralDifferential  string `gorm:"type:text" json:"structuralDifferential"`  // Q18 CSV
 
 	// Detalles de la barrera
-	BarrierDate        string `gorm:"type:varchar(20)" json:"barrierDate"`      // Q19 date
-	OfficialDependency string `gorm:"type:text" json:"officialDependency"`      // Q20 text
-	Description        string `gorm:"type:text" json:"description"`             // Q21 text
-	ManagementActions  string `gorm:"type:text" json:"managementActions"`       // Q22 CSV
+	BarrierDate        string `gorm:"type:varchar(20)" json:"barrierDate"` // Q19 date
+	OfficialDependency string `gorm:"type:text" json:"officialDependency"` // Q20 text
+	Description        string `gorm:"type:text" json:"description"`        // Q21 text
+	ManagementActions  string `gorm:"type:text" json:"managementActions"`  // Q22 CSV
 
 	// Competences son los códigos de las competencias (obligaciones) de la entidad
 	// que el agente marcó para esta barrera. CSV, igual que SpecificInstitutions.
@@ -65,6 +65,10 @@ type BarrierV2 struct {
 	// habilita el conteo de "barreras activas" por entidad en el componente case-entities
 	// (ver DocsMD/Componentes/case-entities/related-tables.md).
 	EntityBranchID *int64 `gorm:"column:entity_branch_id;index" json:"entityBranchId,omitempty"`
+
+	// UserTerritoryLinkID es el icode del Enlace Territorial (rol en) asignado
+	// a esta barrera. Lo usa Mis Barreras (GET /api/v1/barriers-v2/mine).
+	UserTerritoryLinkID *string `gorm:"type:varchar(36);column:user_territory_link_id;index" json:"userTerritoryLinkId,omitempty"`
 
 	CreatedAt time.Time      `json:"createdAt"`
 	UpdatedAt time.Time      `json:"updatedAt"`

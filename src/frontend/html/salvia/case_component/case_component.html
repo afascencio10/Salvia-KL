@@ -288,7 +288,7 @@
 
                                 <!-- registration_date -->
                                 <td v-else-if="col.key === 'registration_date'" class="cc-cell">
-                                    ${ formatDateUTC(caseObj.creationDate) }
+                                    ${ formatFechaCO(caseObj.creationDateCO) }
                                 </td>
 
                                 <!-- risk_level -->
@@ -309,7 +309,7 @@
                                 <!-- next_follow_up_date -->
                                 <td v-else-if="col.key === 'next_follow_up_date'" class="cc-cell-follow-up">
                                     <span v-if="caseObj.nextFollowUpDate" class="cc-follow-up-date">
-                                        ${ formatDateUTC(caseObj.nextFollowUpDate) }
+                                        ${ formatScheduledDate(caseObj.nextFollowUpDate) }
                                     </span>
                                     <span v-else class="cc-follow-up-none">—</span>
                                 </td>
@@ -317,6 +317,15 @@
                                 <!-- completed_follow_ups -->
                                 <td v-else-if="col.key === 'completed_follow_ups'" class="cc-cell cc-cell-completed-follow-ups">
                                     ${ completedFollowUpsDisplay(caseObj) }
+                                </td>
+
+                                <!-- contact_attempts_3x3 -->
+                                <td v-else-if="col.key === 'contact_attempts_3x3'" class="cc-cell cc-cell-contact-attempts">
+                                    <span v-if="caseObj.currentContactAttempts !== null && caseObj.currentContactAttempts !== undefined"
+                                          :class="contactAttemptsBadgeClass(caseObj)">
+                                        ${ contactAttemptsDisplay(caseObj) }
+                                    </span>
+                                    <span v-else class="cc-follow-up-none">—</span>
                                 </td>
 
                                 <!-- case_status -->

@@ -3,10 +3,12 @@
 package controller
 
 import (
+	"bitsflow/common/utils"
 	"bitsflow/salvia/service"
 	"net/http"
 	"strconv"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 )
 
@@ -30,14 +32,15 @@ func (c *CasesListController) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 // List devuelve casos paginados con filtros para casos-component.
+// El departamento de un usuario en (Enlace territorial) se toma siempre de la sesión, nunca de query params.
 func (c *CasesListController) List(ctx *gin.Context) {
 	page := casesListQueryInt(ctx, "page", 1)
 	pageSize := casesListQueryInt(ctx, "page_size", 20)
 
-	result, err := c.svc.List(ctx.Request.Context(), service.CasesListInput{
-		FilterKey:           ctx.Query("filter_key"),
-		FilterValue:         ctx.Query("filter_value"),
-		ChipFilter:          ctx.Query("chip_filter"),
+	input := service.CasesListInput{
+		FilterKey:                    ctx.Query("filter_key"),
+		FilterValue:                  ctx.Query("filter_value"),
+		ChipFilter:                   ctx.Query("chip_filter"),
 		DropdownFilterKey:            ctx.Query("dropdown_filter_key"),
 		DropdownFilterValue:          ctx.Query("dropdown_filter_value"),
 		FilterRiesgo:                 ctx.Query("filter_riesgo"),
@@ -45,18 +48,40 @@ func (c *CasesListController) List(ctx *gin.Context) {
 		FilterSeguimientosEjecutados: ctx.Query("filter_seguimientos_ejecutados"),
 		FilterEstadoCaso:             ctx.Query("filter_estado_caso"),
 		FilterBarrerasActivas:        ctx.Query("filter_barreras_activas"),
-		Search:              ctx.Query("search"),
-		Sort:        ctx.DefaultQuery("sort", "registration_date"),
-		Order:       ctx.DefaultQuery("order", "desc"),
-		Page:        page,
-		PageSize:    pageSize,
-	})
+		Search:                       ctx.Query("search"),
+		Sort:                         ctx.DefaultQuery("sort", "registration_date"),
+		Order:                        ctx.DefaultQuery("order", "desc"),
+		Page:                         page,
+		PageSize:                     pageSize,
+	}
+
+	if s := casesListSession(ctx); s != nil && s.CurrentRole == "en" {
+		if s.AssignedDepartmentID == "" {
+			ctx.JSON(http.StatusForbidden, gin.H{"error": "su usuario no tiene un departamento asignado"})
+			return
+		}
+		input.AssignedDepartmentID = s.AssignedDepartmentID
+	}
+
+	result, err := c.svc.List(ctx.Request.Context(), input)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error al cargar los casos"})
 		return
 	}
 
 	ctx.JSON(http.StatusOK, result)
+}
+
+func casesListSession(ctx *gin.Context) *utils.CommonSession {
+	sessionID, ok := sessions.Default(ctx).Get("userData").(string)
+	if !ok || sessionID == "" {
+		return nil
+	}
+	s, err := utils.GetCommonSession(sessionID)
+	if err != nil {
+		return nil
+	}
+	return s
 }
 
 func casesListQueryInt(ctx *gin.Context, key string, defaultVal int) int {

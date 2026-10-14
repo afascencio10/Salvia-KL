@@ -376,9 +376,9 @@ func buildPsychosocialListOrder(filters PsychosocialListFilters) string {
 func psychosocialRoleLabelFromSpecialty(specialty string) string {
 	switch strings.ToLower(strings.TrimSpace(specialty)) {
 	case "psicologia":
-		return "Psicóloga"
+		return "Profesional en Psicología"
 	case "trab. social":
-		return "Trab. Social"
+		return "Profesional en Trabajo Social"
 	default:
 		return "Profesional"
 	}

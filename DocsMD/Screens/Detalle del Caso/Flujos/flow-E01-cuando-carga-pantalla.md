@@ -104,7 +104,11 @@ PASO 2 — Disparar dos llamadas en paralelo: cargarDatos() y cargarTodosAgentes
 
   B2. cargarTareasCaso()
       GET /api/v1/case-tasks?caseId={caseICode}
-      → caseTasks[] (usado en banners de tareas pendientes, tab Tareas y por barrera en tab Barreras)
+      Backend: si la sesión tiene CurrentRole = et, el JSON solo incluye
+      case_task con assigned_user_id = UserICode. Otros roles: todas las del caso.
+      → caseTasks[] (banners de pendientes, tab Tareas y por barrera en Gestión institucional)
+      Banners usan tareasPendientesTotal(): ToDo; si userRole === 'et', además
+      assignedUserId === userICode.
 
   B3. Ejecutar en paralelo: cargarOperadores() y cargarAgentesRO()
       (ambas usan el team del caso recién cargado — caso.victimCaseTeam)

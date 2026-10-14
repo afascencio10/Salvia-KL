@@ -45,6 +45,30 @@ const (
 	QCIEHoraProximaAtencionS4 = "a2000008-0000-4000-8000-000000000008"
 )
 
+// Preguntas de Derivación a equipos SALVIA (Sep 2026).
+// Serie d1000NXX: N=formulario (1=PC, 2=PA, 3=SEG, 4=CIE), XX=orden de pregunta.
+// Q1: ¿Remisión a equipos SALVIA? (boolean)
+// Q2: ¿Cuáles equipos? (multiple)
+// Q3: ¿Cuáles medidas de emergencia? (multiple)
+const (
+	// Primer Contacto
+	QPCDerivacionRemision       = "d1000101-0000-4000-8000-000000000001"
+	QPCDerivacionEquipos        = "d1000102-0000-4000-8000-000000000001"
+	QPCDerivacionMedidasEmergen = "d1000103-0000-4000-8000-000000000001"
+	// Primera Atención
+	QPADerivacionRemision       = "d1000201-0000-4000-8000-000000000002"
+	QPADerivacionEquipos        = "d1000202-0000-4000-8000-000000000002"
+	QPADerivacionMedidasEmergen = "d1000203-0000-4000-8000-000000000002"
+	// Atención Psicosocial
+	QSEGDerivacionRemision       = "d1000301-0000-4000-8000-000000000003"
+	QSEGDerivacionEquipos        = "d1000302-0000-4000-8000-000000000003"
+	QSEGDerivacionMedidasEmergen = "d1000303-0000-4000-8000-000000000003"
+	// Cierre
+	QCIEDerivacionRemision       = "d1000401-0000-4000-8000-000000000004"
+	QCIEDerivacionEquipos        = "d1000402-0000-4000-8000-000000000004"
+	QCIEDerivacionMedidasEmergen = "d1000403-0000-4000-8000-000000000004"
+)
+
 // Fechas ya existentes (seed original) — documentadas aquí para el seed de agenda.
 const (
 	QPCFechaProximaS1  = "58ce2d34-24d2-4e73-bf95-26a2c608f8e6"

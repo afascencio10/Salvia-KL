@@ -96,7 +96,7 @@ type MeetingAgentInfo struct {
 // PsychosocialCalendarRepository acceso a datos del calendario psicosocial.
 type PsychosocialCalendarRepository interface {
 	MineEvents(ctx context.Context, agentID string, from, to time.Time) ([]CalendarEvent, error)
-	TeamEvents(ctx context.Context, filterAgentID string, from, to time.Time) ([]CalendarEvent, error)
+	TeamEvents(ctx context.Context, filterAgentID, filterDuplaID string, from, to time.Time) ([]CalendarEvent, error)
 	ListAgents(ctx context.Context) ([]CalendarAgentOption, error)
 	MyVictims(ctx context.Context, agentID string) ([]CalendarVictimOption, error)
 	CreateSession(ctx context.Context, in CreateSessionInput) (string, error)
@@ -233,6 +233,50 @@ const calMeetingsSelectNoAgent = `
 	COALESCE(tm.description, '')       AS description
 `
 
+// ─── Query base seguimientos v2 ───────────────────────────────────────────────
+// Los seguimientos psicosociales auto-programados (follow_up_v2 con team='psicosocial')
+// se incluyen en el calendario como sesiones de solo lectura (remission_id vacío).
+const calFollowUpV2Select = `
+	fu.id::text                        AS id,
+	'session'                          AS kind,
+	COALESCE(NULLIF(TRIM(CONCAT(vc.victim_case_victim_names, ' ', vc.victim_case_victim_last_names)), ''), 'Víctima') AS title,
+	fu.scheduled_date                  AS start,
+	(fu.scheduled_date + interval '60 minutes') AS end,
+	COALESCE(fu.scheduled_time, '')    AS scheduled_time,
+	TO_CHAR(fu.scheduled_date, 'YYYY-MM-DD') AS scheduled_date_str,
+	COALESCE(vc.victim_case_i_code, fu.case_id, '') AS case_icode,
+	''                                 AS remission_id,
+	COALESCE(NULLIF(TRIM(CONCAT(vc.victim_case_victim_names, ' ', vc.victim_case_victim_last_names)), ''), '') AS victim_name,
+	COALESCE(vc.victim_case_victim_doc_type, '')   AS victim_doc_type,
+	COALESCE(vc.victim_case_victim_doc_number, '') AS victim_doc_number,
+	COALESCE(fu.agent_id, '')          AS agent_id,
+	COALESCE(TRIM(CONCAT(agup.general_user_profile_names, ' ', agup.general_user_profile_last_names)), '') AS agent_name,
+	''                                 AS psychologist_name,
+	''                                 AS social_worker_name,
+	COALESCE(vf2.victim_case_form2_risk_level, 0) AS risk_level,
+	LOWER(COALESCE(fu.status, 'pendiente')) AS status,
+	COALESCE(fu.summary, '')           AS description
+`
+
+const calFollowUpV2From = `
+FROM salvia.follow_up_v2 fu
+LEFT JOIN salvia.victim_case vc
+       ON vc.victim_case_i_code = fu.case_id
+LEFT JOIN salvia.victim_case_form2 vf2
+       ON vf2.victim_case_form2_victim_case = vc.victim_case_id
+LEFT JOIN security.general_user ag_gu
+       ON ag_gu.general_user_i_code::text = COALESCE(fu.agent_id, '')
+LEFT JOIN security.general_user_profile agup
+       ON agup.general_user_profile_id = ag_gu.general_user_general_user_profile
+`
+
+const calFollowUpV2WhereBase = `
+	fu.deleted_at IS NULL
+	AND fu.team = 'psicosocial'
+	AND fu.scheduled_date IS NOT NULL
+	AND UPPER(COALESCE(fu.status, '')) NOT IN ('REALIZADO', 'CERRADO')
+`
+
 // tzBogota — todas las fechas se interpretan en zona horaria Colombia para el cast a ::date.
 const tzBogota = "America/Bogota"
 
@@ -241,7 +285,7 @@ const userUUIDLookup = `(SELECT gu.general_user_id::text FROM security.general_u
 
 // calSessionsAgentMatch — una sesión "pertenece" al agente si es el professional_id
 // directo (modo individual) o si la remisión está en una dupla de la que el agente
-// es psicólogo o trabajador social. En modo dupla, professional_id se guarda NULL
+// es profesional en Psicología o trabajador social. En modo dupla, professional_id se guarda NULL
 // a propósito (ver applyContactAssignment en psychosocial_detail_service.go: "nunca
 // se guardan ambos campos a la vez"), así que sin este OR la sesión no matchea con
 // ningún profesional — el bug que este cambio corrige.
@@ -249,6 +293,41 @@ const userUUIDLookup = `(SELECT gu.general_user_id::text FROM security.general_u
 // psychologist_id, social_worker_id). dupla.psychologist_id/social_worker_id
 // guardan i_code (no UUID) — ver FindProfessionalForReassign, que los resuelve así.
 const calSessionsAgentMatch = `(tc.professional_id IN (` + userUUIDLookup + `, ?) OR d.psychologist_id = ? OR d.social_worker_id = ?)`
+
+// duplaMemberLookup — los dos integrantes de una dupla, resueltos a UUID e i_code.
+// dupla.psychologist_id/social_worker_id guardan i_code, igual que en
+// calSessionsAgentMatch. Se usa para el filtro por dupla del calendario del
+// supervisor. Requiere 1 parámetro: duplaID.
+const duplaMemberLookup = `
+	SELECT gu2.general_user_id::text AS uuid, gu2.general_user_i_code::text AS icode
+	FROM salvia.dupla d2
+	JOIN security.general_user gu2
+	  ON gu2.general_user_i_code::text IN (BTRIM(d2.psychologist_id::text), BTRIM(d2.social_worker_id::text))
+	WHERE d2.id = ? AND d2.deleted_at IS NULL
+`
+
+// calSessionsDuplaMatch — la agenda de una dupla es lo que hacen sus dos
+// integrantes: las sesiones registradas a nombre de la dupla (tc.dupla_id) más las
+// que cada integrante agendó de forma individual. Filtrar solo por tc.dupla_id
+// mostraría menos que elegir a los dos profesionales por separado, que es justo lo
+// contrario de "ver la agenda agrupada". Requiere 2 parámetros: duplaID × 2.
+const calSessionsDuplaMatch = `(
+	tc.dupla_id = ?
+	OR EXISTS (SELECT 1 FROM (` + duplaMemberLookup + `) m
+	           WHERE tc.professional_id IN (m.uuid, m.icode))
+)`
+
+// calMeetingsDuplaMatch — una reunión es de la dupla si participa cualquiera de
+// sus integrantes. Va como EXISTS y no como JOIN a tma: si los dos integrantes
+// están invitados, un JOIN devolvería la misma reunión dos veces y el calendario
+// la pintaría duplicada. Requiere 1 parámetro: duplaID.
+const calMeetingsDuplaMatch = `EXISTS (
+	SELECT 1
+	FROM salvia.team_meeting_agent tma2
+	JOIN (` + duplaMemberLookup + `) m
+	  ON tma2.agent_id IN (m.uuid, m.icode)
+	WHERE tma2.meeting_id = tm.id AND tma2.deleted_at IS NULL
+)`
 
 func (r *psychosocialCalendarRepository) MineEvents(ctx context.Context, agentICode string, from, to time.Time) ([]CalendarEvent, error) {
 	// agentICode = i_code (viene de la sesión). Resolvemos a UUID via subquery.
@@ -265,35 +344,63 @@ func (r *psychosocialCalendarRepository) MineEvents(ctx context.Context, agentIC
 	WHERE tm.deleted_at IS NULL
 	  AND tm.scheduled_date BETWEEN ? AND ?
 	  AND tma.agent_id IN (` + userUUIDLookup + `, ?)
+	UNION ALL
+	SELECT ` + calFollowUpV2Select + `
+	` + calFollowUpV2From + `
+	WHERE ` + calFollowUpV2WhereBase + `
+	  AND (fu.scheduled_date AT TIME ZONE '` + tzBogota + `')::date BETWEEN ? AND ?
+	  AND COALESCE(fu.agent_id, '') = ?
 	ORDER BY start ASC
 	`
 	var rows []CalendarEvent
-	if err := r.db.WithContext(ctx).Raw(sql, from, to, agentICode, agentICode, agentICode, agentICode, from, to, agentICode, agentICode).Scan(&rows).Error; err != nil {
+	if err := r.db.WithContext(ctx).Raw(sql, from, to, agentICode, agentICode, agentICode, agentICode, from, to, agentICode, agentICode, from, to, agentICode).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	return rows, nil
 }
 
-func (r *psychosocialCalendarRepository) TeamEvents(ctx context.Context, filterAgentICode string, from, to time.Time) ([]CalendarEvent, error) {
+// TeamEvents — calendario del equipo para el supervisor. El filtro es excluyente:
+// o una dupla o un profesional. Cuando llegan los dos, manda la dupla (la regla se
+// aplica en el servicio, acá solo se refleja).
+func (r *psychosocialCalendarRepository) TeamEvents(ctx context.Context, filterAgentICode, filterDuplaID string, from, to time.Time) ([]CalendarEvent, error) {
+	sql, args := buildTeamEventsQuery(filterAgentICode, filterDuplaID, from, to)
+	var rows []CalendarEvent
+	if err := r.db.WithContext(ctx).Raw(sql, args...).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// buildTeamEventsQuery arma la consulta y sus argumentos. Está aparte de TeamEvents
+// para poder comprobar sin base de datos que cada '?' tiene su argumento: los tres
+// caminos usan distinto número de parámetros y desalinearlos rompe en ejecución.
+func buildTeamEventsQuery(filterAgentICode, filterDuplaID string, from, to time.Time) (string, []interface{}) {
 	sessionWhere := ""
 	args := []interface{}{from, to}
-	if filterAgentICode != "" {
+	switch {
+	case filterDuplaID != "":
+		sessionWhere = " AND " + calSessionsDuplaMatch
+		args = append(args, filterDuplaID, filterDuplaID)
+	case filterAgentICode != "":
 		sessionWhere = " AND " + calSessionsAgentMatch
 		args = append(args, filterAgentICode, filterAgentICode, filterAgentICode, filterAgentICode)
 	}
 	args = append(args, from, to)
 
-	// Sin filtro por agente: mostrar reuniones una vez (sin JOIN a tma).
-	// Con filtro: reuniones donde el agente participa.
+	// Sin filtro: las reuniones se muestran una sola vez (sin JOIN a tma).
+	// Con filtro: solo las reuniones en las que participa el agente o la dupla.
 	meetingsQuery := ""
-	if filterAgentICode == "" {
+	switch {
+	case filterDuplaID != "":
 		meetingsQuery = `
 		SELECT ` + calMeetingsSelectNoAgent + `
 		FROM salvia.team_meeting tm
 		WHERE tm.deleted_at IS NULL
 		  AND tm.scheduled_date BETWEEN ? AND ?
+		  AND ` + calMeetingsDuplaMatch + `
 		`
-	} else {
+		args = append(args, filterDuplaID)
+	case filterAgentICode != "":
 		meetingsQuery = `
 		SELECT ` + calMeetingsSelect + `
 		` + calMeetingsFrom + `
@@ -302,6 +409,25 @@ func (r *psychosocialCalendarRepository) TeamEvents(ctx context.Context, filterA
 		  AND tma.agent_id IN (` + userUUIDLookup + `, ?)
 		`
 		args = append(args, filterAgentICode, filterAgentICode)
+	default:
+		meetingsQuery = `
+		SELECT ` + calMeetingsSelectNoAgent + `
+		FROM salvia.team_meeting tm
+		WHERE tm.deleted_at IS NULL
+		  AND tm.scheduled_date BETWEEN ? AND ?
+		`
+	}
+
+	// follow_up_v2: seguimientos psicosociales programados
+	args = append(args, from, to)
+	followUpWhere := ""
+	switch {
+	case filterDuplaID != "":
+		followUpWhere = `AND EXISTS (SELECT 1 FROM (` + duplaMemberLookup + `) m WHERE COALESCE(fu.agent_id, '') = m.icode)`
+		args = append(args, filterDuplaID)
+	case filterAgentICode != "":
+		followUpWhere = `AND COALESCE(fu.agent_id, '') = ?`
+		args = append(args, filterAgentICode)
 	}
 
 	sql := `
@@ -313,20 +439,22 @@ func (r *psychosocialCalendarRepository) TeamEvents(ctx context.Context, filterA
 		  ` + sessionWhere + `
 		UNION ALL
 		` + meetingsQuery + `
+		UNION ALL
+		SELECT ` + calFollowUpV2Select + `
+		` + calFollowUpV2From + `
+		WHERE ` + calFollowUpV2WhereBase + `
+		  AND (fu.scheduled_date AT TIME ZONE '` + tzBogota + `')::date BETWEEN ? AND ?
+		  ` + followUpWhere + `
 	) e
 	ORDER BY start ASC
 	`
-	var rows []CalendarEvent
-	if err := r.db.WithContext(ctx).Raw(sql, args...).Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-	return rows, nil
+	return sql, args
 }
 
 // ListAgents alimenta el filtro del calendario, el selector de agente al crear
 // una sesión, y el multiselect de reuniones (una sola query, this.agents en el
-// frontend) — trae psicólogos (ps) y trabajadores sociales (ts), los dos roles
-// que agendan sesiones psicosociales. Antes solo traía psicólogos: el filtro no
+// frontend) — trae profesionales en Psicología (ps) y trabajadores sociales (ts), los dos roles
+// que agendan sesiones psicosociales. Antes solo traía profesionales en Psicología: el filtro no
 // dejaba elegir trabajadores sociales porque la query nunca los devolvía.
 func (r *psychosocialCalendarRepository) ListAgents(ctx context.Context) ([]CalendarAgentOption, error) {
 	sql := `
@@ -417,7 +545,7 @@ func (r *psychosocialCalendarRepository) AgentSessionTimesOnDate(ctx context.Con
 
 	q := r.db.WithContext(ctx).Model(&models.TeamContact{}).
 		Where("professional_id = ? AND is_psico_session = true AND deleted_at IS NULL", agentUUID).
-		Where("scheduled_date IS NOT NULL AND (scheduled_date AT TIME ZONE 'UTC')::date = ?::date", day).
+		Where("scheduled_date IS NOT NULL AND (scheduled_date AT TIME ZONE 'America/Bogota')::date = ?::date", day).
 		Where("scheduled_time IS NOT NULL AND scheduled_time != ''")
 	if excludeID != "" {
 		q = q.Where("id != ?", excludeID)

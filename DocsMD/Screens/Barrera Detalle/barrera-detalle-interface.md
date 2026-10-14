@@ -9,11 +9,12 @@ Vista interna de una barrera: información general, tareas (pendientes/completad
 | `src/frontend/html/salvia/barriers/barrera_detalle.html` | Template principal — lógica Vue y estructura completa |
 | `src/frontend/css/barrera_detalle.css` | Estilos de layout y estados visuales |
 | `src/salvia/facades/BarreraDetalleFacade.go` | Fachada Go que renderiza el template e inyecta sesión (rol, departamento asignado) |
-| `src/frontend/js/components/case-tasks.js` | Componente reutilizable — tab "Tareas": listado pendientes/completadas, modal de gestión propia |
+| `src/frontend/js/components/case-tasks.js` | Tab "Tareas": listado; gestión propia abre `case-task-modal.openArticulacion` |
 | `src/frontend/js/components/case-task-modal.js` | Modal para completar una tarea pendiente (montado dentro de `case-tasks`) |
 | `src/frontend/js/components/case-task-history.js` | Modal de solo lectura para ver una tarea completada (montado dentro de `case-tasks`) |
 | `src/frontend/js/components/case-timeline.js` | Componente reutilizable — tab "Timeline" |
 | `src/frontend/js/components/barrier-follow-up-timeline.js` | Timeline de seguimientos — tab "Información General" |
+| `src/frontend/js/components/case-oficios.js` | Componente reutilizable — tab "Oficios", filtrado por `barrierId` |
 
 ---
 
@@ -43,6 +44,7 @@ BarreraDetalle  (.brd-container)
     ├── Tabs  (.brd-tabs-wrapper)
     │   ├── TabBtn "⚠️ Información General"  :class active si activeTab === 'info'
     │   ├── TabBtn "📋 Tareas"  :class active si activeTab === 'tareas'
+    │   ├── TabBtn "📄 Oficios"  :class active si activeTab === 'oficios'
     │   └── TabBtn "🕐 Timeline"  :class active si activeTab === 'timeline'
     │
     ├── [v-if activeTab === 'info']
@@ -60,21 +62,22 @@ BarreraDetalle  (.brd-container)
     │
     ├── [v-if activeTab === 'tareas']
     │   TabContentTareas  (.brd-tab-content-card)
-    │   └── <case-tasks :case-id :barrier-id :user-id :user-role :puede-gestion-propia>
+    │   └── <case-tasks :case-id :barrier-id :user-id :user-role :puede-gestion-propia
+    │                   :entity-branch-id :entity-name :barrier-description>
     │       // src/frontend/js/components/case-tasks.js
     │       ├── Tabs internas "Pendientes (N)" / "Completadas (N)"
-    │       ├── [pendingTask] BtnGestionar  → abre <case-task-modal>
+    │       ├── [pendingTask] BtnGestionar  → abre <case-task-modal>.open(taskId)
     │       ├── [completedTask] BtnVerDetalle  → abre <case-task-history>
     │       └── [puedeGestionPropia]  ← rol "en" Y barrera.departmentId === currentUserAssignedDepartment
-    │           ├── BtnRegistrarGestionPropia  "+ Registrar gestión propia"  → abrirModalGestionPropia()
-    │           └── [modalGestionPropiaAbierto]
-    │               ModalGestionPropia  (.ct-modal-backdrop)
-    │               ├── <select> Tipo de gestión*  [Llamada | Visita presencial | Oficio a entidad | Otra gestión]
-    │               ├── <textarea> Descripción de la gestión*
-    │               ├── [errorGestionPropia]  ErrorMsg
-    │               ├── BtnCancelar  → cerrarModalGestionPropia()
-    │               └── BtnGuardar  "Registrar como completada"  :disabled si !descripcion.trim()
-    │                   → confirmarGestionPropia()  →  POST /api/v1/case-tasks/gestion-propia
+    │           └── BtnRegistrarGestionPropia  "+ Registrar gestión propia"
+    │               → taskModal.openArticulacion({ barrierId, caseId, entityBranchId, entityName, barrierDescription })
+    │               → mismo componente que Mis Barreras (POST /api/v1/case-tasks/articulacion-territorial)
+    │
+    ├── [v-if activeTab === 'oficios']
+    │   TabContentOficios  (.brd-tab-content-card)
+    │   └── <case-oficios :case-id="barrera.caseId" :barrier-id="barrierICode">
+    │       // src/frontend/js/components/case-oficios.js
+    │       (filtrado por barrierId — chips de tema ocultos, ver case-oficios-interface.md)
     │
     └── [v-if activeTab === 'timeline']
         TabContentTimeline  (.brd-tab-content-card)
@@ -90,4 +93,4 @@ El botón "+ Registrar gestión propia" (tab Tareas) solo se muestra si:
 - `currentRole === 'en'` (Enlace Territorial), **y**
 - `barrera.departmentId === currentUserAssignedDepartment` — el departamento asignado al Enlace (`security.general_user.general_user_assigned_department`, independiente de su municipio de residencia).
 
-El backend revalida ambas condiciones en `POST /api/v1/case-tasks/gestion-propia` — el chequeo del frontend es solo para UX, no seguridad.
+El backend revalida en `POST /api/v1/case-tasks/articulacion-territorial` (sin `taskId`): la barrera debe estar asignada al usuario (`user_territory_link_id`) **o** pertenecer al departamento asignado del Enlace. El chequeo del frontend es solo para UX.

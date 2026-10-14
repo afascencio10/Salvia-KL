@@ -63,13 +63,58 @@ func requireCaseDetailAccess(ctx *gin.Context) *utils.CommonSession {
 //
 //	GET  /api/v1/casos/:id/entidades   → List
 //	POST /api/v1/casos/:id/entidades   → Create
+//	GET  /api/v1/casos/:id/obligaciones-resumen → ObligacionesResumen
 //	GET  /api/v1/entity-cases          → ListByEntity (Casos Entidad)
+//	GET  /api/v1/entity-cases/:entityCaseId/obligations → ListObligations
+//	GET  /api/v1/entity-cases/:entityCaseId/detail → GetDetail
 func (c *EntityCaseController) RegisterRoutes(rg *gin.RouterGroup) {
 	casos := rg.Group("/casos/:id/entidades")
 	casos.GET("", c.List)
 	casos.POST("", c.Create)
 
+	rg.GET("/casos/:id/obligaciones-resumen", c.ObligacionesResumen)
 	rg.GET("/entity-cases", c.ListByEntity)
+	rg.GET("/entity-cases/:entityCaseId/obligations", c.ListObligations)
+	rg.GET("/entity-cases/:entityCaseId/detail", c.GetDetail)
+}
+
+// ObligacionesResumen — GET /api/v1/casos/:id/obligaciones-resumen
+// Agregado de obligaciones (global + por sector + detalle) de todas las
+// entidades del caso, para el componente case-gestion-institucional.
+func (c *EntityCaseController) ObligacionesResumen(ctx *gin.Context) {
+	if requireCaseDetailAccess(ctx) == nil {
+		return
+	}
+	caseID := ctx.Param("id")
+	result, err := c.svc.GetObligacionesResumen(ctx.Request.Context(), caseID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		return
+	}
+	ctx.JSON(http.StatusOK, result)
+}
+
+// ListObligations — GET /api/v1/entity-cases/:entityCaseId/obligations?status=pendiente
+// Checklist de entity_case_obligation (labels resueltos) + nombre de la organización.
+func (c *EntityCaseController) ListObligations(ctx *gin.Context) {
+	if requireCaseDetailAccess(ctx) == nil {
+		return
+	}
+	entityCaseID := ctx.Param("entityCaseId")
+	if entityCaseID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "entityCaseId requerido"})
+		return
+	}
+	result, err := c.svc.ListObligations(ctx.Request.Context(), entityCaseID, ctx.Query("status"))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "relación entidad-caso no encontrada"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		return
+	}
+	ctx.JSON(http.StatusOK, result)
 }
 
 // ListByEntity — GET /api/v1/entity-cases?document=&page=&pageSize=
@@ -139,9 +184,12 @@ func (c *EntityCaseController) Create(ctx *gin.Context) {
 	caseID := ctx.Param("id")
 
 	var body struct {
-		EntityBranchID int64   `json:"entityBranchId" binding:"required"`
-		Objetivo       *string `json:"objetivo"`
-		CreatedByID    string  `json:"createdById" binding:"required"`
+		EntityBranchID int64    `json:"entityBranchId" binding:"required"`
+		Objetivo       *string  `json:"objetivo"`
+		Solicitud      *string  `json:"solicitud"`
+		Radicado       *string  `json:"radicado"`
+		CreatedByID    string   `json:"createdById" binding:"required"`
+		ObligationIds  []string `json:"obligationIds"`
 	}
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -152,7 +200,10 @@ func (c *EntityCaseController) Create(ctx *gin.Context) {
 		CaseID:         caseID,
 		EntityBranchID: body.EntityBranchID,
 		Objetivo:       body.Objetivo,
+		Solicitud:      body.Solicitud,
+		Radicado:       body.Radicado,
 		CreatedByID:    body.CreatedByID,
+		ObligationIds:  body.ObligationIds,
 	})
 	if err != nil {
 		if errors.Is(err, service.ErrEntityCaseDuplicate) {
@@ -163,4 +214,28 @@ func (c *EntityCaseController) Create(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusCreated, ec)
+}
+
+// GetDetail — GET /api/v1/entity-cases/:entityCaseId/detail
+// Devuelve el detalle completo de un entity_case (rol et).
+func (c *EntityCaseController) GetDetail(ctx *gin.Context) {
+	if requireCasosEntidadAccess(ctx) == nil {
+		return
+	}
+	entityCaseID := ctx.Param("entityCaseId")
+	if entityCaseID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "entityCaseId requerido"})
+		return
+	}
+
+	detail, err := c.svc.GetEntityCaseDetail(ctx.Request.Context(), entityCaseID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "relación caso-entidad no encontrada"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		return
+	}
+	ctx.JSON(http.StatusOK, detail)
 }

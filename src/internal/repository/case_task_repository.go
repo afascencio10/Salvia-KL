@@ -24,7 +24,11 @@ type CaseTaskRepository interface {
 	// FindByAssignedUserIDPaged devuelve, paginadas, todas las tareas del usuario
 	// —no solo las de barrera— con el caso de origen resuelto. Es la consulta de la
 	// pantalla "Mis Tareas". status vacío trae todos los estados.
-	FindByAssignedUserIDPaged(ctx context.Context, assignedUserID, status string, page, pageSize int) (PageResult[models.CaseTaskWithRelations], error)
+	//
+	// role es el rol del usuario en sesión: cuando es 'te' (Equipo Técnico) se
+	// incluyen además las tareas comite_caso del pool (assigned_user_id vacío),
+	// disponibles para que cualquier integrante del equipo técnico las gestione.
+	FindByAssignedUserIDPaged(ctx context.Context, assignedUserID, status, role string, page, pageSize int) (PageResult[models.CaseTaskWithRelations], error)
 
 	// FindByCaseID devuelve todas las tareas de un caso.
 	FindByCaseID(ctx context.Context, caseID string) ([]models.CaseTask, error)
@@ -41,6 +45,11 @@ type CaseTaskRepository interface {
 	// FindTodoByEntityLetterID devuelve la primera tarea en estado "ToDo"
 	// asociada a un EntityLetter dado. Devuelve nil, nil si no existe.
 	FindTodoByEntityLetterID(ctx context.Context, entityLetterID string) (*models.CaseTask, error)
+
+	// FindCommentsByCaseID devuelve los comentarios del Equipo Técnico (case_task
+	// Done de tipo comentario_equipo_tecnico) de un caso, con el nombre de quien
+	// los creó resuelto, del más antiguo al más reciente.
+	FindCommentsByCaseID(ctx context.Context, caseID string) ([]models.CaseTaskCommentItem, error)
 }
 
 type caseTaskRepository struct {
@@ -97,6 +106,27 @@ func (r *caseTaskRepository) FindByBarrierID(ctx context.Context, barrierID stri
 		Where("barrier_id = ?", barrierID).
 		Order("created_at DESC").
 		Find(&items).Error
+	return items, err
+}
+
+func (r *caseTaskRepository) FindCommentsByCaseID(ctx context.Context, caseID string) ([]models.CaseTaskCommentItem, error) {
+	const q = `
+SELECT
+    ct.id AS id,
+    ct.result AS result,
+    ct.completed_at AS completed_at,
+    TRIM(COALESCE(gup.general_user_profile_names, '') || ' ' || COALESCE(gup.general_user_profile_last_names, '')) AS assigned_user_name
+FROM salvia.case_task ct
+LEFT JOIN security.general_user gu ON gu.general_user_i_code = ct.assigned_user_id
+LEFT JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+WHERE ct.deleted_at IS NULL
+  AND ct.status = ?
+  AND ct.type = ?
+  AND ct.case_id = ?
+ORDER BY ct.completed_at ASC NULLS LAST, ct.created_at ASC
+`
+	items := make([]models.CaseTaskCommentItem, 0)
+	err := r.db.WithContext(ctx).Raw(q, models.CaseTaskStatusDone, models.CaseTaskTypeComentarioEquipoTecnico, caseID).Scan(&items).Error
 	return items, err
 }
 
@@ -164,7 +194,7 @@ func (r *caseTaskRepository) FindByAssignedUserIDWithRelations(ctx context.Conte
 	return items, err
 }
 
-func (r *caseTaskRepository) FindByAssignedUserIDPaged(ctx context.Context, assignedUserID, status string, page, pageSize int) (PageResult[models.CaseTaskWithRelations], error) {
+func (r *caseTaskRepository) FindByAssignedUserIDPaged(ctx context.Context, assignedUserID, status, role string, page, pageSize int) (PageResult[models.CaseTaskWithRelations], error) {
 	if page < 1 {
 		page = 1
 	}
@@ -172,8 +202,17 @@ func (r *caseTaskRepository) FindByAssignedUserIDPaged(ctx context.Context, assi
 		pageSize = 20
 	}
 
-	where := " AND ct.assigned_user_id = ?"
-	args := []interface{}{assignedUserID}
+	// Base: tareas asignadas al usuario. Para el Equipo Técnico ('te') se suman
+	// las tareas comite_caso del pool (sin dueño), visibles para todo el equipo.
+	var where string
+	var args []interface{}
+	if role == "te" {
+		where = " AND (ct.assigned_user_id = ? OR (ct.type = 'comite_caso' AND ct.assigned_user_id = ''))"
+		args = []interface{}{assignedUserID}
+	} else {
+		where = " AND ct.assigned_user_id = ?"
+		args = []interface{}{assignedUserID}
+	}
 	if status != "" {
 		where += " AND ct.status = ?"
 		args = append(args, status)

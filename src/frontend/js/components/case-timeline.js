@@ -202,9 +202,11 @@ var CT_CATEGORIAS = [
     { value: 'Barreras',       label: 'Barreras' },
     { value: 'Seguimientos',   label: 'Seguimientos' },
     { value: 'Oficios',        label: 'Oficios' },
+    { value: 'Entidades',      label: 'Entidades' },
     { value: 'Medidas',        label: 'Medidas' },
     { value: 'Psicosocial',    label: 'Psicosocial' },
     { value: 'Estabilización', label: 'Estabilización' },
+    { value: 'Mecanismos',     label: 'Mecanismos' },
 ];
 
 /* ─── Helper: color de fondo por defecto cuando el evento no trae color ── */
@@ -216,6 +218,8 @@ function ctDefaultColor(category) {
         'Psicosocial':    '#5106A7',
         'Estabilización': '#15803d',
         'Oficios':        '#0f766e',
+        'Entidades':      '#5106A7',
+        'Mecanismos':     '#5106A7',
         'General':        '#4b5563',
     };
     return map[category] || '#4b5563';
@@ -238,8 +242,10 @@ function ctFormatDate(raw) {
     if (!raw) return '';
     var d = new Date(raw);
     if (isNaN(d.getTime())) return raw;
-    return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-        + ' ' + d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    // SALVIA se usa solo en Colombia: fijar zona America/Bogota para que la fecha/hora
+    // del timeline no dependa de la zona del navegador.
+    return d.toLocaleDateString('es-CO', { timeZone: 'America/Bogota', day: '2-digit', month: 'short', year: 'numeric' })
+        + ' ' + d.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit' });
 }
 
 /* ─── Componente Vue ─────────────────────────────────────────────────────── */

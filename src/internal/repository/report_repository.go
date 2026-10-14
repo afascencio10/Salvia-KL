@@ -190,6 +190,11 @@ type CaseReportDTO struct {
 type FollowUpReportDTO struct {
 	models.FollowUpV2
 	VictimDocNumber string `gorm:"column:victim_doc_number"`
+	// Nombres resueltos (general_user → general_user_profile) para el reporte:
+	// responsable del seguimiento (fu.agent_id) y responsable del caso (vc.agent_id),
+	// que pueden ser personas distintas.
+	FollowUpAgentResponsible string `gorm:"column:followup_agent_responsible"`
+	CaseAgentResponsible     string `gorm:"column:case_agent_responsible"`
 }
 
 type AnswerDTO struct {
@@ -635,7 +640,9 @@ func (r *reportRepository) FindFollowUpsByCaseICodes(ctx context.Context, caseIC
 	query := `
 		SELECT 
 			fu.*,
-			vc.victim_case_victim_doc_number AS victim_doc_number
+			vc.victim_case_victim_doc_number AS victim_doc_number,
+			COALESCE((SELECT gup.general_user_profile_names || ' ' || gup.general_user_profile_last_names FROM security.general_user gu JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile WHERE gu.general_user_i_code = fu.agent_id LIMIT 1), '') AS followup_agent_responsible,
+			COALESCE((SELECT gup.general_user_profile_names || ' ' || gup.general_user_profile_last_names FROM security.general_user gu JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile WHERE gu.general_user_i_code = vc.agent_id LIMIT 1), '') AS case_agent_responsible
 		FROM salvia.follow_up_v2 fu
 		JOIN salvia.victim_case vc ON vc.victim_case_i_code = fu.case_id
 		WHERE fu.case_id IN ? AND fu.deleted_at IS NULL

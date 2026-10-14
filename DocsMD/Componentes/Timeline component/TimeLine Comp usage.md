@@ -108,6 +108,7 @@ var home = Vue.createApp({
 | `Barreras` | Barreras |
 | `Seguimientos` | Seguimientos |
 | `Oficios` | Oficios |
+| `Entidades` | Entidades |
 | `Medidas` | Medidas |
 | `Psicosocial` | Psicosocial |
 | `Estabilización` | Estabilización |
@@ -131,6 +132,8 @@ El campo `icon` del modelo acepta dos formatos, el componente los normaliza:
 | Seguimiento editado | `"fa fa-calendar"` |
 | Seguimiento pospuesto | `"fa fa-calendar"` |
 | Intento fallido | `"fa fa-calendar"` |
+| Solicitud a entidad | `"folder"` |
+| Respuesta institucional | `"reply"` |
 
 > **Convención a futuro:** guardar solo el nombre del ícono sin prefijo (`"calendar-check"`, `"user"`, etc.) y dejar que el componente construya la clase.
 

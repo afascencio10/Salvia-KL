@@ -1,0 +1,179 @@
+{{/* Template: barreras_departamento_v2.html — Barreras Departamento (2 columnas) */}}
+<link rel="stylesheet" href="/static/css/barreras_departamento.css">
+
+<main class="salvia-main">
+<div class="container bd-page">
+
+    <div v-if="loadError" class="bd-error-block">
+        <p>${ loadError }</p>
+        <button type="button" class="bd-btn bd-btn--secondary" @click="reloadScreen">Reintentar</button>
+    </div>
+
+    <template v-else>
+        <div class="welcome-section bd-welcome">
+            <div>
+                <h2><b>Barreras Departamento</b></h2>
+                <p class="text-muted mb-0">Todas las barreras identificadas en el departamento</p>
+            </div>
+        </div>
+
+        <section class="bd-filters">
+            <div class="bd-filter-field">
+                <label class="bd-label" for="bd-filter-doc">Documento de identidad</label>
+                <input
+                    id="bd-filter-doc"
+                    type="text"
+                    class="bd-input"
+                    placeholder="Ej: 1023456780"
+                    v-model="filters.docNumber"
+                    @input="onFilterText"
+                >
+            </div>
+            <div class="bd-filter-field">
+                <label class="bd-label" for="bd-filter-entidad">Entidad</label>
+                <input
+                    id="bd-filter-entidad"
+                    type="text"
+                    class="bd-input"
+                    placeholder="Ej: Fiscalía"
+                    v-model="filters.entidad"
+                    @input="onFilterText"
+                >
+            </div>
+            <div class="bd-filter-field">
+                <label class="bd-label" for="bd-filter-ciudad">Ciudad</label>
+                <select
+                    id="bd-filter-ciudad"
+                    class="bd-input"
+                    v-model="filters.cityId"
+                    @change="onFilterSelect"
+                >
+                    <option value="">Todas</option>
+                    <option
+                        v-for="city in cities"
+                        :key="city.value"
+                        :value="city.value"
+                    >${ city.label }</option>
+                </select>
+            </div>
+            <div class="bd-filter-field">
+                <label class="bd-label" for="bd-filter-status">Estado</label>
+                <select
+                    id="bd-filter-status"
+                    class="bd-input"
+                    v-model="filters.status"
+                    @change="onFilterSelect"
+                >
+                    <option value="">Todos</option>
+                    <option value="OPEN">Abierta</option>
+                    <option value="En Gestion">En gestión</option>
+                    <option value="Articulada">Articulada</option>
+                    <option value="MANAGED">Gestionada</option>
+                </select>
+            </div>
+        </section>
+
+        <div v-if="isLoading" class="bd-loading">
+            <span class="bd-spinner" aria-hidden="true"></span>
+            <span>Cargando barreras…</span>
+        </div>
+
+        <div v-else-if="items.length === 0" class="bd-empty">
+            No se encontraron barreras con los filtros seleccionados.
+        </div>
+
+        <section v-else class="bd-list">
+            <div class="bd-list-header">
+                <span class="bd-col-label">Caso</span>
+                <span class="bd-col-label">Barrera</span>
+            </div>
+
+            <article
+                v-for="item in items"
+                :key="item.id"
+                class="bd-row"
+            >
+                <div class="bd-col-caso">
+                    <p class="bd-name">${ item.victimName }</p>
+                    <p class="bd-meta">
+                        <span>Doc: ${ item.docNumber }</span>
+                        <span class="bd-meta-sep">·</span>
+                        <span>Tel: ${ item.victimPhone }</span>
+                    </p>
+                    <p class="bd-city">
+                        <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+                        <span>${ item.cityName }</span>
+                    </p>
+                    <div class="bd-badges">
+                        <span
+                            class="bd-badge bd-badge--priority"
+                            :class="'bd-priority-' + slugify(item.priority)"
+                        >${ item.priority }</span>
+                    </div>
+                    <button type="button" class="bd-link" @click="goToCase(item)">Ver caso →</button>
+                </div>
+
+                <div class="bd-col-barrera">
+                    <div class="bd-tags">
+                        <span
+                            class="bd-badge bd-badge--sector"
+                            :class="'bd-sector-' + slugify(item.sectorKey)"
+                        >${ item.sector }</span>
+                        <span class="bd-entity">${ item.entityBranchName }</span>
+                        <span
+                            class="bd-badge bd-badge--estado"
+                            :class="'bd-estado-' + slugify(item.estadoLabel)"
+                        >${ item.estadoLabel }</span>
+                    </div>
+                    <p class="bd-desc">${ item.description }</p>
+                    <p class="bd-date">
+                        <i class="far fa-calendar-alt" aria-hidden="true"></i>
+                        <span>${ item.fechaIdentificacion }</span>
+                    </p>
+                    <button type="button" class="bd-link" @click="goToBarrier(item)">Ver barrera →</button>
+                </div>
+            </article>
+
+            <nav v-if="totalPages > 1" class="bd-pagination" aria-label="Paginación">
+                <button
+                    type="button"
+                    class="bd-page-btn"
+                    :disabled="currentPage === 0"
+                    @click="changePage(currentPage - 1)"
+                >Anterior</button>
+                <template v-for="(p, i) in visiblePages" :key="'pg-' + i">
+                    <span v-if="p === '...'" class="bd-page-ellipsis">…</span>
+                    <button
+                        v-else
+                        type="button"
+                        class="bd-page-btn"
+                        :class="{ 'bd-page-btn--active': p === currentPage }"
+                        @click="changePage(p)"
+                    >${ p + 1 }</button>
+                </template>
+                <button
+                    type="button"
+                    class="bd-page-btn"
+                    :disabled="currentPage >= totalPages - 1"
+                    @click="changePage(currentPage + 1)"
+                >Siguiente</button>
+            </nav>
+        </section>
+    </template>
+
+</div>
+</main>
+
+{{ template "standard_scripts.html" . }}
+{{ template "overlay.html" . }}
+
+<script>
+    window.__BarrerasDepartamentoConfig = {
+        windowTitle: "{{.windowTitle}}",
+        currentUser: "{{.currentUser}}",
+        currentRole: "{{.currentRole}}",
+        currentUserId: "{{.currentUserId}}",
+        assignedDepartmentId: "{{.assignedDepartmentId}}"
+    };
+</script>
+<script src="/static/js/components/barreras_departamento_v2.js"></script>

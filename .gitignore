@@ -5,6 +5,10 @@ sessions
 ContextoRequerimientosDesarrollo
 .DS_Store
 *.sql
+# Excepción: estos seeds van embebidos en el binario y la aplicación los aplica
+# al arrancar. Si quedan fuera del repositorio, el binario no compila y el
+# ambiente se queda sin los formularios que el código abre por UUID fijo.
+!src/internal/seed/*.sql
 # Sesiones activas del servidor (contienen tokens y datos de usuario)
 src/sessions
 
@@ -20,6 +24,7 @@ node_modules
 /test-results/
 /playwright-report/
 /playwright/.cache/
+/.playwright-cli/
 .gocache_agent/
 .chrome_debug_profile/
 .gomodcache_agent/

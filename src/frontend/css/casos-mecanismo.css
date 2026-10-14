@@ -1,0 +1,414 @@
+/* ====================================================================
+   CASOS MECANISMO
+   Prefijo: cme-
+   ==================================================================== */
+
+.cme-page {
+    font-family: 'Nunito Sans', sans-serif;
+    color: #1a1a1a;
+    position: relative;
+    padding-bottom: 40px;
+}
+
+.cme-welcome {
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.cme-filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+    max-width: 640px;
+}
+
+.cme-filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cme-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #374151;
+}
+
+.cme-input {
+    width: 100%;
+    border: 1.5px solid #d1d5db;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: 'Nunito Sans', sans-serif;
+    font-size: 0.9rem;
+    color: #1f2937;
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.cme-input::placeholder {
+    color: #9ca3af;
+}
+
+.cme-input:focus {
+    outline: none;
+    border-color: #5106A7;
+    box-shadow: 0 0 0 3px rgba(81, 6, 167, 0.12);
+}
+
+.cme-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 48px 16px;
+    color: #6b7280;
+    font-weight: 600;
+}
+
+.cme-spinner {
+    width: 22px;
+    height: 22px;
+    border: 2.5px solid #e5e7eb;
+    border-top-color: #5106A7;
+    border-radius: 50%;
+    animation: cme-spin 0.7s linear infinite;
+}
+
+@keyframes cme-spin {
+    to { transform: rotate(360deg); }
+}
+
+.cme-empty {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 40px 24px;
+    text-align: center;
+    color: #6b7280;
+    font-weight: 600;
+}
+
+.cme-error-block {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+    padding: 20px 24px;
+    color: #991b1b;
+}
+
+.cme-error-block p {
+    margin: 0 0 12px;
+    font-weight: 600;
+}
+
+.cme-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-family: 'Nunito Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    padding: 10px 16px;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+
+.cme-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.cme-btn--secondary {
+    background: #fff;
+    border-color: #d1d5db;
+    color: #374151;
+}
+
+.cme-btn--secondary:hover:not(:disabled) {
+    background: #f9fafb;
+}
+
+.cme-list {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.cme-list-header,
+.cme-row {
+    display: grid;
+    grid-template-columns: 1.15fr 1.1fr 1.35fr 160px;
+    gap: 20px;
+    align-items: start;
+}
+
+.cme-list-header {
+    padding: 14px 24px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #fafafa;
+}
+
+.cme-col-label {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #6b7280;
+}
+
+.cme-row {
+    padding: 22px 24px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.cme-row:last-of-type {
+    border-bottom: none;
+}
+
+.cme-name {
+    margin: 0 0 4px;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #111827;
+}
+
+.cme-ids {
+    margin: 0 0 8px;
+    font-size: 0.85rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.cme-city {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 12px;
+    font-size: 0.88rem;
+    color: #4b5563;
+    font-weight: 600;
+}
+
+.cme-city i {
+    color: #ef4444;
+    font-size: 0.8rem;
+}
+
+.cme-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.cme-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.cme-badge--risk-bajo,
+.cme-badge--risk-medio {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.cme-badge--risk-alto {
+    background: #ffedd5;
+    color: #c2410c;
+}
+
+.cme-badge--risk-extremo,
+.cme-badge--risk-critico {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.cme-badge--status-activo,
+.cme-badge--status-enrutadoaprobado,
+.cme-badge--status-connovedad,
+.cme-badge--status-connovedades {
+    background: #fce7f3;
+    color: #9d174d;
+}
+
+.cme-badge--status-cerrado,
+.cme-badge--status-vencido,
+.cme-badge--status-poraprobar,
+.cme-badge--status-recontacto {
+    background: #f3f4f6;
+    color: #4b5563;
+}
+
+.cme-badge--scope-municipal {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.cme-badge--scope-departamental {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+.cme-badge--scope-nacional {
+    background: #f3e8ff;
+    color: #6d28d9;
+}
+
+.cme-commitment,
+.cme-comment {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #1f2937;
+    line-height: 1.5;
+}
+
+.cme-comment-date {
+    display: block;
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: #9ca3af;
+    font-weight: 600;
+}
+
+.cme-comment--empty {
+    font-style: italic;
+    color: #9ca3af;
+}
+
+.cme-link {
+    display: inline-block;
+    padding: 0;
+    border: none;
+    background: none;
+    color: #5106A7;
+    font-family: 'Nunito Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.cme-link:hover {
+    text-decoration: underline;
+}
+
+.cme-col-accion {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-start;
+}
+
+.cme-btn-gestionar {
+    background: #5106A7;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    font-family: 'Nunito Sans', sans-serif;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.cme-btn-gestionar:hover {
+    background: #3d0080;
+    color: #fff;
+}
+
+.cme-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.cme-page-btn {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 12px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 8px;
+    background: #fff;
+    color: #374151;
+    font-family: 'Nunito Sans', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.cme-page-btn:hover:not(:disabled):not(.cme-page-btn--active) {
+    background: #f9fafb;
+    border-color: #9ca3af;
+}
+
+.cme-page-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.cme-page-btn--active {
+    background: #5106A7;
+    border-color: #5106A7;
+    color: #fff;
+}
+
+.cme-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    padding: 12px 18px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.cme-toast--info {
+    background: #f3e8ff;
+    color: #5106A7;
+}
+
+.cme-toast--success {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+@media (max-width: 900px) {
+    .cme-filters,
+    .cme-list-header,
+    .cme-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .cme-list-header {
+        display: none;
+    }
+
+    .cme-col-accion {
+        justify-content: flex-start;
+        padding-top: 8px;
+        border-top: 1px solid #f3f4f6;
+    }
+}

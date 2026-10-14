@@ -24,7 +24,7 @@ func TestApplyEntidadMecanismoRestriction(t *testing.T) {
 		}
 	}
 
-	for _, role := range []string{"et", "mn"} {
+	for _, role := range []string{"et", "mn", models.ArticulatingMechanismRoleCode} {
 		detail := build()
 		applyEntidadMecanismoRestriction(detail, role)
 

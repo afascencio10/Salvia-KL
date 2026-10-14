@@ -38,6 +38,11 @@ var CaseTimelineRepo repository.CaseTimelineEventRepository
 // VictimCaseLightRepo es inyectado desde main.go para actualizar team/agent en victim_case al crear un caso.
 var VictimCaseLightRepo repository.VictimCaseLightRepository
 
+// FormSvc es inyectado desde main.go para procesar la sección "Identificación
+// de Entidades" del formulario de Registro de Caso al crear un caso. Si es
+// nil, el procesamiento se omite silenciosamente.
+var FormSvc service.FormService
+
 type VictimCaseRequest struct {
 	VCase salvia_daos.VictimCaseDTO `json:"victimCase"`
 }
@@ -579,6 +584,39 @@ func SetVictimCase(dataInput string, s utils.CommonSession, dbClientConfig db.DB
 				log.Printf("[WARN] timeline hechos: error insertando evento para caso %s: %v", caseICode, err)
 			} else {
 				log.Printf("[INFO] timeline hechos: evento creado para caso %s (subtipos=%d)", caseICode, len(subtypeNames))
+			}
+		}()
+	}
+
+	// ── Identificación de Entidades ───────────────────────────────────────────
+	// Se ejecuta DESPUÉS del commit, best-effort — el frontend ya garantizó
+	// (validación bloqueante) que toda fila agregada esté completa; acá solo se
+	// ignora silenciosamente cualquier fila sin entityBranchId. Si falla, se
+	// loguea pero NO deshace la creación del caso.
+	if FormSvc != nil {
+		go func() {
+			caseICode := vCaseRequest.VCase.VictimCaseICode
+			toEntryInputs := func(dtos []salvia_daos.VictimCaseEntidadEntryDTO) []service.VictimCaseEntidadEntryInput {
+				out := make([]service.VictimCaseEntidadEntryInput, len(dtos))
+				for i, d := range dtos {
+					out[i] = service.VictimCaseEntidadEntryInput{
+						EntityBranchID:  d.EntityBranchID,
+						Completadas:     d.Completadas,
+						CompletadasOtra: d.CompletadasOtra,
+						Pendientes:      d.Pendientes,
+						PendientesOtra:  d.PendientesOtra,
+						InfoRuta:        d.InfoRuta,
+						CanalActivacion: d.CanalActivacion,
+					}
+				}
+				return out
+			}
+			if err := FormSvc.ProcessVictimCaseEntidadEntries(
+				context.Background(), caseICode, s.UserICode,
+				toEntryInputs(vCaseRequest.VCase.VictimCaseEntidadesAcudidas),
+				toEntryInputs(vCaseRequest.VCase.VictimCaseEntidadesActivacion),
+			); err != nil {
+				log.Printf("[WARN] identificación de entidades: error procesando caso %s: %v", caseICode, err)
 			}
 		}()
 	}

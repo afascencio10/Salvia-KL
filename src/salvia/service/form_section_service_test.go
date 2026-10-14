@@ -20,6 +20,9 @@ func (m *MockFormSectionRepo) Create(ctx context.Context, e *models.FormSection)
 func (m *MockFormSectionRepo) Update(ctx context.Context, e *models.FormSection) error {
 	return m.Called(ctx, e).Error(0)
 }
+func (m *MockFormSectionRepo) UpdateFields(ctx context.Context, id string, fields map[string]interface{}) error {
+	return m.Called(ctx, id, fields).Error(0)
+}
 func (m *MockFormSectionRepo) Delete(ctx context.Context, id string) error {
 	return m.Called(ctx, id).Error(0)
 }

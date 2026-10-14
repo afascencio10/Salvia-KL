@@ -28,6 +28,26 @@ Fuente: Sheet _Psicosocial Kreivo27.05.2026_, hoja `Formularios Psicosocial`.
 - El **Formulario de Seguimiento se renombra a "Atención Psicosocial"**, junto con sus secciones internas que contenían la palabra "Seguimiento": "Contacto Seguimiento" → "Contacto Atención Psicosocial", y la sección de contenido "Seguimiento" → "Atención Psicosocial". En el **Formulario de Cierre** (que mantiene su propio nombre) se aplica el mismo cambio de palabra a su sección "Seguimiento (en Cierre)" → "Atención Psicosocial (en Cierre)". La sección **"Seguimiento a Barreras" NO se renombra** en ningún formulario: mantiene su nombre fijo en los 4 formularios.
 - Implementado en `src/cmd/seed/seed_psicosocial.sql`.
 
+**Decisión del líder — ajuste 6, derivación a equipos SALVIA (Sep 2026):**
+- Requerimiento: "El equipo psicosocial deriva casos desde contacto". Se agrega una nueva sección **"Derivación a equipos SALVIA"** **después de la sección de atención y antes de Cierre** en los 4 formularios (orden único por formulario).
+- La sección es **visible solo cuando la sesión fue atención efectiva** (mismo trigger que la sección de contenido S4):
+  - **Primer Contacto:** trigger = Q12 "Continuar Primera Atención" = `true`
+  - **Primera Atención, Atención Psicosocial, Cierre:** trigger = "¿Es atención o solo contacto?" = `atencion`
+- **7 preguntas** en la sección (mismas preguntas Q2–Q9 de la Sección 5 del Formulario de Seguimiento, **sin** la opción "Atención Psicosocial"):
+  1. ¿Durante la atención se han generado necesidades que requieran remisión a los equipos SALVIA? (boolean)
+  2. ¿Cuáles equipos? (multiple) — visible si Q1 = true. Opciones: Medidas de Emergencia, Estabilización, Atención Hombres, Salvia Dignidad, Discapacidad
+  3. ¿Cuáles medidas de emergencia? (multiple) — visible si Q2 CONTAINS `medidas_emergencia`
+  4. Criterios de remisión — Atención Hombres (multiple) — visible si Q2 CONTAINS `atencion_hombres`
+  5. Criterios de remisión — Salvia Dignidad (multiple) — visible si Q2 CONTAINS `salvia_dignidad`
+  6. Criterios de remisión — Estabilización (multiple) — visible si Q2 CONTAINS `estabilizacion`
+  7. Describa los elementos que evidencia para realizar la remisión (text) — visible si Q1 = true
+- **Lógica backend (E-04 / `processPsicosocialSessionSubmission`):**
+  - `medidas_emergencia` → crea 1 `EmergencyMeasure` por cada medida seleccionada (igual que en el Formulario de Seguimiento).
+  - Otros equipos (estabilizacion, atencion_hombres, salvia_dignidad, discapacidad) → **solo se guardan como `answers`**; NO se crea `psychosocial_support` ni `case_task` (a diferencia del Formulario de Seguimiento).
+  - La opción "Atención Psicosocial" **no existe** en estos formularios (no tendría sentido remitir al mismo equipo que registra).
+- UUIDs fijos de preguntas: serie `d1000NXX` (ver `src/internal/constants/psicosocial_agenda_questions.go`).
+- Seed: bloque en `seed_psicosocial.sql`; migración idempotente en `migrate_psicosocial_aug2026.sql` (bloque 5).
+
 **Decisión del líder — ajuste 5, diagrama Aug 2026 (consentimiento + agenda):**
 - **Consentimiento PC S4 / PA S4:** el texto largo se renderiza como pregunta tipo `info` (banner `df-info-banner`). La aceptación es un `single` corto (“¿Acepta el consentimiento informado…?”). Si = **No**, se ocultan todas las preguntas posteriores de esa sección.
 - **Agenda en todos los forms:** donde antes había solo “Fecha próxima atención” / “Fecha nueva”, ahora el bloque es:
@@ -156,6 +176,20 @@ Texto: `¿Tiene una orientación sexual e identidad de género no hegemónicas (
 
 > Aug 2026: consentimiento = `info` + `single`; Q4+ ocultas si No. Bloque Agendar/Fecha/Hora.
 
+### Sección 5 — Derivación a equipos SALVIA *(Sep 2026 — condicional: S1-Q12 = true)*
+
+> UUIDs de preguntas: serie `d1000101`–`d1000107`.
+
+| # | Pregunta | Tipo | Req | Opciones / Notas |
+|---|---|---|---|---|
+| 1 | ¿Durante la atención se han generado necesidades que requieran remisión a los equipos SALVIA? | boolean | ✅ | — |
+| 2 | ¿Cuáles equipos? | multiple | ✅ | Medidas de Emergencia / Estabilización / Atención Hombres / Salvia Dignidad / Discapacidad — *visible si Q1 = true* |
+| 3 | ¿Cuáles medidas de emergencia? | multiple | ❌ | 8 opciones (ver tabla) — *visible si Q2 CONTAINS `medidas_emergencia`* |
+| 4 | Criterios de remisión — Atención Hombres | multiple | ❌ | Criterio de remisión — *visible si Q2 CONTAINS `atencion_hombres`* |
+| 5 | Criterios de remisión — Salvia Dignidad | multiple | ❌ | Mujer OSIGD / Persona no binaria — *visible si Q2 CONTAINS `salvia_dignidad`* |
+| 6 | Criterios de remisión — Estabilización | multiple | ❌ | 3 opciones (ver tabla) — *visible si Q2 CONTAINS `estabilizacion`* |
+| 7 | Describa los elementos que evidencia para realizar la remisión | text | ✅ | *visible si Q1 = true* |
+
 ---
 
 ## Form 2: Primera Atención
@@ -221,6 +255,20 @@ Texto: `¿Tiene una orientación sexual e identidad de género no hegemónicas (
 | 14 | Hora próxima atención | time | ✅ | *visible si Q12 = Sí* |
 | 15 | Observaciones | text | ❌ | *visible si Q3 = Sí* |
 
+### Sección 7 — Derivación a equipos SALVIA *(Sep 2026 — condicional: S1-Q8 = atencion; order 7, antes de Cierre)*
+
+> UUIDs de preguntas: serie `d1000201`–`d1000207`.
+
+| # | Pregunta | Tipo | Req | Opciones / Notas |
+|---|---|---|---|---|
+| 1 | ¿Durante la atención se han generado necesidades que requieran remisión a los equipos SALVIA? | boolean | ✅ | — |
+| 2 | ¿Cuáles equipos? | multiple | ✅ | Medidas de Emergencia / Estabilización / Atención Hombres / Salvia Dignidad / Discapacidad — *visible si Q1 = true* |
+| 3 | ¿Cuáles medidas de emergencia? | multiple | ❌ | 8 opciones — *visible si Q2 CONTAINS `medidas_emergencia`* |
+| 4 | Criterios de remisión — Atención Hombres | multiple | ❌ | Criterio de remisión — *visible si Q2 CONTAINS `atencion_hombres`* |
+| 5 | Criterios de remisión — Salvia Dignidad | multiple | ❌ | Mujer OSIGD / Persona no binaria — *visible si Q2 CONTAINS `salvia_dignidad`* |
+| 6 | Criterios de remisión — Estabilización | multiple | ❌ | 3 opciones — *visible si Q2 CONTAINS `estabilizacion`* |
+| 7 | Describa los elementos que evidencia para realizar la remisión | text | ✅ | *visible si Q1 = true* |
+
 ---
 
 ## Form 3: Atención Psicosocial *(antes "Seguimiento" — renombrado Jul 2026)*
@@ -272,6 +320,20 @@ Texto: `¿Tiene una orientación sexual e identidad de género no hegemónicas (
 | 5 | Fecha próxima atención | date | ✅ | *visible si Q4 = Sí* |
 | 6 | Hora próxima atención | time | ✅ | *visible si Q4 = Sí* |
 | 7 | Observaciones | text | ❌ | — |
+
+### Sección 7 — Derivación a equipos SALVIA *(Sep 2026 — condicional: S1-Q9 = atencion; order 7, antes de Cierre)*
+
+> UUIDs de preguntas: serie `d1000301`–`d1000307`.
+
+| # | Pregunta | Tipo | Req | Opciones / Notas |
+|---|---|---|---|---|
+| 1 | ¿Durante la atención se han generado necesidades que requieran remisión a los equipos SALVIA? | boolean | ✅ | — |
+| 2 | ¿Cuáles equipos? | multiple | ✅ | Medidas de Emergencia / Estabilización / Atención Hombres / Salvia Dignidad / Discapacidad — *visible si Q1 = true* |
+| 3 | ¿Cuáles medidas de emergencia? | multiple | ❌ | 8 opciones — *visible si Q2 CONTAINS `medidas_emergencia`* |
+| 4 | Criterios de remisión — Atención Hombres | multiple | ❌ | Criterio de remisión — *visible si Q2 CONTAINS `atencion_hombres`* |
+| 5 | Criterios de remisión — Salvia Dignidad | multiple | ❌ | Mujer OSIGD / Persona no binaria — *visible si Q2 CONTAINS `salvia_dignidad`* |
+| 6 | Criterios de remisión — Estabilización | multiple | ❌ | 3 opciones — *visible si Q2 CONTAINS `estabilizacion`* |
+| 7 | Describa los elementos que evidencia para realizar la remisión | text | ✅ | *visible si Q1 = true* |
 
 ---
 
@@ -328,9 +390,23 @@ Texto: `¿Tiene una orientación sexual e identidad de género no hegemónicas (
 | 5 | Fecha próxima atención | date | ✅ | *visible si Q4 = Sí* |
 | 6 | Hora próxima atención | time | ✅ | *visible si Q4 = Sí* |
 | 7 | Observaciones | text | ❌ | — |
-| 8 | Cerrar remisión | boolean | ✅ | **Gatillo de S5** |
+| 8 | Cerrar remisión | boolean | ✅ | **Gatillo de S8** |
 
-### Sección 5 — Cierre
+### Sección 7 — Derivación a equipos SALVIA *(Sep 2026 — condicional: S1-Q9 = atencion; order 7, antes de Cierre)*
+
+> UUIDs de preguntas: serie `d1000401`–`d1000407`.
+
+| # | Pregunta | Tipo | Req | Opciones / Notas |
+|---|---|---|---|---|
+| 1 | ¿Durante la atención se han generado necesidades que requieran remisión a los equipos SALVIA? | boolean | ✅ | — |
+| 2 | ¿Cuáles equipos? | multiple | ✅ | Medidas de Emergencia / Estabilización / Atención Hombres / Salvia Dignidad / Discapacidad — *visible si Q1 = true* |
+| 3 | ¿Cuáles medidas de emergencia? | multiple | ❌ | 8 opciones — *visible si Q2 CONTAINS `medidas_emergencia`* |
+| 4 | Criterios de remisión — Atención Hombres | multiple | ❌ | Criterio de remisión — *visible si Q2 CONTAINS `atencion_hombres`* |
+| 5 | Criterios de remisión — Salvia Dignidad | multiple | ❌ | Mujer OSIGD / Persona no binaria — *visible si Q2 CONTAINS `salvia_dignidad`* |
+| 6 | Criterios de remisión — Estabilización | multiple | ❌ | 3 opciones — *visible si Q2 CONTAINS `estabilizacion`* |
+| 7 | Describa los elementos que evidencia para realizar la remisión | text | ✅ | *visible si Q1 = true* |
+
+### Sección 8 — Cierre *(order 8; visibilidad: atención + Cerrar remisión)*
 
 > **Visibilidad de sección:** Solo se muestra cuando **ambas** condiciones se cumplen:
 > 1. `¿Es atención o solo contacto? = Atención` (S1)
@@ -422,6 +498,7 @@ Orden real Sep 2026 (OSIGHN = S2). Las VC de secciones previas no cambian: apunt
 | Los 4 | Seguimiento a Barreras | *(formState `currentBarriers`)* | habilitada; visibilidad real vía estado externo |
 
 > Las secciones "Seguimiento a Barreras" e "Identificación de Barreras" son idénticas (misma estructura, preguntas, opciones y repeaters) en los 4 formularios — ver `DocsMD/Screens/hacer-seguimiento/form-seguimiento-barreras-repeater.md` y `form-barreras-repeater.md`.
+> La sección "Derivación a equipos SALVIA" también es idéntica en los 4 formularios, con UUIDs fijos de preguntas distintos por formulario (serie `d1000NXX`).
 
 ---
 
@@ -439,3 +516,4 @@ Orden real Sep 2026 (OSIGHN = S2). Las VC de secciones previas no cambian: apunt
 | Form 4: Cierre | 9 | igual |
 
 > Jul 2026 (ajuste 4): Form 1/2 S4 pasó de 14 a 12 preguntas (-2, ajuste razonable/intérprete eliminadas). Form 3/4 S1 pasó de 11 a 12 preguntas (+1, "¿individual o en dupla?" agregada).
+> Sep 2026 (ajuste 6): Se agregan 7 preguntas de "Derivación a equipos SALVIA" después de la sección de atención y antes de Cierre (condicional — misma visibilidad que la sección de contenido). El `order` no se comparte con Entidades ni con Cierre.
