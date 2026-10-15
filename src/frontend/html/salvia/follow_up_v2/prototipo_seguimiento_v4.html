@@ -1,0 +1,13 @@
+{{ template "standard_scripts.html" .}}
+
+<div class="container mt-4" id="proto-app"></div>
+
+<script src="/static/js/prototipo-seguimiento-v4.js"></script>
+<script>
+    document.getElementById('app').style.display = 'block';
+    var app = Vue.createApp(SeguimientoV4App);
+</script>
+<script src="/static/js/components/dinamic-form.js"></script>
+<script>
+    app.mount('#proto-app');
+</script>
