@@ -1200,8 +1200,10 @@ var SeguimientoV4App = {
             if (i > 0) this.currentSectionId = ids[i - 1];
         },
         goTo: function (id) {
-            var ids = this.visibleIds;
-            if (ids.indexOf(id) <= ids.indexOf(this.currentSectionId)) this.currentSectionId = id;
+            if (this.visibleIds.indexOf(id) === -1) return;
+            this.errors = {};
+            this.currentSectionId = id;
+            window.scrollTo(0, 0);
         },
         addItem: function (id) {
             if (id === 'ident') this.a.ident.entidades.push(emptyEntidad());
@@ -1212,9 +1214,7 @@ var SeguimientoV4App = {
             if (id === 'barrera' && this.a.barreras.length > 1) this.a.barreras.splice(index, 1);
         },
         sectionState: function (id) {
-            var i = this.visibleIds.indexOf(id);
             if (id === this.currentSectionId) return 'active';
-            if (i > this.currentIndex) return 'pending';
             if (this.passed[id]) return 'completed';
             return 'enabled';
         },
