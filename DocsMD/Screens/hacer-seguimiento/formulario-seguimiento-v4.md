@@ -7,6 +7,75 @@ Cada hoja visible es un módulo del formulario nuevo. La hoja `Final` está ocul
 
 Las columnas del Excel no siempre coinciden con el encabezado: en varias filas “Si”, el tipo y las opciones están corridos. Aquí se lee por el contenido de la fila, no por la letra de la columna.
 
+La lectura del Excel queda debajo. Donde choque con la primera revisión del prototipo, manda la sección siguiente.
+
+---
+
+## Primera revisión del prototipo
+
+Registrada el 16 de octubre de 2026, a partir de la revisión del prototipo en `/salvia/prototipo-seguimiento-v4`. El prototipo no guarda respuestas.
+
+Estas decisiones sustituyen, en el formulario que se va a construir, las partes del Excel que se indican.
+
+**Menú**
+
+1. Valoración del riesgo
+2. Seguimiento a medidas de emergencia, solo si el caso tiene medidas
+3. Seguimiento a entidades, solo si el caso ya tiene entidades
+4. Identificación de entidades
+5. Barreras transversales
+6. Seguimiento al plan de acción
+7. Conclusión del ciclo de atención
+
+Se puede abrir cualquier sección del menú sin haber completado las anteriores.
+
+**Barrera asociada a una entidad**
+
+No hay sección propia de identificación de barreras de entidad. Tampoco se usa un modal: al marcar Sí, el registro se abre en una tarjeta dentro de esa entidad. Pueden agregarse varias.
+
+La tarjeta pide sector (salud, justicia o protección), tipos de ese sector, institución, otra institución, fecha, funcionario, territorio, descripción y gestión. No incluye las cuatro listas transversales.
+
+La gestión «Activación de ruta» se registra ahí y no abre otro módulo ni impide cerrar. «Alerta por barreras» pide la perspectiva profesional y, en la versión definitiva, notificaría al equipo técnico.
+
+En Seguimiento a entidades, el orden de cada entidad es:
+
+1. Acciones institucionales que ya se completaron
+2. Seguimiento a las barreras que la entidad ya trae (solo si tiene)
+3. Acciones institucionales pendientes
+4. ¿Se identifica alguna nueva barrera con esta entidad? Si es Sí, la tarjeta anterior
+5. Canales de la ruta
+6. Actualización de la ruta desde el último seguimiento
+
+**Identificación de entidades**
+
+Se quita de Valoración del riesgo la pregunta sobre barreras institucionales.
+
+Al final de cada entidad de esta sección va la misma pregunta. Si es Sí, se abre la misma tarjeta, ligada a esa entidad.
+
+**Barreras transversales**
+
+La antigua sección «Identificación de barreras» pasa a llamarse «Barreras transversales». Siempre está en el menú y no se asocia a una entidad. Equivale a `barrera_transversal` del formulario actual: no despliega salud, justicia ni protección.
+
+La pregunta «¿Se identifican barreras transversales en este seguimiento?» habilita el resto: talento humano, económicas, territoriales, enfoque diferencial, fecha, funcionario, territorio, descripción y gestión.
+
+**Activación de rutas**
+
+Se elimina la sección y la regla de no cerrar el formulario sin diligenciarla. Acuerdo, sector, lugar, entidad y acciones pendientes de ese módulo ya se cubren en Identificación de entidades.
+
+En Conclusión, si «¿Se realizó alguna acción institucional en la conclusión del caso?» es Sí, además de la entidad se preguntan los canales de la ruta. No bloquea el cierre.
+
+**Descripción de la conclusión**
+
+El enunciado visible es el del Excel, completo:
+
+Registrar de forma clara la descripción del criterio y la orientación brindada sobre continuidad de derechos y rutas disponibles:
+
+- Intentos de contacto (fechas, medios, número de intentos y tiempo transcurrido sin respuesta)
+- Solicitud de la persona (qué solicita, razones expresadas)
+- Avances y acciones completadas con evidencia y los criterios que permiten concluir que el plan de atención se cumplió
+- No corresponsabilidad (explique la ausencia de gestiones o de compromiso con el acompañamiento)
+- No clasificación como VBG/VpP (explicar por qué no se clasifica)
+
 ---
 
 ## Orden de los módulos
