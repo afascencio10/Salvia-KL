@@ -6,6 +6,34 @@
 // lista fija de 'opciones' -- así el icode que se envía en guardarSeccion
 // siempre es el real de BD, nunca inventado en el frontend.
 
+// D13: máscaras de validación de CI_6 (número de documento) por tipo de
+// documento seleccionado en CI_5 -- tabla completa de secciones.md. Code =
+// sufijo de victim_case_form2_victim_doc_type_* (Locale.go). null = no pide
+// número (Persona sin identificación). Sin `regex` = sin restricción de
+// formato más allá de "no vacío" (Carné Diplomático, PEP, PEP-FF -- la
+// fuente solo dice "admite numérico"/no especifica longitud).
+var MASCARA_DOC_NUMERO_V3 = {
+  cc: { regex: /^[0-9]{6,10}$/, hint: "Numérico, 6 a 10 dígitos" },
+  ce: { regex: /^[0-9]{6,10}$/, hint: "Numérico, 6 a 10 dígitos" },
+  ti: { regex: /^[0-9]{10,11}$/, hint: "Numérico, 10 a 11 dígitos" },
+  ps: { regex: /^[A-Za-z0-9]{6,9}$/, hint: "Alfanumérico, 6 a 9 caracteres" },
+  pt: { regex: /^[0-9]{7,8}$/, hint: "Numérico, 7 a 8 dígitos" },
+  si: null, // Persona sin identificación -- no pide número
+  no: { regex: /^[A-Za-z0-9]{1,15}$/, hint: "Alfanumérico, hasta 15 caracteres" },
+  nc: { regex: /^[A-Za-z0-9]{1,15}$/, hint: "Alfanumérico, hasta 15 caracteres" },
+  mv: { regex: /^[A-Za-z0-9]{1,15}$/, hint: "Alfanumérico, hasta 15 caracteres" },
+  dn: { regex: /^[A-Za-z0-9]{1,15}$/, hint: "Alfanumérico, hasta 15 caracteres" },
+  oe: { regex: /^[A-Za-z0-9]{1,15}$/, hint: "Alfanumérico, hasta 15 caracteres" },
+  pn: { regex: /^[A-Za-z0-9]{1,15}$/, hint: "Alfanumérico, hasta 15 caracteres" },
+  rc: { regex: /^[A-Za-z0-9]{1,15}$/, hint: "Alfanumérico, hasta 15 caracteres" },
+  sc: { regex: /^[A-Za-z0-9]{1,15}$/, hint: "Alfanumérico, hasta 15 caracteres" },
+  vs: { regex: /^[A-Za-z0-9]{1,15}$/, hint: "Alfanumérico, hasta 15 caracteres" },
+  vr: { regex: /^[A-Za-z0-9]{1,15}$/, hint: "Alfanumérico, hasta 15 caracteres" },
+  cd: { regex: /^[0-9]+$/, hint: "Numérico" },
+  pp: { regex: /^[A-Za-z0-9]+$/, hint: "Alfanumérico" },
+  pf: { regex: /^[A-Za-z0-9]+$/, hint: "Alfanumérico" },
+};
+
 var DEPARTAMENTOS_V3 = [
   "Amazonas","Antioquia","Arauca","Atlántico","Bolívar","Boyacá","Caldas","Caquetá","Casanare",
   "Cauca","Cesar","Chocó","Córdoba","Cundinamarca","Guainía","Guaviare","Huila","La Guajira",
@@ -146,7 +174,11 @@ var CAMPOS_CI_V3 = [
   { id: "CI_3", tipo: "text", label: "¿Con qué nombre se identifica o prefiere que le llamemos? (nombre identitario)", req: "C1", soloLetras: true },
   { id: "CI_4", tipo: "text", label: "¿Cuál es su número de teléfono de contacto en Colombia?", req: "C1" },
   { id: "CI_5", tipo: "dropdown", label: "¿Qué tipo de documento de identificación tiene?", enumCategory: "victim_case_form2_victim_doc_type", req: "C1" },
-  { id: "CI_6", tipo: "text", label: "¿Cuál es su número del documento de identificación?", req: "C1" },
+  // D13: "Persona sin identificación" no pide número (secciones.md) --
+  // antes CI_6 era incondicional, así que una víctima sin documento no
+  // podía completar nunca el módulo CI (A3 bloqueaba el guardado esperando
+  // un número que no existe).
+  { id: "CI_6", tipo: "text", label: "¿Cuál es su número del documento de identificación?", req: "C1", condicional: { campo: "__tieneNumeroDocumento", valor: true } },
   { id: "CI_7", tipo: "boolean", label: "¿Se reconoce como una persona con discapacidad?", req: "C1" },
   { id: "CI_8", tipo: "multiple", label: "¿Requiere de algún ajuste razonable en el marco de la atención a su caso de VBG y/o VpP?", req: "C1", condicional: { campo: "CI_7", valor: true }, enumCategory: "victim_case_form2_adjustments_gbv" },
   { id: "CI_9", tipo: "boolean", label: "¿Requiere intérprete de idiomas y/o traducción en otra lengua distinta al español?", req: "C1" },
@@ -171,9 +203,27 @@ var CAMPOS_DP_V3 = [
   { id: "DP_14", tipo: "boolean", label: "¿Se reconoce como persona campesina?", req: "C1" },
   { id: "DP_15", tipo: "dropdown", label: "¿Cuál es su estado civil?", req: "C2", enumCategory: "victim_case_form2_marital_status" },
   { id: "DP_16", tipo: "dropdown", label: "¿Cuál es el último nivel de escolaridad que ha finalizado?", req: "D", enumCategory: "victim_case_form2_last_education_level" },
-  { id: "DP_17", tipo: "dropdown", label: "¿Cuál es su ocupación?", req: "D", enumCategory: "victim_case_form2_occupation" },
+  // FIX (encontrado en vivo con Playwright, 2026-10-15): req era "D" acá
+  // pero triadaFieldsV3 (victim_case_v3_service.go) YA exigía DP_17 para
+  // triadaCompleta/Borrador->Iniciado desde antes de esta ronda. El agente
+  // podía completar CI+DP+CA+HV+AG según la UI (DP_17 nunca aparecía en
+  // "Faltan obligatorias") y el sidebar de TZ/GS se quedaba bloqueado sin
+  // ninguna pista de por qué -- A3 (guardar sección) y A1 (bloqueo de
+  // sidebar) usaban dos listas de obligatorias distintas para el mismo
+  // campo. secciones.md documenta DP_17 como "Deseable", así que el
+  // desacuerdo real está ahí -- se resuelve a favor del backend/triadaFieldsV3
+  // (ya probado para Borrador->Iniciado) en vez de arriesgar un Caso
+  // permanentemente bloqueado.
+  { id: "DP_17", tipo: "dropdown", label: "¿Cuál es su ocupación?", req: "C1", enumCategory: "victim_case_form2_occupation" },
   { id: "DP_18", tipo: "dropdown", label: "¿Cuál ha sido su forma de generación de ingresos actualmente o en los últimos 3 meses?", req: "D", enumCategory: "victim_case_form2_income_generation_method" },
-  { id: "DP_19", tipo: "dropdown", label: "¿Cuál es su tipo de vinculación laboral?", req: "D", enumCategory: "victim_case_form2_employment_relationship" },
+  // D14: le faltaba el condicional documentado en secciones.md -- "condicional
+  // (Q18=contrato formal o independiente)" -- antes era visible siempre.
+  { id: "DP_19", tipo: "dropdown", label: "¿Cuál es su tipo de vinculación laboral?", req: "D", condicionalEnumCodeIn: { campo: "DP_18", enumCategory: "victim_case_form2_income_generation_method", codes: ["em", "ta"] }, enumCategory: "victim_case_form2_employment_relationship" },
+  // D12: ausentes hasta esta ronda -- secciones.md Q20/21/22, condicional
+  // (Q17 o Q18 = Persona en ASP).
+  { id: "DP_20", tipo: "multiple", label: "¿Cuál es la modalidad en la que desarrolla actividades sexuales pagas (ASP)?", req: "C1", condicional: { campo: "__personaEnASP", valor: true }, enumCategory: "victim_case_form2_asp_mode" },
+  { id: "DP_21", tipo: "date", label: "¿Hace cuánto tiempo inició en las ASP aproximadamente?", req: "C1", condicional: { campo: "__personaEnASP", valor: true } },
+  { id: "DP_22", tipo: "multiple", label: "¿Cuál fue el principal motivo por el cual inició en las ASP?", req: "C1", condicional: { campo: "__personaEnASP", valor: true }, enumCategory: "victim_case_form2_reason_asp" },
   { id: "DP_23", tipo: "dropdown", label: "¿Cuál es la forma de tenencia de la vivienda donde reside actualmente?", req: "D", enumCategory: "victim_case_form2_housing_tenancy_form" },
   { id: "DP_24", tipo: "dropdown", label: "¿Cuál es el estrato de la vivienda en la que reside actualmente?", req: "D", enumCategory: "victim_case_form2_housing_stratum" },
   { id: "DP_25", tipo: "multiple", label: "¿Tiene personas o animales a su cargo?", req: "D", enumCategory: "victim_case_form2_has_dependents" },
@@ -185,11 +235,15 @@ var CAMPOS_DP_V3 = [
 ];
 
 // ── CA — Contacto de apoyo ────────────────────────────────────────────────
+// req: "C2" en las 4 -- FIX: estaban como "D" (Deseable), pero
+// registro-v3-secciones.md documenta un cambio de criterio explícito vs.
+// V2-real: "ya no es opcional, solo tiene gracia hasta el segundo contacto".
+// Quedaban como Deseable por error desde la implementación original.
 var CAMPOS_CA_V3 = [
-  { id: "CA_1", tipo: "text", label: "¿Podría indicarme el nombre de una persona de contacto de apoyo o emergencia en Colombia?", req: "D", soloLetras: true },
-  { id: "CA_2", tipo: "text", label: "¿Cuál es el número de teléfono de ese contacto de apoyo o emergencia?", req: "D" },
-  { id: "CA_3", tipo: "text", label: "¿Cuenta con un correo electrónico de ese contacto de apoyo o emergencia?", req: "D" },
-  { id: "CA_4", tipo: "dropdown", label: "¿Cuál es el parentesco o relación con esa persona de contacto?", req: "D", enumCategory: "victim_case_form2_support_contact_kinship" },
+  { id: "CA_1", tipo: "text", label: "¿Podría indicarme el nombre de una persona de contacto de apoyo o emergencia en Colombia?", req: "C2", soloLetras: true },
+  { id: "CA_2", tipo: "text", label: "¿Cuál es el número de teléfono de ese contacto de apoyo o emergencia?", req: "C2" },
+  { id: "CA_3", tipo: "text", label: "¿Cuenta con un correo electrónico de ese contacto de apoyo o emergencia?", req: "C2" },
+  { id: "CA_4", tipo: "dropdown", label: "¿Cuál es el parentesco o relación con esa persona de contacto?", req: "C2", enumCategory: "victim_case_form2_support_contact_kinship" },
 ];
 
 // Tipo de violencia (HV_9, código 2-letras) -> sufijo de categoría de
@@ -317,21 +371,27 @@ var CAMPOS_GS_B_V3 = [
   { id: "GS_7", tipo: "multiple", label: "¿Cuáles medidas de emergencia?", enumCategory: "victim_case_form2_emergency_measure" },
 ];
 
+// Vocabulario real de entity_branch/barrier_v2 -- igual que
+// CE_SECTORES_MODAL en case-entities.js. NO es el enum victim_case_form2_sector
+// (sa/ju/pr/ot): ver entity_branch_api_controller.go#ListByTownCode, que
+// traduce estas mismas 4 palabras a su propio código de 2 letras interno
+// (he/js/pt/os). Compartido por el buscador de Entidades y de Barreras,
+// porque ambos resuelven la misma sede real (entity_branch).
 var SECTORES_ENTIDAD_BARRERA_V3 = [
-  { value: "sa", label: "Salud" }, { value: "ju", label: "Justicia" },
-  { value: "pr", label: "Protección" }, { value: "ot", label: "Otras instituciones" },
+  { value: "salud", label: "Salud" }, { value: "justicia", label: "Justicia" },
+  { value: "proteccion", label: "Protección" }, { value: "otras_instituciones", label: "Otras instituciones" },
 ];
 var CANAL_ACTIVACION_V3 = [
   { value: "no", label: "Notificación (tarea)" }, { value: "ll", label: "Llamada (tarea)" },
   { value: "ms", label: "Mi Salvia (Gestión institucional externa) (tarea)" },
 ];
 
-// Sector (GS § C/D, código 2-letras) -> categoría de barreras específicas.
-// Solo salud/justicia/protección tienen catálogo propio; "otras instituciones"
-// usa directamente las transversales (institutional/economic/territorial/
-// differential), sin lista "specific".
+// Sector (vocabulario real, ver SECTORES_ENTIDAD_BARRERA_V3) -> categoría de
+// barreras específicas. Solo salud/justicia/protección tienen catálogo
+// propio; "otras instituciones" usa directamente las transversales
+// (institutional/economic/territorial/differential), sin lista "specific".
 var SECTOR_A_CATEGORIA_BARRERA_V3 = {
-  sa: "victim_case_form2_barrier_health", ju: "victim_case_form2_barrier_justice", pr: "victim_case_form2_barrier_protect",
+  salud: "victim_case_form2_barrier_health", justicia: "victim_case_form2_barrier_justice", proteccion: "victim_case_form2_barrier_protect",
 };
 var CATEGORIAS_BARRERA_TRANSVERSAL_V3 = [
   { campo: "institutional", enumCategory: "victim_case_form2_barrier_institutional", label: "Barreras institucionales y de talento humano" },

@@ -1533,6 +1533,9 @@ func DisableGeneralUserByICode(dataInput string, id string, s utils.CommonSessio
 		return http.StatusInternalServerError, err.Error()
 	}
 
+	// Se cierran las sesiones activas del usuario para que el bloqueo sea inmediato
+	utils.RemoveCommonSessionsByUserICode(usrToUpdate.GeneralUserICode)
+
 	return http.StatusOK, ""
 }
 

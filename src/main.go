@@ -274,8 +274,10 @@ func main() {
 	duplaAdminSvc := service.NewDuplaAdminService(duplaRepo, psychosocialReassignRepo)
 	psychosocialCalendarSvc := service.NewPsychosocialCalendarService(psychosocialCalendarRepo)
 
-	// Registro V3
-	victimCaseV3Svc := service.NewVictimCaseV3Service(victimCaseV3Repo)
+	// Registro V3 -- Entidades/Barreras reusan las mismas instancias de
+	// entityCaseRepo/entityCaseObligationRepo/barrierV2Repo que ya usan
+	// "Gestión institucional" y Seguimiento (ver registro-v3-pendientes.md § B).
+	victimCaseV3Svc := service.NewVictimCaseV3Service(victimCaseV3Repo, entityCaseRepo, entityCaseObligationRepo, barrierV2Repo)
 
 	// Gestión de reportes (FigJam l25jrzyf)
 	victimContactsListSvc := service.NewVictimContactsListService(victimContactsListRepo)

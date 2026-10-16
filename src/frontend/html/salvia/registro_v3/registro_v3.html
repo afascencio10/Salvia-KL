@@ -1,5 +1,5 @@
 <main class="salvia-main">
-<div class="container" id="app" style="display:none;">
+<div class="container">
 
   <div class="welcome-section">
     <h2><b>Registro V3</b></h2>
@@ -12,6 +12,29 @@
     <p>Sus datos serán usados únicamente para fines institucionales relacionados con su atención y los servicios del Ministerio. Usted tiene derecho a conocer, actualizar, corregir o solicitar la eliminación de sus datos, así como a presentar quejas ante la Superintendencia de Industria y Comercio.</p>
     <p>Cuando durante la atención se identifiquen situaciones que requieran protección o intervención institucional, el Sistema SALVIA podrá activar las rutas de atención correspondientes y remitir la información a las entidades competentes.</p>
     <button class="btn btn-primary" @click="aceptarHabeasData">Acepto y continuar</button>
+    <button class="btn btn-outline-secondary ms-2" @click="rechazarHabeasData">No acepto</button>
+  </div>
+
+  <!-- ─────────────────── Habeas Data: rechazado (D2) ─────────────────── -->
+  <div v-if="etapa==='formularioCerrado'">
+    <div class="alert alert-warning">
+      La persona no autorizó el tratamiento de sus datos personales. No se crea ningún registro ni se guarda ninguna respuesta.
+    </div>
+  </div>
+
+  <!-- ─────────────────────── Tipo de contacto (D1) ───────────────────── -->
+  <div v-if="etapa==='tipoContacto'">
+    <div class="tituloform"><h2>Tipo de contacto</h2></div>
+    <div class="list-group mb-3" style="max-width:480px">
+      <button class="list-group-item list-group-item-action" @click="seleccionarTipoContacto('victima_caso_nuevo')">Víctima - Caso Nuevo</button>
+      <button class="list-group-item list-group-item-action" @click="seleccionarTipoContacto('victima_seguimiento')">Víctima - Seguimiento</button>
+      <button class="list-group-item list-group-item-action" @click="seleccionarTipoContacto('tercero_reporte')">Tercero - Reporte</button>
+      <button class="list-group-item list-group-item-action" @click="seleccionarTipoContacto('familiares')">Familiares (feminicidio)</button>
+      <button class="list-group-item list-group-item-action" @click="seleccionarTipoContacto('hombres')">Hombres</button>
+    </div>
+    <div v-if="tipoContactoNoDisponible" class="alert alert-info">
+      Este tipo de contacto se gestiona en otra pantalla del sistema, fuera de Registro V3. Cierra este formulario y continúa desde el menú principal.
+    </div>
   </div>
 
   <!-- ───────────────────────── Cabezote ──────────────────────────── -->
@@ -34,13 +57,16 @@
     <div v-if="errorBusqueda" class="alert alert-danger">${errorBusqueda}</div>
 
     <table class="table" v-if="resultadosBusqueda.length">
-      <thead><tr><th>Nombre</th><th>Documento</th><th>Teléfono</th><th>Estado</th><th></th></tr></thead>
+      <thead><tr><th>Nombre</th><th>Documento</th><th>Teléfono</th><th>Estado</th><th>Registro</th><th></th></tr></thead>
       <tbody>
         <tr v-for="r in resultadosBusqueda" :key="r.icode">
           <td>${r.names} ${r.lastNames}</td>
           <td>${r.docType}-${r.docNumber}</td>
           <td>${r.phone}</td>
           <td>${r.status}</td>
+          <td>
+            <span class="badge" :class="r.registroCompleto ? 'bg-success' : 'bg-secondary'">${r.registroCompleto ? 'Completo' : 'Incompleto'}</span>
+          </td>
           <td><button class="btn btn-sm btn-outline-primary" @click="abrirCaso(r.icode)">Abrir</button></td>
         </tr>
       </tbody>
@@ -54,23 +80,31 @@
   <!-- ───────────────────────── Formulario ────────────────────────── -->
   <div v-if="etapa==='formulario'">
     <div class="mb-2" v-if="resumenCaso">
-      <b>${resumenCaso.names} ${resumenCaso.lastNames}</b> — ${resumenCaso.docType}-${resumenCaso.docNumber}
+      <b>${tratamiento()} ${resumenCaso.names} ${resumenCaso.lastNames}</b> — ${resumenCaso.docType}-${resumenCaso.docNumber}
       <span class="badge bg-info">${resumenCaso.status}</span>
     </div>
     <div v-if="triadaCompleta" class="alert alert-success">La información mínima de contacto, víctima y hecho está completa — el Caso pasó a <b>Iniciado</b>.</div>
+    <button class="btn btn-sm btn-outline-dark float-end" :disabled="guardando" @click="guardarYSalir">Finalizar llamada (guardar y salir)</button>
 
-    <ul class="nav nav-tabs mb-3">
+    <ul class="nav nav-tabs mb-1">
       <li class="nav-item" v-for="m in modulos" :key="m.id">
-        <a class="nav-link" href="#" :class="{active: moduloActivo===m.id}" @click.prevent="irAModulo(m.id)">${m.label}</a>
+        <a class="nav-link" href="#" :class="{active: moduloActivo===m.id, 'text-muted': moduloBloqueado(m.id)}"
+          :title="moduloBloqueado(m.id) ? 'Completa primero CI/DP/CA/HV/AG' : ''"
+          @click.prevent="irAModulo(m.id)">${m.label}<span v-if="moduloBloqueado(m.id)"> 🔒</span></a>
       </li>
     </ul>
+    <div v-if="mensajeModuloBloqueado" class="alert alert-warning py-2">${mensajeModuloBloqueado}</div>
 
     <!-- Módulos genéricos: CI / DP / CA / HV / AG -->
     <div v-if="['CI','DP','CA','HV','AG'].indexOf(moduloActivo)>=0">
       <div v-for="campo in camposVisibles(moduloActivo)" :key="campo.id" class="mb-3">
         <label class="form-label">${campo.label}</label>
 
-        <input v-if="campo.tipo==='text'" class="form-control" :value="getVal(campo.id)" :placeholder="campo.placeholder||''" @input="setVal(campo.id,$event.target.value)">
+        <input v-if="campo.tipo==='text'" class="form-control" :class="{'is-invalid': campoSoloLetrasInvalido(campo) || (campo.id==='CI_6' && ci6Invalido())}" :value="getVal(campo.id)" :placeholder="campo.placeholder||''" @input="setVal(campo.id,$event.target.value)">
+        <div v-if="campoSoloLetrasInvalido(campo)" class="text-danger small">No puede ser solo números.</div>
+        <div v-if="campo.id==='CI_6' && ci6Mascara()" class="small text-muted">Formato esperado: ${ci6Mascara().hint}</div>
+        <div v-if="campo.id==='CI_6' && ci6Invalido()" class="text-danger small">No cumple el formato esperado.</div>
+        <div v-if="campo.id==='CI_6' && avisoDuplicidad" class="alert alert-warning py-1 px-2 small mt-1">${avisoDuplicidad}</div>
 
         <textarea v-else-if="campo.tipo==='textarea'" class="form-control" rows="3" :value="getVal(campo.id)" @input="setVal(campo.id,$event.target.value)"></textarea>
 
@@ -155,14 +189,26 @@
         <button class="btn btn-primary" :disabled="tzGuardando" @click="guardarTamizaje">Calcular y guardar Tamizaje</button>
       </div>
 
-      <div v-if="tzResultado" class="alert alert-info mt-3">
+      <div v-if="tzResultado" class="alert mt-3" :class="riesgoEsAlto() ? 'alert-danger' : 'alert-info'">
         Tipo de riesgo: <b>${tzResultado.riskType}</b> — Nivel: <b>${tzResultado.riskLevel}</b> — Puntaje: ${tzResultado.score}
         <span v-if="tzResultado.tieFlag"> — (empate Feminicidio/Homicidio abyecto: se priorizó Feminicidio)</span>
+        <div v-if="riesgoEsAlto()">⚠️ Nivel de riesgo alto — considere activar la Alerta Inminente en Gestión Salvia.</div>
+      </div>
+      <!-- D10 (flow-E11): alerta de ideación suicida -- marcaje y abordaje de remisión psicosocial (secciones.md, item 24 de cada rama de Tamizaje). -->
+      <div v-if="hayIdeacionSuicida()" class="alert alert-danger mt-2">
+        ⚠️ Se marcó ideación suicida. Debe abordarse con remisión psicosocial (Gestión Salvia § B, Atención Psicosocial).
       </div>
     </div>
 
     <!-- Gestión Salvia -->
     <div v-if="moduloActivo==='GS'">
+      <!-- Encontrado en vivo con Playwright (2026-10-15): secciones.md dice
+           "Al entrar a este módulo se muestra primero el párrafo síntesis"
+           -- el párrafo síntesis reescrito (D3-D5) solo se había conectado
+           a la pantalla de Cierre, nunca a la entrada de GS. -->
+      <div class="alert alert-secondary" v-if="parrafoSintesis()">
+        <strong>Párrafo síntesis:</strong> ${parrafoSintesis()}
+      </div>
       <h5>A. Denuncia y gestión general</h5>
       <div v-for="campo in camposVisibles('GS')" :key="campo.id" class="mb-3">
         <label class="form-label">${campo.label}</label>
@@ -227,17 +273,105 @@
       <div class="form-check form-check-inline mb-2">
         <input class="form-check-input" type="radio" name="GS_14" :checked="answers['GS_14']==='false'" @change="setBool('GS_14',false)"><label class="form-check-label">No</label>
       </div>
+      <div class="form-check form-check-inline mb-2">
+        <input class="form-check-input" type="radio" name="GS_16" :checked="answers['GS_16']==='true'" @change="setBool('GS_16',true)"><label class="form-check-label">¿Salvia debe activar rutas en el marco de la debida diligencia? Sí</label>
+      </div>
+      <div class="form-check form-check-inline mb-2">
+        <input class="form-check-input" type="radio" name="GS_16" :checked="answers['GS_16']==='false'" @change="setBool('GS_16',false)"><label class="form-check-label">No</label>
+      </div>
+      <div v-if="answers['GS_14']==='true' || answers['GS_16']==='true'">
+        <div class="form-check form-check-inline mb-2">
+          <input class="form-check-input" type="radio" name="GS_15" :checked="answers['GS_15']==='true'" @change="setBool('GS_15',true)"><label class="form-check-label">¿Está de acuerdo con que SALVIA realice la activación de la Ruta de Atención? Sí</label>
+        </div>
+        <div class="form-check form-check-inline mb-2">
+          <input class="form-check-input" type="radio" name="GS_15" :checked="answers['GS_15']==='false'" @change="setBool('GS_15',false)"><label class="form-check-label">No</label>
+        </div>
+      </div>
 
-      <table class="table table-sm" v-if="entidades.length">
-        <thead><tr><th>Tipo</th><th>Nombre</th><th>N° radicado</th><th></th></tr></thead>
-        <tbody>
-          <tr v-for="(e,idx) in entidades" :key="e.ICode||idx">
-            <td>${e.Kind}</td><td>${e.Name}</td><td>${e.FileNumber}</td>
-            <td><button class="btn btn-sm btn-outline-danger" @click="eliminarEntidad(e.ICode, idx)">Eliminar</button></td>
-          </tr>
-        </tbody>
-      </table>
+      <!-- Entidades ya agregadas, cada una con sus Barreras anidadas como
+           sub-repeater (0, 1 o más por entidad) -- ver
+           registro-v3-pendientes.md § B. La asociación barrera->entidad es
+           la MISMA que ya usa "Gestión institucional" para contar
+           "barreras activas" por entidad (case_id + entity_branch_id, ver
+           entity_case_repository.go) -- no hace falta columna nueva. -->
+      <div v-if="entidades.length" class="mb-3">
+        <div class="card card-body mb-2" v-for="e in entidades" :key="e.relId">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <span class="badge bg-secondary">${sectorLabelEntidadBarrera(e.sector)}</span>
+              <strong>${e.entityBranchName}</strong>
+              <div class="small text-muted">${ubicacionEntidad(e)}</div>
+            </div>
+            <button class="btn btn-sm btn-outline-danger" @click="eliminarEntidad(e.relId)">Eliminar entidad</button>
+          </div>
 
+          <table class="table table-sm mt-2 mb-1" v-if="barrerasDeEntidad(e).length">
+            <thead><tr><th>Descripción</th><th>Gestión</th><th></th></tr></thead>
+            <tbody>
+              <tr v-for="b in barrerasDeEntidad(e)" :key="b.id">
+                <td>${b.description}</td><td>${b.managementActions}</td>
+                <td><button class="btn btn-sm btn-outline-danger" @click="eliminarBarrera(b.id)">Eliminar</button></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <button class="btn btn-sm btn-outline-secondary mt-1" v-if="answers['GS_17']==='true' && barreraParaEntidad!==e.entityBranchId" @click="abrirBarreraParaEntidad(e)">+ Agregar barrera a esta entidad</button>
+
+          <div class="border rounded p-2 mt-2" v-if="barreraParaEntidad===e.entityBranchId">
+            <div v-if="barreraCategoriaSector()">
+              <label class="form-label">Barreras específicas del sector</label>
+              <div class="form-check" v-for="o in opcionesBarreraSector()" :key="o.code">
+                <input class="form-check-input" type="checkbox" :checked="nuevaBarrera.Specific.indexOf(o.code)>=0" @change="toggleEnArray(nuevaBarrera.Specific, o.code)">
+                <label class="form-check-label small">${o.label}</label>
+              </div>
+            </div>
+            <div v-if="nuevaBarrera.SectorCode==='otras_instituciones'">
+              <label class="form-label">¿Cuál otra barrera?</label>
+              <input class="form-control" v-model="nuevaBarrera.OtherDetail">
+            </div>
+
+            <div class="mt-2" v-for="cat in categoriasTransversales()" :key="cat.campo">
+              <label class="form-label">${cat.label}</label>
+              <div class="form-check" v-for="o in opcionesTransversal(cat.enumCategory)" :key="o.code">
+                <input class="form-check-input" type="checkbox" :checked="nuevaBarrera[cat.campo==='institutional'?'Institutional':cat.campo==='economic'?'Economic':cat.campo==='territorial'?'Territorial':'Differential'].indexOf(o.code)>=0"
+                  @change="toggleEnArray(nuevaBarrera[cat.campo==='institutional'?'Institutional':cat.campo==='economic'?'Economic':cat.campo==='territorial'?'Territorial':'Differential'], o.code)">
+                <label class="form-check-label small">${o.label}</label>
+              </div>
+            </div>
+
+            <div class="mt-2">
+              <label class="form-label">Competencias institucionales de la entidad</label>
+              <div v-if="competenciasCargando" class="small text-muted">Cargando competencias...</div>
+              <div v-else-if="competenciasBarrera.length===0" class="small text-muted">Sin competencias catalogadas para este sector.</div>
+              <div class="form-check" v-for="o in competenciasBarrera" :key="o.value">
+                <input class="form-check-input" type="checkbox" :checked="nuevaBarrera.Competences.indexOf(o.value)>=0" @change="toggleEnArray(nuevaBarrera.Competences, o.value)">
+                <label class="form-check-label small">${o.label}</label>
+              </div>
+            </div>
+
+            <label class="form-label mt-2">Fecha en la que se presentó la barrera</label>
+            <input type="date" class="form-control" v-model="nuevaBarrera.Date">
+            <label class="form-label mt-2">Funcionario(a) o dependencia donde se presentó</label>
+            <input class="form-control" v-model="nuevaBarrera.Official">
+            <label class="form-label mt-2">Descripción de la barrera</label>
+            <textarea class="form-control" rows="2" v-model="nuevaBarrera.Description"></textarea>
+
+            <label class="form-label mt-2">Gestión realizada</label>
+            <div class="form-check" v-for="o in opcionesGestionBarrera()" :key="o.code">
+              <input class="form-check-input" type="checkbox" :checked="nuevaBarrera.Management.indexOf(o.code)>=0" @change="toggleEnArray(nuevaBarrera.Management, o.code)">
+              <label class="form-check-label small">${o.label}</label>
+            </div>
+
+            <div v-if="errorBarrera" class="text-danger small mt-2">${errorBarrera}</div>
+            <button class="btn btn-sm btn-outline-dark mt-2" @click="cerrarBarreraParaEntidad">Cancelar</button>
+            <button class="btn btn-secondary mt-2" @click="agregarBarrera" :disabled="!nuevaBarrera.Description || !nuevaBarrera.Date || !nuevaBarrera.Official">+ Agregar barrera</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Buscador real: Departamento/Ciudad/Municipio + Sector -> entity_branch,
+           misma lógica que la pestaña "Gestión institucional" y el form de
+           Seguimiento (case-entities.js) -- ver registro-v3-pendientes.md § B. -->
       <div class="card card-body mb-3">
         <div class="row g-2">
           <div class="col-md-3">
@@ -248,103 +382,92 @@
             </select>
           </div>
           <div class="col-md-3">
+            <label class="form-label">Departamento</label>
+            <select class="form-control" v-model="nuevaEntidad.depto" @change="onCambiaDeptoEntidad">
+              <option value="">Seleccione...</option>
+              <option v-for="d in geoDepartamentos" :key="d.value" :value="d.value">${d.label}</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Ciudad</label>
+            <select class="form-control" v-model="nuevaEntidad.ciudad" @change="onCambiaCiudadEntidad" :disabled="!nuevaEntidad.depto">
+              <option value="">Seleccione...</option>
+              <option v-for="c in entidadCiudades" :key="c.value" :value="c.value">${c.label}</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Municipio</label>
+            <select class="form-control" v-model="nuevaEntidad.municipio" @change="onCambiaMunicipioEntidad" :disabled="!nuevaEntidad.ciudad">
+              <option value="">Seleccione...</option>
+              <option v-for="m in entidadMunicipios" :key="m.value" :value="m.value">${m.label}</option>
+            </select>
+          </div>
+          <div class="col-md-3">
             <label class="form-label">Sector</label>
-            <select class="form-control" v-model="nuevaEntidad.SectorCode">
+            <select class="form-control" v-model="nuevaEntidad.sector" @change="onCambiaSectorEntidad" :disabled="!nuevaEntidad.municipio">
               <option value="">Seleccione...</option>
               <option v-for="s in SECTORES_ENTIDAD_BARRERA_V3" :key="s.value" :value="s.value">${s.label}</option>
             </select>
           </div>
-          <div class="col-md-3">
-            <label class="form-label">Nombre de la entidad</label>
-            <input class="form-control" v-model="nuevaEntidad.Name">
+          <div class="col-md-9 small text-muted align-self-center" v-if="entidadBuscando">Buscando sedes disponibles...</div>
+          <div class="col-md-9 small text-muted align-self-center" v-else-if="nuevaEntidad.sector && entidadesDisponibles.length===0">No hay sedes registradas en este municipio y sector.</div>
+          <div class="col-md-6" v-if="entidadesDisponibles.length">
+            <label class="form-label">Entidad</label>
+            <select class="form-control" v-model="nuevaEntidad.EntityBranchID" @change="onCambiaEntidadSeleccionada">
+              <option value="">Seleccione...</option>
+              <option v-for="opt in entidadesDisponibles" :key="opt.id" :value="opt.id">${opt.name}</option>
+            </select>
           </div>
-          <div class="col-md-3">
+          <div class="col-md-3" v-if="nuevaEntidad.EntityBranchID">
             <label class="form-label">N° radicado</label>
             <input class="form-control" v-model="nuevaEntidad.FileNumber">
           </div>
-          <div class="col-md-3" v-if="nuevaEntidad.Kind==='activacion'">
+          <div class="col-md-3" v-if="nuevaEntidad.EntityBranchID && nuevaEntidad.Kind==='activacion'">
             <label class="form-label">Canal de activación</label>
             <select class="form-control" v-model="nuevaEntidad.ActivationChannel">
               <option value="">Seleccione...</option>
               <option v-for="c in CANAL_ACTIVACION_V3" :key="c.value" :value="c.value">${c.label}</option>
             </select>
           </div>
-          <div class="col-md-6">
-            <label class="form-label">Información adicional</label>
+          <div class="col-md-6" v-if="nuevaEntidad.EntityBranchID">
+            <label class="form-label">${nuevaEntidad.Kind==='acudida' ? 'Objetivo con la entidad' : 'Información adicional'}</label>
             <input class="form-control" v-model="nuevaEntidad.OtherInfo">
           </div>
         </div>
-        <button class="btn btn-secondary mt-2" @click="agregarEntidad" :disabled="!nuevaEntidad.SectorCode">+ Siguiente entidad</button>
+
+        <div class="mt-2" v-if="nuevaEntidad.EntityBranchID">
+          <label class="form-label">Acciones institucionales</label>
+          <div v-if="obligacionesCargando" class="small text-muted">Cargando tareas...</div>
+          <div v-else-if="obligacionesEntidad.length===0" class="small text-muted">Esta entidad no tiene tareas configuradas en el catálogo.</div>
+          <template v-else>
+            <div v-if="nuevaEntidad.Kind==='acudida'">
+              <label class="form-label small">Completadas</label>
+              <div class="form-check" v-for="o in obligacionesEntidad" :key="'c-'+o.value">
+                <input class="form-check-input" type="checkbox" :checked="nuevaEntidad.CompletedActions.indexOf(o.value)>=0" @change="toggleEnArray(nuevaEntidad.CompletedActions, o.value)">
+                <label class="form-check-label small">${o.label}</label>
+              </div>
+            </div>
+            <label class="form-label small">Pendientes</label>
+            <div class="form-check" v-for="o in obligacionesEntidad" :key="'p-'+o.value">
+              <input class="form-check-input" type="checkbox" :checked="nuevaEntidad.PendingActions.indexOf(o.value)>=0" @change="toggleEnArray(nuevaEntidad.PendingActions, o.value)">
+              <label class="form-check-label small">${o.label}</label>
+            </div>
+          </template>
+        </div>
+
+        <div v-if="errorEntidad" class="text-danger small mt-2">${errorEntidad}</div>
+        <button class="btn btn-secondary mt-2" @click="agregarEntidad" :disabled="!nuevaEntidad.EntityBranchID">+ Siguiente entidad</button>
       </div>
 
       <hr>
-      <h5>D. Registrar barreras</h5>
+      <h5>D. Barreras institucionales</h5>
       <div class="form-check form-check-inline mb-2">
         <input class="form-check-input" type="radio" name="GS_17" :checked="answers['GS_17']==='true'" @change="setBool('GS_17',true)"><label class="form-check-label">¿Se identificaron barreras? Sí</label>
       </div>
       <div class="form-check form-check-inline mb-2">
         <input class="form-check-input" type="radio" name="GS_17" :checked="answers['GS_17']==='false'" @change="setBool('GS_17',false)"><label class="form-check-label">No</label>
       </div>
-
-      <table class="table table-sm" v-if="barreras.length">
-        <thead><tr><th>Sector</th><th>Descripción</th><th></th></tr></thead>
-        <tbody>
-          <tr v-for="(b,idx) in barreras" :key="b.ICode||idx">
-            <td>${b.SectorCode}</td><td>${b.Description}</td>
-            <td><button class="btn btn-sm btn-outline-danger" @click="eliminarBarrera(b.ICode, idx)">Eliminar</button></td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div class="card card-body mb-3" v-if="answers['GS_17']==='true'">
-        <div class="row g-2">
-          <div class="col-md-3">
-            <label class="form-label">Sector</label>
-            <select class="form-control" v-model="nuevaBarrera.SectorCode">
-              <option value="">Seleccione...</option>
-              <option v-for="s in SECTORES_ENTIDAD_BARRERA_V3" :key="s.value" :value="s.value">${s.label}</option>
-            </select>
-          </div>
-          <div class="col-md-5">
-            <label class="form-label">Entidad</label>
-            <input class="form-control" v-model="nuevaBarrera.EntityName">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Fecha</label>
-            <input type="date" class="form-control" v-model="nuevaBarrera.Date">
-          </div>
-        </div>
-
-        <div class="mt-2" v-if="barreraCategoriaSector()">
-          <label class="form-label">Barreras específicas del sector</label>
-          <div class="form-check" v-for="o in opcionesBarreraSector()" :key="o.icode">
-            <input class="form-check-input" type="checkbox" :checked="nuevaBarrera.Specific.indexOf(o.icode)>=0" @change="toggleEnArray(nuevaBarrera.Specific, o.icode)">
-            <label class="form-check-label small">${o.label}</label>
-          </div>
-        </div>
-
-        <div class="mt-2" v-for="cat in categoriasTransversales()" :key="cat.campo">
-          <label class="form-label">${cat.label}</label>
-          <div class="form-check" v-for="o in opcionesTransversal(cat.enumCategory)" :key="o.icode">
-            <input class="form-check-input" type="checkbox" :checked="nuevaBarrera[cat.campo==='institutional'?'Institutional':cat.campo==='economic'?'Economic':cat.campo==='territorial'?'Territorial':'Differential'].indexOf(o.icode)>=0"
-              @change="toggleEnArray(nuevaBarrera[cat.campo==='institutional'?'Institutional':cat.campo==='economic'?'Economic':cat.campo==='territorial'?'Territorial':'Differential'], o.icode)">
-            <label class="form-check-label small">${o.label}</label>
-          </div>
-        </div>
-
-        <label class="form-label mt-2">Funcionario(a) que atendió</label>
-        <input class="form-control" v-model="nuevaBarrera.Official">
-        <label class="form-label mt-2">Descripción de la barrera</label>
-        <textarea class="form-control" rows="2" v-model="nuevaBarrera.Description"></textarea>
-
-        <label class="form-label mt-2">Gestión realizada</label>
-        <div class="form-check" v-for="o in opcionesGestionBarrera()" :key="o.icode">
-          <input class="form-check-input" type="checkbox" :checked="nuevaBarrera.Management.indexOf(o.icode)>=0" @change="toggleEnArray(nuevaBarrera.Management, o.icode)">
-          <label class="form-check-label small">${o.label}</label>
-        </div>
-
-        <button class="btn btn-secondary mt-2" @click="agregarBarrera" :disabled="!nuevaBarrera.SectorCode || !nuevaBarrera.Description">+ Siguiente barrera</button>
-      </div>
+      <p class="small text-muted" v-if="answers['GS_17']==='true' && !entidades.length">Primero agrega la entidad relacionada en la sección C -- las barreras se registran dentro de cada entidad.</p>
 
       <hr>
       <h5>E. Alerta Inminente</h5>
@@ -365,15 +488,49 @@
       </div>
 
       <hr>
+      <div v-if="errorFinalizar" class="alert alert-danger">${errorFinalizar}</div>
       <button class="btn btn-success" @click="finalizarRegistro">Finalizar registro y enrutar a Seguimiento</button>
     </div>
   </div>
 
-  <!-- ───────────────────────── Cierre ────────────────────────────── -->
+  <!-- ───────────────────── Cierre (D15, 2026-10-15) ─────────────────────
+       Reconstruida a partir de registro-v3-interface.md: 4 tarjetas +
+       tabla de actuaciones + bitácora + remisiones + navegación. Antes
+       era un solo párrafo. No incluye enlace a "Ir a Seguimiento": la
+       ruta real (/salvia/hacer-seguimiento/:id) espera el id de un
+       follow_up_v2 que todavía no existe para un Caso recién terminado
+       (no el icode de este Caso) -- enlazarla ahí sería un enlace roto,
+       no una mejora. Tampoco enlaza al Expediente de víctima (D2,
+       diferido a otra ronda). -->
   <div v-if="etapa==='cierre'">
     <div class="alert alert-success">Registro finalizado.</div>
+    <div v-if="mensajeCierre" class="alert alert-info">${mensajeCierre}</div>
+
+    <div class="row g-2 mb-3">
+      <div class="col-md-3"><div class="card card-body text-center"><div class="small text-muted">Estado</div><div class="fs-5">Terminado</div></div></div>
+      <div class="col-md-3"><div class="card card-body text-center"><div class="small text-muted">Nivel de riesgo</div><div class="fs-5" :class="riesgoEsAlto() ? 'text-danger' : ''">${tzResultado ? tzResultado.riskLevel : '—'}</div></div></div>
+      <div class="col-md-3"><div class="card card-body text-center"><div class="small text-muted">Entidades</div><div class="fs-5">${entidades.length}</div></div></div>
+      <div class="col-md-3"><div class="card card-body text-center"><div class="small text-muted">Barreras</div><div class="fs-5">${barreras.length}</div></div></div>
+    </div>
+
     <h5>Párrafo síntesis</h5>
     <p>${parrafoSintesis()}</p>
+
+    <h5>Tabla de actuaciones</h5>
+    <table class="table table-sm" v-if="entidades.length || barreras.length">
+      <thead><tr><th>Tipo</th><th>Detalle</th></tr></thead>
+      <tbody>
+        <tr v-for="e in entidades" :key="'e-'+e.relId"><td>Entidad</td><td>${e.entityBranchName} (${sectorLabelEntidadBarrera(e.sector)})</td></tr>
+        <tr v-for="b in barreras" :key="'b-'+b.id"><td>Barrera</td><td>${b.description}</td></tr>
+      </tbody>
+    </table>
+    <p class="text-muted small" v-else>Sin entidades ni barreras registradas.</p>
+
+    <h5>Bitácora</h5>
+    <p v-if="answers['GS_4']">${answers['GS_4']}</p>
+    <p class="text-muted small" v-else>Sin acompañamiento registrado.</p>
+
+    <button class="btn btn-outline-secondary mt-2" @click="volverACabezote">Volver al Cabezote</button>
   </div>
 
 </div>

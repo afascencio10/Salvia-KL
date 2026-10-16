@@ -4,8 +4,10 @@ import (
 	"bitsflow/common/utils"
 	salvia_config "bitsflow/salvia/config"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -40,7 +42,21 @@ type VictimCaseV3Repository interface {
 	// (categorías victim_case_form2_tzv3_risk_type/_risk_level).
 	SaveTamizajeBranch(ctx context.Context, icode string, wasPartner bool, answersByKey map[string]string, riskTypeCode, riskLevelCode string, riskScore int, tieFlag bool) error
 
+	// GetTamizajeResult relee el resultado de Tamizaje guardado por
+	// SaveTamizajeBranch (tipo/nivel/score, como codes de 2-char). BUG
+	// encontrado en QA (2026-10-15): GetCase nunca repoblaba esto, así que
+	// el Cierre mostraba "Nivel de riesgo: —" salvo que Finalizar se
+	// disparara en la misma sesión de navegador donde se guardó el
+	// Tamizaje (tzResultado era puramente en memoria, nunca se releía del
+	// backend al reabrir/recargar el Caso). riskLevelCode == "" si el
+	// Tamizaje nunca se ha guardado para este Caso.
+	GetTamizajeResult(ctx context.Context, icode string) (riskTypeCode, riskLevelCode string, riskScore int, err error)
+
 	GetAnswers(ctx context.Context, icode string) (map[string]string, error)
+	// GetAnsweredKeys -- ver markKeysAnswered. Criterio real de "el agente
+	// llegó a responder esto", a diferencia de GetAnswers (valor guardado,
+	// dummy o real, indistinguibles para bool_enum/enum1/date/time).
+	GetAnsweredKeys(ctx context.Context, icode string) (map[string]bool, error)
 	GetCaseSummary(ctx context.Context, icode string) (*VictimCaseV3Summary, error)
 	UpdateStatus(ctx context.Context, icode, status string) error
 	// UpdateStatusIfCurrent transiciona solo si el estado actual es
@@ -48,17 +64,9 @@ type VictimCaseV3Repository interface {
 	// reevaluada tras eliminar una respuesta y volver a completarla) revierta
 	// un Caso que el agente ya hizo avanzar a Terminado/Cerrado por otra vía.
 	UpdateStatusIfCurrent(ctx context.Context, icode, expectedCurrent, newStatus string) error
-	IsRegistroComplete(ctx context.Context, docType, docNumber string) (bool, error)
+	MostRecentCaseByDocument(ctx context.Context, docType, docNumber string) (icode string, err error)
 
 	StoreCredentials(ctx context.Context, icode, login, password string) error
-
-	AddEntity(ctx context.Context, e VictimCaseEntityInput) (string, error)
-	RemoveEntity(ctx context.Context, entityICode string) error
-	ListEntities(ctx context.Context, icode string) ([]VictimCaseEntityInput, error)
-
-	AddBarrier(ctx context.Context, b VictimCaseBarrierInput) (string, error)
-	RemoveBarrier(ctx context.Context, barrierICode string) error
-	ListBarriers(ctx context.Context, icode string) ([]VictimCaseBarrierInput, error)
 
 	// ListEnumCategories expone el catálogo de opciones (code/icode/label)
 	// de todas las categorías que usa Registro V3 -- ver
@@ -81,45 +89,61 @@ type VictimCaseV3Summary struct {
 	DocNumber string `json:"docNumber"`
 	Phone     string `json:"phone"`
 	Status    string `json:"status"`
+	// RegistroCompleto -- D1/D9: calculado por el service (victimCaseV3Service.Search)
+	// sobre el Caso más reciente con este documento, no por fila. Todas las
+	// filas que comparten documento llevan el mismo valor.
+	RegistroCompleto bool `json:"registroCompleto"`
 }
 
 type CreateDraftV3Input struct {
-	DocType           string
-	DocNumber         string
-	Phone             string
-	ResidenceTownCode string
-	AgentID           string
-	Channel           string
-	GeneralUserICode  string
-	GeneralUserLogin  string
+	DocType            string
+	DocNumber          string
+	Phone              string
+	ResidenceTownCode  string
+	AgentID            string
+	Channel            string
+	GeneralUserICode   string
+	GeneralUserLogin   string
 	GeneralUserPassSha string
 }
 
+// VictimCaseEntityInput -- "Agregar entidad" (GS § C). Reconstruido sobre el
+// modelo real de entity_case/entity_case_obligation (el mismo que usan la
+// pestaña "Gestión institucional" y el form de Seguimiento -- ver
+// registro-v3-pendientes.md § B): el agente filtra por Departamento/Ciudad/
+// Municipio + Sector para encontrar la sede real (entity_branch) en vez de
+// escribir el nombre a mano; EntityBranchID es la selección resultante.
 type VictimCaseEntityInput struct {
-	ICode              string
-	VictimCaseICode    string
-	Kind               string // 'acudida' | 'activacion'
-	SectorCode         string // 'sa'|'ju'|'pr'|'ot' -- se resuelve a enum id
-	Department         string
-	City               string
-	Town               string
-	Name               string
-	FileNumber         string
-	ReportDate         string
-	ActivationChannel  string // code, solo si Kind='activacion'
-	CompletedActions   []string
-	PendingActions     []string
-	OtherInfo          string
-	Agent              string
+	ICode             string // id real de entity_case (UUID), vacío al crear
+	VictimCaseICode   string
+	Kind              string // 'acudida' | 'activacion'
+	EntityBranchID    int64
+	FileNumber        string   // -> entity_case.Radicado
+	ActivationChannel string   // code(s) CSV, solo informativo si Kind='activacion' -- ver GAP B-canal en registro-v3-pendientes.md
+	CompletedActions  []string // ids de entity_obligation -- solo aplica a Kind='acudida'
+	PendingActions    []string // ids de entity_obligation (o "otra")
+	OtherInfo         string   // -> entity_case.Objetivo, solo si Kind='acudida'
+	Agent             string
 }
 
+// VictimCaseBarrierInput -- "Agregar barrera" (GS § D). Reconstruido sobre el
+// modelo real salvia.barrier_v2 (el mismo que usan Seguimiento y la sesión
+// psicosocial). EntityBranchID se resuelve con la misma búsqueda por
+// Departamento/Ciudad/Municipio + Sector que usa Entidades. Department/City/
+// Town se guardan además en la barrera (BarrierV2.DepartmentID/CityID/
+// TownID) -- es la ubicación donde se identificó la barrera, no solo un
+// filtro de búsqueda.
 type VictimCaseBarrierInput struct {
 	ICode           string
 	VictimCaseICode string
-	SectorCode      string
+	SectorCode      string // 'salud'|'justicia'|'proteccion'|'otras_instituciones' -- vocabulario real de entity_branch/barrier_v2, NO el enum victim_case_form2_sector
+	Department      string
+	City            string
+	Town            string
+	EntityBranchID  int64
 	Specific        []string
 	OtherDetail     string
-	EntityName      string
+	EntityName      string // solo libre cuando SectorCode='otras_instituciones' -- BarrierV2.InstitutionName
 	Institutional   []string
 	Economic        []string
 	Territorial     []string
@@ -128,6 +152,7 @@ type VictimCaseBarrierInput struct {
 	Official        string
 	Description     string
 	Management      []string
+	Competences     []string // códigos del catálogo salvia_config.CompetenceOptions
 	Agent           string
 }
 
@@ -256,6 +281,19 @@ func (r *victimCaseV3Repository) CreateDraft(ctx context.Context, input CreateDr
 			return fmt.Errorf("crear victim_case_form2 con dummies: %w", err)
 		}
 
+		// BUG encontrado en QA (2026-10-14): el teléfono del criterio de
+		// búsqueda del Cabezote se perdía -- insertDummyForm2Row no conocía
+		// el input original y lo dejaba en 0 (dummy). E06 exige "Borrador
+		// prediligenciado con los criterios de búsqueda" (D7).
+		if input.Phone != "" {
+			if err := tx.Exec(`UPDATE salvia.victim_case_form2 SET victim_case_form2_victim_phone = ? WHERE victim_case_form2_victim_case = ?`, input.Phone, victimCaseID).Error; err != nil {
+				return fmt.Errorf("prediligenciar teléfono: %w", err)
+			}
+			if err := markKeysAnswered(tx, newICode, map[string]string{FieldKeyV3("CI", 4): input.Phone}); err != nil {
+				return fmt.Errorf("marcar teléfono respondido: %w", err)
+			}
+		}
+
 		return nil
 	})
 	return newICode, err
@@ -277,9 +315,20 @@ func coalesceV3(v, fallback string) string {
 }
 
 // insertDummyForm2Row crea la fila de victim_case_form2 con TODAS sus
-// columnas NOT NULL resueltas al dummy "No" (categoría yes_no, code='n') --
-// tanto las 55 heredadas de V2 (victimCaseFormFields) como cualquier
-// columna NOT NULL propia de V3. Las columnas nullable se dejan NULL.
+// columnas NOT NULL resueltas a un valor dummy neutro según su Kind (D8:
+// Text→"", Int/Scale→0, BoolEnum/Enum1→id de "No", Date/Time/Timestamp→
+// placeholder) -- tanto las heredadas de V2 (victimCaseFormFields) como las
+// propias de V3 (victimCaseV3FormFields). Las columnas nullable se dejan
+// NULL.
+//
+// BUG encontrado en QA (2026-10-14): la versión anterior solo rellenaba
+// BoolEnum/Enum1, dejando sin valor columnas NOT NULL reales como
+// victim_case_form2_birth_date, _facts_date, _facts_description,
+// _residence_town/_address, _saliva_management_explanation -- el INSERT
+// fallaba por violación NOT NULL en el primer CreateDraft. Se agrega además
+// una red de seguridad que audita en caliente contra information_schema
+// cualquier columna NOT NULL que ningún catálogo Go declare (ej. columnas
+// propias del motor dinamic-form que V3 no usa pero comparte tabla).
 func insertDummyForm2Row(tx *gorm.DB, victimCaseID int64) error {
 	var noID int64
 	if err := tx.Raw(`SELECT victim_case_form2_enums_id FROM salvia.victim_case_form2_enums WHERE victim_case_form2_enums_category = 'yes_no' AND victim_case_form2_enums_code = 'n' LIMIT 1`).Scan(&noID).Error; err != nil {
@@ -287,19 +336,76 @@ func insertDummyForm2Row(tx *gorm.DB, victimCaseID int64) error {
 	}
 
 	cols := map[string]interface{}{
+		"victim_case_form2_i_code":        utils.GetUUID(),
 		"victim_case_form2_victim_case":   victimCaseID,
 		"victim_case_form2_creation_date": time.Now(),
 		"victim_case_form2_update_date":   time.Now(),
 	}
-	// Todas las columnas NOT NULL heredadas de V2 (enum1/bool_enum) → dummy "No".
-	for _, f := range victimCaseFormFields {
-		if f.Column != "" && (f.Kind == KindBoolEnum || f.Kind == KindEnum1) {
+
+	fillDummyByKind := func(f VictimCaseFormField) {
+		if f.Column == "" {
+			return // KindEnumN -- sin columna propia, va a rel_* aparte
+		}
+		if _, already := cols[f.Column]; already {
+			return
+		}
+		switch f.Kind {
+		case KindBoolEnum, KindEnum1:
 			cols[f.Column] = noID
+		case KindText:
+			cols[f.Column] = ""
+		case KindInt, KindScale:
+			cols[f.Column] = 0
+		case KindDate:
+			cols[f.Column] = "1900-01-01"
+		case KindTime:
+			cols[f.Column] = "00:00:00"
+		case KindTimestamp:
+			cols[f.Column] = time.Now()
 		}
 	}
-	// Columnas propias de V3 que son NOT NULL en el esquema -- ninguna lo es
-	// hoy (todas nullable, ver migrations/add_registro_v3.sql), se dejan sin
-	// setear (quedan NULL hasta que el módulo correspondiente se guarde).
+	for _, f := range victimCaseFormFields {
+		fillDummyByKind(f)
+	}
+	for _, f := range victimCaseV3FormFields {
+		fillDummyByKind(f)
+	}
+
+	// Red de seguridad: columnas NOT NULL SIN DEFAULT que ningún catálogo Go
+	// cubra todavía -- se rellenan con un valor neutro según su tipo real.
+	// column_default IS NULL excluye columnas con secuencia/identity propia
+	// (ej. victim_case_form2_id) -- forzarlas rompería el autoincremento.
+	type notNullCol struct {
+		Name     string `gorm:"column:column_name"`
+		DataType string `gorm:"column:data_type"`
+	}
+	var missing []notNullCol
+	if err := tx.Raw(`
+		SELECT column_name, data_type FROM information_schema.columns
+		WHERE table_schema = 'salvia' AND table_name = 'victim_case_form2'
+		  AND is_nullable = 'NO' AND column_default IS NULL
+	`).Scan(&missing).Error; err != nil {
+		return fmt.Errorf("auditar columnas NOT NULL de victim_case_form2: %w", err)
+	}
+	for _, c := range missing {
+		if _, already := cols[c.Name]; already {
+			continue
+		}
+		switch {
+		case strings.Contains(c.DataType, "timestamp"):
+			cols[c.Name] = time.Now()
+		case c.DataType == "date":
+			cols[c.Name] = "1900-01-01"
+		case strings.Contains(c.DataType, "time"):
+			cols[c.Name] = "00:00:00"
+		case c.DataType == "bigint" || c.DataType == "integer" || c.DataType == "smallint" || c.DataType == "numeric":
+			cols[c.Name] = 0
+		case c.DataType == "boolean":
+			cols[c.Name] = false
+		default: // character varying, text, etc.
+			cols[c.Name] = ""
+		}
+	}
 
 	return tx.Table("salvia.victim_case_form2").Create(cols).Error
 }
@@ -311,6 +417,10 @@ func (r *victimCaseV3Repository) SaveSection(ctx context.Context, icode, modulo 
 	}
 	if victimCaseID == 0 {
 		return fmt.Errorf("saveSection: no existe victim_case con icode=%s", icode)
+	}
+
+	if err := markKeysAnswered(r.db.WithContext(ctx), icode, answersByKey); err != nil {
+		return fmt.Errorf("saveSection[%s]: %w", modulo, err)
 	}
 
 	updates, err := resolveFieldUpdates(r.db.WithContext(ctx), victimCaseV3FormFields, answersByKey)
@@ -342,8 +452,19 @@ func (r *victimCaseV3Repository) SaveSection(ctx context.Context, icode, modulo 
 		coreUpdates["victim_case_victim_names"] = parts[0]
 		coreUpdates["victim_case_victim_last_names"] = parts[1]
 	}
-	if v, ok := answersByKey[FieldKeyV3("CI", 5)]; ok {
-		coreUpdates["victim_case_victim_doc_type"] = v
+	if v, ok := answersByKey[FieldKeyV3("CI", 5)]; ok && v != "" {
+		// BUG encontrado en QA (2026-10-14): CI_5 es KindEnum1 -- el frontend
+		// manda el icode (uuid), pero victim_case_victim_doc_type es
+		// varchar(2) y espera el code corto (ej. "cc"). Resolver antes de
+		// escribir (antes reventaba con "value too long for type character
+		// varying(2)").
+		code, err := resolveEnumCodeByICode(r.db.WithContext(ctx), v)
+		if err != nil {
+			return fmt.Errorf("saveSection[%s]: resolver code de CI_5: %w", modulo, err)
+		}
+		if code != "" {
+			coreUpdates["victim_case_victim_doc_type"] = code
+		}
 	}
 	if v, ok := answersByKey[FieldKeyV3("CI", 6)]; ok {
 		coreUpdates["victim_case_victim_doc_number"] = v
@@ -358,7 +479,125 @@ func (r *victimCaseV3Repository) SaveSection(ctx context.Context, icode, modulo 
 			return fmt.Errorf("saveSection[%s]: sincronizar victim_case: %w", modulo, err)
 		}
 	}
+
+	// D8 (flow-E11, "fan-out al editar el Perfil"): si el módulo editado es
+	// parte del Perfil (CI/DP/CA, D1), replica el MISMO cambio en los demás
+	// victim_case que comparten Tipo+Número de documento. Best-effort: un
+	// error acá se loggea pero no revierte ni falla el guardado de ESTE
+	// Caso (ya quedó guardado correctamente arriba) -- mismo criterio que
+	// ya usa este archivo para Entidades/Barreras y que V2-real usa para su
+	// propio OnSectionUpdate. Sin control de concurrencia entre agentes
+	// editando el mismo Perfil a la vez (GAP G-V3-01 ya documentado).
+	if modulo == "CI" || modulo == "DP" || modulo == "CA" {
+		if err := r.fanOutPerfilV3(ctx, icode, answersByKey); err != nil {
+			log.Printf("[SaveSection] WARN: fan-out de Perfil falló para icode=%s módulo=%s: %v", icode, modulo, err)
+		}
+	}
 	return nil
+}
+
+// fanOutPerfilV3 -- ver nota D8 en SaveSection. Resuelve el documento del
+// Caso actual, busca los demás victim_case con el mismo Tipo+Número, y les
+// aplica el mismo UPDATE de columnas escalares + relaciones EnumN que ya se
+// le aplicó al Caso actual en esta misma llamada a SaveSection.
+func (r *victimCaseV3Repository) fanOutPerfilV3(ctx context.Context, icode string, answersByKey map[string]string) error {
+	var doc struct {
+		DocType   string
+		DocNumber string
+	}
+	if err := r.db.WithContext(ctx).Table("salvia.victim_case").
+		Select("victim_case_victim_doc_type AS doc_type, victim_case_victim_doc_number AS doc_number").
+		Where("victim_case_i_code = ?", icode).Take(&doc).Error; err != nil {
+		return fmt.Errorf("fanOutPerfilV3: resolver documento: %w", err)
+	}
+	if doc.DocType == "" || doc.DocNumber == "" {
+		return nil // todavía no hay documento real (dummy D8) -- nada que sincronizar
+	}
+
+	var siblings []struct {
+		VictimCaseID int64
+		ICode        string
+	}
+	if err := r.db.WithContext(ctx).Table("salvia.victim_case").
+		Select("victim_case_id AS victim_case_id, victim_case_i_code AS i_code").
+		Where("victim_case_victim_doc_type = ? AND victim_case_victim_doc_number = ? AND victim_case_i_code != ?", doc.DocType, doc.DocNumber, icode).
+		Find(&siblings).Error; err != nil {
+		return fmt.Errorf("fanOutPerfilV3: buscar hermanos: %w", err)
+	}
+	if len(siblings) == 0 {
+		return nil
+	}
+
+	for _, sib := range siblings {
+		updates, err := resolveFieldUpdates(r.db.WithContext(ctx), victimCaseV3FormFields, answersByKey)
+		if err != nil {
+			return fmt.Errorf("fanOutPerfilV3: resolver updates para %s: %w", sib.ICode, err)
+		}
+		if len(updates) > 0 {
+			updates["victim_case_form2_update_date"] = time.Now()
+			if err := r.db.WithContext(ctx).Table("salvia.victim_case_form2").
+				Where("victim_case_form2_victim_case = ?", sib.VictimCaseID).Updates(updates).Error; err != nil {
+				return fmt.Errorf("fanOutPerfilV3: actualizar form2 de %s: %w", sib.ICode, err)
+			}
+		}
+		var sibForm2ID int64
+		if err := r.db.WithContext(ctx).Raw(`SELECT victim_case_form2_id FROM salvia.victim_case_form2 WHERE victim_case_form2_victim_case = ?`, sib.VictimCaseID).Scan(&sibForm2ID).Error; err != nil {
+			return fmt.Errorf("fanOutPerfilV3: resolver form2_id de %s: %w", sib.ICode, err)
+		}
+		if err := saveEnumNFields(r.db.WithContext(ctx), sibForm2ID, answersByKey); err != nil {
+			return fmt.Errorf("fanOutPerfilV3: enumN de %s: %w", sib.ICode, err)
+		}
+		if err := markKeysAnswered(r.db.WithContext(ctx), sib.ICode, answersByKey); err != nil {
+			return fmt.Errorf("fanOutPerfilV3: marcar respondidas en %s: %w", sib.ICode, err)
+		}
+	}
+	return nil
+}
+
+// markKeysAnswered acumula en victim_case_v3_answered_keys (CSV) cada
+// FieldKey presente en answersByKey -- sin importar si el valor es vacío.
+// Necesario porque los valores dummy (D8) son indistinguibles de una
+// respuesta real una vez guardados en victim_case_form2 (ej. dummy "No" en
+// bool_enum == respuesta real "No") -- la única forma confiable de saber
+// "¿el agente llegó a responder esto?" es rastrear qué keys llegaron
+// alguna vez en un guardado real, no inferirlo del valor almacenado. Ver
+// SaveSection / GetAnsweredKeys.
+func markKeysAnswered(tx *gorm.DB, icode string, answersByKey map[string]string) error {
+	if len(answersByKey) == 0 {
+		return nil
+	}
+	var existing string
+	if err := tx.Raw(`SELECT COALESCE(victim_case_v3_answered_keys, '') FROM salvia.victim_case WHERE victim_case_i_code = ?`, icode).Scan(&existing).Error; err != nil {
+		return fmt.Errorf("markKeysAnswered: leer existentes: %w", err)
+	}
+	set := map[string]bool{}
+	for _, k := range splitCSVV3(existing) {
+		set[k] = true
+	}
+	for k := range answersByKey {
+		set[k] = true
+	}
+	merged := make([]string, 0, len(set))
+	for k := range set {
+		merged = append(merged, k)
+	}
+	return tx.Exec(`UPDATE salvia.victim_case SET victim_case_v3_answered_keys = ? WHERE victim_case_i_code = ?`, strings.Join(merged, ","), icode).Error
+}
+
+// GetAnsweredKeys devuelve el set de FieldKey que el agente llegó a
+// enviar alguna vez (ver markKeysAnswered) -- es el criterio real de
+// "respondido", a diferencia de GetAnswers (que refleja lo que hay
+// guardado en BD, dummy o real, indistinguibles para varios Kind).
+func (r *victimCaseV3Repository) GetAnsweredKeys(ctx context.Context, icode string) (map[string]bool, error) {
+	var raw string
+	if err := r.db.WithContext(ctx).Raw(`SELECT COALESCE(victim_case_v3_answered_keys, '') FROM salvia.victim_case WHERE victim_case_i_code = ?`, icode).Scan(&raw).Error; err != nil {
+		return nil, fmt.Errorf("getAnsweredKeys: %w", err)
+	}
+	set := map[string]bool{}
+	for _, k := range splitCSVV3(raw) {
+		set[k] = true
+	}
+	return set, nil
 }
 
 // splitNames parte "Nombres Apellidos" en [nombres, apellidos] de forma
@@ -496,6 +735,19 @@ func (r *victimCaseV3Repository) SaveTamizajeBranch(ctx context.Context, icode s
 		return fmt.Errorf("saveTamizajeBranch: %w", err)
 	}
 
+	// BUG encontrado en QA (2026-10-15): SaveTamizajeBranch es una ruta de
+	// guardado separada de SaveSection (POST /tamizaje, no POST /seccion/TZ)
+	// y nunca llamaba a markKeysAnswered -- TZ_1..8 y la rama pareja/no-
+	// pareja completa nunca quedaban en victim_case_v3_answered_keys, así
+	// que Finalize (que exige TZ_1/2/3/4/7 respondidas) rechazaba
+	// cualquier Caso aunque el agente sí hubiera llenado el Tamizaje.
+	// answersByKey aquí ya trae TZ_1..8 + las 24 de la rama (ver
+	// SaveTamizaje en el service), aunque resolveFieldUpdates de abajo solo
+	// use las de la rama activa para el UPDATE de columnas.
+	if err := markKeysAnswered(r.db.WithContext(ctx), icode, answersByKey); err != nil {
+		return fmt.Errorf("saveTamizajeBranch: %w", err)
+	}
+
 	fields := victimCaseV3TamizajeNoPareja
 	if wasPartner {
 		fields = victimCaseV3TamizajePareja
@@ -525,6 +777,34 @@ func (r *victimCaseV3Repository) SaveTamizajeBranch(ctx context.Context, icode s
 	return r.db.WithContext(ctx).Table("salvia.victim_case_form2").
 		Where("victim_case_form2_victim_case = ?", victimCaseID).
 		Updates(updates).Error
+}
+
+func (r *victimCaseV3Repository) GetTamizajeResult(ctx context.Context, icode string) (string, string, int, error) {
+	row := struct {
+		RiskType  sql.NullInt64
+		RiskLevel sql.NullInt64
+		RiskScore sql.NullInt64
+	}{}
+	err := r.db.WithContext(ctx).Table("salvia.victim_case_form2 f").
+		Joins("JOIN salvia.victim_case vc ON vc.victim_case_id = f.victim_case_form2_victim_case").
+		Where("vc.victim_case_i_code = ?", icode).
+		Select("f.victim_case_form2_tzv3_risk_type AS risk_type, f.victim_case_form2_tzv3_risk_level AS risk_level, f.victim_case_form2_tzv3_risk_score AS risk_score").
+		Take(&row).Error
+	if err != nil {
+		return "", "", 0, fmt.Errorf("getTamizajeResult: %w", err)
+	}
+	if !row.RiskLevel.Valid || row.RiskLevel.Int64 == 0 {
+		return "", "", 0, nil
+	}
+	tipoCode, err := enumCodeByID(r.db.WithContext(ctx), row.RiskType.Int64)
+	if err != nil {
+		return "", "", 0, fmt.Errorf("getTamizajeResult: tipo: %w", err)
+	}
+	nivelCode, err := enumCodeByID(r.db.WithContext(ctx), row.RiskLevel.Int64)
+	if err != nil {
+		return "", "", 0, fmt.Errorf("getTamizajeResult: nivel: %w", err)
+	}
+	return tipoCode, nivelCode, int(row.RiskScore.Int64), nil
 }
 
 // GetAnswers relee victim_case_form2 (+ victim_case para los campos núcleo
@@ -609,8 +889,21 @@ func (r *victimCaseV3Repository) GetAnswers(ctx context.Context, icode string) (
 			}
 			answers[FieldKeyV3("CI", 2)] = full
 		}
-		if core.DocType != "" && core.DocType != dummyDocTypeV3 {
-			answers[FieldKeyV3("CI", 5)] = core.DocType
+		if core.DocType != "" {
+			// BUG encontrado en QA (2026-10-15): NO se puede comparar contra
+			// dummyDocTypeV3 aquí -- el dummy es "cc" (Cédula de Ciudadanía)
+			// y es, a la vez, el tipo de documento real más común en
+			// Colombia. Cualquier víctima con cédula real quedaba excluida
+			// de 'answers' (se confundía con "nunca respondido"). El filtro
+			// correcto de "¿lo respondió el agente?" ya lo hace
+			// GetAnsweredKeys/answeredKeys en el frontend (H3) -- aquí basta
+			// con que el dato exista.
+			//
+			// CI_5 es KindEnum1 -- el frontend espera icode, no el code
+			// corto que guarda victim_case_victim_doc_type (ver SaveSection).
+			if ic, err := resolveEnumICodeByCategoryAndCode(r.db.WithContext(ctx), "victim_case_form2_victim_doc_type", core.DocType); err == nil && ic != "" {
+				answers[FieldKeyV3("CI", 5)] = ic
+			}
 		}
 		if core.DocNumber != "" && core.DocNumber != dummyDocNumberV3 {
 			answers[FieldKeyV3("CI", 6)] = core.DocNumber
@@ -647,6 +940,24 @@ func enumCodeByID(tx *gorm.DB, id int64) (string, error) {
 func enumICodeByID(tx *gorm.DB, id int64) (string, error) {
 	var ic string
 	err := tx.Raw(`SELECT victim_case_form2_enums_i_code FROM salvia.victim_case_form2_enums WHERE victim_case_form2_enums_id = ?`, id).Scan(&ic).Error
+	return ic, err
+}
+
+// resolveEnumCodeByICode -- ver CI_5 en SaveSection/GetAnswers: victim_case
+// guarda el code corto (varchar2) en victim_case_victim_doc_type, pero el
+// frontend siempre manda/espera icode para campos KindEnum1.
+func resolveEnumCodeByICode(tx *gorm.DB, icode string) (string, error) {
+	var code string
+	err := tx.Raw(`SELECT victim_case_form2_enums_code FROM salvia.victim_case_form2_enums WHERE victim_case_form2_enums_i_code = ?`, icode).Scan(&code).Error
+	return code, err
+}
+
+// resolveEnumICodeByCategoryAndCode -- inverso de resolveEnumCodeByICode,
+// para reconstruir el icode esperado por el frontend a partir del code
+// corto guardado en victim_case (ver GetAnswers, CI_5).
+func resolveEnumICodeByCategoryAndCode(tx *gorm.DB, category, code string) (string, error) {
+	var ic string
+	err := tx.Raw(`SELECT victim_case_form2_enums_i_code FROM salvia.victim_case_form2_enums WHERE victim_case_form2_enums_category = ? AND victim_case_form2_enums_code = ? LIMIT 1`, category, code).Scan(&ic).Error
 	return ic, err
 }
 
@@ -708,13 +1019,24 @@ func (r *victimCaseV3Repository) UpdateStatusIfCurrent(ctx context.Context, icod
 		Updates(map[string]interface{}{"victim_case_status": newStatus, "victim_case_update_date": time.Now()}).Error
 }
 
-// IsRegistroComplete -- D1: "Registro completo" es calculado, no una
-// columna. Evalúa sobre el Caso MÁS RECIENTE con ese documento si las
-// obligatorias [1er contacto] de CI+DP+CA están todas respondidas.
-// Implementación completa de la lista de obligatorias pendiente -- ver
-// GAP G-V3-22.
-func (r *victimCaseV3Repository) IsRegistroComplete(ctx context.Context, docType, docNumber string) (bool, error) {
-	return false, nil
+// MostRecentCaseByDocument -- D1/D9 (badge "Registro Completo/Incompleto"):
+// resuelve el icode del Caso MÁS RECIENTE (por fecha de creación) con ese
+// Tipo+Número de documento -- "Registro completo" se evalúa sobre ESE Caso,
+// nunca sobre uno cualquiera de los que comparten documento. El llamador
+// (service) decide qué campos cuentan como obligatorias del Perfil (CI+DP+CA)
+// vía GetAnsweredKeys -- acá solo se resuelve CUÁL Caso mirar.
+func (r *victimCaseV3Repository) MostRecentCaseByDocument(ctx context.Context, docType, docNumber string) (string, error) {
+	if docType == "" || docNumber == "" {
+		return "", nil
+	}
+	var icode string
+	err := r.db.WithContext(ctx).Table("salvia.victim_case").
+		Select("victim_case_i_code").
+		Where("victim_case_victim_doc_type = ? AND victim_case_victim_doc_number = ?", docType, docNumber).
+		Order("victim_case_creation_date DESC").
+		Limit(1).
+		Scan(&icode).Error
+	return icode, err
 }
 
 func (r *victimCaseV3Repository) StoreCredentials(ctx context.Context, icode, login, password string) error {
@@ -727,128 +1049,9 @@ func (r *victimCaseV3Repository) StoreCredentials(ctx context.Context, icode, lo
 		Update("victim_case_new_user_credentials", string(payload)).Error
 }
 
-// ─── Entidades (GS § C) ──────────────────────────────────────────────────
-
-func (r *victimCaseV3Repository) AddEntity(ctx context.Context, e VictimCaseEntityInput) (string, error) {
-	var victimCaseID int64
-	if err := r.db.WithContext(ctx).Raw(`SELECT victim_case_id FROM salvia.victim_case WHERE victim_case_i_code = ?`, e.VictimCaseICode).Scan(&victimCaseID).Error; err != nil {
-		return "", fmt.Errorf("addEntity: %w", err)
-	}
-	sectorID, err := resolveEnumIDByCategory(r.db.WithContext(ctx), "victim_case_form2_sector", e.SectorCode)
-	if err != nil {
-		return "", fmt.Errorf("addEntity: resolver sector: %w", err)
-	}
-	var channelID *int64
-	if e.ActivationChannel != "" {
-		id, err := resolveEnumIDByCategory(r.db.WithContext(ctx), "victim_case_form2_activation_channel", e.ActivationChannel)
-		if err != nil {
-			return "", fmt.Errorf("addEntity: resolver canal: %w", err)
-		}
-		channelID = &id
-	}
-	completedJSON, _ := json.Marshal(e.CompletedActions)
-	pendingJSON, _ := json.Marshal(e.PendingActions)
-
-	newICode := utils.GetUUID()
-	err = r.db.WithContext(ctx).Exec(`
-		INSERT INTO salvia.victim_case_entity
-			(victim_case_entity_i_code, victim_case_entity_victim_case, victim_case_entity_kind,
-			 victim_case_entity_sector, victim_case_entity_department, victim_case_entity_city,
-			 victim_case_entity_town, victim_case_entity_name, victim_case_entity_file_number,
-			 victim_case_entity_report_date, victim_case_entity_activation_channel,
-			 victim_case_entity_completed_actions, victim_case_entity_pending_actions,
-			 victim_case_entity_other_info, victim_case_entity_agent,
-			 victim_case_entity_creation_date, victim_case_entity_update_date)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(), now())
-	`, newICode, victimCaseID, e.Kind, sectorID, nullIfEmpty(e.Department), nullIfEmpty(e.City), nullIfEmpty(e.Town),
-		nullIfEmpty(e.Name), nullIfEmpty(e.FileNumber), nullIfEmptyDate(e.ReportDate), channelID,
-		string(completedJSON), string(pendingJSON), nullIfEmpty(e.OtherInfo), e.Agent).Error
-	if err != nil {
-		return "", fmt.Errorf("addEntity: insertar: %w", err)
-	}
-	return newICode, nil
-}
-
-func (r *victimCaseV3Repository) RemoveEntity(ctx context.Context, entityICode string) error {
-	return r.db.WithContext(ctx).Exec(`UPDATE salvia.victim_case_entity SET victim_case_entity_deleted_at = now() WHERE victim_case_entity_i_code = ?`, entityICode).Error
-}
-
-func (r *victimCaseV3Repository) ListEntities(ctx context.Context, icode string) ([]VictimCaseEntityInput, error) {
-	var out []VictimCaseEntityInput
-	err := r.db.WithContext(ctx).Raw(`
-		SELECT e.victim_case_entity_i_code AS i_code, e.victim_case_entity_kind AS kind,
-			e.victim_case_entity_name AS name, e.victim_case_entity_file_number AS file_number
-		FROM salvia.victim_case_entity e
-		JOIN salvia.victim_case vc ON vc.victim_case_id = e.victim_case_entity_victim_case
-		WHERE vc.victim_case_i_code = ? AND e.victim_case_entity_deleted_at IS NULL
-		ORDER BY e.victim_case_entity_creation_date
-	`, icode).Scan(&out).Error
-	return out, err
-}
-
-// ─── Barreras (GS § D) ───────────────────────────────────────────────────
-
-func (r *victimCaseV3Repository) AddBarrier(ctx context.Context, b VictimCaseBarrierInput) (string, error) {
-	var victimCaseID int64
-	if err := r.db.WithContext(ctx).Raw(`SELECT victim_case_id FROM salvia.victim_case WHERE victim_case_i_code = ?`, b.VictimCaseICode).Scan(&victimCaseID).Error; err != nil {
-		return "", fmt.Errorf("addBarrier: %w", err)
-	}
-	sectorID, err := resolveEnumIDByCategory(r.db.WithContext(ctx), "victim_case_form2_sector", b.SectorCode)
-	if err != nil {
-		return "", fmt.Errorf("addBarrier: resolver sector: %w", err)
-	}
-	specificJSON, _ := json.Marshal(b.Specific)
-	instJSON, _ := json.Marshal(b.Institutional)
-	econJSON, _ := json.Marshal(b.Economic)
-	terrJSON, _ := json.Marshal(b.Territorial)
-	diffJSON, _ := json.Marshal(b.Differential)
-	mgmtJSON, _ := json.Marshal(b.Management)
-
-	newICode := utils.GetUUID()
-	err = r.db.WithContext(ctx).Exec(`
-		INSERT INTO salvia.victim_case_barrier
-			(victim_case_barrier_i_code, victim_case_barrier_victim_case, victim_case_barrier_sector,
-			 victim_case_barrier_specific, victim_case_barrier_other_detail, victim_case_barrier_entity_name,
-			 victim_case_barrier_institutional, victim_case_barrier_economic, victim_case_barrier_territorial,
-			 victim_case_barrier_differential, victim_case_barrier_date, victim_case_barrier_official,
-			 victim_case_barrier_description, victim_case_barrier_management, victim_case_barrier_agent,
-			 victim_case_barrier_creation_date, victim_case_barrier_update_date)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(), now())
-	`, newICode, victimCaseID, sectorID, string(specificJSON), nullIfEmpty(b.OtherDetail), nullIfEmpty(b.EntityName),
-		string(instJSON), string(econJSON), string(terrJSON), string(diffJSON), b.Date, b.Official, b.Description,
-		string(mgmtJSON), b.Agent).Error
-	if err != nil {
-		return "", fmt.Errorf("addBarrier: insertar: %w", err)
-	}
-	return newICode, nil
-}
-
-func (r *victimCaseV3Repository) RemoveBarrier(ctx context.Context, barrierICode string) error {
-	return r.db.WithContext(ctx).Exec(`UPDATE salvia.victim_case_barrier SET victim_case_barrier_deleted_at = now() WHERE victim_case_barrier_i_code = ?`, barrierICode).Error
-}
-
-func (r *victimCaseV3Repository) ListBarriers(ctx context.Context, icode string) ([]VictimCaseBarrierInput, error) {
-	var out []VictimCaseBarrierInput
-	err := r.db.WithContext(ctx).Raw(`
-		SELECT b.victim_case_barrier_i_code AS i_code, b.victim_case_barrier_description AS description
-		FROM salvia.victim_case_barrier b
-		JOIN salvia.victim_case vc ON vc.victim_case_id = b.victim_case_barrier_victim_case
-		WHERE vc.victim_case_i_code = ? AND b.victim_case_barrier_deleted_at IS NULL
-		ORDER BY b.victim_case_barrier_creation_date
-	`, icode).Scan(&out).Error
-	return out, err
-}
-
-func nullIfEmpty(s string) interface{} {
-	if s == "" {
-		return nil
-	}
-	return s
-}
-
-func nullIfEmptyDate(s string) interface{} {
-	if s == "" {
-		return nil
-	}
-	return s
-}
+// Entidades y Barreras (GS § C/D) -- AddEntity/ListEntities/AddBarrier/
+// ListBarriers y sus RemoveX ya NO viven acá: se reconstruyeron sobre el
+// modelo real (entity_case/entity_case_obligation/barrier_v2) directamente
+// en el service layer (salvia/service/victim_case_v3_service.go), que puede
+// importar internal/models y reusar EntityCaseRepository/BarrierV2Repository
+// sin crear un ciclo de imports. Ver registro-v3-pendientes.md § B.

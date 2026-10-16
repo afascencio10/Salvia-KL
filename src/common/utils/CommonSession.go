@@ -124,6 +124,22 @@ func RemoveCommonSession(sessionId string, storeSession bool) {
 	}
 }
 
+// RemoveCommonSessionsByUserICode elimina todas las sesiones activas del usuario con el ICode dado.
+// Se usa al inhabilitar un usuario para que pierda el acceso de inmediato, sin esperar a que cierre sesión.
+func RemoveCommonSessionsByUserICode(userICode string) {
+	if userICode == "" {
+		return
+	}
+	lock.Lock()
+	defer lock.Unlock()
+	for sessionId, s := range commonSessions {
+		if s.UserICode == userICode {
+			delete(commonSessions, sessionId)
+		}
+	}
+	storeSessions(false)
+}
+
 func HasRole(sessionId string, role string) bool {
 	lock.RLock()
 	defer lock.RUnlock()

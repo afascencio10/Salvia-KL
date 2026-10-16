@@ -27,6 +27,15 @@ func NewEntityBranchAPIController(db *gorm.DB) *EntityBranchAPIController {
 func (c *EntityBranchAPIController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/entity-branches", c.ListByTownCode)
 	rg.GET("/entity-branches/:branchId/obligations", c.ListObligationsByBranch)
+	// GET /api/v1/competences ya existía en form_controller.go
+	// (FormController.ListCompetences, mismo salvia_config.CompetenceOptions)
+	// -- registrarlo otra vez acá tumbaba el servidor al arrancar ("handlers
+	// are already registered for path '/api/v1/competences'", Gin no admite
+	// una ruta duplicada). Encontrado al reiniciar el server para correr las
+	// pruebas de Playwright de esta ronda -- ningún test unitario/smoke de
+	// servicio lo iba a atrapar porque ninguno pasa por el router real de
+	// Gin. El frontend de V3 sigue llamando el mismo path sin cambios: la
+	// respuesta es idéntica (mismo CompetenceOptions, con institutions=nil).
 }
 
 // obligationOption es el DTO de una opción del checklist de obligaciones.
@@ -90,7 +99,7 @@ func (c *EntityBranchAPIController) ListByTownCode(ctx *gin.Context) {
 	entitySectorCode := ""
 	if barrierSector != "" {
 		sectorMap := map[string]string{
-			"salud":                "he",
+			"salud":               "he",
 			"proteccion":          "pt",
 			"justicia":            "js",
 			"otras_instituciones": "os",

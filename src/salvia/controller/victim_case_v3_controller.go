@@ -9,6 +9,7 @@ import (
 	"bitsflow/internal/repository"
 	salvia_config "bitsflow/salvia/config"
 	"bitsflow/salvia/service"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -198,17 +199,31 @@ func (c *VictimCaseV3Controller) SaveTamizaje(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, result)
 }
 
-// Finalize — "Finalizar registro y enrutar a Seguimiento" (E15).
+// Finalize — "Finalizar registro y enrutar a Seguimiento" (E15). Valida
+// las obligatorias antes de transicionar a Terminado (ver flow-E15 §
+// "Validar formulario" y el fix de QA del 2026-10-15 en
+// victim_case_v3_service.go).
 func (c *VictimCaseV3Controller) Finalize(ctx *gin.Context) {
 	if requireRegistroV3Access(ctx) == nil {
 		return
 	}
 	icode := ctx.Param("icode")
-	if err := c.svc.Finalize(ctx.Request.Context(), icode); err != nil {
+	result, err := c.svc.Finalize(ctx.Request.Context(), icode)
+	if err != nil {
+		var incompletos *service.ErrModulosIncompletos
+		if errors.As(err, &incompletos) {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error":              "No se puede finalizar — hay módulos incompletos",
+				"modulosIncompletos": incompletos.Modulos,
+			})
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error al finalizar el registro"})
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"ok": true})
+	ctx.JSON(http.StatusOK, gin.H{
+		"ok": true, "denunciaFacilSolicitada": result.DenunciaFacilSolicitada, "equiposRemisionCSV": result.EquiposRemisionCSV,
+	})
 }
 
 // AddEntity — "+ Siguiente entidad" (E17).
@@ -229,6 +244,10 @@ func (c *VictimCaseV3Controller) AddEntity(ctx *gin.Context) {
 
 	entityICode, err := c.svc.AddEntity(ctx.Request.Context(), body)
 	if err != nil {
+		if errors.Is(err, service.ErrEntityCaseDuplicate) {
+			ctx.JSON(http.StatusConflict, gin.H{"error": "Esta entidad ya está asociada a este caso"})
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error al registrar la entidad"})
 		return
 	}
