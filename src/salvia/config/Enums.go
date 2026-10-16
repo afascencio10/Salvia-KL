@@ -62,6 +62,7 @@ var HTML_Templates map[string]string = map[string]string{
 	"set_feminicide":               "set_feminicide.html",
 	"set_feminicide_risk":          "set_feminicide_risk.html",
 	"hacer_seguimiento":            "hacer_seguimiento.html",
+	"prototipo_seguimiento_v4":     "prototipo_seguimiento_v4.html",
 	"get_follow_up_detail":         "get_follow_up_detail.html",
 	"get_case_detail_sv":           "get_case_detail_sv.html",
 	"get_feminicide_risks":         "get_feminicide_risks.html",
