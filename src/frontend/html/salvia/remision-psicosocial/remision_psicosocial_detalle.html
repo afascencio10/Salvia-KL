@@ -100,8 +100,8 @@
 
         <!-- Sesiones counter con circulitos -->
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding:0 4px">
-            <span style="font-size:.78rem;color:#6b7280">Atenciones (4–6)</span>
-            <span v-for="n in 6" :key="'s'+n" style="width:10px;height:10px;border-radius:50%" :style="n <= sesionesRealizadas ? 'background:#5106A7' : 'background:#e5e7eb'"></span>
+            <span style="font-size:.78rem;color:#6b7280">Atenciones (${ sesionesRealizadas }–${ sesionesVigentes })</span>
+            <span v-for="n in (sesionesVigentes || 1)" :key="'s'+n" style="width:10px;height:10px;border-radius:50%" :style="n <= sesionesRealizadas ? 'background:#5106A7' : 'background:#e5e7eb'"></span>
             <span style="font-size:.75rem;color:#9ca3af;margin-left:4px">${ sesionesRealizadas } realizadas</span>
         </div>
 
@@ -467,6 +467,22 @@
             sesionesRealizadas() {
                 if (!this.remision || !this.remision.contacts) return 0;
                 return this.remision.contacts.filter(function(c) { return c.isCompleted && c.isPsicoSession; }).length;
+            },
+            // sesionesAgendadas: atenciones psicosociales pendientes (agendadas, no
+            // completadas ni canceladas).
+            sesionesAgendadas() {
+                if (!this.remision || !this.remision.contacts) return 0;
+                return this.remision.contacts.filter(function(c) {
+                    return c.isPsicoSession && !c.isCompleted && c.status !== 'cancelada';
+                }).length;
+            },
+            // sesionesVigentes: total que muestra el indicador superior = realizadas +
+            // agendadas (las canceladas no cuentan), con un PISO MÍNIMO de 6 para forzar
+            // que siempre se vean al menos las 6 atenciones esperadas del esquema. Si
+            // realizadas+agendadas supera 6, crece por encima. Es dinámico: cancelar una
+            // agendada baja el total, pero nunca por debajo de 6.
+            sesionesVigentes() {
+                return Math.max(6, this.sesionesRealizadas + this.sesionesAgendadas);
             },
             // Solo ps/ts pueden registrar intentos (RBAC register_psychosocial_contact_attempt).
             // El supervisor (sv) y demás roles ven el card 3x3 en modo lectura.

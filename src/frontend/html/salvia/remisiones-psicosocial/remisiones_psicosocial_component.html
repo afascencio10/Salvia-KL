@@ -168,9 +168,9 @@
                     <td class="rps-col-estado">
                         <span class="rps-status-badge" :class="statusBadgeClass(r.status)">${ statusLabel(r.status) }</span>
                         <div class="rps-sessions">
-                            <span class="rps-sessions-label">${ sessionLabel }</span>
+                            <span class="rps-sessions-label">${ sessionLabelFor(r) }</span>
                             <div class="rps-dots">
-                                <span v-for="n in sessionDots" :key="n" class="rps-dot" :class="{ 'rps-dot--filled': n <= r.sessionCount }"></span>
+                                <span v-for="n in sessionTotal(r)" :key="n" class="rps-dot" :class="{ 'rps-dot--filled': n <= r.sessionCount }"></span>
                             </div>
                             <span class="rps-sessions-summary">${ r.sessionCount } realizadas</span>
                         </div>

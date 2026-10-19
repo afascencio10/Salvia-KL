@@ -80,14 +80,20 @@
       <div class="cd-header-right">
         <button class="btn-reasignar" @click="mostrarInfoCaso = true" title="Ver información completa del caso">📋 Info caso</button>
         <button v-if="puedeReasignar" class="btn-reasignar" @click="abrirModalReasignar">Reasignar</button>
-        <button v-if="userRole === 'op' && (!caso.agentId || caso.agentId !== userICode)" class="btn-nuevo-seg" @click="autoAsignarCaso" :disabled="autoAsignando">
-          ${ autoAsignando ? 'Asignando...' : '👤 Asignarme este caso' }
+        <!-- Oculto temporalmente (no eliminar: puede reactivarse). Para reactivar:
+             cambiar v-if="false" por v-if="userRole === 'op' && (!caso.agentId || caso.agentId !== userICode)"
+             y restaurar @click="autoAsignarCaso" :disabled="autoAsignando". -->
+        <button v-if="false" class="btn-nuevo-seg">
+          👤 Asignarme este caso
         </button>
-        <button v-if="puedeReasignar || userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode)" class="btn-nuevo-seg" @click="abrirModalNuevoSeg">
+        <button v-if="puedeReasignar || userRole === 'ro' || userRole === 'an' || (userRole === 'op' && caso.agentId === userICode)" class="btn-nuevo-seg" @click="abrirModalNuevoSeg">
           + Nuevo seguimiento
         </button>
-        <button v-if="(userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode))" class="btn-nuevo-seg" style="background:#5106A7;color:#fff" @click="crearEIniciarSeguimiento" :disabled="creandoEIniciando">
-          ${ creandoEIniciando ? 'Creando...' : '▶ Crear e iniciar seguimiento' }
+        <!-- Oculto temporalmente (no eliminar: puede reactivarse). Para reactivar:
+             cambiar v-if="false" por v-if="(userRole === 'ro' || (userRole === 'op' && caso.agentId === userICode))"
+             y restaurar @click="crearEIniciarSeguimiento" :disabled="creandoEIniciando". -->
+        <button v-if="false" class="btn-nuevo-seg" style="background:#5106A7;color:#fff">
+          ▶ Crear e iniciar seguimiento
         </button>
         <button v-if="puedeReasignar && caso.victimCaseStatus === 'cd'" class="btn-nuevo-seg" @click="abrirModalReabrir">
           Reabrir caso
@@ -1964,9 +1970,10 @@ var home = Vue.createApp({
       return csv.split(',').map(function(v) { var k = v.trim(); return map[k] || k; });
     },
     abrirModalNuevoSeg() {
-      // Si es RO u OP, asignar a sí mismo. Si es SV, preseleccionar el agente del último seguimiento
+      // RO, OP y AN se autoasignan a sí mismos (no pueden elegir otro agente).
+      // Solo SV preselecciona el agente del último seguimiento y puede cambiarlo.
       var agenteDefault = '';
-      if (this.userRole === 'ro' || this.userRole === 'op') {
+      if (this.userRole === 'ro' || this.userRole === 'op' || this.userRole === 'an') {
         agenteDefault = this.userICode;
       } else if (this.followUpsV2.length > 0) {
         var ultimo = this.followUpsV2[this.followUpsV2.length - 1];

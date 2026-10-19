@@ -21,6 +21,20 @@ const psychosocialSessionCountSubquery = `(
 	  AND tc.deleted_at IS NULL
 )`
 
+// psychosocialScheduledCountSubquery cuenta las atenciones psicosociales AGENDADAS
+// (pendientes): sesión psicosocial, no completada y no cancelada. Mismo criterio que
+// el detalle de remisión (sesionesAgendadas), para que el indicador "Atenciones (X–Y)"
+// de las listas use Y = realizadas + agendadas igual que allá.
+const psychosocialScheduledCountSubquery = `(
+	SELECT COUNT(*)::int
+	FROM salvia.team_contact tc
+	WHERE tc.psicosocial_id = ps.id::text
+	  AND tc.is_psico_session = true
+	  AND tc.is_completed = false
+	  AND COALESCE(tc.status, '') <> 'cancelada'
+	  AND tc.deleted_at IS NULL
+)`
+
 const psychosocialVictimPhoneSelect = `
 	COALESCE(
 		NULLIF(vf2.victim_case_form2_victim_phone::text, ''),
@@ -118,7 +132,8 @@ const psychosocialListSelectCols = `
 	(` + psychosocialVictimPhoneSelect + `) AS victim_phone,
 	COALESCE(t.town_name, '') AS municipality,
 	COALESCE(vf2.victim_case_form2_risk_level, 0) AS risk_level,
-	` + psychosocialSessionCountSubquery + ` AS session_count
+	` + psychosocialSessionCountSubquery + ` AS session_count,
+	` + psychosocialScheduledCountSubquery + ` AS scheduled_count
 `
 
 // PsychosocialListFilters parámetros de consulta E-01 … E-13.
@@ -184,6 +199,7 @@ type psychosocialListRow struct {
 	Municipality       string  `gorm:"column:municipality"`
 	RiskLevel          int     `gorm:"column:risk_level"`
 	SessionCount       int     `gorm:"column:session_count"`
+	ScheduledCount     int     `gorm:"column:scheduled_count"`
 }
 
 func (r *psychosocialListRepository) List(ctx context.Context, filters PsychosocialListFilters) (PsychosocialListResult, error) {
@@ -233,6 +249,7 @@ func (r *psychosocialListRepository) List(ctx context.Context, filters Psychosoc
 			FollowUpID:       row.FollowUpID,
 			Status:           row.Status,
 			SessionCount:     row.SessionCount,
+			ScheduledCount:   row.ScheduledCount,
 			CreatedAt:        row.CreatedAt,
 			SubmittedByName:  submittedName,
 			SubmittedByTeam:  submittedByTeam,

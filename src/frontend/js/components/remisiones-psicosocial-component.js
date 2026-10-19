@@ -134,6 +134,20 @@
         },
 
         methods: {
+            // ── Indicador de atenciones (misma lógica que el detalle de remisión) ──
+            // realizadas = r.sessionCount; agendadas = r.scheduledCount.
+            // total vigente = max(6, realizadas + agendadas) para forzar un mínimo de 6
+            // y crecer si hay más. Dinámico según lo que entrega el backend por fila.
+            sessionTotal: function(r) {
+                var realizadas = (r && r.sessionCount) || 0;
+                var agendadas = (r && r.scheduledCount) || 0;
+                return Math.max(SESSION_DOTS, realizadas + agendadas);
+            },
+            sessionLabelFor: function(r) {
+                var realizadas = (r && r.sessionCount) || 0;
+                return 'Atenciones (' + realizadas + ' - ' + this.sessionTotal(r) + ')';
+            },
+
             initFromProps: function() {
                 this.scopeFilter = Object.assign({}, this.defaultFilter || {});
                 this.activeFilters = Object.assign({}, this.scopeFilter);
