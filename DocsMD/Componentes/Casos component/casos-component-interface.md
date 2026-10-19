@@ -225,7 +225,9 @@ casos-component  (.cc-wrapper)
             │           ├── [col.key === 'case_status']
             │           │   <td>  (.cc-cell)
             │           │   └── caseStatusLabel(case.status)
-            │           │   // victim_case_status: ra→Activo, is→Con novedad, cd→Cerrado, …
+            │           │   // victim_case_status: ra→Activo, is→Con novedad, cd→Cerrado,
+            │           │   // ex→Vencido, r→Por aprobar, fc→Recontacto,
+            │           │   // bo→Borrador, in→Iniciado, te→Terminado, c→Completado, iv→Inválido
             │           │
             │           ├── [col.key === 'barriers']
             │           │   <td>  (.cc-cell-barriers)
@@ -310,7 +312,7 @@ Props de la extensión de reportes (`listEndpoint`, `sortOptions`, `itemLabelPlu
 | `riesgo` | `dropdown` | `"Nivel de riesgo"` | Fijas: `{ value:'alto', label:'Alto' }`, `medio`, `bajo` |
 | `equipo` | `dropdown` | `"Por equipo"` | Dinámicas — cargadas en E-01 |
 | `seguimientos_ejecutados` | `dropdown` | `"Seguimientos ejecutados"` | Fijas: `{ value:'0', label:'0' }` … `{ value:'10', label:'10' }` (→ E-12) |
-| `estado_caso` | `dropdown` | `"Estado del caso"` | Fijas: `ra` Activo, `is` Con novedad, `cd` Cerrado, `ex` Vencido, `r` Por aprobar, `fc` Recontacto (→ E-13) |
+| `estado_caso` | `dropdown` | `"Estado del caso"` | Fijas: `ra` Activo, `is` Con novedad, `cd` Cerrado, `ex` Vencido, `r` Por aprobar, `fc` Recontacto, `bo` Borrador, `in` Iniciado, `te` Terminado, `c` Completado, `iv` Inválido (→ E-13) |
 | `barreras_activas` | `dropdown` | `"Barreras activas"` | Fija: `{ value:'OPEN', label:'Abierta' }` (→ E-16) |
 | `persona_asignada` | `autocomplete` | `"Persona asignada"` | — (se buscan on-demand al escribir → E-07) |
 | `busqueda` | `search` | `"Buscar por ID o teléfono"` | — |

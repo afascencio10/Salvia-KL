@@ -1796,7 +1796,10 @@ var home = Vue.createApp({
       return '';
     },
     labelEstado(s) {
-      var m = { 'ra':'Activo', 'is':'Con novedad', 'cd':'Cerrado', 'ex':'Vencido', 'r':'Por aprobar', 'fc':'Recontacto' };
+      var m = {
+        'ra':'Activo', 'is':'Con novedad', 'cd':'Cerrado', 'ex':'Vencido', 'r':'Por aprobar', 'fc':'Recontacto',
+        'bo':'Borrador', 'in':'Iniciado', 'te':'Terminado', 'c':'Completado', 'iv':'Inválido'
+      };
       return m[s] || s || '—';
     },
     // Estados de las derivaciones (medidas de emergencia, psicosocial, estabilización).
@@ -1851,7 +1854,11 @@ var home = Vue.createApp({
       return m[code] || code || '—';
     },
     badgeEstado(s) {
-      var m = { 'ra':'badge-estado badge-activo', 'is':'badge-estado badge-seguimiento', 'cd':'badge-estado badge-cerrado', 'ex':'badge-estado badge-vencido' };
+      var m = {
+        'ra':'badge-estado badge-activo', 'is':'badge-estado badge-seguimiento', 'cd':'badge-estado badge-cerrado', 'ex':'badge-estado badge-vencido',
+        'bo':'badge-estado badge-borrador', 'in':'badge-estado badge-iniciado', 'te':'badge-estado badge-terminado',
+        'c':'badge-estado badge-completado', 'iv':'badge-estado badge-invalido', 'r':'badge-estado badge-por-aprobar', 'fc':'badge-estado badge-recontacto'
+      };
       return m[s] || 'badge-estado badge-cerrado';
     },
     labelEntryStatus(s) {

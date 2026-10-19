@@ -883,7 +883,7 @@
 }
 
 /* ====================================================================
-   BADGE ESTADO DEL CASO (victim_case_status — 6 códigos + desconocido)
+   BADGE ESTADO DEL CASO (victim_case_status — catálogo + desconocido)
    ==================================================================== */
 
 .cc-case-status-badge {
@@ -938,6 +938,41 @@
     background: #d1fae5;
     color: #047857;
     border-color: #6ee7b7;
+}
+
+/* bo — Borrador */
+.cc-case-status-bo {
+    background: #e0e7ff;
+    color: #3730a3;
+    border-color: #a5b4fc;
+}
+
+/* in — Iniciado */
+.cc-case-status-in {
+    background: #ccfbf1;
+    color: #0f766e;
+    border-color: #5eead4;
+}
+
+/* te — Terminado */
+.cc-case-status-te {
+    background: #ecfccb;
+    color: #4d7c0f;
+    border-color: #bef264;
+}
+
+/* c — Completado */
+.cc-case-status-c {
+    background: #e2e8f0;
+    color: #334155;
+    border-color: #cbd5e1;
+}
+
+/* iv — Inválido */
+.cc-case-status-iv {
+    background: #ffe4e6;
+    color: #be123c;
+    border-color: #fda4af;
 }
 
 /* Código fuera del mapa o vacío */

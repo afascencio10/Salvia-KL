@@ -107,7 +107,9 @@ PASO 4 — Renderizar tabla y controles de paginación
           // Mapeo de códigos → etiquetas (misma tabla que get_case_detail_sv labelEstado):
           //   ra → Activo   | is → Con novedad | cd → Cerrado
           //   ex → Vencido  | r  → Por aprobar | fc → Recontacto
-          SI status vacío o código sin mapear: mostrar "—" (o código crudo — ver GAPS)
+          //   bo → Borrador | in → Iniciado    | te → Terminado
+          //   c  → Completado | iv → Inválido
+          SI código sin mapear: mostrar "Desconocido"
       'barriers' →
           SI case.openBarriers.length === 0: celda vacía (sin texto)
           SI case.openBarriers.length > 0:
@@ -267,7 +269,8 @@ PASO 6 — Aplicar filtro según filter_key
 
     CASO 'estado_caso' (dropdown aditivo filter_estado_caso):
       → WHERE vc.victim_case_status = {código}
-      // Códigos: ra | is | cd | ex | r | fc — Ver flow-E13
+      // Códigos: ra | is | cd | ex | r | fc | bo | in | te | c | iv — Ver flow-E13
+      // ra también incluye victim_case_status vacío. El resto es igualdad exacta.
 
     CASO 'barreras_activas' (dropdown aditivo filter_barreras_activas):
       → WHERE EXISTS (
