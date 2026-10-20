@@ -49,6 +49,11 @@ type alcaldiasResult struct {
 //
 //	POST /api/v1/admin/migrate/alcaldias?dry_run=true
 func (c *MigrateController) MigrateAlcaldias(ctx *gin.Context) {
+	if ctx.Query("inspect") == "true" {
+		c.inspeccionarTablasAlcaldias(ctx)
+		return
+	}
+
 	dryRun := ctx.Query("dry_run") == "true"
 	res := alcaldiasResult{DryRun: dryRun}
 
@@ -152,6 +157,40 @@ func (c *MigrateController) MigrateAlcaldias(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, res)
+}
+
+// inspeccionarTablasAlcaldias devuelve las columnas reales de entity y
+// entity_branch más una fila de ejemplo. Solo lectura: los DAO de Go no conocen
+// todas las columnas de estas tablas y alguna es NOT NULL.
+func (c *MigrateController) inspeccionarTablasAlcaldias(ctx *gin.Context) {
+	db := c.db.WithContext(ctx.Request.Context())
+
+	type columna struct {
+		Nombre   string  `gorm:"column:column_name"    json:"columna"`
+		Tipo     string  `gorm:"column:data_type"      json:"tipo"`
+		Nullable string  `gorm:"column:is_nullable"    json:"aceptaNulo"`
+		Default  *string `gorm:"column:column_default" json:"default,omitempty"`
+	}
+
+	salida := gin.H{}
+	for _, tabla := range []string{"entity", "entity_branch", "entity_obligation"} {
+		var cols []columna
+		if err := db.Raw(`
+			SELECT column_name, data_type, is_nullable, column_default
+			FROM information_schema.columns
+			WHERE table_schema = 'salvia' AND table_name = ?
+			ORDER BY ordinal_position`, tabla).Scan(&cols).Error; err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error leyendo columnas de " + tabla + ": " + err.Error()})
+			return
+		}
+
+		var ejemplo *string
+		db.Raw(`SELECT row_to_json(t)::text FROM salvia.` + tabla + ` t LIMIT 1`).Scan(&ejemplo)
+
+		salida[tabla] = gin.H{"columnas": cols, "ejemplo": ejemplo}
+	}
+
+	ctx.JSON(http.StatusOK, salida)
 }
 
 // accionesDeAlcaldias saca las acciones del catálogo embebido (hoja
