@@ -286,6 +286,22 @@ func (r *caseDetailRepository) GetByICode(ctx context.Context, caseICode string)
 			Order("created_at ASC").
 			Find(&attempts)
 		followUpsV2[i].FollowUpAttempts = attempts
+
+		// Resolver el nombre del agente del seguimiento en el backend (igual que el
+		// responsable del caso) para que el frontend muestre SIEMPRE el nombre y nunca
+		// el código. Se matchea por i_code (lo normal) o por general_user_id (UUID),
+		// cubriendo registros donde el agent_id quedó guardado como UUID.
+		if followUpsV2[i].AgentID != nil && *followUpsV2[i].AgentID != "" {
+			var agentName string
+			r.db.WithContext(ctx).Raw(`
+				SELECT TRIM(COALESCE(gup.general_user_profile_names, '') || ' ' || COALESCE(gup.general_user_profile_last_names, ''))
+				FROM security.general_user gu
+				JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+				WHERE gu.general_user_i_code = ? OR gu.general_user_id::text = ?
+				LIMIT 1
+			`, *followUpsV2[i].AgentID, *followUpsV2[i].AgentID).Scan(&agentName)
+			followUpsV2[i].AgentFullName = strings.TrimSpace(agentName)
+		}
 	}
 
 	result.FollowUpsV2 = followUpsV2
