@@ -53,6 +53,12 @@
         hiddenColumns:    { type: Array,   default: function() { return []; } },
         buttons:          { type: Array,   default: function() { return []; } },
         reasignacion:     { type: Boolean, default: false },
+        // listEndpoint / sortOptions — extensión para Gestión de reportes (2026-10-12).
+        // Default preserva el comportamiento actual para los 3 consumidores existentes
+        // (get_my_cases.html, list_cases.html, case_component.html).
+        listEndpoint:     { type: String,  default: '/api/v1/cases/list' },
+        sortOptions:      { type: Array,   default: null }, // null → usa las 4 opciones fijas de siempre
+        itemLabelPlural:  { type: String,  default: 'casos' }, // "reportes" en Gestión de reportes — texto de toolbar/botón de reasignación
     },
 
     emits: ['action-clicked', 'reasignar-casos'],
@@ -105,6 +111,12 @@
 
         totalPages: function() {
             return Math.ceil(this.totalCases / this.pageSize) || 1;
+        },
+
+        // "casos" → "caso", "reportes" → "reporte": para el texto "N caso(s) seleccionado(s)".
+        // Sin esto, el default itemLabelPlural='casos' mostraba "casos(s)" en las pantallas de casos.
+        itemLabelSingular: function() {
+            return String(this.itemLabelPlural || '').replace(/s$/, '');
         },
 
         filteredCases: function() {
@@ -349,7 +361,8 @@
         normalizeDefaultActiveFilter: function() {
             var df = Object.assign({}, this.defaultFilter);
             if (!df.key || df.key === 'casos_nuevos' || df.key === 'riesgo' || df.key === 'equipo' ||
-                df.key === 'seguimientos_ejecutados' || df.key === 'estado_caso' || df.key === 'barreras_activas') {
+                df.key === 'seguimientos_ejecutados' || df.key === 'estado_caso' || df.key === 'barreras_activas' ||
+                df.key === 'estado_reporte') {
                 return { key: '' };
             }
             if (df.key === 'persona_asignada' && !df.value) {
@@ -621,7 +634,10 @@
                        self.activeFilter.key !== 'equipo' &&
                        self.activeFilter.key !== 'seguimientos_ejecutados' &&
                        self.activeFilter.key !== 'estado_caso' &&
-                       self.activeFilter.key !== 'barreras_activas') {
+                       self.activeFilter.key !== 'barreras_activas' &&
+                       self.activeFilter.key !== 'estado_reporte') {
+                // 'asignacion' (Gestión de reportes) pasa por aquí igual que
+                // 'persona_asignada' — mismo mecanismo genérico filter_key/filter_value.
                 params.set('filter_key', self.activeFilter.key);
                 if (self.activeFilter.value) {
                     params.set('filter_value', self.activeFilter.value);
@@ -632,7 +648,7 @@
                 params.set('chip_filter', 'casos_nuevos');
             }
 
-            var dropdownParamKeys = ['riesgo', 'equipo', 'seguimientos_ejecutados', 'estado_caso', 'barreras_activas'];
+            var dropdownParamKeys = ['riesgo', 'equipo', 'seguimientos_ejecutados', 'estado_caso', 'barreras_activas', 'estado_reporte'];
             dropdownParamKeys.forEach(function(dk) {
                 var val = self.activeDropdowns[dk];
                 if (!val) {
@@ -649,7 +665,7 @@
                 params.set('search', search);
             }
 
-            fetch('/api/v1/cases/list?' + params.toString())
+            fetch(self.listEndpoint + '?' + params.toString())
                 .then(function(res) {
                     return res.json().then(function(data) {
                         return { ok: res.ok, data: data };
@@ -663,7 +679,9 @@
                         self.cases = [];
                         self.totalCases = 0;
                     } else {
-                        self.cases = result.data.cases || [];
+                        // result.data.reports: forma de respuesta de /api/v1/victim-contacts/list
+                        // (Gestión de reportes) — mismo shape, nombre de campo distinto.
+                        self.cases = result.data.cases || result.data.reports || [];
                         self.totalCases = result.data.total || 0;
                         if (options.scrollToTop && self.$el) {
                             self.$el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -685,27 +703,28 @@
         // HELPERS DE PRESENTACIÓN
         // ----------------------------------------------------------------
 
-        formatDate: function(dateStr) {
+        // formatFechaCO muestra una fecha que el backend YA entregó en hora Colombia
+        // como string "YYYY-MM-DD" (campos creationDateCO / nextFollowUpDateCO). Se
+        // reformatea a DD/MM/YYYY por split, SIN new Date(): así nunca se reinterpreta
+        // la zona en el navegador y la fecha coincide exactamente con el resto del
+        // portal (Detalle, Seguimientos, Excel). Acepta también timestamps ISO como
+        // respaldo, tomando solo la parte de fecha.
+        formatFechaCO: function(dateStr) {
             if (!dateStr) return '—';
-            var d = new Date(dateStr);
-            if (isNaN(d.getTime())) return '—';
-            var dd   = String(d.getDate()).padStart(2, '0');
-            var mm   = String(d.getMonth() + 1).padStart(2, '0');
-            var yyyy = d.getFullYear();
-            return dd + '/' + mm + '/' + yyyy;
+            var ymd = String(dateStr).substring(0, 10); // "YYYY-MM-DD"
+            var parts = ymd.split('-');
+            if (parts.length !== 3) return '—';
+            return parts[2] + '/' + parts[1] + '/' + parts[0];
         },
 
-        // Igual que formatDate pero leyendo los componentes en UTC, para mostrar la
-        // fecha de registro tal como se guardó sin aplicar el desfase de zona horaria
-        // local (UTC-5 en Colombia restaría un día cuando la hora es medianoche UTC).
-        formatDateUTC: function(dateStr) {
+        // Igual que formatFecha del detalle del caso: usa el día calendario
+        // guardado (YYYY-MM-DD al inicio del timestamp) y no la hora de Colombia.
+        formatScheduledDate: function(dateStr) {
             if (!dateStr) return '—';
-            var d = new Date(dateStr);
-            if (isNaN(d.getTime())) return '—';
-            var dd   = String(d.getUTCDate()).padStart(2, '0');
-            var mm   = String(d.getUTCMonth() + 1).padStart(2, '0');
-            var yyyy = d.getUTCFullYear();
-            return dd + '/' + mm + '/' + yyyy;
+            var iso = String(dateStr).substring(0, 10);
+            var parts = iso.split('-');
+            if (parts.length !== 3 || parts[0].length !== 4) return this.formatDateUTC(dateStr);
+            return parts[2] + '/' + parts[1] + '/' + parts[0];
         },
 
         riskBadgeClass: function(riskStatus) {
@@ -762,6 +781,20 @@
             return String(n);
         },
 
+        contactAttemptsDisplay: function(caseObj) {
+            var n = caseObj.currentContactAttempts;
+            if (n === undefined || n === null) return '—';
+            return String(n) + '/9';
+        },
+
+        contactAttemptsBadgeClass: function(caseObj) {
+            var n = caseObj.currentContactAttempts;
+            if (n === undefined || n === null) return '';
+            if (n >= 9) return 'cc-attempts-badge alto';
+            if (n >= 3) return 'cc-attempts-badge medio';
+            return 'cc-attempts-badge bajo';
+        },
+
         caseStatusLabel: function(code) {
             var map = {
                 ra: 'Activo',
@@ -770,14 +803,37 @@
                 ex: 'Vencido',
                 r:  'Por aprobar',
                 fc: 'Recontacto',
+                bo: 'Borrador',
+                in: 'Iniciado',
+                te: 'Terminado',
+                c:  'Completado',
+                iv: 'Inválido',
             };
             return map[code] || 'Desconocido';
         },
 
         caseStatusBadgeClass: function(code) {
-            var known = { ra: true, is: true, cd: true, ex: true, r: true, fc: true };
+            var known = { ra: true, is: true, cd: true, ex: true, r: true, fc: true, bo: true, in: true, te: true, c: true, iv: true };
             var slug = known[code] ? code : 'desconocido';
             return 'cc-case-status-badge cc-case-status-' + slug;
+        },
+
+        // Gestión de reportes — estado derivado (agent_id + close_reason),
+        // no columna propia. Ver related-tables.md de Listado Reportes.
+        reportStatusLabel: function(code) {
+            var map = {
+                sin_asignar: 'Sin asignar',
+                asignado: 'Asignado',
+                cerrado_valido: 'Cerrado — válido',
+                cerrado_invalido: 'Cerrado — inválido',
+            };
+            return map[code] || 'Sin asignar';
+        },
+
+        reportStatusBadgeClass: function(code) {
+            var known = { sin_asignar: true, asignado: true, cerrado_valido: true, cerrado_invalido: true };
+            var slug = known[code] ? code : 'sin_asignar';
+            return 'cc-report-status-badge cc-report-status-' + slug;
         },
 
         barrierSectorLabel: function(code) {
@@ -978,7 +1034,21 @@
             }, 400);
         },
 
+        // 'asignacion' (Gestión de reportes) busca agentes op vía
+        // /api/v1/agents/by-role?role=op en vez de /api/v1/agents/search
+        // (ese endpoint filtra por equipo, no por rol — no sirve para
+        // reportes, que no tienen equipo hasta asignarse, GAP-3). La lista
+        // de agentes op se cachea tras el primer fetch y se filtra en
+        // cliente — no hay soporte de q= en by-role.
+        isAsignacionFilter: function(key) {
+            return key === 'asignacion';
+        },
+
         runAutocompleteSearch: function(key) {
+            if (this.isAsignacionFilter(key)) {
+                return this.runAsignacionSearch(key);
+            }
+
             var self = this;
             var queryText = (self.autocompleteText[key] || '').trim();
             var minLen = self.autocompleteMinLength();
@@ -1033,6 +1103,60 @@
                 .catch(function() {
                     self.autocompleteError[key] = true;
                     self.autocompleteSuggestions[key] = [];
+                    self.autocompleteLoading[key] = false;
+                });
+        },
+
+        runAsignacionSearch: function(key) {
+            var self = this;
+            var queryText = (self.autocompleteText[key] || '').trim();
+            var unassignedOpt = { value: '__unassigned__', label: 'Sin asignar' };
+
+            self.autocompleteOpen[key] = true;
+
+            var buildSuggestions = function() {
+                var agents = (self._opAgentsCache || []).filter(function(a) {
+                    if (!queryText) return true;
+                    return a.label.toLowerCase().indexOf(queryText.toLowerCase()) !== -1;
+                });
+                // "Sin asignar" siempre visible primero, incluso filtrando por texto.
+                self.autocompleteSuggestions[key] = [unassignedOpt].concat(agents);
+                self.autocompleteLoading[key] = false;
+            };
+
+            if (self._opAgentsCache) {
+                buildSuggestions();
+                return;
+            }
+
+            self.autocompleteLoading[key] = true;
+            self.autocompleteError[key] = false;
+
+            fetch('/api/v1/agents/by-role?role=op')
+                .then(function(res) {
+                    return res.json().then(function(data) {
+                        return { ok: res.ok, data: data };
+                    });
+                })
+                .then(function(result) {
+                    if (!result.ok) {
+                        self.autocompleteError[key] = true;
+                        self.autocompleteSuggestions[key] = [unassignedOpt];
+                        self.autocompleteLoading[key] = false;
+                        return;
+                    }
+                    var agents = result.data.agents || [];
+                    self._opAgentsCache = agents.map(function(a) {
+                        return {
+                            value: a.icode,
+                            label: ((a.names || '') + ' ' + (a.lastNames || '')).trim(),
+                        };
+                    });
+                    buildSuggestions();
+                })
+                .catch(function() {
+                    self.autocompleteError[key] = true;
+                    self.autocompleteSuggestions[key] = [unassignedOpt];
                     self.autocompleteLoading[key] = false;
                 });
         },

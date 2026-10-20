@@ -125,7 +125,7 @@ Requerido:    Sí
 Evento:       Cuando filtra por estado del caso
 Tipo:         User Interaction
 Descripción:  Cambio en el dropdown "Estado del caso". Filtra por
-              victim_case.victim_case_status (códigos ra/is/cd/ex/r/fc).
+              victim_case.victim_case_status (códigos ra/is/cd/ex/r/fc/bo/in/te/c/iv).
               Opciones quemadas en el padre; etiquetas según labelEstado
               de get_case_detail_sv. Combinable con otros filtros.
               Llama al backend con filter_estado_caso={código}.
@@ -339,3 +339,26 @@ Requerido:    Condicional (solo si :reasignacion === true)
 **Total: 16 eventos — 1 Lifecycle, 14 User Interaction, 1 Índice**  
 **Ningún evento escribe en el backend desde este componente.**  
 **Las acciones resultantes de E-05 y E-15 son responsabilidad del componente padre que consume `casos-component`.**
+
+---
+
+## Extensión: Gestión de reportes (implementada — 2026-10-12, probada 2026-10-13)
+
+> **Estado:** Implementada y probada. Ver [`QA/gestion-reportes-qa-plan.md`](../../Screens/Listado%20Reportes/QA/gestion-reportes-qa-plan.md).
+
+Dos filtros nuevos, exclusivos de las pantallas de reportes (`listEndpoint="/api/v1/victim-contacts/list"`), siguen el mismo patrón que E-09…E-13/E-16 (cada filtro nuevo es un evento propio, aunque la mecánica de UI sea genérica). Se documentan en el índice de la pantalla que los introduce en vez de aquí, porque son específicos de la entidad reporte, no de casos:
+
+| Evento | Filtro | Documento |
+|---|---|---|
+| Cuando filtra por estado del reporte | `estado_reporte` (dropdown) | [Listado Reportes → flow-E02](../../Screens/Listado%20Reportes/Flujos/flow-E02-cuando-filtra-estado-reporte.md) |
+| Cuando filtra por asignación | `asignacion` (autocomplete + "Sin asignar") | [Listado Reportes → flow-E03](../../Screens/Listado%20Reportes/Flujos/flow-E03-cuando-filtra-asignacion.md) |
+
+E-01 (carga), E-06 (paginación), E-05/E-15 (acción de fila / reasignar) se reutilizan **sin cambios de lógica** — las pantallas de reportes solo les pasan `listEndpoint`, `columns`, `buttons`, `reasignacion`, `sortOptions` e `itemLabelPlural` distintos (este último solo cambia el texto del contador y del botón de reasignación) y, en Mis Reportes, `agentId`.
+
+E-03 (buscador) y E-04 (ordenamiento) reutilizan el **mecanismo** (debounce, reset de página, mismo evento), pero necesitan un ajuste cada uno — ver props nuevos en `casos-component-interface.md`:
+
+| Evento | Qué cambia para reportes | Detalle |
+|---|---|---|
+| E-03 — buscador | La traducción de `search` a SQL es específica de `victim_contact` (no de `victim_case`) | [Listado Reportes → flow-E07](../../Screens/Listado%20Reportes/Flujos/flow-E07-cuando-busca-por-texto.md) |
+| E-04 — ordenamiento | El `<select>` pasa de 4 opciones fijas a las que traiga el prop nuevo `sortOptions` (2 para reportes, sin equivalente de "próximo seguimiento") | Ver `casos-component-interface.md`, prop `sortOptions` |
+| E-07 / E-08 — autocomplete | Para `key = 'asignacion'` la búsqueda de agentes **no** usa `/api/v1/agents/search`: pide `GET /api/v1/agents/by-role?role=op` una sola vez, lo guarda en caché y filtra en el cliente; la opción fija "Sin asignar" va siempre primera | [Listado Reportes → flow-E03](../../Screens/Listado%20Reportes/Flujos/flow-E03-cuando-filtra-asignacion.md) |

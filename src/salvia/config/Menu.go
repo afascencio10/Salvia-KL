@@ -281,6 +281,19 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	// Carga de la pantalla HTML: mismos roles que get_notificaciones; uso real solo op/ro (validación en frontend).
 	"get_my_cases":                    {"op": true, "an": true, "no": true, "sv": true, "ad": true, "ro": true, "et": true},
 	"get_list_cases":                  {"op": true, "an": true, "no": true, "sv": true, "ad": true, "ro": true, "do": true, "us": true, "fo": true, "ps": true, "ts": true},
+
+	// Gestión de reportes (FigJam l25jrzyf) — Listado Reportes / Mis Reportes /
+	// gestion-reporte-modal. Ver DocsMD/Screens/Listado Reportes/.
+	"get_list_reports":          {"op": true, "sv": true},
+	"get_my_reports":            {"op": true},
+	"list_victim_contacts":      {"op": true, "sv": true},
+	"manage_victim_contacts":    {"op": true, "sv": true}, // GAP-2 confirmado 2026-10-11: ambos pueden gestionar cualquier reporte
+	"reassign_victim_contacts":  {"sv": true},              // FigJam: "Solo el supervisor puede hacer esto"
+
+	// Registro V3 (DocsMD/Screens/Registro V3) — mismo criterio de acceso
+	// que Registro de Caso V2 (operador y supervisor pueden diligenciar).
+	"manage_registro_v3": {"op": true, "sv": true},
+
 	"get_seguimientos_area":           {"ad": true, "sv": true},
 	"get_hacer_seguimiento":           {"ro": true, "op": true, "ad": true},
 	"generate_calendario_seguimiento": {"ad": true, "sv": true, "op": true},
@@ -317,6 +330,10 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 
 	// ── Casos Entidad (rol et + ro, op, sv, en Enlace Territorial) ─────────
 	"get_casos_entidad": {"et": true, "ro": true, "op": true, "sv": true, "en": true},
+	// Mis Acciones Institucionales es solo del rol entidad: la pantalla se acota
+	// con el entity_branch_id de la sesión, y los roles sin sede no tienen nada que
+	// consultar ahí.
+	"get_mis_acciones_institucionales": {"et": true},
 
 	// ── Casos Mecanismo (rol mc — mecanismos articuladores) ────────────────
 	"get_casos_mecanismo": {"mc": true},

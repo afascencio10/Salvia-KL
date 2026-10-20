@@ -557,6 +557,10 @@ app.component('case-task-modal', {
                         if (!f.nivelMecanismo) return false;
                         if (!f.quienLlenaMecanismo) return false;
                     }
+                    if (f.decisiones.includes('oficio')) {
+                        // Debe definirse quién gestiona el oficio (equipo técnico o agente)
+                        if (!f.gestionaOficio) return false;
+                    }
                     return true;
                 case 'Corregir oficio':
                     // Sin campos obligatorios — solo confirmación
@@ -842,6 +846,8 @@ app.component('case-task-modal', {
                         // Mecanismo
                         nivelMecanismo:               null,
                         quienLlenaMecanismo:          '',   // 'equipo_tecnico' | 'agente'
+                        // Oficio: quién gestiona el oficio una vez generado
+                        gestionaOficio:               '',   // 'equipo_tecnico' | 'agente'
                     };
                     // Cargar enlaces del departamento del caso (para decidir dropdown)
                     this._cargarEnlacesDepartamento();
@@ -1002,6 +1008,9 @@ app.component('case-task-modal', {
                     this.form.nivelMecanismo     = null;
                     this.form.quienLlenaMecanismo = '';
                 }
+                if (valor === 'oficio') {
+                    this.form.gestionaOficio = '';
+                }
             } else {
                 this.form.decisiones.push(valor);
             }
@@ -1010,6 +1019,15 @@ app.component('case-task-modal', {
 
         tieneDecision(valor) {
             return this.form.decisiones && this.form.decisiones.includes(valor);
+        },
+
+        // Selección de quién gestiona el oficio. Aunque el requerimiento pide dos
+        // checkboxes, las opciones son excluyentes (el oficio lo gestiona el equipo
+        // técnico O el agente asignado, nunca ambos): al marcar una se limpia la otra,
+        // y volver a marcar la ya seleccionada la desmarca.
+        onChangeGestionaOficio(valor) {
+            this.form.gestionaOficio = (this.form.gestionaOficio === valor) ? '' : valor;
+            console.log('[CTM] E09 gestionaOficio →', this.form.gestionaOficio);
         },
 
         /* ── Activar Enlace ──────────────────────────────────────────────── */
@@ -1145,6 +1163,7 @@ app.component('case-task-modal', {
                         nacional:      'Nacional',
                     };
                     const QUIEN_LABELS = { equipo_tecnico: 'Equipo Técnico', agente: 'Agente de Seguimiento' };
+                    const GESTIONA_OFICIO_LABELS = { equipo_tecnico: 'Equipo Técnico', agente: 'Agente asignado al caso' };
                     const activó = this.tieneDecision('activar_enlace');
                     const esOtra = activó && f.entidadDestino === 'otra';
                     const enlaceObj = this.enlacesDepartamento.find(e => e.icode === f.enlaceSeleccionado);
@@ -1169,6 +1188,9 @@ app.component('case-task-modal', {
                         nivelMecanismoTexto:          this.tieneDecision('mecanismo_articulador')  ? (NIVEL_LABELS[f.nivelMecanismo] || null) : null,
                         quienLlenaMecanismo:          this.tieneDecision('mecanismo_articulador')  ? (f.quienLlenaMecanismo || null) : null,
                         quienLlenaMecanismoTexto:     this.tieneDecision('mecanismo_articulador')  ? (QUIEN_LABELS[f.quienLlenaMecanismo] || null) : null,
+                        // Oficio: quién gestiona el oficio generado
+                        gestionaOficio:               this.tieneDecision('oficio')  ? (f.gestionaOficio || null) : null,
+                        gestionaOficioTexto:          this.tieneDecision('oficio')  ? (GESTIONA_OFICIO_LABELS[f.gestionaOficio] || null) : null,
                     };
                 }
                 case 'Corregir oficio':
@@ -1427,19 +1449,19 @@ app.component('case-task-modal', {
 
             <div v-if="form.entidadId === 'otra'" class="ctm-field">
                 <label class="ctm-label">Nombre de la entidad <span class="req">*</span></label>
-                <input class="ctm-input" v-model="form.entidadNombre" placeholder="Escribe el nombre de la entidad" maxlength="150"/>
+                <input class="ctm-input" v-model="form.entidadNombre" placeholder="Escribe el nombre de la entidad" maxlength="5000"/>
             </div>
 
             <p class="ctm-section-title">Contacto</p>
 
             <div class="ctm-field">
                 <label class="ctm-label">Funcionario contactado <span class="req">*</span></label>
-                <input class="ctm-input" v-model="form.funcionario" placeholder="Nombre del funcionario" maxlength="50"/>
+                <input class="ctm-input" v-model="form.funcionario" placeholder="Nombre del funcionario" maxlength="5000"/>
             </div>
 
             <div class="ctm-field">
                 <label class="ctm-label">Descripción / Notas</label>
-                <textarea class="ctm-textarea" v-model="form.descripcion" rows="3" placeholder="Resumen de la gestión..." maxlength="500"></textarea>
+                <textarea class="ctm-textarea" v-model="form.descripcion" rows="3" placeholder="Resumen de la gestión..." maxlength="5000"></textarea>
             </div>
 
             <p class="ctm-section-title">Oficio</p>
@@ -1461,11 +1483,11 @@ app.component('case-task-modal', {
             <template v-if="form.generaOficio === true">
                 <div class="ctm-field">
                     <label class="ctm-label">Asunto del oficio <span class="req">*</span></label>
-                    <input class="ctm-input" v-model="form.asunto" placeholder="Asunto…" maxlength="80"/>
+                    <input class="ctm-input" v-model="form.asunto" placeholder="Asunto…" maxlength="5000"/>
                 </div>
                 <div class="ctm-field">
                     <label class="ctm-label">Ruta Kofax / URL del archivo <span class="req">*</span></label>
-                    <input class="ctm-input" v-model="form.rutaKofax" placeholder="\\\\servidor\\ruta\\archivo.pdf" maxlength="255"/>
+                    <input class="ctm-input" v-model="form.rutaKofax" placeholder="\\\\servidor\\ruta\\archivo.pdf" maxlength="5000"/>
                 </div>
             </template>
 
@@ -1535,24 +1557,24 @@ app.component('case-task-modal', {
 
             <div v-if="form.entidadId === 'otra'" class="ctm-field">
                 <label class="ctm-label">Nombre de la entidad</label>
-                <input class="ctm-input" v-model="form.entidadNombre" placeholder="Escribe el nombre de la entidad" maxlength="150"/>
+                <input class="ctm-input" v-model="form.entidadNombre" placeholder="Escribe el nombre de la entidad" maxlength="5000"/>
             </div>
 
             <p class="ctm-section-title">Datos del oficio</p>
 
             <div class="ctm-field">
                 <label class="ctm-label">Dependencia del funcionario</label>
-                <input class="ctm-input" v-model="form.funcionario" placeholder="Ej. Departamento de Protección Social" maxlength="50"/>
+                <input class="ctm-input" v-model="form.funcionario" placeholder="Ej. Departamento de Protección Social" maxlength="5000"/>
             </div>
 
             <div class="ctm-field">
                 <label class="ctm-label">Asunto</label>
-                <input class="ctm-input" v-model="form.asunto" placeholder="Asunto del oficio…" maxlength="80"/>
+                <input class="ctm-input" v-model="form.asunto" placeholder="Asunto del oficio…" maxlength="5000"/>
             </div>
 
             <div class="ctm-field">
                 <label class="ctm-label">Ruta Kofax / URL del archivo</label>
-                <input class="ctm-input" v-model="form.rutaKofax" placeholder="\\\\servidor\\ruta\\archivo.pdf" maxlength="255"/>
+                <input class="ctm-input" v-model="form.rutaKofax" placeholder="\\\\servidor\\ruta\\archivo.pdf" maxlength="5000"/>
             </div>
 
             <div class="ctm-field">
@@ -1571,7 +1593,7 @@ app.component('case-task-modal', {
             <!-- Análisis de la mesa técnica (obligatorio, aplica a toda la sesión) -->
             <div class="ctm-field">
                 <label class="ctm-label">Análisis de la mesa técnica <span class="req">*</span></label>
-                <textarea class="ctm-textarea" v-model="form.analisisMesaTecnica" rows="4" placeholder="Resumen de lo que se determinó en la mesa técnica y por qué se toman estas decisiones…" maxlength="1000"></textarea>
+                <textarea class="ctm-textarea" v-model="form.analisisMesaTecnica" rows="4" placeholder="Resumen de lo que se determinó en la mesa técnica y por qué se toman estas decisiones…" maxlength="5000"></textarea>
             </div>
 
             <p class="ctm-section-title">Decisiones tomadas <span style="color:#dc2626">*</span></p>
@@ -1621,7 +1643,7 @@ app.component('case-task-modal', {
 
                     <div class="ctm-field">
                         <label class="ctm-label">Solicitud para el enlace <span class="req">*</span></label>
-                        <textarea class="ctm-textarea" v-model="form.solicitudEnlace" rows="3" placeholder="Explica la tarea que debe realizar el enlace territorial…" maxlength="500"></textarea>
+                        <textarea class="ctm-textarea" v-model="form.solicitudEnlace" rows="3" placeholder="Explica la tarea que debe realizar el enlace territorial…" maxlength="5000"></textarea>
                     </div>
 
                     <!-- Dropdown de enlace solo si hay más de uno -->
@@ -1729,6 +1751,31 @@ app.component('case-task-modal', {
                 </div>
             </template>
 
+            <!-- Gestión del oficio: se despliega al elegir la decisión "Generar Oficio".
+                 Define quién queda a cargo de gestionar el oficio generado. Va al final
+                 del formulario, como pide el requerimiento. -->
+            <template v-if="tieneDecision('oficio')">
+                <p class="ctm-section-title" style="margin-top:16px">Gestión del oficio</p>
+                <p style="font-size:.78rem;color:#6b7280;margin:0 0 8px">¿Quién gestiona el oficio una vez generado?</p>
+                <div class="ctm-checkbox-group">
+                    <label :class="['ctm-checkbox-item', form.gestionaOficio === 'equipo_tecnico' ? 'checked' : '']"
+                        @click="onChangeGestionaOficio('equipo_tecnico')">
+                        <div class="ctm-checkbox-box">
+                            <i class="fas fa-check ctm-checkbox-check"></i>
+                        </div>
+                        <span class="ctm-checkbox-text">Lo gestiona el Equipo Técnico</span>
+                    </label>
+
+                    <label :class="['ctm-checkbox-item', form.gestionaOficio === 'agente' ? 'checked' : '']"
+                        @click="onChangeGestionaOficio('agente')">
+                        <div class="ctm-checkbox-box">
+                            <i class="fas fa-check ctm-checkbox-check"></i>
+                        </div>
+                        <span class="ctm-checkbox-text">Lo gestiona el Agente asignado al caso</span>
+                    </label>
+                </div>
+            </template>
+
         </template>
 
         <!-- Formulario justificar_remision -->
@@ -1745,7 +1792,7 @@ app.component('case-task-modal', {
 
             <div class="ctm-field">
                 <label class="ctm-label">Tu respuesta <span class="req">*</span></label>
-                <textarea class="ctm-textarea" v-model="form.respuesta" rows="4" placeholder="Explica o justifica la remisión para que vuelva a revisión…" maxlength="500"></textarea>
+                <textarea class="ctm-textarea" v-model="form.respuesta" rows="4" placeholder="Explica o justifica la remisión para que vuelva a revisión…" maxlength="5000"></textarea>
             </div>
 
         </template>
@@ -1825,7 +1872,7 @@ app.component('case-task-modal', {
                             </div>
                         </div>
                         <div v-if="form.seleccion[item.id] && form.seleccion[item.id].selected" class="ctm-ob-desc" @click.stop>
-                            <textarea class="ctm-textarea" v-model="form.seleccion[item.id].descripcion" rows="3" maxlength="500" placeholder="Describe la solicitud para este ítem del checklist entidad..."></textarea>
+                            <textarea class="ctm-textarea" v-model="form.seleccion[item.id].descripcion" rows="3" maxlength="5000" placeholder="Describe la solicitud para este ítem del checklist entidad..."></textarea>
                         </div>
                     </div>
                 </div>
@@ -1848,12 +1895,12 @@ app.component('case-task-modal', {
 
             <div class="ctm-field">
                 <label class="ctm-label">En línea con las acciones adelantadas, ¿cuenta con un Nº de radicado, NUNC, MP, etc.?</label>
-                <input class="ctm-input" v-model="form.radicado" placeholder="Ej: NUNC 123456789012" maxlength="80"/>
+                <input class="ctm-input" v-model="form.radicado" placeholder="Ej: NUNC 123456789012" maxlength="5000"/>
             </div>
 
             <div class="ctm-field">
                 <label class="ctm-label">¿Desea ampliar información sobre la gestión y atención del caso?</label>
-                <textarea class="ctm-textarea" v-model="form.ampliacion" rows="4" maxlength="500" placeholder="Describe cómo se atendió esta acción institucional..."></textarea>
+                <textarea class="ctm-textarea" v-model="form.ampliacion" rows="4" maxlength="5000" placeholder="Describe cómo se atendió esta acción institucional..."></textarea>
             </div>
 
             <div class="ctm-field">
@@ -1929,7 +1976,7 @@ app.component('case-task-modal', {
                     </div>
                     <div class="ctm-field">
                         <label class="ctm-label">Compromisos de la sesión</label>
-                        <textarea class="ctm-textarea" rows="3" maxlength="500" v-model="form.compromisos"
+                        <textarea class="ctm-textarea" rows="3" maxlength="5000" v-model="form.compromisos"
                             placeholder="Si el caso se abordó en varias sesiones, consigne los compromisos de todas."></textarea>
                     </div>
                 </template>
@@ -1940,7 +1987,7 @@ app.component('case-task-modal', {
                     </div>
                     <div class="ctm-field">
                         <label class="ctm-label">Detalle de la próxima sesión</label>
-                        <textarea class="ctm-textarea" rows="3" maxlength="500" v-model="form.detalleProxima"
+                        <textarea class="ctm-textarea" rows="3" maxlength="5000" v-model="form.detalleProxima"
                             placeholder="Indique cuándo se citará, según la urgencia del caso."></textarea>
                     </div>
                 </template>
@@ -1953,21 +2000,21 @@ app.component('case-task-modal', {
                 </div>
                 <div class="ctm-field">
                     <label class="ctm-label">Detalle de la próxima sesión o mesa técnica <span class="req">*</span></label>
-                    <textarea class="ctm-textarea" rows="3" maxlength="500" v-model="form.detalleProxima"
+                    <textarea class="ctm-textarea" rows="3" maxlength="5000" v-model="form.detalleProxima"
                         placeholder="Indique cuándo se citará la próxima sesión o mesa técnica."></textarea>
                 </div>
             </template>
 
             <div class="ctm-field">
                 <label class="ctm-label">Reporte de gestión <span class="req">*</span></label>
-                <textarea class="ctm-textarea" rows="4" maxlength="2000" v-model="form.reporteGestion"
+                <textarea class="ctm-textarea" rows="4" maxlength="5000" v-model="form.reporteGestion"
                     placeholder="Acciones adelantadas y, si aplica, enlace a la documentación."></textarea>
                 <p class="ctm-hint">Describa las acciones adelantadas. Si hay documentación de soporte, incluya el enlace.</p>
             </div>
 
             <div v-if="mecanismoCtx && mecanismoCtx.scope !== 'nacional'" class="ctm-field">
                 <label class="ctm-label">Remisión a responsables</label>
-                <textarea class="ctm-textarea" rows="3" maxlength="500" v-model="form.remisionResponsables"
+                <textarea class="ctm-textarea" rows="3" maxlength="5000" v-model="form.remisionResponsables"
                     placeholder="Opcional"></textarea>
                 <p class="ctm-hint">Según el Decreto 1710. Este campo se guarda; no dispara un escalamiento automático.</p>
             </div>
@@ -1979,7 +2026,7 @@ app.component('case-task-modal', {
                 </div>
                 <div class="ctm-field">
                     <label class="ctm-label">Asistencias técnicas <span class="req">*</span></label>
-                    <textarea class="ctm-textarea" rows="3" maxlength="500" v-model="form.asistenciasTexto"
+                    <textarea class="ctm-textarea" rows="3" maxlength="5000" v-model="form.asistenciasTexto"
                         placeholder="Si no aplica, escriba «No aplica» y explique."></textarea>
                     <p class="ctm-hint">Si no aplica, escriba «No aplica» y la explicación.</p>
                 </div>

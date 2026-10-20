@@ -233,6 +233,50 @@ const calMeetingsSelectNoAgent = `
 	COALESCE(tm.description, '')       AS description
 `
 
+// ─── Query base seguimientos v2 ───────────────────────────────────────────────
+// Los seguimientos psicosociales auto-programados (follow_up_v2 con team='psicosocial')
+// se incluyen en el calendario como sesiones de solo lectura (remission_id vacío).
+const calFollowUpV2Select = `
+	fu.id::text                        AS id,
+	'session'                          AS kind,
+	COALESCE(NULLIF(TRIM(CONCAT(vc.victim_case_victim_names, ' ', vc.victim_case_victim_last_names)), ''), 'Víctima') AS title,
+	fu.scheduled_date                  AS start,
+	(fu.scheduled_date + interval '60 minutes') AS end,
+	COALESCE(fu.scheduled_time, '')    AS scheduled_time,
+	TO_CHAR(fu.scheduled_date, 'YYYY-MM-DD') AS scheduled_date_str,
+	COALESCE(vc.victim_case_i_code, fu.case_id, '') AS case_icode,
+	''                                 AS remission_id,
+	COALESCE(NULLIF(TRIM(CONCAT(vc.victim_case_victim_names, ' ', vc.victim_case_victim_last_names)), ''), '') AS victim_name,
+	COALESCE(vc.victim_case_victim_doc_type, '')   AS victim_doc_type,
+	COALESCE(vc.victim_case_victim_doc_number, '') AS victim_doc_number,
+	COALESCE(fu.agent_id, '')          AS agent_id,
+	COALESCE(TRIM(CONCAT(agup.general_user_profile_names, ' ', agup.general_user_profile_last_names)), '') AS agent_name,
+	''                                 AS psychologist_name,
+	''                                 AS social_worker_name,
+	COALESCE(vf2.victim_case_form2_risk_level, 0) AS risk_level,
+	LOWER(COALESCE(fu.status, 'pendiente')) AS status,
+	COALESCE(fu.summary, '')           AS description
+`
+
+const calFollowUpV2From = `
+FROM salvia.follow_up_v2 fu
+LEFT JOIN salvia.victim_case vc
+       ON vc.victim_case_i_code = fu.case_id
+LEFT JOIN salvia.victim_case_form2 vf2
+       ON vf2.victim_case_form2_victim_case = vc.victim_case_id
+LEFT JOIN security.general_user ag_gu
+       ON ag_gu.general_user_i_code::text = COALESCE(fu.agent_id, '')
+LEFT JOIN security.general_user_profile agup
+       ON agup.general_user_profile_id = ag_gu.general_user_general_user_profile
+`
+
+const calFollowUpV2WhereBase = `
+	fu.deleted_at IS NULL
+	AND fu.team = 'psicosocial'
+	AND fu.scheduled_date IS NOT NULL
+	AND UPPER(COALESCE(fu.status, '')) NOT IN ('REALIZADO', 'CERRADO')
+`
+
 // tzBogota — todas las fechas se interpretan en zona horaria Colombia para el cast a ::date.
 const tzBogota = "America/Bogota"
 
@@ -300,10 +344,16 @@ func (r *psychosocialCalendarRepository) MineEvents(ctx context.Context, agentIC
 	WHERE tm.deleted_at IS NULL
 	  AND tm.scheduled_date BETWEEN ? AND ?
 	  AND tma.agent_id IN (` + userUUIDLookup + `, ?)
+	UNION ALL
+	SELECT ` + calFollowUpV2Select + `
+	` + calFollowUpV2From + `
+	WHERE ` + calFollowUpV2WhereBase + `
+	  AND (fu.scheduled_date AT TIME ZONE '` + tzBogota + `')::date BETWEEN ? AND ?
+	  AND COALESCE(fu.agent_id, '') = ?
 	ORDER BY start ASC
 	`
 	var rows []CalendarEvent
-	if err := r.db.WithContext(ctx).Raw(sql, from, to, agentICode, agentICode, agentICode, agentICode, from, to, agentICode, agentICode).Scan(&rows).Error; err != nil {
+	if err := r.db.WithContext(ctx).Raw(sql, from, to, agentICode, agentICode, agentICode, agentICode, from, to, agentICode, agentICode, from, to, agentICode).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	return rows, nil
@@ -368,6 +418,18 @@ func buildTeamEventsQuery(filterAgentICode, filterDuplaID string, from, to time.
 		`
 	}
 
+	// follow_up_v2: seguimientos psicosociales programados
+	args = append(args, from, to)
+	followUpWhere := ""
+	switch {
+	case filterDuplaID != "":
+		followUpWhere = `AND EXISTS (SELECT 1 FROM (` + duplaMemberLookup + `) m WHERE COALESCE(fu.agent_id, '') = m.icode)`
+		args = append(args, filterDuplaID)
+	case filterAgentICode != "":
+		followUpWhere = `AND COALESCE(fu.agent_id, '') = ?`
+		args = append(args, filterAgentICode)
+	}
+
 	sql := `
 	SELECT * FROM (
 		SELECT ` + calSessionsSelect + `
@@ -377,6 +439,12 @@ func buildTeamEventsQuery(filterAgentICode, filterDuplaID string, from, to time.
 		  ` + sessionWhere + `
 		UNION ALL
 		` + meetingsQuery + `
+		UNION ALL
+		SELECT ` + calFollowUpV2Select + `
+		` + calFollowUpV2From + `
+		WHERE ` + calFollowUpV2WhereBase + `
+		  AND (fu.scheduled_date AT TIME ZONE '` + tzBogota + `')::date BETWEEN ? AND ?
+		  ` + followUpWhere + `
 	) e
 	ORDER BY start ASC
 	`
@@ -477,7 +545,7 @@ func (r *psychosocialCalendarRepository) AgentSessionTimesOnDate(ctx context.Con
 
 	q := r.db.WithContext(ctx).Model(&models.TeamContact{}).
 		Where("professional_id = ? AND is_psico_session = true AND deleted_at IS NULL", agentUUID).
-		Where("scheduled_date IS NOT NULL AND (scheduled_date AT TIME ZONE 'UTC')::date = ?::date", day).
+		Where("scheduled_date IS NOT NULL AND (scheduled_date AT TIME ZONE 'America/Bogota')::date = ?::date", day).
 		Where("scheduled_time IS NOT NULL AND scheduled_time != ''")
 	if excludeID != "" {
 		q = q.Where("id != ?", excludeID)

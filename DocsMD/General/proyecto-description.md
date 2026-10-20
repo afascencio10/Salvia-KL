@@ -53,6 +53,8 @@ cd SOG_SALVIA/src && PORT=9090 go run . >> /tmp/salvia_server.log 2>&1 &
 | `Notificaciones`                                                               | Centro de notificaciones del sistema para alertas de casos y seguimientos.                       | `src/frontend/html/salvia/notifications/notificaciones.html`      |
 | `Registro de Contacto Víctima`                                                 | Formulario de ingreso inicial de la víctima como contacto antes de abrir un caso formal.         | `src/frontend/html/salvia/victim_contact/set_victim_contact.html` |
 | [`Registro de Contacto Víctima V2`](../Screens/Registro%20de%20Contacto%20V%C3%ADctima%20V2/registro-contacto-victima-v2-index.md) | Segunda versión pública del reporte ciudadano (`/salvia/public-v2`): wizard de 4 pasos, 4 tipos de reportante. Coexiste con la V1 sin reemplazarla. | `src/frontend/html/salvia/victim_contact/set_victim_contact_v2.html` |
+| [`Listado Reportes`](../Screens/Listado%20Reportes/listado-reportes-index.md) | Todos los reportes (`victim_contact`) con filtros por estado y asignación, búsqueda y orden; el supervisor los reasigna a un agente integral y abre el modal de gestión. | `src/frontend/html/salvia/reportes/list_reportes.html` |
+| [`Mis Reportes`](../Screens/Mis%20Reportes/mis-reportes-index.md) | Los reportes asignados al agente integral de la sesión: mismos filtros y modal de gestión que Listado Reportes, sin reasignación. | `src/frontend/html/salvia/reportes/get_my_reportes.html` |
 | `Feminicidio`                                                                  | Listado y registro de casos de feminicidio con formulario de datos de la víctima y familia.      | `src/frontend/html/salvia/feminicide/set_feminicide.html`         |
 | `Riesgo de Feminicidio`                                                        | Listado y registro de casos de riesgo de feminicidio con formulario propio.                      | `src/frontend/html/salvia/feminicide/set_feminicide_risk.html`    |
 | [`Casos Entidad`](../Screens/Casos%20Entidad/casos-entidad-index.md)           | Listado de casos con víctimas referidas a la entidad: filtros, última acción y acceso a detalle. | `src/frontend/html/salvia/entity_case/casos_entidad.html` |
@@ -70,6 +72,7 @@ cd SOG_SALVIA/src && PORT=9090 go run . >> /tmp/salvia_server.log 2>&1 &
 | `casos-component` | Tabla reutilizable de casos con filtros, paginación y acciones de fila. | `src/frontend/js/components/casos-component.js` |
 | `dinamic-form` | Componente reutilizable que renderiza formularios dinámicos por secciones con guardado parcial. | `src/frontend/js/components/dinamic-form.js` |
 | `case-timeline` | Componente reutilizable que muestra el historial cronológico de eventos de un caso. | `src/frontend/js/components/case-timeline.js` |
+| [`gestion-reporte-modal`](../Componentes/Gestion%20Reporte%20Modal/gestion-reporte-modal-index.md) | Modal que gestiona un reporte: validación previa, esquema de recontacto 3x3 (intentos) y cierre por no información mínima, no contacto, no competencia o decisión de la persona. | `src/frontend/js/components/gestion-reporte-modal.js` |
 | `case-mecanismos` | Cadena de escalamiento a mecanismos articuladores en Gestión institucional. | `src/frontend/js/components/case-mecanismos.js` |
 
 Línea de prueba.

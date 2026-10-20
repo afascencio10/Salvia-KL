@@ -64,13 +64,14 @@ PGPASSWORD='Salvia2026@' psql \
 
 | Tabla                     | Descripción                                                                              |
 | ------------------------- | ---------------------------------------------------------------------------------------- |
-| `victim_contact`          | Datos de contacto de la víctima: identidad, documento, dirección, teléfono y género.     |
+| `victim_contact`          | Contacto de la víctima: identidad, documento, dirección, teléfono y género; agente asignado y cierre del reporte. |
 | `victim_case`             | Caso de violencia basado en género asociado a una víctima contacto.                      |
 | `victim_case_form1`       | Formulario 1 del caso: datos completos de víctima, hechos y agresor (legacy).            |
 | `victim_case_form2`       | Formulario 2 del caso: datos ampliados con score y nivel de riesgo calculado.            |
 | `victim_contact_form1`    | Formulario 1 del contacto: datos iniciales de la víctima reportados por un tercero.      |
 | `victim_contact_form2`    | Formulario de reporte de tercero: datos del reportante, tipo de reporte y mejor horario. |
 | `victim_contact_form2_v2` | Extensión 1:1 de `victim_contact_form2` para el reporte V2: consentimiento, anonimato, parentesco y datos propios del reportante. |
+| `victim_contact_attempt`  | Intentos de contacto de un reporte (esquema 3x3): resultado, fecha en UTC, agente que lo registró y borrado lógico. |
 | `victim_case_form2_enums` | Catálogo de opciones compartidas por formularios del caso, contacto y feminicidio.       |
 
 ### Organización institucional

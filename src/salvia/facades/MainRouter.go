@@ -219,6 +219,17 @@ func StartRouter(router *gin.Engine) {
 		secRouter.GET("/lista-casos", ListCasesGET)
 
 		/*
+			Gestión de reportes (FigJam l25jrzyf) — Listado Reportes / Mis Reportes
+		*/
+		secRouter.GET("/reportes", ListReportsGET)
+		secRouter.GET("/mis-reportes", MyReportsGET)
+
+		/*
+			Registro V3 (DocsMD/Screens/Registro V3)
+		*/
+		secRouter.GET("/registro-v3", RegistroV3GET)
+
+		/*
 			Historial de Remisiones (Atención Psicosocial — solo sv)
 		*/
 		secRouter.GET("/historial-remisiones", HistorialRemisionesGET)
@@ -233,6 +244,7 @@ func StartRouter(router *gin.Engine) {
 		*/
 		secRouter.GET("/casos-entidad", CasosEntidadGET)
 		secRouter.GET("/casos-entidad/:entityCaseId/detalle", CasosEntidadDetalleGET)
+		secRouter.GET("/mis-acciones-institucionales", MisAccionesInstitucionalesGET)
 
 		/*
 			Casos Mecanismo (solo rol mc)
@@ -273,6 +285,10 @@ func StartRouter(router *gin.Engine) {
 			HacerSeguimiento
 		*/
 		secRouter.GET("/hacer-seguimiento/:id", HacerSeguimientoGET)
+
+		// Prototipo del formulario de seguimiento V.4. Cualquier usuario con sesión.
+		// No persiste respuestas.
+		secRouter.GET("/prototipo-seguimiento-v4", PrototipoSeguimientoV4GET)
 
 		/*
 			Registro de Caso V2 (dinamic-form)

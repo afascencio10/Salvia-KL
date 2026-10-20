@@ -1,0 +1,143 @@
+<main class="salvia-main">
+<div class="container">
+    <div class="welcome-section">
+        <h2><b>Reportes</b></h2>
+    </div>
+
+    {{ template "salvia/case_component/case_component.html" . }}
+    {{ template "salvia/list-cases/reasignar_casos_modal.html" . }}
+    {{ template "salvia/reportes/gestion_reporte_modal.html" . }}
+
+    <div class="mt-4 mb-4">
+        <casos-component
+            ref="casosComponent"
+            list-endpoint="/api/v1/victim-contacts/list"
+            :default-filter="reportesDefaultFilter"
+            :available-filters="reportesAvailableFilters"
+            :columns="reportesColumns"
+            :sort-options="reportesSortOptions"
+            item-label-plural="reportes"
+            :buttons="reportesButtons"
+            :reasignacion="canReasignarReportes"
+            @action-clicked="onReporteActionClicked"
+            @reasignar-casos="onReasignarReportes"
+        ></casos-component>
+
+        <reasignar-casos-modal
+            v-if="canReasignarReportes"
+            ref="reasignarModal"
+            entity-kind="reportes"
+            @closed="onReasignarModalClosed"
+            @reassigned="onReasignarCompletado"
+        ></reasignar-casos-modal>
+
+        <gestion-reporte-modal
+            ref="gestionModal"
+            @updated="onReporteActualizado"
+        ></gestion-reporte-modal>
+    </div>
+</div>
+</main>
+
+{{ template "standard_scripts.html" . }}
+{{ template "overlay.html" . }}
+
+<script>
+    var home = Vue.createApp({
+        delimiters: ['${', '}'],
+        data: function() {
+            return {
+                windowTitle: {{.windowTitle}},
+                currentUser: "{{.currentUser}}",
+                currentRole: "{{.currentRole}}",
+                menu: {{.menu}},
+
+                reportesDefaultFilter: {},
+                reportesAvailableFilters: [
+                    { key: 'estado_reporte', type: 'dropdown', label: 'Estado del reporte', options: [
+                        { value: 'sin_asignar',      label: 'Sin asignar' },
+                        { value: 'asignado',         label: 'Asignado' },
+                        { value: 'cerrado_valido',   label: 'Cerrado — válido' },
+                        { value: 'cerrado_invalido', label: 'Cerrado — inválido' },
+                    ]},
+                    { key: 'asignacion', type: 'autocomplete', label: 'Asignación' },
+                    { key: 'busqueda', type: 'search', label: 'Buscar por nombres, apellidos, documento o teléfono' },
+                ],
+                reportesColumns: [
+                    { key: 'victim_info',       label: 'Víctima / ID Reporte' },
+                    { key: 'report_type',       label: 'Tipo' },
+                    { key: 'contact_scheme',    label: 'Esquema 3x3' },
+                    { key: 'report_status',     label: 'Estado' },
+                    { key: 'assigned_agent',    label: 'Asignado a' },
+                    { key: 'registration_date', label: 'Fecha Reporte' },
+                ],
+                reportesSortOptions: [
+                    { value: 'registration_date_desc', label: 'Fecha de Reporte DESC' },
+                    { value: 'registration_date_asc',  label: 'Fecha de Reporte ASC' },
+                ],
+                reportesButtons: [
+                    { id: 'ver', label: 'Ver Reporte' },
+                ],
+            };
+        },
+        computed: {
+            canReasignarReportes: function() {
+                return this.currentRole === 'sv';
+            },
+        },
+        mounted: function() {
+            document.title = {{.windowTitle}};
+            document.getElementById('app').style.display = 'block';
+        },
+        methods: {
+            onReporteActionClicked: function(payload) {
+                if (payload.buttonId === 'ver' && this.$refs.gestionModal) {
+                    this.$refs.gestionModal.open(payload.case);
+                }
+            },
+            onReasignarReportes: function(payload) {
+                if (!this.canReasignarReportes) {
+                    return;
+                }
+                if (this.$refs.reasignarModal) {
+                    this.$refs.reasignarModal.open(payload.cases);
+                }
+            },
+            onReasignarModalClosed: function() {
+                // Sin reasignación: la selección en la tabla se conserva
+            },
+            onReasignarCompletado: function() {
+                if (this.$refs.casosComponent && this.$refs.casosComponent.reload) {
+                    this.$refs.casosComponent.reload();
+                }
+            },
+            onReporteActualizado: function() {
+                if (this.$refs.casosComponent && this.$refs.casosComponent.reload) {
+                    this.$refs.casosComponent.reload();
+                }
+            },
+            logout(){
+                logout("/seguridad/logout");
+            },
+        },
+    });
+
+    var app = home;
+
+    var _tplCasos = document.getElementById('tpl-casos-component');
+    window.__casosComponentTpl = _tplCasos ? _tplCasos.innerHTML : '';
+
+    var _tplRcm = document.getElementById('tpl-reasignar-casos-modal');
+    window.__reasignarCasosModalTpl = _tplRcm ? _tplRcm.innerHTML : '';
+
+    var _tplGrm = document.getElementById('tpl-gestion-reporte-modal');
+    window.__gestionReporteModalTpl = _tplGrm ? _tplGrm.innerHTML : '';
+</script>
+
+<script src="/static/js/components/casos-component.js"></script>
+<script src="/static/js/components/reasignar-casos-modal.js"></script>
+<script src="/static/js/components/gestion-reporte-modal.js"></script>
+
+<script>
+    home.mount("#app");
+</script>

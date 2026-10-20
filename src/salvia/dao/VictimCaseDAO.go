@@ -220,6 +220,10 @@ func SetVictimCase(victimCase *VictimCaseDTO, connData *db.ConnData, clientConfi
 
 	var query string = common_dao.GetSQL(common_dao.SQL_INSERT, victimCaseFieldsSlice, victimCaseFieldsAliasSlice, VictimCaseDBName, []string{}, []string{}, []string{"VictimCaseId"}, common_dao.SQL_AND, VictimCaseDBScheme, VictimCaseFieldDefinitions, false)
 
+	if victimCase.VictimCaseStatus == "" {
+		victimCase.VictimCaseStatus = "ra"
+	}
+
 	persistenceCtrl.QueryRow(context.Background(), query,
 		victimCase.VictimCaseICode, victimCase.VictimCaseCreationDate.Format(common_config.DateTime.DB_DATE_TIME_FORMAT), victimCase.VictimCaseUpdateDate.Format(common_config.DateTime.DB_DATE_TIME_FORMAT),
 		victimCase.VictimCaseStatus, victimCase.VictimCaseGeneralUser, victimCase.VictimCaseTownCode, victimCase.VictimCaseNames, victimCase.VictimCaseLastNames, victimCase.VictimCaseDocType,
@@ -1344,11 +1348,14 @@ func SetVictimCaseDefaults(victimCase *VictimCaseDTO, action string, s utils.Com
 		victimCase.VictimCaseCreationDate = time.Now()
 		victimCase.VictimCaseUpdateDate = time.Now()
 		victimCase.VictimCaseICode = utils.GetUUID()
+		// El enlace territorial deja el caso por aprobar. Cualquier otro rol
+		// que lo registra lo deja activo: antes solo "op" escribía "ra" y el
+		// resto (ro, an, sv, …) quedaba con el estado vacío.
 		switch s.CurrentRole {
-		case "op":
-			victimCase.VictimCaseStatus = "ra"
 		case "et":
 			victimCase.VictimCaseStatus = "r"
+		default:
+			victimCase.VictimCaseStatus = "ra"
 		}
 
 	case common_dao.SQL_UPDATE:

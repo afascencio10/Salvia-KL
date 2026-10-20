@@ -3,13 +3,14 @@
 package service
 
 import (
+	internaldb "bitsflow/internal/db"
 	"bitsflow/internal/models"
 	"bitsflow/internal/repository"
-	internaldb "bitsflow/internal/db"
 	salvia_config "bitsflow/salvia/config"
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -56,6 +57,11 @@ func (s *caseDetailService) GetDetail(ctx context.Context, caseICode string) (*r
 			return nil, ErrCaseNotFound
 		}
 		return nil, err
+	}
+
+	// El estado vacío se muestra como Activo. No se escribe en la base.
+	if strings.TrimSpace(detail.Case.VictimCaseStatus) == "" {
+		detail.Case.VictimCaseStatus = "ra"
 	}
 
 	// Ajustar status de barreras: si tiene tareas pendientes y está en OPEN → "En Gestion"

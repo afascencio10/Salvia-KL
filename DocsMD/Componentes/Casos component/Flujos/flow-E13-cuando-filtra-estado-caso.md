@@ -33,6 +33,13 @@ INPUT: {
 | `ex`                    | Vencido            | victim_case_status          |
 | `r`                     | Por aprobar        | victim_case_status          |
 | `fc`                    | Recontacto         | victim_case_status          |
+| `bo`                    | Borrador           | victim_case_status          |
+| `in`                    | Iniciado           | victim_case_status          |
+| `te`                    | Terminado          | victim_case_status          |
+| `c`                     | Completado         | victim_case_status          |
+| `iv`                    | Inválido           | victim_case_status          |
+
+Catálogo en `salvia/config/Enums.go` (`VICTIM_CASE_STATUS`). `bo` → `in` → `te` es el flujo de Registro V3 (borrador, tríada completa, formulario terminado). `c` e `iv` son códigos previos (completado, inválido). El filtro Activo (`ra`) sigue incluyendo el estado vacío; el resto es igualdad exacta.
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -69,7 +76,7 @@ PASO 2 — Resetear búsqueda y paginación
 PASO 3 — Consultar backend
 
   GET /api/v1/cases/list
-    ?filter_estado_caso={filterValue}    // ra | is | cd | ex | r | fc
+    ?filter_estado_caso={filterValue}    // ra | is | cd | ex | r | fc | bo | in | te | c | iv
     &filter_key=persona_asignada         // si prop agentId (Mis casos)
     &filter_value={agentId}
     &chip_filter=casos_nuevos            // si chip activo (E-09)
@@ -113,8 +120,9 @@ PASO 5 — Agregar cláusula WHERE
 
     WHERE vc.victim_case_status = {código}
 
-  // Comparación exacta al código de 1–2 caracteres
-  // Se combina con AND al resto de filtros aditivos
+  // Comparación exacta al código de 1–2 caracteres.
+  // Excepción: ra (Activo) también incluye el estado vacío o en blanco.
+  // Se combina con AND al resto de filtros aditivos.
 
 
 PASO 6 — Respuesta
@@ -141,6 +149,11 @@ Registrar en `availableFilters`:
     { value: 'ex', label: 'Vencido' },
     { value: 'r',  label: 'Por aprobar' },
     { value: 'fc', label: 'Recontacto' },
+    { value: 'bo', label: 'Borrador' },
+    { value: 'in', label: 'Iniciado' },
+    { value: 'te', label: 'Terminado' },
+    { value: 'c',  label: 'Completado' },
+    { value: 'iv', label: 'Inválido' },
   ]
 }
 ```
@@ -157,7 +170,9 @@ Helper en `casos-component.js` (implementación):
 caseStatusLabel: function(code) {
   var map = {
     ra: 'Activo', is: 'Con novedad', cd: 'Cerrado',
-    ex: 'Vencido', r: 'Por aprobar', fc: 'Recontacto'
+    ex: 'Vencido', r: 'Por aprobar', fc: 'Recontacto',
+    bo: 'Borrador', in: 'Iniciado', te: 'Terminado',
+    c: 'Completado', iv: 'Inválido'
   };
   return map[code] || '—';
 }
@@ -173,7 +188,7 @@ caseStatusLabel: function(code) {
 | ¿Badge CSS por estado (badgeEstado en detalle SV)? | Solo texto en v1 |
 | Código desconocido en columna | Mostrar "—" |
 | filter_value inválido en backend | Ignorar cláusula o 400 |
-| ¿Estados adicionales en BD no listados en labelEstado? | Pendiente catálogo completo |
+| ¿Estados adicionales en BD no listados en labelEstado? | Resuelto: bo, in, te, c, iv están en el mapa |
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

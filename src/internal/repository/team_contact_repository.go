@@ -66,7 +66,7 @@ func (r *teamContactRepository) FindScheduledOnDate(ctx context.Context, date ti
 	var items []models.TeamContact
 	day := date.Format("2006-01-02")
 	err := r.db.WithContext(ctx).
-		Where("scheduled_date IS NOT NULL AND (scheduled_date AT TIME ZONE 'UTC')::date = ?::date AND is_psico_session = true AND deleted_at IS NULL", day).
+		Where("scheduled_date IS NOT NULL AND (scheduled_date AT TIME ZONE 'America/Bogota')::date = ?::date AND is_psico_session = true AND deleted_at IS NULL", day).
 		Find(&items).Error
 	return items, err
 }

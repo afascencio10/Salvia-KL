@@ -114,22 +114,27 @@ casos-component  (.cc-wrapper)
     │   └── SortSelector  (.cc-sort-selector)
     │       ├── Label  (.cc-filter-label)  "Ordenar por"
     │       └── <select>  (.cc-select)  :value="sortOption"
-    │           ├── <option value="registration_date_desc">  "Fecha de registro DESC"
-    │           ├── <option value="registration_date_asc">   "Fecha de registro ASC"
-    │           ├── <option value="next_follow_up_desc">   "Próximo seguimiento DESC"
-    │           └── <option value="next_follow_up_asc">    "Próximo seguimiento ASC"
+    │           ├── [v-if sortOptions]   // prop opcional (Gestión de reportes)
+    │           │   <option> × N  [v-for sortOptions]  opt.label
+    │           └── [v-else]   // default: las 4 opciones de siempre
+    │               ├── <option value="registration_date_desc">  "Fecha de registro DESC"
+    │               ├── <option value="registration_date_asc">   "Fecha de registro ASC"
+    │               ├── <option value="next_follow_up_desc">   "Próximo seguimiento DESC"
+    │               └── <option value="next_follow_up_asc">    "Próximo seguimiento ASC"
     │           → onSortChange(event)   // → E-04 (recarga backend)
     │
     └── TableWrap  (.cc-table-wrap)
         │
         ├── [v-if reasignacion && selectedCases.length > 0]
         │   TableToolbar  (.cc-table-toolbar)
-        │   └── ReassignBtn  (.cc-reassign-btn)  "Reasignar Casos"
+        │   ├── SelectionCount  (.cc-selection-count)  "{n} {itemLabelSingular}(s) seleccionado(s)"
+        │   │   // itemLabelSingular = itemLabelPlural sin la "s" final → "caso(s)" / "reporte(s)"
+        │   └── ReassignBtn  (.cc-reassign-btn)  "Reasignar {Casos|Reportes}"   // itemLabelPlural con inicial en mayúscula
         │       → emitReasignarCasos()   // → E-15
         │
         ├── [v-if filteredCases.length === 0]
         │   EmptyState  (.cc-empty)
-        │   └── "No se encontraron casos"
+        │   └── "No se encontraron {itemLabelPlural}"   // default: "casos"
         │
         └── [v-else]
             │
@@ -162,6 +167,9 @@ casos-component  (.cc-wrapper)
             │           │   │   case.names + " " + case.lastNames
             │           │   └── ICode  (.cc-victim-icode)
             │           │       case.i_code
+            │           │   // Reportes (fila con `reportStatus`): Name = nombres + apellidos, o "Sin nombre" si no hay
+            │           │   // (reportes tipo Hombre o registrados por un agente); la línea de meta es "ID: {i_code}",
+            │           │   // sin documento ni teléfono (un ReportListItem no los trae).
             │           │
             │           ├── [col.key === 'operator']
             │           │   <td>  (.cc-cell)
@@ -203,10 +211,23 @@ casos-component  (.cc-wrapper)
             │           │   └── case.completedFollowUpsCount  (entero; "0" si es 0)
             │           │   // COUNT follow_up_v2 WHERE status = 'REALIZADO'
             │           │
+            │           ├── [col.key === 'contact_attempts_3x3']
+            │           │   <td>  (.cc-cell-contact-attempts)
+            │           │   ├── [case.currentContactAttempts !== null]
+            │           │   │   AttemptsBadge  (.cc-attempts-badge)
+            │           │   │   "{currentContactAttempts}/9"
+            │           │   │   bajo (< 3, texto oscuro sobre gris) | medio (≥ 3) | alto (≥ 9)
+            │           │   │   // attempts del seguimiento en curso: el más antiguo
+            │           │   │   // con status PENDIENTE o REPROGRAMADO (incluye vencidos)
+            │           │   └── [v-else]
+            │           │       NoOpen  (.cc-follow-up-none)  "—"
+            │           │
             │           ├── [col.key === 'case_status']
             │           │   <td>  (.cc-cell)
             │           │   └── caseStatusLabel(case.status)
-            │           │   // victim_case_status: ra→Activo, is→Con novedad, cd→Cerrado, …
+            │           │   // victim_case_status: ra→Activo, is→Con novedad, cd→Cerrado,
+            │           │   // ex→Vencido, r→Por aprobar, fc→Recontacto,
+            │           │   // bo→Borrador, in→Iniciado, te→Terminado, c→Completado, iv→Inválido
             │           │
             │           ├── [col.key === 'barriers']
             │           │   <td>  (.cc-cell-barriers)
@@ -248,6 +269,9 @@ casos-component  (.cc-wrapper)
 | `hiddenColumns` | `Array<string>` | No | `[]` | Keys de columnas a ocultar aunque estén en `columns` |
 | `buttons` | `Array<Object>` | No | `[]` | Botones de acción por fila. Cada objeto: `{ id: string, label: string }` |
 | `reasignacion` | `Boolean` | No | `false` | Activa el modo de reasignación masiva. Si es `true`, muestra una columna de checkbox en la tabla y permite seleccionar uno o varios casos para reasignarlos. |
+| `agentId` | `String` | No | `''` | Modo "Mis …" (Mis Casos, Mis Reportes). Si trae valor: fuerza `filter_key=persona_asignada&filter_value={agentId}` en cada consulta, oculta el filtro `equipo` (E-11) y bloquea el autocomplete de persona asignada (E-07/E-08), de modo que el scope "solo los míos" no se puede quitar desde la UI. |
+
+Props de la extensión de reportes (`listEndpoint`, `sortOptions`, `itemLabelPlural`): ver *Extensión: Gestión de reportes* al final de este documento.
 
 ### Modo reasignación (`reasignacion === true`)
 
@@ -288,7 +312,7 @@ casos-component  (.cc-wrapper)
 | `riesgo` | `dropdown` | `"Nivel de riesgo"` | Fijas: `{ value:'alto', label:'Alto' }`, `medio`, `bajo` |
 | `equipo` | `dropdown` | `"Por equipo"` | Dinámicas — cargadas en E-01 |
 | `seguimientos_ejecutados` | `dropdown` | `"Seguimientos ejecutados"` | Fijas: `{ value:'0', label:'0' }` … `{ value:'10', label:'10' }` (→ E-12) |
-| `estado_caso` | `dropdown` | `"Estado del caso"` | Fijas: `ra` Activo, `is` Con novedad, `cd` Cerrado, `ex` Vencido, `r` Por aprobar, `fc` Recontacto (→ E-13) |
+| `estado_caso` | `dropdown` | `"Estado del caso"` | Fijas: `ra` Activo, `is` Con novedad, `cd` Cerrado, `ex` Vencido, `r` Por aprobar, `fc` Recontacto, `bo` Borrador, `in` Iniciado, `te` Terminado, `c` Completado, `iv` Inválido (→ E-13) |
 | `barreras_activas` | `dropdown` | `"Barreras activas"` | Fija: `{ value:'OPEN', label:'Abierta' }` (→ E-16) |
 | `persona_asignada` | `autocomplete` | `"Persona asignada"` | — (se buscan on-demand al escribir → E-07) |
 | `busqueda` | `search` | `"Buscar por ID o teléfono"` | — |
@@ -346,7 +370,45 @@ Ejemplo: caso con dos barreras OPEN (salud + proteccion) → `Abierta → Sector
 | `risk_level` | `FollowUpV2.risk_status` | Nivel de riesgo del último seguimiento activo |
 | `team` | `AgentLight.team` (del agente asignado vía `rel_case_owner`) | Equipo del profesional asignado al caso |
 | `assigned_person` | `rel_case_owner_victim_case` (status=`'a'`) → perfil del agente | Persona con el caso asignado |
-| `next_follow_up_date` | `FollowUpV2.scheduled_date` (status=`PENDIENTE`, más próximo) | Fecha del próximo seguimiento sin ejecutar |
+| `next_follow_up_date` | `FollowUpV2.scheduled_date` (status=`PENDIENTE`, más próximo, día UTC ≥ hoy UTC) | Fecha del próximo seguimiento. El día es el mismo que `formatFecha` del detalle (sin conversión a America/Bogota) |
 | `completed_follow_ups` | `COUNT(follow_up_v2)` donde `status = 'REALIZADO'` y `case_id = victim_case_i_code` | Número de seguimientos ya realizados del caso |
+| `contact_attempts_3x3` | `follow_up_v2.attempts` del seguimiento en curso (`PENDIENTE` o `REPROGRAMADO` más antiguo, incluidas fechas vencidas). `null` si no hay seguimiento abierto | Progreso 3x3: `{attempts}/9`. Gris si es menor a 3, naranja si es 3 o más, rojo si es 9 o más. `—` si no hay seguimiento abierto |
 | `case_status` | `victim_case.victim_case_status` (código) → etiqueta vía `caseStatusLabel` | Estado del caso (Activo, Cerrado, etc.) |
 | `barriers` | `salvia.barrier_v2` (`status = 'OPEN'`, `case_id = victim_case_i_code`) → sectores únicos vía `formatOpenBarriers` | Barreras abiertas del caso y sector de cada una. Celda vacía si no hay barreras OPEN. |
+
+---
+
+## Extensión: Gestión de reportes (implementada — 2026-10-12, probada 2026-10-13)
+
+> **Estado:** Implementada y probada (155 pruebas de Playwright en verde, ver [`QA/gestion-reportes-qa-plan.md`](../../Screens/Listado%20Reportes/QA/gestion-reportes-qa-plan.md)). Todo lo de esta sección es **aditivo**: los consumidores existentes (`get_my_cases.html`, `list_cases.html`, `case_component.html`) no pasan estos props y se comportan igual. La usan [`Listado Reportes`](../../Screens/Listado%20Reportes/listado-reportes-index.md) y [`Mis Reportes`](../../Screens/Mis%20Reportes/mis-reportes-index.md).
+
+### Props nuevos
+
+| Prop | Tipo | Requerido | Default | Descripción |
+|---|---|---|---|---|
+| `listEndpoint` | `String` | No | `/api/v1/cases/list` | Endpoint que consultan E-01/E-02/E-03/E-04/E-06/E-07. Las pantallas de reportes pasan `/api/v1/victim-contacts/list`, que responde `{ reports, total, page, pageSize }` (el de casos responde `{ cases, … }`): el componente acepta ambos (`result.data.cases \|\| result.data.reports`). |
+| `sortOptions` | `Array<{value,label}>` | No | `null` → las 4 opciones fijas de siempre | Si viene, el `<select>` de orden itera este prop en vez de los 4 `<option>` escritos en el template. Las pantallas de reportes pasan 2: `registration_date_desc`/`asc`, etiquetadas "Fecha de Reporte DESC/ASC" (un reporte no tiene "próximo seguimiento"). |
+| `itemLabelPlural` | `String` | No | `'casos'` | Nombre de la entidad en los textos de la tabla: contador de selección ("{n} caso(s)/reporte(s) seleccionado(s)", con el singular derivado en el computed `itemLabelSingular`, que quita la "s" final), botón "Reasignar Casos/Reportes" y vacío "No se encontraron casos/reportes". Con el default, los textos de las pantallas de casos no cambian. |
+
+### Keys de columna nuevas (uso exclusivo de reportes)
+
+| Key | Fuente de dato | Descripción |
+|---|---|---|
+| `report_type` | `victim_contact_form2.victim_contact_form2_report_type` (enum V1 `…_report_type` o V2 `…_report_type_v2`) → etiqueta corta en el servicio | Víctima / Tercero / Familiar / Hombre. `—` si el reporte no tiene tipo (los reportes solo-`form1`, que registró un agente, no lo tienen) |
+| `contact_scheme` | `victim_contact_attempt` agrupado por día (`America/Bogota`) | `"Sin intentos"` o `"{totalFallidos}/9 intentos · {diasCompletos}/3 días"` — `diasCompletos` cuenta días con **>= 3** fallidos cada uno, no cualquier día con intentos |
+| `report_status` | Derivado de `victim_contact_agent_id` + `victim_contact_close_reason` + `victim_contact_status` (ver `related-tables.md` de `Listado Reportes`) | Sin asignar / Asignado / Cerrado — válido / Cerrado — inválido. Un reporte legado invalidado (`status = 'i'`) se muestra como Cerrado — inválido |
+| `assigned_agent` | `victim_contact_agent_id` → perfil del agente | Agente integral con el reporte asignado, o "Sin asignar" |
+| `victim_info` (variante) | `names` + `lastNames` + `i_code` | En filas de reporte (`reportStatus` presente): el nombre —o "Sin nombre"— y `ID: {i_code}`; sin documento ni teléfono |
+
+### Filtros nuevos (uso exclusivo de reportes)
+
+| `key` | `type` | `label` | Cómo viaja al backend | Flujo |
+|---|---|---|---|---|
+| `estado_reporte` | `dropdown` | `"Estado del reporte"` | Como los demás dropdowns: `activeDropdowns['estado_reporte']` → `filter_estado_reporte={sin_asignar\|asignado\|cerrado_valido\|cerrado_invalido}`. Es **combinable** y no toca `activeFilter`, así que el scope base (p. ej. `persona_asignada` de Mis Reportes) sobrevive | [Listado Reportes → flow-E02](../../Screens/Listado%20Reportes/Flujos/flow-E02-cuando-filtra-estado-reporte.md) |
+| `asignacion` | `autocomplete` (+ opción fija "Sin asignar") | `"Asignación"` | `activeFilter = { key:'asignacion', value: icode \| '__unassigned__' }` → `filter_key=asignacion&filter_value=…`. Los agentes salen de `GET /api/v1/agents/by-role?role=op` (se pide una vez, se guarda en caché y se filtra en el cliente) | [Listado Reportes → flow-E03](../../Screens/Listado%20Reportes/Flujos/flow-E03-cuando-filtra-asignacion.md) |
+
+La traducción de cada filtro a SQL vive en esos dos flujos (es específica de la entidad reporte), no se repite aquí — igual que `estado_caso`/`equipo` son específicos de casos. Cambiar cualquier dropdown o elegir un agente **limpia el texto del buscador** y vuelve a la página 1 (comportamiento heredado de `setDropdownFilter` / `selectAutocompleteSuggestion`).
+
+### Limitación conocida — regla de equipo (E-14) y `REASSIGN_CROSS_TEAM_CONTINGENCY`
+
+Los reportes se pueden marcar para reasignar porque el flag `REASSIGN_CROSS_TEAM_CONTINGENCY` está en `true` (`casos-component.js:43`; modo contingencia, sin la regla de "mismo equipo"). Si el flag vuelve a `false`, la regla de equipo lee `caseObj.caseTeam` —un reporte trae `team`, no `caseTeam`— y **no se podría marcar ninguna fila de reportes**. Antes de desactivar la contingencia hay que adaptar `getCaseTeam` (o saltarse la regla cuando `listEndpoint` sea el de reportes). Lo mismo aplica a `reasignar-casos-modal` (ver su interfaz).

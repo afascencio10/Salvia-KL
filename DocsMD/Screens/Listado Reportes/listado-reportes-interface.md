@@ -1,246 +1,137 @@
-# Listado de Reportes — Interfaz de la pantalla
+# Listado Reportes — Interfaz de la pantalla
 
-Pantalla legacy adaptada desde `get_victim_cases_sv.html` para listar **solo reportes** (`victim_contact` sin caso). Visible para roles **`sv`** y **`ro`**.
+Pantalla **nueva** (ruta `/salvia/reportes`, roles `op` y `sv`) para la funcionalidad "Gestión reportes" descrita en FigJam (canal `l25jrzyf`). Muestra **todos** los reportes (`victim_contact`), asignados o no, con filtros, y permite al supervisor (`sv`) reasignarlos a un agente integral. No modifica `/salvia/primer_contacto` (pantalla legada que cumple hoy un rol parecido) — ambas coexisten mientras se decide una migración futura (GAP-4 en [related-tables.md](./related-tables.md)).
 
-**Regla de implementación:** no eliminar líneas existentes — **comentar** con bloque `<!-- REPORTES-ONLY: ... -->` o `// REPORTES-ONLY: ...` en JavaScript, indicando qué se ocultó y por qué.
+Reutiliza `casos-component` y `reasignar-casos-modal` (ya en producción en `list_cases.html`), extendidos de forma aditiva — ver detalle de la extensión en `DocsMD/Componentes/Casos component/`. La pantalla en sí es una capa fina de composición, igual que ya existe para casos (`list_cases.html`).
 
----
-
-## Archivos HTML
+## Archivos relevantes
 
 | Archivo | Rol |
 |---|---|
-| `src/frontend/html/salvia/victim_case/get_victim_cases_sv.html` | Supervisor (`sv`) — **base de referencia** |
-| `src/frontend/html/salvia/victim_case/get_victim_cases_ro.html` | Revisor operativo (`ro`) — cambios espejo |
+| `src/frontend/html/salvia/reportes/list_reportes.html` | Pantalla — composición (nuevo) |
+| `src/frontend/js/components/casos-component.js` | Tabla + filtros (existente, extendido — ver nota) |
+| `src/frontend/html/salvia/case_component/case_component.html` | Template de `casos-component` (extendido: columnas de reporte, `sortOptions`, `itemLabelPlural`) |
+| `src/frontend/js/components/reasignar-casos-modal.js` | Modal de reasignación masiva (existente, extendido) |
+| `src/frontend/html/salvia/list-cases/reasignar_casos_modal.html` | Template del modal de reasignación (textos condicionales por `entityKind`) |
+| `src/frontend/js/components/gestion-reporte-modal.js` | Popup "Ver Reporte" (nuevo — ver `DocsMD/Componentes/Gestion Reporte Modal/`) |
+| `src/salvia/facades/VictimContactFacade.go` | Handlers `ListReportsGET` (esta pantalla) y `MyReportsGET` (Mis Reportes): validan el permiso y renderizan el HTML |
+| `src/salvia/facades/MainRouter.go` | Registra `GET /salvia/reportes` (y `/salvia/mis-reportes`) |
+| `src/salvia/config/Menu.go` | Permisos nuevos: `get_list_reports` (op, sv), `list_victim_contacts` (op, sv), `manage_victim_contacts` (op, sv), `reassign_victim_contacts` (sv) |
+| `src/salvia/controller/victim_contacts_list_controller.go` · `service/victim_contacts_list_service.go` · `internal/repository/victim_contacts_list_repository.go` | `GET /api/v1/victim-contacts/list` |
+| `src/salvia/controller/victim_contacts_reassign_controller.go` · `service/victim_contacts_reassign_service.go` · `internal/repository/victim_contacts_reassign_repository.go` | `POST /api/v1/victim-contacts/reasignar-bulk` |
+| `src/internal/models/report_list_item.go` | `ReportListItem` (fila del listado) y `ReportDetail` (detalle del modal) |
+| `src/frontend/html/sidebar/sidebar.html` | Entrada "Listado Reportes" del menú lateral (op, sv) |
 
-Entry point backend: `GET /salvia/casos` → `VictimCaseFacade.VictimCaseGET` → template según rol.
+Entry point backend: `GET /salvia/reportes` → `ListReportsGET` (en `VictimContactFacade.go`; no hay un facade aparte). Solo renderiza el HTML — la data llega por el endpoint JSON `GET /api/v1/victim-contacts/list`, igual que `list_cases.html` no trae los casos en el HTML inicial.
 
 ---
 
-## Árbol de interfaz (estado objetivo)
+## Árbol de interfaz
 
 ```
-get_victim_cases_sv / get_victim_cases_ro  (.salvia-main)
+list_reportes.html  (.salvia-main)
 │
 ├── WelcomeSection
-│   ├── [sv]  h2 "Casos Salvia"
-│   └── [ro]  h2 + botones header (Crear Nuevo caso, Mis Casos)
-│               // RECOMENDACIÓN: comentar botones de casos en header de ro
-│               // si la pantalla pasa a ser exclusiva de reportes
+│   └── h2  "Reportes"
 │
-├── [COMENTAR] Sección "Encontrar caso"
-│   // Buscador por tipo/número de documento → consulta victimCases
-│   // No aplica en pantalla solo-reportes
+├── casos-component                                           ← EXTENDIDO (ver nota)
+│   :list-endpoint="/api/v1/victim-contacts/list"              // prop nueva, default sigue siendo /api/v1/cases/list
+│   :default-filter="{}"                                      // sin scope — ve todo (el componente lo normaliza a "sin filtro")
+│   :columns="[
+│       { key: 'victim_info',       label: 'Víctima / ID Reporte' },
+│       { key: 'report_type',       label: 'Tipo' },            // NUEVO col.key
+│       { key: 'contact_scheme',    label: 'Esquema 3x3' },      // NUEVO col.key
+│       { key: 'report_status',     label: 'Estado' },           // NUEVO col.key
+│       { key: 'assigned_agent',    label: 'Asignado a' },        // NUEVO col.key
+│       { key: 'registration_date', label: 'Fecha Reporte' },    // ya existe en casos-component
+│   ]"
+│   :available-filters="[
+│       { key: 'estado_reporte', type: 'dropdown',    label: 'Estado del reporte', options: [...] },  // NUEVO
+│       { key: 'asignacion',     type: 'autocomplete', label: 'Asignación' },                          // NUEVO (incluye opción fija "Sin asignar")
+│       { key: 'busqueda',       type: 'search',      label: 'Buscar por nombres, apellidos, documento o teléfono' }, // mecanismo heredado, traducción SQL nueva — ver E-07
+│   ]"
+│   :sort-options="[
+│       { value: 'registration_date_desc', label: 'Fecha de Reporte DESC' },  // NUEVO prop — ver flow-E08
+│       { value: 'registration_date_asc',  label: 'Fecha de Reporte ASC' },
+│   ]"
+│   :buttons="[{ id: 'ver', label: 'Ver Reporte' }]"
+│   item-label-plural="reportes"                               // prop nuevo — "reporte(s) seleccionado(s)", "Reasignar Reportes", "No se encontraron reportes"
+│   :reasignacion="canReasignarReportes"                       // currentRole === 'sv'; para op no existen ni las casillas ni el botón
+│   @action-clicked="onReporteActionClicked"   // → E-04
+│   @reasignar-casos="onReasignarReportes"     // → E-05
 │
-├── hr
+├── reasignar-casos-modal                                      ← EXTENDIDO (ver nota)
+│   v-if="canReasignarReportes"            // solo se monta para sv
+│   ref="reasignarModal"
+│   entity-kind="reportes"                 // prop nueva — cambia candidatos, endpoint y textos
+│   @closed="onReasignarModalClosed"       // no recarga: la selección de filas se conserva
+│   @reassigned="onReasignarCompletado"    // → E-06 (recarga casos-component con reload())
 │
-├── NavTabs  (.nav)
-│   ├── Tab "Recontacto"          → goToTab('recontact_v')  → filter fcv
-│   ├── Tab "Inválidos"           → goToTab('recontact_i')  → filter fci
-│   ├── [COMENTAR] Enrutados      → routing / ra
-│   ├── [COMENTAR] Enrutados por aprobar → r
-│   ├── [COMENTAR] Vencidos      → ex
-│   ├── [COMENTAR] Completados    → cd
-│   ├── [COMENTAR] Con novedades  → is
-│   ├── [sv] Botón notificaciones → getAlerts()
-│   ├── [sv] Botón mapa reportes  → getReports()   // opcional comentar
-│   └── [sv] Botón reasignar      → assignOperator() // opcional comentar
-│
-├── FilterBarReportes  (.search-form)  ← NUEVO
-│   ├── Input  "Nombres de la víctima"     v-model=filterNames
-│   ├── Input  "Apellidos de la víctima"   v-model=filterLastNames
-│   ├── Input  "Teléfono de contacto"      v-model=filterPhone
-│   ├── Btn "Buscar"    → applyReportFilters()   // E-02
-│   └── Btn "Limpiar"   → clearReportFilters()   // E-02
-│
-└── TabContent  (#myTabContent)
-    │
-    ├── [ACTIVO] Bloque reportes  (v-if currentFilter == 'fcv' || 'fci')
-    │   ├── EmptyState  si victimContacts.length == 0
-    │   ├── Table  (.table)
-    │   │   thead: Fecha | Nombres y Apellidos | Riesgo feminicidio | Estado | Acciones
-    │   │   tbody: v-for victimContact in victimContacts
-    │   │       Estado: tag "Recontacto" (v) | "Recontacto Inválido" (i)
-    │   │       Acciones: menuToolsContactTable
-    │   │         → Ver:    /salvia/primer_contacto/{icode}/
-    │   │         → Crear caso: /salvia/casos/{icode}/nuevo
-    │   └── PaginationBar
-    │
-    └── [COMENTAR] Bloque casos  (v-if currentFilter != 'fcv' && != 'fci')
-        // Tabla victimCases completa + paginación + acciones de caso
+└── gestion-reporte-modal                                       ← NUEVO componente
+    ref="gestionModal"
+    @updated="onReporteActualizado"        // recarga casos-component tras cerrar/intento
 ```
 
 ---
 
-## Cambios por sección — `get_victim_cases_sv.html`
+## Nota de extensión — `casos-component`
 
-### 1. Comentar sección "Encontrar caso" (líneas ~7–32)
+Cambios aditivos, sin tocar el comportamiento actual de ningún consumidor existente (`get_my_cases.html`, `list_cases.html`, `case_component.html`). Detalle completo en [`casos-component-interface.md` → «Extensión: Gestión de reportes»](../../Componentes/Casos%20component/casos-component-interface.md).
 
-Envolver en comentario HTML:
-
-```html
-<!-- REPORTES-ONLY: buscador por documento de casos — deshabilitado
-<div class="mt-3 mb-4"> ... </div>
--->
-```
-
-También comentar método `searchCase()` en el `<script>` o dejarlo comentado con nota.
-
-### 2. Comentar tabs de casos en `<ul class="nav">` (líneas ~41–55)
-
-Mantener activos solo:
-
-```html
-<li class="nav-item" v-on:click="goToTab('recontact_v')">...</li>
-<li class="nav-item" v-on:click="goToTab('recontact_i')">...</li>
-```
-
-Comentar: `routing`, `routedToApprove`, `expired`, `completed`, `issues`.
-
-### 3. Agregar FilterBarReportes (después de `<hr>`, antes de tabs o después de tabs)
-
-```html
-<div class="mt-3 mb-4">
-  <h3>Filtrar reportes</h3>
-  <div class="search-form">
-    <!-- 3 inputs + botones Buscar / Limpiar -->
-  </div>
-</div>
-```
-
-Estado Vue nuevo en `data()`:
-
-```javascript
-filterNames: "",
-filterLastNames: "",
-filterPhone: "",
-```
-
-### 4. Comentar bloque tabla de casos (líneas ~132–212)
-
-```html
-<!-- REPORTES-ONLY: tabla de casos — deshabilitada
-<div v-if="currentFilter != 'fcv' && currentFilter != 'fci'"> ... </div>
--->
-```
-
-### 5. Comentar overlay reasignación (opcional, líneas ~216–237)
-
-Solo aplica a casos. Comentar `#assignOperatorOverlay` y métodos `submit('openAssign'|'assign'|'closeAssign')` si ya no hay tabla de casos.
-
-### 6. Simplificar `goToTab()` en script
-
-Comentar cases del `switch` excepto `recontact_v` y `recontact_i`:
-
-```javascript
-switch (tabName) {
-  case "recontact_v": filter = "fcv"; break;
-  case "recontact_i": filter = "fci"; break;
-  // REPORTES-ONLY: tabs de casos comentados
-  // case "routing": filter = "ra"; break;
-  // ...
-}
-```
-
-### 7. Adaptar `goToPage()` y agregar métodos de filtro
-
-- Eliminar rama que llama `salviaVictimCaseGETFormPath` (casos) — **comentar**, no borrar.
-- En rama de contactos, append query params de filtro:
-
-```javascript
-buildContactListUrl() {
-  var url = "{{.salviaVictimContactGETFormPath}}/f/" + this.currentFilter + "/p/" + this.currentPage;
-  var params = [];
-  if (this.filterNames.trim())     params.push("names="     + encodeURIComponent(this.filterNames.trim()));
-  if (this.filterLastNames.trim()) params.push("lastNames=" + encodeURIComponent(this.filterLastNames.trim()));
-  if (this.filterPhone.trim())     params.push("phone="     + encodeURIComponent(this.filterPhone.trim()));
-  if (params.length) url += "?" + params.join("&");
-  return url;
-}
-```
-
----
-
-## Cambios espejo — `get_victim_cases_ro.html`
-
-Aplicar los **mismos bloques** numerados arriba en las secciones equivalentes:
-
-| Sección sv | Equivalente ro (aprox.) |
-|---|---|
-| Líneas 7–32 buscador caso | Líneas 17–47 |
-| Nav tabs 41–55 | Nav tabs 56–73 |
-| Tabla casos 132–212 | Tabla casos 140–212 |
-| Script goToTab/goToPage | Script 387–419 |
-
-**Diferencias a preservar en `ro`:**
-
-- Header con botones "Crear Nuevo caso" y "Mis Casos" — comentar si la pantalla queda solo-reportes, o dejar con nota TODO.
-- No tiene botones `getReports()` ni `assignOperator()` del sv.
-
----
-
-## Botón "Crear caso" — todos los roles
-
-### Tabla de acciones (`menuToolsContactTable`)
-
-Generada en backend desde `Menu.go` → `menu_tool_get_victim_contacts`.
-
-| Rol | Estado actual | Cambio |
+| Cambio | Tipo | Detalle |
 |---|---|---|
-| `op` | Ver + Crear caso | Sin cambio |
-| `ro` | Ver + Crear caso | Sin cambio |
-| `et` | Ver + Crear caso | Sin cambio |
-| `sv` | Solo Ver | **Agregar** entrada `menu_tool_new_victim_case` |
+| Prop `listEndpoint` | Nuevo, opcional | Default `/api/v1/cases/list` (comportamiento actual intacto). Esta pantalla pasa `/api/v1/victim-contacts/list`, que responde `{ reports, total, page, pageSize }`: el componente acepta `cases` o `reports`. |
+| Prop `sortOptions` | Nuevo, opcional | El `<select>` de orden itera este prop (2 opciones) en vez de las 4 fijas. Ver [flow-E08](./Flujos/flow-E08-cuando-ordena-por-fecha.md). |
+| Prop `itemLabelPlural` | Nuevo, opcional | Default `'casos'`. Esta pantalla pasa `'reportes'`: texto del contador ("reporte(s) seleccionado(s)", con el singular derivado en `itemLabelSingular`), del botón ("Reasignar Reportes") y del vacío ("No se encontraron reportes"). |
+| `col.key === 'victim_info'` | Variante para reportes | Si la fila trae `reportStatus`: nombre (o "Sin nombre") + `ID: {i_code}`; sin documento ni teléfono. |
+| `col.key === 'report_type'` | Nueva rama en el `<template>` de celda | Muestra `report.reportType` — la etiqueta (Víctima/Tercero/Familiar/Hombre) la arma el servicio; `—` si el reporte no tiene tipo (los registrados por un agente, solo-`form1`, no lo tienen). |
+| `col.key === 'contact_scheme'` | Nueva rama | `"Sin intentos"` o `"{totalFallidos}/9 intentos · {diasCompletos}/3 días"` — es el texto real de la columna de la bandeja en el mockup (`totalFallidosDe`/`diasCompletosDe`), no el contador "hoy" que solo aplica dentro del modal. |
+| `col.key === 'report_status'` | Nueva rama | Badge: Asignado (azul) / Cerrado — válido (verde) / Cerrado — inválido (rojo) / Sin asignar (gris). |
+| `col.key === 'assigned_agent'` | Nueva rama | `report.assignedAgentName \|\| "Sin asignar"` |
+| Filtro `estado_reporte` (dropdown) | Entra por `activeDropdowns` | Misma lista `dropdownParamKeys` que `riesgo`/`equipo`/`estado_caso`: `filter_estado_reporte={asignado\|cerrado_valido\|cerrado_invalido\|sin_asignar}`. Combinable; no toca `activeFilter`. Ver [flow-E02](./Flujos/flow-E02-cuando-filtra-estado-reporte.md). |
+| Filtro `asignacion` (autocomplete) | `runAsignacionSearch` (rama propia) | Agentes de `GET /api/v1/agents/by-role?role=op` (una vez, en caché, filtrados en el cliente) + opción fija `{value:'__unassigned__', label:'Sin asignar'}`: `filter_key=asignacion&filter_value={icode\|__unassigned__}`. Ver [flow-E03](./Flujos/flow-E03-cuando-filtra-asignacion.md). |
 
-Agregar en `Menu.go` bloque `sv`:
+### Traducción del filtro `busqueda` contra `victim_contact` (corrección de planeación, 2026-10-11)
 
-```go
-{
-    "label":       Locale["sp"]["menu_tool_new_victim_case"],
-    "path":        "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["VictimCase"],
-    "action":      Locale["sp"]["new"],
-    "customClass": "fas fa-plus-circle",
-},
-```
+La planeación original decía "se hereda sin cambios de casos-component" — impreciso: el *mecanismo* (debounce 400ms, reset de página) sí se hereda, pero la *traducción a SQL* es nueva porque `victim_contact` no tiene la forma de `victim_case`. Existe código real ya probado en producción para esto — `GetVictimContactsWithoutVictimCase` (usada hoy por `/salvia/primer_contacto`) — que el backend nuevo debe reutilizar en vez de reinventar:
 
-URL resultante en tabla: `/salvia/casos/{victimContact.icode}/nuevo`
-
-### Permisos
-
-`set_victim_case` ya está habilitado para `sv` y `ro` en `PermissionsByRole`. No requiere cambio de permisos.
-
-### Detalle del reporte (opcional fase 2)
-
-Agregar botón "Crear caso" en `get_victim_contact_sv_v2.html` (hoy solo tiene Regresar), alineado con `get_victim_contact.html`.
-
----
-
-## Columnas de la tabla (sin cambio inicial)
-
-| Columna | Fuente |
+| Campo buscado | Fuente real (confirmada en código) |
 |---|---|
-| Fecha Creación | `victimContact.creationDate` |
-| Nombres y Apellidos | `lastNames`, `names` |
-| Riesgo de feminicidio | *(vacío hoy)* |
-| Estado | `status` → tag Recontacto / Inválido |
-| Acciones | `menuToolsContactTable` |
+| Nombres / Apellidos | `victim_contact.victim_contact_names` / `victim_contact_last_names` — columnas directas |
+| Teléfono | `EXISTS` contra `victim_contact_form2.victim_col_phone` **O** `victim_contact_form1.phone` — un reporte de tercero (Form2) y uno propio (Form1) guardan el teléfono en tablas distintas; el código real ya corrige un bug donde solo se buscaba en Form2 |
+| Documento | Solo `victim_contact_form1.doc_number` — Form2 (reporte de tercero) no tiene columna de documento, así que un reporte sin Form1 no aparece al buscar por documento |
 
-> Fase posterior: enriquecer columnas con datos de `victim_contact_form2` (tipo reporte, teléfono, etc.) alineado con `reportes-component`.
+Fuente: `VictimContactDAO.go:22-27` (`VictimContactListFilters`) y `VictimContactDAO.go:316-372` (`buildVictimContactsWithoutCaseWhere`). El endpoint nuevo `GET /api/v1/victim-contacts/list` debe adaptar esta misma lógica (un único parámetro `search` en vez de 4 campos separados, para combinar con el resto de filtros de `casos-component` vía OR en vez de AND) — ver [flow-E07](./Flujos/flow-E07-cuando-busca-por-texto.md).
 
 ---
 
-## Convención de comentarios
+## Nota de extensión — `reasignar-casos-modal`
 
-```html
-<!-- REPORTES-ONLY [2026-06]: <descripción breve>
-     Motivo: pantalla adaptada a solo reportes (sv/ro)
-     Original: ...
--->
-... código comentado ...
-<!-- /REPORTES-ONLY -->
-```
+| Cambio | Detalle |
+|---|---|
+| Prop `entityKind` | Nuevo, opcional. Default `'casos'` (comportamiento actual intacto). `'reportes'` pide los candidatos con `role=op` (`GET /api/v1/equipo-operadores?role=op`), guarda en `POST /api/v1/victim-contacts/reasignar-bulk` (body `{ report_icodes, agent_icode }`) y cambia los textos ("Reasignar reportes", "Reportes seleccionados (n)", advertencia y confirmación), sin `Doc:` ni badge de riesgo. |
+| Resolución de equipo (M-01) | **Sin rama propia para reportes.** Que no se exija equipo (GAP-3: cualquier agente `op` activo es candidato) lo da hoy el modo contingencia (`REASSIGN_CROSS_TEAM_CONTINGENCY = true`). Con el flag en `false` el modal intentaría resolver el equipo desde `caseTeam`/`riskStatus` y fallaría para un reporte (ver la limitación en la interfaz del modal). |
 
-```javascript
-// REPORTES-ONLY [2026-06]: rama de paginación de casos
-// if (this.currentFilter != "fcv" && ...) { ... }
-```
+Detalle completo en [`reasignar-casos-modal-interface.md` → «Extensión: Gestión de reportes»](../../Componentes/Casos%20component/reasignar-casos-modal-interface.md).
+
+---
+
+## Permisos (nuevo, `Menu.go`)
+
+| Rol | Acceso a `/salvia/reportes` | Puede reasignar | Puede gestionar (intento/cierre) |
+|---|---|---|---|
+| `sv` | Sí | Sí | Sí — cualquier reporte (GAP-2, confirmado 2026-10-11) |
+| `op` | Sí | No | Sí — cualquier reporte, no solo los propios (GAP-2) |
+| `ro`, `an`, otros | No | No | No |
+
+Claves de permiso en `Menu.go`: `get_list_reports` (pantalla), `list_victim_contacts` (listado JSON), `manage_victim_contacts` (detalle, intento y cierre) y `reassign_victim_contacts` (reasignación, solo `sv`). Un rol sin permiso recibe **401** —`CheckPermission` responde 401, no 403— tanto en la pantalla como en los endpoints.
+
+## Entrada en el menú lateral
+
+`sidebar.html` muestra el ítem **Listado Reportes** (`/salvia/reportes`, ícono `fa-file-alt`) a los roles `op` y `sv`, justo después de "Lista Casos". Ojo: el ítem "Reportes" que ya existía apunta a `/salvia/casos` (es el listado de casos), no a esta pantalla. Además, la pantalla legada `/salvia/primer_contacto` trae el enlace "Ver nuevo Listado de Reportes" (ver el índice).
+
+---
+
+## Relación con `Mis Reportes`
+
+`Mis Reportes` es la **misma** composición con `:agent-id="currentUserId"` (el componente fuerza `filter_key=persona_asignada&filter_value={agentId}`, oculta el filtro de equipo y bloquea el autocomplete de asignación) y `reasignacion=false` — no es una pantalla con lógica propia distinta. Ver [`Mis Reportes`](../Mis%20Reportes/mis-reportes-interface.md).

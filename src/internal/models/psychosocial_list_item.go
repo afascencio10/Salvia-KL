@@ -9,6 +9,7 @@ type PsychosocialListItem struct {
 	FollowUpID       string    `json:"followUpId"`
 	Status           string    `json:"status"`
 	SessionCount     int       `json:"sessionCount"`
+	ScheduledCount   int       `json:"scheduledCount"`
 	CreatedAt        time.Time `json:"createdAt"`
 	SubmittedByName  string    `json:"submittedByName"`
 	SubmittedByTeam  string    `json:"submittedByTeam"`

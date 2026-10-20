@@ -119,14 +119,20 @@
             </div>
             <!-- /filter-group -->
 
-            <!-- Sort selector -->
+            <!-- Sort selector — opciones fijas de casos, o :sort-options del padre
+                 (Gestión de reportes: solo fecha, sin "próximo seguimiento") -->
             <div class="cc-sort-selector">
                 <label class="cc-filter-label">Ordenar por</label>
                 <select class="cc-select cc-select--active" :value="sortOption" @change="onSortChange($event)">
-                    <option value="registration_date_desc">Fecha de registro DESC</option>
-                    <option value="registration_date_asc">Fecha de registro ASC</option>
-                    <option value="next_follow_up_desc">Próximo seguimiento DESC</option>
-                    <option value="next_follow_up_asc">Próximo seguimiento ASC</option>
+                    <template v-if="sortOptions">
+                        <option v-for="opt in sortOptions" :key="opt.value" :value="opt.value">${ opt.label }</option>
+                    </template>
+                    <template v-else>
+                        <option value="registration_date_desc">Fecha de registro DESC</option>
+                        <option value="registration_date_asc">Fecha de registro ASC</option>
+                        <option value="next_follow_up_desc">Próximo seguimiento DESC</option>
+                        <option value="next_follow_up_asc">Próximo seguimiento ASC</option>
+                    </template>
                 </select>
             </div>
 
@@ -178,20 +184,20 @@
 
             <!-- Toolbar reasignación (E-14 / E-15) -->
             <div v-if="reasignacion && selectedCases.length > 0" class="cc-table-toolbar">
-                <span class="cc-selection-count">${ selectedCases.length } caso(s) seleccionado(s)</span>
+                <span class="cc-selection-count">${ selectedCases.length } ${ itemLabelSingular }(s) seleccionado(s)</span>
                 <button
                     class="cc-reassign-btn"
                     type="button"
                     @click="emitReasignarCasos"
                 >
-                    Reasignar Casos
+                    Reasignar ${ itemLabelPlural.charAt(0).toUpperCase() + itemLabelPlural.slice(1) }
                 </button>
             </div>
 
             <!-- Estado vacío -->
             <div v-if="filteredCases.length === 0" class="cc-empty">
                 <i class="fas fa-inbox"></i>
-                <span>No se encontraron casos</span>
+                <span>No se encontraron ${ itemLabelPlural }</span>
             </div>
 
             <!-- Tabla + paginación -->
@@ -256,12 +262,23 @@
 
                                 <!-- victim_info -->
                                 <td v-if="col.key === 'victim_info'" class="cc-cell-victim">
-                                    <div class="cc-victim-name">${ caseObj.names } ${ caseObj.lastNames }</div>
-                                    <div class="cc-victim-meta">
-                                        <span>Doc: ${ caseObj.docNumber || '—' }</span>
-                                        <span class="cc-victim-meta-sep">·</span>
-                                        <span>Tel: ${ caseObj.victimPhone || '—' }</span>
-                                    </div>
+                                    <!-- Reportes (Gestión de reportes): la columna es "Víctima / ID Reporte". Un
+                                         ReportListItem no trae documento ni teléfono, y los reportes tipo Hombre no
+                                         traen nombre: se muestra el nombre (o "Sin nombre") y el radicado. -->
+                                    <template v-if="caseObj.reportStatus">
+                                        <div class="cc-victim-name">${ ((caseObj.names || '') + ' ' + (caseObj.lastNames || '')).trim() || 'Sin nombre' }</div>
+                                        <div class="cc-victim-meta">
+                                            <span class="cc-report-icode">ID: ${ caseObj.i_code }</span>
+                                        </div>
+                                    </template>
+                                    <template v-else>
+                                        <div class="cc-victim-name">${ caseObj.names } ${ caseObj.lastNames }</div>
+                                        <div class="cc-victim-meta">
+                                            <span>Doc: ${ caseObj.docNumber || '—' }</span>
+                                            <span class="cc-victim-meta-sep">·</span>
+                                            <span>Tel: ${ caseObj.victimPhone || '—' }</span>
+                                        </div>
+                                    </template>
                                 </td>
 
                                 <!-- operator -->
@@ -271,7 +288,7 @@
 
                                 <!-- registration_date -->
                                 <td v-else-if="col.key === 'registration_date'" class="cc-cell">
-                                    ${ formatDateUTC(caseObj.creationDate) }
+                                    ${ formatFechaCO(caseObj.creationDateCO) }
                                 </td>
 
                                 <!-- risk_level -->
@@ -292,7 +309,7 @@
                                 <!-- next_follow_up_date -->
                                 <td v-else-if="col.key === 'next_follow_up_date'" class="cc-cell-follow-up">
                                     <span v-if="caseObj.nextFollowUpDate" class="cc-follow-up-date">
-                                        ${ formatDateUTC(caseObj.nextFollowUpDate) }
+                                        ${ formatScheduledDate(caseObj.nextFollowUpDate) }
                                     </span>
                                     <span v-else class="cc-follow-up-none">—</span>
                                 </td>
@@ -300,6 +317,15 @@
                                 <!-- completed_follow_ups -->
                                 <td v-else-if="col.key === 'completed_follow_ups'" class="cc-cell cc-cell-completed-follow-ups">
                                     ${ completedFollowUpsDisplay(caseObj) }
+                                </td>
+
+                                <!-- contact_attempts_3x3 -->
+                                <td v-else-if="col.key === 'contact_attempts_3x3'" class="cc-cell cc-cell-contact-attempts">
+                                    <span v-if="caseObj.currentContactAttempts !== null && caseObj.currentContactAttempts !== undefined"
+                                          :class="contactAttemptsBadgeClass(caseObj)">
+                                        ${ contactAttemptsDisplay(caseObj) }
+                                    </span>
+                                    <span v-else class="cc-follow-up-none">—</span>
                                 </td>
 
                                 <!-- case_status -->
@@ -312,6 +338,28 @@
                                     <span v-if="formatOpenBarriers(caseObj)" class="cc-barriers-text">
                                         ${ formatOpenBarriers(caseObj) }
                                     </span>
+                                </td>
+
+                                <!-- report_type (Gestión de reportes) -->
+                                <td v-else-if="col.key === 'report_type'" class="cc-cell">
+                                    <span v-if="caseObj.reportType" class="cc-report-type-badge">${ caseObj.reportType }</span>
+                                    <span v-else>—</span>
+                                </td>
+
+                                <!-- contact_scheme — esquema 3x3 (Gestión de reportes) -->
+                                <td v-else-if="col.key === 'contact_scheme'" class="cc-cell">
+                                    <span v-if="!caseObj.totalFallidos">Sin intentos</span>
+                                    <span v-else>${ caseObj.totalFallidos }/9 intentos · ${ caseObj.diasCompletos }/3 días</span>
+                                </td>
+
+                                <!-- report_status (Gestión de reportes) -->
+                                <td v-else-if="col.key === 'report_status'" class="cc-cell">
+                                    <span :class="reportStatusBadgeClass(caseObj.reportStatus)">${ reportStatusLabel(caseObj.reportStatus) }</span>
+                                </td>
+
+                                <!-- assigned_agent (Gestión de reportes) -->
+                                <td v-else-if="col.key === 'assigned_agent'" class="cc-cell">
+                                    ${ caseObj.assignedAgentName || 'Sin asignar' }
                                 </td>
 
                                 <!-- columna desconocida -->

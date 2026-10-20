@@ -303,8 +303,8 @@ app.component('case-task-history', {
             if (!fecha) return '';
             const d = new Date(fecha);
             if (isNaN(d.getTime())) return fecha;
-            return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })
-                + ' · ' + d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+            return d.toLocaleDateString('es-CO', { timeZone: 'America/Bogota', day: '2-digit', month: 'long', year: 'numeric' })
+                + ' · ' + d.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit' });
         },
     },
 
@@ -428,6 +428,12 @@ app.component('case-task-history', {
                     <div class="cth-field">
                         <label class="cth-field-label">Nivel del mecanismo</label>
                         <div class="cth-field-value">\${ tarea.formData.nivelMecanismoTexto || tarea.formData.nivelMecanismo }</div>
+                    </div>
+                </template>
+                <template v-if="tarea.formData.gestionaOficioTexto">
+                    <div class="cth-field">
+                        <label class="cth-field-label">Gestión del oficio</label>
+                        <div class="cth-field-value">\${ tarea.formData.gestionaOficioTexto }</div>
                     </div>
                 </template>
             </template>

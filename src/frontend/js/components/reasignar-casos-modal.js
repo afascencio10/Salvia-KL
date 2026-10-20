@@ -33,6 +33,17 @@
     vueApp.component('reasignar-casos-modal', {
         delimiters: ['${', '}'],
 
+        // entityKind — extensión para Gestión de reportes (2026-10-12).
+        // Default 'casos' preserva el comportamiento actual (list_cases.html).
+        // 'reportes': busca agentes op (no ro) y guarda contra
+        // /api/v1/victim-contacts/reasignar-bulk. El modo cross-team ya
+        // estaba activo globalmente (REASSIGN_CROSS_TEAM_CONTINGENCY=true),
+        // así que no hace falta ninguna rama nueva de resolución de equipo
+        // para reportes — GAP-3 ya queda cubierto por ese modo existente.
+        props: {
+            entityKind: { type: String, default: 'casos' },
+        },
+
         emits: ['closed', 'reassigned'],
 
         data: function() {
@@ -144,8 +155,9 @@
                 self.selectedAgentIcode = '';
                 self.selectedAgent = null;
 
+                var roleCodes = self.entityKind === 'reportes' ? ['op'] : AGENT_ROLE_CODES;
                 var params = new URLSearchParams();
-                AGENT_ROLE_CODES.forEach(function(role) {
+                roleCodes.forEach(function(role) {
                     params.append('role', role);
                 });
 
@@ -323,13 +335,16 @@
                     return c.i_code;
                 }).filter(Boolean);
 
-                fetch('/api/v1/cases/reasignar-bulk', {
+                var isReportes = self.entityKind === 'reportes';
+                var url = isReportes ? '/api/v1/victim-contacts/reasignar-bulk' : '/api/v1/cases/reasignar-bulk';
+                var body = isReportes
+                    ? { report_icodes: caseIcodes, agent_icode: self.selectedAgentIcode }
+                    : { case_icodes: caseIcodes, agent_icode: self.selectedAgentIcode };
+
+                fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        case_icodes: caseIcodes,
-                        agent_icode: self.selectedAgentIcode,
-                    }),
+                    body: JSON.stringify(body),
                 })
                     .then(function(res) {
                         return res.json().then(function(data) {
@@ -388,7 +403,15 @@
             },
 
             ownerFullName: function(caseObj) {
-                if (!caseObj || !caseObj.ownerNames) {
+                if (!caseObj) {
+                    return 'Sin asignar';
+                }
+                // Reportes (ReportListItem) traen un solo campo assignedAgentName
+                // en vez de ownerNames/ownerLastNames separados (CaseListItem).
+                if (caseObj.assignedAgentName) {
+                    return caseObj.assignedAgentName;
+                }
+                if (!caseObj.ownerNames) {
                     return 'Sin asignar';
                 }
                 return ((caseObj.ownerNames || '') + ' ' + (caseObj.ownerLastNames || '')).trim();
