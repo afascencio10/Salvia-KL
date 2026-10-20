@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"bitsflow/internal/models"
 	"log"
 	"net/http"
 
@@ -77,6 +78,10 @@ func (c *EntityBranchAPIController) ListObligationsByBranch(ctx *gin.Context) {
 // ListByTownCode devuelve las sedes del municipio indicado, ordenadas por nombre.
 // Soporta filtro opcional por sector de barrera (se mapea al código de entity_sector).
 //
+// Compara a nivel de municipio (los 5 primeros dígitos del DIVIPOLA): las sedes se
+// registran en la cabecera y el formulario pide el centro poblado, así que exigir el
+// código completo dejaba el desplegable vacío en todo centro poblado que no fuera ...000.
+//
 //	GET /api/v1/entity-branches?town_code={townCode}&sector={sector}
 func (c *EntityBranchAPIController) ListByTownCode(ctx *gin.Context) {
 	townCode := ctx.Query("town_code")
@@ -98,7 +103,8 @@ func (c *EntityBranchAPIController) ListByTownCode(ctx *gin.Context) {
 		entitySectorCode = sectorMap[barrierSector]
 	}
 
-	log.Printf("[DEBUG] entity-branches: town_code=%q barrierSector=%q entitySectorCode=%q", townCode, barrierSector, entitySectorCode)
+	municipio := models.DivipolaMunicipio(townCode)
+	log.Printf("[DEBUG] entity-branches: town_code=%q municipio=%q barrierSector=%q entitySectorCode=%q", townCode, municipio, barrierSector, entitySectorCode)
 
 	branches := make([]entityBranchOption, 0)
 	var err error
@@ -108,15 +114,15 @@ func (c *EntityBranchAPIController) ListByTownCode(ctx *gin.Context) {
 			Raw(`SELECT DISTINCT ON (eb.entity_branch_name) eb.entity_branch_id, eb.entity_branch_i_code, eb.entity_branch_name
 				FROM salvia.entity_branch eb
 				JOIN salvia.entity e ON e.entity_id = eb.entity_id
-				WHERE eb.entity_branch_town_code = ? AND e.entity_sector = ?
-				ORDER BY eb.entity_branch_name ASC, eb.entity_branch_id ASC`, townCode, entitySectorCode).
+				WHERE LEFT(eb.entity_branch_town_code, 5) = ? AND e.entity_sector = ?
+				ORDER BY eb.entity_branch_name ASC, eb.entity_branch_id ASC`, municipio, entitySectorCode).
 			Scan(&branches).Error
 	} else {
 		err = c.db.WithContext(ctx.Request.Context()).
 			Raw(`SELECT DISTINCT ON (entity_branch_name) entity_branch_id, entity_branch_i_code, entity_branch_name
 				FROM salvia.entity_branch
-				WHERE entity_branch_town_code = ?
-				ORDER BY entity_branch_name ASC, entity_branch_id ASC`, townCode).
+				WHERE LEFT(entity_branch_town_code, 5) = ?
+				ORDER BY entity_branch_name ASC, entity_branch_id ASC`, municipio).
 			Scan(&branches).Error
 	}
 

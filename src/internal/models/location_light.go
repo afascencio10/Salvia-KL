@@ -27,6 +27,24 @@ type CityICodeLight struct {
 
 func (CityICodeLight) TableName() string { return "security.city" }
 
+// DivipolaMunicipio recorta un DIVIPOLA de centro poblado (8 dígitos) al del
+// municipio: departamento (2) + municipio (3).
+func DivipolaMunicipio(code string) string {
+	if len(code) < 5 {
+		return code
+	}
+	return code[:5]
+}
+
+// DivipolaCabecera devuelve el DIVIPOLA de la cabecera del municipio al que
+// pertenece el código dado. Cadena vacía si no alcanza para un municipio.
+func DivipolaCabecera(code string) string {
+	if len(code) < 5 {
+		return ""
+	}
+	return code[:5] + "000"
+}
+
 // LocationOption es el formato { label, value } que consume stateOptionsPath en dinamic-form.
 type LocationOption struct {
 	Label string `json:"label"`

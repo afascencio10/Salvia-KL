@@ -21,6 +21,7 @@ type LocationRepository interface {
 	FindCityByICode(ctx context.Context, cityICode string) (*models.CityICodeLight, error)
 	FindCityNamesByICodes(ctx context.Context, icodes []string) (map[string]string, error)
 	FindCitiesByICodes(ctx context.Context, icodes []string) (map[string]models.CityICodeLight, error)
+	FindMunicipalityCodesByCityICodes(ctx context.Context, icodes []string) (map[string]string, error)
 }
 
 type locationRepository struct {
@@ -198,6 +199,37 @@ func (r *locationRepository) FindCitiesByICodes(ctx context.Context, icodes []st
 	}
 	for _, row := range rows {
 		out[row.CityICode] = row
+	}
+	return out, nil
+}
+
+// FindMunicipalityCodesByCityICodes devuelve el DIVIPOLA del municipio (5 dígitos)
+// por city_i_code. El código DANE solo vive en security.town, así que el del
+// municipio sale del menor de sus centros poblados: la cabecera termina en 000.
+func (r *locationRepository) FindMunicipalityCodesByCityICodes(ctx context.Context, icodes []string) (map[string]string, error) {
+	out := make(map[string]string, len(icodes))
+	if len(icodes) == 0 {
+		return out, nil
+	}
+
+	var rows []struct {
+		CityICode string `gorm:"column:city_i_code"`
+		TownCode  string `gorm:"column:town_code"`
+	}
+	if err := r.db.WithContext(ctx).
+		Table("security.city AS c").
+		Select("c.city_i_code AS city_i_code, MIN(t.town_code) AS town_code").
+		Joins("JOIN security.town t ON t.city_id = c.city_id").
+		Where("c.city_i_code IN ?", icodes).
+		Group("c.city_i_code").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	for _, row := range rows {
+		if code := models.DivipolaMunicipio(row.TownCode); code != "" {
+			out[row.CityICode] = code
+		}
 	}
 	return out, nil
 }
