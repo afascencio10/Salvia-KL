@@ -7,7 +7,55 @@ Cada hoja visible es un módulo del formulario nuevo. La hoja `Final` está ocul
 
 Las columnas del Excel no siempre coinciden con el encabezado: en varias filas “Si”, el tipo y las opciones están corridos. Aquí se lee por el contenido de la fila, no por la letra de la columna.
 
-La lectura del Excel queda debajo. Donde choque con la primera revisión del prototipo, manda la sección siguiente.
+La lectura del Excel queda debajo. Donde choque con las revisiones del prototipo, manda la segunda revisión. Donde la segunda no hable, manda la primera.
+
+---
+
+## Segunda revisión del prototipo
+
+Registrada el 20 de octubre de 2026. Sustituye lo de la primera revisión en estos puntos.
+
+**Menú**
+
+Se quita Barreras transversales. El menú queda así:
+
+1. Valoración del riesgo
+2. Seguimiento a medidas de emergencia, solo si el caso tiene medidas
+3. Seguimiento a entidades, solo si el caso ya tiene entidades
+4. Identificación de entidades
+5. Seguimiento al plan de acción
+6. Conclusión del ciclo de atención
+
+**Activación de ruta, dentro de cada entidad**
+
+No vuelve la sección Activación de rutas y no bloquea el cierre. Sí se recuperan las dos preguntas que no estaban en Identificación ni en Seguimiento:
+
+- ¿La persona está de acuerdo con que SALVIA active la Ruta de Atención y las gestiones institucionales correspondientes? (Sí / No, obligatoria)
+- ¿Qué gestiones se realizaron desde Salvia para la activación de ruta? (texto, obligatoria)
+
+Van en cada entidad. En Identificación de entidades, después de los canales y antes de la barrera nueva. En Seguimiento a entidades, en el bloque de registro de barrera nueva y activación de ruta.
+
+**Orden en Seguimiento a entidades**
+
+1. Acciones institucionales que ya se completaron
+2. Seguimiento a las barreras que la entidad ya trae (solo si tiene)
+3. Acciones institucionales pendientes
+4. Describa cualquier actualización de la ruta desde el último seguimiento
+5. Registro de barrera nueva y activación de ruta: la pregunta de barrera nueva (si es Sí, la tarjeta), el acuerdo y qué gestiones se realizaron
+6. Canales, con la opción Ninguna
+7. Describa la gestión de las rutas y barreras (texto obligatorio)
+
+**Canales**
+
+La lista de canales incluye Ninguna. Si se marca, se quitan los demás. Aplica en Identificación de entidades, Seguimiento a entidades y en la conclusión.
+
+**Barreras transversales dentro de la entidad**
+
+En la tarjeta de barrera nueva, «Sector en el que se presentó la barrera» incluye Transversales. Si se elige, se muestran talento humano, económicas, territoriales y enfoque diferencial, más fecha, funcionario, territorio, descripción y gestión. No se muestran las listas de salud, justicia o protección, ni la institución. Salud, justicia y protección siguen como en la primera revisión.
+
+**Puntaje psicosocial**
+
+«Sin acceso a la atención psicosocial o psicológica» vale 1 punto. El aviso de puntaje sigue sumando lo marcado.
 
 ---
 

@@ -151,6 +151,7 @@ var CANALES = [
     ['articulacion', 'Articulación institucional telefónica o por mensajería'],
     ['denuncia', 'Denuncia fácil'],
     ['misalvia', 'Mi Salvia'],
+    ['ninguna', 'Ninguna'],
 ];
 var SALUD_B = [
     ['aseguramiento', 'Dificultades de aseguramiento o afiliación en salud'],
@@ -246,10 +247,10 @@ var PSICO_CRIT = [
     ['temor', 'Temor frente a la activación de la ruta — 1 punto'],
     ['inter', 'Interseccionalidad (gestación, étnico, recursos limitados, etc.) — 2 puntos'],
     ['territorio', 'Condiciones territoriales y de orden público — 1 punto'],
-    ['sin_acceso', 'Sin acceso a la atención psicosocial o psicológica (la hoja no asigna puntos)'],
+    ['sin_acceso', 'Sin acceso a la atención psicosocial o psicológica — 1 punto'],
     ['naturalizacion', 'Naturalización de la VBG y roles de género — 1 punto'],
 ];
-var PSICO_PTS = { poblacion: 0, suicida: 3, temor: 1, inter: 2, territorio: 1, sin_acceso: 0, naturalizacion: 1 };
+var PSICO_PTS = { poblacion: 0, suicida: 3, temor: 1, inter: 2, territorio: 1, sin_acceso: 1, naturalizacion: 1 };
 var ELEMENTOS = [
     ['escucha', 'Escucha activa y contención emocional en crisis'],
     ['psicoeducacion', 'Psicoeducación del ciclo de la violencia, telaraña del abuso y/o impactos de la violencia'],
@@ -338,27 +339,23 @@ function emptyEntidad() {
     return {
         uid: uid(), sector: '', depto: '', municipio: '', ciudad: '', entidad: '', otraEntidad: '',
         radicado: '', fecha: '', completadas: [], pendientes: [], otraRuta: '', canales: [],
-        nuevaBarrera: '', barrerasNuevas: [],
+        acuerdo: '', gestionesRuta: '', nuevaBarrera: '', barrerasNuevas: [],
     };
 }
 function emptyBarreraEntidad() {
     return {
         uid: uid(), sector: '', tipos: [], otraTipo: '', institucion: '', otraInst: '',
-        fecha: '', funcionario: '', depto: '', municipio: '', vereda: '',
-        descripcion: '', gestion: [], gestionTexto: '', perspectiva: '',
-    };
-}
-function emptyBarreraTrans() {
-    return {
-        uid: uid(), talento: [], eco: [], terr: [], diferencial: [],
+        talento: [], eco: [], terr: [], diferencial: [],
         fecha: '', funcionario: '', depto: '', municipio: '', vereda: '',
         descripcion: '', gestion: [], gestionTexto: '', perspectiva: '',
     };
 }
 function emptySeg() {
     return {
-        completadas: [], pendientes: [], otraPendiente: '', nuevaBarrera: '', barrerasNuevas: [],
-        canales: [], actualizacion: '', persisten: '', gestion: '', cerradas: [], motivoCierre: '', gestionTexto: '',
+        completadas: [], pendientes: [], otraPendiente: '', actualizacion: '',
+        nuevaBarrera: '', barrerasNuevas: [], acuerdo: '', gestionesRuta: '',
+        canales: [], gestionRutasBarreras: '',
+        persisten: '', gestion: '', cerradas: [], motivoCierre: '', gestionTexto: '',
     };
 }
 function humanField(field) {
@@ -443,7 +440,6 @@ var SeguimientoV4App = {
                 entidadesSel: [],
                 seg: {},
                 ident: { conocimiento: '', entidades: [] },
-                trans: { hay: '', items: [] },
                 plan: {
                     remision: '', equipos: [], medidasTipos: [], psico: [], osignh: [],
                     discapacidad: [], estabilizacion: [], elementos: [], acciones: '', ajustes: '',
@@ -514,9 +510,6 @@ var SeguimientoV4App = {
             if (this.a.ident.conocimiento === 'si' && this.a.ident.entidades.length === 0) {
                 this.a.ident.entidades.push(emptyEntidad());
             }
-            if (this.a.trans.hay === 'si' && this.a.trans.items.length === 0) {
-                this.a.trans.items.push(emptyBarreraTrans());
-            }
         },
         onSet: function (path, value) {
             if (path === 'plan.equipos' && value.indexOf('medidas') !== -1) {
@@ -536,7 +529,7 @@ var SeguimientoV4App = {
                 if (getPath(this.a, parent + '.vereda') != null) setPath(this.a, parent + '.vereda', '');
             }
             if (last === 'sector') {
-                ['entidad', 'otraEntidad', 'tipos', 'institucion', 'completadas', 'pendientes'].forEach(function (k) {
+                ['entidad', 'otraEntidad', 'tipos', 'institucion', 'otraTipo', 'otraInst', 'talento', 'eco', 'terr', 'diferencial', 'completadas', 'pendientes'].forEach(function (k) {
                     var cur = getPath(this.a, parent + '.' + k);
                     if (Array.isArray(cur)) setPath(this.a, parent + '.' + k, []);
                     else if (cur != null) setPath(this.a, parent + '.' + k, '');
@@ -554,9 +547,6 @@ var SeguimientoV4App = {
             if (last === 'nuevaBarrera' && value === 'si') {
                 var nuevas = getPath(this.a, parent + '.barrerasNuevas');
                 if (!nuevas || !nuevas.length) setPath(this.a, parent + '.barrerasNuevas', [emptyBarreraEntidad()]);
-            }
-            if (path === 'trans.hay' && value === 'si' && this.a.trans.items.length === 0) {
-                this.a.trans.items.push(emptyBarreraTrans());
             }
             this.ensureStructures();
         },
@@ -590,7 +580,6 @@ var SeguimientoV4App = {
             if (this.ctx.hasMedidas) sections.push(this.sectionMedidas());
             if (this.ctx.hasEntidades) sections.push(this.sectionSegEntidades());
             sections.push(this.sectionIdent());
-            sections.push(this.sectionTransversales());
             sections.push(this.sectionPlan());
             sections.push(this.sectionConclusion());
             return sections;
@@ -821,17 +810,22 @@ var SeguimientoV4App = {
             if ((row.pendientes || []).indexOf('otra') !== -1) {
                 f.push(this.field(base + '.otraPendiente', 'text', 'Otra acción pendiente', { required: true }));
             }
+            f.push(this.field(base + '.actualizacion', 'text', 'Describa cualquier actualización de la ruta desde el último seguimiento', {
+                required: true, hint: 'Si no hay novedad, puede escribir No o no aplica.',
+            }));
+            f.push(this.heading(ent.id + '-act', 'Registro de barreras y activación de ruta'));
             f.push(this.field(base + '.nuevaBarrera', 'bool', '¿Se identifica alguna nueva barrera en este seguimiento con relación a esta entidad?', {
                 required: true,
-                hint: 'Si marca Sí, el registro de la barrera se abre aquí, asociado a esta entidad.',
+                hint: 'Si marca Sí, el registro de la barrera se abre aquí, asociado a esta entidad. En el sector puede elegir Transversales.',
             }));
             if (row.nuevaBarrera === 'si') {
                 f.push(this.barrerasNuevasRepeater(base + '.barrerasNuevas', row.barrerasNuevas, 'seg:' + ent.id));
             }
-            f.push(this.field(base + '.canales', 'multi', 'Seleccione los canales utilizados para la activación o gestión de la Ruta de Atención', { required: true, options: opts(CANALES) }));
-            f.push(this.field(base + '.actualizacion', 'text', 'Describa cualquier actualización de la ruta desde el último seguimiento', {
-                required: true, hint: 'Si no hay novedad, puede escribir No o no aplica.',
+            f = f.concat(this.camposActivacion(base));
+            f.push(this.field(base + '.canales', 'multi', 'Seleccione los canales utilizados para la activación o gestión de la Ruta de Atención', {
+                required: true, exclusive: 'ninguna', options: opts(CANALES),
             }));
+            f.push(this.field(base + '.gestionRutasBarreras', 'text', 'Describa la gestión de las rutas y barreras', { required: true }));
             return f;
         },
         sectionIdent: function () {
@@ -870,7 +864,10 @@ var SeguimientoV4App = {
             f.push(this.field(base + '.completadas', 'multi', 'Acciones institucionales completadas', { required: true, options: acc }));
             f.push(this.field(base + '.pendientes', 'multi', 'Acciones institucionales pendientes', { required: true, options: acc }));
             f.push(this.field(base + '.otraRuta', 'text', 'Otra información asociada a la Ruta', { required: true }));
-            f.push(this.field(base + '.canales', 'multi', 'Seleccione los canales utilizados para la activación o gestión de la Ruta de Atención', { required: true, options: opts(CANALES) }));
+            f.push(this.field(base + '.canales', 'multi', 'Seleccione los canales utilizados para la activación o gestión de la Ruta de Atención', {
+                required: true, exclusive: 'ninguna', options: opts(CANALES),
+            }));
+            f = f.concat(this.camposActivacion(base));
             f.push(this.field(base + '.nuevaBarrera', 'bool', '¿Se identifica alguna nueva barrera con relación a esta entidad?', {
                 required: true,
                 hint: 'Si marca Sí, el registro de la barrera se abre aquí, asociado a esta entidad.',
@@ -879,6 +876,12 @@ var SeguimientoV4App = {
                 f.push(this.barrerasNuevasRepeater(base + '.barrerasNuevas', ent.barrerasNuevas, 'identb:' + i));
             }
             return f;
+        },
+        camposActivacion: function (base) {
+            return [
+                this.field(base + '.acuerdo', 'bool', '¿La persona está de acuerdo con que SALVIA active la Ruta de Atención y las gestiones institucionales correspondientes?', { required: true }),
+                this.field(base + '.gestionesRuta', 'text', '¿Qué gestiones se realizaron desde Salvia para la activación de ruta?', { required: true }),
+            ];
         },
         barrerasNuevasRepeater: function (listPath, list, addId) {
             var items = (list || []).map(function (bar, i) {
@@ -905,8 +908,20 @@ var SeguimientoV4App = {
             var f = [];
             f.push(this.field(base + '.sector', 'single', 'Sector en el que se presentó la barrera', {
                 required: true,
-                options: opts([['salud', 'Salud'], ['justicia', 'Justicia'], ['proteccion', 'Protección']]),
+                options: opts([
+                    ['salud', 'Salud'],
+                    ['justicia', 'Justicia'],
+                    ['proteccion', 'Protección'],
+                    ['transversales', 'Transversales'],
+                ]),
             }));
+            if (bar.sector === 'transversales') {
+                f.push(this.heading(base + '-est', 'Barreras transversales'));
+                f.push(this.field(base + '.talento', 'multi', 'Barreras institucionales y de talento humano', { options: opts(TALENTO) }));
+                f.push(this.field(base + '.eco', 'multi', 'Barreras económicas y socioeconómicas', { options: opts(ECO) }));
+                f.push(this.field(base + '.terr', 'multi', 'Barreras territoriales y geográficas', { options: opts(TERR_B) }));
+                f.push(this.field(base + '.diferencial', 'multi', 'Barreras por ausencia de enfoque diferencial', { options: opts(DIFERENCIAL) }));
+            }
             if (bar.sector === 'salud') {
                 f.push(this.info(base + '-hs', 'Salud: hospitales, IPS, EPS y puestos de salud.'));
                 f.push(this.field(base + '.tipos', 'multi', 'Barreras en salud', { options: opts(SALUD_B) }));
@@ -925,7 +940,9 @@ var SeguimientoV4App = {
                 f.push(this.field(base + '.institucion', 'select', '¿A qué institución acudió?', { options: optsNames(INST.proteccion) }));
                 f.push(this.field(base + '.otraTipo', 'text', 'Otra barrera en el marco del sector Protección'));
             }
-            f.push(this.field(base + '.otraInst', 'text', '¿La barrera se presentó en otra institución interna (empleador o empleadora) o externa?', { required: true }));
+            if (bar.sector && bar.sector !== 'transversales') {
+                f.push(this.field(base + '.otraInst', 'text', '¿La barrera se presentó en otra institución interna (empleador o empleadora) o externa?', { required: true }));
+            }
             f = f.concat(this.fieldsBarreraComunes(base, bar));
             return f;
         },
@@ -956,38 +973,6 @@ var SeguimientoV4App = {
                 f.push(this.field(base + '.perspectiva', 'text', '¿Cuál es su perspectiva profesional frente a la barrera?', { required: true }));
             }
             f.push(this.field(base + '.gestionTexto', 'text', 'Descripción de la gestión realizada con relación a las barreras', { required: true }));
-            return f;
-        },
-        sectionTransversales: function () {
-            var b = [];
-            b.push(this.info('t0', 'Estas barreras no están asociadas a una entidad. Equivale a la barrera transversal del formulario actual: no despliega las listas de salud, justicia o protección.'));
-            b.push(this.field('trans.hay', 'bool', '¿Se identifican barreras transversales en este seguimiento?', { required: true }));
-            if (this.a.trans.hay === 'si') {
-                var items = this.a.trans.items.map(function (bar, i) {
-                    return {
-                        key: bar.uid,
-                        title: 'Barrera transversal ' + (i + 1),
-                        canDelete: this.a.trans.items.length > 1,
-                        remove: 'trans',
-                        index: i,
-                        fields: this.fieldsBarreraTrans('trans.items.' + i, bar),
-                    };
-                }, this);
-                b.push({
-                    kind: 'repeater', key: 'trans-rep', canAdd: true, addId: 'trans',
-                    addLabel: 'Agregar barrera transversal', items: items,
-                });
-            }
-            return { id: 'transversales', title: 'Barreras transversales', desc: 'Barreras que no se asocian a una entidad', blocks: b };
-        },
-        fieldsBarreraTrans: function (base, bar) {
-            var f = [];
-            f.push(this.heading(base + '-est', 'Barreras transversales'));
-            f.push(this.field(base + '.talento', 'multi', 'Barreras institucionales y de talento humano', { options: opts(TALENTO) }));
-            f.push(this.field(base + '.eco', 'multi', 'Barreras económicas y socioeconómicas', { options: opts(ECO) }));
-            f.push(this.field(base + '.terr', 'multi', 'Barreras territoriales y geográficas', { options: opts(TERR_B) }));
-            f.push(this.field(base + '.diferencial', 'multi', 'Barreras por ausencia de enfoque diferencial', { options: opts(DIFERENCIAL) }));
-            f = f.concat(this.fieldsBarreraComunes(base, bar));
             return f;
         },
         sectionPlan: function () {
@@ -1084,7 +1069,9 @@ var SeguimientoV4App = {
                     conocidas.push({ v: 'otra', l: 'Otra' });
                     b.push(this.field('con.entidad', 'select', 'Seleccione la entidad con la que realizará acción institucional', { required: true, options: conocidas }));
                     if (this.a.con.entidad === 'otra') b.push(this.field('con.otraEntidad', 'input', 'Otra ¿cuál?', { required: true }));
-                    b.push(this.field('con.canales', 'multi', 'Seleccione los canales utilizados para la activación o gestión de la Ruta de Atención', { required: true, options: opts(CANALES) }));
+                    b.push(this.field('con.canales', 'multi', 'Seleccione los canales utilizados para la activación o gestión de la Ruta de Atención', {
+                        required: true, exclusive: 'ninguna', options: opts(CANALES),
+                    }));
                 }
             }
             return { id: 'conclusion', title: 'Conclusión del ciclo de atención', desc: 'Criterio, motivo y acción institucional', blocks: b };
@@ -1170,7 +1157,6 @@ var SeguimientoV4App = {
         },
         addItem: function (id) {
             if (id === 'ident') this.a.ident.entidades.push(emptyEntidad());
-            if (id === 'trans') this.a.trans.items.push(emptyBarreraTrans());
             if (String(id).indexOf('seg:') === 0) {
                 this.a.seg[id.slice(4)].barrerasNuevas.push(emptyBarreraEntidad());
             }
@@ -1180,7 +1166,6 @@ var SeguimientoV4App = {
         },
         removeItem: function (id, index) {
             if (id === 'ident' && this.a.ident.entidades.length > 1) this.a.ident.entidades.splice(index, 1);
-            if (id === 'trans' && this.a.trans.items.length > 1) this.a.trans.items.splice(index, 1);
             if (String(id).indexOf('seg:') === 0) {
                 var segList = this.a.seg[id.slice(4)].barrerasNuevas;
                 if (segList.length > 1) segList.splice(index, 1);
