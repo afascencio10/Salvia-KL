@@ -77,6 +77,7 @@
                         <div class="de-item-type">${ e.typeLabel }</div>
                         <div class="de-item-meta">
                             <span><i class="fas fa-location-dot"></i>${ e.address || 'Sin dirección' }${ e.cityName ? ', ' + e.cityName : '' }</span>
+                            <span v-if="e.divipola"><i class="fas fa-hashtag"></i>DIVIPOLA ${ e.divipola }</span>
                             <span v-if="e.phone"><i class="fas fa-phone"></i>${ e.phone }</span>
                             <span v-if="e.email"><i class="fas fa-envelope"></i>${ e.email }</span>
                         </div>

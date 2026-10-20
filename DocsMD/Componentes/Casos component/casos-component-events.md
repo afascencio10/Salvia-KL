@@ -125,7 +125,7 @@ Requerido:    Sí
 Evento:       Cuando filtra por estado del caso
 Tipo:         User Interaction
 Descripción:  Cambio en el dropdown "Estado del caso". Filtra por
-              victim_case.victim_case_status (códigos ra/is/cd/ex/r/fc).
+              victim_case.victim_case_status (códigos ra/is/cd/ex/r/fc/bo/in/te/c/iv).
               Opciones quemadas en el padre; etiquetas según labelEstado
               de get_case_detail_sv. Combinable con otros filtros.
               Llama al backend con filter_estado_caso={código}.

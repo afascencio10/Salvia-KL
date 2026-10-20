@@ -133,7 +133,7 @@ const casesListSelectCols = `
     (` + victimPhoneSelect + `) AS victim_phone,
     vc.victim_case_creation_date,
     TO_CHAR(vc.victim_case_creation_date AT TIME ZONE '` + casesListTimezone + `', 'YYYY-MM-DD') AS creation_date_co,
-    vc.victim_case_status,
+    (` + caseStatusSelect + `) AS victim_case_status,
     COALESCE(gup.general_user_profile_names, '')      AS owner_names,
     COALESCE(gup.general_user_profile_last_names, '') AS owner_last_names,
     COALESCE(gu.general_user_team, '')              AS owner_team,
@@ -342,11 +342,17 @@ func buildCasesListWhere(filters CasesListFilters) (string, []interface{}) {
 		}
 	}
 
-	// E-13: estado del caso (código victim_case_status)
+	// E-13: estado del caso (código victim_case_status).
+	// Activo también incluye el estado vacío: se lee como ra, sin escribirlo.
 	if estadoCode := casesListEstadoCasoFilterValue(filters); estadoCode != "" {
 		if isValidCaseStatusCode(estadoCode) {
-			clauses = append(clauses, "vc.victim_case_status = ?")
-			args = append(args, estadoCode)
+			if estadoCode == activeCaseStatusCode {
+				clauses = append(clauses, "("+activeCaseStatusMatch+")")
+				args = append(args, estadoCode)
+			} else {
+				clauses = append(clauses, "vc.victim_case_status = ?")
+				args = append(args, estadoCode)
+			}
 		}
 	}
 
@@ -467,9 +473,22 @@ func casesListSeguimientosFilterValue(filters CasesListFilters) string {
 	return ""
 }
 
+// activeCaseStatusCode es Activo. Un caso sin estado se presenta y se filtra como este código.
+const activeCaseStatusCode = "ra"
+
+// emptyCaseStatusSQL es un victim_case_status NULL o en blanco.
+const emptyCaseStatusSQL = `(vc.victim_case_status IS NULL OR btrim(vc.victim_case_status) = '')`
+
+// caseStatusSelect devuelve ra cuando el estado guardado está vacío.
+const caseStatusSelect = `CASE WHEN ` + emptyCaseStatusSQL + ` THEN '` + activeCaseStatusCode + `' ELSE vc.victim_case_status END`
+
+// activeCaseStatusMatch es el filtro Activo: ra guardado o estado vacío.
+const activeCaseStatusMatch = `vc.victim_case_status = ? OR ` + emptyCaseStatusSQL
+
 // validCaseStatusCodes códigos victim_case_status permitidos en filtro E-13.
 var validCaseStatusCodes = map[string]bool{
 	"ra": true, "is": true, "cd": true, "ex": true, "r": true, "fc": true,
+	"bo": true, "in": true, "te": true, "c": true, "iv": true,
 }
 
 func isValidCaseStatusCode(code string) bool {

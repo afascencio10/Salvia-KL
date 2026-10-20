@@ -57,6 +57,7 @@ type DirectoryResponse struct {
 	CityName     string   `json:"cityName"`
 	DepartmentID *uint64  `json:"departmentId,omitempty"`
 	TownICode    *string  `json:"townICode,omitempty"`
+	Divipola     string   `json:"divipola,omitempty"`
 	Name         string   `json:"name"`
 	Address      string   `json:"address"`
 	Phone        *string  `json:"phone,omitempty"`
@@ -399,11 +400,16 @@ func (s *directoryService) List(ctx context.Context, filters DirectoryListFilter
 	if err != nil {
 		return nil, err
 	}
+	muniCodes, err := s.locRepo.FindMunicipalityCodesByCityICodes(ctx, uniqueCityICodes(items))
+	if err != nil {
+		return nil, err
+	}
 
 	out := make([]DirectoryResponse, len(items))
 	for i, item := range items {
 		info := cityInfos[item.CityID]
 		out[i] = toDirectoryResponse(item, info.CityName)
+		out[i].Divipola = divipolaDeEntidad(item.TownICode, muniCodes[item.CityID])
 		if out[i].DepartmentID == nil && info.DepartmentId != 0 {
 			depID := info.DepartmentId
 			out[i].DepartmentID = &depID
@@ -421,6 +427,10 @@ func (s *directoryService) List(ctx context.Context, filters DirectoryListFilter
 }
 
 func (s *directoryService) resolveCityInfosForItems(ctx context.Context, items []models.Directory) (map[string]models.CityICodeLight, error) {
+	return s.locRepo.FindCitiesByICodes(ctx, uniqueCityICodes(items))
+}
+
+func uniqueCityICodes(items []models.Directory) []string {
 	unique := make(map[string]struct{}, len(items))
 	icodes := make([]string, 0, len(items))
 	for _, item := range items {
@@ -430,7 +440,18 @@ func (s *directoryService) resolveCityInfosForItems(ctx context.Context, items [
 		unique[item.CityID] = struct{}{}
 		icodes = append(icodes, item.CityID)
 	}
-	return s.locRepo.FindCitiesByICodes(ctx, icodes)
+	return icodes
+}
+
+// divipolaDeEntidad devuelve el centro poblado de la entidad si lo tiene y, si no,
+// la cabecera de su municipio. town_i_code guarda el town_code, no el i_code.
+func divipolaDeEntidad(townCode *string, municipio string) string {
+	if townCode != nil {
+		if trimmed := strings.TrimSpace(*townCode); trimmed != "" {
+			return trimmed
+		}
+	}
+	return models.DivipolaCabecera(municipio)
 }
 
 func (s *directoryService) resolveCityNamesForItems(ctx context.Context, items []models.Directory, singleCity bool) (map[string]string, error) {
@@ -477,7 +498,13 @@ func (s *directoryService) GetByID(ctx context.Context, id string) (*DirectoryRe
 		}
 	}
 
+	muniCodes, err := s.locRepo.FindMunicipalityCodesByCityICodes(ctx, []string{dir.CityID})
+	if err != nil {
+		return nil, err
+	}
+
 	resp := toDirectoryResponse(*dir, cityName)
+	resp.Divipola = divipolaDeEntidad(dir.TownICode, muniCodes[dir.CityID])
 	if resp.DepartmentID == nil {
 		resp.DepartmentID = depID
 	}

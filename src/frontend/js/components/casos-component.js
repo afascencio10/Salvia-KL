@@ -803,12 +803,17 @@
                 ex: 'Vencido',
                 r:  'Por aprobar',
                 fc: 'Recontacto',
+                bo: 'Borrador',
+                in: 'Iniciado',
+                te: 'Terminado',
+                c:  'Completado',
+                iv: 'Inválido',
             };
             return map[code] || 'Desconocido';
         },
 
         caseStatusBadgeClass: function(code) {
-            var known = { ra: true, is: true, cd: true, ex: true, r: true, fc: true };
+            var known = { ra: true, is: true, cd: true, ex: true, r: true, fc: true, bo: true, in: true, te: true, c: true, iv: true };
             var slug = known[code] ? code : 'desconocido';
             return 'cc-case-status-badge cc-case-status-' + slug;
         },

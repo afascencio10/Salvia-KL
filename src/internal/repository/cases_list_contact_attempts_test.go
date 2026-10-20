@@ -44,3 +44,36 @@ func TestCurrentContactAttemptsSubquery(t *testing.T) {
 		t.Fatal("seguimientos ejecutados debe seguir contando solo REALIZADO")
 	}
 }
+
+func TestEmptyCaseStatusBindsToActive(t *testing.T) {
+	if !strings.Contains(caseStatusSelect, "THEN 'ra'") {
+		t.Fatalf("el listado debe presentar el estado vacío como ra:\n%s", caseStatusSelect)
+	}
+	if !strings.Contains(caseStatusSelect, "btrim(vc.victim_case_status) = ''") {
+		t.Fatal("el bind debe cubrir el estado en blanco")
+	}
+
+	where, args := buildCasesListWhere(CasesListFilters{FilterEstadoCaso: "ra"})
+	if !strings.Contains(where, "btrim(vc.victim_case_status) = ''") {
+		t.Fatalf("filtrar Activo debe incluir el estado vacío:\n%s", where)
+	}
+	if len(args) != 1 || args[0] != "ra" {
+		t.Fatalf("el filtro Activo debe comparar contra ra, obtuvo %#v", args)
+	}
+
+	where, args = buildCasesListWhere(CasesListFilters{FilterEstadoCaso: "in"})
+	if strings.Contains(where, "btrim(vc.victim_case_status)") {
+		t.Fatalf("Iniciado no debe arrastrar los vacíos:\n%s", where)
+	}
+	if !strings.Contains(where, "vc.victim_case_status = ?") || len(args) != 1 || args[0] != "in" {
+		t.Fatalf("Iniciado debe ser igualdad exacta, where=%s args=%#v", where, args)
+	}
+
+	where, args = buildCasesListWhere(CasesListFilters{FilterEstadoCaso: "cd"})
+	if strings.Contains(where, "btrim(vc.victim_case_status)") {
+		t.Fatalf("otro estado no debe arrastrar los vacíos:\n%s", where)
+	}
+	if !strings.Contains(where, "vc.victim_case_status = ?") || len(args) != 1 || args[0] != "cd" {
+		t.Fatalf("Cerrado debe seguir siendo igualdad exacta, where=%s args=%#v", where, args)
+	}
+}
