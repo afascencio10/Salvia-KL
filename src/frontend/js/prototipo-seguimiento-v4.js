@@ -339,7 +339,7 @@ function emptyEntidad() {
     return {
         uid: uid(), sector: '', depto: '', municipio: '', ciudad: '', entidad: '', otraEntidad: '',
         radicado: '', fecha: '', completadas: [], pendientes: [], otraRuta: '', canales: [],
-        acuerdo: '', gestionesRuta: '', nuevaBarrera: '', barrerasNuevas: [],
+        acuerdo: '', debidaDiligencia: '', gestionesRuta: '', nuevaBarrera: '', barrerasNuevas: [],
     };
 }
 function emptyBarreraEntidad() {
@@ -353,9 +353,9 @@ function emptyBarreraEntidad() {
 function emptySeg() {
     return {
         completadas: [], pendientes: [], otraPendiente: '', actualizacion: '',
-        nuevaBarrera: '', barrerasNuevas: [], acuerdo: '', gestionesRuta: '',
-        canales: [], gestionRutasBarreras: '',
-        persisten: '', gestion: '', cerradas: [], motivoCierre: '', gestionTexto: '',
+        nuevaBarrera: '', barrerasNuevas: [], acuerdo: '', debidaDiligencia: '',
+        canales: [], gestionesRuta: '',
+        persisten: '', gestion: '', cerradas: [], motivoCierre: '',
     };
 }
 function humanField(field) {
@@ -780,6 +780,12 @@ var SeguimientoV4App = {
                 f.push(this.heading(ent.id + '-segb', 'Seguimiento a barreras de esta entidad'));
                 f.push(this.info(ent.id + '-bb', 'Barreras ya asociadas a esta entidad:\n' + ent.barreras.map(function (x) { return '• ' + x.nombre; }).join('\n')));
                 f.push(this.field(base + '.persisten', 'bool', '¿Las barreras persisten?', { required: true }));
+                f.push(this.field(base + '.cerradas', 'multi', '¿Cuáles barreras se cerraron?', {
+                    options: ent.barreras.map(function (x) { return { v: x.id, l: x.nombre }; }),
+                }));
+                if ((row.cerradas || []).length) {
+                    f.push(this.field(base + '.motivoCierre', 'single', 'Motivo del cierre', { required: true, options: opts(CIERRE_MOTIVOS) }));
+                }
                 f.push(this.field(base + '.gestion', 'single', 'Gestión de la barrera por parte de Salvia', {
                     options: opts([
                         ['activacion', 'Activación de ruta'],
@@ -789,18 +795,6 @@ var SeguimientoV4App = {
                 }));
                 if (row.gestion === 'alerta') {
                     f.push(this.info(ent.id + '-al', 'Alerta por barreras: al guardar de verdad, esto notificaría al equipo técnico. Este prototipo no envía la notificación.'));
-                }
-                f.push(this.field(base + '.cerradas', 'multi', '¿Cuáles barreras se cerraron?', {
-                    options: ent.barreras.map(function (x) { return { v: x.id, l: x.nombre }; }),
-                }));
-                if ((row.cerradas || []).length) {
-                    f.push(this.field(base + '.motivoCierre', 'single', 'Motivo del cierre', { required: true, options: opts(CIERRE_MOTIVOS) }));
-                }
-                if (row.gestion || (row.cerradas || []).length) {
-                    f.push(this.field(base + '.gestionTexto', 'text', 'Describa la gestión de SALVIA frente a esta barrera', {
-                        required: true,
-                        hint: 'Si elige Alerta por barreras, incluya los elementos para el análisis. Si cierra, mencione qué permite concluir que no quedan gestiones pendientes.',
-                    }));
                 }
             }
             f.push(this.info(ent.id + '-pend', 'Pendientes que trae el sistema: ' + ent.pendientes.join(', ') + '.'));
@@ -825,7 +819,7 @@ var SeguimientoV4App = {
             f.push(this.field(base + '.canales', 'multi', 'Seleccione los canales utilizados para la activación o gestión de la Ruta de Atención', {
                 required: true, exclusive: 'ninguna', options: opts(CANALES),
             }));
-            f.push(this.field(base + '.gestionRutasBarreras', 'text', 'Describa la gestión de las rutas y barreras', { required: true }));
+            f.push(this.field(base + '.gestionesRuta', 'text', 'Describa las gestiones realizadas para la activación de rutas y gestión de barreras en esta entidad'));
             return f;
         },
         sectionIdent: function () {
@@ -864,10 +858,11 @@ var SeguimientoV4App = {
             f.push(this.field(base + '.completadas', 'multi', 'Acciones institucionales completadas', { required: true, options: acc }));
             f.push(this.field(base + '.pendientes', 'multi', 'Acciones institucionales pendientes', { required: true, options: acc }));
             f.push(this.field(base + '.otraRuta', 'text', 'Otra información asociada a la Ruta', { required: true }));
+            f = f.concat(this.camposActivacion(base));
             f.push(this.field(base + '.canales', 'multi', 'Seleccione los canales utilizados para la activación o gestión de la Ruta de Atención', {
                 required: true, exclusive: 'ninguna', options: opts(CANALES),
             }));
-            f = f.concat(this.camposActivacion(base));
+            f.push(this.field(base + '.gestionesRuta', 'text', '¿Qué gestiones se realizaron desde Salvia para la activación de ruta?', { required: true }));
             f.push(this.field(base + '.nuevaBarrera', 'bool', '¿Se identifica alguna nueva barrera con relación a esta entidad?', {
                 required: true,
                 hint: 'Si marca Sí, el registro de la barrera se abre aquí, asociado a esta entidad.',
@@ -880,7 +875,7 @@ var SeguimientoV4App = {
         camposActivacion: function (base) {
             return [
                 this.field(base + '.acuerdo', 'bool', '¿La persona está de acuerdo con que SALVIA active la Ruta de Atención y las gestiones institucionales correspondientes?', { required: true }),
-                this.field(base + '.gestionesRuta', 'text', '¿Qué gestiones se realizaron desde Salvia para la activación de ruta?', { required: true }),
+                this.field(base + '.debidaDiligencia', 'bool', '¿Salvia debe activar rutas en el marco de la debida diligencia?', { required: true }),
             ];
         },
         barrerasNuevasRepeater: function (listPath, list, addId) {
