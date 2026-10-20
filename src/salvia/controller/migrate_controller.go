@@ -52,6 +52,7 @@ func (c *MigrateController) RegisterRoutes(rg *gin.RouterGroup) {
 		admin.POST("/follow-up", c.MigrateFollowUp)
 		admin.POST("/create-form", c.CreateForm)
 		admin.POST("/assign-agents-excel", c.AssignAgentsFromExcel)
+		admin.POST("/alcaldias", c.MigrateAlcaldias)
 	}
 }
 
