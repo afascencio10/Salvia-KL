@@ -69,12 +69,19 @@ func (c *MigrateController) MigrateAlcaldias(ctx *gin.Context) {
 	if entityID == 0 {
 		res.EntidadCreada = true
 		if !dryRun {
+			// entity_city_code es NOT NULL y no existe en el DAO: se copia el de una
+			// entidad ya cargada en vez de inventar la convención.
+			var cityCode string
+			db.Raw(`SELECT entity_city_code FROM salvia.entity
+			        WHERE entity_city_code IS NOT NULL LIMIT 1`).Scan(&cityCode)
+
 			err = db.Raw(`
 				INSERT INTO salvia.entity
-					(entity_i_code, entity_creation_date, entity_update_date, entity_name,
-					 entity_is_interoperable, entity_interoperability_code, entity_response_time, entity_sector)
-				VALUES (gen_random_uuid()::text, now(), now(), ?, 'n', 'ALCALDIAS', 0, ?)
-				RETURNING entity_id`, entidadAlcaldias, sectorAlcaldias).Scan(&entityID).Error
+					(entity_i_code, entity_creation_date, entity_update_date, entity_city_code,
+					 entity_name, entity_description, entity_is_interoperable,
+					 entity_interoperability_code, entity_response_time, entity_sector)
+				VALUES (gen_random_uuid()::text, now(), now(), ?, ?, 'Alcaldías municipales', 'n', 'ALCALDIAS', 0, ?)
+				RETURNING entity_id`, cityCode, entidadAlcaldias, sectorAlcaldias).Scan(&entityID).Error
 			if err != nil {
 				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error creando la entidad: " + err.Error()})
 				return
