@@ -7,7 +7,41 @@ Cada hoja visible es un módulo del formulario nuevo. La hoja `Final` está ocul
 
 Las columnas del Excel no siempre coinciden con el encabezado: en varias filas “Si”, el tipo y las opciones están corridos. Aquí se lee por el contenido de la fila, no por la letra de la columna.
 
-La lectura del Excel queda debajo. Donde choque con las revisiones del prototipo, manda la segunda revisión. Donde la segunda no hable, manda la primera.
+La lectura del Excel queda debajo. Donde choque con las revisiones del prototipo, manda la tercera revisión. Donde la tercera no hable, manda la segunda y, si tampoco, la primera.
+
+---
+
+## Tercera revisión del prototipo
+
+Registrada el 20 de octubre de 2026. Sustituye lo de la segunda revisión en estos puntos.
+
+**Debida diligencia**
+
+En cada entidad de Identificación de entidades y de Seguimiento a entidades, justo debajo del acuerdo, va «¿Salvia debe activar rutas en el marco de la debida diligencia?» (Sí / No, obligatoria). Siempre se ve: la respuesta del acuerdo no la oculta.
+
+**Gestiones**
+
+En Identificación de entidades, después de la debida diligencia van los canales y luego «¿Qué gestiones se realizaron desde Salvia para la activación de ruta?», que sigue obligatoria y va antes de la barrera nueva.
+
+En Seguimiento a entidades se quita «Describa la gestión de las rutas y barreras». La pregunta de gestiones pasa al final de la entidad, después de los canales, y queda opcional con el texto «Describa las gestiones realizadas para la activación de rutas y gestión de barreras en esta entidad».
+
+Orden de cada entidad en Seguimiento:
+
+1. Acciones institucionales que ya se completaron
+2. Seguimiento a las barreras que la entidad ya trae (solo si tiene)
+3. Acciones institucionales pendientes
+4. Describa cualquier actualización de la ruta desde el último seguimiento
+5. Registro de barrera nueva: la pregunta (si es Sí, la tarjeta), el acuerdo y la debida diligencia
+6. Canales, con la opción Ninguna
+7. Gestiones de activación y barreras, opcionales
+
+**Seguimiento a barreras de esta entidad**
+
+Si la entidad ya trae barreras, el orden es: ¿Las barreras persisten?, ¿Cuáles barreras se cerraron?, motivo del cierre si marcó alguna, Gestión de la barrera por parte de Salvia, y el aviso de alerta si eligió Alerta por barreras.
+
+Se quita «Describa la gestión de SALVIA frente a esta barrera».
+
+En la tarjeta de barrera nueva, «Descripción de la gestión realizada con relación a las barreras» sigue al final y sigue siendo obligatoria.
 
 ---
 
