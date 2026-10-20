@@ -109,7 +109,7 @@
         <p style="margin:2px 0 0;font-size:.78rem;color:#3b82f6">
           ${ formatFecha(proximoSeguimiento.scheduled_date) }
           <span v-if="proximoSeguimiento.scheduled_time && proximoSeguimiento.scheduled_time !== '00:00'"> a las ${ proximoSeguimiento.scheduled_time }</span>
-          <span v-if="proximoSeguimiento.agent_id"> · 👤 ${ nombreAgente(proximoSeguimiento.agent_id) }</span>
+          <span v-if="proximoSeguimiento.agent_id"> · 👤 ${ proximoSeguimiento.agent_full_name || nombreAgente(proximoSeguimiento.agent_id) }</span>
         </p>
       </div>
       <button style="background:none;border:none;color:#93c5fd;font-size:1rem;cursor:pointer;padding:4px" @click="tabActiva = 'seguimientos'">Ver →</button>
@@ -596,7 +596,7 @@
             <div class="cd-empty-icon">📋</div>
             <p>No hay seguimientos registrados para este caso</p>
           </div>
-          <div v-for="(seg, idx) in followUpsV2" :key="seg.id"
+          <div v-for="(seg, idx) in seguimientosOrdenados" :key="seg.id"
             :class="['cd-seg-item', seg.is_completed || seg.status === 'REALIZADO' ? 'done' : 'pending']"
             :style="esVencido(seg) ? 'flex-wrap:wrap;cursor:pointer;background:#f3f4f6;border-color:#e5e7eb;opacity:.85' : 'flex-wrap:wrap;cursor:pointer'"
             @click="toggleSegExpand(seg.id)">
@@ -622,7 +622,7 @@
               <div class="cd-seg-meta">
                 📅 ${ formatFecha(seg.scheduled_date) }
                 <span v-if="seg.scheduled_time && seg.scheduled_time !== '00:00'"> &nbsp;·&nbsp; 🕐 ${ seg.scheduled_time }</span>
-                <span v-if="seg.agent_id"> &nbsp;·&nbsp; 👤 ${ nombreAgente(seg.agent_id) }</span>
+                <span v-if="seg.agent_id"> &nbsp;·&nbsp; 👤 ${ seg.agent_full_name || nombreAgente(seg.agent_id) }</span>
                 <span v-if="seg.last_attempt_at" style="color:#9ca3af"> &nbsp;·&nbsp; Último intento: ${ formatFechaHora(seg.last_attempt_at) }</span>
               </div>
               <div v-if="seg.summary" style="font-size:.82rem;color:#6b7280;margin-top:4px">
@@ -1372,6 +1372,24 @@ var home = Vue.createApp({
       }
       return null;
     },
+    // seguimientosOrdenados agrupa la lista para que no salga todo mezclado:
+    // primero los REALIZADOS y debajo los no realizados (pendientes y vencidos).
+    // Dentro de cada grupo conserva el orden original (por fecha) que viene del
+    // backend. No altera la numeración: segNumero() sigue calculando sobre
+    // followUpsV2, así que los pendientes mantienen su # correcto.
+    seguimientosOrdenados() {
+      var realizados = [];
+      var pendientes = [];
+      for (var i = 0; i < this.followUpsV2.length; i++) {
+        var s = this.followUpsV2[i];
+        if (s.is_completed || s.status === 'REALIZADO') {
+          realizados.push(s);
+        } else {
+          pendientes.push(s);
+        }
+      }
+      return realizados.concat(pendientes);
+    },
     agentesParaReasignarSeg() {
       // Supervisor: usa agentesRO (filtrado por team del caso)
       if (this.userRole === 'sv') return this.agentesRO;
@@ -1502,13 +1520,10 @@ var home = Vue.createApp({
       return '';
     },
     iniciarSeguimiento(seg) {
-      // Validar que la fecha programada ya haya llegado (solo fecha, sin hora)
-      var hoy = this.hoyBogota();
-      var fechaSeg = seg.scheduled_date ? this.formatFecha(seg.scheduled_date) : '';
-      if (fechaSeg && fechaSeg > hoy) {
-        this.showToast('error', 'No es posible iniciar este seguimiento. La fecha programada (' + fechaSeg + ') aún no ha llegado.');
-        return;
-      }
+      // Los tiempos de seguimiento son un RECORDATORIO, no una regla: se puede
+      // iniciar un seguimiento en cualquier momento, aunque su fecha programada aún
+      // no haya llegado. La fecha real de ejecución queda registrada al completar
+      // (completed_at en el backend). Por eso NO se bloquea por fecha futura.
       // Abrir el componente de contacto de mi compañero
       var fuData = {
         id: seg.id,

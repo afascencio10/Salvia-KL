@@ -60,6 +60,10 @@ type FollowUpV2 struct {
 	// ── Campos virtuales (no persistidos) ────────────────────────────────────
 	AgentNames       string           `gorm:"-" json:"agent_names,omitempty"`
 	AgentLastNames   string           `gorm:"-" json:"agent_last_names,omitempty"`
+	// AgentFullName lo resuelve el backend (JOIN a security.general_user por i_code)
+	// para que el detalle del caso muestre SIEMPRE el nombre del agente del seguimiento
+	// y nunca el código crudo del agent_id. Mismo criterio que el responsable del caso.
+	AgentFullName    string           `gorm:"-" json:"agent_full_name,omitempty"`
 	FollowUpAttempts []FollowUpAttempt `gorm:"-" json:"follow_up_attempts,omitempty"`
 }
 
