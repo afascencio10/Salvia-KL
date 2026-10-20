@@ -104,12 +104,12 @@
                         <div class="adp-dupla-members">
                             <span class="adp-member">
                                 <span class="adp-avatar adp-avatar--sm">${ initialOf(d.psychologistName) }</span>
-                                <span>${ d.psychologistName } <span class="adp-member-role">(Profesional en Psicología)</span></span>
+                                <span>${ d.psychologistName || 'Sin resolver' } <span class="adp-member-role">(Profesional en Psicología)</span></span>
                             </span>
                             <span class="adp-plus">+</span>
                             <span class="adp-member">
                                 <span class="adp-avatar adp-avatar--sm">${ initialOf(d.socialWorkerName) }</span>
-                                <span>${ d.socialWorkerName } <span class="adp-member-role">(Profesional en Trabajo Social)</span></span>
+                                <span>${ d.socialWorkerName || 'Sin resolver' } <span class="adp-member-role">(Profesional en Trabajo Social)</span></span>
                             </span>
                         </div>
                     </div>

@@ -55,6 +55,9 @@ func (r *duplaRepository) ListActive(ctx context.Context) ([]models.DuplaOption,
 	return items, nil
 }
 
+// LEFT JOIN y no JOIN: con JOIN interno, una dupla cuyo integrante ya no resuelve
+// desaparecía del filtro del calendario y de Administrar Duplas, así que nadie podía
+// verla para repararla. Ahora sale con el nombre vacío.
 const duplaEnrichedSelectSQL = `
 SELECT
 	d.id,
@@ -64,13 +67,13 @@ SELECT
 	BTRIM(d.social_worker_id::text) AS social_worker_id,
 	TRIM(COALESCE(ts_gup.general_user_profile_names, '') || ' ' || COALESCE(ts_gup.general_user_profile_last_names, '')) AS social_worker_name
 FROM salvia.dupla d
-JOIN security.general_user ps_gu
+LEFT JOIN security.general_user ps_gu
      ON ps_gu.general_user_i_code = BTRIM(d.psychologist_id::text)
-JOIN security.general_user_profile ps_gup
+LEFT JOIN security.general_user_profile ps_gup
      ON ps_gup.general_user_profile_id = ps_gu.general_user_general_user_profile
-JOIN security.general_user ts_gu
+LEFT JOIN security.general_user ts_gu
      ON ts_gu.general_user_i_code = BTRIM(d.social_worker_id::text)
-JOIN security.general_user_profile ts_gup
+LEFT JOIN security.general_user_profile ts_gup
      ON ts_gup.general_user_profile_id = ts_gu.general_user_general_user_profile
 WHERE d.deleted_at IS NULL`
 

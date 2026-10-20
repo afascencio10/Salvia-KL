@@ -164,7 +164,8 @@ app.component('registrar-contacto-modal', {
                     // Solo redirigir al formulario si es ps/ts (profesional que atiende)
                     var role = this.$root ? (this.$root.currentRole || '') : '';
                     if ((role === 'ps' || role === 'ts') && data && data.id) {
-                        window.location.href = '/salvia/psicosocial/registrar/' + this.psicosocialId + '?contact_id=' + data.id;
+                        // contactId, no contact_id: es el nombre que lee registrar_sesion.
+                        window.location.href = '/salvia/psicosocial/registrar/' + this.psicosocialId + '?contactId=' + data.id;
                         return;
                     }
                     // Si es sv u otro rol, solo confirmar y cerrar

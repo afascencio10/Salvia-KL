@@ -49,7 +49,10 @@
                  dupla y uno de agente pueden verse iguales. -->
             <select v-if="isSupervisor" class="pc-filter-select" v-model="filterSelection" @change="loadEvents">
                 <option value="">Todo el equipo</option>
-                <optgroup v-if="duplas.length" label="Duplas">
+                <!-- El grupo se muestra siempre: ocultarlo cuando no hay duplas hacía
+                     ver el filtro como si solo soportara profesionales. -->
+                <optgroup label="Duplas">
+                    <option v-if="!duplas.length" value="" disabled>${ duplasError || 'Sin duplas registradas' }</option>
                     <option v-for="d in duplas" :key="'d-' + d.id" :value="'dupla:' + d.id">${ duplaLabel(d) }</option>
                 </optgroup>
                 <optgroup label="Profesionales">
@@ -359,7 +362,10 @@
                 <button v-if="isSupervisor && selectedEvent.kind === 'meeting'" class="pc-preview-action" @click="openMeetingModalForEdit">Editar</button>
                 <button v-if="canEditSession" class="pc-preview-action pc-preview-action--danger" @click="deleteSessionConfirm">Eliminar</button>
                 <button v-if="canEditSession" class="pc-preview-action" @click="openSessionModalForEdit">Editar</button>
-                <button class="pc-preview-action pc-preview-action--primary" @click="selectedEvent = null">Cerrar</button>
+                <button class="pc-preview-action" @click="selectedEvent = null">Cerrar</button>
+                <button v-if="seguimientoLink" class="pc-preview-action pc-preview-action--primary" @click="irAlSeguimiento">
+                    ${ seguimientoLink.label } <i class="fas fa-arrow-right"></i>
+                </button>
             </div>
         </div>
     </div>
@@ -388,6 +394,7 @@ var pcApp = Vue.createApp({
             events: [],
             agents: [],
             duplas: [],
+            duplasError: '',
             myVictims: [],
             // "", "dupla:<id>" o "agente:<icode>" — ver el select de la barra.
             filterSelection: '',
@@ -443,6 +450,21 @@ var pcApp = Vue.createApp({
             const status = (this.selectedEvent.status || '').toUpperCase();
             if (status && status !== 'PENDIENTE') return false;
             return this.isSupervisor || this.selectedEvent.agentId === this.currentUserICode;
+        },
+        // El supervisor no tiene permiso sobre registrar_sesion (ver
+        // get_registrar_sesion_psicosocial en Menu.go): se le abre la remisión.
+        seguimientoLink() {
+            const ev = this.selectedEvent;
+            if (!ev || ev.kind !== 'session' || !ev.remissionId) return null;
+            const rem = encodeURIComponent(ev.remissionId);
+            if (this.isSupervisor) {
+                return { url: '/salvia/remision-psicosocial/' + rem, label: 'Ver la remisión' };
+            }
+            // contactId abre la sesión de esta cita, no la primera de la remisión.
+            return {
+                url: '/salvia/psicosocial/registrar/' + rem + '?contactId=' + encodeURIComponent(ev.id),
+                label: 'Ir al seguimiento'
+            };
         },
         participantsSummary() {
             const ids = this.meetingForm.agentIds;
@@ -664,12 +686,19 @@ var pcApp = Vue.createApp({
         // integrantes ya resueltos: el nombre de la dupla solo ("Dupla 3") no le
         // dice al supervisor de quién es la agenda que está mirando.
         async loadDuplas() {
+            // El fallo se tragaba en silencio y el filtro quedaba sin duplas sin decir
+            // por qué, que es indistinguible de "no hay duplas registradas".
             try {
                 const r = await fetch('/api/v1/duplas/activas', { credentials: 'same-origin' });
-                if (!r.ok) return;
+                if (!r.ok) throw new Error('HTTP ' + r.status);
                 const data = await r.json();
                 this.duplas = data.items || [];
-            } catch (e) { /* noop */ }
+                this.duplasError = '';
+            } catch (e) {
+                this.duplas = [];
+                this.duplasError = 'No se pudieron cargar las duplas';
+                console.error('[calendario] duplas:', e);
+            }
         },
         duplaLabel(d) {
             const miembros = [d.psychologistName, d.socialWorkerName]
@@ -718,6 +747,9 @@ var pcApp = Vue.createApp({
             if (!this.isSupervisor) this.loadMyVictims();
             else this.myVictims = [];
             this.showSessionModal = true;
+        },
+        irAlSeguimiento() {
+            if (this.seguimientoLink) window.location.href = this.seguimientoLink.url;
         },
         async openSessionModalForEdit() {
             if (!this.selectedEvent || this.selectedEvent.kind !== 'session') return;
