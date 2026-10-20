@@ -19,9 +19,10 @@ func TestTeamEventsQueryParametrosCuadran(t *testing.T) {
 		dupla     string
 		esperados int
 	}{
-		{"sin filtro", "", "", 4},
-		{"por profesional", "agente-7", "", 10},
-		{"por dupla", "", "dupla-3", 7},
+		// Subieron de 4/10/7 cuando el calendario sumó los seguimientos v2 (e89b9a9).
+		{"sin filtro", "", "", 6},
+		{"por profesional", "agente-7", "", 13},
+		{"por dupla", "", "dupla-3", 10},
 	}
 
 	for _, caso := range casos {
