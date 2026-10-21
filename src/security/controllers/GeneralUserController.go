@@ -660,6 +660,8 @@ func SetGeneralUser(dataInput string, s utils.CommonSession, connData *db.ConnDa
 				return http.StatusBadRequest, utils.CommMsgGetJSONErrors(collectedErrors)
 			}
 			cowner.EntityBranch = branch
+			// La sesión lee general_user.entity_branch_id, no el de case_owner.
+			userRequest.User.GeneralUserEntityBranchId = int64(branch.EntityBranchId)
 		}
 
 		cowner.CaseOwnerGeneralUser = userRequest.User.GeneralUserICode
@@ -1384,6 +1386,8 @@ func UpdateGeneralUserByICode(dataInput string, id string, s utils.CommonSession
 	}
 
 	cowner.EntityBranch = branch
+	// Queda en 0 (NULL) si el usuario dejó de tener rol de entidad.
+	usrToUpdate.GeneralUserEntityBranchId = int64(branch.EntityBranchId)
 
 	if caseOwnerExists {
 		if err = salvia_daos.UpdateCaseOwner(&cowner, connData, &dbClientConfig, &dbServerConfig); err != nil {

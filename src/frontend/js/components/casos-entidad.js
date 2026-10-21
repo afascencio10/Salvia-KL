@@ -73,6 +73,11 @@
         },
 
         methods: {
+            // El enlace de cerrar sesión del header global llama a este método:
+            // sin él el clic no hace nada (ver templates/layouts/header.html).
+            logout: function () {
+                logout('/seguridad/logout');
+            },
             riskClass: function (level) {
                 return String(level || '')
                     .toLowerCase()
