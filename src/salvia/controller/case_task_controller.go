@@ -81,7 +81,10 @@ func requireSessionRole(ctx *gin.Context, allowed map[string]bool) *utils.Common
 }
 
 // misTareasRoles — roles con acceso a la bandeja de "Mis Tareas".
-var misTareasRoles = map[string]bool{"op": true, "ro": true, "et": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true, "mn": true, "te": true}
+// misTareasRoles — roles con acceso a la bandeja "Mis Tareas" (GET /case-tasks/mine).
+// 'et' (Entidad) queda fuera a propósito: no debe ver "Mis Tareas" ni por menú, ni
+// por URL de la pantalla, ni por la API que la alimenta.
+var misTareasRoles = map[string]bool{"op": true, "ro": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true, "mn": true, "te": true}
 
 // equipoTecnicoRoles — único rol que puede agregar comentarios del Equipo
 // Técnico en el tab Derivaciones de Detalle del Caso.
