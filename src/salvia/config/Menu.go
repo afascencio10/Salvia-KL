@@ -263,11 +263,11 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	"get_mis_barreras": {"en": true, "no": true},
 
 	// ── Módulo de Mis Tareas ─────────────────────────────────────────────────
-	// Visible para todos los roles internos, no para externos — mismo set que
-	// get_directorio_entidades ("Opción A: todos los roles internos pueden ver"),
-	// que ya es la clasificación interno/externo vigente en este código. en
-	// (Enlace Territorial) queda fuera a propósito, igual que en ese permiso.
-	"get_mis_tareas": {"op": true, "ro": true, "et": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true, "mn": true, "te": true},
+	// Visible para roles internos. Quedan fuera a propósito: en (Enlace
+	// Territorial) y et (Entidad) — el rol Entidad no debe ver "Mis Tareas" ni
+	// por menú ni por URL (este permiso bloquea también el acceso directo a
+	// /salvia/mis-tareas vía CheckAndGetSession en MisTareasFacade).
+	"get_mis_tareas": {"op": true, "ro": true, "sv": true, "no": true, "do": true, "us": true, "fo": true, "ad": true, "an": true, "ps": true, "ts": true, "ab": true, "mn": true, "te": true},
 
 	// ── Módulo de Barreras Departamento ──────────────────────────────────────
 	// Solo el enlace territorial (en) puede ver el panorama de barreras de su departamento.

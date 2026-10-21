@@ -72,7 +72,8 @@
                 <span>Mis Casos</span>
             </a>
             {{ end }}
-            {{ if or (eq .currentRole "op") (eq .currentRole "ro") (eq .currentRole "et") (eq .currentRole "sv") (eq .currentRole "no") (eq .currentRole "do") (eq .currentRole "us") (eq .currentRole "fo") (eq .currentRole "ad") (eq .currentRole "an") (eq .currentRole "ps") (eq .currentRole "ts") (eq .currentRole "ab") (eq .currentRole "mn") (eq .currentRole "te") }}
+            {{/* "Mis Tareas" excluye a 'et' (Entidad): no debe ver esta pantalla ni por menú ni por URL (ver MisTareasFacade). */}}
+            {{ if or (eq .currentRole "op") (eq .currentRole "ro") (eq .currentRole "sv") (eq .currentRole "no") (eq .currentRole "do") (eq .currentRole "us") (eq .currentRole "fo") (eq .currentRole "ad") (eq .currentRole "an") (eq .currentRole "ps") (eq .currentRole "ts") (eq .currentRole "ab") (eq .currentRole "mn") (eq .currentRole "te") }}
             <a href="/salvia/mis-tareas" class="salvia-sidebar__nav-link">
                 <i class="fas fa-tasks" aria-hidden="true"></i>
                 <span>Mis Tareas</span>
