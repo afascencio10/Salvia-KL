@@ -249,11 +249,21 @@ func GetEntityBranch(by common_controllers.By, entityBranch *EntityBranchDTO, co
 
 	// Se crea una instancia temporal para almacenar los datos de la entidad asociada.
 	var entity EntityDTO = EntityDTO{}
+	var latitude sql.NullFloat64
+	var longitude sql.NullFloat64
 
 	// Escanea el resultado de la consulta en los campos del DTO.
 	persistenceCtrl.Scan(&entityBranch.EntityBranchId, &entityBranch.EntityBranchICode, &entityBranch.EntityBranchCreationDate, &entityBranch.EntityBranchUpdateDate,
-		&entityBranch.EntityBranchName, &entityBranch.EntityBranchDescription, &entityBranch.EntityBranchAddress, &entityBranch.EntityBranchLatitude,
-		&entityBranch.EntityBranchLongitude, &entityBranch.EntityBranchTownCode, &entity.EntityId, &entityBranch.EntityBranchSource)
+		&entityBranch.EntityBranchName, &entityBranch.EntityBranchDescription, &entityBranch.EntityBranchAddress, &latitude,
+		&longitude, &entityBranch.EntityBranchTownCode, &entity.EntityId, &entityBranch.EntityBranchSource)
+
+	// La latitud/longitud pueden venir en NULL (p.ej. sedes de Alcaldías sin coordenadas registradas).
+	if latitude.Valid {
+		entityBranch.EntityBranchLatitude = latitude.Float64
+	}
+	if longitude.Valid {
+		entityBranch.EntityBranchLongitude = longitude.Float64
+	}
 
 	entityBranch.EntityBranchEntity = entity
 	if persistenceCtrl.Error != nil {
@@ -304,9 +314,20 @@ func GetEntityBranches(by common_controllers.By, connData *db.ConnData, clientCo
 	// Itera sobre los resultados y construye el slice de DTOs.
 	for persistenceCtrl.Next() {
 
+		var latitude sql.NullFloat64
+		var longitude sql.NullFloat64
+
 		persistenceCtrl.ScanRow(&entityBranch.EntityBranchId, &entityBranch.EntityBranchICode, &entityBranch.EntityBranchCreationDate, &entityBranch.EntityBranchUpdateDate,
-			&entityBranch.EntityBranchName, &entityBranch.EntityBranchDescription, &entityBranch.EntityBranchAddress, &entityBranch.EntityBranchLatitude, &entityBranch.EntityBranchLongitude,
+			&entityBranch.EntityBranchName, &entityBranch.EntityBranchDescription, &entityBranch.EntityBranchAddress, &latitude, &longitude,
 			&entityBranch.EntityBranchSource)
+
+		// La latitud/longitud pueden venir en NULL (p.ej. sedes de Alcaldías sin coordenadas registradas).
+		if latitude.Valid {
+			entityBranch.EntityBranchLatitude = latitude.Float64
+		}
+		if longitude.Valid {
+			entityBranch.EntityBranchLongitude = longitude.Float64
+		}
 
 		if entityBranch.EntityBranchSource == "u" {
 			entityBranch.EntityBranchName = EntityBranchUserMark + entityBranch.EntityBranchName
@@ -365,8 +386,18 @@ func GetAllEntityBranch(connData *db.ConnData, clientConfig *db.DBClientConfig, 
 	var entityBranchs []EntityBranchDTO
 	for persistenceCtrl.Next() {
 		entityBranch = EntityBranchDTO{}
+		var latitude sql.NullFloat64
+		var longitude sql.NullFloat64
 		persistenceCtrl.ScanRow(&entityBranch.EntityBranchId, &entityBranch.EntityBranchICode, &entityBranch.EntityBranchName,
-			&entityBranch.EntityBranchAddress, &entityBranch.EntityBranchLatitude, &entityBranch.EntityBranchLongitude, &entityBranch.EntityBranchSector, &entityBranch.EntityBranchSource)
+			&entityBranch.EntityBranchAddress, &latitude, &longitude, &entityBranch.EntityBranchSector, &entityBranch.EntityBranchSource)
+
+		// La latitud/longitud pueden venir en NULL (p.ej. sedes de Alcaldías sin coordenadas registradas).
+		if latitude.Valid {
+			entityBranch.EntityBranchLatitude = latitude.Float64
+		}
+		if longitude.Valid {
+			entityBranch.EntityBranchLongitude = longitude.Float64
+		}
 
 		if entityBranch.EntityBranchSource == "u" {
 			entityBranch.EntityBranchName = EntityBranchUserMark + entityBranch.EntityBranchName
@@ -425,8 +456,18 @@ func GetEntityBranchesBySector(sector string, entBranch *EntityBranchDTO, connDa
 	persistenceCtrl.QueryRow(context.Background(), query, sector)
 
 	// Escanea el resultado en el DTO.
+	var latitude sql.NullFloat64
+	var longitude sql.NullFloat64
 	persistenceCtrl.Scan(&entBranch.EntityBranchId, &entBranch.EntityBranchICode, &entBranch.EntityBranchName, &entBranch.EntityBranchAddress,
-		&entBranch.EntityBranchLatitude, &entBranch.EntityBranchLongitude, &entBranch.EntityBranchSector, &entBranch.EntityBranchSource)
+		&latitude, &longitude, &entBranch.EntityBranchSector, &entBranch.EntityBranchSource)
+
+	// La latitud/longitud pueden venir en NULL (p.ej. sedes de Alcaldías sin coordenadas registradas).
+	if latitude.Valid {
+		entBranch.EntityBranchLatitude = latitude.Float64
+	}
+	if longitude.Valid {
+		entBranch.EntityBranchLongitude = longitude.Float64
+	}
 
 	if persistenceCtrl.Error != nil {
 		fmt.Println("SQL Query: ", query)
