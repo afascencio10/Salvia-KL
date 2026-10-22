@@ -28,7 +28,10 @@ var ErrFollowUpCaseEmpty = errors.New("followup: no se encontraron seguimientos 
 // ErrFollowUpNotAssigned se retorna cuando el seguimiento no pertenece al agente.
 var ErrFollowUpNotAssigned = errors.New("followup: este seguimiento no está asignado a ti")
 
-// ErrFollowUpNotYetDue se retorna cuando la fecha programada aún no ha llegado.
+// ErrFollowUpNotYetDue — DEPRECADO: ya no se retorna. Los tiempos de seguimiento
+// son un recordatorio, no una regla, así que LoadFollowUp ya no bloquea por fecha
+// futura. Se conserva la declaración (y su mapeo en el controller) para no romper
+// referencias; puede eliminarse por completo en una limpieza posterior.
 var ErrFollowUpNotYetDue = errors.New("followup: la fecha programada aún no ha llegado")
 
 // ── Matriz de riesgo (HU-027) ─────────────────────────────────────────────────
@@ -203,10 +206,10 @@ func (s *followUpV2Service) LoadFollowUp(ctx context.Context, id, agentID, formI
 		return nil, ErrFollowUpNotAssigned
 	}
 
-	today := time.Now().Truncate(24 * time.Hour)
-	if fu.ScheduledDate.Truncate(24 * time.Hour).After(today) {
-		return nil, ErrFollowUpNotYetDue
-	}
+	// Los tiempos de seguimiento son un RECORDATORIO, no una regla: se puede abrir
+	// y hacer un seguimiento en cualquier momento, aunque su fecha programada aún no
+	// haya llegado (mismo criterio que el detalle del caso). Antes aquí se bloqueaba
+	// con ErrFollowUpNotYetDue; esa restricción se eliminó a propósito.
 
 	log.Printf("[SVC] LoadFollowUp → llamando LoadVictimInfoByCaseID con caseID=%s", fu.CaseID)
 	victimInfo, err := s.repo.LoadVictimInfoByCaseID(ctx, fu.CaseID)
