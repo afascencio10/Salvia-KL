@@ -55,6 +55,7 @@ func (c *MigrateController) RegisterRoutes(rg *gin.RouterGroup) {
 		admin.POST("/alcaldias", c.MigrateAlcaldias)
 		admin.POST("/sedes-usuarios", c.MigrateSedesUsuarios)
 		admin.POST("/entidades-acciones", c.MigrateEntidadesAcciones)
+		admin.POST("/sedes-directorio", c.MigrateSedesDirectorio)
 	}
 }
 
