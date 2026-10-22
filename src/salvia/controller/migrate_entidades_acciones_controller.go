@@ -110,6 +110,11 @@ func (c *MigrateController) MigrateEntidadesAcciones(ctx *gin.Context) {
 		idPorClave[claveNombre(e.EntityName)] = e.EntityID
 	}
 
+	// Acumulan, por entidad, las etiquetas del catálogo y el nombre a reportar:
+	// varias filas del Excel pueden caer en la misma entidad.
+	catalogoPorEntidad := map[int64]map[string]bool{}
+	nombrePorEntidad := map[int64]string{}
+
 	// entity_city_code es NOT NULL y no existe en el DAO: se copia el de una
 	// entidad ya cargada en vez de inventar la convención.
 	var cityCode string
@@ -163,7 +168,11 @@ func (c *MigrateController) MigrateEntidadesAcciones(ctx *gin.Context) {
 			yaEsta[claveNombre(label)] = true
 		}
 
-		delCatalogo := make(map[string]bool, len(entidad.Acciones))
+		if catalogoPorEntidad[entityID] == nil {
+			catalogoPorEntidad[entityID] = map[string]bool{}
+			nombrePorEntidad[entityID] = entidad.Nombre
+		}
+		delCatalogo := catalogoPorEntidad[entityID]
 		for i, accion := range entidad.Acciones {
 			label := etiquetaObligacion(accion)
 			delCatalogo[claveNombre(label)] = true
@@ -181,9 +190,20 @@ func (c *MigrateController) MigrateEntidadesAcciones(ctx *gin.Context) {
 			}
 		}
 
+	}
+
+	// Los sobrantes se calculan al final y por entidad, no por fila del Excel:
+	// las dos filas de IPS caen en la misma entidad, y comparar contra una sola
+	// marcaría como sobrantes las acciones que acaba de cargar la otra.
+	for entityID, delCatalogo := range catalogoPorEntidad {
+		var enBase []string
+		db.Raw(`SELECT label FROM salvia.entity_obligation
+		        WHERE entity_id = ? AND deleted_at IS NULL`, entityID).Scan(&enBase)
 		for _, label := range enBase {
 			if !delCatalogo[claveNombre(label)] {
-				res.Sobrantes = append(res.Sobrantes, sobranteObligacion{Entidad: entidad.Nombre, Etiqueta: label})
+				res.Sobrantes = append(res.Sobrantes, sobranteObligacion{
+					Entidad: nombrePorEntidad[entityID], Etiqueta: label,
+				})
 			}
 		}
 	}
