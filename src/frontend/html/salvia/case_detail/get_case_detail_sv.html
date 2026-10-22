@@ -620,8 +620,16 @@
                 </span>
               </div>
               <div class="cd-seg-meta">
-                📅 ${ formatFecha(seg.scheduled_date) }
-                <span v-if="seg.scheduled_time && seg.scheduled_time !== '00:00'"> &nbsp;·&nbsp; 🕐 ${ seg.scheduled_time }</span>
+                <!-- Realizado: muestra la fecha REAL de ejecución (completed_at). -->
+                <template v-if="(seg.is_completed || seg.status === 'REALIZADO') && seg.completed_at">
+                  📅 Realizado el ${ formatFecha(seg.completed_at) }
+                  <span style="color:#9ca3af"> &nbsp;·&nbsp; Programado: ${ formatFecha(seg.scheduled_date) }</span>
+                </template>
+                <!-- Pendiente / vencido: muestra la fecha programada. -->
+                <template v-else>
+                  📅 ${ formatFecha(seg.scheduled_date) }
+                  <span v-if="seg.scheduled_time && seg.scheduled_time !== '00:00'"> &nbsp;·&nbsp; 🕐 ${ seg.scheduled_time }</span>
+                </template>
                 <span v-if="seg.agent_id"> &nbsp;·&nbsp; 👤 ${ seg.agent_full_name || nombreAgente(seg.agent_id) }</span>
                 <span v-if="seg.last_attempt_at" style="color:#9ca3af"> &nbsp;·&nbsp; Último intento: ${ formatFechaHora(seg.last_attempt_at) }</span>
               </div>
