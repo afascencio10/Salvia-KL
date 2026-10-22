@@ -1,0 +1,468 @@
+{
+ "source": "2. 08-09-2026_FormularioRutas.xlsx - hoja 4.EntidadesAcciones (columnas B y E)",
+ "entidades": [
+  {
+   "nombre": "Ministerio de Salud y Protección Social",
+   "sectorExcel": "SALUD",
+   "acciones": [
+    "Definir criterios de asignación, distribución de recursos y emitir lineamientos, ejecución, seguimiento y control de las casas refugio. Las entidades territoriales son las encargadas de su implementanción y prestación del servicio.",
+    "Articular directamente el Registro Único de Víctimas (RUV) con la Base de Datos Única de Afiliados (ADRES-BDUA) y bases de regímenes especiales, para verificar afiliación a SGSSS.",
+    "Expedir, actualizar y difundir los protocolos, linemaientos y orientaciones técnicas que rigen la atención en salud de las víctimas de VBG"
+   ]
+  },
+  {
+   "nombre": "Superintendencia Nacional de Salud",
+   "sectorExcel": "SALUD",
+   "acciones": [
+    "Recibir quejas por negación de servicios de VBG y ordenar la prestación inmediata (función jurisdiccional)",
+    "Adelantar procesos administrativos sancionatorios a IPS/EPS que incumplan sus obligaciones",
+    "Ejercer inspección, vigilancia y control del cumplimiento de las obligaciones de EPS/IPS y de los estándares aplicables"
+   ]
+  },
+  {
+   "nombre": "Empresas Administradoras de Planes de Beneficios (EAPB)",
+   "sectorExcel": "SALUD",
+   "acciones": [
+    "Verificar el estado de afiliación de la persona y garantizar la atención a sus afiliadas/os, sin condicionar la atención de urgencias a la acreditación previa de la afiliación.",
+    "Garantizar a través de la red de prestación de servicios a la que pertenece la víctima, la atención integral en salud física y mental durante el tiempo necesario para la recuperación.",
+    "Gestionar las autorizaciones de servicios electivos o programables sin trasladar el trámite a la persona usuaria y priorizar la autorización integral cuando la condición de salud o la especial protección lo requiera.",
+    "Remitir a otros sectores competentes",
+    "Garantizar continuidad del tratamiento y traslado oportuno entre IPS",
+    "Realizar seguimiento al restablecimiento de la salud de la víctima a través de su red de prestación de servicios",
+    "Implementar y operar el PAPSIVI conforme a los lineamientos técnicos y operativos del Ministerio de Salud",
+    "Coordinar la atención y referencia de casos, con especial atención a zonas rurales y poblaciones con medidas para facilitar el acceso en zona rurales y poblaciones con necesidades diferenciales.",
+    "Garantizar la identificación de las víctimas en sus sistemas de información, protegiendo sus datos personales."
+   ]
+  },
+  {
+   "nombre": "Secretarías de Salud (Dptal./Distrital/Municipal)",
+   "sectorExcel": "SALUD",
+   "acciones": [
+    "Realizar seguimiento a la Ruta de Atención en Salud",
+    "Verificar los casos priorizados por el mecanismo articulador, por la entidad territorial o por el ámbito nacional, departamental, distrital y municipal.",
+    "Reportar casos de VBG al SIVIGE (Sistema de Vigilancia Epidemiológica)",
+    "Ejercer inspección, vigilancia y control sobre las IPS de su red para verificar cumplimiento de protocolos VBG"
+   ]
+  },
+  {
+   "nombre": "Instituciones Prestadoras de Servicios de Salud (IPS) (Clínicas, Hospitales, Consultorios, Centros de Salud)",
+   "sectorExcel": "SALUD",
+   "acciones": [
+    "Realizar la valoración y atención integral inmediata, aplicando los protocolos vigentes.",
+    "Verificación de afiliación al Sistema General de Seguridad Social en Salud SGSSS",
+    "Remitir de forma inmediata el resumen de atención a la autoridad competente",
+    "Informar sobre la reserva de la información y entregar copia del resumen de atención a la víctima",
+    "Reportar el caso en SIVIGILA y en RIPS",
+    "Notificar a Policía Judicial e ICBF, cuando se trata de Niñas, Niños o Adolescentes",
+    "Emitir orden de medida de atención y remitirla a la entidad territorial, para que la víctima elija la modalidad de atención o declare su renuncia",
+    "Brindar la asistencia en salud desde el primer contacto de la persona con los servicios de salud",
+    "Desarrollar acciones de promoción, prevención, diagnóstico, tratamiento y paliación para atender de manera inmediata y prioritaria las necesidades de salud física y mental derivadas de hechos victimizantes.",
+    "Garantizar acceso a la Interrupción Voluntaria del Embarazo (IVE), sin exigir denuncia ni autorización de terceros",
+    "Remitir a otros sectores - Fiscalía General de la Nación (FGN)",
+    "Remitir a otros sectores - Unidad Nacional de Protección (UNP)",
+    "Remitir a otros sectores - Reparación integral (Unidad de Víctimas, SNARIV)",
+    "Brindar la atención conforme al Protocolo de Atención Integral en Salud con Enfoque Psicosocial y Diferencial"
+   ]
+  },
+  {
+   "nombre": "Instituciones Prestadoras de Servicios de Salud (IPS)",
+   "sectorExcel": "SALUD",
+   "acciones": [
+    "Realizar la valoración clínica inicial de la víctima",
+    "Recepcionar inmediatamente a la víctima de violencia sexual al servicio de Urgencias",
+    "Tomar las pruebas diagnósticas necesarias para explorar el estado de salud de la víctima en la evaluación inicial.",
+    "Realizar profilaxis sindromática para ITS durante la consulta inicial por salud",
+    "Asegurar profilaxis para VIH/Sida durante la consulta inicial por salud",
+    "AsesorarInterrupción Voluntaria del Embarazo (IVE) y derechos sexuales y reproductivos",
+    "Garantizar el acceso a Interrupción Voluntario del Embarazo (IVE) (sin exigir denuncia o autorización de terceros)",
+    "Asegurar una intervención terapéutica inicial especializada en salud mental y activar las intervenciones posteriores que requiera la persona.",
+    "Planear los seguimientos clínicos requeridos por la víctima",
+    "Solicitar interconsulta a los profesionales de la salud requeridos para asegurar la atención integral de las víctimas de violencia sexual",
+    "Derivar hacia otros sectores involucrados en la atención inicial del caso de violencia sexual",
+    "Efectuar los procedimientos de vigilancia en salud pública de la violencia sexual que correspondan",
+    "Realizar los seguimientos rutinarios que requiere una víctima de violencia sexual atendida por el sector Salud",
+    "Cerrar el caso por parte del sector Salud",
+    "Realizar la recolección, manejo y documentación de elementos materiales probatorios o evidencia física cuando corresponda, bajo cadena de custodia, y coordinar su entrega a la autoridad competente conforme a los protocolos aplicables."
+   ]
+  },
+  {
+   "nombre": "Gobernaciones",
+   "sectorExcel": "ENTES TERRITORIALES",
+   "acciones": [
+    "Coordinar y fnanciar traslados intermunicipales seguros en casos de riesgo extremo y feminicida",
+    "Garantizar cupo inmediato en Casa de Refugio Departamental",
+    "Desplegar acompañamiento técnico y defensa (duplas de género)",
+    "Financiar y activar el alojamiento, alimentación y transporte de la víctima cuando el municipio de origen (categorías 4,5 y 6) certifique que no cuenta con presupuesto",
+    "Activar el comité Extraordinario de Seguimiento de casos críticos",
+    "Desbloquear barreras de acceso a salud de alta complejidad"
+   ]
+  },
+  {
+   "nombre": "Secretarias de la Mujer",
+   "sectorExcel": "ENTES TERRITORIALES",
+   "acciones": [
+    "Administrar y operar las Casas Refugio garantizando alojamiento, alimentación, transporte y acompañamiento integral junto con su sistema de cuidado (hijos/as)",
+    "Brindar orientación jurídica, psicológica y de trabajo social de forma inmediata a mujeres y personas víctimas de violencias basadas en género (VBG) a través de canales presenciales y líneas virtuales/telefónicas",
+    "Ejercer la representación jurídica y el acompañamiento técnico-legal",
+    "Articular, activar y hacer seguimiento a la Ruta Única de Atención Integral coordinando con el sector Salud, Protección y Justicia",
+    "Implementar y coordinar los Comités Territoriales de Seguimiento a las Alertas Tempranas y violencias de género, consolidando el registro de datos e información estadística para evaluar la efectividad de las rutas locales de atención."
+   ]
+  },
+  {
+   "nombre": "Alcaldías",
+   "sectorExcel": "ENTES TERRITORIALES",
+   "acciones": [
+    "Garantiza cupos y tramitar el ingreso físico inmediato en casa de refugio municipales/ distritales o convenios hoteleros locales para la víctima y sus personas dependientes.",
+    "Coordinar la respuesta local a través de las Secretarías de Salud, Comisarías de Familia, Secretarías de la mujer, Integración Social (o la entidad que haga sus veces)",
+    "Vincular de forma prioritaria a la víctima en programas de empleo local, capital semilla, subsidios de vivienda municipal, comederos comunitarios gestionados por las secretarías de desarrollo socialo la mujer locales.",
+    "Otorgar de forma inmediata subsidios económicos temporales o bonos de emergencia para cubrir arriendo, alimentación y transporte si los servicios hoteleros o refugios físicos no están disponibles, no hay cupo en las casa de refugio o la víctima no puede acceder a ellos",
+    "Disponer de vehiculos institucionales, apoyo logístico de emergencia y articulación con la Policia Nacional para extraer a la víctima del lugar de los hechos y movilizar a la red de protección o salud."
+   ]
+  },
+  {
+   "nombre": "Ministerio de Justicia y del Derecho",
+   "sectorExcel": "JUSTICIA",
+   "acciones": [
+    "Supervisar la aplicación obligatoria del instrumento de valoración de riesgo por parte de los despachos comisariales, obligando a subsanar si se omitió la evaluación.",
+    "Ejercer la inspección, vigilancia y control de las Comisarías de Familia, solicitando, verificando y analizando la información necesaria para constatar el cumplimiento de las obligaciones legales y reglamentarias",
+    "Compulsar copias urgentes ante la Procuraduría General de la Nación y las alcaldías cuando un funcionarío de justicia familiar incumpla el termino de 4 horas para dictar medidas provisionales",
+    "Intervenir y sancionar a centros de conciliación (públicos o privados) y conciliadores en equidad que intenten obligar o promover acuerdos de conciliación en casos vigentes de VBG"
+   ]
+  },
+  {
+   "nombre": "Fiscalía General de la Nación (FGN)",
+   "sectorExcel": "JUSTICIA",
+   "acciones": [
+    "Aplicar de manera obligatoria el Formato de Índice de Riesgo (FIR)",
+    "Recibir la denuncia sin exigir pruebas previas e iniciar los actos urgentes de investigación (recolección de evidencia, testimonio y cadena de custodia)",
+    "Emitir de oficio la orden de valoración médico-legal ante el INMLCF",
+    "Solicitar de urgencia medidas de protección judiciales ante los jueces de control de garantías (órdenes de captura, desalojo del agresor, prohibición de acercamiento)",
+    "Activar e ingreso al Programa de Protección a Testigos y Víctimas de la FGN",
+    "Recolectar los Elementos Materiales Probatorios y Evidencia Física mediante cadena de custodia",
+    "Estructurar e impulsar la imputación de cargos o resolver la situación jurídica de la indagación preliminar de manera prioritaria si involucra a niños, niñas , adolescentes o riesgo inminente de feminicidio.",
+    "Suministrar información clara, oportuna y bajo estándares de debida diligencia a las víctimas de VBG respecto al avance y estado actual de la indagación o investigación penal."
+   ]
+  },
+  {
+   "nombre": "Cuerpo técnico de Investigación- CTI Fiscalia",
+   "sectorExcel": "JUSTICIA",
+   "acciones": [
+    "Recibir denuncias y detección temprana: A traves de Centro de Atención Integral a Víctimas de Abuso Sexual (CAIVAS)",
+    "Recibir denuncias y detección temprana: A traves de las Unidades de Reacción Inmediata (URI)",
+    "Detección por fuentes no formales (Escrache): Iniciar investigaciones de oficio en casos de VBG o VSx en redes sociales, medios de comunicación o denuncias públicas",
+    "Recaudar de Elementos Materiales Probatorios (EMP)",
+    "Asegurar traslado de la víctimas al Instituto Nacional de Medicina Legal y Ciencias Forenses (INMLCF)",
+    "Garantizar de la cadena de custodía",
+    "Tramitar de forma urgente ante el fiscal el otorgamiento de medidas de protección provisionales",
+    "Solicitar el direccionamiento a las Comisarías de Familia o judicatura para órdenes de alejamiento o desalojo del agresor",
+    "Direccionar inmediatamente a la víctima hacia el sistema de salud y de apoyo psicosocial",
+    "Brindar acompañamiento de seguridad física si la vida o integridad de la víctima o sus familiares cercanos corre peligro directo a causa de la denuncia",
+    "Aplicar el Formato de Indice de Riesgo (FIR) para detectar riesgos inminentes"
+   ]
+  },
+  {
+   "nombre": "Seccional de Investigación Criminal- SIJIN Policia Judicial",
+   "sectorExcel": "JUSTICIA",
+   "acciones": [
+    "Indagar sobre los hechos punibles denunciados o de oficio para esclarecer qué pasó en casos de VBG atravesados de los grupos investigativos de delitos contra la familia y de género",
+    "Identificar, buscar y capturar a los autores y cómplices de los delitos.",
+    "Reunir pruebas técnicas, científicas y operativas para apoyar a la Fiscalía General de la Nación.",
+    "Realizar labores de balística, dactiloscopia, fotografía forense y otros análisis técnicos en la escena del crimen.",
+    "Abordar Forense en Violencia Sexual",
+    "Entregar los resultados de sus investigaciones a los jueces y fiscales para que avancen los procesos penales."
+   ]
+  },
+  {
+   "nombre": "Dirección de Investigación Criminal e Interpol- DIJIN Policia Judicial",
+   "sectorExcel": "JUSTICIA",
+   "acciones": [
+    "Realizar indagaciones técnicas, científicas y operativas por iniciativa propia o bajo las órdenes de la Fiscalía General de la Nación en casos de VBG",
+    "Desarticular redes de trata, bandas delictivas, redes de narcotráfico, contrabando y delitos de corrupción.",
+    "Administrar la oficina central de Interpol en Colombia para localizar prófugos y combatir la delincuencia transnacional.",
+    "Analizar pruebas físicas, balísticas y dactiloscópicas para esclarecer hechos judiciales.",
+    "Aportar a la liberación de mujeres víctimas de VBG, ÚNICAMENTE en casos complejos de Trata de Personas o Secuestro"
+   ]
+  },
+  {
+   "nombre": "Instituto Nacional de Medicina Legal y Ciencias Forenses (INMLCF)",
+   "sectorExcel": "JUSTICIA",
+   "acciones": [
+    "Aplicar el exámen médico legal de Violencia Sexual",
+    "Realizar la valoración clinica forense de lesiones personales, determinación de incapacidad y de secuelas",
+    "Aplicar el protocolo técnico de Valoración de Riesgo de Violencia Mortal (Feminicidio)",
+    "Remitir directamente los éxamenes periciales a las autoridades competentes",
+    "Generar informe pericial estructurado (SICLICO) salvaguardando la dignidad de la víctima"
+   ]
+  },
+  {
+   "nombre": "Jueces de Control de Garantías/Civil Municipal o Promiscuo/Familia/Tutela",
+   "sectorExcel": "JUSTICIA",
+   "acciones": [
+    "Resolver recursos de apelación contra medidas de protección de la Comisaría de Familia",
+    "Legalizar capturas y dictar medidas de aseguramiento a solicitud de la Fiscalía",
+    "Dictar medidas de protección de mayor alcance cuando el caso supera la competencia de la Comisaría de Familia",
+    "Dictar sentencia en procesos penales por delitos de VBG",
+    "Trasladar a la víctima al centro de salud más cercano"
+   ]
+  },
+  {
+   "nombre": "Policía Nacional de Colombia",
+   "sectorExcel": "PROTECCIÓN",
+   "acciones": [
+    "Diligenciamiento Acta de Derechos a Víctimas de VBG",
+    "Coordinación con Policía Judicial para recepción de denuncia",
+    "Captura en flagrancia y puesta a disposición de la Fiscalía General de la Nación (FGN)",
+    "Derivación a otros sectores competentes (Salud, Justicia)",
+    "Ejecutar medidas de protección dictadas por la Comisaría o autoridad judicial (desalojo, prohibición de acercamiento, decomiso de armas)",
+    "Reportar incumplimiento de medida de protección a la autoridad que la dictó"
+   ]
+  },
+  {
+   "nombre": "Instituto Colombiano de Bienestar Familiar (ICBF)",
+   "sectorExcel": "PROTECCIÓN",
+   "acciones": [
+    "Aperturar del Proceso Administrativo de Restablecimiento de Derechos (PARD)",
+    "Verificar el estado de cumplimiento de derechos",
+    "Realizar denuncia penal ante Fiscalía General de la Nación",
+    "Emitir medida de Restablecimiento de Derechos (provisional/definitiva)",
+    "Implementar las medidas de atención (apoyo psicológico, hogar sustituto, internado, etc.)",
+    "Realizar el seguimiento al PARD",
+    "Notificar al Centro Operativo Anti-trata (COAT) casos de Explotación Sexual Comercial de Niñas, Niños y Adolescentes",
+    "Derivar a otros sectores competentes (Salud, Justicia)"
+   ]
+  },
+  {
+   "nombre": "Defensorías de Familia - ICBF",
+   "sectorExcel": "PROTECCIÓN",
+   "acciones": [
+    "Representar al niño, niña o adolescente en actuaciones judiciales o administrativas, cuando carezca de representante, este se halle ausente/incapacitado, o sea el agente de la amenaza o vulneración de derechos.",
+    "Adoptar las medidas de restablecimiento establecidas en la ley para detener la violación o amenaza de derechos",
+    "Formular denuncia penal cuando advierta que el niño, niña o adolescente ha sido víctima de un delito.",
+    "Proteger al niño, niña o adolescente mediante una medida provisional, si es del caso.",
+    "Remitir las diligencias a las autoridades competentes",
+    "Iniciar la apertura del Proceso Administrativo de Restablecimiento de Derechos (PARD), cuando se constate amenaza o vulneración.",
+    "Ordenar las medidas de protección y de restablecimiento de derechos a que haya lugar.",
+    "Otorgar la custodia, mediante decisión administrativa provisional, a uno de los padres o al pariente más próximo con idoneidad, cuando no hay acuerdo entre los padres",
+    "Conceder el permiso para salir del país a niños, niñas y adolescentes, cuando no sea necesaria la intervención de un juez",
+    "Asumir, de manera exclusiva y obligatoria, la competencia en casos donde el maltrato por omisión se presente en contexto de violencia sexual (esta competencia no la puede asumir el comisario de familia)."
+   ]
+  },
+  {
+   "nombre": "Comisarías de Familia",
+   "sectorExcel": "PROTECCIÓN",
+   "acciones": [
+    "Aplicar instrumento de valoración del riesgo",
+    "Recibir solicitudes para Medida de Protección",
+    "Emitir medida de Protección Provisional",
+    "Instalación de audiencia",
+    "Emitir medida de protección definitiva (MP)",
+    "Remitir a INMLCF para valoración de riesgo/psicología forense",
+    "Seguimiento a medidas de protección / trámite de incumplimiento",
+    "Brindar asesoría jurídica y acompañamiento psicosocial permanente",
+    "Definir provisionalmente custodia y cuidado personal, cuota de alimentos, régimen de visitas, suspensión de vida en común y cauciones de comportamiento conyugal",
+    "Frente a comunidades indígenas, el comisario asume competencia respetando el diálogo intercultural, sin perjuicio de la jurisdicción especial indígena",
+    "Practicar rescates en eventos donde un niño, niña o adolescente sea posible víctima de violencia en el contexto familiar, incluyendo allanamiento cuando proceda",
+    "Fijar cuota provisional de alimentos de personas adultas mayores",
+    "Derivación a otras autoridades competentes"
+   ]
+  },
+  {
+   "nombre": "Inspecciones de Policía",
+   "sectorExcel": "PROTECCIÓN",
+   "acciones": [
+    "Derivar a Comisaría de Familia",
+    "Competencia subsidiaria en protección de Niñas, Niños y Adolescentes (Únicamente cuando NO haya presencia de Defensoría de Familia o Comisaría de Familia)",
+    "Derivar a Fiscalía General de la Nación",
+    "Aplicar medidas correctivas (amonestación, multas) ante comportamientos contrarios a la convivencia relacionados con conflictos familiares que no constituyan delito (riñas, escándalos, faltas a la convivencia)",
+    "Recibir la denuncia de forma subsidiaria (cuando no haya Comisaría de Familia disponible) y solicitar apoyo de la Policía Nacional para conducir a la víctima a un lugar seguro, así como implementar las medidas de protección",
+    "Derivar a otras autoridades competentes ¿Cuáles?"
+   ]
+  },
+  {
+   "nombre": "Unidad Nacional de Protección",
+   "sectorExcel": "INTERIOR",
+   "acciones": [
+    "Garantizar que los casos de mujeres lideresas y defensoras sean remitidos por el Comité de Evaluación de Riesgo y Recomendación de Medidas (CERREM) de Mujeres cuando así lo solicite la mujer",
+    "Garantizar que la mujer evaluada pueda contar, si así lo decide, con una persona acompañante durante la entrevista de valoración de riesgo, con el fin de recibir apoyo emocional y preservar la confianza necesaria para documentar la situación de riesgo.",
+    "Implementar medida (incorporación al programa, cambio de domicilio, chaleco antibalas, esquema de seguridad...)",
+    "Aplicar el trámite de emergencia para mujeres defensoras en situación de peligro o riesgo inminente",
+    "Realizar la evaluación Anual de la medida",
+    "Hacer seguimiento a la implementación, uso, oportunidad, idoneidad y eficacia de las medidas otorgadas",
+    "Derivar a la Fiscalía General de la Nación",
+    "Derivar a otras autoridades competentes ¿Cuáles?"
+   ]
+  },
+  {
+   "nombre": "Ministerio del Interior - Centro Operativo Anti-Trata (COAT)",
+   "sectorExcel": "INTERIOR",
+   "acciones": [
+    "Caracterizar el caso: analizar y clasificar la información para determinar el tipo de asistencia requerida",
+    "Recibir el reporte de un ciudadano, entidad o autoridad sobre un posible caso de trata de personas",
+    "Alertar de manera simultánea a las entidades del orden nacional y territorial competentes según el caso, para garantizar el acompañamiento al restablecimiento de derechos",
+    "Coordinación del Programa de Asistencia Inmediata",
+    "Coordinar el retorno de la víctima a su lugar de origen, si esta lo solicita",
+    "Coordinar la garantía de seguridad para la víctima",
+    "Coordinar el acceso a alojamiento digno",
+    "Coordinar la asistencia médica, psicológica y material de carácter urgente",
+    "Coordinar la información y asesoría jurídica sobre los derechos de la víctima y los procedimientos legales a seguir",
+    "Coordinar del Programa de Asistencia Mediata",
+    "Coordinar la continuidad de la asistencia médica y psicológica",
+    "Coordinar el acompañamiento jurídico y la representación judicial de la víctima",
+    "Coordinar el acceso a educación",
+    "Coordinar la formación para el trabajo y el desarrollo humano",
+    "Coordinar la promoción de generación de ingresos, orientada a la reincorporación de la víctima a su entorno familiar y social.",
+    "Realizar Seguimiento y cobertura",
+    "Hacer seguimiento a la prestación de los servicios por parte de las entidades corresponsables (nacionales y territoriales)",
+    "Activar la ruta tanto para connacionales explotados en Colombia o en el exterior, como para extranjeros explotados en territorio colombiano",
+    "Articular con el ICBF cuando la víctima sea menor de edad",
+    "Articular con los Comités Departamentales, Distritales y Municipales de Lucha contra la Trata de Personas para la respuesta territorial"
+   ]
+  },
+  {
+   "nombre": "Ministerio del Interior Dirección de Derechos Humanos",
+   "sectorExcel": "INTERIOR",
+   "acciones": [
+    "Focalizar Alertas Tempranas de casos de Violencia Política a través de la Comisión Intersectorial para la Respuesta Rápida a Alertas Tempranas (CIPRAT)",
+    "Vincular a las víctimas al Programa Integral de Garantías para Lideresas y Defensoras de Derechos Humanos (PIG)",
+    "Registro en Unidad de Recepción Inmediata para la Transparencia Electoral (URIEL)",
+    "Report/Registro en SIVIGEM (Violencia Política contra las Mujeres)",
+    "Apoyar a la Defensoría del Pueblo en la emisión de alertas tempranas cuando se adviertan riesgos a la vida, integridad, libertad y seguridad de mujeres en política",
+    "Derivar a otras autoridades competentes ¿Cuáles?"
+   ]
+  },
+  {
+   "nombre": "Ministerio de Educación Nacional (MEN)",
+   "sectorExcel": "EDUCACIÓN",
+   "acciones": [
+    "Monitorear el reporte consolidado de casos de violencia escolar a traves del SIUCE",
+    "Expedir y actualizar los lineamientos nacionales para la implementación de protocolos de prevención, detección y atencion de VBG en Instituciones de Educacion Superior y Colegios"
+   ]
+  },
+  {
+   "nombre": "Secretarías de Educación",
+   "sectorExcel": "EDUCACIÓN",
+   "acciones": [
+    "Aperturar la investigación disciplinaria interna",
+    "Gestionar e implementar medidas preventivas como separación del cargo y reubicación preventiva",
+    "Remitir copias a la Fiscalía General de la denuncia",
+    "Derivación a Comisarías de Familia o ICBF"
+   ]
+  },
+  {
+   "nombre": "Establecimientos educativos públicos y privados",
+   "sectorExcel": "EDUCACIÓN",
+   "acciones": [
+    "Denuncia ante la Fiscalía General de la Nación",
+    "Notificación Urgente al sector Salud",
+    "Notificación a Comisaría de Familia (en los casos que aplica)",
+    "Notificación al Instituto Colombiano de Bienestar Familiar (ICBF)",
+    "Situaciones Tipo I (conflictos manejables, sin agresión sostenida): abordaje pedagógico y mediación interna.",
+    "Situaciones Tipo II (agresión con daño al cuerpo o a la salud, sin ser delito): garantizar atención inmediata en salud y remitir a autoridades administrativas (ICBF, Comisaría de Familia) cuando haya vulneración de derechos.",
+    "Situaciones Tipo III (constitutivas de delito: acceso carnal, acoso sexual, pornografía con menores, etc.): informar de inmediato a la autoridad competente (Policía, Fiscalía, ICBF), sin adelantar entrevistas ni recaudar pruebas.",
+    "Reportar el caso en el Sistema de Información Unificado de Convivencia Escolar (SIUCE) y hacer seguimiento"
+   ]
+  },
+  {
+   "nombre": "Instituciones de Educación Superior (IES)",
+   "sectorExcel": "EDUCACIÓN",
+   "acciones": [
+    "Disponer de un canal de denuncia y una instancia institucional (oficina/comité de género o bienestar universitario) que reciba y tramite los casos",
+    "Adoptar un protocolo institucional de prevención, detección, atención y sanción de VBG y acoso sexual, con plan de trabajo, metas e indicadores de seguimiento."
+   ]
+  },
+  {
+   "nombre": "Ministerio del Trabajo",
+   "sectorExcel": "TRABAJO",
+   "acciones": [
+    "Sancionar al empleador por incumplimiento de normas laborales y de riesgos laborales",
+    "Recibir quejas por situaciones de violencia basada en género en el ámbito laboral",
+    "Investigar de oficio las acciones del empleador para prevenir, atender y reparar el acoso o violencia (no investiga a la víctima ni al agresor)",
+    "Imponer medidas preventivas inmediatas para salvaguardar los derechos de las víctimas",
+    "Remitir de manera inmediata la queja y denuncia a la autoridad competente, a petición de la víctima respetando su derecho a la intimidad."
+   ]
+  },
+  {
+   "nombre": "Direcciones Territoriales del Trabajo / Inspecciones de Trabajo",
+   "sectorExcel": "TRABAJO",
+   "acciones": [
+    "Realizar visitas extraordinarias de inspección técnica al centro de trabajo denunciado de forma presencial o remota.",
+    "Aplicar de forma inmediata del protocolo de investigación administrativa preferente por acoso laboral con connotación sexual.",
+    "Emisión de requerimientos perentorios bajo apremio de multas sucesivas de hasta 5.000 SMLMV al empleador."
+   ]
+  },
+  {
+   "nombre": "Administradoras de Riesgos Laborales (ARL)",
+   "sectorExcel": "TRABAJO",
+   "acciones": [
+    "Disponer de líneas especializadas de contención de crisis y asistencia virtual psicológica de emergencia para trabajadoras.",
+    "Monitorear de forma estricta los indicadores de riesgo psicosocial en las empresas afiliadas mediante el PVE (Programa de Vigilancia Epidemiológica).",
+    "Desarrollar acciones de rehabilitación psicosocial y seguimiento dentro del marco del Sistema General de Riesgos Laborales, cuando exista lugar a ello",
+    "Asesorar técnicamente al Comité de Convivencia Laboral de la empresa garantizando el principio de no conciliación en VBG."
+   ]
+  },
+  {
+   "nombre": "Ministerio de defensa",
+   "sectorExcel": "DEFENSA",
+   "acciones": [
+    "Emitir Medidas Administrativas de Resguardo Internas: Ordenar la separación física inmediata del presunto agresor y la víctima",
+    "Activar la Ruta Interna de Sanidad Militar y Policial para la prestación inmediata de primeros auxilios emocionales, profilaxis de emergencia médica (en violencia sexual) y remisión prioritaria a la Red de Sanidad (SSFM o DISAN).",
+    "Trasladar de manera obligatoria la queja con connotación penal ante la Jurisdicción Ordinaria (Fiscalía General de la Nación), al estar prohibido que la Justicia Penal Militar investigue delitos sexuales o violencia intrafamiliar.",
+    "Aperturar el Proceso Disciplinario Preferente"
+   ]
+  },
+  {
+   "nombre": "Grupos de Acción Unificada por la Libertad Personal (GAULA)",
+   "sectorExcel": "DEFENSA",
+   "acciones": [
+    "Negociar en crisis de atrincheramiento",
+    "Rescatar táctico por retención ilegal VBG"
+   ]
+  },
+  {
+   "nombre": "Ministerio de Relaciones Exteriores",
+   "sectorExcel": "RELACIONES EXTERIORES Y MIGRACIÓN",
+   "acciones": [
+    "Dictar lineamientos generales y protocolos obligatorios de atención con enfoque de género para todas las misiones diplomáticas y consulados.",
+    "Liderar y coordinar, a través del Comité Interinstitucional para la Lucha contra la Trata de Personas, la ruta de repatriación y asistencia a connacionales víctimas de trata con fines de explotación sexual, articulando con sectores y los comités territoriales, y haciendo seguimiento al retorno y a la asistencia posterior.",
+    "Gestionar y asignar recursos presupuestales específicos para asistencia social de emergencia a colombianas vulnerables en el exterior."
+   ]
+  },
+  {
+   "nombre": "Consulados de Colombia en el exterior",
+   "sectorExcel": "RELACIONES EXTERIORES Y MIGRACIÓN",
+   "acciones": [
+    "Recepción y trámite de la declaración de víctimas del conflicto armado en el exterior con destino al RUV.",
+    "Otorgar asistencia económica de emergencia (alojamiento, alimentación o transporte local).",
+    "Brindar contención emocional, primeros auxilios psicologicos y activar rutas locales de apoyo a víctimas de VBG",
+    "Expedir pasaportes exentos o de emergencia sin costo por pérdida o retención del agresor."
+   ]
+  },
+  {
+   "nombre": "Migración Colombia",
+   "sectorExcel": "RELACIONES EXTERIORES Y MIGRACIÓN",
+   "acciones": [
+    "Realizar la detección temprana y aplicación de entrevistas especializadas bajo el protocolo de identificación de víctimas de trata (externa e interna).",
+    "Activar de forma inmediata las alertas de control en fronteras mediante la articulación con la plataforma LibertApp.",
+    "Flexibilizar y priorizar trámites migratorios para la regularización o refugio por razones de género y protección humanitaria."
+   ]
+  },
+  {
+   "nombre": "Centros Intégrate",
+   "sectorExcel": "RELACIONES EXTERIORES Y MIGRACIÓN",
+   "acciones": [
+    "Canalizar directamente y activar el enlace con la Patrulla Púrpura de la Policía Nacional para casos de VBG.",
+    "Brindar orientación jurídica y psicosocial inicial orientada al acceso prioritario al Permiso por Protección Temporal (PPT).",
+    "Emitir inmediata a la red pública de salud local para atención médica y de anticoncepción de emergencia sin barreras."
+   ]
+  },
+  {
+   "nombre": "Ministerio de Agricultura - Dirección de mujer rural",
+   "sectorExcel": "AGRICULTURA",
+   "acciones": [
+    "Aplicar de forma estricta el protocolo sectorial de prevención y atención de violencias de género en el sector agropecuario.",
+    "Priorizar legalmente y asignar puntaje diferencial/adicional para subsidios de vivienda social rural y titulación de predios a favor de mujeres rurales víctimas de violencias.",
+    "Cofinanciar de forma preferente planes, programas y proyectos productivos para la autonomía económica a través del Fondo de Fomento para las Mujeres Rurales (FOMMUR)."
+   ]
+  }
+ ]
+}
