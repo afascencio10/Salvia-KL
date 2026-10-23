@@ -470,7 +470,8 @@ var SeguimientoV4App = {
                 ident: { conocimiento: '', entidades: [] },
                 plan: {
                     remision: '', equipos: [], medidasTipos: [], psico: [], osignh: [],
-                    discapacidad: [], estabilizacion: [], elementos: [], acciones: '', ajustes: '',
+                    discapacidad: [], estabilizacion: [], equipoReasigna: '',
+                    elementos: [], acciones: '', ajustes: '',
                 },
                 con: { concluye: '', motivo: '', otro: '', descripcion: '', accion: '', entidad: '', otraEntidad: '', canales: [] },
             },
@@ -605,7 +606,6 @@ var SeguimientoV4App = {
         buildSections: function () {
             var sections = [];
             sections.push(this.sectionRiesgo());
-            if (this.ctx.hasMedidas) sections.push(this.sectionMedidas());
             if (this.ctx.hasEntidades) sections.push(this.sectionSegEntidades());
             sections.push(this.sectionIdent());
             sections.push(this.sectionPlan());
@@ -833,6 +833,8 @@ var SeguimientoV4App = {
             ];
             if (row.acuerdo === 'si') {
                 activacion.push(this.field(base + '.debidaDiligencia', 'bool', '¿Salvia debe activar rutas en el marco de la debida diligencia?', { required: true }));
+            }
+            if (row.acuerdo === 'si' && row.debidaDiligencia === 'si') {
                 activacion.push(this.field(base + '.canales', 'multi', 'Seleccione los canales utilizados para la activación o gestión de la Ruta de Atención', {
                     required: true, exclusive: 'ninguna', options: opts(CANALES),
                 }));
@@ -889,9 +891,11 @@ var SeguimientoV4App = {
             if (ent.nuevaBarrera === 'si') {
                 f.push(this.barrerasNuevasRepeater(base + '.barrerasNuevas', ent.barrerasNuevas, 'identb:' + i));
             }
-            f.push(this.field(base + '.debidaDiligencia', 'bool', '¿Salvia debe activar rutas en el marco de la debida diligencia?', { required: true }));
-            if (ent.debidaDiligencia === 'si') {
-                f.push(this.field(base + '.acuerdo', 'bool', '¿La persona está de acuerdo con que SALVIA active la Ruta de Atención y las gestiones institucionales correspondientes?', { required: true }));
+            f.push(this.field(base + '.acuerdo', 'bool', '¿La persona está de acuerdo con que SALVIA active la Ruta de Atención y las gestiones institucionales correspondientes?', { required: true }));
+            if (ent.acuerdo === 'si') {
+                f.push(this.field(base + '.debidaDiligencia', 'bool', '¿Salvia debe activar rutas en el marco de la debida diligencia?', { required: true }));
+            }
+            if (ent.acuerdo === 'si' && ent.debidaDiligencia === 'si') {
                 f.push(this.field(base + '.canales', 'multi', 'Seleccione los canales utilizados para la activación o gestión de la Ruta de Atención', {
                     required: true, exclusive: 'ninguna', options: opts(CANALES),
                 }));
@@ -1068,6 +1072,15 @@ var SeguimientoV4App = {
                 required: true,
                 hint: 'En la versión definitiva este texto se acumula al plan de acción, de forma similar a los nuevos hechos.',
             }));
+            b.push(this.field('plan.equipoReasigna', 'select', 'Equipo al que reasigna el caso', {
+                required: true,
+                options: opts([
+                    ['riesgo', 'Seguimiento de Riesgo'],
+                    ['general', 'Seguimiento General'],
+                    ['feminicidio', 'Abordaje Integral del Feminicidio'],
+                    ['ninguno', 'Ninguno'],
+                ]),
+            }));
             return { id: 'plan', title: 'Seguimiento al plan de acción', desc: 'Remisiones, acompañamiento psicosocial y descripción', blocks: b };
         },
         sectionConclusion: function () {
@@ -1220,9 +1233,6 @@ var SeguimientoV4App = {
                 title: 'Contexto simulado del caso',
                 rows: [
                     { label: 'Entidades previas', value: this.ctx.hasEntidades ? 'Sí' : 'No' },
-                    { label: 'Medidas de emergencia', value: this.ctx.hasMedidas ? 'Sí' : 'No' },
-                    { label: 'Momento de medidas', value: this.ctx.momento === '1' ? 'Primera semana' : this.ctx.momento === '2' ? '15 días' : 'Primer mes' },
-                    { label: 'Seguimiento extemporáneo', value: this.ctx.extemporaneo ? 'Sí' : 'No' },
                 ],
             }];
             var self = this;
@@ -1266,16 +1276,6 @@ var SeguimientoV4App = {
         <p>Simula lo que el sistema ya sabría del caso. No es una respuesta del formulario.</p>
         <div class="proto-grid">
             <label><input type="checkbox" v-model="ctx.hasEntidades"> Hay entidades registradas antes</label>
-            <label><input type="checkbox" v-model="ctx.hasMedidas"> Hay medidas de emergencia activas</label>
-            <label v-if="ctx.hasMedidas">
-                Momento
-                <select v-model="ctx.momento">
-                    <option value="1">1 — primera semana</option>
-                    <option value="2">2 — 15 días</option>
-                    <option value="3">3 — primer mes</option>
-                </select>
-            </label>
-            <label v-if="ctx.hasMedidas"><input type="checkbox" v-model="ctx.extemporaneo"> Seguimiento extemporáneo</label>
         </div>
     </div>
 

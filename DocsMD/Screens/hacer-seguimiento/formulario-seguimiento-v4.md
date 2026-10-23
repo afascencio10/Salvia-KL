@@ -19,9 +19,11 @@ Registrados el 23 de octubre de 2026. Están solo en el prototipo. El seed y el 
 
 **Registro de la barrera nueva**, en Identificación y en Seguimiento. La fecha aproximada es un campo de fecha. Se quita la pregunta de otra institución interna o externa. La opción de gestión queda «Activación de ruta interinstitucional (Generar oficio)».
 
-**Activación de ruta en Seguimiento a entidades.** Van en un recuadro titulado «Activación de ruta», después de la barrera nueva. Siempre se ve el acuerdo. Debida diligencia, canales y gestiones se muestran solo si el acuerdo es Sí.
+**Activación de ruta**, en Seguimiento a entidades y en Identificación de entidades. Siempre se ve el acuerdo. Si el acuerdo es Sí, solo aparece la debida diligencia. Canales y gestiones aparecen solo si la debida diligencia también es Sí. En Seguimiento van en el recuadro «Activación de ruta», después de la barrera nueva, y las gestiones siguen opcionales. En Identificación la barrera nueva sigue antes y no depende del acuerdo; las gestiones siguen obligatorias.
 
-**Identificación de entidades**, después de «Otra información asociada a la Ruta»: la barrera nueva y su tarjeta si es Sí; luego la debida diligencia, siempre visible. Solo si la debida diligencia es Sí se muestran el acuerdo, los canales y las gestiones, en ese orden.
+**Seguimiento al plan de acción.** Se agrega «Equipo al que reasigna el caso», un select de una sola opción: Seguimiento de Riesgo, Seguimiento General, Abordaje Integral del Feminicidio, Ninguno. Es la última pregunta de la sección.
+
+**Seguimiento a medidas de emergencia.** Se oculta en el prototipo, junto con el momento y el seguimiento extemporáneo del contexto del caso. La sección va a cambiar y la lógica de momentos no se usa.
 
 ---
 
