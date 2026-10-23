@@ -32,6 +32,9 @@
     document.head.appendChild(style);
 })();
 
+var FORM_SEGUIMIENTO_ACTUAL = '2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff';
+var FORM_SEGUIMIENTO_V4 = 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f';
+
 app.component('follow-up-contact-modal', {
     delimiters: ['${', '}'],
     props: {
@@ -42,6 +45,7 @@ app.component('follow-up-contact-modal', {
     data() {
         return {
             modalContesto: null,
+            modalFormulario: false,
             attemptDateTime: '',
             selectedContactTarget: '',
             modalRazon: null,
@@ -90,6 +94,7 @@ app.component('follow-up-contact-modal', {
 
         closeModals() {
             this.modalContesto = null;
+            this.modalFormulario = false;
             this.modalRazon = null;
             this.modalAcciones = null;
             this.showClosureFormModal = false;
@@ -107,12 +112,29 @@ app.component('follow-up-contact-modal', {
             const fu = this.activeFollowUp;
             if (!fu || this.loading) return;
 
-            this.loading = true;
-            // No se registra ningún intento aquí. El intento EFECTIVO lo registra el
-            // backend (processFollowUpSubmission) cuando el formulario de seguimiento
-            // se completa y el seguimiento pasa a REALIZADO — un único punto, sin
-            // duplicados. Por eso ya no se pasa ?register_attempt.
-            window.location.href = `/salvia/hacer-seguimiento/${fu.id}`;
+            // No se registra ningún intento aquí. El intento efectivo lo registra el
+            // backend cuando el formulario se completa.
+            if (fu.form_id || fu.form_submission_id) {
+                this.openChosenForm(fu);
+                return;
+            }
+            this.modalContesto = null;
+            this.modalFormulario = true;
+        },
+
+        openChosenForm(fu) {
+            const id = fu.form_id === FORM_SEGUIMIENTO_V4
+                ? `/salvia/hacer-seguimiento-v4/${fu.id}`
+                : `/salvia/hacer-seguimiento/${fu.id}`;
+            window.location.href = id;
+        },
+
+        chooseForm(which) {
+            const fu = this.activeFollowUp;
+            if (!fu) return;
+            window.location.href = which === 'v4'
+                ? `/salvia/hacer-seguimiento-v4/${fu.id}`
+                : `/salvia/hacer-seguimiento/${fu.id}`;
         },
 
         handleNoAnswer() {
@@ -433,6 +455,31 @@ app.component('follow-up-contact-modal', {
                     </div>
                     <button @click="closeModals" :disabled="loading"
                         :style="\`margin-top: 1.5rem; background: none; border: none; font-size: 0.75rem; color: #9ca3af; font-weight: 600; cursor: \${loading ? 'not-allowed' : 'pointer'};\`">
+                        CANCELAR
+                    </button>
+                </div>
+            </div>
+
+            <!-- Elección de formulario, solo si este seguimiento aún no empezó uno -->
+            <div v-if="modalFormulario" class="ms-modal-overlay">
+                <div class="ms-modal-content">
+                    <div style="width: 4rem; height: 4rem; border-radius: 9999px; background-color: #f5f3ff; color: #8b5cf6; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem;">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                    <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">¿Qué formulario vas a diligenciar?</h3>
+                    <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 1.5rem;">Esta elección queda guardada para este seguimiento.</p>
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem; width: 100%;">
+                        <button type="button" @click="chooseForm('actual')"
+                            style="width: 100%; background: white; border: 1px solid #e5e7eb; color: #111827; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer;">
+                            Formulario actual
+                        </button>
+                        <button type="button" @click="chooseForm('v4')"
+                            style="width: 100%; background-color:rgb(78, 77, 79); color: white; border: none; padding: 0.875rem 1.25rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer;">
+                            Formulario V.4
+                        </button>
+                    </div>
+                    <button @click="closeModals"
+                        style="margin-top: 1.5rem; background: none; border: none; font-size: 0.75rem; color: #9ca3af; font-weight: 600; cursor: pointer;">
                         CANCELAR
                     </button>
                 </div>

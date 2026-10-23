@@ -66,10 +66,10 @@ type GenerateCalendarInput struct {
 
 // LoadFollowUpResult es la respuesta del endpoint hacer-seguimiento al cargar la página.
 type LoadFollowUpResult struct {
-	FollowUp       *models.FollowUpV2           `json:"followUp"`
-	VictimInfo     *repository.VictimCaseInfo   `json:"victimInfo"`
-	CaseStatus     string                       `json:"caseStatus"`
-	ActiveBarriers []models.ActiveBarrierInfo   `json:"activeBarriers"`
+	FollowUp       *models.FollowUpV2         `json:"followUp"`
+	VictimInfo     *repository.VictimCaseInfo `json:"victimInfo"`
+	CaseStatus     string                     `json:"caseStatus"`
+	ActiveBarriers []models.ActiveBarrierInfo `json:"activeBarriers"`
 }
 
 // FollowUpV2Service define el contrato de negocio para FollowUpV2.
@@ -234,10 +234,11 @@ func (s *followUpV2Service) LoadFollowUp(ctx context.Context, id, agentID, formI
 		if err := s.fsRepo.Create(ctx, fs); err != nil {
 			return nil, fmt.Errorf("loadFollowUp: crear form submission: %w", err)
 		}
-		if err := s.repo.UpdateFormSubmissionID(ctx, fu.ID, fs.ID); err != nil {
+		if err := s.repo.UpdateFormIDAndSubmissionID(ctx, fu.ID, formID, fs.ID); err != nil {
 			return nil, fmt.Errorf("loadFollowUp: actualizar formSubmissionId: %w", err)
 		}
 		fu.FormSubmissionID = &fs.ID
+		fu.FormID = &formID
 	}
 
 	// Obtener status del caso para que el frontend pueda bloquear edición si está cerrado
@@ -290,7 +291,7 @@ func (s *followUpV2Service) loadActiveBarriers(ctx context.Context, fu *models.F
 
 	result := make([]models.ActiveBarrierInfo, len(barriers))
 	for i, b := range barriers {
-		result[i] = models.ActiveBarrierInfo{ID: b.ID, BarrierName: buildBarrierName(b)}
+		result[i] = models.ActiveBarrierInfo{ID: b.ID, BarrierName: buildBarrierName(b), EntityBranchID: b.EntityBranchID}
 	}
 	return result
 }

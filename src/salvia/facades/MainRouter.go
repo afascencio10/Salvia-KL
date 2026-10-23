@@ -285,6 +285,7 @@ func StartRouter(router *gin.Engine) {
 			HacerSeguimiento
 		*/
 		secRouter.GET("/hacer-seguimiento/:id", HacerSeguimientoGET)
+		secRouter.GET("/hacer-seguimiento-v4/:id", HacerSeguimientoV4GET)
 
 		// Prototipo del formulario de seguimiento V.4. Cualquier usuario con sesión.
 		// No persiste respuestas.

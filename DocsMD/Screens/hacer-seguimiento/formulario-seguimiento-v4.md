@@ -7,29 +7,31 @@ Cada hoja visible es un módulo del formulario nuevo. La hoja `Final` está ocul
 
 Las columnas del Excel no siempre coinciden con el encabezado: en varias filas “Si”, el tipo y las opciones están corridos. Aquí se lee por el contenido de la fila, no por la letra de la columna.
 
-La lectura del Excel queda debajo. Donde choque con las revisiones del prototipo, manda la nota de ajustes del 23 de octubre. Esa nota todavía no está en la base: el formulario sembrado sigue como quedó el 21 de octubre. Donde la nota no hable, manda la tercera revisión, luego la segunda y, si tampoco, la primera.
+La lectura del Excel queda debajo. Donde choque con el formulario sembrado, manda la nota del 23 de octubre: esa versión ya está en la base. Donde la nota no hable, manda la tercera revisión, luego la segunda y, si tampoco, la primera.
 
 ---
 
-## Ajustes del prototipo, pendientes de pasar a la base
+## Ajustes del 23 de octubre, ya en la base
 
-Registrados el 23 de octubre de 2026. Están solo en el prototipo. El seed y el formulario `c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f` no se modificaron.
+Reemplazan la definición sembrada el 21 de octubre. El id sigue siendo `c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f`. No había envíos, así que se borró solo la definición de ese formulario y se volvió a crear. El formulario vigente no se tocó.
 
-**Seguimiento a barreras de esta entidad.** Una tarjeta por barrera activa, con fondo propio y el nombre de la barrera. Se quita «¿Cuáles barreras se cerraron?». En cada tarjeta: ¿Las barreras persisten?, ¿Se realiza cierre de la barrera?, el motivo del cierre solo si el cierre es Sí, y Gestión de la barrera por parte de Salvia.
+**Seguimiento a barreras de esta entidad.** Un repetidor hijo, una entrada por barrera que la entidad ya trae. Se quita «¿Cuáles barreras se cerraron?». En cada entrada: ¿Las barreras persisten?, ¿Se realiza cierre de la barrera?, el motivo del cierre solo si el cierre es Sí, y Gestión de la barrera por parte de Salvia.
 
 **Registro de la barrera nueva**, en Identificación y en Seguimiento. La fecha aproximada es un campo de fecha. Se quita la pregunta de otra institución interna o externa. La opción de gestión queda «Activación de ruta interinstitucional (Generar oficio)».
 
-**Activación de ruta**, en Seguimiento a entidades y en Identificación de entidades. Siempre se ve el acuerdo. Si el acuerdo es Sí, solo aparece la debida diligencia. Canales y gestiones aparecen solo si la debida diligencia también es Sí. En Seguimiento van en el recuadro «Activación de ruta», después de la barrera nueva, y las gestiones siguen opcionales. En Identificación la barrera nueva sigue antes y no depende del acuerdo; las gestiones siguen obligatorias.
+**Activación de ruta**, en Seguimiento a entidades y en Identificación de entidades. Siempre se ve el acuerdo. Si el acuerdo es Sí, solo aparece la debida diligencia. Canales y gestiones aparecen solo si la debida diligencia también es Sí. En Identificación la barrera nueva va antes y no depende del acuerdo. Las gestiones de Identificación siguen obligatorias y las de Seguimiento, opcionales.
 
-**Seguimiento al plan de acción.** Se agrega «Equipo al que reasigna el caso», un select de una sola opción: Seguimiento de Riesgo, Seguimiento General, Abordaje Integral del Feminicidio, Ninguno. Es la última pregunta de la sección.
+**Seguimiento al plan de acción.** «Equipo al que reasigna el caso» es la última pregunta de la sección. Es un desplegable obligatorio: Seguimiento de Riesgo, Seguimiento General, Abordaje Integral del Feminicidio, Ninguno.
 
-**Seguimiento a medidas de emergencia.** Se oculta en el prototipo, junto con el momento y el seguimiento extemporáneo del contexto del caso. La sección va a cambiar y la lógica de momentos no se usa.
+**Seguimiento a medidas de emergencia.** No está en esta versión. La sección va a cambiar y la lógica de momentos no se usa.
+
+La pantalla real todavía no dibuja el repetidor hijo dentro de la entidad, Ninguna no es exclusiva y hacer seguimiento sigue abriendo el formulario vigente. Eso queda para otra pasada.
 
 ---
 
 ## Formulario sembrado en la base
 
-Sembrado el 21 de octubre de 2026. El prototipo no cambia. El formulario que ya usan los seguimientos tampoco: sigue siendo `2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff` y sigue siendo el que abre hacer seguimiento.
+Reemplazado el 23 de octubre de 2026. El prototipo no cambia. El formulario que ya usan los seguimientos tampoco: sigue siendo `2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff` y sigue siendo el que abre hacer seguimiento.
 
 El formulario nuevo es otro registro.
 
@@ -38,13 +40,13 @@ El formulario nuevo es otro registro.
 | Id | `c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f` |
 | Nombre | Seguimiento V.4 |
 | Seed | `src/internal/seed/seguimiento_v4_form.sql`, generado por `scripts/gen_seguimiento_v4_seed.js` |
-| Arranque | `seed.EnsureSeguimientoV4Form` lo crea si falta. Si ya está, no lo reescribe. En esta base ya está creado |
+| Arranque | `seed.EnsureSeguimientoV4Form` lo crea si falta. Si la descripción no es la de esta versión, reemplaza la definición. Si ya coincide, no lo reescribe. Si el formulario tiene envíos, el reemplazo aborta |
 
 Completarlo no crea barreras, entidades, remisiones ni cambia el riesgo. Ese id no está en `OnEndFormSubmission`, así que el guardado deja solo las respuestas.
 
-El contenido sigue las tres revisiones del prototipo: las seis secciones, el acuerdo y la debida diligencia, Ninguna en los canales, Transversales como sector de la barrera, las gestiones al final de Seguimiento y opcionales, y «Sin acceso…» con el texto de 1 punto. Las listas cerradas están en `salvia.option`. Departamento, municipio, ciudad, entidad, obligaciones, entidades del caso y barreras a cerrar no tienen opciones fijas: la pantalla las entrega por `state_options_path`.
+Son cinco secciones: Valoración del riesgo, Seguimiento a entidades, Identificación de entidades, Seguimiento al plan de acción y Conclusión del ciclo de atención. Las listas cerradas están en `salvia.option`. Departamento, municipio, ciudad, entidad, obligaciones, entidades del caso y barreras de la entidad no tienen opciones fijas: la pantalla las entrega por `state_options_path` o por `state_items`.
 
-Las barreras nuevas de cada entidad quedan como un repetidor hijo (`parent_repeater_group_id`). La columna, y `repeater_entry.parent_entry_id`, ya existen. El componente todavía no las lee: hasta la próxima pasada, ese repetidor se ve como otro repetidor de la sección y la condición «solo si hay barrera nueva» está guardada pero el motor no la aplica entre grupos distintos.
+Las barreras nuevas y el seguimiento de las barreras que la entidad ya trae quedan como repetidores hijos (`parent_repeater_group_id`). Esas columnas ya existen. El componente todavía no las lee: hasta la próxima pasada, ese repetidor se ve como otro repetidor de la sección y la condición entre grupos distintos está guardada pero el motor no la aplica.
 
 Tampoco entra todavía en el dibujo, aunque la pregunta ya está sembrada:
 
@@ -52,7 +54,6 @@ Tampoco entra todavía en el dibujo, aunque la pregunta ya está sembrada:
 - Ninguna exclusiva.
 - La exclusión entre medidas de emergencia y psicosocial.
 - El puntaje de los criterios y las sugerencias de factores de riesgo. No hay pregunta de aviso para eso, porque el motor no cuenta opciones marcadas.
-- El motivo de cierre solo cuando hay barreras cerradas. La pregunta está, siempre, dentro del bloque de barreras de la entidad.
 - Vereda solo cuando ya hay departamento y municipio. La pregunta está siempre en la tarjeta.
 
 ---

@@ -19,6 +19,9 @@ import (
 //go:embed closure_form.sql
 var closureFormSQL string
 
+//go:embed seguimiento_v4_form.sql
+var seguimientoV4FormSQL string
+
 //go:embed validation_tasks.sql
 var validationTasksSQL string
 
@@ -72,6 +75,49 @@ func EnsureClosureForm(db *gorm.DB, formID string) (bool, error) {
 	}
 	if activo == 0 {
 		return false, fmt.Errorf("el seed se aplicó pero el formulario %s sigue sin existir", formID)
+	}
+
+	return true, nil
+}
+
+// SeguimientoV4FormID es el formulario nuevo de seguimiento. No reemplaza al
+// vigente (service.SeguimientoFormID) y no está registrado en OnEndFormSubmission,
+// así que completarlo solo guarda respuestas.
+const SeguimientoV4FormID = "c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f"
+
+// SeguimientoV4FormDescription identifica esta versión del formulario. Si la fila
+// ya existe con otro texto, el arranque vuelve a sembrar la definición.
+const SeguimientoV4FormDescription = "Seguimiento V.4. Prototipo estable del 23 de octubre de 2026. Convive con el formulario vigente y todavía no ejecuta su lógica al completar."
+
+// EnsureSeguimientoV4Form crea el formulario "Seguimiento V.4" si no está en la
+// base, o reemplaza su definición cuando la descripción no es la de esta versión.
+// Devuelve true cuando tuvo que aplicarlo. Si el formulario ya tiene envíos, el
+// SQL aborta y no borra nada.
+func EnsureSeguimientoV4Form(db *gorm.DB) (bool, error) {
+	var actual string
+	err := db.Raw(
+		`SELECT COALESCE(MAX(description), '') FROM salvia.form WHERE id = ? AND deleted_at IS NULL`,
+		SeguimientoV4FormID,
+	).Scan(&actual).Error
+	if err != nil {
+		return false, fmt.Errorf("verificando el formulario de seguimiento V.4: %w", err)
+	}
+	if actual == SeguimientoV4FormDescription {
+		return false, nil
+	}
+
+	if err := db.Exec(seguimientoV4FormSQL).Error; err != nil {
+		return false, fmt.Errorf("aplicando el seed del formulario de seguimiento V.4: %w", err)
+	}
+
+	if err := db.Raw(
+		`SELECT COALESCE(MAX(description), '') FROM salvia.form WHERE id = ? AND deleted_at IS NULL`,
+		SeguimientoV4FormID,
+	).Scan(&actual).Error; err != nil {
+		return false, fmt.Errorf("verificando el formulario de seguimiento V.4 tras aplicarlo: %w", err)
+	}
+	if actual != SeguimientoV4FormDescription {
+		return false, fmt.Errorf("el seed se aplicó pero el formulario %s no quedó en la versión esperada", SeguimientoV4FormID)
 	}
 
 	return true, nil

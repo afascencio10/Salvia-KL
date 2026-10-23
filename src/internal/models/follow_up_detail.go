@@ -18,6 +18,9 @@ type FollowUpVictimInfo struct {
 type ActiveBarrierInfo struct {
 	ID          string `json:"id"`
 	BarrierName string `json:"barrierName"`
+	// EntityBranchID permite agrupar la barrera en la entidad del caso.
+	// El formulario vigente no lo usa.
+	EntityBranchID *int64 `json:"entityBranchId,omitempty"`
 }
 
 type FollowUpDetailResponse struct {

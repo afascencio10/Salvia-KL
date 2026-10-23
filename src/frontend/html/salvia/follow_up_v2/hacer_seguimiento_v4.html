@@ -1,0 +1,291 @@
+<div class="container mt-4">
+    <div class="welcome-section mb-4">
+        <h2><b>Hacer Seguimiento</b></h2>
+    </div>
+
+    <div id="seguimiento-app">
+        <div v-if="!canEdit" class="ms-readonly-banner">
+            <span class="ms-readonly-banner__icon">🔒</span>
+            <div class="ms-readonly-banner__content">
+                <p class="ms-readonly-banner__title">Este seguimiento no se puede editar</p>
+                <p class="ms-readonly-banner__subtitle">${ noEditReason }</p>
+            </div>
+        </div>
+
+        <div v-if="victimInfo" class="card hs-victim-card mb-4">
+            <div class="card-body">
+                <div class="hs-victim-header">
+                    <div class="hs-victim-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="hs-victim-name-block">
+                        <h5 class="hs-victim-name">${ [victimInfo.Names, victimInfo.LastNames].filter(Boolean).join(' ') || '—' }</h5>
+                        <span class="hs-victim-location">
+                            <i class="fas fa-map-marker-alt"></i> ${ victimInfo.TownName || '—' }
+                        </span>
+                    </div>
+                </div>
+                <hr class="hs-divider">
+                <div class="hs-victim-fields">
+                    <div class="hs-field">
+                        <span class="hs-field-label">Teléfono</span>
+                        <span class="hs-field-value">${ victimInfo.Phone || '—' }</span>
+                    </div>
+                    <div class="hs-field">
+                        <span class="hs-field-label">Identidad de género</span>
+                        <span class="hs-field-value">${ victimInfo.GenderIdentity || '—' }</span>
+                    </div>
+                    <div class="hs-field">
+                        <span class="hs-field-label">Orientación sexual</span>
+                        <span class="hs-field-value">${ victimInfo.SexualOrientation || '—' }</span>
+                    </div>
+                    <div class="hs-field">
+                        <span class="hs-field-label">Teléfono de contacto</span>
+                        <span class="hs-field-value">${ victimInfo.ContactPhone || '—' }</span>
+                    </div>
+                    <div class="hs-field">
+                        <span class="hs-field-label">Edad</span>
+                        <span class="hs-field-value">${ victimInfo.Age != null ? victimInfo.Age + ' años' : '—' }</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hs-tabs mb-3">
+            <button class="hs-tab" :class="{ 'hs-tab--active': activeTab === 'caso' }" @click="activeTab = 'caso'">
+                <i class="fas fa-folder-open"></i> Información del caso
+            </button>
+            <button class="hs-tab" :class="{ 'hs-tab--active': activeTab === 'seguimiento' }" @click="activeTab = 'seguimiento'">
+                <i class="fas fa-clipboard-list"></i> Formulario de seguimiento
+            </button>
+        </div>
+
+        <case-info
+            :case-id="caseICode"
+            :visible="activeTab === 'caso'"
+            @close="activeTab = 'seguimiento'">
+        </case-info>
+
+        <div v-show="activeTab === 'seguimiento'">
+            <div v-if="loadError" class="alert alert-danger">${ loadError }</div>
+            <dinamic-form v-else-if="formId && submissionId" :form-id="formId" :submission-id="submissionId" :can-edit="canEdit" :form-state="formState" @form-completed="onFormCompleted" @answers-updated="onAnswersUpdated"></dinamic-form>
+        </div>
+
+        <div v-if="formCompleted" class="hs-completed-backdrop">
+            <div class="hs-completed-card">
+                <div class="hs-completed-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" fill="#22c55e"/>
+                        <path d="M7 12.5l3.5 3.5 6-7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h4 class="hs-completed-title">Seguimiento registrado</h4>
+                <p class="hs-completed-text">El seguimiento fue completado exitosamente.</p>
+                <button class="hs-completed-btn" @click="goToCase">Ver caso</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.hs-tabs { display: flex; gap: 4px; border-bottom: 2px solid #e5e7eb; }
+.hs-tab {
+    padding: 9px 18px; font-size: 14px; font-weight: 500; color: #6b7280;
+    background: transparent; border: none; border-bottom: 2px solid transparent;
+    margin-bottom: -2px; cursor: pointer; display: flex; align-items: center; gap: 7px;
+}
+.hs-tab:hover { color: #374151; }
+.hs-tab--active { color: #7c3aed; border-bottom-color: #7c3aed; font-weight: 600; }
+.hs-victim-card { border: 1px solid #e0e0e0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.hs-victim-header { display: flex; align-items: center; gap: 14px; }
+.hs-victim-avatar {
+    width: 48px; height: 48px; border-radius: 50%; background: #f0f0f0;
+    display: flex; align-items: center; justify-content: center; font-size: 20px; color: #888; flex-shrink: 0;
+}
+.hs-victim-name-block { display: flex; flex-direction: column; gap: 2px; }
+.hs-victim-name { margin: 0; font-size: 16px; font-weight: 600; }
+.hs-victim-location { font-size: 13px; color: #888; }
+.hs-divider { margin: 14px 0; border-color: #f0f0f0; }
+.hs-victim-fields { display: flex; flex-wrap: wrap; gap: 16px 32px; }
+.hs-field { display: flex; flex-direction: column; gap: 2px; min-width: 140px; }
+.hs-field-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.4px; }
+.hs-field-value { font-size: 14px; font-weight: 500; color: #333; }
+.hs-completed-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+}
+.hs-completed-card {
+    background: #fff; border-radius: 16px; padding: 40px 48px; max-width: 400px; width: 90%;
+    text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+}
+.hs-completed-icon {
+    width: 56px; height: 56px; border-radius: 50%; background: #f0fdf4;
+    display: flex; align-items: center; justify-content: center;
+}
+.hs-completed-title { margin: 0; font-size: 18px; font-weight: 700; color: #111827; }
+.hs-completed-text { margin: 0; font-size: 14px; color: #6b7280; }
+.hs-completed-btn {
+    margin-top: 6px; padding: 10px 28px; background: #7c3aed; color: #fff; border: none;
+    border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.hs-completed-btn:hover { background: #6d28d9; }
+</style>
+
+{{ template "standard_scripts.html" .}}
+
+<script src="/static/js/seguimiento-v4-state.js"></script>
+
+<script>
+    const FORM_V4 = 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f';
+
+    var app = Vue.createApp({
+        delimiters: ['${', '}'],
+        data() {
+            return {
+                followUpId:   '{{ .followUpId }}',
+                userICode:    '{{ .userICode }}',
+                currentUser:  '{{ .currentUser }}',
+                userRole:     '{{ .userRole }}',
+                formId:       FORM_V4,
+                submissionId: null,
+                loadError:    null,
+                canEdit:      true,
+                noEditReason: null,
+                caseId:       null,
+                caseICode:    null,
+                activeTab:    'seguimiento',
+                formCompleted: false,
+                victimInfo:   null,
+                allCities:    [],
+                _v4cache:     {},
+                _lastAnswers: null,
+                formState: {
+                    hasEntidades: '',
+                    currentEntities: [],
+                    statesColombia: [],
+                    identEntidades: [],
+                    entidadesConocidas: [],
+                    ident: { barrera: [] },
+                    seg: { barrera: [] },
+                },
+            };
+        },
+        mounted() {
+            document.getElementById('app').style.display = 'block';
+            const navUserDiv = document.querySelector('.navbar.nav_banner .user');
+            if (navUserDiv) {
+                navUserDiv.querySelector('div:first-child').innerHTML =
+                    '<i class="fas fa-user"></i> Hola, {{ .currentUser }}';
+            }
+            this.loadFollowUp();
+            this.loadLocations();
+        },
+        methods: {
+            async loadFollowUp() {
+                try {
+                    const url = `/api/v1/follow-ups/${this.followUpId}/load?agent_id=${this.userICode}&form_id=${this.formId}`;
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    if (!res.ok) {
+                        this.loadError = data.error || 'Error al cargar el seguimiento';
+                        return;
+                    }
+                    const fu = data.followUp;
+                    if ((fu.form_submission_id && !fu.form_id) || (fu.form_id && fu.form_id !== FORM_V4)) {
+                        window.location.replace(`/salvia/hacer-seguimiento/${this.followUpId}`);
+                        return;
+                    }
+                    this.caseId = fu.case_id;
+                    this.caseICode = fu.case_id;
+                    await this.loadCurrentEntities();
+                    SeguimientoV4.attachCase(this.formState, data.activeBarriers || []);
+                    this.submissionId = fu.form_submission_id;
+                    this.victimInfo = data.victimInfo;
+
+                    if (data.caseStatus === 'cd') {
+                        this.canEdit = false;
+                        this.noEditReason = 'El caso asociado está cerrado.';
+                    } else if (fu.status === 'REALIZADO' && fu.completed_at) {
+                        const diffDays = (Date.now() - new Date(fu.completed_at)) / (1000 * 60 * 60 * 24);
+                        this.canEdit = diffDays <= 5;
+                        this.noEditReason = this.canEdit ? null : 'Se completó hace más de 5 días.';
+                    } else {
+                        this.canEdit = true;
+                        this.noEditReason = null;
+                    }
+                    if (this.userRole === 'ps' || this.userRole === 'ts') {
+                        this.canEdit = false;
+                        this.noEditReason = 'Tu rol solo tiene acceso de lectura a los seguimientos.';
+                    }
+                } catch (e) {
+                    this.loadError = 'Error de conexión al cargar el seguimiento';
+                    console.error('[HS v4] error:', e);
+                }
+            },
+            async loadCurrentEntities() {
+                try {
+                    const res = await fetch(`/api/v1/casos/${this.caseId}/entidades`);
+                    if (!res.ok) {
+                        this.formState.currentEntities = [];
+                        this.formState.hasEntidades = '';
+                        return;
+                    }
+                    const data = await res.json();
+                    this.formState.currentEntities = (Array.isArray(data) ? data : []).map(e => ({
+                        entityCaseId: e.relId,
+                        entityBranchId: e.entityBranchId,
+                        nombre: e.entityBranchName,
+                        sector: e.sector,
+                        obligaciones: [],
+                    }));
+                    await Promise.all(this.formState.currentEntities.map(async (entity, idx) => {
+                        try {
+                            const oblRes = await fetch(`/api/v1/entity-cases/${entity.entityCaseId}/obligations?status=pendiente`);
+                            if (!oblRes.ok) return;
+                            const oblData = await oblRes.json();
+                            const items = Array.isArray(oblData.items) ? oblData.items : [];
+                            this.formState.currentEntities[idx].obligaciones = items.map(item => ({ value: item.id, label: item.label }));
+                        } catch (e) {
+                            console.warn('[HS v4] obligaciones', entity.entityCaseId, e);
+                        }
+                    }));
+                } catch (e) {
+                    console.warn('[HS v4] loadCurrentEntities', e);
+                    this.formState.currentEntities = [];
+                    this.formState.hasEntidades = '';
+                }
+            },
+            async loadLocations() {
+                try {
+                    const [deptRes, cityRes] = await Promise.all([
+                        fetch('/api/v1/locations/departments'),
+                        fetch('/api/v1/locations/cities'),
+                    ]);
+                    if (deptRes.ok) this.formState.statesColombia = await deptRes.json();
+                    if (cityRes.ok) this.allCities = await cityRes.json();
+                } catch (e) {
+                    console.warn('[HS v4] loadLocations', e);
+                }
+                if (this._lastAnswers) SeguimientoV4.onAnswers(this, this._lastAnswers);
+            },
+            onAnswersUpdated(payload) {
+                SeguimientoV4.onAnswers(this, payload);
+            },
+            onFormCompleted() {
+                this.formCompleted = true;
+                setTimeout(() => this.goToCase(), 3000);
+            },
+            goToCase() {
+                window.location.href = `/salvia/casos/${this.caseId}/detalle`;
+            },
+        }
+    });
+</script>
+
+<script src="/static/js/components/case-info.js"></script>
+<script src="/static/js/components/dinamic-form.js"></script>
+
+<script>
+    app.mount("#seguimiento-app");
+</script>

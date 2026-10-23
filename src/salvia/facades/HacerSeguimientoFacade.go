@@ -50,3 +50,42 @@ func HacerSeguimientoGET(c *gin.Context) {
 		utils.GetFullHtmlFuncMap(),
 	)
 }
+
+// HacerSeguimientoV4GET abre el formulario de seguimiento V.4.
+// Ruta: GET /salvia/hacer-seguimiento-v4/:id
+func HacerSeguimientoV4GET(c *gin.Context) {
+	session := sessions.Default(c)
+	sessionID := session.Get("userData").(string)
+	s, err := utils.GetCommonSession(sessionID)
+	if err != nil {
+		c.Redirect(http.StatusTemporaryRedirect, "/static/landing.html")
+		c.Abort()
+		return
+	}
+
+	if !utils.CheckPermission(salvia_config.PermissionsByRole, "get_hacer_seguimiento", s.CurrentRole, c) {
+		return
+	}
+
+	common_facades.RenderTemplate(
+		c,
+		"hacer_seguimiento_v4",
+		"salvia",
+		"follow_up_v2/",
+		salvia_config.HTML_Templates,
+		"hacer_seguimiento_v4",
+		utils.GetFullHtmlTemplates(),
+		utils.DEFAULT_VIEW,
+		utils.DEFAULT_PANIC_TEMPLATE,
+		map[string]interface{}{
+			"windowTitle": "Hacer Seguimiento V.4",
+			"currentUser": s.Names + " " + s.LastNames,
+			"locale":      salvia_config.Locale,
+			"lang":        s.Lang,
+			"followUpId":  c.Param("id"),
+			"userICode":   s.UserICode,
+			"userRole":    s.CurrentRole,
+		},
+		utils.GetFullHtmlFuncMap(),
+	)
+}

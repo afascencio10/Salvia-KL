@@ -54,6 +54,56 @@ func TestSeedDeCierreCreaElFormularioQueSeVerifica(t *testing.T) {
 	}
 }
 
+func TestSeedDeSeguimientoV4EsUnaSolaSentenciaIdempotente(t *testing.T) {
+	sql := strings.TrimSpace(soloComentarios.ReplaceAllString(seguimientoV4FormSQL, ""))
+
+	if !strings.HasPrefix(sql, "DO $$") {
+		t.Fatal("el seed debe empezar con el bloque DO $$")
+	}
+	if !strings.HasSuffix(sql, "END $$;") {
+		t.Fatal("el seed debe terminar con END $$")
+	}
+	if n := strings.Count(sql, "DO $$"); n != 1 {
+		t.Fatalf("debe haber exactamente un bloque DO, hay %d", n)
+	}
+	inserts := strings.Count(sql, "INSERT INTO")
+	conflictos := strings.Count(sql, "ON CONFLICT (id) DO NOTHING")
+	if inserts != conflictos {
+		t.Fatalf("%d INSERT pero %d ON CONFLICT", inserts, conflictos)
+	}
+	if !strings.Contains(sql, SeguimientoV4FormID) {
+		t.Fatalf("el seed no crea el formulario %s", SeguimientoV4FormID)
+	}
+	if !strings.Contains(sql, SeguimientoV4FormDescription) {
+		t.Fatal("el seed no deja la descripción de esta versión")
+	}
+	if !strings.Contains(sql, "el formulario de seguimiento V.4 ya tiene envíos y no se reemplaza") {
+		t.Fatal("el seed debe abortar si el formulario ya tiene envíos")
+	}
+	if strings.Contains(sql, "ALTER TABLE") {
+		t.Fatal("el seed no debe alterar tablas: el usuario de la aplicación no es dueño")
+	}
+	if strings.Contains(sql, "Cuáles barreras se cerraron") {
+		t.Fatal("el seguimiento por barrera ya no pregunta cuáles se cerraron")
+	}
+	if strings.Contains(sql, "Seguimiento a medidas de emergencia") {
+		t.Fatal("la sección de medidas de emergencia no entra en esta versión")
+	}
+	for _, esperado := range []string{
+		"Equipo al que reasigna el caso",
+		"Activación de ruta interinstitucional (Generar oficio)",
+		"¿Se realiza cierre de la barrera?",
+	} {
+		if !strings.Contains(sql, esperado) {
+			t.Errorf("falta %s", esperado)
+		}
+	}
+	if strings.Contains(sql, "2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff") && strings.Contains(sql, "INSERT INTO salvia.form") {
+		// El id vigente solo puede aparecer en un comentario, que ya se quitó arriba.
+		t.Fatal("el seed ejecutable no debe insertar sobre el formulario vigente")
+	}
+}
+
 // Esta reparación corre en cada arranque contra toda la tabla, así que sus
 // exclusiones son lo único que la separa de crear tareas donde no debe. Cada una
 // está acá para que quitarla sea una decisión y no un descuido.

@@ -1263,13 +1263,15 @@ func (s *formService) TestFunction(ctx context.Context, fn, id, submissionID str
 // ─── visibilityItem ───────────────────────────────────────────────────────────
 
 type visibilityItem struct {
-	ID              string
-	Name            string
-	Conditions      []models.VisibilityCondition
-	SectionOrder    int
-	OrderInSection  int     // 0 para secciones → solo secciones anteriores pueden disparar
-	RepeaterGroupID *string // non-nil si el item está dentro de un repeater
-	OrderInRepeater int     // solo si RepeaterGroupID != nil
+	ID                    string
+	Name                  string
+	Conditions            []models.VisibilityCondition
+	SectionOrder          int
+	OrderInSection        int
+	RepeaterGroupID       *string
+	OrderInRepeater       int
+	ParentRepeaterGroupID *string
+	EntryIndex            *int
 }
 
 func sectionItem(sec SectionStructure) visibilityItem {
@@ -1446,13 +1448,20 @@ func checkVisibility(
 		}
 
 		if trigger.RepeaterGroupID != nil {
-			if item.RepeaterGroupID == nil || *item.RepeaterGroupID != *trigger.RepeaterGroupID {
-				continue
-			}
-			if entryAnswers == nil {
-				continue
-			}
-			if trigger.OrderInRepeater >= item.OrderInRepeater {
+			sameGroup := item.RepeaterGroupID != nil && *item.RepeaterGroupID == *trigger.RepeaterGroupID
+			childOfTrigger := item.ParentRepeaterGroupID != nil && *item.ParentRepeaterGroupID == *trigger.RepeaterGroupID
+			if sameGroup {
+				if entryAnswers == nil {
+					continue
+				}
+				if trigger.OrderInRepeater >= item.OrderInRepeater {
+					continue
+				}
+			} else if childOfTrigger {
+				if entryAnswers == nil {
+					continue
+				}
+			} else {
 				continue
 			}
 			applicable = append(applicable, cond)
@@ -1477,7 +1486,11 @@ func checkVisibility(
 
 		// Condición de formState
 		if cond.TriggerStatePath != nil && *cond.TriggerStatePath != "" {
-			stateVal := resolveStatePath(formState, *cond.TriggerStatePath)
+			path := *cond.TriggerStatePath
+			if item.EntryIndex != nil {
+				path = strings.ReplaceAll(path, "{_entryIndex}", strconv.Itoa(*item.EntryIndex))
+			}
+			stateVal := resolveStatePath(formState, path)
 			condFailed := false
 			switch strings.ToLower(cond.Operator) {
 			case "equals":
@@ -1610,6 +1623,91 @@ func isAnsweredQuestion(
 
 // ─── isAnsweredRepeater ───────────────────────────────────────────────────────
 
+// answeredChildRepeater evalúa un repetidor que vive dentro de la entrada de su padre.
+// Cada entrada padre decide si el hijo se ve. Si ninguna lo muestra, no exige respuestas.
+func answeredChildRepeater(
+	r RepeaterStructure,
+	sectionOrder int,
+	entries []RepeaterEntryStructure,
+	fs *FormStructure,
+	sub *SubmissionStructure,
+	formState map[string]interface{},
+) IsAnsweredRepeaterResult {
+	if sub == nil || r.ParentRepeaterGroupID == nil {
+		return IsAnsweredRepeaterResult{IsVisible: false, IsAnswered: true}
+	}
+	var parents []RepeaterEntryStructure
+	for _, e := range sub.RepeaterEntries {
+		if e.RepeaterGroupID == *r.ParentRepeaterGroupID {
+			parents = append(parents, e)
+		}
+	}
+	if len(parents) == 0 {
+		return IsAnsweredRepeaterResult{IsVisible: false, IsAnswered: true}
+	}
+
+	anyVisible := false
+	var errors []RepeaterAnswerError
+	for _, parent := range parents {
+		idx := parent.Iteration - 1
+		if idx < 0 {
+			idx = 0
+		}
+		item := repeaterItem(r, sectionOrder)
+		item.ParentRepeaterGroupID = r.ParentRepeaterGroupID
+		item.EntryIndex = &idx
+		vis := checkVisibility(fs, sub, parent.Answers, item, formState)
+		if !vis.Visible {
+			continue
+		}
+		anyVisible = true
+
+		var mine []RepeaterEntryStructure
+		for _, e := range entries {
+			if e.ParentEntryID != nil && *e.ParentEntryID == parent.ID {
+				mine = append(mine, e)
+			}
+		}
+		if r.StateItems == nil && len(mine) < r.MinRepetitions {
+			errors = append(errors, RepeaterAnswerError{
+				Error: fmt.Sprintf("Se requieren al menos %d entrada(s)", r.MinRepetitions),
+			})
+			continue
+		}
+		for _, entry := range mine {
+			for _, q := range r.Questions {
+				qVis := checkVisibility(fs, sub, entry.Answers, repeaterQuestionItem(q, sectionOrder, r.Order, r.ID), formState)
+				if !qVis.Visible {
+					continue
+				}
+				var answerVal models.Answer
+				for i := range entry.Answers {
+					if entry.Answers[i].QuestionID == q.ID {
+						answerVal = entry.Answers[i]
+						break
+					}
+				}
+				result := validateAnswer(answerVal, q)
+				if !result.Valid {
+					errors = append(errors, RepeaterAnswerError{
+						Iteration:  entry.Iteration,
+						QuestionID: q.ID,
+						Error:      *result.Error,
+					})
+				}
+			}
+		}
+	}
+	if !anyVisible {
+		return IsAnsweredRepeaterResult{IsVisible: false, IsAnswered: true}
+	}
+	return IsAnsweredRepeaterResult{
+		IsVisible:  true,
+		IsAnswered: len(errors) == 0,
+		Errors:     errors,
+	}
+}
+
 // isAnsweredRepeater evalúa si un repeater group está respondido.
 //
 //	r            → repeater a evaluar (incluye .Questions y .MinRepetitions)
@@ -1625,6 +1723,9 @@ func isAnsweredRepeater(
 	sub *SubmissionStructure,
 	formState map[string]interface{},
 ) IsAnsweredRepeaterResult {
+	if r.ParentRepeaterGroupID != nil && *r.ParentRepeaterGroupID != "" {
+		return answeredChildRepeater(r, sectionOrder, entries, fs, sub, formState)
+	}
 	// PASO 1 — visibilidad del repeater group
 	vis := checkVisibility(fs, sub, nil, repeaterItem(r, sectionOrder), formState)
 	if !vis.Visible {
@@ -1813,6 +1914,7 @@ type SaveAnswerInput struct {
 type SaveRepeaterEntryInput struct {
 	ID              string            `json:"id"`
 	RepeaterGroupID string            `json:"repeaterGroupId"`
+	ParentEntryID   *string           `json:"parentEntryId"`
 	Iteration       int               `json:"iteration"`
 	IsTemp          bool              `json:"isTemp"`
 	Answers         []SaveAnswerInput `json:"answers"`
@@ -1882,18 +1984,42 @@ func (s *formService) SaveSection(ctx context.Context, input SaveSectionInput) (
 	// 3. Procesar repeaterEntries
 	// createdEntryIDs: IDs reales de entries recién creadas (para protegerlas en el paso 4)
 	createdEntryIDs := map[string]bool{}
+	tempToReal := map[string]string{}
+	ordered := make([]SaveRepeaterEntryInput, 0, len(input.RepeaterEntries))
 	for _, entry := range input.RepeaterEntries {
+		if entry.ParentEntryID == nil || *entry.ParentEntryID == "" {
+			ordered = append(ordered, entry)
+		}
+	}
+	for _, entry := range input.RepeaterEntries {
+		if entry.ParentEntryID != nil && *entry.ParentEntryID != "" {
+			ordered = append(ordered, entry)
+		}
+	}
+	for _, entry := range ordered {
+		var parentID *string
+		if entry.ParentEntryID != nil && *entry.ParentEntryID != "" {
+			mapped := *entry.ParentEntryID
+			if real, ok := tempToReal[mapped]; ok {
+				mapped = real
+			}
+			parentID = &mapped
+		}
 		if entry.IsTemp {
 			// Crear nueva entry
 			newEntry := &models.RepeaterEntry{
 				FormSubmissionID: submissionID,
 				RepeaterGroupID:  entry.RepeaterGroupID,
+				ParentEntryID:    parentID,
 				Iteration:        entry.Iteration,
 			}
 			if err := s.repeaterEntryRepo.Create(ctx, newEntry); err != nil {
 				return nil, fmt.Errorf("saveSection: crear repeaterEntry: %w", err)
 			}
 			createdEntryIDs[newEntry.ID] = true
+			if entry.IsTemp {
+				tempToReal[entry.ID] = newEntry.ID
+			}
 			for _, ans := range entry.Answers {
 				entryID := newEntry.ID
 				a := &models.Answer{FormSubmissionID: submissionID, QuestionID: ans.QuestionID, Value: ans.Value, RepeaterEntryID: &entryID}
@@ -2029,6 +2155,7 @@ const (
 	// SeguimientoFormID es el formulario "vivo" de seguimiento; exportado para que
 	// otros paquetes (p.ej. el controller) puedan validar permisos por formId.
 	SeguimientoFormID   = "2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff"
+	SeguimientoV4FormID = "c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f"
 	barrierUpdateFormID = "4d0aeb46-5af3-4c47-a0d5-c5bfc4d549ff"
 	cierreCasoFormID    = "da8423ab-1a8c-47db-96b7-d10496df571a"
 )
@@ -2039,6 +2166,8 @@ func (s *formService) OnEndFormSubmission(ctx context.Context, formID, submissio
 	switch formID {
 	case SeguimientoFormID:
 		return s.processFollowUpSubmission(ctx, submissionID, actorID)
+	case SeguimientoV4FormID:
+		return s.completeFollowUpV4(ctx, submissionID, actorID)
 	case RegistroCasoFormID:
 		if s.victimCaseFormSvc == nil {
 			return fmt.Errorf("victimCaseFormSvc no inyectado")
@@ -2462,40 +2591,40 @@ func (s *formService) processPsicosocialSessionSubmission(ctx context.Context, f
 	case primerContactoNoEfectivo:
 		// no-op: la remisión permanece en su estado actual (abierto)
 	default:
-	switch sessionType {
-	case models.SessionTypePrimerContacto, models.SessionTypePrimerContactoSinConsentimiento:
-		ps.YaHizoPrimerContacto = true
-		ps.Status = models.PsychosocialSupportStatusEnGestion
-	case models.SessionTypePrimerContactoConAtencion:
-		ps.YaHizoPrimerContacto = true
-		ps.YaHizoPrimeraAtencion = true
-		ps.SessionCount++
-		ps.Status = models.PsychosocialSupportStatusEnGestion
-	case models.SessionTypePrimeraAtencion:
-		ps.YaHizoPrimeraAtencion = true
-		ps.SessionCount++
-		ps.Status = models.PsychosocialSupportStatusEnGestion
-	case models.SessionTypeAtencionPsicosocial:
-		ps.SessionCount++
-	case models.SessionTypeCierre:
-		// El cierre ahora puede ocurrir desde Primer Contacto o Primera Atención (no solo
-		// desde el form de Cierre, session_count >= 3) — si aún no estaban en true, quedan
-		// marcados para que el historial refleje que la atención sí llegó a ocurrir.
-		ps.YaHizoPrimerContacto = true
-		ps.YaHizoPrimeraAtencion = true
-		ps.SessionCount++
-		ps.Status = models.PsychosocialSupportStatusCerrado
-	case models.SessionTypeCierreNoConsentimiento:
-		ps.Status = models.PsychosocialSupportStatusEnDevolucion
-	case models.SessionTypeContactoSinAtencion:
-		if fechaNueva != "" {
-			if t, err := time.Parse("2006-01-02", fechaNueva); err == nil {
-				ps.ScheduledAt = &t
-			} else {
-				log.Printf("[processPsicosocialSessionSubmission] advertencia: fecha nueva no parseable %q: %v", fechaNueva, err)
+		switch sessionType {
+		case models.SessionTypePrimerContacto, models.SessionTypePrimerContactoSinConsentimiento:
+			ps.YaHizoPrimerContacto = true
+			ps.Status = models.PsychosocialSupportStatusEnGestion
+		case models.SessionTypePrimerContactoConAtencion:
+			ps.YaHizoPrimerContacto = true
+			ps.YaHizoPrimeraAtencion = true
+			ps.SessionCount++
+			ps.Status = models.PsychosocialSupportStatusEnGestion
+		case models.SessionTypePrimeraAtencion:
+			ps.YaHizoPrimeraAtencion = true
+			ps.SessionCount++
+			ps.Status = models.PsychosocialSupportStatusEnGestion
+		case models.SessionTypeAtencionPsicosocial:
+			ps.SessionCount++
+		case models.SessionTypeCierre:
+			// El cierre ahora puede ocurrir desde Primer Contacto o Primera Atención (no solo
+			// desde el form de Cierre, session_count >= 3) — si aún no estaban en true, quedan
+			// marcados para que el historial refleje que la atención sí llegó a ocurrir.
+			ps.YaHizoPrimerContacto = true
+			ps.YaHizoPrimeraAtencion = true
+			ps.SessionCount++
+			ps.Status = models.PsychosocialSupportStatusCerrado
+		case models.SessionTypeCierreNoConsentimiento:
+			ps.Status = models.PsychosocialSupportStatusEnDevolucion
+		case models.SessionTypeContactoSinAtencion:
+			if fechaNueva != "" {
+				if t, err := time.Parse("2006-01-02", fechaNueva); err == nil {
+					ps.ScheduledAt = &t
+				} else {
+					log.Printf("[processPsicosocialSessionSubmission] advertencia: fecha nueva no parseable %q: %v", fechaNueva, err)
+				}
 			}
 		}
-	}
 	}
 
 	if err := s.psychosocialSupportRepo.Update(ctx, ps); err != nil {
@@ -2952,6 +3081,83 @@ func (s *formService) resolveCompetencesQuestionID(ctx context.Context, repeater
 	return ""
 }
 
+// completeFollowUpV4 marca el seguimiento como realizado y deja el intento
+// "Sí contestó" en la línea de tiempo. No crea barreras, entidades ni remisiones:
+// esas respuestas todavía no tienen esa lógica.
+func (s *formService) completeFollowUpV4(ctx context.Context, submissionID, actorID string) error {
+	fu, err := s.followUpRepo.FindByFormSubmissionID(ctx, submissionID)
+	if err != nil {
+		return fmt.Errorf("completeFollowUpV4: buscar followUp: %w", err)
+	}
+
+	actorName := actorID
+	if s.agentLightRepo != nil && actorID != "" {
+		agent, err := s.agentLightRepo.FindByICode(ctx, actorID)
+		if err == nil && agent != nil {
+			actorName = strings.TrimSpace(agent.Names + " " + agent.LastNames)
+		}
+	}
+	now := time.Now()
+
+	if fu.Status == models.FollowUpStatusRealizado {
+		if s.caseTimelineRepo == nil {
+			return nil
+		}
+		editEvent := &models.CaseTimelineEvent{
+			CaseID:      fu.CaseID,
+			FollowUpID:  fu.ID,
+			Category:    models.TimelineCategorySeguimientos,
+			Type:        models.TimelineTypeSeguimientoEditado,
+			Icon:        models.TimelineIconPospuesto,
+			Date:        now,
+			Description: "Seguimiento editado después de su ejecución",
+			EventUserID: actorID,
+			ActorName:   actorName,
+			Color:       models.TimelineColorTeal,
+			CreatedAt:   now,
+		}
+		if err := s.caseTimelineRepo.Create(ctx, editEvent); err != nil {
+			log.Printf("[completeFollowUpV4] advertencia: no se pudo crear evento editado: %v", err)
+		}
+		return nil
+	}
+
+	if err := s.followUpRepo.UpdateStatus(ctx, fu.ID, models.FollowUpStatusRealizado); err != nil {
+		return fmt.Errorf("completeFollowUpV4: actualizar estado: %w", err)
+	}
+	if s.followUpAttemptRepo != nil {
+		attempt := &models.FollowUpAttempt{
+			FollowUpID:  fu.ID,
+			Reason:      "Sí contestó",
+			WasAnswered: true,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		}
+		if err := s.followUpAttemptRepo.CreateAttempt(ctx, attempt); err != nil {
+			log.Printf("[completeFollowUpV4] advertencia: no se pudo registrar intento para followUp=%s: %v", fu.ID, err)
+		}
+	}
+	if s.caseTimelineRepo != nil {
+		event := &models.CaseTimelineEvent{
+			CaseID:      fu.CaseID,
+			FollowUpID:  fu.ID,
+			Category:    models.TimelineCategorySeguimientos,
+			Type:        models.TimelineTypeSeguimientoEjecutado,
+			Icon:        models.TimelineIconSeguimiento,
+			Date:        now,
+			Description: "Seguimiento V.4 ejecutado.",
+			EventUserID: actorID,
+			ActorName:   actorName,
+			Color:       models.TimelineColorGreen,
+			CreatedAt:   now,
+		}
+		if err := s.caseTimelineRepo.Create(ctx, event); err != nil {
+			log.Printf("[completeFollowUpV4] advertencia: no se pudo crear evento timeline: %v", err)
+		}
+	}
+	return nil
+}
+
 // processFollowUpSubmission marca el follow_up_v2 asociado como REALIZADO y crea las entidades
 // derivadas (barreras, medidas de emergencia, derivaciones) a partir de las respuestas.
 func (s *formService) processFollowUpSubmission(ctx context.Context, submissionID, actorID string) error {
@@ -3166,8 +3372,8 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 			Description:        entryMap[qBarreraDescripcion],
 			ManagementActions:  entryMap[qBarreraGestion],
 
-			EntityBranchID:     barreraEntityBranchID,
-			Competences:        entryMap[qBarreraCompetencias],
+			EntityBranchID: barreraEntityBranchID,
+			Competences:    entryMap[qBarreraCompetencias],
 		}
 		log.Printf("[processFollowUp] creando barrera sector=%s entry=%s", sector, entry.ID)
 		if err := s.barrierV2Repo.Create(ctx, b); err != nil {
