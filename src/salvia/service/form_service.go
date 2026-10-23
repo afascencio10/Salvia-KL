@@ -3122,6 +3122,11 @@ func (s *formService) completeFollowUpV4(ctx context.Context, submissionID, acto
 		return nil
 	}
 
+	barrierCount, remisionCount, reasignacion, err := s.processFollowUpV4(ctx, fu, submissionID, actorID)
+	if err != nil {
+		return err
+	}
+
 	if err := s.followUpRepo.UpdateStatus(ctx, fu.ID, models.FollowUpStatusRealizado); err != nil {
 		return fmt.Errorf("completeFollowUpV4: actualizar estado: %w", err)
 	}
@@ -3138,6 +3143,13 @@ func (s *formService) completeFollowUpV4(ctx context.Context, submissionID, acto
 		}
 	}
 	if s.caseTimelineRepo != nil {
+		description := fmt.Sprintf(
+			"Seguimiento V.4 ejecutado. Se identificaron %d %s y se realizaron %d %s a Equipos Salvia",
+			barrierCount,
+			pluralize(barrierCount, "barrera", "barreras"),
+			remisionCount,
+			pluralize(remisionCount, "remisión", "remisiones"),
+		)
 		event := &models.CaseTimelineEvent{
 			CaseID:      fu.CaseID,
 			FollowUpID:  fu.ID,
@@ -3145,7 +3157,7 @@ func (s *formService) completeFollowUpV4(ctx context.Context, submissionID, acto
 			Type:        models.TimelineTypeSeguimientoEjecutado,
 			Icon:        models.TimelineIconSeguimiento,
 			Date:        now,
-			Description: "Seguimiento V.4 ejecutado.",
+			Description: description,
 			EventUserID: actorID,
 			ActorName:   actorName,
 			Color:       models.TimelineColorGreen,
@@ -3155,6 +3167,9 @@ func (s *formService) completeFollowUpV4(ctx context.Context, submissionID, acto
 			log.Printf("[completeFollowUpV4] advertencia: no se pudo crear evento timeline: %v", err)
 		}
 	}
+
+	// ReasignarCalendario borra los seguimientos PENDIENTE. Este ya está REALIZADO.
+	s.applyV4Reasignacion(ctx, fu, actorID, reasignacion)
 	return nil
 }
 
