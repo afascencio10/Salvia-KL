@@ -828,16 +828,21 @@ var SeguimientoV4App = {
             if (row.nuevaBarrera === 'si') {
                 f.push(this.barrerasNuevasRepeater(base + '.barrerasNuevas', row.barrerasNuevas, 'seg:' + ent.id));
             }
+            var activacion = [
+                this.field(base + '.acuerdo', 'bool', '¿La persona está de acuerdo con que SALVIA active la Ruta de Atención y las gestiones institucionales correspondientes?', { required: true }),
+            ];
+            if (row.acuerdo === 'si') {
+                activacion.push(this.field(base + '.debidaDiligencia', 'bool', '¿Salvia debe activar rutas en el marco de la debida diligencia?', { required: true }));
+                activacion.push(this.field(base + '.canales', 'multi', 'Seleccione los canales utilizados para la activación o gestión de la Ruta de Atención', {
+                    required: true, exclusive: 'ninguna', options: opts(CANALES),
+                }));
+                activacion.push(this.field(base + '.gestionesRuta', 'text', 'Describa las gestiones realizadas para la activación de rutas y gestión de barreras en esta entidad'));
+            }
             f.push({
                 kind: 'panel',
                 key: ent.id + '-actruta',
                 title: 'Activación de ruta',
-                fields: this.camposActivacion(base).concat([
-                    this.field(base + '.canales', 'multi', 'Seleccione los canales utilizados para la activación o gestión de la Ruta de Atención', {
-                        required: true, exclusive: 'ninguna', options: opts(CANALES),
-                    }),
-                    this.field(base + '.gestionesRuta', 'text', 'Describa las gestiones realizadas para la activación de rutas y gestión de barreras en esta entidad'),
-                ]),
+                fields: activacion,
             });
             return f;
         },
@@ -913,12 +918,6 @@ var SeguimientoV4App = {
                 fields.push(this.info(entId + '-' + bar.id + '-al', 'Alerta por barreras: al guardar de verdad, esto notificaría al equipo técnico. Este prototipo no envía la notificación.'));
             }
             return { kind: 'card', key: bb, title: bar.nombre, fields: fields };
-        },
-        camposActivacion: function (base) {
-            return [
-                this.field(base + '.acuerdo', 'bool', '¿La persona está de acuerdo con que SALVIA active la Ruta de Atención y las gestiones institucionales correspondientes?', { required: true }),
-                this.field(base + '.debidaDiligencia', 'bool', '¿Salvia debe activar rutas en el marco de la debida diligencia?', { required: true }),
-            ];
         },
         barrerasNuevasRepeater: function (listPath, list, addId) {
             var items = (list || []).map(function (bar, i) {

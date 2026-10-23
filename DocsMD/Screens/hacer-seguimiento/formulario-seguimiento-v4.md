@@ -19,7 +19,7 @@ Registrados el 23 de octubre de 2026. Están solo en el prototipo. El seed y el 
 
 **Registro de la barrera nueva**, en Identificación y en Seguimiento. La fecha aproximada es un campo de fecha. Se quita la pregunta de otra institución interna o externa. La opción de gestión queda «Activación de ruta interinstitucional (Generar oficio)».
 
-**Activación de ruta en Seguimiento a entidades.** Acuerdo, debida diligencia, canales y gestiones van juntos en un recuadro titulado «Activación de ruta», después de la barrera nueva.
+**Activación de ruta en Seguimiento a entidades.** Van en un recuadro titulado «Activación de ruta», después de la barrera nueva. Siempre se ve el acuerdo. Debida diligencia, canales y gestiones se muestran solo si el acuerdo es Sí.
 
 **Identificación de entidades**, después de «Otra información asociada a la Ruta»: la barrera nueva y su tarjeta si es Sí; luego la debida diligencia, siempre visible. Solo si la debida diligencia es Sí se muestran el acuerdo, los canales y las gestiones, en ese orden.
 
