@@ -51,6 +51,34 @@
         .proto-row-value { font-size: 14px; color: #111827; font-weight: 500; }
         .proto-head { font-size: 13px; font-weight: 700; color: #6d28d9; margin-top: 10px; }
         .df-repeater .df-repeater { margin-top: 4px; }
+        .proto-barrera-card {
+            background: #f5f3ff;
+            border: 1px solid #ddd6fe;
+            border-radius: 12px;
+            padding: 14px 16px 4px;
+            margin: 8px 0 12px;
+        }
+        .proto-barrera-title {
+            margin: 0 0 12px;
+            font-size: 15px;
+            font-weight: 700;
+            color: #5b21b6;
+        }
+        .proto-panel {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 12px;
+            padding: 14px 16px 4px;
+            margin: 12px 0;
+        }
+        .proto-panel-title {
+            margin: 0 0 12px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #92400e;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
         @media (max-width: 800px) {
             #proto-app .df-wrapper { flex-direction: column; }
             #proto-app .df-sidebar { width: 100%; }
@@ -355,7 +383,7 @@ function emptySeg() {
         completadas: [], pendientes: [], otraPendiente: '', actualizacion: '',
         nuevaBarrera: '', barrerasNuevas: [], acuerdo: '', debidaDiligencia: '',
         canales: [], gestionesRuta: '',
-        persisten: '', gestion: '', cerradas: [], motivoCierre: '',
+        barreras: {},
     };
 }
 function humanField(field) {
@@ -778,24 +806,9 @@ var SeguimientoV4App = {
             f.push(this.field(base + '.completadas', 'multi', 'Acciones institucionales que ya se completaron', { options: optsNames(ACCIONES.proteccion.concat(ACCIONES.salud)) }));
             if (ent.barreras.length) {
                 f.push(this.heading(ent.id + '-segb', 'Seguimiento a barreras de esta entidad'));
-                f.push(this.info(ent.id + '-bb', 'Barreras ya asociadas a esta entidad:\n' + ent.barreras.map(function (x) { return '• ' + x.nombre; }).join('\n')));
-                f.push(this.field(base + '.persisten', 'bool', '¿Las barreras persisten?', { required: true }));
-                f.push(this.field(base + '.cerradas', 'multi', '¿Cuáles barreras se cerraron?', {
-                    options: ent.barreras.map(function (x) { return { v: x.id, l: x.nombre }; }),
-                }));
-                if ((row.cerradas || []).length) {
-                    f.push(this.field(base + '.motivoCierre', 'single', 'Motivo del cierre', { required: true, options: opts(CIERRE_MOTIVOS) }));
-                }
-                f.push(this.field(base + '.gestion', 'single', 'Gestión de la barrera por parte de Salvia', {
-                    options: opts([
-                        ['activacion', 'Activación de ruta'],
-                        ['alerta', 'Alerta por barreras'],
-                    ]),
-                    hint: 'Activación de ruta queda registrada como gestión y no abre otra sección. Alerta por barreras notifica al equipo técnico.',
-                }));
-                if (row.gestion === 'alerta') {
-                    f.push(this.info(ent.id + '-al', 'Alerta por barreras: al guardar de verdad, esto notificaría al equipo técnico. Este prototipo no envía la notificación.'));
-                }
+                ent.barreras.forEach(function (bar) {
+                    f.push(this.tarjetaSeguimientoBarrera(base, ent.id, bar, (row.barreras || {})[bar.id] || {}));
+                }, this);
             }
             f.push(this.info(ent.id + '-pend', 'Pendientes que trae el sistema: ' + ent.pendientes.join(', ') + '.'));
             f.push(this.field(base + '.pendientes', 'multi', 'Acciones institucionales pendientes', {
@@ -815,11 +828,17 @@ var SeguimientoV4App = {
             if (row.nuevaBarrera === 'si') {
                 f.push(this.barrerasNuevasRepeater(base + '.barrerasNuevas', row.barrerasNuevas, 'seg:' + ent.id));
             }
-            f = f.concat(this.camposActivacion(base));
-            f.push(this.field(base + '.canales', 'multi', 'Seleccione los canales utilizados para la activación o gestión de la Ruta de Atención', {
-                required: true, exclusive: 'ninguna', options: opts(CANALES),
-            }));
-            f.push(this.field(base + '.gestionesRuta', 'text', 'Describa las gestiones realizadas para la activación de rutas y gestión de barreras en esta entidad'));
+            f.push({
+                kind: 'panel',
+                key: ent.id + '-actruta',
+                title: 'Activación de ruta',
+                fields: this.camposActivacion(base).concat([
+                    this.field(base + '.canales', 'multi', 'Seleccione los canales utilizados para la activación o gestión de la Ruta de Atención', {
+                        required: true, exclusive: 'ninguna', options: opts(CANALES),
+                    }),
+                    this.field(base + '.gestionesRuta', 'text', 'Describa las gestiones realizadas para la activación de rutas y gestión de barreras en esta entidad'),
+                ]),
+            });
             return f;
         },
         sectionIdent: function () {
@@ -858,11 +877,6 @@ var SeguimientoV4App = {
             f.push(this.field(base + '.completadas', 'multi', 'Acciones institucionales completadas', { required: true, options: acc }));
             f.push(this.field(base + '.pendientes', 'multi', 'Acciones institucionales pendientes', { required: true, options: acc }));
             f.push(this.field(base + '.otraRuta', 'text', 'Otra información asociada a la Ruta', { required: true }));
-            f = f.concat(this.camposActivacion(base));
-            f.push(this.field(base + '.canales', 'multi', 'Seleccione los canales utilizados para la activación o gestión de la Ruta de Atención', {
-                required: true, exclusive: 'ninguna', options: opts(CANALES),
-            }));
-            f.push(this.field(base + '.gestionesRuta', 'text', '¿Qué gestiones se realizaron desde Salvia para la activación de ruta?', { required: true }));
             f.push(this.field(base + '.nuevaBarrera', 'bool', '¿Se identifica alguna nueva barrera con relación a esta entidad?', {
                 required: true,
                 hint: 'Si marca Sí, el registro de la barrera se abre aquí, asociado a esta entidad.',
@@ -870,7 +884,35 @@ var SeguimientoV4App = {
             if (ent.nuevaBarrera === 'si') {
                 f.push(this.barrerasNuevasRepeater(base + '.barrerasNuevas', ent.barrerasNuevas, 'identb:' + i));
             }
+            f.push(this.field(base + '.debidaDiligencia', 'bool', '¿Salvia debe activar rutas en el marco de la debida diligencia?', { required: true }));
+            if (ent.debidaDiligencia === 'si') {
+                f.push(this.field(base + '.acuerdo', 'bool', '¿La persona está de acuerdo con que SALVIA active la Ruta de Atención y las gestiones institucionales correspondientes?', { required: true }));
+                f.push(this.field(base + '.canales', 'multi', 'Seleccione los canales utilizados para la activación o gestión de la Ruta de Atención', {
+                    required: true, exclusive: 'ninguna', options: opts(CANALES),
+                }));
+                f.push(this.field(base + '.gestionesRuta', 'text', '¿Qué gestiones se realizaron desde Salvia para la activación de ruta?', { required: true }));
+            }
             return f;
+        },
+        tarjetaSeguimientoBarrera: function (base, entId, bar, ans) {
+            var bb = base + '.barreras.' + bar.id;
+            var fields = [];
+            fields.push(this.field(bb + '.persisten', 'bool', '¿Las barreras persisten?', { required: true }));
+            fields.push(this.field(bb + '.cierre', 'bool', '¿Se realiza cierre de la barrera?', { required: true }));
+            if (ans.cierre === 'si') {
+                fields.push(this.field(bb + '.motivoCierre', 'single', 'Motivo del cierre', { required: true, options: opts(CIERRE_MOTIVOS) }));
+            }
+            fields.push(this.field(bb + '.gestion', 'single', 'Gestión de la barrera por parte de Salvia', {
+                options: opts([
+                    ['activacion', 'Activación de ruta'],
+                    ['alerta', 'Alerta por barreras'],
+                ]),
+                hint: 'Activación de ruta queda registrada como gestión y no abre otra sección. Alerta por barreras notifica al equipo técnico.',
+            }));
+            if (ans.gestion === 'alerta') {
+                fields.push(this.info(entId + '-' + bar.id + '-al', 'Alerta por barreras: al guardar de verdad, esto notificaría al equipo técnico. Este prototipo no envía la notificación.'));
+            }
+            return { kind: 'card', key: bb, title: bar.nombre, fields: fields };
         },
         camposActivacion: function (base) {
             return [
@@ -935,15 +977,12 @@ var SeguimientoV4App = {
                 f.push(this.field(base + '.institucion', 'select', '¿A qué institución acudió?', { options: optsNames(INST.proteccion) }));
                 f.push(this.field(base + '.otraTipo', 'text', 'Otra barrera en el marco del sector Protección'));
             }
-            if (bar.sector && bar.sector !== 'transversales') {
-                f.push(this.field(base + '.otraInst', 'text', '¿La barrera se presentó en otra institución interna (empleador o empleadora) o externa?', { required: true }));
-            }
             f = f.concat(this.fieldsBarreraComunes(base, bar));
             return f;
         },
         fieldsBarreraComunes: function (base, bar) {
             var f = [];
-            f.push(this.field(base + '.fecha', 'input', 'Fecha en la que se presentó la barrera (aproximada)', { required: true, hint: 'Texto libre, como pide la hoja. No es un campo de fecha.' }));
+            f.push(this.field(base + '.fecha', 'date', 'Fecha en la que se presentó la barrera (aproximada)', { required: true }));
             f.push(this.field(base + '.funcionario', 'input', 'Funcionario/a o dependencia donde se presentó la barrera', { required: true }));
             f = f.concat(this.territoryFields(base).slice(0, 2));
             var depto = this.val(base + '.depto');
@@ -958,7 +997,7 @@ var SeguimientoV4App = {
             f.push(this.field(base + '.gestion', 'multi', 'Gestión de la barrera', {
                 required: true,
                 options: opts([
-                    ['activacion', 'Activación de ruta interinstitucional'],
+                    ['activacion', 'Activación de ruta interinstitucional (Generar oficio)'],
                     ['alerta', 'Alerta por barreras'],
                 ]),
                 hint: 'Activación de ruta queda registrada como gestión y no abre otra sección. Alerta por barreras informa al equipo técnico.',
@@ -1082,6 +1121,7 @@ var SeguimientoV4App = {
             function walk(blocks) {
                 (blocks || []).forEach(function (block) {
                     if (block.kind === 'field' && block.required && self.isEmpty(block)) missing.push(block);
+                    if (block.kind === 'card' || block.kind === 'panel') walk(block.fields);
                     if (block.kind === 'repeater') {
                         (block.items || []).forEach(function (item) { walk(item.fields); });
                     }
@@ -1193,6 +1233,10 @@ var SeguimientoV4App = {
                         var text = humanField(block);
                         if (text) rows.push({ label: block.label, value: text });
                     }
+                    if (block.kind === 'card' || block.kind === 'panel') {
+                        rows.push({ label: block.title, value: '', head: true });
+                        walk(block.fields, rows);
+                    }
                     if (block.kind === 'repeater') {
                         (block.items || []).forEach(function (item) {
                             rows.push({ label: item.title, value: '', head: true });
@@ -1290,6 +1334,22 @@ var SeguimientoV4App = {
                                     <div v-if="sub.hint" class="df-hint">{{ sub.hint }}</div>
                                     <field-view :field="sub" @set="onSet"></field-view>
                                     <div v-if="sub.error" class="df-error">{{ sub.error }}</div>
+                                </div>
+                                <div v-else-if="sub.kind==='card' || sub.kind==='panel'" :class="sub.kind==='card' ? 'proto-barrera-card' : 'proto-panel'">
+                                    <p :class="sub.kind==='card' ? 'proto-barrera-title' : 'proto-panel-title'">{{ sub.title }}</p>
+                                    <template v-for="leaf in sub.fields" :key="leaf.key || leaf.path">
+                                        <div v-if="leaf.kind==='info'" class="df-info-banner">
+                                            <span class="df-info-banner-icon">ℹ️</span>
+                                            <span>{{ leaf.text }}</span>
+                                        </div>
+                                        <div v-else-if="leaf.kind==='heading'" class="proto-heading">{{ leaf.text }}</div>
+                                        <div v-else-if="leaf.kind==='field'" class="df-question">
+                                            <label>{{ leaf.label }}<span v-if="leaf.required" class="df-required">*</span></label>
+                                            <div v-if="leaf.hint" class="df-hint">{{ leaf.hint }}</div>
+                                            <field-view :field="leaf" @set="onSet"></field-view>
+                                            <div v-if="leaf.error" class="df-error">{{ leaf.error }}</div>
+                                        </div>
+                                    </template>
                                 </div>
                                 <div v-else-if="sub.kind==='repeater'" class="df-repeater">
                                     <div v-for="nested in sub.items" :key="nested.key" class="df-repeater-item">

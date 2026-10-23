@@ -7,7 +7,51 @@ Cada hoja visible es un módulo del formulario nuevo. La hoja `Final` está ocul
 
 Las columnas del Excel no siempre coinciden con el encabezado: en varias filas “Si”, el tipo y las opciones están corridos. Aquí se lee por el contenido de la fila, no por la letra de la columna.
 
-La lectura del Excel queda debajo. Donde choque con las revisiones del prototipo, manda la tercera revisión. Donde la tercera no hable, manda la segunda y, si tampoco, la primera.
+La lectura del Excel queda debajo. Donde choque con las revisiones del prototipo, manda la nota de ajustes del 23 de octubre. Esa nota todavía no está en la base: el formulario sembrado sigue como quedó el 21 de octubre. Donde la nota no hable, manda la tercera revisión, luego la segunda y, si tampoco, la primera.
+
+---
+
+## Ajustes del prototipo, pendientes de pasar a la base
+
+Registrados el 23 de octubre de 2026. Están solo en el prototipo. El seed y el formulario `c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f` no se modificaron.
+
+**Seguimiento a barreras de esta entidad.** Una tarjeta por barrera activa, con fondo propio y el nombre de la barrera. Se quita «¿Cuáles barreras se cerraron?». En cada tarjeta: ¿Las barreras persisten?, ¿Se realiza cierre de la barrera?, el motivo del cierre solo si el cierre es Sí, y Gestión de la barrera por parte de Salvia.
+
+**Registro de la barrera nueva**, en Identificación y en Seguimiento. La fecha aproximada es un campo de fecha. Se quita la pregunta de otra institución interna o externa. La opción de gestión queda «Activación de ruta interinstitucional (Generar oficio)».
+
+**Activación de ruta en Seguimiento a entidades.** Acuerdo, debida diligencia, canales y gestiones van juntos en un recuadro titulado «Activación de ruta», después de la barrera nueva.
+
+**Identificación de entidades**, después de «Otra información asociada a la Ruta»: la barrera nueva y su tarjeta si es Sí; luego la debida diligencia, siempre visible. Solo si la debida diligencia es Sí se muestran el acuerdo, los canales y las gestiones, en ese orden.
+
+---
+
+## Formulario sembrado en la base
+
+Sembrado el 21 de octubre de 2026. El prototipo no cambia. El formulario que ya usan los seguimientos tampoco: sigue siendo `2d0aeb46-1af3-4c47-a0d5-c5bfc4d549ff` y sigue siendo el que abre hacer seguimiento.
+
+El formulario nuevo es otro registro.
+
+| | |
+|---|---|
+| Id | `c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f` |
+| Nombre | Seguimiento V.4 |
+| Seed | `src/internal/seed/seguimiento_v4_form.sql`, generado por `scripts/gen_seguimiento_v4_seed.js` |
+| Arranque | `seed.EnsureSeguimientoV4Form` lo crea si falta. Si ya está, no lo reescribe. En esta base ya está creado |
+
+Completarlo no crea barreras, entidades, remisiones ni cambia el riesgo. Ese id no está en `OnEndFormSubmission`, así que el guardado deja solo las respuestas.
+
+El contenido sigue las tres revisiones del prototipo: las seis secciones, el acuerdo y la debida diligencia, Ninguna en los canales, Transversales como sector de la barrera, las gestiones al final de Seguimiento y opcionales, y «Sin acceso…» con el texto de 1 punto. Las listas cerradas están en `salvia.option`. Departamento, municipio, ciudad, entidad, obligaciones, entidades del caso y barreras a cerrar no tienen opciones fijas: la pantalla las entrega por `state_options_path`.
+
+Las barreras nuevas de cada entidad quedan como un repetidor hijo (`parent_repeater_group_id`). La columna, y `repeater_entry.parent_entry_id`, ya existen. El componente todavía no las lee: hasta la próxima pasada, ese repetidor se ve como otro repetidor de la sección y la condición «solo si hay barrera nueva» está guardada pero el motor no la aplica entre grupos distintos.
+
+Tampoco entra todavía en el dibujo, aunque la pregunta ya está sembrada:
+
+- El select de varias opciones. Hoy el tipo `multiple` sigue saliendo en botones, salvo el repetidor de barreras del formulario viejo.
+- Ninguna exclusiva.
+- La exclusión entre medidas de emergencia y psicosocial.
+- El puntaje de los criterios y las sugerencias de factores de riesgo. No hay pregunta de aviso para eso, porque el motor no cuenta opciones marcadas.
+- El motivo de cierre solo cuando hay barreras cerradas. La pregunta está, siempre, dentro del bloque de barreras de la entidad.
+- Vereda solo cuando ya hay departamento y municipio. La pregunta está siempre en la tarjeta.
 
 ---
 
