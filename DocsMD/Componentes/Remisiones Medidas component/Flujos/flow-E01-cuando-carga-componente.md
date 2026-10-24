@@ -12,8 +12,10 @@ Hoy el `mounted` no llama al API: clona el seed y calcula alcance, cards y filas
 
 INPUT: {
   vista:      recorte y presentación     → prop vista (default supervisor)
-  agenteId:   icode del agente           → prop agenteId (default am-1)
+  agenteId:   icode del agente           → prop agenteId
               solo lo usa vista = agente
+              Mis Remisiones lo toma de la sesión (general_user_i_code)
+  puedeReasignar: checkbox y reasignar  → prop, true para sm y sv
 }
 
 
@@ -41,12 +43,13 @@ PASO 2 — Pedir el listado del recorte
   SI vista === "agente":
     → agregar &agent_id={agenteId}
 
-  agent_id es temporal. Cuando exista el rol de Agente de Medidas, Mis
-  Remisiones deja de enviar el id y el backend lo toma de la sesión
-  (general_user_i_code). Un agent_id distinto al de la sesión se rechaza.
+  agent_id es el general_user_i_code de la sesión. El cliente de Mis
+  Remisiones lo envía porque el padre ya lo leyó de la sesión. El backend
+  de la vista agente usa el icode de la sesión y rechaza un agent_id distinto.
 
-  vista también es temporal. Cuando cada vista tenga rol, el backend la
-  deduce de la sesión. El query vista deja de ser la fuente del recorte.
+  La vista la elige el padre según el rol: sm y sv = supervisor, em =
+  equipo-tecnico, sc = supervision-convenio, cr = cruz-roja, am = agente.
+  sm y sv envían puedeReasignar.
 
   Sin page ni page_size. La pantalla no pagina.
 

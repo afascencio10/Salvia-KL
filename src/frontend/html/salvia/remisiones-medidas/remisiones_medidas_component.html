@@ -4,7 +4,7 @@
 <script type="text/x-template" id="tpl-remisiones-medidas-component">
 <div class="rme-wrapper">
 
-    <div v-if="esSupervisor && selectedIds.length > 0" class="rme-reassign-bar">
+    <div v-if="puedeReasignar && selectedIds.length > 0" class="rme-reassign-bar">
         <button type="button" class="rme-reassign-btn" @click="abrirReasignarMasivo">
             ↺ Reasignar ${ selectedIds.length } seleccionada${ selectedIds.length === 1 ? '' : 's' }
         </button>
@@ -53,7 +53,7 @@
     <div class="rme-table">
         <div class="rme-table-scroll">
             <div class="rme-head" :class="claseGrilla">
-                <div v-if="esSupervisor" class="rme-check">
+                <div v-if="puedeReasignar" class="rme-check">
                     <input
                         type="checkbox"
                         :checked="todosSeleccionados"
@@ -75,7 +75,7 @@
                     class="rme-row"
                     :class="[claseGrilla, { 'rme-row--selected': isSelected(item.id) }]"
                 >
-                    <div v-if="esSupervisor" class="rme-check">
+                    <div v-if="puedeReasignar" class="rme-check">
                         <input
                             type="checkbox"
                             :checked="isSelected(item.id)"

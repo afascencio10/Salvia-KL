@@ -27,7 +27,7 @@ PASO 1 — Sesión
 PASO 2 — Permiso HTML
 
   CheckPermission(..., "get_remisiones_medidas", s.CurrentRole)
-  Hoy el permiso es true solo para sv.
+  El permiso es true para sm, em, sc, cr y sv.
   Si se niega, CheckPermission responde 401 y TERMINAR.
 
 PASO 3 — Render
@@ -42,15 +42,21 @@ PASO 3 — Render
   FRONTEND — remisiones_medidas.html
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-PASO 4 — Montar el componente en vista supervisor
+PASO 4 — Montar el componente según el rol
 
-  <remisiones-medidas-component vista="supervisor">
+  sm y sv → vista="supervisor" y :puede-reasignar="true"
+  em  → vista="equipo-tecnico"
+  sc  → vista="supervision-convenio"
+  cr  → vista="cruz-roja"
 
   Eso dispara E-01 del componente:
-    GET /api/v1/emergency-measure-referrals?vista=supervisor
+    GET /api/v1/emergency-measure-referrals?vista={vista}
 
   Hasta que ese endpoint exista, el componente sigue pintando el seed.
   El padre no envía agenteId.
+
+  Al iniciar sesión, sm, em, sc y cr aterrizan en esta ruta.
+  sv conserva su entrada habitual y llega aquí por el menú.
 
 PASO 5 — Handlers de navegación
 

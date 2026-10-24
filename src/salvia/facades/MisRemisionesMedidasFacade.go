@@ -1,5 +1,5 @@
 // Package salvia_facades — MisRemisionesMedidasFacade: pantalla Mis Remisiones — Medidas de Emergencia.
-// Vista fija de agente (am-1). El mapeo currentRole → vista queda pendiente.
+// Solo el rol am. El id del agente sale de la sesión.
 package salvia_facades
 
 import (
@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// MisRemisionesMedidasGET renderiza la bandeja del agente con data quemada.
+// MisRemisionesMedidasGET renderiza la bandeja del agente de medidas.
 func MisRemisionesMedidasGET(c *gin.Context) {
 	session := sessions.Default(c)
 	sessionID, ok := session.Get("userData").(string)
@@ -43,6 +43,7 @@ func MisRemisionesMedidasGET(c *gin.Context) {
 			"windowTitle": "Mis Remisiones — Medidas de Emergencia",
 			"currentUser": s.Names + " " + s.LastNames,
 			"currentRole": s.CurrentRole,
+			"agentICode":  s.UserICode,
 			"locale":      salvia_config.Locale,
 			"lang":        s.Lang,
 			"menu":        menu,

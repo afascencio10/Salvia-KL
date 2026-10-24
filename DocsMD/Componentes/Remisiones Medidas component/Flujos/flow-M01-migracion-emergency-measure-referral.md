@@ -189,7 +189,7 @@ En `src/main.go`, junto al AutoMigrate de `EmergencyMeasure`:
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  PASO 5 — Catálogos de usuario (sin rol nuevo)
+  PASO 5 — Catálogos de usuario
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 E-04 y E-08 leen agentes. E-11 lee profesionales de revisión. Los dos endpoints devuelven:
@@ -198,6 +198,30 @@ E-04 y E-08 leen agentes. E-11 lee profesionales de revisión. Los dos endpoints
 { "id": "general_user_i_code", "nombre": "Nombres Apellidos" }
 ```
 
-El filtro por rol queda pendiente. Este documento no asigna un código (`sv`, `te`, u otro) a Agente de Medidas, Equipo Técnico de medidas, Supervisión del Convenio ni Cruz Roja. Hasta esa decisión, los endpoints responden el catálogo que corresponda a ese rol y, si el rol no existe, una lista vacía. El seed actual (Pedro Ramírez, Lucía Mendoza, Jorge Castillo, y los tres profesionales de revisión) no se persiste.
+| Catálogo | Filtro | Uso |
+|---|---|---|
+| `GET .../agentes` | `role_code = 'am'` y usuario activo | Select de filtro (supervisor) y modal de reasignar (`sm` y `sv`) |
+| `GET .../profesionales-revision` | `role_code = 'em'` y usuario activo | Modal de revisión (`sm`, `em`, `sv`) |
+
+Roles de la bandeja, insertados al arrancar junto al de `te` (`src/main.go`):
+
+| `role_code` | `role_name` | Vista |
+|---|---|---|
+| `sm` | Supervisor de Medidas | `supervisor`, con reasignar |
+| `em` | Equipo Técnico de Medidas | `equipo-tecnico` |
+| `sc` | Supervisión del Convenio | `supervision-convenio` |
+| `cr` | Cruz Roja | `cruz-roja` |
+| `am` | Agente de Medidas | `agente` |
+
+`sv` (Supervisor) no es un rol nuevo. Entra a la vista `supervisor`, puede reasignar y puede guardar la revisión. `te` no se reutiliza: sigue siendo el equipo técnico del comité.
+
+Permisos en `PermissionsByRole`:
+
+| Permiso | Roles |
+|---|---|
+| `get_remisiones_medidas` | `sm`, `em`, `sc`, `cr`, `sv` |
+| `get_mis_remisiones_medidas` | `am` |
+| `reassign_remisiones_medidas` | `sm`, `sv` |
+| `review_remisiones_medidas` | `sm`, `em`, `sv` |
 
   → FIN DE LA MIGRACIÓN PROPUESTA ✓

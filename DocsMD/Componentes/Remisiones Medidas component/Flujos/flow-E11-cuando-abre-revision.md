@@ -5,7 +5,9 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Disparado por: botón "Revisar (Equipo Técnico)"
-Solo si vista es supervisor o equipo-tecnico y el estado es pendiente_de_revision.
+Lo ven sm y sv (vista supervisor) y em (vista equipo-tecnico),
+con estado pendiente_de_revision.
+Permiso review_remisiones_medidas: sm, em y sv.
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -33,7 +35,7 @@ PASO 2 — Catálogo
     ]
   }
 
-  El rol del catálogo está pendiente (M-01, paso 5).
+  El catálogo es role_code = em, usuario activo (M-01, paso 5).
   El select guarda el id. La fila, al recargar, muestra el nombre.
 
 PASO 3 — Resultado

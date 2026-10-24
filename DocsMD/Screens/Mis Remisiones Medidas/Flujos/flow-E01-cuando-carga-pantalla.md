@@ -27,7 +27,7 @@ PASO 1 — Sesión
 PASO 2 — Permiso HTML
 
   CheckPermission(..., "get_mis_remisiones_medidas", s.CurrentRole)
-  Hoy el permiso es true solo para sv.
+  El permiso es true solo para am.
   Si se niega, CheckPermission responde 401 y TERMINAR.
 
 PASO 3 — Render
@@ -37,7 +37,7 @@ PASO 3 — Render
   windowTitle: "Mis Remisiones — Medidas de Emergencia"
   currentUser, currentRole, menu
 
-  El handler no envía el icode del agente. El template lo deja fijo.
+  El handler pasa agentICode = s.UserICode. El template lo pone en agente-id.
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -46,17 +46,19 @@ PASO 3 — Render
 
 PASO 4 — Montar el componente en vista agente
 
-  <remisiones-medidas-component vista="agente" agente-id="am-1">
+  <remisiones-medidas-component vista="agente" agente-id="{UserICode}">
 
   Eso dispara E-01 del componente:
 
-    GET /api/v1/emergency-measure-referrals?vista=agente&agent_id=am-1
+    GET /api/v1/emergency-measure-referrals?vista=agente&agent_id={UserICode}
 
-  am-1 es temporal. El destino es no enviar agent_id: el backend usa el
-  general_user_i_code de la sesión cuando exista el rol de Agente de Medidas.
+  El backend de esa vista usa el icode de la sesión y rechaza otro agent_id.
 
   Hasta que ese endpoint exista, el componente sigue pintando el seed
-  filtrado por agenteId am-1.
+  filtrado por el icode real. Los ids del seed (am-1, am-2, am-3) no
+  coinciden, así que la bandeja abre vacía.
+
+  Al iniciar sesión, am aterriza en esta ruta.
 
 PASO 5 — Handlers de navegación
 

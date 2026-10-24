@@ -29,7 +29,7 @@ PASO 1 — Catálogo
     ]
   }
 
-  El rol que alimenta esta lista está pendiente (M-01, paso 5).
+  El rol del catálogo es am, usuario activo (M-01, paso 5).
   La primera opción del select es "Agente asignado" (vacío).
   La segunda es "Sin asignar" (value sin-asignar).
   Después, un option por item.

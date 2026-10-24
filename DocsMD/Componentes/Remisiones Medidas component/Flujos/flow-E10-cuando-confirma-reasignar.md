@@ -64,7 +64,9 @@ PASO 3 — Si responde 4xx o 5xx
   No modifica la revisión técnica ni las medidas hijas.
 
   Rechaza con 400 si ids está vacío, si agentId está vacío o si agentId
-  no pertenece al catálogo de GET .../agentes.
+  no pertenece al catálogo de GET .../agentes (role_code = am).
+  Rechaza con 401 si el rol no tiene reassign_remisiones_medidas.
+  Ese permiso es de sm y sv.
   Rechaza con 404 si algún id no existe.
 
   Respuesta 200:

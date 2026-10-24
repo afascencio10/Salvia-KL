@@ -11,7 +11,8 @@
 
     <div class="mt-4 mb-4">
         <remisiones-medidas-component
-            vista="supervisor"
+            vista="{{.vista}}"
+            {{ if .puedeReasignar }}:puede-reasignar="true"{{ end }}
             @ver-caso="onVerCaso"
             @ver-detalle="onVerDetalle"
         ></remisiones-medidas-component>

@@ -135,7 +135,7 @@ Requerido:    Sí
 ```
 Evento:       Cuando el usuario marca una fila o el checkbox del encabezado
 Tipo:         User Interaction
-Descripción:  Solo supervisor. La selección es local. "Todas" marca las filas
+Descripción:  Roles sm y sv (puedeReasignar). La selección es local. "Todas" marca las filas
               visibles; si ya estaban todas marcadas, vacía la selección entera.
               Muestra la barra "↺ Reasignar N seleccionada(s)".
 Requerido:    Sí
@@ -150,9 +150,9 @@ Requerido:    Sí
 ```
 Evento:       Cuando abre el modal de reasignación
 Tipo:         User Interaction
-Descripción:  Desde la barra (usa la selección actual) o desde "Asignar agente"
-              (deja seleccionada solo esa fila). Carga GET .../agentes.
-              No persiste.
+Descripción:  Desde la barra (usa la selección actual) o desde "Asignar agente".
+              Las dos entradas exigen puedeReasignar (roles sm y sv). Carga GET .../agentes
+              (role_code = am). No persiste.
 Requerido:    Sí
 ```
 
@@ -180,6 +180,7 @@ Requerido:    Sí
 Evento:       Cuando confirma la reasignación
 Tipo:         User Interaction / Backend write
 Descripción:  POST .../reasignar con los ids seleccionados y el agentId.
+              Permiso reassign_remisiones_medidas: sm y sv.
               Cada remisión queda con assigned_agent_id y status asignada.
               Cierra el modal, vacía la selección y recarga E-01.
 Requerido:    Sí
@@ -194,9 +195,10 @@ Requerido:    Sí
 ```
 Evento:       Cuando abre el modal de revisión
 Tipo:         User Interaction
-Descripción:  Botón "Revisar (Equipo Técnico)". Solo supervisor y equipo
-              técnico, estado pendiente_de_revision. Carga el catálogo de
-              profesionales. No persiste.
+Descripción:  Botón "Revisar (Equipo Técnico)". Lo ven sm y sv (vista supervisor)
+              y em (vista equipo-tecnico), estado pendiente_de_revision.
+              Permiso review_remisiones_medidas: sm, em y sv.
+              Carga el catálogo de profesionales (role_code = em). No persiste.
 Requerido:    Sí
 ```
 
@@ -270,14 +272,14 @@ Requerido:    Sí
 - [x] ¿Migración de schema documentada? → M-01
 - [x] ¿Ciclo de vida inicial cubierto? → E-01
 - [x] ¿Filtros cubiertos y combinables (AND)? → E-02, E-03, E-04, E-05, E-06
-- [x] ¿Selección masiva? → E-07, solo supervisor
+- [x] ¿Selección masiva? → E-07, sm y sv (`puedeReasignar`)
 - [x] ¿Reasignar? → E-08, E-09, E-10
 - [x] ¿Revisión técnica? → E-11, E-12, E-13
 - [x] ¿Navegación emitida al padre? → E-14, E-15
 - [x] ¿Cards y banner sobre el recorte, no sobre los filtros? → E-01
 - [x] ¿Flujos detallados escritos? → M-01, E-01 … E-15
 - [ ] ¿M-01 y los endpoints implementados? → Pendiente
-- [ ] ¿Mapeo currentRole → vista? → Pendiente
+- [x] ¿Mapeo currentRole → vista? → sm, em, sc, cr, am y sv (ver interfaz)
 - [ ] ¿Pantalla de detalle de la remisión? → Pendiente (E-15 solo emite)
 
 ---

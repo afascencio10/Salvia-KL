@@ -80,6 +80,20 @@ func main() {
 		SELECT gen_random_uuid()::text, 'te', 'Equipo Técnico', 'Equipo técnico que gestiona las decisiones del comité sobre barreras', NOW(), NOW()
 		WHERE NOT EXISTS (SELECT 1 FROM security.role WHERE role_code = 'te')`)
 
+	// Roles de Medidas de Emergencia. te sigue siendo el equipo técnico del comité.
+	for _, role := range []struct{ code, name, description string }{
+		{"sm", "Supervisor de Medidas", "Supervisa las remisiones de medidas de emergencia: asigna agente y ve el listado completo"},
+		{"em", "Equipo Técnico de Medidas", "Emite el concepto técnico de las remisiones pendientes de revisión"},
+		{"sc", "Supervisión del Convenio", "Revisa trazabilidad, aprueba cotizaciones y escala a Cruz Roja"},
+		{"cr", "Cruz Roja", "Cotiza, entrega la medida inmediata y ve las aprobadas pendientes de otorgamiento"},
+		{"am", "Agente de Medidas", "Gestiona las remisiones asignadas a su perfil"},
+	} {
+		gormDB.Exec(`INSERT INTO security.role (role_i_code, role_code, role_name, role_description, role_creation_date, role_update_date)
+			SELECT gen_random_uuid()::text, ?, ?, ?, NOW(), NOW()
+			WHERE NOT EXISTS (SELECT 1 FROM security.role WHERE role_code = ?)`,
+			role.code, role.name, role.description, role.code)
+	}
+
 	// AutoMigrate por tabla — warning en lugar de fatal para tablas ya existentes
 	for _, m := range []interface{}{
 		&models.Form{},

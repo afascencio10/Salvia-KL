@@ -5,7 +5,7 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Disparado por: checkbox de una fila, o el checkbox "Seleccionar todas" del encabezado
-Solo vista supervisor. El resto de las vistas no pinta checkboxes ni la barra.
+Solo si puedeReasignar (roles sm y sv).
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

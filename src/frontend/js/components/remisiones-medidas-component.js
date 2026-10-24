@@ -2,7 +2,7 @@
  * remisiones-medidas-component
  * Listado de remisiones de Medidas de Emergencia con data quemada.
  * La prop `vista` decide cards, filtros, recorte y acciones.
- * El mapeo currentRole → vista queda para una interacción posterior.
+ * `puedeReasignar` la encienden los roles sm y sv.
  */
 (function() {
     var vueApp = (typeof app !== 'undefined') ? app : (typeof home !== 'undefined' ? home : null);
@@ -352,7 +352,8 @@
 
         props: {
             vista: { type: String, default: 'supervisor' },
-            agenteId: { type: String, default: 'am-1' },
+            agenteId: { type: String, default: '' },
+            puedeReasignar: { type: Boolean, default: false },
         },
 
         emits: ['ver-caso', 'ver-detalle'],
@@ -395,7 +396,7 @@
                 return this.esAgente ? ESTADOS_AGENTE : ESTADOS;
             },
             claseGrilla: function() {
-                return this.esSupervisor ? 'rme-grid--check' : 'rme-grid--3';
+                return this.puedeReasignar ? 'rme-grid--check' : 'rme-grid--3';
             },
             alcance: function() {
                 var self = this;
@@ -563,7 +564,7 @@
                 if ((vista === 'supervisor' || vista === 'equipo-tecnico') && estado === 'Pendiente de Revisión') {
                     return { tipo: 'revisar', label: '⚖️ Revisar (Equipo Técnico)', clase: 'rme-action--revisar' };
                 }
-                if (vista === 'supervisor' && estado === 'Por asignar') {
+                if (this.puedeReasignar && estado === 'Por asignar') {
                     return { tipo: 'asignar', label: '👤 Asignar agente', clase: 'rme-action--asignar' };
                 }
                 if (vista === 'supervisor' && estado === 'Caracterizado') {

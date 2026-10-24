@@ -1,5 +1,5 @@
 // Package salvia_facades — RemisionesMedidasFacade: pantalla Remisiones Medidas de Emergencia.
-// Vista fija de supervisor. El mapeo currentRole → vista queda pendiente.
+// sm, em, sc, cr y sv comparten esta ruta. La vista sale de currentRole.
 package salvia_facades
 
 import (
@@ -17,7 +17,7 @@ var remisionesMedidasComponentTemplates = []string{
 	"frontend/html/salvia/remisiones-medidas/remisiones_medidas_component.html",
 }
 
-// RemisionesMedidasGET renderiza el listado general con data quemada (vista supervisor).
+// RemisionesMedidasGET renderiza el listado general. La vista depende del rol.
 func RemisionesMedidasGET(c *gin.Context) {
 	session := sessions.Default(c)
 	sessionID, ok := session.Get("userData").(string)
@@ -43,13 +43,34 @@ func RemisionesMedidasGET(c *gin.Context) {
 
 	extraTemplates := append(utils.GetFullHtmlTemplates(), remisionesMedidasComponentTemplates...)
 
+	vista, puedeReasignar := vistaRemisionesMedidas(s.CurrentRole)
+
 	common_facades.RenderTemplate(c, "RemisionesMedidas", "salvia", "remisiones-medidas/", salvia_config.HTML_Templates, "remisiones_medidas", extraTemplates, utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
 		map[string]interface{}{
-			"windowTitle": "Remisiones Medidas de Emergencia",
-			"currentUser": s.Names + " " + s.LastNames,
-			"currentRole": s.CurrentRole,
-			"locale":      salvia_config.Locale,
-			"lang":        s.Lang,
-			"menu":        menu,
+			"windowTitle":    "Remisiones Medidas de Emergencia",
+			"currentUser":    s.Names + " " + s.LastNames,
+			"currentRole":    s.CurrentRole,
+			"locale":         salvia_config.Locale,
+			"lang":           s.Lang,
+			"menu":           menu,
+			"vista":          vista,
+			"puedeReasignar": puedeReasignar,
 		}, utils.GetFullHtmlFuncMap())
+}
+
+// vistaRemisionesMedidas traduce el rol a la prop vista del componente.
+// sm y sv ven el listado de supervisor y pueden reasignar.
+func vistaRemisionesMedidas(role string) (vista string, puedeReasignar bool) {
+	switch role {
+	case "em":
+		return "equipo-tecnico", false
+	case "sc":
+		return "supervision-convenio", false
+	case "cr":
+		return "cruz-roja", false
+	case "sm", "sv":
+		return "supervisor", true
+	default:
+		return "supervisor", false
+	}
 }

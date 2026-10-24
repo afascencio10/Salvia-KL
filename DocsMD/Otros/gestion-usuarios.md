@@ -75,6 +75,11 @@ Catálogo de roles del sistema.
 | `an` | A notificaciones |
 | `us` | Usuario externo |
 | `mc` | Mecanismo (tipo Municipal / Departamental / Nacional persistido en `salvia.articulating_mechanism`, 1:1 con el usuario) |
+| `sm` | Supervisor de Medidas |
+| `em` | Equipo Técnico de Medidas |
+| `sc` | Supervisión del Convenio |
+| `cr` | Cruz Roja |
+| `am` | Agente de Medidas |
 
 ---
 

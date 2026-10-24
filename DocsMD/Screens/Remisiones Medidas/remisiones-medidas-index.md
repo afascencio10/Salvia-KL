@@ -1,8 +1,8 @@
 # Remisiones Medidas de Emergencia — Índice
 
-Pantalla de gestión que monta [`remisiones-medidas-component`](../../Componentes/Remisiones%20Medidas%20component/remisiones-medidas-component-events.md) con `vista="supervisor"`. Ruta `GET /salvia/remisiones-medidas`.
+Pantalla de gestión que monta [`remisiones-medidas-component`](../../Componentes/Remisiones%20Medidas%20component/remisiones-medidas-component-events.md). Ruta `GET /salvia/remisiones-medidas`.
 
-El listado todavía usa el seed del componente. El contrato de lectura y de los dos guardados está en los eventos del componente. El mapeo `currentRole` → `vista` queda pendiente: esta pantalla no cambia de vista según el rol.
+La vista sale de `currentRole`. El listado todavía usa el seed del componente. El contrato de lectura y de los dos guardados está en los eventos del componente.
 
 ## Navegación
 
@@ -21,20 +21,20 @@ El listado todavía usa el seed del componente. El contrato de lectura y de los 
 | Template | `src/frontend/html/salvia/remisiones-medidas/remisiones_medidas.html` |
 | Título | Remisiones Medidas de Emergencia |
 | Subtítulo | Gestión de remisiones al equipo de medidas de emergencia |
-| Permiso | `get_remisiones_medidas`: solo `sv`. El resto recibe 401 |
-| Menú | Ítem **Remisiones Medidas**, dentro del bloque `sv` de `sidebar.html` |
+| Permiso | `get_remisiones_medidas`: `sm`, `em`, `sc`, `cr`, `sv` |
+| Menú | Ítem **Remisiones Medidas** para esos cinco roles |
 
-El acceso de `sv` es temporal, para poder abrir la pantalla mientras no existan los roles de Medidas.
+| Rol | Vista que monta | Reasignar |
+|---|---|---|
+| `sm` | `supervisor` | Sí (`puedeReasignar`, permiso `reassign_remisiones_medidas`) |
+| `sv` | `supervisor` | Sí. También puede revisar (`review_remisiones_medidas`) |
+| `em` | `equipo-tecnico` | No. Sí puede revisar |
+| `sc` | `supervision-convenio` | No |
+| `cr` | `cruz-roja` | No |
 
 ## Qué monta
 
-```html
-<remisiones-medidas-component
-  vista="supervisor"
-  @ver-caso="onVerCaso"
-  @ver-detalle="onVerDetalle"
-></remisiones-medidas-component>
-```
+El handler traduce el rol y el template recibe `vista`. Para `sm` y `sv` también envía `:puede-reasignar="true"`.
 
 `onVerCaso` y `onVerDetalle` están vacíos. E-14 y E-15 del componente emiten y esta pantalla no redirige.
 
@@ -44,5 +44,5 @@ Filtros, cards, selección, reasignación y revisión técnica no se documentan 
 
 - [x] ¿La carga de la pantalla está cubierta? → E-01 de esta pantalla
 - [x] ¿El listado y sus acciones están cubiertos? → eventos del componente
-- [ ] ¿El permiso deja de ser solo `sv` cuando exista el rol? → Pendiente
+- [x] ¿Cada rol entra con su vista? → tabla de arriba
 - [ ] ¿`onVerCaso` y `onVerDetalle` navegan? → Pendiente

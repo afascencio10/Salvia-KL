@@ -30,22 +30,43 @@ Los dos modales (reasignar y revisión técnica) viven en este mismo componente.
 | Prop | Tipo | Requerido | Default | Descripción |
 |---|---|---|---|---|
 | `vista` | `String` | No | `supervisor` | Recorte y presentación. Valores: `supervisor`, `equipo-tecnico`, `supervision-convenio`, `cruz-roja`, `agente` |
-| `agenteId` | `String` | No | `am-1` | Solo lo usa `vista="agente"`. Es el `general_user_i_code` del agente. Hoy Mis Remisiones envía `am-1` |
+| `agenteId` | `String` | No | `""` | Solo lo usa `vista="agente"`. Es el `general_user_i_code` de la sesión |
+| `puedeReasignar` | `Boolean` | No | `false` | Enciende checkbox, barra de reasignar y "Asignar agente". Roles `sm` y `sv` |
 
-El mapeo `currentRole` → `vista` queda pendiente. Estas dos pantallas fijan la prop. Las vistas `equipo-tecnico`, `supervision-convenio` y `cruz-roja` están implementadas en el componente y ninguna pantalla las monta todavía.
+El padre fija `vista` según el rol. Estas son las cinco vistas del componente y quién las monta:
+
+| Rol | `role_name` | `vista` | Pantalla |
+|---|---|---|---|
+| `sm` | Supervisor de Medidas | `supervisor` | `/salvia/remisiones-medidas`, con `puedeReasignar` |
+| `em` | Equipo Técnico de Medidas | `equipo-tecnico` | `/salvia/remisiones-medidas` |
+| `sc` | Supervisión del Convenio | `supervision-convenio` | `/salvia/remisiones-medidas` |
+| `cr` | Cruz Roja | `cruz-roja` | `/salvia/remisiones-medidas` |
+| `am` | Agente de Medidas | `agente` | `/salvia/mis-remisiones-medidas`, `agenteId` de la sesión |
+| `sv` | Supervisor | `supervisor` | `/salvia/remisiones-medidas`, con `puedeReasignar`. Puede revisar |
+
+`te` sigue siendo el Equipo Técnico de las decisiones del comité. No entra a esta bandeja.
 
 ```html
-<!-- Remisiones Medidas de Emergencia -->
+<!-- sm -->
 <remisiones-medidas-component
   vista="supervisor"
+  :puede-reasignar="true"
   @ver-caso="onVerCaso"
   @ver-detalle="onVerDetalle"
 ></remisiones-medidas-component>
 
-<!-- Mis Remisiones — Medidas de Emergencia -->
+<!-- sv: misma vista y también reasigna -->
+<remisiones-medidas-component
+  vista="supervisor"
+  :puede-reasignar="true"
+  @ver-caso="onVerCaso"
+  @ver-detalle="onVerDetalle"
+></remisiones-medidas-component>
+
+<!-- am -->
 <remisiones-medidas-component
   vista="agente"
-  agente-id="am-1"
+  :agente-id="sessionUserICode"
   @ver-caso="onVerCaso"
   @ver-detalle="onVerDetalle"
 ></remisiones-medidas-component>
@@ -72,7 +93,7 @@ Reasignar y guardar la revisión no se emiten. El componente llama al API y vuel
 
 | `vista` | Encabezado | Filtro estado | Filtro agente | Checkbox |
 |---|---|---|---|---|
-| `supervisor` | 8 cards | Los 16 estados | Sí, incluye "Sin asignar" | Sí |
+| `supervisor` (`sm` y `sv`) | 8 cards | Los 16 estados | Sí, incluye "Sin asignar" | Sí |
 | `agente` | 6 cards | Los 5 estados de su bandeja | No | No |
 | `equipo-tecnico` | Banner violeta | No | No | No |
 | `supervision-convenio` | Banner fucsia | No | No | No |
@@ -126,7 +147,7 @@ Las otras tres vistas no llevan cards. Llevan un banner:
 
 ```
 RemisionesMedidasComponent  (.rme-wrapper)
-├── ReassignBar                         v-if supervisor y hay selección
+├── ReassignBar                         v-if puedeReasignar y hay selección
 │   └── Button  "↺ Reasignar N seleccionada(s)"     → E-08
 ├── Cards                               v-if supervisor o agente
 │   └── Card × 8 o × 6                  label + valor
@@ -138,10 +159,10 @@ RemisionesMedidasComponent  (.rme-wrapper)
 │   ├── Select urgencia                 → E-05
 │   └── Button limpiar                  → E-06
 ├── Table
-│   ├── Head                            checkbox solo supervisor
+│   ├── Head                            checkbox solo si puedeReasignar
 │   ├── Empty                           ver mensaje vacío
 │   └── Row × N
-│       ├── Checkbox                    → E-07, solo supervisor
+│       ├── Checkbox                    → E-07, solo si puedeReasignar
 │       ├── Columna Caso                "Ver caso →" → E-14
 │       ├── Columna Remisión o Medidas  "Ver detalle →" → E-15
 │       └── Columna Estado              botón de acción, agente o concepto
@@ -157,7 +178,7 @@ No hay paginación.
 
 ## Columnas
 
-La grilla del agente tiene tres columnas: Caso, Medidas, Estado. La del resto: Caso, Remisión, Estado y asignación. El supervisor suma la columna del checkbox.
+La grilla del agente tiene tres columnas: Caso, Medidas, Estado. La del resto: Caso, Remisión, Estado y asignación. Si `puedeReasignar` es true, se suma la columna del checkbox.
 
 ### Caso
 
@@ -206,7 +227,7 @@ Etiquetas de tipo `detalle` (el negocio de cada una queda en la pantalla de deta
 | `cruz-roja` | `por_cotizar` | Cargar cotizaciones |
 | `agente` | `riesgo_inminente_por_confirmar_seguridad` | Confirmar seguridad |
 
-"Revisar (Equipo Técnico)" aparece en `supervisor` y `equipo-tecnico` cuando el estado es `pendiente_de_revision`. "Asignar agente" aparece solo en `supervisor` cuando el estado es `por_asignar`.
+"Revisar (Equipo Técnico)" aparece en `supervisor` y `equipo-tecnico` cuando el estado es `pendiente_de_revision`. Lo usan `sm`, `em` y `sv` (`review_remisiones_medidas`). "Asignar agente" aparece con `puedeReasignar` (`sm` y `sv`, `reassign_remisiones_medidas`) cuando el estado es `por_asignar`.
 
 ---
 
@@ -253,4 +274,4 @@ Riesgo inminente primero (`urgency = riesgo_inminente`). Empate: `referred_at` d
 
 La fila de la tabla es una remisión, no una medida. M-01 crea `salvia.emergency_measure_referral` y agrega `referral_id` a `salvia.emergency_measure`. El `status` de la medida sigue siendo el de hoy (`ACTIVE` al crearla) y no alimenta esta bandeja.
 
-Estados de la remisión, urgencia y el mapa de la revisión están en [M-01](./Flujos/flow-M01-migracion-emergency-measure-referral.md). Los códigos de rol de Agente de Medidas, Equipo Técnico de medidas, Supervisión del Convenio y Cruz Roja no se definen aquí.
+Estados de la remisión, urgencia y el mapa de la revisión están en [M-01](./Flujos/flow-M01-migracion-emergency-measure-referral.md). El catálogo de agentes filtra `role_code = 'am'`. El de profesionales de revisión filtra `role_code = 'em'`.

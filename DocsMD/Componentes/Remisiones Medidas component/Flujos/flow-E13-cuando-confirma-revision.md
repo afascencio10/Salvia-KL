@@ -80,6 +80,8 @@ PASO 3 — Si responde 4xx o 5xx
   Rechaza con 400 si falta professionalId, si el concepto queda vacío
   al recortar espacios, si el resultado no es uno de los tres códigos,
   o si el profesional no está en GET .../profesionales-revision.
+  Rechaza con 401 si el rol no tiene review_remisiones_medidas
+  (sm, em y sv).
   Rechaza con 404 si el id no existe.
 
   No cambia assigned_agent_id ni las medidas hijas.

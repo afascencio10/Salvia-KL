@@ -342,9 +342,13 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	"get_mis_remisiones_psicosocial": {"ps": true, "ts": true},
 
 	// ── Remisiones Medidas de Emergencia ────────────────────────────────────
-	// Acceso temporal de supervisor hasta cablear currentRole → vista.
-	"get_remisiones_medidas":     {"sv": true},
-	"get_mis_remisiones_medidas": {"sv": true},
+	// sm, em, sc y cr comparten /salvia/remisiones-medidas; la vista sale del rol.
+	// sv entra a esa misma pantalla (vista supervisor), puede revisar y reasignar.
+	// La bandeja del agente es solo am.
+	"get_remisiones_medidas":      {"sm": true, "em": true, "sc": true, "cr": true, "sv": true},
+	"get_mis_remisiones_medidas":  {"am": true},
+	"reassign_remisiones_medidas": {"sm": true, "sv": true},
+	"review_remisiones_medidas":   {"sm": true, "em": true, "sv": true},
 
 	// ── Registrar sesión psicosocial (profesional ps / ts) ──────────────────
 	"get_registrar_sesion_psicosocial": {"ps": true, "ts": true},

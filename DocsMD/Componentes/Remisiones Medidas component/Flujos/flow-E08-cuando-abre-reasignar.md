@@ -6,7 +6,9 @@
 
 Disparado por:
   - la barra "↺ Reasignar N seleccionada(s)" (E-07)
-  - el botón "Asignar agente" de una fila en estado por_asignar (solo supervisor)
+  - el botón "Asignar agente" de una fila en estado por_asignar
+
+Las dos exigen puedeReasignar (roles sm y sv, permiso reassign_remisiones_medidas).
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -39,7 +41,7 @@ PASO 3 — Catálogo
   GET /api/v1/emergency-measure-referrals/agentes
 
   Misma respuesta que E-04: { items: [{ id, nombre }] }.
-  El rol del catálogo está pendiente (M-01, paso 5).
+  El catálogo es role_code = am (M-01, paso 5).
 
   Este evento no escribe assigned_agent_id ni status.
 
