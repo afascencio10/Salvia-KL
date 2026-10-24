@@ -1,0 +1,60 @@
+<main class="salvia-main">
+<div class="container">
+    <div class="welcome-section">
+        <div>
+            <h2><b>Remisiones Medidas de Emergencia</b></h2>
+            <p class="text-muted mb-0">Gestión de remisiones al equipo de medidas de emergencia</p>
+        </div>
+    </div>
+
+    {{ template "salvia/remisiones-medidas/remisiones_medidas_component.html" . }}
+
+    <div class="mt-4 mb-4">
+        <remisiones-medidas-component
+            vista="supervisor"
+            @ver-caso="onVerCaso"
+            @ver-detalle="onVerDetalle"
+        ></remisiones-medidas-component>
+    </div>
+</div>
+</main>
+
+{{ template "standard_scripts.html" . }}
+{{ template "overlay.html" . }}
+
+<script>
+    var home = Vue.createApp({
+        delimiters: ['${', '}'],
+        data: function() {
+            return {
+                windowTitle: {{.windowTitle}},
+                currentUser: "{{.currentUser}}",
+                currentRole: "{{.currentRole}}",
+                menu: {{.menu}},
+            };
+        },
+        mounted: function() {
+            document.title = {{.windowTitle}};
+            document.getElementById('app').style.display = 'block';
+        },
+        methods: {
+            // Detalle de medida y casos SAL-00x todavía no existen: no navegar.
+            onVerCaso: function() {},
+            onVerDetalle: function() {},
+            logout: function() {
+                logout("/seguridad/logout");
+            },
+        },
+    });
+
+    var app = home;
+
+    var _tplRme = document.getElementById('tpl-remisiones-medidas-component');
+    window.__remisionesMedidasComponentTpl = _tplRme ? _tplRme.innerHTML : '';
+</script>
+
+<script src="/static/js/components/remisiones-medidas-component.js"></script>
+
+<script>
+    home.mount("#app");
+</script>

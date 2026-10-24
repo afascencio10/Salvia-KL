@@ -257,6 +257,12 @@ func StartRouter(router *gin.Engine) {
 		secRouter.GET("/mis-remisiones-psicosocial", MisRemisionesPsicosocialGET)
 
 		/*
+			Remisiones Medidas de Emergencia (vista supervisor; mapeo de rol pendiente)
+		*/
+		secRouter.GET("/remisiones-medidas", RemisionesMedidasGET)
+		secRouter.GET("/mis-remisiones-medidas", MisRemisionesMedidasGET)
+
+		/*
 			Calendario Psicosocial (roles ps, ts, sv)
 		*/
 		secRouter.GET("/calendario-psicosocial", PsicosocialCalendarGET)
