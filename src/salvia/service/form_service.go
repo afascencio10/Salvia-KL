@@ -152,112 +152,115 @@ type FormService interface {
 }
 
 type FormServiceDeps struct {
-	FormRepo                  repository.FormRepository
-	FormSectionRepo           repository.FormSectionRepository
-	QuestionRepo              repository.QuestionRepository
-	RepeaterGroupRepo         repository.RepeaterGroupRepository
-	OptionRepo                repository.OptionRepository
-	VisibilityCondRepo        repository.VisibilityConditionRepository
-	RenderModificationRepo    repository.RenderModificationRepository
-	FormSubmissionRepo        repository.FormSubmissionRepository
-	RepeaterEntryRepo         repository.RepeaterEntryRepository
-	AnswerRepo                repository.AnswerRepository
-	FollowUpRepo              repository.FollowUpRepository
-	FollowUpAttemptRepo       repository.FollowUpAttemptRepository
-	EmergencyMeasureRepo      repository.EmergencyMeasureRepository
-	PsychosocialSupportRepo   repository.PsychosocialSupportRepository
-	EconomicStabilizationRepo repository.EconomicStabilizationRepository
-	BarrierV2Repo             repository.BarrierV2Repository
-	CaseTimelineEventRepo     repository.CaseTimelineEventRepository
-	AgentLightRepo            repository.AgentLightRepository
-	MenTeamRemisionRepo       repository.MenTeamRemisionRepository
-	DiscapacidadRemisionRepo  repository.DiscapacidadRemisionRepository
-	CasoCierreService         CasoCierreService
-	CaseRepo                  repository.VictimCaseLightRepository
-	FollowUpV2Svc             FollowUpV2Service
-	CaseTaskRepo              repository.CaseTaskRepository
-	EntityLetterRepo          repository.EntityLetterRepository
-	BarrierFollowUpRepo       repository.BarrierFollowUpRepository
-	TeamContactRepo           repository.TeamContactRepository
-	DuplaRepo                 repository.DuplaRepository
-	VictimCaseFormSvc         VictimCaseFormService
-	EntityCaseSvc             EntityCaseService
-	EntityObligationRepo      repository.EntityObligationRepository
-	EntityCaseObligationRepo  repository.EntityCaseObligationRepository
-	EntityCaseFollowUpRepo    repository.EntityCaseFollowUpRepository
+	FormRepo                     repository.FormRepository
+	FormSectionRepo              repository.FormSectionRepository
+	QuestionRepo                 repository.QuestionRepository
+	RepeaterGroupRepo            repository.RepeaterGroupRepository
+	OptionRepo                   repository.OptionRepository
+	VisibilityCondRepo           repository.VisibilityConditionRepository
+	RenderModificationRepo       repository.RenderModificationRepository
+	FormSubmissionRepo           repository.FormSubmissionRepository
+	RepeaterEntryRepo            repository.RepeaterEntryRepository
+	AnswerRepo                   repository.AnswerRepository
+	FollowUpRepo                 repository.FollowUpRepository
+	FollowUpAttemptRepo          repository.FollowUpAttemptRepository
+	EmergencyMeasureRepo         repository.EmergencyMeasureRepository
+	EmergencyMeasureReferralRepo repository.EmergencyMeasureReferralRepository
+	PsychosocialSupportRepo      repository.PsychosocialSupportRepository
+	EconomicStabilizationRepo    repository.EconomicStabilizationRepository
+	BarrierV2Repo                repository.BarrierV2Repository
+	CaseTimelineEventRepo        repository.CaseTimelineEventRepository
+	AgentLightRepo               repository.AgentLightRepository
+	MenTeamRemisionRepo          repository.MenTeamRemisionRepository
+	DiscapacidadRemisionRepo     repository.DiscapacidadRemisionRepository
+	CasoCierreService            CasoCierreService
+	CaseRepo                     repository.VictimCaseLightRepository
+	FollowUpV2Svc                FollowUpV2Service
+	CaseTaskRepo                 repository.CaseTaskRepository
+	EntityLetterRepo             repository.EntityLetterRepository
+	BarrierFollowUpRepo          repository.BarrierFollowUpRepository
+	TeamContactRepo              repository.TeamContactRepository
+	DuplaRepo                    repository.DuplaRepository
+	VictimCaseFormSvc            VictimCaseFormService
+	EntityCaseSvc                EntityCaseService
+	EntityObligationRepo         repository.EntityObligationRepository
+	EntityCaseObligationRepo     repository.EntityCaseObligationRepository
+	EntityCaseFollowUpRepo       repository.EntityCaseFollowUpRepository
 }
 
 type formService struct {
-	repo                      repository.FormRepository
-	formSectionRepo           repository.FormSectionRepository
-	questionRepo              repository.QuestionRepository
-	repeaterGroupRepo         repository.RepeaterGroupRepository
-	optionRepo                repository.OptionRepository
-	visibilityCondRepo        repository.VisibilityConditionRepository
-	renderModificationRepo    repository.RenderModificationRepository
-	submissionRepo            repository.FormSubmissionRepository
-	repeaterEntryRepo         repository.RepeaterEntryRepository
-	answerRepo                repository.AnswerRepository
-	followUpRepo              repository.FollowUpRepository
-	followUpAttemptRepo       repository.FollowUpAttemptRepository
-	emergencyMeasureRepo      repository.EmergencyMeasureRepository
-	psychosocialSupportRepo   repository.PsychosocialSupportRepository
-	economicStabilizationRepo repository.EconomicStabilizationRepository
-	barrierV2Repo             repository.BarrierV2Repository
-	caseTimelineRepo          repository.CaseTimelineEventRepository
-	agentLightRepo            repository.AgentLightRepository
-	menTeamRemisionRepo       repository.MenTeamRemisionRepository
-	discapacidadRemisionRepo  repository.DiscapacidadRemisionRepository
-	casoCierreService         CasoCierreService
-	caseRepo                  repository.VictimCaseLightRepository
-	followUpV2Svc             FollowUpV2Service
-	caseTaskRepo              repository.CaseTaskRepository
-	entityLetterRepo          repository.EntityLetterRepository
-	barrierFollowUpRepo       repository.BarrierFollowUpRepository
-	teamContactRepo           repository.TeamContactRepository
-	duplaRepo                 repository.DuplaRepository
-	victimCaseFormSvc         VictimCaseFormService
-	entityCaseSvc             EntityCaseService
-	entityObligationRepo      repository.EntityObligationRepository
-	entityCaseObligationRepo  repository.EntityCaseObligationRepository
-	entityCaseFollowUpRepo    repository.EntityCaseFollowUpRepository
+	repo                         repository.FormRepository
+	formSectionRepo              repository.FormSectionRepository
+	questionRepo                 repository.QuestionRepository
+	repeaterGroupRepo            repository.RepeaterGroupRepository
+	optionRepo                   repository.OptionRepository
+	visibilityCondRepo           repository.VisibilityConditionRepository
+	renderModificationRepo       repository.RenderModificationRepository
+	submissionRepo               repository.FormSubmissionRepository
+	repeaterEntryRepo            repository.RepeaterEntryRepository
+	answerRepo                   repository.AnswerRepository
+	followUpRepo                 repository.FollowUpRepository
+	followUpAttemptRepo          repository.FollowUpAttemptRepository
+	emergencyMeasureRepo         repository.EmergencyMeasureRepository
+	emergencyMeasureReferralRepo repository.EmergencyMeasureReferralRepository
+	psychosocialSupportRepo      repository.PsychosocialSupportRepository
+	economicStabilizationRepo    repository.EconomicStabilizationRepository
+	barrierV2Repo                repository.BarrierV2Repository
+	caseTimelineRepo             repository.CaseTimelineEventRepository
+	agentLightRepo               repository.AgentLightRepository
+	menTeamRemisionRepo          repository.MenTeamRemisionRepository
+	discapacidadRemisionRepo     repository.DiscapacidadRemisionRepository
+	casoCierreService            CasoCierreService
+	caseRepo                     repository.VictimCaseLightRepository
+	followUpV2Svc                FollowUpV2Service
+	caseTaskRepo                 repository.CaseTaskRepository
+	entityLetterRepo             repository.EntityLetterRepository
+	barrierFollowUpRepo          repository.BarrierFollowUpRepository
+	teamContactRepo              repository.TeamContactRepository
+	duplaRepo                    repository.DuplaRepository
+	victimCaseFormSvc            VictimCaseFormService
+	entityCaseSvc                EntityCaseService
+	entityObligationRepo         repository.EntityObligationRepository
+	entityCaseObligationRepo     repository.EntityCaseObligationRepository
+	entityCaseFollowUpRepo       repository.EntityCaseFollowUpRepository
 }
 
 func NewFormService(deps FormServiceDeps) FormService {
 	return &formService{
-		repo:                      deps.FormRepo,
-		formSectionRepo:           deps.FormSectionRepo,
-		questionRepo:              deps.QuestionRepo,
-		repeaterGroupRepo:         deps.RepeaterGroupRepo,
-		optionRepo:                deps.OptionRepo,
-		visibilityCondRepo:        deps.VisibilityCondRepo,
-		renderModificationRepo:    deps.RenderModificationRepo,
-		submissionRepo:            deps.FormSubmissionRepo,
-		repeaterEntryRepo:         deps.RepeaterEntryRepo,
-		answerRepo:                deps.AnswerRepo,
-		followUpRepo:              deps.FollowUpRepo,
-		followUpAttemptRepo:       deps.FollowUpAttemptRepo,
-		emergencyMeasureRepo:      deps.EmergencyMeasureRepo,
-		psychosocialSupportRepo:   deps.PsychosocialSupportRepo,
-		economicStabilizationRepo: deps.EconomicStabilizationRepo,
-		barrierV2Repo:             deps.BarrierV2Repo,
-		caseTimelineRepo:          deps.CaseTimelineEventRepo,
-		agentLightRepo:            deps.AgentLightRepo,
-		menTeamRemisionRepo:       deps.MenTeamRemisionRepo,
-		discapacidadRemisionRepo:  deps.DiscapacidadRemisionRepo,
-		casoCierreService:         deps.CasoCierreService,
-		caseRepo:                  deps.CaseRepo,
-		followUpV2Svc:             deps.FollowUpV2Svc,
-		caseTaskRepo:              deps.CaseTaskRepo,
-		entityLetterRepo:          deps.EntityLetterRepo,
-		barrierFollowUpRepo:       deps.BarrierFollowUpRepo,
-		teamContactRepo:           deps.TeamContactRepo,
-		duplaRepo:                 deps.DuplaRepo,
-		victimCaseFormSvc:         deps.VictimCaseFormSvc,
-		entityCaseSvc:             deps.EntityCaseSvc,
-		entityObligationRepo:      deps.EntityObligationRepo,
-		entityCaseObligationRepo:  deps.EntityCaseObligationRepo,
-		entityCaseFollowUpRepo:    deps.EntityCaseFollowUpRepo,
+		repo:                         deps.FormRepo,
+		formSectionRepo:              deps.FormSectionRepo,
+		questionRepo:                 deps.QuestionRepo,
+		repeaterGroupRepo:            deps.RepeaterGroupRepo,
+		optionRepo:                   deps.OptionRepo,
+		visibilityCondRepo:           deps.VisibilityCondRepo,
+		renderModificationRepo:       deps.RenderModificationRepo,
+		submissionRepo:               deps.FormSubmissionRepo,
+		repeaterEntryRepo:            deps.RepeaterEntryRepo,
+		answerRepo:                   deps.AnswerRepo,
+		followUpRepo:                 deps.FollowUpRepo,
+		followUpAttemptRepo:          deps.FollowUpAttemptRepo,
+		emergencyMeasureRepo:         deps.EmergencyMeasureRepo,
+		emergencyMeasureReferralRepo: deps.EmergencyMeasureReferralRepo,
+		psychosocialSupportRepo:      deps.PsychosocialSupportRepo,
+		economicStabilizationRepo:    deps.EconomicStabilizationRepo,
+		barrierV2Repo:                deps.BarrierV2Repo,
+		caseTimelineRepo:             deps.CaseTimelineEventRepo,
+		agentLightRepo:               deps.AgentLightRepo,
+		menTeamRemisionRepo:          deps.MenTeamRemisionRepo,
+		discapacidadRemisionRepo:     deps.DiscapacidadRemisionRepo,
+		casoCierreService:            deps.CasoCierreService,
+		caseRepo:                     deps.CaseRepo,
+		followUpV2Svc:                deps.FollowUpV2Svc,
+		caseTaskRepo:                 deps.CaseTaskRepo,
+		entityLetterRepo:             deps.EntityLetterRepo,
+		barrierFollowUpRepo:          deps.BarrierFollowUpRepo,
+		teamContactRepo:              deps.TeamContactRepo,
+		duplaRepo:                    deps.DuplaRepo,
+		victimCaseFormSvc:            deps.VictimCaseFormSvc,
+		entityCaseSvc:                deps.EntityCaseSvc,
+		entityObligationRepo:         deps.EntityObligationRepo,
+		entityCaseObligationRepo:     deps.EntityCaseObligationRepo,
+		entityCaseFollowUpRepo:       deps.EntityCaseFollowUpRepo,
 	}
 }
 
@@ -2462,40 +2465,40 @@ func (s *formService) processPsicosocialSessionSubmission(ctx context.Context, f
 	case primerContactoNoEfectivo:
 		// no-op: la remisión permanece en su estado actual (abierto)
 	default:
-	switch sessionType {
-	case models.SessionTypePrimerContacto, models.SessionTypePrimerContactoSinConsentimiento:
-		ps.YaHizoPrimerContacto = true
-		ps.Status = models.PsychosocialSupportStatusEnGestion
-	case models.SessionTypePrimerContactoConAtencion:
-		ps.YaHizoPrimerContacto = true
-		ps.YaHizoPrimeraAtencion = true
-		ps.SessionCount++
-		ps.Status = models.PsychosocialSupportStatusEnGestion
-	case models.SessionTypePrimeraAtencion:
-		ps.YaHizoPrimeraAtencion = true
-		ps.SessionCount++
-		ps.Status = models.PsychosocialSupportStatusEnGestion
-	case models.SessionTypeAtencionPsicosocial:
-		ps.SessionCount++
-	case models.SessionTypeCierre:
-		// El cierre ahora puede ocurrir desde Primer Contacto o Primera Atención (no solo
-		// desde el form de Cierre, session_count >= 3) — si aún no estaban en true, quedan
-		// marcados para que el historial refleje que la atención sí llegó a ocurrir.
-		ps.YaHizoPrimerContacto = true
-		ps.YaHizoPrimeraAtencion = true
-		ps.SessionCount++
-		ps.Status = models.PsychosocialSupportStatusCerrado
-	case models.SessionTypeCierreNoConsentimiento:
-		ps.Status = models.PsychosocialSupportStatusEnDevolucion
-	case models.SessionTypeContactoSinAtencion:
-		if fechaNueva != "" {
-			if t, err := time.Parse("2006-01-02", fechaNueva); err == nil {
-				ps.ScheduledAt = &t
-			} else {
-				log.Printf("[processPsicosocialSessionSubmission] advertencia: fecha nueva no parseable %q: %v", fechaNueva, err)
+		switch sessionType {
+		case models.SessionTypePrimerContacto, models.SessionTypePrimerContactoSinConsentimiento:
+			ps.YaHizoPrimerContacto = true
+			ps.Status = models.PsychosocialSupportStatusEnGestion
+		case models.SessionTypePrimerContactoConAtencion:
+			ps.YaHizoPrimerContacto = true
+			ps.YaHizoPrimeraAtencion = true
+			ps.SessionCount++
+			ps.Status = models.PsychosocialSupportStatusEnGestion
+		case models.SessionTypePrimeraAtencion:
+			ps.YaHizoPrimeraAtencion = true
+			ps.SessionCount++
+			ps.Status = models.PsychosocialSupportStatusEnGestion
+		case models.SessionTypeAtencionPsicosocial:
+			ps.SessionCount++
+		case models.SessionTypeCierre:
+			// El cierre ahora puede ocurrir desde Primer Contacto o Primera Atención (no solo
+			// desde el form de Cierre, session_count >= 3) — si aún no estaban en true, quedan
+			// marcados para que el historial refleje que la atención sí llegó a ocurrir.
+			ps.YaHizoPrimerContacto = true
+			ps.YaHizoPrimeraAtencion = true
+			ps.SessionCount++
+			ps.Status = models.PsychosocialSupportStatusCerrado
+		case models.SessionTypeCierreNoConsentimiento:
+			ps.Status = models.PsychosocialSupportStatusEnDevolucion
+		case models.SessionTypeContactoSinAtencion:
+			if fechaNueva != "" {
+				if t, err := time.Parse("2006-01-02", fechaNueva); err == nil {
+					ps.ScheduledAt = &t
+				} else {
+					log.Printf("[processPsicosocialSessionSubmission] advertencia: fecha nueva no parseable %q: %v", fechaNueva, err)
+				}
 			}
 		}
-	}
 	}
 
 	if err := s.psychosocialSupportRepo.Update(ctx, ps); err != nil {
@@ -2566,10 +2569,10 @@ func (s *formService) processPsicosocialSessionSubmission(ctx context.Context, f
 	// Solo ejecuta si la sesión fue atención efectiva (la sección solo se muestra en ese caso,
 	// pero se verifica igual para robustez).
 	// Lógica:
-	//   - medidas_emergencia → crear 1 EmergencyMeasure por cada medida seleccionada (igual que en seguimiento).
+	//   - medidas_emergencia → una cabecera de remisión y una medida por tipo.
 	//   - estabilizacion, atencion_hombres, salvia_dignidad, discapacidad → solo se guardan como answers;
 	//     NO se crea psychosocial_support ni case_task (a diferencia del formulario de seguimiento).
-	if err := s.processPsicosocialDerivacionEquipos(ctx, formID, answerMap, ps, tc.CaseID); err != nil {
+	if err := s.processPsicosocialDerivacionEquipos(ctx, formID, answerMap, ps, tc.CaseID, actorID); err != nil {
 		log.Printf("[processPsicosocialSessionSubmission] advertencia: derivación equipos SALVIA: %v", err)
 	}
 
@@ -2683,12 +2686,12 @@ func (s *formService) processPsicosocialHechosViolenciaTimeline(ctx context.Cont
 // presente en los 4 formularios psicosociales. Resuelve las preguntas por UUID fijo (serie d1000NXX).
 //
 // Comportamiento por equipo seleccionado:
-//   - medidas_emergencia → crear 1 EmergencyMeasure por cada medida seleccionada en la pregunta Q3.
+//   - medidas_emergencia → una cabecera de remisión y una medida por cada tipo elegido.
 //   - estabilizacion, atencion_hombres, salvia_dignidad, discapacidad → solo answers (no se crean
 //     registros adicionales desde este formulario, a diferencia del formulario de seguimiento).
 //
-// Si emergencyMeasureRepo es nil, se omite la creación de medidas y se registra una advertencia.
-func (s *formService) processPsicosocialDerivacionEquipos(ctx context.Context, formID string, answerMap map[string]string, ps *models.PsychosocialSupport, caseID string) error {
+// Si el repositorio de remisiones es nil, no se crean medidas sueltas.
+func (s *formService) processPsicosocialDerivacionEquipos(ctx context.Context, formID string, answerMap map[string]string, ps *models.PsychosocialSupport, caseID, actorID string) error {
 	// Mapa de question IDs fijos por formulario (serie d1000NXX).
 	// N: 1=PC, 2=PA, 3=SEG, 4=CIE
 	type derivIDs struct {
@@ -2740,28 +2743,16 @@ func (s *formService) processPsicosocialDerivacionEquipos(ctx context.Context, f
 	for _, equipo := range splitCSVValues(equiposVal) {
 		switch equipo {
 		case "medidas_emergencia":
-			// Crear 1 EmergencyMeasure por cada medida seleccionada
-			if s.emergencyMeasureRepo == nil {
-				log.Printf("[processPsicosocialDerivacionEquipos] WARN: emergencyMeasureRepo es nil — medidas de emergencia NO creadas (psicosocialId=%s)", ps.ID)
-				break
-			}
 			medidasVal := answerMap[ids.qMedidasEmergen]
 			if medidasVal == "" {
 				log.Printf("[processPsicosocialDerivacionEquipos] equipo medidas_emergencia seleccionado pero Q3 vacío — psicosocialId=%s", ps.ID)
 				break
 			}
-			for _, medida := range splitCSVValues(medidasVal) {
-				em := &models.EmergencyMeasure{
-					CaseID: caseID,
-					Type:   medida,
-					Status: "ACTIVE",
-				}
-				if err := s.emergencyMeasureRepo.Create(ctx, em); err != nil {
-					log.Printf("[processPsicosocialDerivacionEquipos] WARN: no se pudo crear EmergencyMeasure tipo=%s: %v", medida, err)
-				} else {
-					log.Printf("[processPsicosocialDerivacionEquipos] ✅ EmergencyMeasure creada tipo=%s id=%s psicosocialId=%s", medida, em.ID, ps.ID)
-				}
+			medidas := splitCSVValues(medidasVal)
+			if err := s.createEmergencyMeasureReferral(ctx, caseID, nil, actorID, medidas); err != nil {
+				return err
 			}
+			log.Printf("[processPsicosocialDerivacionEquipos] ✅ remisión a medidas creada tipos=%s psicosocialId=%s", medidasVal, ps.ID)
 		case "estabilizacion", "atencion_hombres", "salvia_dignidad", "discapacidad":
 			// Solo se guardan como answers en la BD — no se crean registros adicionales
 			// desde el formulario psicosocial (a diferencia del formulario de seguimiento).
@@ -3166,8 +3157,8 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 			Description:        entryMap[qBarreraDescripcion],
 			ManagementActions:  entryMap[qBarreraGestion],
 
-			EntityBranchID:     barreraEntityBranchID,
-			Competences:        entryMap[qBarreraCompetencias],
+			EntityBranchID: barreraEntityBranchID,
+			Competences:    entryMap[qBarreraCompetencias],
 		}
 		log.Printf("[processFollowUp] creando barrera sector=%s entry=%s", sector, entry.ID)
 		if err := s.barrierV2Repo.Create(ctx, b); err != nil {
@@ -3940,26 +3931,66 @@ func (s *formService) processEquiposYMedidas(ctx context.Context, caseID string,
 		}
 	}
 
-	// 5. Crear una EmergencyMeasure por cada medida de emergencia seleccionada
+	// 5. Una cabecera de remisión y una medida por cada tipo elegido.
 	if medidasVal, ok := answerMap[qMedidasEmergencia]; ok && medidasVal != "" {
 		log.Printf("[processEquiposYMedidas] medidas de emergencia: %s", medidasVal)
-		for _, medida := range splitValues(medidasVal) {
-			log.Printf("[processEquiposYMedidas] creando medida emergencia tipo=%s", medida)
-			em := &models.EmergencyMeasure{
-				CaseID:     caseID,
-				FollowUpID: followUpID,
-				Type:       medida,
-				Status:     "ACTIVE",
-			}
-			if err := s.emergencyMeasureRepo.Create(ctx, em); err != nil {
-				return remisionCount, fmt.Errorf("crear medida emergencia [%s]: %w", medida, err)
-			}
-			log.Printf("[processEquiposYMedidas] ✅ medida emergencia creada tipo=%s (id=%s)", medida, em.ID)
-			remisionCount++
+		medidas := splitValues(medidasVal)
+		if err := s.createEmergencyMeasureReferral(ctx, caseID, followUpID, actorID, medidas); err != nil {
+			return remisionCount, fmt.Errorf("crear remisión a medidas: %w", err)
 		}
+		remisionCount += len(medidas)
+		log.Printf("[processEquiposYMedidas] ✅ remisión a medidas creada tipos=%s", medidasVal)
 	}
 
 	return remisionCount, nil
+}
+
+// createEmergencyMeasureReferral abre una fila de la bandeja y liga las medidas.
+// submitted_by_team queda nulo si el usuario no tiene general_user_team.
+func (s *formService) createEmergencyMeasureReferral(ctx context.Context, caseID string, followUpID *string, actorID string, measureTypes []string) error {
+	if len(measureTypes) == 0 {
+		return nil
+	}
+	if s.emergencyMeasureReferralRepo == nil {
+		log.Printf("[createEmergencyMeasureReferral] WARN: repositorio de remisiones no inyectado — no se crean medidas")
+		return fmt.Errorf("repositorio de remisiones de medidas no configurado")
+	}
+	var submittedBy *string
+	if actorID = strings.TrimSpace(actorID); actorID != "" {
+		submittedBy = &actorID
+	}
+	now := time.Now()
+	day := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	referral := &models.EmergencyMeasureReferral{
+		CaseID:          caseID,
+		FollowUpID:      followUpID,
+		Status:          models.EmergencyReferralStatusPendienteDeRevision,
+		Urgency:         models.EmergencyReferralUrgencyNormal,
+		SubmittedBy:     submittedBy,
+		SubmittedByTeam: s.submittedByTeam(ctx, actorID),
+		ReferredAt:      &day,
+	}
+	return s.emergencyMeasureReferralRepo.CreateWithMeasures(ctx, referral, measureTypes)
+}
+
+// submittedByTeam lee general_user_team. Nil si el usuario no tiene equipo o no se puede leer.
+func (s *formService) submittedByTeam(ctx context.Context, actorID string) *string {
+	if s.agentLightRepo == nil || actorID == "" {
+		return nil
+	}
+	agent, err := s.agentLightRepo.FindByICode(ctx, actorID)
+	if err != nil {
+		log.Printf("[submittedByTeam] WARN: no se pudo leer el equipo de %s: %v", actorID, err)
+		return nil
+	}
+	if agent == nil {
+		return nil
+	}
+	team := strings.TrimSpace(agent.Team)
+	if team == "" {
+		return nil
+	}
+	return &team
 }
 
 // reasignarCaso evalúa las respuestas del formulario de seguimiento y, si corresponde,

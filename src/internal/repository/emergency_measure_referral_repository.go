@@ -4,8 +4,11 @@ import (
 	"bitsflow/internal/models"
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
+	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -75,6 +78,9 @@ type EmergencyMeasureReferralRepository interface {
 	UserHasActiveRole(ctx context.Context, iCode, roleCode string) (bool, error)
 	Reassign(ctx context.Context, ids []string, agentID string) error
 	Review(ctx context.Context, id, professionalID, concept, result, newStatus, reviewDate string) (found bool, pending bool, err error)
+	// CreateWithMeasures inserta la cabecera y sus medidas en una transacción.
+	// El id de la cabecera queda en referral.ID.
+	CreateWithMeasures(ctx context.Context, referral *models.EmergencyMeasureReferral, measureTypes []string) error
 }
 
 type emergencyMeasureReferralRepository struct {
@@ -83,6 +89,53 @@ type emergencyMeasureReferralRepository struct {
 
 func NewEmergencyMeasureReferralRepository(db *gorm.DB) EmergencyMeasureReferralRepository {
 	return &emergencyMeasureReferralRepository{db: db}
+}
+
+// CreateWithMeasures crea una remisión y una medida ACTIVE por cada tipo.
+// Si no queda ningún tipo, no inserta nada.
+func (r *emergencyMeasureReferralRepository) CreateWithMeasures(ctx context.Context, referral *models.EmergencyMeasureReferral, measureTypes []string) error {
+	types := make([]string, 0, len(measureTypes))
+	for _, tipo := range measureTypes {
+		if tipo = strings.TrimSpace(tipo); tipo != "" {
+			types = append(types, tipo)
+		}
+	}
+	if referral == nil || strings.TrimSpace(referral.CaseID) == "" || len(types) == 0 {
+		return fmt.Errorf("remisión sin caso o sin medidas")
+	}
+	if referral.ID == "" {
+		referral.ID = uuid.NewString()
+	}
+	if referral.Status == "" {
+		referral.Status = models.EmergencyReferralStatusPendienteDeRevision
+	}
+	if referral.Urgency == "" {
+		referral.Urgency = models.EmergencyReferralUrgencyNormal
+	}
+	if referral.ReferredAt == nil {
+		now := time.Now()
+		day := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		referral.ReferredAt = &day
+	}
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(referral).Error; err != nil {
+			return err
+		}
+		referralID := referral.ID
+		for _, tipo := range types {
+			measure := &models.EmergencyMeasure{
+				CaseID:     referral.CaseID,
+				FollowUpID: referral.FollowUpID,
+				Type:       tipo,
+				Status:     "ACTIVE",
+				ReferralID: &referralID,
+			}
+			if err := tx.Create(measure).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 const referralListSelect = `
