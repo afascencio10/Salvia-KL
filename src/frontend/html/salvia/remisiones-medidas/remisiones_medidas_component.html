@@ -31,20 +31,21 @@
                 :placeholder="placeholderBusqueda"
                 v-model="searchText"
                 autocomplete="off"
+                @input="onSearchInput"
             >
-            <select v-if="muestraFiltroEstado" class="rme-input" v-model="filtroEstado">
+            <select v-if="muestraFiltroEstado" class="rme-input" v-model="filtroEstado" @change="cargar">
                 <option value="">Estado remisión</option>
-                <option v-for="estado in estadosFiltro" :key="estado" :value="estado">${ estado }</option>
+                <option v-for="estado in estadosFiltro" :key="estado.value" :value="estado.value">${ estado.label }</option>
             </select>
-            <select v-if="muestraFiltroAgente" class="rme-input" v-model="filtroAgente">
+            <select v-if="muestraFiltroAgente" class="rme-input" v-model="filtroAgente" @change="cargar">
                 <option value="">Agente asignado</option>
                 <option value="sin-asignar">Sin asignar</option>
                 <option v-for="agente in agentes" :key="agente.id" :value="agente.id">${ agente.nombre }</option>
             </select>
-            <select class="rme-input" v-model="filtroUrgencia">
+            <select class="rme-input" v-model="filtroUrgencia" @change="cargar">
                 <option value="">Urgencia</option>
-                <option value="Riesgo inminente">Riesgo inminente</option>
-                <option value="Normal">Normal</option>
+                <option value="riesgo_inminente">Riesgo inminente</option>
+                <option value="normal">Normal</option>
             </select>
         </div>
         <button type="button" class="rme-clear" @click="limpiarFiltros">${ labelLimpiar }</button>
@@ -164,7 +165,7 @@
         </div>
     </div>
 
-    <p class="rme-count">${ visibles.length } de ${ alcance.length } remisiones</p>
+    <p class="rme-count">${ visibles.length } de ${ alcanceTotal } remisiones</p>
 
     <div v-if="reasignarAbierto" class="rme-modal-backdrop">
         <div class="rme-modal rme-modal--sm" role="dialog" aria-modal="true" aria-labelledby="rme-reasignar-titulo">
@@ -177,6 +178,7 @@
                 <option value="">Seleccionar agente…</option>
                 <option v-for="agente in agentes" :key="agente.id" :value="agente.id">${ agente.nombre }</option>
             </select>
+            <p v-if="reasignarError" class="rme-modal-text">${ reasignarError }</p>
             <div class="rme-modal-actions">
                 <button type="button" class="rme-btn rme-btn--ghost" @click="cerrarReasignar">Cancelar</button>
                 <button type="button" class="rme-btn rme-btn--primary" :disabled="!reasignarAgenteId" @click="confirmarReasignar">Reasignar</button>
@@ -193,7 +195,7 @@
             <label class="rme-modal-label" for="rme-revision-profesional">Profesional que revisa</label>
             <select id="rme-revision-profesional" class="rme-input rme-input--block" v-model="revisionProfesional">
                 <option value="">Seleccionar profesional…</option>
-                <option v-for="nombre in profesionales" :key="nombre" :value="nombre">${ nombre }</option>
+                <option v-for="profesional in profesionales" :key="profesional.id" :value="profesional.id">${ profesional.nombre }</option>
             </select>
             <label class="rme-modal-label" for="rme-revision-concepto">Concepto técnico</label>
             <textarea
@@ -207,13 +209,14 @@
             <div class="rme-resultado-list">
                 <button
                     v-for="resultado in resultadosRevision"
-                    :key="resultado"
+                    :key="resultado.value"
                     type="button"
                     class="rme-resultado"
-                    :class="{ 'rme-resultado--active': revisionResultado === resultado }"
-                    @click="revisionResultado = resultado"
-                >${ resultado }</button>
+                    :class="{ 'rme-resultado--active': revisionResultado === resultado.value }"
+                    @click="revisionResultado = resultado.value"
+                >${ resultado.label }</button>
             </div>
+            <p v-if="revisionError" class="rme-modal-text">${ revisionError }</p>
             <div class="rme-modal-actions">
                 <button type="button" class="rme-btn rme-btn--ghost" @click="cerrarRevision">Cancelar</button>
                 <button type="button" class="rme-btn rme-btn--primary" :disabled="!revisionLista" @click="confirmarRevision">Guardar revisión</button>

@@ -106,6 +106,7 @@ func main() {
 		&models.Answer{},
 		&models.Option{},
 		&models.FollowUpV2{},
+		&models.EmergencyMeasureReferral{},
 		&models.EmergencyMeasure{},
 		&models.Dupla{},
 		&models.PsychosocialSupport{},
@@ -186,6 +187,7 @@ func main() {
 	townLightRepo := repository.NewTownLightRepository(gormDB)
 	attemptRepo := repository.NewFollowUpAttemptRepository(gormDB)
 	emRepo := repository.NewEmergencyMeasureRepository(gormDB)
+	referralRepo := repository.NewEmergencyMeasureReferralRepository(gormDB)
 	psRepo := repository.NewPsychosocialSupportRepository(gormDB)
 	teamContactRepo := repository.NewTeamContactRepository(gormDB)
 	esRepo := repository.NewEconomicStabilizationRepository(gormDB)
@@ -350,6 +352,8 @@ func main() {
 	agentsSearchCtrl := salvia_ctrl.NewAgentsSearchController(agentsSearchSvc)
 	psychosocialSupportManualCtrl := salvia_ctrl.NewPsychosocialSupportGinController(psychosocialSupportSvc, victimCaseLightRepo, caseTaskRepo)
 	psychosocialListCtrl := salvia_ctrl.NewPsychosocialListController(psychosocialListSvc)
+	referralSvc := service.NewEmergencyMeasureReferralService(referralRepo, agentLightRepo)
+	referralCtrl := salvia_ctrl.NewEmergencyMeasureReferralController(referralSvc)
 	psychosocialDetailCtrl := salvia_ctrl.NewPsychosocialDetailController(gormDB)
 	psychosocialReassignCtrl := salvia_ctrl.NewPsychosocialReassignController(psychosocialReassignSvc)
 	duplaAdminCtrl := salvia_ctrl.NewDuplaAdminController(duplaAdminSvc)
@@ -410,6 +414,7 @@ func main() {
 	agentsSearchCtrl.RegisterRoutes(api)
 	psychosocialSupportManualCtrl.RegisterRoutes(api)
 	psychosocialListCtrl.RegisterRoutes(api)
+	referralCtrl.RegisterRoutes(api)
 	psychosocialDetailCtrl.RegisterRoutes(api)
 	psychosocialReassignCtrl.RegisterRoutes(api)
 	duplaAdminCtrl.RegisterRoutes(api)

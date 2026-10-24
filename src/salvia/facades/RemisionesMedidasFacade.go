@@ -43,7 +43,11 @@ func RemisionesMedidasGET(c *gin.Context) {
 
 	extraTemplates := append(utils.GetFullHtmlTemplates(), remisionesMedidasComponentTemplates...)
 
-	vista, puedeReasignar := vistaRemisionesMedidas(s.CurrentRole)
+	vista, puedeReasignar, ok := salvia_config.VistaRemisionesMedidas(s.CurrentRole)
+	if !ok {
+		vista = salvia_config.VistaMedidasSupervisor
+		puedeReasignar = false
+	}
 
 	common_facades.RenderTemplate(c, "RemisionesMedidas", "salvia", "remisiones-medidas/", salvia_config.HTML_Templates, "remisiones_medidas", extraTemplates, utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
 		map[string]interface{}{
@@ -56,21 +60,4 @@ func RemisionesMedidasGET(c *gin.Context) {
 			"vista":          vista,
 			"puedeReasignar": puedeReasignar,
 		}, utils.GetFullHtmlFuncMap())
-}
-
-// vistaRemisionesMedidas traduce el rol a la prop vista del componente.
-// sm y sv ven el listado de supervisor y pueden reasignar.
-func vistaRemisionesMedidas(role string) (vista string, puedeReasignar bool) {
-	switch role {
-	case "em":
-		return "equipo-tecnico", false
-	case "sc":
-		return "supervision-convenio", false
-	case "cr":
-		return "cruz-roja", false
-	case "sm", "sv":
-		return "supervisor", true
-	default:
-		return "supervisor", false
-	}
 }
