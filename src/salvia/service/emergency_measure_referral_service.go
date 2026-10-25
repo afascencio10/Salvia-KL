@@ -55,6 +55,17 @@ type EmergencyReferralReview struct {
 	Date             string `json:"date"`
 }
 
+// EmergencyReferralDetail es la lectura de una remisión para la pantalla de detalle.
+type EmergencyReferralDetail struct {
+	EmergencyReferralItem
+	Reason              string `json:"reason"`
+	RejectionReason     string `json:"rejectionReason"`
+	SubmittedByTeam     string `json:"submittedByTeam"`
+	ChildrenNumber      *int   `json:"childrenNumber"`
+	ChildrenAges        string `json:"childrenAges"`
+	RequiresInterpreter bool   `json:"requiresInterpreter"`
+}
+
 // EmergencyReferralItem es una fila del listado.
 type EmergencyReferralItem struct {
 	ID              string                   `json:"id"`
@@ -101,6 +112,7 @@ type EmergencyReferralReassignResult struct {
 // EmergencyMeasureReferralService implementa la bandeja documentada.
 type EmergencyMeasureReferralService interface {
 	List(ctx context.Context, in EmergencyReferralListInput) (*EmergencyReferralListResponse, error)
+	Detail(ctx context.Context, vista, sessionAgentID, id string) (*EmergencyReferralDetail, error)
 	Agents(ctx context.Context) (*EmergencyReferralCatalogResponse, error)
 	Reviewers(ctx context.Context) (*EmergencyReferralCatalogResponse, error)
 	Reassign(ctx context.Context, ids []string, agentID string) (*EmergencyReferralReassignResult, error)
@@ -151,6 +163,26 @@ func (s *emergencyMeasureReferralService) List(ctx context.Context, in Emergency
 		resp.Banner = bannerDe(in.Vista)
 	}
 	return resp, nil
+}
+
+func (s *emergencyMeasureReferralService) Detail(ctx context.Context, vista, sessionAgentID, id string) (*EmergencyReferralDetail, error) {
+	row, err := s.repo.FindDetail(ctx, vista, sessionAgentID, id)
+	if err != nil {
+		return nil, err
+	}
+	if row == nil {
+		return nil, ErrReferralNotFound
+	}
+	detail := &EmergencyReferralDetail{
+		EmergencyReferralItem: toItem(row.EmergencyReferralRow),
+		Reason:                row.Reason,
+		RejectionReason:       row.RejectionReason,
+		SubmittedByTeam:       row.SubmittedByTeam,
+		ChildrenNumber:        row.ChildrenNumber,
+		ChildrenAges:          row.ChildrenAges,
+		RequiresInterpreter:   row.RequiresInterpreter,
+	}
+	return detail, nil
 }
 
 func (s *emergencyMeasureReferralService) Agents(ctx context.Context) (*EmergencyReferralCatalogResponse, error) {

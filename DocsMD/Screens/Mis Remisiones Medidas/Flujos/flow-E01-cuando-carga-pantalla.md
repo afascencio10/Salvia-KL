@@ -62,7 +62,9 @@ PASO 4 — Montar el componente en vista agente
 
 PASO 5 — Handlers de navegación
 
-  onVerCaso y onVerDetalle no redirigen.
-  E-14 y E-15 del componente emiten y la pantalla se queda en la bandeja.
+  onVerDetalle redirige a /salvia/remision-medida/{remisionId}.
+  Es E-15 del componente. La pantalla de detalle es de lectura.
+
+  onVerCaso no redirige. E-14 emite y la bandeja se queda.
 
   → FIN EJECUCIÓN ✓

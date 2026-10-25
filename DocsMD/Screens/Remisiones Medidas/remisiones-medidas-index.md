@@ -10,6 +10,7 @@ La vista sale de `currentRole`. El listado todavía usa el seed del componente. 
 |---|---|
 | Carga de la pantalla | [Flujos/flow-E01-cuando-carga-pantalla.md](./Flujos/flow-E01-cuando-carga-pantalla.md) |
 | Componente | [remisiones-medidas-component-events.md](../../Componentes/Remisiones%20Medidas%20component/remisiones-medidas-component-events.md) |
+| Detalle | [detalle-remision-medida-index.md](../Detalle%20Remision%20Medida/detalle-remision-medida-index.md) |
 | Interfaz del componente | [remisiones-medidas-component-interface.md](../../Componentes/Remisiones%20Medidas%20component/remisiones-medidas-component-interface.md) |
 
 ## Ruta, permiso y menú
@@ -36,7 +37,7 @@ La vista sale de `currentRole`. El listado todavía usa el seed del componente. 
 
 El handler traduce el rol y el template recibe `vista`. Para `sm` y `sv` también envía `:puede-reasignar="true"`.
 
-`onVerCaso` y `onVerDetalle` están vacíos. E-14 y E-15 del componente emiten y esta pantalla no redirige.
+`onVerDetalle` navega a `/salvia/remision-medida/{remisionId}` (E-15). `onVerCaso` sigue vacío (E-14).
 
 Filtros, cards, selección, reasignación y revisión técnica no se documentan otra vez: son E-01 a E-13 del componente.
 
@@ -45,4 +46,5 @@ Filtros, cards, selección, reasignación y revisión técnica no se documentan 
 - [x] ¿La carga de la pantalla está cubierta? → E-01 de esta pantalla
 - [x] ¿El listado y sus acciones están cubiertos? → eventos del componente
 - [x] ¿Cada rol entra con su vista? → tabla de arriba
-- [ ] ¿`onVerCaso` y `onVerDetalle` navegan? → Pendiente
+- [x] ¿`onVerDetalle` navega? → `/salvia/remision-medida/:id`
+- [ ] ¿`onVerCaso` navega? → Pendiente (E-14)

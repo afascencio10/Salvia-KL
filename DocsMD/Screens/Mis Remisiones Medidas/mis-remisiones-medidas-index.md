@@ -12,6 +12,7 @@ El recorte (solo lo asignado a ese agente, y solo cinco estados) está en E-01 d
 | Componente | [remisiones-medidas-component-events.md](../../Componentes/Remisiones%20Medidas%20component/remisiones-medidas-component-events.md) |
 | Interfaz del componente | [remisiones-medidas-component-interface.md](../../Componentes/Remisiones%20Medidas%20component/remisiones-medidas-component-interface.md) |
 | Pantalla general | [remisiones-medidas-index.md](../Remisiones%20Medidas/remisiones-medidas-index.md) |
+| Detalle | [detalle-remision-medida-index.md](../Detalle%20Remision%20Medida/detalle-remision-medida-index.md) |
 
 ## Ruta, permiso y menú
 
@@ -39,11 +40,12 @@ El recorte (solo lo asignado a ese agente, y solo cinco estados) está en E-01 d
 
 El seed usa ids de mentira (`am-1`, `am-2`, `am-3`). Con el icode real de la sesión la bandeja abre vacía hasta que el listado lea `emergency_measure_referral`.
 
-`onVerCaso` y `onVerDetalle` están vacíos.
+`onVerDetalle` navega a `/salvia/remision-medida/{remisionId}` (E-15). `onVerCaso` sigue vacío (E-14).
 
 ## Checklist de completitud
 
 - [x] ¿La carga de la pantalla está cubierta? → E-01 de esta pantalla
 - [x] ¿El recorte del agente está cubierto? → E-01 del componente
 - [x] ¿`agente-id` sale de la sesión? → `s.UserICode`
-- [ ] ¿`onVerCaso` y `onVerDetalle` navegan? → Pendiente
+- [x] ¿`onVerDetalle` navega? → `/salvia/remision-medida/:id`
+- [ ] ¿`onVerCaso` navega? → Pendiente (E-14)

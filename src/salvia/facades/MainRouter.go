@@ -263,6 +263,7 @@ func StartRouter(router *gin.Engine) {
 		*/
 		secRouter.GET("/remisiones-medidas", RemisionesMedidasGET)
 		secRouter.GET("/mis-remisiones-medidas", MisRemisionesMedidasGET)
+		secRouter.GET("/remision-medida/:id", RemisionMedidaDetalleGET)
 
 		/*
 			Calendario Psicosocial (roles ps, ts, sv)

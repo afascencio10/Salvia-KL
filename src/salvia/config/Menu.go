@@ -347,6 +347,7 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	// La bandeja del agente es solo am.
 	"get_remisiones_medidas":      {"sm": true, "em": true, "sc": true, "cr": true, "sv": true},
 	"get_mis_remisiones_medidas":  {"am": true},
+	"get_remision_medida_detalle": {"sm": true, "em": true, "sc": true, "cr": true, "sv": true, "am": true},
 	"reassign_remisiones_medidas": {"sm": true, "sv": true},
 	"review_remisiones_medidas":   {"sm": true, "em": true, "sv": true},
 

@@ -25,6 +25,7 @@ func (c *EmergencyMeasureReferralController) RegisterRoutes(rg *gin.RouterGroup)
 	rg.GET("/emergency-measure-referrals/agentes", c.Agents)
 	rg.GET("/emergency-measure-referrals/profesionales-revision", c.Reviewers)
 	rg.GET("/emergency-measure-referrals", c.List)
+	rg.GET("/emergency-measure-referrals/:id", c.Detail)
 	rg.POST("/emergency-measure-referrals/reasignar", c.Reassign)
 	rg.POST("/emergency-measure-referrals/:id/revision", c.Review)
 }
@@ -72,6 +73,27 @@ func (c *EmergencyMeasureReferralController) List(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, result)
+}
+
+func (c *EmergencyMeasureReferralController) Detail(ctx *gin.Context) {
+	s := referralSession(ctx)
+	if s == nil {
+		return
+	}
+	if !utils.CheckPermission(salvia_config.PermissionsByRole, "get_remision_medida_detalle", s.CurrentRole, ctx) {
+		return
+	}
+	vista, _, ok := salvia_config.VistaRemisionesMedidas(s.CurrentRole)
+	if !ok {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "este rol no tiene bandeja de medidas"})
+		return
+	}
+	item, err := c.svc.Detail(ctx.Request.Context(), vista, s.UserICode, ctx.Param("id"))
+	if err != nil {
+		writeReferralErr(ctx, err)
+		return
+	}
+	ctx.JSON(http.StatusOK, item)
 }
 
 func (c *EmergencyMeasureReferralController) Agents(ctx *gin.Context) {

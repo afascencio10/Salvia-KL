@@ -3,6 +3,7 @@ package repository
 import (
 	"bitsflow/internal/models"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -46,6 +47,18 @@ type EmergencyReferralRow struct {
 	ReviewDate             string
 }
 
+// EmergencyReferralDetailRow es la fila del detalle: la del listado más motivo,
+// devolución, equipo del remitente e hijos e intérprete del caso.
+type EmergencyReferralDetailRow struct {
+	EmergencyReferralRow
+	Reason              string
+	RejectionReason     string
+	SubmittedByTeam     string
+	ChildrenNumber      *int
+	ChildrenAges        string
+	RequiresInterpreter bool
+}
+
 type emergencyReferralScan struct {
 	ID                     string `gorm:"column:id"`
 	CaseICode              string `gorm:"column:case_i_code"`
@@ -66,6 +79,32 @@ type emergencyReferralScan struct {
 	ReviewDate             string `gorm:"column:review_date"`
 }
 
+type emergencyReferralDetailScan struct {
+	ID                     string        `gorm:"column:id"`
+	CaseICode              string        `gorm:"column:case_i_code"`
+	CaseName               string        `gorm:"column:case_name"`
+	DocNumber              string        `gorm:"column:doc_number"`
+	RiskLabel              string        `gorm:"column:risk_label"`
+	Municipality           string        `gorm:"column:municipality"`
+	MeasuresJSON           string        `gorm:"column:measures"`
+	Urgency                string        `gorm:"column:urgency"`
+	SubmittedByName        string        `gorm:"column:submitted_by_name"`
+	ReferredAt             string        `gorm:"column:referred_at"`
+	Status                 string        `gorm:"column:status"`
+	AssignedAgentID        string        `gorm:"column:assigned_agent_id"`
+	AssignedAgentName      string        `gorm:"column:assigned_agent_name"`
+	ReviewProfessionalName string        `gorm:"column:review_professional_name"`
+	ReviewConcept          string        `gorm:"column:review_concept"`
+	ReviewResult           string        `gorm:"column:review_result"`
+	ReviewDate             string        `gorm:"column:review_date"`
+	Reason                 string        `gorm:"column:reason"`
+	RejectionReason        string        `gorm:"column:rejection_reason"`
+	SubmittedByTeam        string        `gorm:"column:submitted_by_team"`
+	ChildrenNumber         sql.NullInt64 `gorm:"column:children_number"`
+	ChildrenAges           string        `gorm:"column:children_ages"`
+	InterpreterCode        string        `gorm:"column:interpreter_code"`
+}
+
 type statusCountRow struct {
 	Status string `gorm:"column:status"`
 	N      int    `gorm:"column:n"`
@@ -75,6 +114,8 @@ type statusCountRow struct {
 type EmergencyMeasureReferralRepository interface {
 	CountByStatus(ctx context.Context, vista, agentICode string) (map[string]int, error)
 	List(ctx context.Context, f EmergencyReferralListFilter) ([]EmergencyReferralRow, error)
+	// FindDetail lee una remisión dentro del recorte de la vista. Nil si no entra.
+	FindDetail(ctx context.Context, vista, agentICode, id string) (*EmergencyReferralDetailRow, error)
 	UserHasActiveRole(ctx context.Context, iCode, roleCode string) (bool, error)
 	Reassign(ctx context.Context, ids []string, agentID string) error
 	Review(ctx context.Context, id, professionalID, concept, result, newStatus, reviewDate string) (found bool, pending bool, err error)
@@ -216,6 +257,37 @@ LEFT JOIN security.general_user_profile review_gup
       AND review_gup.general_user_profile_id = review_gu.general_user_general_user_profile
 `
 
+const referralDetailExtraSelect = `
+	COALESCE(r.reason, '') AS reason,
+	COALESCE(r.rejection_reason, '') AS rejection_reason,
+	COALESCE(r.submitted_by_team, '') AS submitted_by_team,
+	kids.children_number AS children_number,
+	COALESCE(kids.children_ages, '') AS children_ages,
+	COALESCE(interp.interpreter_code, '') AS interpreter_code
+`
+
+const referralDetailExtraFrom = `
+LEFT JOIN LATERAL (
+       SELECT f1c.victim_case_form1_victim_children_number AS children_number,
+              COALESCE(f1c.victim_case_form1_victim_children_age, '') AS children_ages
+       FROM salvia.victim_case_form1 f1c
+       WHERE vc.victim_case_id IS NOT NULL
+         AND f1c.victim_case_form1_victim_case = vc.victim_case_id
+       ORDER BY f1c.victim_case_form1_id DESC
+       LIMIT 1
+) kids ON true
+LEFT JOIN LATERAL (
+       SELECT COALESCE(ri.victim_case_form2_enums_code, '') AS interpreter_code
+       FROM salvia.victim_case_form2 vf2
+       LEFT JOIN salvia.victim_case_form2_enums ri
+              ON ri.victim_case_form2_enums_id = vf2.victim_case_form2_require_language_interpreter
+       WHERE vc.victim_case_id IS NOT NULL
+         AND vf2.victim_case_form2_victim_case = vc.victim_case_id
+       ORDER BY vf2.victim_case_form2_id DESC
+       LIMIT 1
+) interp ON true
+`
+
 func (r *emergencyMeasureReferralRepository) CountByStatus(ctx context.Context, vista, agentICode string) (map[string]int, error) {
 	clause, args := scopeClause(vista, agentICode)
 	var rows []statusCountRow
@@ -280,6 +352,72 @@ func (r *emergencyMeasureReferralRepository) List(ctx context.Context, f Emergen
 		})
 	}
 	return out, nil
+}
+
+// FindDetail aplica el mismo recorte que el listado. Una remisión fuera de la
+// bandeja del rol devuelve nil, igual que si no existiera.
+func (r *emergencyMeasureReferralRepository) FindDetail(ctx context.Context, vista, agentICode, id string) (*EmergencyReferralDetailRow, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, nil
+	}
+	clause, args := scopeClause(vista, agentICode)
+	args = append(args, id)
+	var scanned emergencyReferralDetailScan
+	tx := r.db.WithContext(ctx).Raw(`
+		SELECT `+referralListSelect+`,
+		`+referralDetailExtraSelect+`
+		`+referralListFrom+`
+		`+referralDetailExtraFrom+`
+		WHERE r.deleted_at IS NULL
+		`+clause+`
+		  AND r.id::text = ?
+		LIMIT 1
+	`, args...).Scan(&scanned)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+	if strings.TrimSpace(scanned.ID) == "" {
+		return nil, nil
+	}
+	measures := []string{}
+	if scanned.MeasuresJSON != "" && scanned.MeasuresJSON != "null" {
+		_ = json.Unmarshal([]byte(scanned.MeasuresJSON), &measures)
+	}
+	if measures == nil {
+		measures = []string{}
+	}
+	row := &EmergencyReferralDetailRow{
+		EmergencyReferralRow: EmergencyReferralRow{
+			ID:                     scanned.ID,
+			CaseICode:              strings.TrimSpace(scanned.CaseICode),
+			CaseName:               strings.TrimSpace(scanned.CaseName),
+			DocNumber:              scanned.DocNumber,
+			RiskLabel:              scanned.RiskLabel,
+			Municipality:           scanned.Municipality,
+			Measures:               measures,
+			Urgency:                scanned.Urgency,
+			SubmittedByName:        strings.TrimSpace(scanned.SubmittedByName),
+			ReferredAt:             scanned.ReferredAt,
+			Status:                 scanned.Status,
+			AssignedAgentID:        scanned.AssignedAgentID,
+			AssignedAgentName:      strings.TrimSpace(scanned.AssignedAgentName),
+			ReviewProfessionalName: strings.TrimSpace(scanned.ReviewProfessionalName),
+			ReviewConcept:          scanned.ReviewConcept,
+			ReviewResult:           scanned.ReviewResult,
+			ReviewDate:             scanned.ReviewDate,
+		},
+		Reason:              strings.TrimSpace(scanned.Reason),
+		RejectionReason:     strings.TrimSpace(scanned.RejectionReason),
+		SubmittedByTeam:     strings.TrimSpace(scanned.SubmittedByTeam),
+		ChildrenAges:        strings.TrimSpace(scanned.ChildrenAges),
+		RequiresInterpreter: scanned.InterpreterCode == "y",
+	}
+	if scanned.ChildrenNumber.Valid {
+		n := int(scanned.ChildrenNumber.Int64)
+		row.ChildrenNumber = &n
+	}
+	return row, nil
 }
 
 func (r *emergencyMeasureReferralRepository) UserHasActiveRole(ctx context.Context, iCode, roleCode string) (bool, error) {

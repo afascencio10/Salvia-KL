@@ -260,8 +260,9 @@ Descripción:  Un solo evento para el link "Ver detalle →" y para los botones
               de fila de tipo detalle (decidir vía, escalar, entregar medida,
               caracterización, trazabilidad, cotizaciones, cargar cotizaciones,
               confirmar seguridad). Emite ver-detalle con remisionId y
-              caseICode. El negocio de cada botón queda en la pantalla de
-              detalle, que todavía no existe.
+              caseICode. El padre navega a /salvia/remision-medida/{remisionId}.
+              Esa pantalla hoy solo lee. El ciclo de gestión de cada botón
+              sigue pendiente ahí.
 Requerido:    Sí
 ```
 
@@ -280,7 +281,7 @@ Requerido:    Sí
 - [x] ¿Flujos detallados escritos? → M-01, E-01 … E-15
 - [ ] ¿M-01 y los endpoints implementados? → Pendiente
 - [x] ¿Mapeo currentRole → vista? → sm, em, sc, cr, am y sv (ver interfaz)
-- [ ] ¿Pantalla de detalle de la remisión? → Pendiente (E-15 solo emite)
+- [x] ¿Pantalla de detalle de la remisión? → Lectura en /salvia/remision-medida/:id. El ciclo de gestión de E-15 sigue pendiente
 
 ---
 

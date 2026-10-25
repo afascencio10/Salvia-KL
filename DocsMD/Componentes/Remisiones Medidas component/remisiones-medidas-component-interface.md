@@ -83,7 +83,7 @@ El padre fija `vista` según el rol. Estas son las cinco vistas del componente y
 | `ver-caso` | `{ caseICode, remisionId }` | Clic en "Ver caso →" (E-14) |
 | `ver-detalle` | `{ remisionId, caseICode }` | Clic en "Ver detalle →" o en un botón de fila cuyo tipo es detalle (E-15) |
 
-El componente no navega. Los padres actuales dejan los dos handlers vacíos: el detalle de la medida y los casos del seed no existen.
+El componente no navega. `onVerDetalle` de los dos padres abre `/salvia/remision-medida/{remisionId}`. `onVerCaso` sigue vacío.
 
 Reasignar y guardar la revisión no se emiten. El componente llama al API y vuelve a cargar el listado (E-10, E-13).
 

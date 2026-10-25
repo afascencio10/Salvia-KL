@@ -39,9 +39,13 @@
             document.getElementById('app').style.display = 'block';
         },
         methods: {
-            // Detalle de medida y casos SAL-00x todavía no existen: no navegar.
             onVerCaso: function() {},
-            onVerDetalle: function() {},
+            onVerDetalle: function(payload) {
+                var remisionId = payload && payload.remisionId;
+                if (remisionId) {
+                    window.location.href = '/salvia/remision-medida/' + encodeURIComponent(remisionId);
+                }
+            },
             logout: function() {
                 logout("/seguridad/logout");
             },

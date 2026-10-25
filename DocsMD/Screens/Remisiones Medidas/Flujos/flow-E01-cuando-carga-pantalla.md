@@ -60,7 +60,9 @@ PASO 4 — Montar el componente según el rol
 
 PASO 5 — Handlers de navegación
 
-  onVerCaso y onVerDetalle no redirigen.
-  E-14 y E-15 del componente emiten y la pantalla se queda en el listado.
+  onVerDetalle redirige a /salvia/remision-medida/{remisionId}.
+  Es E-15 del componente. La pantalla de detalle es de lectura.
+
+  onVerCaso no redirige. E-14 emite y el listado se queda.
 
   → FIN EJECUCIÓN ✓

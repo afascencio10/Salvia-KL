@@ -48,12 +48,19 @@ PASO 2 — Emitir
   El payload no distingue el botón. La pantalla de detalle lee el estado
   de la remisión y decide qué trabajo mostrar.
 
-PASO 3 — El componente no navega
+PASO 3 — El padre navega
 
-  El padre escucha @ver-detalle.
-  Los dos padres actuales dejan el handler vacío. La pantalla de detalle
-  de la medida no existe. Decidir la vía, escalar, entregar, revisar la
-  caracterización, la trazabilidad, las cotizaciones y confirmar la
-  seguridad se documentan en esa pantalla, no en este listado.
+  El componente no cambia de ruta. El padre escucha @ver-detalle.
+
+  Remisiones Medidas y Mis Remisiones Medidas hacen:
+
+    location = /salvia/remision-medida/{remisionId}
+
+  Esa pantalla lee la remisión. Hoy es de lectura: cabecera, Info Medida,
+  tareas y timeline del caso. Decidir la vía, escalar, entregar, revisar
+  la caracterización, la trazabilidad, las cotizaciones y confirmar la
+  seguridad siguen pendientes en esa pantalla, no en este listado.
+
+  onVerCaso sigue vacío. E-14 no navega.
 
   → FIN EJECUCIÓN ✓
