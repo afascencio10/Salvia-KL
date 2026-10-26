@@ -162,16 +162,28 @@ app.component('case-tasks', {
         esComiteDelPool: function(task) {
             return task && task.type === 'comite_caso' && !task.assignedUserId;
         },
+        // esSoloAsignado: tipos de tarea que SOLO puede gestionar su usuario asignado,
+        // ni siquiera el supervisor. articulacion_territorial es del enlace territorial
+        // (rol 'en'): solo él la gestiona. validar_remision es del profesional psicosocial.
+        esSoloAsignado: function(task) {
+            return task && (task.type === 'articulacion_territorial' || task.type === 'validar_remision');
+        },
         puedeCompletar: function(task) {
             if ((this.userRole === 'ps' || this.userRole === 'ts') && !this.allowPsicoManage) return false;
+            // Tareas exclusivas del asignado (enlace territorial / profesional): ni el sv
+            // ni el te pueden gestionarlas; solo el usuario al que están asignadas.
+            if (this.esSoloAsignado(task)) {
+                return String(task.assignedUserId || '') === String(this.userId || '');
+            }
             if (this.userRole === 'sv') return true;
             // El Equipo Técnico puede gestionar las comite_caso del pool.
             if (this.userRole === 'te' && this.esComiteDelPool(task)) return true;
             return String(task.assignedUserId || '') === String(this.userId || '');
         },
         esAsignadoOSv: function(task) {
-            // Para tareas de validar_remision: solo el asignado puede gestionar (el modal requiere ser el profesional)
-            if (task.type === 'validar_remision') {
+            // Tareas exclusivas del asignado (articulacion_territorial del enlace y
+            // validar_remision del profesional): solo las gestiona su asignado, NO el sv.
+            if (this.esSoloAsignado(task)) {
                 return String(task.assignedUserId || '') === String(this.userId || '');
             }
             // Para las demás tareas: sv siempre puede, o ser el asignado
