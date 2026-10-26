@@ -1,0 +1,336 @@
+<link rel="stylesheet" href="/static/css/remision-medida-detalle.css">
+
+<main class="salvia-main">
+<div class="rmd-page">
+
+    <div v-if="cargando" class="rmd-state">
+        <i class="fa fa-spinner fa-spin"></i>
+        <p>Cargando la remisión...</p>
+    </div>
+
+    <div v-if="error && !cargando" class="rmd-state">
+        <div class="rmd-error">
+            <h2>No se pudo cargar la remisión</h2>
+            <p>${ error }</p>
+            <a href="javascript:salviaGoBack('{{.salviaBackFallbackPath}}')" class="rmd-btn rmd-btn--ghost">← Volver</a>
+        </div>
+    </div>
+
+    <template v-if="remision && !cargando">
+        <div class="rmd-crumb">
+            <a href="javascript:salviaGoBack('{{.salviaBackFallbackPath}}')" class="rmd-back">
+                <i class="fas fa-arrow-left"></i> Medidas
+            </a>
+            <span>/</span>
+            <span class="rmd-crumb-name">${ remision.caseName }</span>
+        </div>
+
+        <header class="rmd-header">
+            <div class="rmd-header-row">
+                <div class="rmd-who">
+                    <div class="rmd-avatar">${ inicial(remision.caseName) }</div>
+                    <div>
+                        <div class="rmd-title">
+                            <h1>${ remision.caseName }</h1>
+                            <span v-if="remision.riskLabel" class="rmd-badge" :class="claseRiesgo(remision.riskLabel)">${ remision.riskLabel }</span>
+                            <span class="rmd-badge" :class="claseEstado(remision.status)">${ remision.statusLabel }</span>
+                            <span class="rmd-badge" :class="claseUrgencia(remision.urgency)">Urgencia ${ remision.urgencyLabel }</span>
+                        </div>
+                        <p class="rmd-meta">${ remision.docNumber || '—' } · ${ remision.municipality || '—' }</p>
+                    </div>
+                </div>
+                <div v-if="remision.assignedAgent" class="rmd-agent">
+                    <div class="rmd-avatar rmd-avatar--sm">${ inicial(remision.assignedAgent.nombre) }</div>
+                    <div>
+                        <small>Agente</small>
+                        <strong>${ remision.assignedAgent.nombre }</strong>
+                    </div>
+                </div>
+                <div v-else class="rmd-agent rmd-agent--empty">
+                    <div class="rmd-avatar rmd-avatar--sm">?</div>
+                    <div>
+                        <small>Agente</small>
+                        <strong>Sin asignar</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="rmd-chips" v-if="remision.measures && remision.measures.length">
+                <span class="rmd-chips-label">Medidas solicitadas</span>
+                <span v-for="medida in remision.measures" :key="medida" class="rmd-chip">${ medida }</span>
+            </div>
+        </header>
+
+        <section class="rmd-tabs">
+            <div class="rmd-tabbar">
+                <button type="button" class="rmd-tab" :class="{ 'is-active': activeTab === 'info' }" @click="activeTab = 'info'">📋 Info Medida</button>
+                <button type="button" class="rmd-tab" :class="{ 'is-active': activeTab === 'tareas' }" @click="activeTab = 'tareas'">✅ Tareas</button>
+                <button type="button" class="rmd-tab" :class="{ 'is-active': activeTab === 'timeline' }" @click="activeTab = 'timeline'">📊 Timeline</button>
+            </div>
+
+            <div class="rmd-tabbody">
+                <div v-if="activeTab === 'info'" class="rmd-stack">
+                    <article class="rmd-panel">
+                        <h2>Datos de la remisión</h2>
+                        <div class="rmd-grid">
+                            <div class="rmd-field">
+                                <small>Medidas solicitadas</small>
+                                <div class="rmd-chips" style="margin:0;padding:0;border:0" v-if="remision.measures && remision.measures.length">
+                                    <span v-for="medida in remision.measures" :key="'d'+medida" class="rmd-chip">${ medida }</span>
+                                </div>
+                                <p v-else class="rmd-muted">—</p>
+                            </div>
+                            <div class="rmd-field">
+                                <small>Urgencia</small>
+                                <span class="rmd-badge" :class="claseUrgencia(remision.urgency)">${ remision.urgencyLabel }</span>
+                            </div>
+                            <div class="rmd-field">
+                                <small>Remitido por</small>
+                                <p>${ remision.submittedByName || '—' }</p>
+                                <span v-if="remision.submittedByTeam" class="rmd-sub">${ remision.submittedByTeam }</span>
+                            </div>
+                            <div class="rmd-field">
+                                <small>Fecha de remisión</small>
+                                <p>${ remision.referredAt || '—' }</p>
+                            </div>
+                            <div class="rmd-field rmd-span-2">
+                                <small>Motivo</small>
+                                <p class="rmd-motivo">${ remision.reason || '—' }</p>
+                            </div>
+                            <div v-if="remision.rejectionReason" class="rmd-field rmd-span-2">
+                                <div class="rmd-devolucion">
+                                    <small>Motivo de devolución</small>
+                                    <p>${ remision.rejectionReason }</p>
+                                </div>
+                            </div>
+                            <div class="rmd-field">
+                                <small>Agente asignado</small>
+                                <div v-if="remision.assignedAgent" class="rmd-inline">
+                                    <div class="rmd-avatar rmd-avatar--sm">${ inicial(remision.assignedAgent.nombre) }</div>
+                                    <p>${ remision.assignedAgent.nombre }</p>
+                                </div>
+                                <p v-else class="rmd-muted">Sin asignar</p>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="rmd-panel">
+                        <h2>Situación de la víctima</h2>
+                        <div class="rmd-grid">
+                            <div class="rmd-field">
+                                <small>Agresor activo</small>
+                                <p :class="{ 'rmd-alerta': agresorActivo }">${ agresorActivo ? '⚠ Sí — riesgo inminente' : 'No reportado' }</p>
+                            </div>
+                            <div class="rmd-field">
+                                <small>Hijos menores de edad</small>
+                                <p>${ textoHijos }</p>
+                            </div>
+                            <div class="rmd-field">
+                                <small>Requiere intérprete</small>
+                                <p>${ remision.requiresInterpreter ? 'Sí' : 'No' }</p>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article v-if="puedeReasignar" class="rmd-panel">
+                        <h2>Asignación</h2>
+                        <div v-if="reasignarAbierto" class="rmd-assign">
+                            <select class="rmd-select" v-model="reasignarAgenteId" :disabled="cargandoAgentes">
+                                <option value="">${ cargandoAgentes ? 'Cargando agentes…' : 'Seleccionar agente…' }</option>
+                                <option v-for="agente in agentesDisponibles" :key="agente.id" :value="agente.id">${ agente.nombre }</option>
+                            </select>
+                            <button type="button" class="rmd-btn" :disabled="!reasignarAgenteId || reasignando" @click="confirmarReasignar">${ reasignando ? 'Guardando…' : 'Confirmar' }</button>
+                            <button type="button" class="rmd-btn rmd-btn--ghost" :disabled="reasignando" @click="cancelarReasignar">Cancelar</button>
+                        </div>
+                        <button v-else type="button" class="rmd-btn" @click="abrirReasignar">Reasignar agente de medidas</button>
+                        <p v-if="reasignarError" class="rmd-error-inline">${ reasignarError }</p>
+                    </article>
+                </div>
+
+                <div v-if="activeTab === 'tareas'">
+                    <case-tasks :case-id="remision.caseICode" :user-id="currentUserId" :user-role="currentRole"></case-tasks>
+                </div>
+
+                <div v-if="activeTab === 'timeline'">
+                    <case-timeline :case-id="remision.caseICode"></case-timeline>
+                </div>
+            </div>
+        </section>
+    </template>
+</div>
+</main>
+
+{{ template "standard_scripts.html" . }}
+{{ template "overlay.html" . }}
+
+<script>
+    var home = Vue.createApp({
+        delimiters: ['${', '}'],
+        data: function() {
+            return {
+                windowTitle: {{.windowTitle}},
+                currentUser: "{{.currentUser}}",
+                currentRole: "{{.currentRole}}",
+                currentUserId: "{{.currentUserId}}",
+                menu: {{.menu}},
+                remisionId: "{{.remisionId}}",
+                activeTab: 'info',
+                cargando: true,
+                error: '',
+                remision: null,
+                reasignarAbierto: false,
+                reasignarAgenteId: '',
+                reasignarError: '',
+                reasignando: false,
+                cargandoAgentes: false,
+                agentes: [],
+            };
+        },
+        computed: {
+            puedeReasignar: function() {
+                return this.currentRole === 'sm' || this.currentRole === 'sv';
+            },
+            agresorActivo: function() {
+                return !!(this.remision && this.remision.urgency === 'riesgo_inminente');
+            },
+            textoHijos: function() {
+                if (!this.remision || this.remision.childrenNumber === null || this.remision.childrenNumber === undefined) {
+                    return 'No';
+                }
+                var n = this.remision.childrenNumber;
+                var etiqueta = n === 1 ? '1 hijo' : (n + ' hijos');
+                var texto = 'Sí — ' + etiqueta;
+                if (this.remision.childrenAges) texto += ' (' + this.remision.childrenAges + ')';
+                return texto;
+            },
+            agentesDisponibles: function() {
+                var actual = this.remision && this.remision.assignedAgent ? this.remision.assignedAgent.id : '';
+                return this.agentes.filter(function(agente) { return agente.id !== actual; });
+            },
+        },
+        mounted: function() {
+            document.title = this.windowTitle;
+            var appEl = document.getElementById('app');
+            if (appEl) appEl.style.display = 'block';
+            this.cargar();
+        },
+        methods: {
+            inicial: function(nombre) {
+                return nombre ? nombre.charAt(0).toUpperCase() : '?';
+            },
+            claseRiesgo: function(nivel) {
+                if (nivel === 'Extremo' || nivel === 'Alto (feminicidio)' || nivel === 'Crítico') return 'rmd-badge--critico';
+                if (nivel === 'Alto') return 'rmd-badge--alto';
+                return 'rmd-badge--medio';
+            },
+            claseUrgencia: function(urgencia) {
+                return urgencia === 'riesgo_inminente' ? 'rmd-badge--urgencia-inminente' : 'rmd-badge--urgencia-normal';
+            },
+            claseEstado: function(estado) {
+                var mods = {
+                    'riesgo_inminente_por_decidir_via': 'decidir',
+                    'riesgo_inminente_por_escalar_cruz_roja': 'escalar',
+                    'riesgo_inminente_por_entregar_medida': 'entregar',
+                    'riesgo_inminente_por_confirmar_seguridad': 'confirmar',
+                    'pendiente_de_revision': 'revision',
+                    'por_asignar': 'por-asignar',
+                    'asignada': 'asignada',
+                    'en_gestion_documental': 'gestion',
+                    'caracterizado': 'caracterizado',
+                    'por_revisar_trazabilidad': 'trazabilidad',
+                    'por_cotizar': 'cotizar',
+                    'por_aprobar_cotizaciones': 'cotizaciones',
+                    'aprobadas': 'aprobadas',
+                    'en_seguimiento': 'seguimiento',
+                    'devuelta_para_justificacion': 'justificacion',
+                    'devuelta_a_seguimiento': 'devuelta',
+                };
+                return 'rmd-badge--' + (mods[estado] || 'por-asignar');
+            },
+            leerJSON: function(res) {
+                return res.json().catch(function() { return {}; }).then(function(body) {
+                    if (!res.ok) {
+                        var mensaje = (body && body.error) ? body.error : 'No se pudo completar la operación.';
+                        throw new Error(mensaje);
+                    }
+                    return body || {};
+                });
+            },
+            cargar: function() {
+                var self = this;
+                if (!this.remisionId) {
+                    this.cargando = false;
+                    this.error = 'No se indicó la remisión.';
+                    return;
+                }
+                this.cargando = true;
+                this.error = '';
+                fetch('/api/v1/emergency-measure-referrals/' + encodeURIComponent(this.remisionId), { credentials: 'same-origin' })
+                    .then(function(res) { return self.leerJSON(res); })
+                    .then(function(data) {
+                        self.remision = data;
+                        self.cargando = false;
+                    })
+                    .catch(function(err) {
+                        self.remision = null;
+                        self.error = err.message || 'No se pudo cargar la remisión.';
+                        self.cargando = false;
+                    });
+            },
+            abrirReasignar: function() {
+                var self = this;
+                this.reasignarAbierto = true;
+                this.reasignarAgenteId = '';
+                this.reasignarError = '';
+                if (this.agentes.length) return;
+                this.cargandoAgentes = true;
+                fetch('/api/v1/emergency-measure-referrals/agentes', { credentials: 'same-origin' })
+                    .then(function(res) { return self.leerJSON(res); })
+                    .then(function(data) {
+                        self.agentes = data.items || [];
+                    })
+                    .catch(function(err) {
+                        self.reasignarError = err.message || 'No se pudieron cargar los agentes.';
+                    })
+                    .finally(function() { self.cargandoAgentes = false; });
+            },
+            cancelarReasignar: function() {
+                this.reasignarAbierto = false;
+                this.reasignarAgenteId = '';
+                this.reasignarError = '';
+            },
+            confirmarReasignar: function() {
+                var self = this;
+                if (!this.reasignarAgenteId || this.reasignando) return;
+                this.reasignando = true;
+                this.reasignarError = '';
+                fetch('/api/v1/emergency-measure-referrals/reasignar', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: [this.remisionId], agentId: this.reasignarAgenteId }),
+                })
+                    .then(function(res) { return self.leerJSON(res); })
+                    .then(function() {
+                        self.cancelarReasignar();
+                        self.cargar();
+                    })
+                    .catch(function(err) {
+                        self.reasignarError = err.message || 'No se pudo reasignar.';
+                    })
+                    .finally(function() { self.reasignando = false; });
+            },
+            logout: function() {
+                logout('/seguridad/logout');
+            },
+        },
+    });
+
+    var app = home;
+</script>
+<script src="/static/js/components/case-timeline.js"></script>
+<script src="/static/js/components/case-tasks.js"></script>
+<script src="/static/js/components/case-task-modal.js"></script>
+<script src="/static/js/components/case-task-history.js"></script>
+<script>
+    home.mount('#app');
+</script>

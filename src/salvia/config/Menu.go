@@ -279,16 +279,16 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	"get_seguimiento_formulario":   {"op": true},
 	"get_mis_seguimientos_dia":     {"op": true},
 	// Carga de la pantalla HTML: mismos roles que get_notificaciones; uso real solo op/ro (validación en frontend).
-	"get_my_cases":                    {"op": true, "an": true, "no": true, "sv": true, "ad": true, "ro": true, "et": true},
-	"get_list_cases":                  {"op": true, "an": true, "no": true, "sv": true, "ad": true, "ro": true, "do": true, "us": true, "fo": true, "ps": true, "ts": true},
+	"get_my_cases":   {"op": true, "an": true, "no": true, "sv": true, "ad": true, "ro": true, "et": true},
+	"get_list_cases": {"op": true, "an": true, "no": true, "sv": true, "ad": true, "ro": true, "do": true, "us": true, "fo": true, "ps": true, "ts": true},
 
 	// Gestión de reportes (FigJam l25jrzyf) — Listado Reportes / Mis Reportes /
 	// gestion-reporte-modal. Ver DocsMD/Screens/Listado Reportes/.
-	"get_list_reports":          {"op": true, "sv": true},
-	"get_my_reports":            {"op": true},
-	"list_victim_contacts":      {"op": true, "sv": true},
-	"manage_victim_contacts":    {"op": true, "sv": true}, // GAP-2 confirmado 2026-10-11: ambos pueden gestionar cualquier reporte
-	"reassign_victim_contacts":  {"sv": true},              // FigJam: "Solo el supervisor puede hacer esto"
+	"get_list_reports":         {"op": true, "sv": true},
+	"get_my_reports":           {"op": true},
+	"list_victim_contacts":     {"op": true, "sv": true},
+	"manage_victim_contacts":   {"op": true, "sv": true}, // GAP-2 confirmado 2026-10-11: ambos pueden gestionar cualquier reporte
+	"reassign_victim_contacts": {"sv": true},             // FigJam: "Solo el supervisor puede hacer esto"
 
 	// Registro V3 (DocsMD/Screens/Registro V3) — mismo criterio de acceso
 	// que Registro de Caso V2 (operador y supervisor pueden diligenciar).
@@ -340,6 +340,16 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 
 	// ── Mis remisiones Psicosocial (profesional ps / ts) ────────────────────
 	"get_mis_remisiones_psicosocial": {"ps": true, "ts": true},
+
+	// ── Remisiones Medidas de Emergencia ────────────────────────────────────
+	// sm, em, sc y cr comparten /salvia/remisiones-medidas; la vista sale del rol.
+	// sv entra a esa misma pantalla (vista supervisor), puede revisar y reasignar.
+	// La bandeja del agente es solo am.
+	"get_remisiones_medidas":      {"sm": true, "em": true, "sc": true, "cr": true, "sv": true},
+	"get_mis_remisiones_medidas":  {"am": true},
+	"get_remision_medida_detalle": {"sm": true, "em": true, "sc": true, "cr": true, "sv": true, "am": true},
+	"reassign_remisiones_medidas": {"sm": true, "sv": true},
+	"review_remisiones_medidas":   {"sm": true, "em": true, "sv": true},
 
 	// ── Registrar sesión psicosocial (profesional ps / ts) ──────────────────
 	"get_registrar_sesion_psicosocial": {"ps": true, "ts": true},

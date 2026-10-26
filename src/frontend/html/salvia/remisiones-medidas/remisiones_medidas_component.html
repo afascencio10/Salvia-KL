@@ -1,0 +1,229 @@
+{{ define "salvia/remisiones-medidas/remisiones_medidas_component.html" }}
+<link rel="stylesheet" href="/static/css/remisiones-medidas-component.css">
+
+<script type="text/x-template" id="tpl-remisiones-medidas-component">
+<div class="rme-wrapper">
+
+    <div v-if="puedeReasignar && selectedIds.length > 0" class="rme-reassign-bar">
+        <button type="button" class="rme-reassign-btn" @click="abrirReasignarMasivo">
+            ↺ Reasignar ${ selectedIds.length } seleccionada${ selectedIds.length === 1 ? '' : 's' }
+        </button>
+    </div>
+
+    <div v-if="cards.length" class="rme-cards" :class="esAgente ? 'rme-cards--6' : 'rme-cards--8'">
+        <div v-for="card in cards" :key="card.key" class="rme-card" :class="'rme-card--' + card.tono">
+            <p class="rme-card-label">${ card.label }</p>
+            <p class="rme-card-value">${ card.valor }</p>
+        </div>
+    </div>
+
+    <div v-if="banner" class="rme-banner" :class="'rme-banner--' + banner.tono">
+        <span class="rme-banner-icon" aria-hidden="true">${ banner.icono }</span>
+        <p class="rme-banner-text">${ banner.texto }</p>
+    </div>
+
+    <div class="rme-filters">
+        <p class="rme-filters-title">Filtros</p>
+        <div class="rme-filters-row">
+            <input
+                type="text"
+                class="rme-input rme-input--search"
+                :placeholder="placeholderBusqueda"
+                v-model="searchText"
+                autocomplete="off"
+                @input="onSearchInput"
+            >
+            <select v-if="muestraFiltroEstado" class="rme-input" v-model="filtroEstado" @change="cargar">
+                <option value="">Estado remisión</option>
+                <option v-for="estado in estadosFiltro" :key="estado.value" :value="estado.value">${ estado.label }</option>
+            </select>
+            <select v-if="muestraFiltroAgente" class="rme-input" v-model="filtroAgente" @change="cargar">
+                <option value="">Agente asignado</option>
+                <option value="sin-asignar">Sin asignar</option>
+                <option v-for="agente in agentes" :key="agente.id" :value="agente.id">${ agente.nombre }</option>
+            </select>
+            <select class="rme-input" v-model="filtroUrgencia" @change="cargar">
+                <option value="">Urgencia</option>
+                <option value="riesgo_inminente">Riesgo inminente</option>
+                <option value="normal">Normal</option>
+            </select>
+        </div>
+        <button type="button" class="rme-clear" @click="limpiarFiltros">${ labelLimpiar }</button>
+    </div>
+
+    <div class="rme-table">
+        <div class="rme-table-scroll">
+            <div class="rme-head" :class="claseGrilla">
+                <div v-if="puedeReasignar" class="rme-check">
+                    <input
+                        type="checkbox"
+                        :checked="todosSeleccionados"
+                        aria-label="Seleccionar todas"
+                        @change="toggleAll"
+                    >
+                </div>
+                <span>Caso</span>
+                <span>${ esAgente ? 'Medidas' : 'Remisión' }</span>
+                <span>${ esAgente ? 'Estado' : 'Estado y asignación' }</span>
+            </div>
+
+            <div v-if="visibles.length === 0" class="rme-empty">${ emptyMessage }</div>
+
+            <template v-else>
+                <div
+                    v-for="item in visibles"
+                    :key="item.id"
+                    class="rme-row"
+                    :class="[claseGrilla, { 'rme-row--selected': isSelected(item.id) }]"
+                >
+                    <div v-if="puedeReasignar" class="rme-check">
+                        <input
+                            type="checkbox"
+                            :checked="isSelected(item.id)"
+                            :aria-label="'Seleccionar ' + item.caso.nombre"
+                            @change="toggleOne(item.id)"
+                        >
+                    </div>
+
+                    <template v-if="esAgente">
+                        <div class="rme-cell">
+                            <div class="rme-identidad">
+                                <span class="rme-avatar">${ inicial(item.caso.nombre) }</span>
+                                <span class="rme-nombre">${ item.caso.nombre }</span>
+                            </div>
+                            <p class="rme-meta rme-meta--indent">${ item.caso.docNumero }</p>
+                            <div class="rme-meta-row rme-meta--indent">
+                                <span class="rme-risk" :class="claseRiesgo(item.caso.nivelRiesgo)">${ item.caso.nivelRiesgo }</span>
+                                <span class="rme-meta">${ item.caso.municipio }</span>
+                            </div>
+                            <button type="button" class="rme-link rme-meta--indent" @click="onVerCaso(item)">Ver caso →</button>
+                        </div>
+                        <div class="rme-cell">
+                            <div class="rme-chips">
+                                <span v-for="medida in item.medidasSolicitadas" :key="medida" class="rme-chip">${ medida }</span>
+                            </div>
+                            <span class="rme-urgencia" :class="claseUrgencia(item.urgencia)">${ item.urgencia }</span>
+                            <p class="rme-meta">desde ${ item.fechaRemision }</p>
+                            <button type="button" class="rme-link" @click="onVerDetalle(item)">Ver detalle →</button>
+                        </div>
+                        <div class="rme-cell">
+                            <span class="rme-estado" :class="claseEstado(item.estado)">${ item.estado }</span>
+                            <button
+                                v-if="accionDe(item)"
+                                type="button"
+                                class="rme-action"
+                                :class="accionDe(item).clase"
+                                @click="onAccion(item)"
+                            >${ accionDe(item).label }</button>
+                        </div>
+                    </template>
+
+                    <template v-else>
+                        <div class="rme-cell">
+                            <div class="rme-nombre-row">
+                                <span class="rme-nombre">${ item.caso.nombre }</span>
+                                <span class="rme-risk" :class="claseRiesgo(item.caso.nivelRiesgo)">${ item.caso.nivelRiesgo }</span>
+                            </div>
+                            <p class="rme-meta">${ item.caso.id } · ${ item.caso.docNumero }</p>
+                            <p class="rme-muni">${ item.caso.municipio }</p>
+                            <button type="button" class="rme-link" @click="onVerCaso(item)">Ver caso →</button>
+                        </div>
+                        <div class="rme-cell">
+                            <div class="rme-chips">
+                                <span v-for="medida in item.medidasSolicitadas" :key="medida" class="rme-chip">${ medida }</span>
+                            </div>
+                            <span class="rme-urgencia" :class="claseUrgencia(item.urgencia)">${ item.urgencia }</span>
+                            <p class="rme-meta"><span class="rme-por">Por:</span> ${ item.remitidoPor.nombre }</p>
+                            <p class="rme-meta">${ item.fechaRemision }</p>
+                            <button type="button" class="rme-link" @click="onVerDetalle(item)">Ver detalle →</button>
+                        </div>
+                        <div class="rme-cell">
+                            <span class="rme-estado" :class="claseEstado(item.estado)">${ item.estado }</span>
+                            <button
+                                v-if="accionDe(item)"
+                                type="button"
+                                class="rme-action"
+                                :class="accionDe(item).clase"
+                                @click="onAccion(item)"
+                            >${ accionDe(item).label }</button>
+                            <div v-else-if="item.agenteAsignado" class="rme-agente">
+                                <span class="rme-avatar rme-avatar--sm">${ inicial(item.agenteAsignado.nombre) }</span>
+                                <span class="rme-agente-nombre">${ item.agenteAsignado.nombre }</span>
+                            </div>
+                            <span v-else class="rme-sin-agente">Sin agente asignado</span>
+                            <div v-if="item.revisionTecnica" class="rme-concepto">
+                                <p class="rme-concepto-resultado">
+                                    <span class="rme-por">Concepto técnico ( ${ item.revisionTecnica.fecha } ):</span>
+                                    ${ item.revisionTecnica.resultado }
+                                </p>
+                                <p class="rme-concepto-por">Por: ${ item.revisionTecnica.profesional }</p>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <p class="rme-count">${ visibles.length } de ${ alcanceTotal } remisiones</p>
+
+    <div v-if="reasignarAbierto" class="rme-modal-backdrop">
+        <div class="rme-modal rme-modal--sm" role="dialog" aria-modal="true" aria-labelledby="rme-reasignar-titulo">
+            <h2 id="rme-reasignar-titulo" class="rme-modal-title">Reasignar remisiones</h2>
+            <p class="rme-modal-text">
+                ${ selectedIds.length } remisión${ selectedIds.length === 1 ? '' : 'es' } seleccionada${ selectedIds.length === 1 ? '' : 's' }. Elige el agente destino.
+            </p>
+            <label class="rme-modal-label" for="rme-reasignar-agente">Agente de Medidas</label>
+            <select id="rme-reasignar-agente" class="rme-input rme-input--block" v-model="reasignarAgenteId">
+                <option value="">Seleccionar agente…</option>
+                <option v-for="agente in agentes" :key="agente.id" :value="agente.id">${ agente.nombre }</option>
+            </select>
+            <p v-if="reasignarError" class="rme-modal-text">${ reasignarError }</p>
+            <div class="rme-modal-actions">
+                <button type="button" class="rme-btn rme-btn--ghost" @click="cerrarReasignar">Cancelar</button>
+                <button type="button" class="rme-btn rme-btn--primary" :disabled="!reasignarAgenteId" @click="confirmarReasignar">Reasignar</button>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="revisionAbierta && revisionItem" class="rme-modal-backdrop">
+        <div class="rme-modal" role="dialog" aria-modal="true" aria-labelledby="rme-revision-titulo">
+            <h2 id="rme-revision-titulo" class="rme-modal-title">Revisión Equipo Técnico</h2>
+            <p class="rme-modal-text">
+                Caso <span class="rme-por">${ revisionItem.caso.nombre }</span> · ${ revisionItem.caso.id }
+            </p>
+            <label class="rme-modal-label" for="rme-revision-profesional">Profesional que revisa</label>
+            <select id="rme-revision-profesional" class="rme-input rme-input--block" v-model="revisionProfesional">
+                <option value="">Seleccionar profesional…</option>
+                <option v-for="profesional in profesionales" :key="profesional.id" :value="profesional.id">${ profesional.nombre }</option>
+            </select>
+            <label class="rme-modal-label" for="rme-revision-concepto">Concepto técnico</label>
+            <textarea
+                id="rme-revision-concepto"
+                class="rme-textarea"
+                rows="4"
+                v-model="revisionConcepto"
+                placeholder="Análisis cualificado del caso: criterios identificados, condiciones de riesgo y recomendaciones de la revisión."
+            ></textarea>
+            <p class="rme-modal-label">Resultado de la revisión</p>
+            <div class="rme-resultado-list">
+                <button
+                    v-for="resultado in resultadosRevision"
+                    :key="resultado.value"
+                    type="button"
+                    class="rme-resultado"
+                    :class="{ 'rme-resultado--active': revisionResultado === resultado.value }"
+                    @click="revisionResultado = resultado.value"
+                >${ resultado.label }</button>
+            </div>
+            <p v-if="revisionError" class="rme-modal-text">${ revisionError }</p>
+            <div class="rme-modal-actions">
+                <button type="button" class="rme-btn rme-btn--ghost" @click="cerrarRevision">Cancelar</button>
+                <button type="button" class="rme-btn rme-btn--primary" :disabled="!revisionLista" @click="confirmarRevision">Guardar revisión</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+</script>
+{{ end }}

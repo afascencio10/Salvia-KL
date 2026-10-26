@@ -80,6 +80,20 @@ func main() {
 		SELECT gen_random_uuid()::text, 'te', 'Equipo Técnico', 'Equipo técnico que gestiona las decisiones del comité sobre barreras', NOW(), NOW()
 		WHERE NOT EXISTS (SELECT 1 FROM security.role WHERE role_code = 'te')`)
 
+	// Roles de Medidas de Emergencia. te sigue siendo el equipo técnico del comité.
+	for _, role := range []struct{ code, name, description string }{
+		{"sm", "Supervisor de Medidas", "Supervisa las remisiones de medidas de emergencia: asigna agente y ve el listado completo"},
+		{"em", "Equipo Técnico de Medidas", "Emite el concepto técnico de las remisiones pendientes de revisión"},
+		{"sc", "Supervisión del Convenio", "Revisa trazabilidad, aprueba cotizaciones y escala a Cruz Roja"},
+		{"cr", "Cruz Roja", "Cotiza, entrega la medida inmediata y ve las aprobadas pendientes de otorgamiento"},
+		{"am", "Agente de Medidas", "Gestiona las remisiones asignadas a su perfil"},
+	} {
+		gormDB.Exec(`INSERT INTO security.role (role_i_code, role_code, role_name, role_description, role_creation_date, role_update_date)
+			SELECT gen_random_uuid()::text, ?, ?, ?, NOW(), NOW()
+			WHERE NOT EXISTS (SELECT 1 FROM security.role WHERE role_code = ?)`,
+			role.code, role.name, role.description, role.code)
+	}
+
 	// AutoMigrate por tabla — warning en lugar de fatal para tablas ya existentes
 	for _, m := range []interface{}{
 		&models.Form{},
@@ -92,6 +106,7 @@ func main() {
 		&models.Answer{},
 		&models.Option{},
 		&models.FollowUpV2{},
+		&models.EmergencyMeasureReferral{},
 		&models.EmergencyMeasure{},
 		&models.Dupla{},
 		&models.PsychosocialSupport{},
@@ -178,6 +193,7 @@ func main() {
 	townLightRepo := repository.NewTownLightRepository(gormDB)
 	attemptRepo := repository.NewFollowUpAttemptRepository(gormDB)
 	emRepo := repository.NewEmergencyMeasureRepository(gormDB)
+	referralRepo := repository.NewEmergencyMeasureReferralRepository(gormDB)
 	psRepo := repository.NewPsychosocialSupportRepository(gormDB)
 	teamContactRepo := repository.NewTeamContactRepository(gormDB)
 	esRepo := repository.NewEconomicStabilizationRepository(gormDB)
@@ -234,39 +250,40 @@ func main() {
 	articulatingMechanismSvc := service.NewCaseArticulatingMechanismService(articulatingMechanismRepo, caseTimelineRepo)
 
 	formSvc := service.NewFormService(service.FormServiceDeps{
-		FormRepo:                  formRepo,
-		FormSectionRepo:           formSectionRepo,
-		QuestionRepo:              questionRepo,
-		RepeaterGroupRepo:         repeaterGroupRepo,
-		OptionRepo:                optionRepo,
-		VisibilityCondRepo:        visibilityCondRepo,
-		RenderModificationRepo:    renderModificationRepo,
-		FormSubmissionRepo:        formSubmissionRepo,
-		RepeaterEntryRepo:         repeaterEntryRepo,
-		AnswerRepo:                answerRepo,
-		FollowUpRepo:              followUpRepo,
-		FollowUpAttemptRepo:       attemptRepo,
-		EmergencyMeasureRepo:      emRepo,
-		PsychosocialSupportRepo:   psRepo,
-		EconomicStabilizationRepo: esRepo,
-		MenTeamRemisionRepo:       menTeamRemisionRepo,
-		DiscapacidadRemisionRepo:  discapacidadRemisionRepo,
-		BarrierV2Repo:             barrierV2Repo,
-		BarrierFollowUpRepo:       barrierFollowUpRepo,
-		CaseTimelineEventRepo:     caseTimelineRepo,
-		AgentLightRepo:            agentLightRepo,
-		CasoCierreService:         casoCierreSvc,
-		CaseRepo:                  victimCaseLightRepo,
-		FollowUpV2Svc:             followUpV2Svc,
-		CaseTaskRepo:              caseTaskRepo,
-		EntityLetterRepo:          entityLetterRepo,
-		TeamContactRepo:           teamContactRepo,
-		DuplaRepo:                 duplaRepo,
-		VictimCaseFormSvc:         victimCaseFormSvc,
-		EntityCaseSvc:             entityCaseSvc,
-		EntityObligationRepo:      entityObligationRepo,
-		EntityCaseObligationRepo:  entityCaseObligationRepo,
-		EntityCaseFollowUpRepo:    entityCaseFollowUpRepo,
+		FormRepo:                     formRepo,
+		FormSectionRepo:              formSectionRepo,
+		QuestionRepo:                 questionRepo,
+		RepeaterGroupRepo:            repeaterGroupRepo,
+		OptionRepo:                   optionRepo,
+		VisibilityCondRepo:           visibilityCondRepo,
+		RenderModificationRepo:       renderModificationRepo,
+		FormSubmissionRepo:           formSubmissionRepo,
+		RepeaterEntryRepo:            repeaterEntryRepo,
+		AnswerRepo:                   answerRepo,
+		FollowUpRepo:                 followUpRepo,
+		FollowUpAttemptRepo:          attemptRepo,
+		EmergencyMeasureRepo:         emRepo,
+		EmergencyMeasureReferralRepo: referralRepo,
+		PsychosocialSupportRepo:      psRepo,
+		EconomicStabilizationRepo:    esRepo,
+		MenTeamRemisionRepo:          menTeamRemisionRepo,
+		DiscapacidadRemisionRepo:     discapacidadRemisionRepo,
+		BarrierV2Repo:                barrierV2Repo,
+		BarrierFollowUpRepo:          barrierFollowUpRepo,
+		CaseTimelineEventRepo:        caseTimelineRepo,
+		AgentLightRepo:               agentLightRepo,
+		CasoCierreService:            casoCierreSvc,
+		CaseRepo:                     victimCaseLightRepo,
+		FollowUpV2Svc:                followUpV2Svc,
+		CaseTaskRepo:                 caseTaskRepo,
+		EntityLetterRepo:             entityLetterRepo,
+		TeamContactRepo:              teamContactRepo,
+		DuplaRepo:                    duplaRepo,
+		VictimCaseFormSvc:            victimCaseFormSvc,
+		EntityCaseSvc:                entityCaseSvc,
+		EntityObligationRepo:         entityObligationRepo,
+		EntityCaseObligationRepo:     entityCaseObligationRepo,
+		EntityCaseFollowUpRepo:       entityCaseFollowUpRepo,
 	})
 	caseDetailSvc := service.NewCaseDetailService(caseDetailRepo, gormDB)
 	caseInfoSvc := service.NewCaseInfoService(caseInfoRepo)
@@ -342,6 +359,8 @@ func main() {
 	agentsSearchCtrl := salvia_ctrl.NewAgentsSearchController(agentsSearchSvc)
 	psychosocialSupportManualCtrl := salvia_ctrl.NewPsychosocialSupportGinController(psychosocialSupportSvc, victimCaseLightRepo, caseTaskRepo)
 	psychosocialListCtrl := salvia_ctrl.NewPsychosocialListController(psychosocialListSvc)
+	referralSvc := service.NewEmergencyMeasureReferralService(referralRepo, agentLightRepo)
+	referralCtrl := salvia_ctrl.NewEmergencyMeasureReferralController(referralSvc)
 	psychosocialDetailCtrl := salvia_ctrl.NewPsychosocialDetailController(gormDB)
 	psychosocialReassignCtrl := salvia_ctrl.NewPsychosocialReassignController(psychosocialReassignSvc)
 	duplaAdminCtrl := salvia_ctrl.NewDuplaAdminController(duplaAdminSvc)
@@ -402,6 +421,7 @@ func main() {
 	agentsSearchCtrl.RegisterRoutes(api)
 	psychosocialSupportManualCtrl.RegisterRoutes(api)
 	psychosocialListCtrl.RegisterRoutes(api)
+	referralCtrl.RegisterRoutes(api)
 	psychosocialDetailCtrl.RegisterRoutes(api)
 	psychosocialReassignCtrl.RegisterRoutes(api)
 	duplaAdminCtrl.RegisterRoutes(api)

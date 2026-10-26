@@ -238,6 +238,24 @@ func GeneralUserLOGIN_POST(c *gin.Context) {
 					navMap["role"] = currentRole
 					navByte, _ := json.Marshal(navMap)
 					navStr = string(navByte)
+
+				case "sm", "em", "sc", "cr":
+					// Medidas de emergencia: el listado general. La vista la fija el rol.
+					navMap := map[string]string{
+						"login": "/salvia/remisiones-medidas",
+						"role":  currentRole,
+					}
+					navByte, _ := json.Marshal(navMap)
+					navStr = string(navByte)
+
+				case "am":
+					// Agente de Medidas: su bandeja.
+					navMap := map[string]string{
+						"login": "/salvia/mis-remisiones-medidas",
+						"role":  currentRole,
+					}
+					navByte, _ := json.Marshal(navMap)
+					navStr = string(navByte)
 				}
 
 				// Se crea una sesión común con la información del usuario autenticado.
