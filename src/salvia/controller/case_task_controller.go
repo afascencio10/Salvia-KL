@@ -246,6 +246,13 @@ func (c *CaseTaskController) filterTasksForTeamRole(ctx *gin.Context, items []mo
 		// Pool del Equipo Técnico: comite_caso sin dueño visible para todos los 'te'.
 		if t.Type == "comite_caso" && t.AssignedUserID == "" {
 			out = append(out, t)
+			continue
+		}
+		// Gestiones ya completadas por el enlace territorial (articulacion_territorial
+		// Done): son un registro del caso, no una tarea personal del enlace, así que el
+		// equipo técnico debe verlas en "Análisis del caso" aunque no sean suyas.
+		if t.Type == models.CaseTaskTypeArticulacionTerritorial && t.Status == models.CaseTaskStatusDone {
+			out = append(out, t)
 		}
 	}
 	return out

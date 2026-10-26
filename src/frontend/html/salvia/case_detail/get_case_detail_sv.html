@@ -425,7 +425,7 @@
               </button>
             </div>
 
-            <div v-if="analisisMesaTecnica.length === 0 && comentariosEquipoTecnico.length === 0" class="cd-deriv-empty">
+            <div v-if="analisisMesaTecnica.length === 0 && comentariosEquipoTecnico.length === 0 && gestionesEnlaceTerritorial.length === 0" class="cd-deriv-empty">
               Sin análisis ni comentarios registrados
             </div>
 
@@ -459,6 +459,27 @@
               <div v-for="item in comentariosEquipoTecnico" :key="item.id" class="cd-deriv-item" style="flex-direction:column;align-items:stretch">
                 <p style="margin:0;font-size:.83rem;color:#374151;white-space:pre-wrap">${ item.result }</p>
                 <div class="cd-deriv-date">${ item.assignedUserName || 'Equipo Técnico' } · 📅 ${ formatFecha(item.completedAt) }</div>
+              </div>
+            </template>
+
+            <!-- Gestiones del enlace territorial (modal "Gestionar barrera" en Mis Barreras) -->
+            <template v-if="gestionesEnlaceTerritorial.length > 0">
+              <p style="font-size:.72rem;color:#6b7280;font-weight:700;margin:12px 16px 6px;text-transform:uppercase;letter-spacing:.04em">
+                Comentarios del enlace territorial
+                <span style="color:#7c3aed">· ${ gestionesEnlaceTerritorial.length }</span>
+              </p>
+              <div v-for="t in gestionesEnlaceTerritorial" :key="t.id" class="cd-deriv-item" style="flex-direction:column;align-items:stretch">
+                <div v-if="barreraLabelParaTarea(t)" style="font-size:.72rem;color:#7c3aed;font-weight:600;margin-bottom:4px">
+                  🔗 ${ barreraLabelParaTarea(t) }
+                </div>
+                <p style="margin:0;font-size:.83rem;color:#374151;white-space:pre-wrap">${ t.formData.compromiso }</p>
+                <div v-if="t.formData.requiereSeguimiento" style="margin-top:6px;font-size:.78rem;color:#374151">
+                  <i class="fa fa-calendar-check" style="color:#7c3aed;margin-right:5px"></i><strong>Requiere seguimiento</strong><span v-if="t.formData.fechaSeguimiento"> · ${ formatFecha(t.formData.fechaSeguimiento) }</span>
+                </div>
+                <div v-if="t.formData.sugerenciasRemision" style="margin-top:6px;font-size:.78rem;color:#374151">
+                  <i class="fa fa-share" style="color:#7c3aed;margin-right:5px"></i><strong>Sugerencia de remisión:</strong> ${ t.formData.sugerenciasRemision }
+                </div>
+                <div class="cd-deriv-date">${ t.assignedUserName || 'Enlace territorial' } · 📅 ${ formatFecha(t.formData.fechaContacto || t.completedAt) }</div>
               </div>
             </template>
           </div>
@@ -1312,6 +1333,16 @@ var home = Vue.createApp({
         .slice()
         .sort(function(a, b) { return String(a.completedAt || '').localeCompare(String(b.completedAt || '')); });
     },
+    // Gestiones registradas por el enlace territorial al completar "Gestionar barrera"
+    // (tarea articulacion_territorial, ver case-task-modal.js y SaveArticulacionTerritorial
+    // en case_task_service.go). Cada gestión crea un registro Done propio — no sobreescribe
+    // las anteriores — por eso se listan todas, más recientes al final.
+    gestionesEnlaceTerritorial() {
+      return this.caseTasks
+        .filter(function(t) { return t.type === 'articulacion_territorial' && t.status === 'Done' && t.formData; })
+        .slice()
+        .sort(function(a, b) { return String(a.completedAt || '').localeCompare(String(b.completedAt || '')); });
+    },
     remisionMuestraMedidas() { return this.remisionForm.equipos.indexOf('medidas_emergencia') !== -1; },
     remisionMuestraPsico() { return this.remisionForm.equipos.indexOf('atencion_psico') !== -1; },
     remisionMuestraHombres() { return this.remisionForm.equipos.indexOf('atencion_hombres') !== -1; },
@@ -1729,6 +1760,13 @@ var home = Vue.createApp({
     // - Si trae hora/offset (ISO con 'T'), se convierte explícitamente a America/Bogota
     //   antes de recortar, para no depender del offset ni de la zona del navegador.
     // SALVIA se usa solo en Colombia, así que el criterio es siempre Bogotá.
+    // Etiqueta legible de la barrera gestionada (sector + institución), para mostrar
+    // de qué barrera habla cada gestión del enlace territorial en "Análisis del caso".
+    barreraLabelParaTarea(t) {
+      var b = this.barriers.find(function(x) { return x.id === t.barrierId; });
+      if (!b) return '';
+      return (b.sector || 'Barrera') + (b.institutionName ? ' · ' + b.institutionName : '');
+    },
     formatFecha(f) {
       if (!f) return '—';
       if (f.indexOf('T') === -1) return f.substring(0, 10);
