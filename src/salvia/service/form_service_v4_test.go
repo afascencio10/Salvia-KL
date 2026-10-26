@@ -314,6 +314,7 @@ type v4World struct {
 	tasks       *v4TaskFake
 	barriers    *v4BarrierFake
 	measures    *v4MeasureFake
+	referrals   *v4ReferralFake
 	psicos      *v4PsicoFake
 	svc         *formService
 }
@@ -341,8 +342,9 @@ func newV4World(level int) *v4World {
 		barriers: &v4BarrierFake{active: []models.BarrierV2{{
 			ID: "b-active", EntityBranchID: &branch, Status: models.BarrierV2StatusOpen,
 		}}},
-		measures: &v4MeasureFake{},
-		psicos:   &v4PsicoFake{},
+		measures:  &v4MeasureFake{},
+		referrals: &v4ReferralFake{},
+		psicos:    &v4PsicoFake{},
 	}
 	w.followUps = &v4FollowFake{fu: w.fu}
 	w.svc = &formService{
@@ -351,7 +353,7 @@ func newV4World(level int) *v4World {
 		entityCaseObligationRepo: w.obligations, entityCaseFollowUpRepo: w.entFollows,
 		barrierFollowUpRepo: w.barFollows, followUpV2Svc: w.calendar, entityLetterRepo: w.letters,
 		caseTaskRepo: w.tasks, barrierV2Repo: w.barriers, emergencyMeasureRepo: w.measures,
-		psychosocialSupportRepo: w.psicos,
+		emergencyMeasureReferralRepo: w.referrals, psychosocialSupportRepo: w.psicos,
 	}
 	return w
 }
@@ -488,7 +490,11 @@ func TestCompleteFollowUpV4MedidasApaganPsico(t *testing.T) {
 		"q:plan.osignh", "obligatorio",
 	)
 	w.run(t)
-	assert.Len(t, w.measures.rows, 2)
+	if assert.Len(t, w.referrals.referrals, 1) {
+		assert.Equal(t, models.EmergencyReferralStatusPendienteDeRevision, w.referrals.referrals[0].Status)
+		assert.Equal(t, []string{"alojamiento", "transporte"}, w.referrals.types[0])
+	}
+	assert.Empty(t, w.measures.rows)
 	assert.Empty(t, w.psicos.rows)
 
 	ok := newV4World(1)

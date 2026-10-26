@@ -734,9 +734,12 @@ func (s *formService) v4ProcessPlan(ctx context.Context, fu *models.FollowUpV2, 
 	tieneMedidas := v4Has(equipos, "medidas")
 	count := 0
 	if tieneMedidas {
-		for _, tipo := range splitCSVValues(direct[v4Key("q:plan.medidasTipos")]) {
-			if s.v4CrearMedida(ctx, fu.CaseID, &fu.ID, tipo) {
-				count++
+		tipos := splitCSVValues(direct[v4Key("q:plan.medidasTipos")])
+		if len(tipos) > 0 {
+			if err := s.createEmergencyMeasureReferral(ctx, fu.CaseID, &fu.ID, actorID, tipos); err != nil {
+				v4Warn("no se pudo crear la remisión de medidas: %v", err)
+			} else {
+				count += len(tipos)
 			}
 		}
 	}
@@ -797,19 +800,6 @@ func (s *formService) v4ProcessPlan(ctx context.Context, fu *models.FollowUpV2, 
 		}
 	}
 	return count
-}
-
-func (s *formService) v4CrearMedida(ctx context.Context, caseID string, followUpID *string, tipo string) bool {
-	if s.emergencyMeasureRepo == nil {
-		v4Warn("emergencyMeasureRepo es nil — no se crea la medida %s", tipo)
-		return false
-	}
-	row := &models.EmergencyMeasure{CaseID: caseID, FollowUpID: followUpID, Type: tipo, Status: "ACTIVE"}
-	if err := s.emergencyMeasureRepo.Create(ctx, row); err != nil {
-		v4Warn("no se pudo crear la medida %s: %v", tipo, err)
-		return false
-	}
-	return true
 }
 
 func (s *formService) v4CrearPsico(ctx context.Context, caseID string, followUpID *string, actorID, tipo, criterios, taskDesc string) bool {

@@ -290,6 +290,39 @@ func (f *v4BarrierFake) FindMineWithRelations(context.Context, string) ([]models
 }
 func (f *v4BarrierFake) GetDB() *gorm.DB { return nil }
 
+type v4ReferralFake struct {
+	referrals []models.EmergencyMeasureReferral
+	types     [][]string
+}
+
+func (f *v4ReferralFake) CountByStatus(context.Context, string, string) (map[string]int, error) {
+	return nil, nil
+}
+func (f *v4ReferralFake) List(context.Context, repository.EmergencyReferralListFilter) ([]repository.EmergencyReferralRow, error) {
+	return nil, nil
+}
+func (f *v4ReferralFake) FindDetail(context.Context, string, string, string) (*repository.EmergencyReferralDetailRow, error) {
+	return nil, nil
+}
+func (f *v4ReferralFake) UserHasActiveRole(context.Context, string, string) (bool, error) {
+	return false, nil
+}
+func (f *v4ReferralFake) Reassign(context.Context, []string, string) error { return nil }
+func (f *v4ReferralFake) Review(context.Context, string, string, string, string, string, string) (bool, bool, error) {
+	return false, false, nil
+}
+func (f *v4ReferralFake) CreateWithMeasures(_ context.Context, referral *models.EmergencyMeasureReferral, measureTypes []string) error {
+	cp := *referral
+	if referral.FollowUpID != nil {
+		id := *referral.FollowUpID
+		cp.FollowUpID = &id
+	}
+	f.referrals = append(f.referrals, cp)
+	copied := append([]string(nil), measureTypes...)
+	f.types = append(f.types, copied)
+	return nil
+}
+
 type v4MeasureFake struct{ rows []models.EmergencyMeasure }
 
 func (f *v4MeasureFake) Create(_ context.Context, e *models.EmergencyMeasure) error {
