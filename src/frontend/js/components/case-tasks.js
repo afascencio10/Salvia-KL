@@ -262,6 +262,8 @@ app.component('case-tasks', {
                 'decidir_via_riesgo_inminente': 'Decidir vía de atención',
                 'intentar_contacto_3x3': 'Intentar contacto (3×3)',
                 'escalar_cruz_roja': 'Escalar a Cruz Roja',
+                'entregar_medida_inmediata': 'Entregar medida inmediata (sin caracterización previa)',
+                'confirmar_lugar_seguro': 'Confirmar que la persona está en lugar seguro',
             };
             return labels[type] || type || task.category || 'Tarea';
         },

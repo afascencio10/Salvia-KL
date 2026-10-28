@@ -36,4 +36,26 @@ Al confirmar la decisión, el caso recibe «Vía de atención decidida». La des
 
 La tarea `escalar_cruz_roja` nace con la descripción «Escalar a Cruz Roja — Riesgo inminente». El título de la fila y el del modal siguen en «Escalar a Cruz Roja».
 
+## 2026-10-28 — Confirmar el escalamiento a Cruz Roja
+
+Al confirmar, la remisión pasa a `riesgo_inminente_por_entregar_medida` y se crea la tarea `entregar_medida_inmediata` para el rol `cr`, con la descripción «Entregar medida inmediata (sin caracterización previa)». El caso recibe «Escalamiento a Cruz Roja confirmado»: «Supervisión del Convenio confirmó el escalamiento a Cruz Roja». Si el timeline falla, la confirmación queda.
+
+Esa tarea abre el modal «Entregar medida inmediata» con las medidas de la remisión y comentarios. Registrar entrega cierra y no guarda.
+
+
+## 2026-10-28 — Confirmar el escalamiento a Cruz Roja
+
+Al confirmar, la remisión pasa a `riesgo_inminente_por_entregar_medida` y se crea la tarea `entregar_medida_inmediata` para el rol `cr`, con la descripción «Entregar medida inmediata (sin caracterización previa)». El caso recibe «Escalamiento a Cruz Roja confirmado»: «Supervisión del Convenio confirmó el escalamiento a Cruz Roja». Si el timeline falla, el escalamiento queda.
+
+El modal de esa tarea muestra las medidas remitidas y un campo de comentarios. «Registrar entrega» cierra y no guarda.
+
+## 2026-10-28 — Registrar la entrega inmediata
+
+Cruz Roja elige las medidas que entrega. El comentario puede ir vacío. «Registrar entrega» llama a `PUT /case-tasks/:id/complete`.
+
+En una transacción, las medidas elegidas quedan en `ENTREGADA`, la remisión pasa a `riesgo_inminente_por_confirmar_seguridad` y se crea `confirmar_lugar_seguro` para el agente ya asignado. El caso recibe «Medida entregada por Cruz Roja», con los nombres de las medidas y el comentario si lo hay. Si el timeline falla, la entrega queda.
+
+La tarea nueva abre el modal con «Confirma entrega de medidas». Confirmar y Cancelar cierran y no guardan.
+
+
 

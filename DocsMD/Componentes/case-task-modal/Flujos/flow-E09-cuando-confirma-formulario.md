@@ -28,8 +28,35 @@ INPUT: {
     "Vía A — asignación al agente" o "Vía B — escalar a Cruz Roja".
     Un fallo del timeline no revierte la decisión.
 
-  CASO 'intentar_contacto_3x3':
   CASO 'escalar_cruz_roja':
+    formularioValido es true.
+    confirmar() llama a PUT /api/v1/case-tasks/:id/complete.
+    La remisión pasa a riesgo_inminente_por_entregar_medida.
+    Se crea la tarea entregar_medida_inmediata con assigned_role cr
+    y descripción "Entregar medida inmediata (sin caracterización previa)".
+    El timeline queda "Escalamiento a Cruz Roja confirmado":
+    "Supervisión del Convenio confirmó el escalamiento a Cruz Roja".
+    Un fallo del timeline no revierte la confirmación.
+
+  CASO 'entregar_medida_inmediata':
+    formularioValido exige al menos una medida. El comentario puede ir vacío.
+    confirmar() llama a PUT /api/v1/case-tasks/:id/complete
+    con formData { medidas, comentario }.
+    Las medidas elegidas pasan a ENTREGADA.
+    La remisión pasa a riesgo_inminente_por_confirmar_seguridad.
+    Se crea confirmar_lugar_seguro para el agente ya asignado a la remisión,
+    con descripción "Confirmar que la persona está en lugar seguro".
+    Esta tarea queda Done.
+    El timeline queda "Medida entregada por Cruz Roja" y nombra las medidas
+    elegidas. Si hay comentario, lo agrega. El texto indica que queda en
+    espera de confirmación del agente.
+    Un fallo del timeline no revierte la entrega.
+
+  CASO 'confirmar_lugar_seguro':
+    El modal muestra "Confirma entrega de medidas".
+    Confirmar y Cancelar cierran y no llaman al API.
+
+  CASO 'intentar_contacto_3x3':
     El botón está habilitado.
     confirmar() cierra el modal y no llama al API.
 

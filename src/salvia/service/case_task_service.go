@@ -456,6 +456,315 @@ func (s *caseTaskService) registrarTimelineViaDecidida(ctx context.Context, task
 	}
 }
 
+// completeEscalarCruzRoja cierra la tarea de Supervisión del Convenio,
+// deja la remisión por entregar medida y crea la tarea de Cruz Roja.
+func (s *caseTaskService) completeEscalarCruzRoja(ctx context.Context, task *models.CaseTask, userID string, formData datatypes.JSON, now time.Time) error {
+	if task.Status != models.CaseTaskStatusToDo {
+		return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+	}
+	if task.EmergencyMeasureReferralID == nil || strings.TrimSpace(*task.EmergencyMeasureReferralID) == "" {
+		return fmt.Errorf("CompleteWithFormData: la tarea no tiene remisión")
+	}
+	if s.db == nil {
+		return fmt.Errorf("CompleteWithFormData: sin base de datos")
+	}
+	refID := strings.TrimSpace(*task.EmergencyMeasureReferralID)
+	role := models.CaseTaskRoleCruzRoja
+	next := &models.CaseTask{
+		Category:                   models.CaseTaskCategoryMedidas,
+		Type:                       models.CaseTaskTypeEntregarMedidaInmediata,
+		Description:                models.CaseTaskDescEntregarMedidaInmediata,
+		AssignedRole:               &role,
+		Status:                     models.CaseTaskStatusToDo,
+		CaseID:                     task.CaseID,
+		FollowUpID:                 task.FollowUpID,
+		EmergencyMeasureReferralID: &refID,
+	}
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Exec(`
+			UPDATE salvia.emergency_measure_referral
+			   SET status = ?,
+			       updated_at = NOW()
+			 WHERE id::text = ?
+			   AND status = ?
+			   AND deleted_at IS NULL
+		`, models.EmergencyReferralStatusRiesgoPorEntregarMedida, refID, models.EmergencyReferralStatusRiesgoPorEscalarCruzRoja)
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: actualizar remisión: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la remisión ya no está por escalar a Cruz Roja")
+		}
+		if err := tx.Create(next).Error; err != nil {
+			return fmt.Errorf("CompleteWithFormData: crear tarea de entrega: %w", err)
+		}
+		res = tx.Model(&models.CaseTask{}).
+			Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+			Updates(map[string]interface{}{
+				"form_data":    formData,
+				"status":       models.CaseTaskStatusDone,
+				"completed_at": now,
+			})
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: cerrar el escalamiento: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	s.registrarTimelineEscalamientoCruzRoja(ctx, task, userID, now)
+	return nil
+}
+
+func (s *caseTaskService) registrarTimelineEscalamientoCruzRoja(ctx context.Context, task *models.CaseTask, userID string, now time.Time) {
+	if s.timelineRepo == nil {
+		log.Printf("[registrarTimelineEscalamientoCruzRoja] WARN: sin repositorio de timeline")
+		return
+	}
+	actorName := strings.TrimSpace(userID)
+	if s.mechanismRepo != nil && userID != "" {
+		if name, err := s.mechanismRepo.UserFullName(ctx, userID); err == nil && strings.TrimSpace(name) != "" {
+			actorName = strings.TrimSpace(name)
+		}
+	}
+	followUp := ""
+	if task.FollowUpID != nil {
+		followUp = *task.FollowUpID
+	}
+	event := &models.CaseTimelineEvent{
+		CaseID:      task.CaseID,
+		FollowUpID:  followUp,
+		TaskID:      task.ID,
+		EventType:   models.TimelineEventEscalamientoCruzRoja,
+		Category:    models.TimelineCategoryMedidas,
+		Type:        models.TimelineTypeEscalamientoCruzRoja,
+		Icon:        models.TimelineIconRiesgoInminente,
+		Color:       models.TimelineColorRed,
+		Description: models.TimelineDescEscalamientoCruzRoja,
+		EventUserID: userID,
+		ActorID:     userID,
+		ActorName:   actorName,
+		Date:        now,
+		CreatedAt:   now,
+	}
+	if err := s.timelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[registrarTimelineEscalamientoCruzRoja] WARN: no se pudo crear el evento del caso %s: %v", task.CaseID, err)
+	}
+}
+
+// completeEntregarMedidaInmediata cierra la entrega de Cruz Roja, marca las
+// medidas elegidas y deja la confirmación de lugar seguro en el agente ya asignado.
+func (s *caseTaskService) completeEntregarMedidaInmediata(ctx context.Context, task *models.CaseTask, userID string, formData datatypes.JSON, fd map[string]interface{}, now time.Time) error {
+	if task.Status != models.CaseTaskStatusToDo {
+		return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+	}
+	if task.EmergencyMeasureReferralID == nil || strings.TrimSpace(*task.EmergencyMeasureReferralID) == "" {
+		return fmt.Errorf("CompleteWithFormData: la tarea no tiene remisión")
+	}
+	if s.db == nil {
+		return fmt.Errorf("CompleteWithFormData: sin base de datos")
+	}
+	codes, comentario, err := medidasEntregadasDesdeForm(fd)
+	if err != nil {
+		return err
+	}
+	refID := strings.TrimSpace(*task.EmergencyMeasureReferralID)
+	next := &models.CaseTask{
+		Category:                   models.CaseTaskCategoryMedidas,
+		Type:                       models.CaseTaskTypeConfirmarLugarSeguro,
+		Description:                models.CaseTaskDescConfirmarLugarSeguro,
+		Status:                     models.CaseTaskStatusToDo,
+		CaseID:                     task.CaseID,
+		FollowUpID:                 task.FollowUpID,
+		EmergencyMeasureReferralID: &refID,
+	}
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Exec(`
+			UPDATE salvia.emergency_measure_referral
+			   SET status = ?,
+			       updated_at = NOW()
+			 WHERE id::text = ?
+			   AND status = ?
+			   AND deleted_at IS NULL
+		`, models.EmergencyReferralStatusRiesgoPorConfirmarSeguridad, refID, models.EmergencyReferralStatusRiesgoPorEntregarMedida)
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: actualizar remisión: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la remisión ya no está por entregar medida")
+		}
+		var agentID string
+		if err := tx.Raw(`
+			SELECT COALESCE(BTRIM(assigned_agent_id), '')
+			FROM salvia.emergency_measure_referral
+			WHERE id::text = ?
+			  AND deleted_at IS NULL
+		`, refID).Scan(&agentID).Error; err != nil {
+			return fmt.Errorf("CompleteWithFormData: leer el agente: %w", err)
+		}
+		agentID = strings.TrimSpace(agentID)
+		if agentID == "" {
+			return fmt.Errorf("CompleteWithFormData: la remisión no tiene agente de medidas")
+		}
+		var vigentes []string
+		if err := tx.Raw(`
+			SELECT type
+			FROM salvia.emergency_measure
+			WHERE referral_id::text = ?
+			  AND deleted_at IS NULL
+			  AND status = ?
+		`, refID, models.EmergencyMeasureStatusActive).Scan(&vigentes).Error; err != nil {
+			return fmt.Errorf("CompleteWithFormData: leer medidas: %w", err)
+		}
+		disponibles := make(map[string]bool, len(vigentes))
+		for _, tipo := range vigentes {
+			disponibles[tipo] = true
+		}
+		for _, code := range codes {
+			if !disponibles[code] {
+				return fmt.Errorf("CompleteWithFormData: la medida %s no está pendiente en la remisión", code)
+			}
+		}
+		res = tx.Exec(`
+			UPDATE salvia.emergency_measure
+			   SET status = ?,
+			       updated_at = NOW()
+			 WHERE referral_id::text = ?
+			   AND deleted_at IS NULL
+			   AND status = ?
+			   AND type IN ?
+		`, models.EmergencyMeasureStatusEntregada, refID, models.EmergencyMeasureStatusActive, codes)
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: marcar medidas: %w", res.Error)
+		}
+		if res.RowsAffected < int64(len(codes)) {
+			return fmt.Errorf("CompleteWithFormData: no se pudieron marcar las medidas entregadas")
+		}
+		next.AssignedUserID = agentID
+		if err := tx.Create(next).Error; err != nil {
+			return fmt.Errorf("CompleteWithFormData: crear la confirmación de lugar seguro: %w", err)
+		}
+		res = tx.Model(&models.CaseTask{}).
+			Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+			Updates(map[string]interface{}{
+				"form_data":    formData,
+				"status":       models.CaseTaskStatusDone,
+				"completed_at": now,
+			})
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: cerrar la entrega: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	s.registrarTimelineEntregaCruzRoja(ctx, task, userID, codes, comentario, now)
+	return nil
+}
+
+func medidasEntregadasDesdeForm(fd map[string]interface{}) ([]string, string, error) {
+	raw, ok := fd["medidas"].([]interface{})
+	if !ok || len(raw) == 0 {
+		return nil, "", fmt.Errorf("CompleteWithFormData: elige al menos una medida")
+	}
+	seen := make(map[string]bool, len(raw))
+	codes := make([]string, 0, len(raw))
+	for _, item := range raw {
+		code, isStr := item.(string)
+		if !isStr {
+			return nil, "", fmt.Errorf("CompleteWithFormData: medida inválida")
+		}
+		code = strings.TrimSpace(code)
+		if code == "" {
+			return nil, "", fmt.Errorf("CompleteWithFormData: medida inválida")
+		}
+		if seen[code] {
+			continue
+		}
+		seen[code] = true
+		codes = append(codes, code)
+	}
+	if len(codes) == 0 {
+		return nil, "", fmt.Errorf("CompleteWithFormData: elige al menos una medida")
+	}
+	comentario := ""
+	if rawComment, exists := fd["comentario"]; exists && rawComment != nil {
+		text, isStr := rawComment.(string)
+		if !isStr {
+			return nil, "", fmt.Errorf("CompleteWithFormData: comentario inválido")
+		}
+		comentario = strings.TrimSpace(text)
+	}
+	return codes, comentario, nil
+}
+
+func descripcionEntregaCruzRoja(codes []string, comentario string) string {
+	nombres := make([]string, 0, len(codes))
+	for _, code := range codes {
+		nombres = append(nombres, models.EmergencyMeasureTypeLabel(code))
+	}
+	desc := "Cruz Roja entregó " + unirMedidas(nombres) + ". En espera de confirmación del agente."
+	if strings.TrimSpace(comentario) != "" {
+		desc += " Comentario: " + strings.TrimSpace(comentario)
+	}
+	return desc
+}
+
+func unirMedidas(nombres []string) string {
+	switch len(nombres) {
+	case 0:
+		return "la medida"
+	case 1:
+		return nombres[0]
+	case 2:
+		return nombres[0] + " y " + nombres[1]
+	default:
+		return strings.Join(nombres[:len(nombres)-1], ", ") + " y " + nombres[len(nombres)-1]
+	}
+}
+
+func (s *caseTaskService) registrarTimelineEntregaCruzRoja(ctx context.Context, task *models.CaseTask, userID string, codes []string, comentario string, now time.Time) {
+	if s.timelineRepo == nil {
+		log.Printf("[registrarTimelineEntregaCruzRoja] WARN: sin repositorio de timeline")
+		return
+	}
+	actorName := strings.TrimSpace(userID)
+	if s.mechanismRepo != nil && userID != "" {
+		if name, err := s.mechanismRepo.UserFullName(ctx, userID); err == nil && strings.TrimSpace(name) != "" {
+			actorName = strings.TrimSpace(name)
+		}
+	}
+	followUp := ""
+	if task.FollowUpID != nil {
+		followUp = *task.FollowUpID
+	}
+	event := &models.CaseTimelineEvent{
+		CaseID:      task.CaseID,
+		FollowUpID:  followUp,
+		TaskID:      task.ID,
+		EventType:   models.TimelineEventMedidaEntregadaCruzRoja,
+		Category:    models.TimelineCategoryMedidas,
+		Type:        models.TimelineTypeMedidaEntregadaCruzRoja,
+		Icon:        models.TimelineIconRiesgoInminente,
+		Color:       models.TimelineColorRed,
+		Description: descripcionEntregaCruzRoja(codes, comentario),
+		EventUserID: userID,
+		ActorID:     userID,
+		ActorName:   actorName,
+		Date:        now,
+		CreatedAt:   now,
+	}
+	if err := s.timelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[registrarTimelineEntregaCruzRoja] WARN: no se pudo crear el evento del caso %s: %v", task.CaseID, err)
+	}
+}
+
 // CompleteWithFormData completa una CaseTask de tipo gestion_llamada,
 // proyectar_oficio, comite_caso o Corregir oficio. Persiste el JSON del
 // formulario y ejecuta los efectos de lado propios de cada tipo.
@@ -567,6 +876,16 @@ func (s *caseTaskService) CompleteWithFormData(ctx context.Context, id string, u
 
 	case models.CaseTaskTypeDecidirViaRiesgoInminente:
 		if err := s.completeDecidirVia(ctx, task, userId, formData, fd, now); err != nil {
+			return nil, err
+		}
+
+	case models.CaseTaskTypeEscalarCruzRoja:
+		if err := s.completeEscalarCruzRoja(ctx, task, userId, formData, now); err != nil {
+			return nil, err
+		}
+
+	case models.CaseTaskTypeEntregarMedidaInmediata:
+		if err := s.completeEntregarMedidaInmediata(ctx, task, userId, formData, fd, now); err != nil {
 			return nil, err
 		}
 

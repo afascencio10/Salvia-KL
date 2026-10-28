@@ -83,12 +83,17 @@ const (
 	CaseTaskTypeDecidirViaRiesgoInminente = "decidir_via_riesgo_inminente"
 	CaseTaskTypeIntentarContacto3x3       = "intentar_contacto_3x3"
 	CaseTaskTypeEscalarCruzRoja           = "escalar_cruz_roja"
+	CaseTaskTypeEntregarMedidaInmediata   = "entregar_medida_inmediata"
+	CaseTaskTypeConfirmarLugarSeguro      = "confirmar_lugar_seguro"
 	CaseTaskCategoryMedidas               = "Medidas de Emergencia"
 	CaseTaskRoleSupervisorMedidas         = "sm"
 	CaseTaskRoleSupervisionConvenio       = "sc"
+	CaseTaskRoleCruzRoja                  = "cr"
 	CaseTaskDescDecidirViaRiesgoInminente = "Decidir vía de atención — Riesgo inminente"
 	CaseTaskDescIntentarContacto3x3       = "Intentar contacto (3×3)"
 	CaseTaskDescEscalarCruzRoja           = "Escalar a Cruz Roja — Riesgo inminente"
+	CaseTaskDescEntregarMedidaInmediata   = "Entregar medida inmediata (sin caracterización previa)"
+	CaseTaskDescConfirmarLugarSeguro      = "Confirmar que la persona está en lugar seguro"
 )
 
 // CaseTaskCommentItem es un comentario del Equipo Técnico — una case_task Done

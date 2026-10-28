@@ -33,3 +33,30 @@ type EmergencyMeasure struct {
 func (EmergencyMeasure) TableName() string {
 	return "salvia.emergency_measure"
 }
+
+const (
+	EmergencyMeasureStatusActive    = "ACTIVE"
+	EmergencyMeasureStatusEntregada = "ENTREGADA"
+)
+
+// EmergencyMeasureTypeLabel es el nombre que ve Cruz Roja y el timeline.
+func EmergencyMeasureTypeLabel(code string) string {
+	switch code {
+	case "alojamiento":
+		return "Alojamiento"
+	case "transporte":
+		return "Transporte"
+	case "alimentacion":
+		return "Alimentación"
+	case "vestuario":
+		return "Vestuario"
+	case "apoyo_psico":
+		return "Apoyo psicosocial"
+	case "otras_me":
+		return "Otras ME"
+	case "otras":
+		return "Otras medidas de emergencia"
+	default:
+		return code
+	}
+}

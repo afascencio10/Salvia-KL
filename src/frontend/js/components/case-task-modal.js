@@ -353,6 +353,22 @@
             color: #fff;
         }
         .ctm-btn-confirm:hover:not(:disabled) { background: #1e40af; }
+        .ctm-chip {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid #e5e7eb;
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-size: .84rem;
+            color: #374151;
+            background: #fff;
+            cursor: pointer;
+        }
+        .ctm-chip.is-on {
+            background: #db2777;
+            border-color: #db2777;
+            color: #fff;
+        }
         .ctm-modal.ctm-articulacion .ctm-btn-confirm {
             background: #5106A7;
         }
@@ -466,6 +482,9 @@ app.component('case-task-modal', {
             agentesMedidas: [],
             cargandoAgentes: false,
             errorAgentes: '',
+            medidasRemitidas: [],
+            cargandoMedidas: false,
+            errorMedidas: '',
         };
     },
 
@@ -500,6 +519,8 @@ app.component('case-task-modal', {
                 decidir_via_riesgo_inminente: 'Decidir vía de atención — Riesgo inminente',
                 intentar_contacto_3x3: 'Registrar intento de contacto',
                 escalar_cruz_roja: 'Escalar a Cruz Roja',
+                entregar_medida_inmediata: 'Entregar medida inmediata',
+                confirmar_lugar_seguro: 'Confirmar que la persona está en lugar seguro',
             }[this.tarea.type] || 'Completar tarea';
         },
 
@@ -524,6 +545,8 @@ app.component('case-task-modal', {
                 decidir_via_riesgo_inminente: 'fa-fire',
                 intentar_contacto_3x3: 'fa-phone',
                 escalar_cruz_roja: 'fa-ambulance',
+                entregar_medida_inmediata: 'fa-box',
+                confirmar_lugar_seguro: 'fa-shield-alt',
             }[this.tarea.type] || 'fa-tasks';
         },
 
@@ -611,7 +634,10 @@ app.component('case-task-modal', {
                     return (f.via === 'A' || f.via === 'B') && !!f.agentId;
                 case 'intentar_contacto_3x3':
                 case 'escalar_cruz_roja':
+                case 'confirmar_lugar_seguro':
                     return true;
+                case 'entregar_medida_inmediata':
+                    return !this.cargandoMedidas && Array.isArray(f.medidas) && f.medidas.length > 0;
                 default:
                     return false;
             }
@@ -817,6 +843,13 @@ app.component('case-task-modal', {
                     this.form = { contesto: '', nota: '' };
                     break;
                 case 'escalar_cruz_roja':
+                    this.form = {};
+                    break;
+                case 'entregar_medida_inmediata':
+                    this.form = { comentario: '', medidas: [] };
+                    this.cargarMedidasRemitidas();
+                    break;
+                case 'confirmar_lugar_seguro':
                     this.form = {};
                     break;
                 case 'gestion_llamada':
@@ -1150,6 +1183,55 @@ app.component('case-task-modal', {
                 .finally(function() { self.cargandoAgentes = false; });
         },
 
+        etiquetaMedida(code) {
+            var labels = {
+                alojamiento: 'Alojamiento',
+                transporte: 'Transporte',
+                alimentacion: 'Alimentación',
+                vestuario: 'Vestuario',
+                apoyo_psico: 'Apoyo psicosocial',
+                otras_me: 'Otras ME',
+                otras: 'Otras medidas de emergencia',
+            };
+            return labels[code] || code;
+        },
+
+        cargarMedidasRemitidas() {
+            var self = this;
+            var id = this.tarea && this.tarea.emergencyMeasureReferralId;
+            this.medidasRemitidas = [];
+            this.errorMedidas = '';
+            if (!id) {
+                this.errorMedidas = 'No se encontró la remisión de la tarea.';
+                return;
+            }
+            this.cargandoMedidas = true;
+            fetch('/api/v1/emergency-measure-referrals/' + encodeURIComponent(id), { credentials: 'same-origin' })
+                .then(function(res) { return res.json().then(function(body) { return { ok: res.ok, body: body }; }); })
+                .then(function(res) {
+                    var codes = (res.ok && res.body && res.body.measures) ? res.body.measures : [];
+                    self.medidasRemitidas = codes.map(function(code) {
+                        return { code: code, label: self.etiquetaMedida(code) };
+                    });
+                    if (!res.ok) self.errorMedidas = 'No se pudieron cargar las medidas.';
+                })
+                .catch(function() { self.errorMedidas = 'No se pudieron cargar las medidas.'; })
+                .finally(function() { self.cargandoMedidas = false; });
+        },
+
+        medidaSeleccionada(code) {
+            return Array.isArray(this.form.medidas) && this.form.medidas.indexOf(code) !== -1;
+        },
+
+        toggleMedida(code) {
+            if (!Array.isArray(this.form.medidas)) this.form.medidas = [];
+            if (this.medidaSeleccionada(code)) {
+                this.form.medidas = this.form.medidas.filter(function(item) { return item !== code; });
+                return;
+            }
+            this.form.medidas.push(code);
+        },
+
         _buildFormData() {
             const f = this.form;
             const entidadNombreLabel = (f.entidadId && f.entidadId !== 'otra')
@@ -1162,6 +1244,13 @@ app.component('case-task-modal', {
             switch (this.tarea.type) {
                 case 'decidir_via_riesgo_inminente':
                     return { via: f.via, agentId: f.agentId };
+                case 'escalar_cruz_roja':
+                    return { confirmado: true };
+                case 'entregar_medida_inmediata':
+                    return {
+                        medidas: (f.medidas || []).slice(),
+                        comentario: String(f.comentario || '').trim(),
+                    };
                 case 'gestion_llamada':
                     return {
                         departamentoId:     f.departamentoId,
@@ -1311,7 +1400,7 @@ app.component('case-task-modal', {
 
         async confirmar() {
             if (!this.formularioValido || this.guardando) return;
-            if (this.tarea && (this.tarea.type === 'intentar_contacto_3x3' || this.tarea.type === 'escalar_cruz_roja')) {
+            if (this.tarea && (this.tarea.type === 'intentar_contacto_3x3' || this.tarea.type === 'confirmar_lugar_seguro')) {
                 this.cancelar();
                 return;
             }
@@ -1401,7 +1490,8 @@ app.component('case-task-modal', {
                 <p v-if="tarea && tarea.type === 'decidir_via_riesgo_inminente'" class="ctm-header-sub">Elige una vía y asigna un agente de medidas.</p>
                 <p v-else-if="tarea && tarea.type === 'intentar_contacto_3x3'" class="ctm-header-sub">Protocolo 3×3 — registra el resultado del intento.</p>
                 <p v-else-if="tarea && tarea.type === 'articulacion_territorial'" class="ctm-header-sub">\${ articulacionSubtitulo }</p>
-                <p v-else-if="tarea && tarea.id && tarea.type !== 'solicitud_entidad' && tarea.type !== 'respuesta_entidad' && tarea.type !== 'decidir_via_riesgo_inminente' && tarea.type !== 'intentar_contacto_3x3' && tarea.type !== 'escalar_cruz_roja'" class="ctm-header-sub">ID \${ tarea.id.substring(0,8) }…</p>
+                <p v-else-if="tarea && tarea.type === 'entregar_medida_inmediata'" class="ctm-header-sub">Riesgo inminente: entrega sin esperar caracterización completa ni declaración jurada.</p>
+                <p v-else-if="tarea && tarea.id && tarea.type !== 'solicitud_entidad' && tarea.type !== 'respuesta_entidad' && tarea.type !== 'decidir_via_riesgo_inminente' && tarea.type !== 'intentar_contacto_3x3' && tarea.type !== 'escalar_cruz_roja' && tarea.type !== 'entregar_medida_inmediata' && tarea.type !== 'confirmar_lugar_seguro'" class="ctm-header-sub">ID \${ tarea.id.substring(0,8) }…</p>
                 <p v-else-if="tarea && tarea.type === 'solicitud_entidad'" class="ctm-header-sub">Selecciona los ítems pendientes del checklist entidad sobre los que deseas hacer una solicitud y describe cada uno.</p>
             </div>
         </div>
@@ -2134,6 +2224,24 @@ app.component('case-task-modal', {
             <p style="margin:0;color:#111827;font-size:.95rem">Confirmar Derivar el caso a Cruz Roja para entrega inmediata de la medida</p>
         </template>
 
+        <template v-else-if="tarea && tarea.type === 'confirmar_lugar_seguro'">
+            <p style="margin:0;color:#111827;font-size:.95rem">Confirma entrega de medidas</p>
+        </template>
+
+        <template v-else-if="tarea && tarea.type === 'entregar_medida_inmediata'">
+            <p class="ctm-label" style="margin-bottom:10px">Medidas entregadas</p>
+            <p v-if="cargandoMedidas" class="ctm-hint">Cargando medidas…</p>
+            <div v-else style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+                <button type="button" class="ctm-chip" :class="{ 'is-on': medidaSeleccionada(medida.code) }" v-for="medida in medidasRemitidas" :key="medida.code" @click="toggleMedida(medida.code)" :disabled="guardando">\${ medida.label }</button>
+            </div>
+            <p v-if="errorMedidas" class="ctm-hint">\${ errorMedidas }</p>
+            <p v-else-if="!cargandoMedidas && medidasRemitidas.length === 0" class="ctm-hint">Esta remisión no tiene medidas.</p>
+            <div class="ctm-field">
+                <label class="ctm-label">Comentarios</label>
+                <textarea class="ctm-textarea" rows="3" maxlength="500" v-model="form.comentario" placeholder="Ej: Hotel asignado en zona segura, traslado realizado el mismo día..."></textarea>
+            </div>
+        </template>
+
         <!-- Error al guardar -->
         <div v-if="saveError" class="ctm-error-banner">
             <i class="fas fa-exclamation-circle"></i> \${ saveError }
@@ -2174,6 +2282,12 @@ app.component('case-task-modal', {
                     Guardar
                 </template>
                 <template v-else-if="tarea && tarea.type === 'escalar_cruz_roja'">
+                    Confirmar
+                </template>
+                <template v-else-if="tarea && tarea.type === 'entregar_medida_inmediata'">
+                    Registrar entrega
+                </template>
+                <template v-else-if="tarea && tarea.type === 'confirmar_lugar_seguro'">
                     Confirmar
                 </template>
                 <template v-else>
