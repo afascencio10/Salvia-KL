@@ -88,7 +88,7 @@ const (
 	CaseTaskRoleSupervisionConvenio       = "sc"
 	CaseTaskDescDecidirViaRiesgoInminente = "Decidir vía de atención — Riesgo inminente"
 	CaseTaskDescIntentarContacto3x3       = "Intentar contacto (3×3)"
-	CaseTaskDescEscalarCruzRoja           = "Escalar a Cruz Roja"
+	CaseTaskDescEscalarCruzRoja           = "Escalar a Cruz Roja — Riesgo inminente"
 )
 
 // CaseTaskCommentItem es un comentario del Equipo Técnico — una case_task Done

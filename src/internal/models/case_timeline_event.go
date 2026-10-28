@@ -59,6 +59,12 @@ const (
 
 	TimelineTypeComentarioEquipoTecnico = "Comentario del Equipo Técnico"
 	TimelineTypeRemisionEquipos         = "Remisión a equipos registrada"
+	TimelineTypeRemisionRiesgoInminente = "Remisión de riesgo inminente"
+	TimelineTypeViaAtencionDecidida     = "Vía de atención decidida"
+
+	TimelineDescRemisionRiesgoInminente = "Se remitió a medidas de emergencia por riesgo inminente"
+	TimelineDescViaA                    = "Vía A — asignación al agente"
+	TimelineDescViaB                    = "Vía B — escalar a Cruz Roja"
 
 	TimelineTypeMesaTecnicaAbierta = "Mesa técnica abierta"
 )
@@ -89,6 +95,7 @@ const (
 	TimelineIconRespuestaEntidad = "reply"
 	TimelineIconMecanismo        = "scale-balanced"
 	TimelineIconComentario       = "comment-dots"
+	TimelineIconRiesgoInminente  = "fire"
 )
 
 // ─── Colores ─────────────────────────────────────────────────────────────────
@@ -125,6 +132,8 @@ const (
 	TimelineEventGestionMecanismo        = "GESTION_MECANISMO"
 	TimelineEventComentarioEquipoTecnico = "COMENTARIO_EQUIPO_TECNICO"
 	TimelineEventMesaTecnicaAbierta      = "MESA_TECNICA_ABIERTA"
+	TimelineEventRemisionRiesgoInminente = "RIESGO_INMINENTE_REMITIDO"
+	TimelineEventViaAtencionDecidida     = "VIA_ATENCION_DECIDIDA"
 )
 
 // CaseTimelineEvent registra un evento en la vida de un caso.

@@ -319,7 +319,7 @@ func (s *caseTaskService) Complete(ctx context.Context, id string, result string
 
 // completeDecidirVia asigna el agente, mueve el estado de la remisión,
 // crea la tarea siguiente y cierra la de decidir vía. Si algo falla, no queda nada escrito.
-func (s *caseTaskService) completeDecidirVia(ctx context.Context, task *models.CaseTask, formData datatypes.JSON, fd map[string]interface{}, now time.Time) error {
+func (s *caseTaskService) completeDecidirVia(ctx context.Context, task *models.CaseTask, userID string, formData datatypes.JSON, fd map[string]interface{}, now time.Time) error {
 	if task.Status != models.CaseTaskStatusToDo {
 		return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
 	}
@@ -374,7 +374,7 @@ func (s *caseTaskService) completeDecidirVia(ctx context.Context, task *models.C
 		next.AssignedRole = &role
 	}
 
-	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		res := tx.Exec(`
 			UPDATE salvia.emergency_measure_referral
 			   SET assigned_agent_id = ?,
@@ -407,7 +407,53 @@ func (s *caseTaskService) completeDecidirVia(ctx context.Context, task *models.C
 			return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+	s.registrarTimelineViaDecidida(ctx, task, userID, via, now)
+	return nil
+}
+
+// registrarTimelineViaDecidida corre después de cerrar la decisión.
+// Un fallo no revierte la remisión ni las tareas.
+func (s *caseTaskService) registrarTimelineViaDecidida(ctx context.Context, task *models.CaseTask, userID, via string, now time.Time) {
+	if s.timelineRepo == nil {
+		log.Printf("[registrarTimelineViaDecidida] WARN: sin repositorio de timeline")
+		return
+	}
+	desc := models.TimelineDescViaA
+	if via == "B" {
+		desc = models.TimelineDescViaB
+	}
+	actorName := strings.TrimSpace(userID)
+	if s.mechanismRepo != nil && userID != "" {
+		if name, err := s.mechanismRepo.UserFullName(ctx, userID); err == nil && strings.TrimSpace(name) != "" {
+			actorName = strings.TrimSpace(name)
+		}
+	}
+	followUp := ""
+	if task.FollowUpID != nil {
+		followUp = *task.FollowUpID
+	}
+	event := &models.CaseTimelineEvent{
+		CaseID:      task.CaseID,
+		FollowUpID:  followUp,
+		TaskID:      task.ID,
+		EventType:   models.TimelineEventViaAtencionDecidida,
+		Category:    models.TimelineCategoryMedidas,
+		Type:        models.TimelineTypeViaAtencionDecidida,
+		Icon:        models.TimelineIconRiesgoInminente,
+		Color:       models.TimelineColorRed,
+		Description: desc,
+		EventUserID: userID,
+		ActorID:     userID,
+		ActorName:   actorName,
+		Date:        now,
+		CreatedAt:   now,
+	}
+	if err := s.timelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[registrarTimelineViaDecidida] WARN: no se pudo crear el evento del caso %s: %v", task.CaseID, err)
+	}
 }
 
 // CompleteWithFormData completa una CaseTask de tipo gestion_llamada,
@@ -520,7 +566,7 @@ func (s *caseTaskService) CompleteWithFormData(ctx context.Context, id string, u
 		}
 
 	case models.CaseTaskTypeDecidirViaRiesgoInminente:
-		if err := s.completeDecidirVia(ctx, task, formData, fd, now); err != nil {
+		if err := s.completeDecidirVia(ctx, task, userId, formData, fd, now); err != nil {
 			return nil, err
 		}
 

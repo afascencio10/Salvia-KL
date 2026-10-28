@@ -30,3 +30,10 @@ Vía A crea `intentar_contacto_3x3` para el agente. Vía B crea `escalar_cruz_ro
 | `src/salvia/service/case_task_service.go` | `completeDecidirVia` |
 | `src/internal/models/case_task.go` | Tipos y descripciones de las tareas siguientes |
 
+## 2026-10-28 — Timeline al decidir la vía
+
+Al confirmar la decisión, el caso recibe «Vía de atención decidida». La descripción es «Vía A — asignación al agente» o «Vía B — escalar a Cruz Roja». El evento se escribe después de la transacción: si falla, la decisión queda.
+
+La tarea `escalar_cruz_roja` nace con la descripción «Escalar a Cruz Roja — Riesgo inminente». El título de la fila y el del modal siguen en «Escalar a Cruz Roja».
+
+

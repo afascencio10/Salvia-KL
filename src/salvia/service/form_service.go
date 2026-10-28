@@ -4205,17 +4205,19 @@ func (s *formService) createEmergencyMeasureReferral(ctx context.Context, caseID
 		return err
 	}
 	if riesgoInminente {
-		s.crearTareaDecidirVia(ctx, caseID, followUpID, referral.ID)
+		if taskID, ok := s.crearTareaDecidirVia(ctx, caseID, followUpID, referral.ID); ok {
+			s.registrarTimelineRemisionRiesgoInminente(ctx, caseID, followUpID, actorID, taskID)
+		}
 	}
 	return nil
 }
 
 // crearTareaDecidirVia deja la tarea en el rol sm. Un fallo no revierte la remisión:
 // el seguimiento ya no se puede reprocesar una vez queda REALIZADO.
-func (s *formService) crearTareaDecidirVia(ctx context.Context, caseID string, followUpID *string, referralID string) {
+func (s *formService) crearTareaDecidirVia(ctx context.Context, caseID string, followUpID *string, referralID string) (string, bool) {
 	if s.caseTaskRepo == nil || referralID == "" {
 		log.Printf("[crearTareaDecidirVia] WARN: no se crea la tarea (repo=%v referral=%s)", s.caseTaskRepo != nil, referralID)
-		return
+		return "", false
 	}
 	role := models.CaseTaskRoleSupervisorMedidas
 	refID := referralID
@@ -4232,6 +4234,50 @@ func (s *formService) crearTareaDecidirVia(ctx context.Context, caseID string, f
 	}
 	if err := s.caseTaskRepo.Create(ctx, task); err != nil {
 		log.Printf("[crearTareaDecidirVia] WARN: no se pudo crear la tarea de la remisión %s: %v", referralID, err)
+		return "", false
+	}
+	return task.ID, true
+}
+
+// registrarTimelineRemisionRiesgoInminente deja constancia en el caso.
+// Un fallo no revierte la remisión ni la tarea.
+func (s *formService) registrarTimelineRemisionRiesgoInminente(ctx context.Context, caseID string, followUpID *string, actorID, taskID string) {
+	if s.caseTimelineRepo == nil {
+		log.Printf("[registrarTimelineRemisionRiesgoInminente] WARN: sin repositorio de timeline")
+		return
+	}
+	now := time.Now()
+	followUp := ""
+	if followUpID != nil {
+		followUp = *followUpID
+	}
+	actorName := actorID
+	if s.agentLightRepo != nil && actorID != "" {
+		agent, err := s.agentLightRepo.FindByICode(ctx, actorID)
+		if err == nil && agent != nil {
+			if name := strings.TrimSpace(agent.Names + " " + agent.LastNames); name != "" {
+				actorName = name
+			}
+		}
+	}
+	event := &models.CaseTimelineEvent{
+		CaseID:      caseID,
+		FollowUpID:  followUp,
+		TaskID:      taskID,
+		EventType:   models.TimelineEventRemisionRiesgoInminente,
+		Category:    models.TimelineCategoryMedidas,
+		Type:        models.TimelineTypeRemisionRiesgoInminente,
+		Icon:        models.TimelineIconRiesgoInminente,
+		Color:       models.TimelineColorRed,
+		Description: models.TimelineDescRemisionRiesgoInminente,
+		EventUserID: actorID,
+		ActorID:     actorID,
+		ActorName:   actorName,
+		Date:        now,
+		CreatedAt:   now,
+	}
+	if err := s.caseTimelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[registrarTimelineRemisionRiesgoInminente] WARN: no se pudo crear el evento del caso %s: %v", caseID, err)
 	}
 }
 

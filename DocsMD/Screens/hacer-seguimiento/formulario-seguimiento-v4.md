@@ -494,7 +494,7 @@ La hoja Orden dice que, si en la conclusión se marca que sí se realizó una ac
 | Equipo Discapacidad | Múltiple | | Si eligió ese equipo | Apoyo comunicativo en LSC. Apoyo con enfoque de discapacidad (ley de capacidad legal) |
 | Estabilización | Múltiple | | Si eligió ese equipo | Ver lista |
 
-Si esa pregunta booleana queda en Sí, al completar el V.4 la cabecera nace con urgencia `riesgo_inminente` y estado `riesgo_inminente_por_decidir_via`. Cada medida elegida en esa remisión se guarda con `riesgo_inminente = true`. Se crea una `case_task` `decidir_via_riesgo_inminente` con `assigned_role = sm`. Si es No, la cabecera sigue en urgencia normal y pendiente de revisión, las medidas quedan en false y no hay tarea.
+Si esa pregunta booleana queda en Sí, al completar el V.4 la cabecera nace con urgencia `riesgo_inminente` y estado `riesgo_inminente_por_decidir_via`. Cada medida elegida en esa remisión se guarda con `riesgo_inminente = true`. Se crea una `case_task` `decidir_via_riesgo_inminente` con `assigned_role = sm` y el caso recibe el evento «Remisión de riesgo inminente». Si es No, la cabecera sigue en urgencia normal y pendiente de revisión, las medidas quedan en false y no hay tarea ni ese evento.
 
 **Criterios psicosociales**
 

@@ -385,6 +385,13 @@ PASO 5 — Procesar medidas de emergencia
       })
     SI falla la tarea:
       → Loggear advertencia WARN (no aborta: la remisión ya quedó creada)
+    SI la tarea se creó:
+      → timeline del caso
+        categoría "Medidas"
+        tipo "Remisión de riesgo inminente"
+        descripción "Se remitió a medidas de emergencia por riesgo inminente"
+      SI falla el timeline:
+        → Loggear advertencia WARN (no aborta)
 
   Valores posibles: alojamiento | transporte | alimentacion | vestuario | apoyo_psico | otras_me
   → remisionCount += cantidad de tipos

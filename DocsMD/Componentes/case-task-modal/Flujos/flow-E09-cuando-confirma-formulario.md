@@ -24,6 +24,9 @@ INPUT: {
     Vía B deja el estado en riesgo_inminente_por_escalar_cruz_roja y crea
     escalar_cruz_roja con assigned_role sc,
     y marca esta tarea Done.
+    Después, timeline del caso tipo "Vía de atención decidida":
+    "Vía A — asignación al agente" o "Vía B — escalar a Cruz Roja".
+    Un fallo del timeline no revierte la decisión.
 
   CASO 'intentar_contacto_3x3':
   CASO 'escalar_cruz_roja':

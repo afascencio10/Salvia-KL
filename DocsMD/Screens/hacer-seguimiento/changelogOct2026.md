@@ -16,3 +16,8 @@ Si la respuesta es Sí, la cabecera nace con urgencia `riesgo_inminente` y estad
 | `DocsMD/Screens/hacer-seguimiento/form-seguimiento-data.md` | Pregunta y efecto al responder Sí |
 | `DocsMD/Screens/hacer-seguimiento/formulario-seguimiento-v4.md` | Pregunta del plan y efecto al completar |
 | `DocsMD/Screens/hacer-seguimiento/Flujos/flow-E04-cuando-se-procesa-submission.md` | PASO 5 de medidas |
+
+## 2026-10-28 — Timeline al remitir por riesgo inminente
+
+Si el seguimiento viejo o el V.4 remite a medidas con riesgo inminente y la tarea del supervisor se crea, el caso recibe el evento «Remisión de riesgo inminente»: «Se remitió a medidas de emergencia por riesgo inminente». Si el timeline falla, la remisión y la tarea quedan. Una remisión normal no genera ese evento.
+

@@ -499,6 +499,9 @@ func TestCompleteFollowUpV4MedidasApaganPsico(t *testing.T) {
 	assert.Empty(t, w.measures.rows)
 	assert.Empty(t, w.psicos.rows)
 	assert.NotContains(t, taskTypes(w.tasks.rows), models.CaseTaskTypeDecidirViaRiesgoInminente)
+	for _, ev := range w.timeline.events {
+		assert.NotEqual(t, models.TimelineTypeRemisionRiesgoInminente, ev.Type)
+	}
 
 	ok := newV4World(1)
 	ok.direct(
@@ -548,6 +551,18 @@ func TestCompleteFollowUpV4RiesgoInminenteCreaTarea(t *testing.T) {
 		if assert.NotNil(t, tarea.EmergencyMeasureReferralID) {
 			assert.Equal(t, w.referrals.referrals[0].ID, *tarea.EmergencyMeasureReferralID)
 		}
+	}
+	var remision *models.CaseTimelineEvent
+	for i := range w.timeline.events {
+		if w.timeline.events[i].Type == models.TimelineTypeRemisionRiesgoInminente {
+			remision = &w.timeline.events[i]
+			break
+		}
+	}
+	if assert.NotNil(t, remision) {
+		assert.Equal(t, models.TimelineDescRemisionRiesgoInminente, remision.Description)
+		assert.Equal(t, models.TimelineCategoryMedidas, remision.Category)
+		assert.Equal(t, w.fu.CaseID, remision.CaseID)
 	}
 }
 
