@@ -19,6 +19,12 @@ import (
 //go:embed closure_form.sql
 var closureFormSQL string
 
+//go:embed seguimiento_v4_form.sql
+var seguimientoV4FormSQL string
+
+//go:embed seguimiento_v4_medidas.sql
+var seguimientoV4MedidasSQL string
+
 //go:embed validation_tasks.sql
 var validationTasksSQL string
 
@@ -75,4 +81,80 @@ func EnsureClosureForm(db *gorm.DB, formID string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// SeguimientoV4FormID es el formulario nuevo de seguimiento. No reemplaza al
+// vigente (service.SeguimientoFormID) y no está registrado en OnEndFormSubmission,
+// así que completarlo solo guarda respuestas.
+const SeguimientoV4FormID = "c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f"
+
+// SeguimientoV4FormDescription identifica esta versión del formulario. Si la fila
+// ya existe con otro texto, el arranque vuelve a sembrar la definición.
+const SeguimientoV4FormDescription = "Seguimiento V.4. Prototipo estable del 23 de octubre de 2026. Convive con el formulario vigente y todavía no ejecuta su lógica al completar."
+
+// EnsureSeguimientoV4Form crea el formulario "Seguimiento V.4" si no está en la
+// base, o reemplaza su definición cuando la descripción no es la de esta versión.
+// Devuelve true cuando tuvo que aplicarlo. Si el formulario ya tiene envíos, el
+// SQL aborta y no borra nada.
+func EnsureSeguimientoV4Form(db *gorm.DB) (bool, error) {
+	var actual string
+	err := db.Raw(
+		`SELECT COALESCE(MAX(description), '') FROM salvia.form WHERE id = ? AND deleted_at IS NULL`,
+		SeguimientoV4FormID,
+	).Scan(&actual).Error
+	if err != nil {
+		return false, fmt.Errorf("verificando el formulario de seguimiento V.4: %w", err)
+	}
+	if actual == SeguimientoV4FormDescription {
+		return false, nil
+	}
+
+	if err := db.Exec(seguimientoV4FormSQL).Error; err != nil {
+		return false, fmt.Errorf("aplicando el seed del formulario de seguimiento V.4: %w", err)
+	}
+
+	if err := db.Raw(
+		`SELECT COALESCE(MAX(description), '') FROM salvia.form WHERE id = ? AND deleted_at IS NULL`,
+		SeguimientoV4FormID,
+	).Scan(&actual).Error; err != nil {
+		return false, fmt.Errorf("verificando el formulario de seguimiento V.4 tras aplicarlo: %w", err)
+	}
+	if actual != SeguimientoV4FormDescription {
+		return false, fmt.Errorf("el seed se aplicó pero el formulario %s no quedó en la versión esperada", SeguimientoV4FormID)
+	}
+
+	return true, nil
+}
+
+// EnsureSeguimientoV4Medidas agrega la sección «Seguimiento a medidas de emergencia»
+// cuando el formulario ya existe y no se puede reemplazar porque tiene envíos.
+// Si la sección ya está, o el formulario todavía no existe, no escribe nada.
+// Devuelve true cuando insertó la sección.
+func EnsureSeguimientoV4Medidas(db *gorm.DB) (bool, error) {
+	const sectionID = "fc583234-5a64-45f1-aa9e-46e499fe6da4"
+	var presente int64
+	err := db.Raw(
+		`SELECT COUNT(*) FROM salvia.form_section WHERE id = ?`,
+		sectionID,
+	).Scan(&presente).Error
+	if err != nil {
+		return false, fmt.Errorf("verificando la sección de medidas de emergencia: %w", err)
+	}
+	if presente > 0 {
+		return false, nil
+	}
+
+	if err := db.Exec(seguimientoV4MedidasSQL).Error; err != nil {
+		return false, fmt.Errorf("agregando la sección de medidas de emergencia: %w", err)
+	}
+
+	if err := db.Raw(
+		`SELECT COUNT(*) FROM salvia.form_section WHERE id = ?`,
+		sectionID,
+	).Scan(&presente).Error; err != nil {
+		return false, fmt.Errorf("verificando la sección de medidas de emergencia tras agregarla: %w", err)
+	}
+	// El SQL no inserta si el formulario V.4 todavía no existe. Eso no es un fallo:
+	// quien crea el formulario ya incluye la sección.
+	return presente > 0, nil
 }

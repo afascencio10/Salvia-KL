@@ -285,6 +285,7 @@
                     currentEntities:        [],
                     currentEntitiesOptions: [],
                     hasCurrentEntities:     '',
+                    hasMedidas:             '',
                     newEntidadesAcudidas:   [],
                     newEntidadesActivacion: [],
                 },
@@ -428,11 +429,15 @@
                     // data.caseInfo.id es el victim_case_id numérico interno; el endpoint
                     // /api/v1/casos/:id/entidades espera el iCode del caso (data.followUp.case_id).
                     await this.loadCurrentEntities(data.followUp.case_id);
+                    if (this.formId === 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f' && window.SeguimientoV4) {
+                        this.formState.hasMedidas = data.hasEmergencyMeasures ? 'true' : '';
+                        window.SeguimientoV4.attachCase(this.formState, data.activeBarriers || []);
+                    }
                     this.submissionId   = data.followUp.form_submission_id || null;
 
                     // canEdit: false permanente si el form no es el vivo por defecto
                     // (seguimiento migrado — Kobo, Bases Salvia, o futuras migraciones)
-                    if (this.formId !== FORM_ID_DEFAULT) {
+                    if (this.formId !== FORM_ID_DEFAULT && this.formId !== 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f') {
                         this.canEdit = false;
                         this.noEditReason = 'Fue migrado desde un formulario anterior (Kobo o Bases Salvia) y quedó fijo como solo lectura.';
                     } else if (data.caseInfo.status === 'cd') {
@@ -532,8 +537,12 @@
                 // fetch (carrera): en ese caso las ciudades quedaron vacías. Se re-aplica
                 // el último payload para poblarlas ahora que allCities ya está.
                 if (this._lastAnswers) {
-                    this._updateBarreraLocationOptions(this._lastAnswers);
-                    this._updateEntidadIdentificacionOptions(this._lastAnswers);
+                    if (this.formId === 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f' && window.SeguimientoV4) {
+                        window.SeguimientoV4.onAnswers(this, this._lastAnswers);
+                    } else {
+                        this._updateBarreraLocationOptions(this._lastAnswers);
+                        this._updateEntidadIdentificacionOptions(this._lastAnswers);
+                    }
                 }
             },
             _updateBarreraLocationOptions(payload) {
@@ -698,6 +707,10 @@
             },
             onAnswersUpdated(payload) {
                 this._lastAnswers = payload;
+                if (this.formId === 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f' && window.SeguimientoV4) {
+                    window.SeguimientoV4.onAnswers(this, payload);
+                    return;
+                }
                 this._updateBarreraLocationOptions(payload);
                 this._updateEntidadIdentificacionOptions(payload);
 
@@ -743,6 +756,7 @@
     app.mount("#app");
 </script>
 
+<script src="/static/js/seguimiento-v4-state.js"></script>
 <script src="/static/js/components/dinamic-form.js"></script>
 
 {{ template "overlay.html" . }}
