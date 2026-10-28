@@ -80,6 +80,23 @@ func requireSessionRole(ctx *gin.Context, allowed map[string]bool) *utils.Common
 	return s
 }
 
+// requireSession valida la sesión (mismo patrón que requireSessionRole) sin
+// restringir por rol — cualquier rol autenticado puede continuar. Devuelve
+// nil si ya respondió con 401.
+func requireSession(ctx *gin.Context) *utils.CommonSession {
+	sessionID, ok := sessions.Default(ctx).Get("userData").(string)
+	if !ok || sessionID == "" {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "no autenticado"})
+		return nil
+	}
+	s, err := utils.GetCommonSession(sessionID)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "no autenticado"})
+		return nil
+	}
+	return s
+}
+
 // misTareasRoles — roles con acceso a la bandeja de "Mis Tareas".
 // misTareasRoles — roles con acceso a la bandeja "Mis Tareas" (GET /case-tasks/mine).
 // 'et' (Entidad) queda fuera a propósito: no debe ver "Mis Tareas" ni por menú, ni
@@ -114,6 +131,7 @@ func (c *CaseTaskController) RegisterRoutes(rg *gin.RouterGroup) {
 	group.POST("/articulacion-territorial", c.SaveArticulacionTerritorial)
 	group.POST("/gestion-mecanismo", c.SaveGestionMecanismo)
 	group.POST("/comentario-equipo-tecnico", c.SaveComentarioEquipoTecnico)
+	group.POST("/abrir-mesa-tecnica", c.AbrirMesaTecnica)
 }
 
 // ListByAssignedUser devuelve las tareas con barrierId asignadas al usuario,
@@ -589,6 +607,41 @@ func (c *CaseTaskController) SaveComentarioEquipoTecnico(ctx *gin.Context) {
 	if err != nil {
 		if errors.Is(err, service.ErrComentarioEquipoTecnicoInvalid) {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "el comentario no puede estar vacío"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		return
+	}
+
+	ctx.JSON(http.StatusCreated, c.enrichTaskWithName(*task))
+}
+
+// AbrirMesaTecnica crea una case_task ToDo tipo "comite_caso" en el pool del
+// Equipo Técnico (sin barrierId ni dueño) para analizar el caso en mesa
+// técnica — mismo efecto que marcar "Alerta por barreras" al guardar un
+// seguimiento. Accesible para cualquier rol autenticado.
+//
+//	POST /api/v1/case-tasks/abrir-mesa-tecnica
+//	Body: { "caseId": "...", "justificacion": "..." }
+func (c *CaseTaskController) AbrirMesaTecnica(ctx *gin.Context) {
+	s := requireSession(ctx)
+	if s == nil {
+		return
+	}
+
+	var body struct {
+		CaseID        string `json:"caseId" binding:"required"`
+		Justificacion string `json:"justificacion" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "campos 'caseId' y 'justificacion' requeridos"})
+		return
+	}
+
+	task, err := c.svc.AbrirMesaTecnica(ctx.Request.Context(), s.UserICode, body.CaseID, body.Justificacion)
+	if err != nil {
+		if errors.Is(err, service.ErrAbrirMesaTecnicaInvalid) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "caso o justificación inválidos"})
 			return
 		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})

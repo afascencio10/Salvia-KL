@@ -88,6 +88,14 @@ type CaseTaskService interface {
 	// registra el evento correspondiente en el timeline del caso. Solo el rol
 	// 'te' puede invocarla (verificado en el controller).
 	SaveComentarioEquipoTecnico(ctx context.Context, userID, caseID, texto string) (*models.CaseTask, error)
+
+	// AbrirMesaTecnica crea una case_task ToDo tipo comite_caso para analizar el
+	// caso en mesa técnica, sin vincularla a ninguna barrera. justificacion es
+	// el motivo de la remisión y queda guardado en Description. Queda en el
+	// pool del Equipo Técnico (assigned_user_id vacío) — mismo efecto que
+	// marcar la gestión "Alerta por barreras" al guardar un seguimiento. Solo
+	// los roles 'sv' y 'te' pueden invocarla (verificado en el controller).
+	AbrirMesaTecnica(ctx context.Context, userID, caseID, justificacion string) (*models.CaseTask, error)
 }
 
 // ErrBarrierDepartmentMismatch indica que la barrera no pertenece al
@@ -110,6 +118,9 @@ var ErrArticulacionTaskMismatch = errors.New("case_task: la tarea no corresponde
 
 // ErrComentarioEquipoTecnicoInvalid indica caseId o texto vacío.
 var ErrComentarioEquipoTecnicoInvalid = errors.New("case_task: comentario del equipo técnico inválido")
+
+// ErrAbrirMesaTecnicaInvalid indica caseId vacío.
+var ErrAbrirMesaTecnicaInvalid = errors.New("case_task: caso inválido para abrir mesa técnica")
 
 // CaseTaskServiceDeps agrupa las dependencias necesarias para CaseTaskService.
 type CaseTaskServiceDeps struct {
@@ -1074,6 +1085,64 @@ func (s *caseTaskService) SaveComentarioEquipoTecnico(ctx context.Context, userI
 	}
 	if err := s.timelineRepo.Create(ctx, event); err != nil {
 		log.Printf("[CaseTaskService.SaveComentarioEquipoTecnico] WARN: timeline caso %s tarea %s: %v", caseID, task.ID, err)
+	}
+
+	return task, nil
+}
+
+// AbrirMesaTecnica crea una case_task ToDo tipo "comite_caso" para que el
+// Equipo Técnico analice el caso en mesa técnica, igual que cuando se marca la
+// gestión "Alerta por barreras" al guardar un seguimiento (ver
+// processFollowUpSubmission en form_service.go). A diferencia de esa, no nace
+// de una barrera: BarrierID queda nil. Nace sin dueño (assigned_user_id vacío)
+// — pool del Equipo Técnico, la toma y gestiona cualquier 'te' — y se
+// completa por el mismo flujo que CompleteWithFormData ya resuelve para
+// "comite_caso". justificacion es el motivo por el que se remite el caso a
+// mesa técnica; se guarda en Description (mismo patrón que "justificar_remision",
+// donde el motivo vive en Description y se muestra como contexto de solo
+// lectura al completar la tarea).
+func (s *caseTaskService) AbrirMesaTecnica(ctx context.Context, userID, caseID, justificacion string) (*models.CaseTask, error) {
+	userID = strings.TrimSpace(userID)
+	caseID = strings.TrimSpace(caseID)
+	justificacion = strings.TrimSpace(justificacion)
+	if caseID == "" || justificacion == "" {
+		return nil, ErrAbrirMesaTecnicaInvalid
+	}
+
+	task := &models.CaseTask{
+		Category:       "Barreras",
+		Type:           "comite_caso",
+		Description:    justificacion,
+		Status:         models.CaseTaskStatusToDo,
+		AssignedUserID: "",
+		CaseID:         caseID,
+	}
+	if err := s.repo.Create(ctx, task); err != nil {
+		return nil, fmt.Errorf("AbrirMesaTecnica: crear tarea: %w", err)
+	}
+
+	actorName := ""
+	if name, nErr := s.mechanismRepo.UserFullName(ctx, userID); nErr == nil {
+		actorName = strings.TrimSpace(name)
+	}
+	now := time.Now()
+	event := &models.CaseTimelineEvent{
+		CaseID:      caseID,
+		EventType:   models.TimelineEventMesaTecnicaAbierta,
+		Description: justificacion,
+		ActorID:     userID,
+		ActorName:   actorName,
+		Category:    models.TimelineCategoryGeneral,
+		Type:        models.TimelineTypeMesaTecnicaAbierta,
+		Icon:        "users",
+		Date:        now,
+		EventUserID: userID,
+		Color:       models.TimelineColorPurple,
+		TaskID:      task.ID,
+		CreatedAt:   now,
+	}
+	if err := s.timelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[CaseTaskService.AbrirMesaTecnica] WARN: timeline caso %s tarea %s: %v", caseID, task.ID, err)
 	}
 
 	return task, nil

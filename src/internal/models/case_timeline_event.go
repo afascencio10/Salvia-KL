@@ -59,6 +59,8 @@ const (
 
 	TimelineTypeComentarioEquipoTecnico = "Comentario del Equipo Técnico"
 	TimelineTypeRemisionEquipos         = "Remisión a equipos registrada"
+
+	TimelineTypeMesaTecnicaAbierta = "Mesa técnica abierta"
 )
 
 // ─── Iconos ──────────────────────────────────────────────────────────────────
@@ -122,6 +124,7 @@ const (
 	TimelineEventMecanismo               = "MECANISMO_REGISTRADO"
 	TimelineEventGestionMecanismo        = "GESTION_MECANISMO"
 	TimelineEventComentarioEquipoTecnico = "COMENTARIO_EQUIPO_TECNICO"
+	TimelineEventMesaTecnicaAbierta      = "MESA_TECNICA_ABIERTA"
 )
 
 // CaseTimelineEvent registra un evento en la vida de un caso.

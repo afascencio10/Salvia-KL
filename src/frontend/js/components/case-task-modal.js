@@ -1590,6 +1590,17 @@ app.component('case-task-modal', {
         <!-- Formulario comite_caso -->
         <template v-else-if="tarea && tarea.type === 'comite_caso'">
 
+            <!-- Motivo por el que se remitió el caso a mesa técnica (justificación al abrirla,
+                 o contexto de la barrera cuando nace de "Alerta por barreras") -->
+            <div v-if="tarea.description" style="margin-bottom:16px">
+                <p class="ctm-section-title" style="color:#5106A7">
+                    <i class="fas fa-info-circle"></i> Motivo de la mesa técnica
+                </p>
+                <div style="padding:12px 14px;background:#f5f3ff;border:1.5px solid #e9d5ff;border-radius:8px;color:#374151;font-size:13px;line-height:1.5;white-space:pre-wrap">
+                    \${ tarea.description }
+                </div>
+            </div>
+
             <!-- Análisis de la mesa técnica (obligatorio, aplica a toda la sesión) -->
             <div class="ctm-field">
                 <label class="ctm-label">Análisis de la mesa técnica <span class="req">*</span></label>

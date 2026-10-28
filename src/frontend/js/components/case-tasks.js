@@ -255,7 +255,29 @@ app.component('case-tasks', {
             if (task.type === 'solicitud_entidad') {
                 return 'Hacer solicitudes a ' + (task.entityName || 'la entidad');
             }
+            // comite_caso (Decisiones del Comité / mesa técnica) usa un título fijo:
+            // el texto específico de cada una (justificación al abrirla, o el
+            // contexto de la barrera cuando nace de "Alerta por barreras") se ve
+            // recortado en el bloque "Solicitud" más abajo, no como título.
+            if (task.type === 'comite_caso') {
+                return 'Análisis de la mesa técnica';
+            }
             return task.description || this.labelTipo(task);
+        },
+        // primerParrafo recorta un texto largo a su primer párrafo (o ~160
+        // caracteres si esa línea es más larga), para que no rompa el layout de
+        // la tarjeta. El texto completo se ve al entrar a "Gestionar".
+        primerParrafo: function(texto) {
+            if (!texto) return '';
+            var limite = 160;
+            var primeraLinea = texto.split('\n')[0].trim();
+            if (primeraLinea.length > limite) {
+                return primeraLinea.substring(0, limite).trim() + '…';
+            }
+            if (primeraLinea.length < texto.trim().length) {
+                return primeraLinea + '…';
+            }
+            return primeraLinea;
         },
         // entidadTarea resuelve el nombre de la entidad relacionada a la tarea.
         // El backend expone la entidad por dos rutas: 'entityName' (cuando la tarea
@@ -264,17 +286,19 @@ app.component('case-tasks', {
         entidadTarea: function(task) {
             return (task && (task.entityName || task.barrierEntityName)) || '';
         },
-        // solicitudTarea es el texto de la solicitud que se le hace a la entidad.
-        // Corresponde a la descripción de la tarea del enlace territorial.
+        // solicitudTarea es el texto de la solicitud que se le hace a la entidad,
+        // o la justificación de la tarea comite_caso cuando no hay entidad. Se
+        // recorta al primer párrafo para no romper el layout de la tarjeta.
         solicitudTarea: function(task) {
-            return (task && task.description) || '';
+            return this.primerParrafo(task && task.description);
         },
-        // esTareaEnlace indica si la tarjeta corresponde a una gestión hacia una
-        // entidad (barrera/solicitud), para mostrar el bloque "Entidad / Solicitud".
-        // Se muestra cuando hay una entidad resuelta o la tarea nace de una barrera.
+        // esTareaEnlace indica si la tarjeta debe mostrar el bloque "Entidad /
+        // Solicitud": cuando hay una entidad resuelta, la tarea nace de una
+        // barrera, o es una tarea comite_caso (mesa técnica), donde "Solicitud"
+        // muestra la justificación aunque no haya entidad.
         esTareaEnlace: function(task) {
             if (!task) return false;
-            return !!this.entidadTarea(task) || !!task.barrierId;
+            return !!this.entidadTarea(task) || !!task.barrierId || task.type === 'comite_caso';
         },
     },
     template: `

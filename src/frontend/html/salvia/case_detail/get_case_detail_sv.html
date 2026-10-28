@@ -423,6 +423,10 @@
                 style="margin-left:8px;font-size:.72rem;font-weight:600;padding:4px 10px;border-radius:8px;background:#7c3aed;color:#fff;border:none;cursor:pointer">
                 + Comentario
               </button>
+              <button type="button" @click="abrirModalMesaTecnica"
+                style="margin-left:8px;font-size:.72rem;font-weight:600;padding:4px 10px;border-radius:8px;background:#7c3aed;color:#fff;border:none;cursor:pointer">
+                Remitir a mesa técnica
+              </button>
             </div>
 
             <div v-if="analisisMesaTecnica.length === 0 && comentariosEquipoTecnico.length === 0 && gestionesEnlaceTerritorial.length === 0" class="cd-deriv-empty">
@@ -889,6 +893,32 @@
   </div>
 </div>
 
+<!-- ══ MODAL: ABRIR MESA TÉCNICA ══ -->
+<div v-if="modalAbrirMesaTecnica" class="ns-backdrop" @click.self="modalAbrirMesaTecnica = false">
+  <div class="ns-modal">
+    <div class="ns-header">
+      <div>
+        <p class="ns-title">Remitir a mesa técnica</p>
+        <p class="ns-subtitle" v-if="caso">${ caso.victimCaseVictimName }</p>
+      </div>
+      <button class="ns-close" @click="modalAbrirMesaTecnica = false">✕</button>
+    </div>
+    <div class="ns-body">
+      <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:6px">
+        Describa la justificación para remitir a una mesa técnica
+      </label>
+      <textarea v-model="justificacionMesaTecnica" rows="4" placeholder="Explica por qué este caso requiere análisis de la mesa técnica..."
+        style="width:100%;font-size:.88rem;border:1px solid #d1d5db;border-radius:8px;padding:8px 12px;resize:none;outline:none;box-sizing:border-box"></textarea>
+    </div>
+    <div class="ns-footer">
+      <button class="ns-btn-cancel" @click="modalAbrirMesaTecnica = false">Cancelar</button>
+      <button class="ns-btn-save" :disabled="abriendoMesaTecnica || !justificacionMesaTecnica.trim()" @click="confirmarAbrirMesaTecnica">
+        ${ abriendoMesaTecnica ? 'Abriendo...' : 'Confirmar' }
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL: CREAR REMISIÓN PSICOSOCIAL ══ -->
 <div v-if="modalRemisionPsico" class="ns-backdrop" @click.self="modalRemisionPsico = false">
   <div class="ns-modal" style="max-width:640px;max-height:85vh;overflow-y:auto">
@@ -1178,6 +1208,9 @@ var home = Vue.createApp({
       modalComentarioEquipoTecnico: false,
       nuevoComentarioTexto: '',
       guardandoComentario: false,
+      modalAbrirMesaTecnica: false,
+      abriendoMesaTecnica: false,
+      justificacionMesaTecnica: '',
       barriers: [],
       caseTasks: [],
       tipoViolencia: [],
@@ -2134,6 +2167,40 @@ var home = Vue.createApp({
         .catch(function() {
           self.guardandoComentario = false;
           self.showToast('error', 'Error de conexión al agregar el comentario');
+        });
+    },
+    abrirModalMesaTecnica() {
+      this.justificacionMesaTecnica = '';
+      this.modalAbrirMesaTecnica = true;
+    },
+    confirmarAbrirMesaTecnica() {
+      if (!this.justificacionMesaTecnica.trim()) return;
+      var self = this;
+      self.abriendoMesaTecnica = true;
+      fetch('/api/v1/case-tasks/abrir-mesa-tecnica', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ caseId: self.caseICode, justificacion: self.justificacionMesaTecnica.trim() })
+      })
+        .then(function(res) {
+          if (res.ok) {
+            self.modalAbrirMesaTecnica = false;
+            self.abriendoMesaTecnica = false;
+            self.showToast('success', 'Mesa técnica abierta: se creó la tarea en la sección de Tareas');
+            self.cargarDatos();
+          } else {
+            return res.json().then(function(data) {
+              self.abriendoMesaTecnica = false;
+              self.showToast('error', data.error || 'Error al abrir la mesa técnica');
+            }).catch(function() {
+              self.abriendoMesaTecnica = false;
+              self.showToast('error', 'Error al abrir la mesa técnica');
+            });
+          }
+        })
+        .catch(function() {
+          self.abriendoMesaTecnica = false;
+          self.showToast('error', 'Error de conexión al abrir la mesa técnica');
         });
     },
     toggleRemisionValor(arr, val) {
