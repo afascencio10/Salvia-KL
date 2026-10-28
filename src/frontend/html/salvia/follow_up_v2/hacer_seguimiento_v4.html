@@ -162,6 +162,7 @@
                 _lastAnswers: null,
                 formState: {
                     hasEntidades: '',
+                    hasMedidas: '',
                     currentEntities: [],
                     statesColombia: [],
                     identEntidades: [],
@@ -199,6 +200,7 @@
                     this.caseId = fu.case_id;
                     this.caseICode = fu.case_id;
                     await this.loadCurrentEntities();
+                    this.formState.hasMedidas = data.hasEmergencyMeasures ? 'true' : '';
                     SeguimientoV4.attachCase(this.formState, data.activeBarriers || []);
                     this.submissionId = fu.form_submission_id;
                     this.victimInfo = data.victimInfo;

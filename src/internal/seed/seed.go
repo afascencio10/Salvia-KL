@@ -22,6 +22,9 @@ var closureFormSQL string
 //go:embed seguimiento_v4_form.sql
 var seguimientoV4FormSQL string
 
+//go:embed seguimiento_v4_medidas.sql
+var seguimientoV4MedidasSQL string
+
 //go:embed validation_tasks.sql
 var validationTasksSQL string
 
@@ -121,4 +124,37 @@ func EnsureSeguimientoV4Form(db *gorm.DB) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// EnsureSeguimientoV4Medidas agrega la sección «Seguimiento a medidas de emergencia»
+// cuando el formulario ya existe y no se puede reemplazar porque tiene envíos.
+// Si la sección ya está, o el formulario todavía no existe, no escribe nada.
+// Devuelve true cuando insertó la sección.
+func EnsureSeguimientoV4Medidas(db *gorm.DB) (bool, error) {
+	const sectionID = "fc583234-5a64-45f1-aa9e-46e499fe6da4"
+	var presente int64
+	err := db.Raw(
+		`SELECT COUNT(*) FROM salvia.form_section WHERE id = ?`,
+		sectionID,
+	).Scan(&presente).Error
+	if err != nil {
+		return false, fmt.Errorf("verificando la sección de medidas de emergencia: %w", err)
+	}
+	if presente > 0 {
+		return false, nil
+	}
+
+	if err := db.Exec(seguimientoV4MedidasSQL).Error; err != nil {
+		return false, fmt.Errorf("agregando la sección de medidas de emergencia: %w", err)
+	}
+
+	if err := db.Raw(
+		`SELECT COUNT(*) FROM salvia.form_section WHERE id = ?`,
+		sectionID,
+	).Scan(&presente).Error; err != nil {
+		return false, fmt.Errorf("verificando la sección de medidas de emergencia tras agregarla: %w", err)
+	}
+	// El SQL no inserta si el formulario V.4 todavía no existe. Eso no es un fallo:
+	// quien crea el formulario ya incluye la sección.
+	return presente > 0, nil
 }

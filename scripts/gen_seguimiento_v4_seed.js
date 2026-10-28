@@ -201,6 +201,17 @@ question(riesgo, { key: 'risk.riesgos', type: 'multiple', label: 'Indique si est
 question(riesgo, { key: 'risk.extremos', type: 'multiple', label: 'Si identifica algún factor de riesgo extremo, remita al equipo de riesgo. Verifique si ya hay articulación interinstitucional y priorice la protección inmediata', required: true, options: ctx.EXTREMOS });
 question(riesgo, { key: 'risk.descripcion', type: 'text', label: 'Describa la situación de riesgo actual y cómo los factores de riesgo y protectores influyen en que este se mantenga o modifique', required: true });
 
+const medidas = section('medidas', 'Seguimiento a medidas de emergencia', 'Solo cuando el caso ya tiene medidas de emergencia, en cualquier estado');
+whenState('medidas', 'SECTION', 'hasMedidas', 'true');
+question(medidas, { key: 'med.contribucion', type: 'text', label: '¿De qué manera la medida ha contribuido a la gestión de su seguridad y la reducción del riesgo desde el último seguimiento?', required: true });
+question(medidas, { key: 'med.sentir', type: 'text', label: '¿Cómo se ha sentido con las medidas de emergencia recibidas y qué cambios han generado en su situación actual?', required: true });
+question(medidas, { key: 'med.beneficiarias', type: 'text', label: '¿Cómo perciben las personas beneficiarias las medidas otorgadas y de qué manera estas han impactado su bienestar o seguridad? (Si las personas beneficiarias son menores de edad u otras personas dependientes, la valoración puede realizarse a partir del reporte de la participante).', required: true });
+question(medidas, { key: 'med.alternativas', type: 'text', label: 'Además de las medidas de emergencia, ¿qué alternativas o estrategias está construyendo para fortalecer su protección y bienestar a mediano plazo?', required: true });
+question(medidas, { key: 'med.infoCompromisos', type: 'info', label: 'Registre los acuerdos, acciones o gestiones que realizará la persona o los beneficiarios' });
+question(medidas, { key: 'med.compromisos', type: 'text', label: 'Compromisos', required: true });
+question(medidas, { key: 'med.infoObservaciones', type: 'info', label: 'Registre información relevante identificada durante el seguimiento que no haya sido consignada en otros campos y que aporte a la comprensión del caso.' });
+question(medidas, { key: 'med.observaciones', type: 'text', label: 'Observaciones', required: true });
+
 const seg = section('segEntidades', 'Seguimiento a entidades', 'Solo si el caso ya tiene entidades');
 whenState('segEntidades', 'SECTION', 'hasEntidades', 'true');
 question(seg, { key: 'seg.info', type: 'info', label: 'El listado lo trae el sistema. Este apartado integra las acciones nuevas de la entidad, las barreras nuevas y el seguimiento a las barreras que ya tenía.' });
@@ -446,6 +457,53 @@ const seen = {};
 
 const out = 'src/internal/seed/seguimiento_v4_form.sql';
 fs.writeFileSync(out, lines.join('\n'));
+
+const medidasSec = sections.find(function (s) { return s.key === 'medidas'; });
+const medidasQuestions = questions.filter(function (q) { return q.sectionId === medidasSec.id; });
+const medidasConditions = conditions.filter(function (c) { return c.targetKey === 'medidas'; });
+const add = [];
+add.push('-- Agrega Seguimiento a medidas de emergencia sin borrar envíos ni el resto del formulario.');
+add.push('-- Si la sección ya está, no hace nada. Generado por scripts/gen_seguimiento_v4_seed.js. No editar a mano.');
+add.push('DO $$');
+add.push('BEGIN');
+add.push('  IF NOT EXISTS (');
+add.push('    SELECT 1 FROM salvia.form');
+add.push('     WHERE id = ' + sql(FORM_ID) + ' AND deleted_at IS NULL');
+add.push('  ) THEN');
+add.push('    RETURN;');
+add.push('  END IF;');
+add.push('');
+add.push('  IF EXISTS (');
+add.push('    SELECT 1 FROM salvia.form_section WHERE id = ' + sql(medidasSec.id));
+add.push('  ) THEN');
+add.push('    RETURN;');
+add.push('  END IF;');
+add.push('');
+add.push('  UPDATE salvia.form_section');
+add.push('     SET "order" = "order" + 1');
+add.push('   WHERE form_id = ' + sql(FORM_ID));
+add.push('     AND "order" >= 2');
+add.push('     AND deleted_at IS NULL;');
+add.push('');
+add.push('  INSERT INTO salvia.form_section (id, form_id, name, description, "order") VALUES');
+add.push('    (' + [sql(medidasSec.id), sql(FORM_ID), sql(medidasSec.name), sql(medidasSec.description), '2'].join(', ') + ');');
+add.push('');
+add.push('  INSERT INTO salvia.question (id, form_id, form_section_id, repeater_group_id, question_type, description, required, state_options_path, "order") VALUES');
+add.push(medidasQuestions.map(function (q) {
+    return '    (' + [sql(q.id), sql(q.formId), sql(q.sectionId), sql(q.repeaterId), sql(q.type), sql(q.description), q.required ? 'true' : 'false', sql(q.statePath), q.order].join(', ') + ')';
+}).join(',\n') + ';');
+add.push('');
+add.push('  INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_state_path, trigger_value, operator) VALUES');
+add.push(medidasConditions.map(function (c) {
+    const trigger = byKey[c.triggerKey];
+    if (!trigger) throw new Error('trigger ' + c.triggerKey);
+    return '    (' + [sql(c.id), sql(c.targetType), sql(targetId(c)), sql(trigger.id), sql(c.statePath), sql(c.value), sql(c.op)].join(', ') + ')';
+}).join(',\n') + ';');
+add.push('END $$;');
+add.push('');
+const addOut = 'src/internal/seed/seguimiento_v4_medidas.sql';
+fs.writeFileSync(addOut, add.join('\n'));
+
 console.log(FORM_ID);
 console.log('sections', sections.length);
 console.log('repeaters', repeaters.length);
@@ -453,3 +511,4 @@ console.log('questions', questions.length);
 console.log('options', options.length);
 console.log('conditions', conditions.length);
 console.log('bytes', fs.statSync(out).size);
+console.log('medidas', fs.statSync(addOut).size);

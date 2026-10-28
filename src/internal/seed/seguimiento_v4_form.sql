@@ -45,10 +45,11 @@ INSERT INTO salvia.form (id, name, description, status) VALUES (
 
 INSERT INTO salvia.form_section (id, form_id, name, description, "order") VALUES
   ('ebc450d1-8296-4b93-99a1-7e75163d3c55', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'Valoración del riesgo', 'Seguimiento al riesgo de feminicidio, homicidio abyecto o fútil', 1),
-  ('28632cfa-cdd1-4762-bc42-24e367ba5c5d', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'Seguimiento a entidades', 'Solo si el caso ya tiene entidades', 2),
-  ('e742200a-4bc9-4241-b552-31e4666b72b1', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'Identificación de entidades', 'Entidades a las que la persona ya acudió, o a las que otras activaron ruta', 3),
-  ('c9d66717-fb8c-49e8-847d-4c5e1f880a2a', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'Seguimiento al plan de acción', 'Remisiones, acompañamiento psicosocial y descripción', 4),
-  ('e4ed4d76-0757-4847-82e3-4730e2517c35', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'Conclusión del ciclo de atención', 'Criterio, motivo y acción institucional', 5)
+  ('fc583234-5a64-45f1-aa9e-46e499fe6da4', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'Seguimiento a medidas de emergencia', 'Solo cuando el caso ya tiene medidas de emergencia, en cualquier estado', 2),
+  ('28632cfa-cdd1-4762-bc42-24e367ba5c5d', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'Seguimiento a entidades', 'Solo si el caso ya tiene entidades', 3),
+  ('e742200a-4bc9-4241-b552-31e4666b72b1', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'Identificación de entidades', 'Entidades a las que la persona ya acudió, o a las que otras activaron ruta', 4),
+  ('c9d66717-fb8c-49e8-847d-4c5e1f880a2a', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'Seguimiento al plan de acción', 'Remisiones, acompañamiento psicosocial y descripción', 5),
+  ('e4ed4d76-0757-4847-82e3-4730e2517c35', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'Conclusión del ciclo de atención', 'Criterio, motivo y acción institucional', 6)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO salvia.repeater_group (id, form_section_id, name, item_name, "order", min_repetitions, state_items, parent_repeater_group_id) VALUES
@@ -69,6 +70,14 @@ INSERT INTO salvia.question (id, form_id, form_section_id, repeater_group_id, qu
   ('ffd0a2c8-5faa-407c-acf8-9b59c3942962', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'ebc450d1-8296-4b93-99a1-7e75163d3c55', NULL, 'multiple', 'Indique si estos factores de riesgo se presentan en el caso', true, NULL, 7),
   ('3886b772-0141-48d1-ae72-b0ec8e57f007', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'ebc450d1-8296-4b93-99a1-7e75163d3c55', NULL, 'multiple', 'Si identifica algún factor de riesgo extremo, remita al equipo de riesgo. Verifique si ya hay articulación interinstitucional y priorice la protección inmediata', true, NULL, 8),
   ('aa366ecc-199e-4c07-a538-be5ba22c2122', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'ebc450d1-8296-4b93-99a1-7e75163d3c55', NULL, 'text', 'Describa la situación de riesgo actual y cómo los factores de riesgo y protectores influyen en que este se mantenga o modifique', true, NULL, 9),
+  ('b8a1ab54-83eb-47a6-a148-09a3856a1512', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'fc583234-5a64-45f1-aa9e-46e499fe6da4', NULL, 'text', '¿De qué manera la medida ha contribuido a la gestión de su seguridad y la reducción del riesgo desde el último seguimiento?', true, NULL, 1),
+  ('ab2698c7-c8a2-4173-8653-3a46789a5ac3', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'fc583234-5a64-45f1-aa9e-46e499fe6da4', NULL, 'text', '¿Cómo se ha sentido con las medidas de emergencia recibidas y qué cambios han generado en su situación actual?', true, NULL, 2),
+  ('1e13234a-963f-40fc-a8b4-8dcbb91821ea', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'fc583234-5a64-45f1-aa9e-46e499fe6da4', NULL, 'text', '¿Cómo perciben las personas beneficiarias las medidas otorgadas y de qué manera estas han impactado su bienestar o seguridad? (Si las personas beneficiarias son menores de edad u otras personas dependientes, la valoración puede realizarse a partir del reporte de la participante).', true, NULL, 3),
+  ('4085efbd-b581-4ce2-a785-a046c37b5f23', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'fc583234-5a64-45f1-aa9e-46e499fe6da4', NULL, 'text', 'Además de las medidas de emergencia, ¿qué alternativas o estrategias está construyendo para fortalecer su protección y bienestar a mediano plazo?', true, NULL, 4),
+  ('b0071c7f-3489-42bc-9a3e-ff27886105e9', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'fc583234-5a64-45f1-aa9e-46e499fe6da4', NULL, 'info', 'Registre los acuerdos, acciones o gestiones que realizará la persona o los beneficiarios', false, NULL, 5),
+  ('1af7af19-a097-42cf-9178-9d2b094d320c', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'fc583234-5a64-45f1-aa9e-46e499fe6da4', NULL, 'text', 'Compromisos', true, NULL, 6),
+  ('a9495e3a-a25c-4d05-9516-268d8dfce5f1', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'fc583234-5a64-45f1-aa9e-46e499fe6da4', NULL, 'info', 'Registre información relevante identificada durante el seguimiento que no haya sido consignada en otros campos y que aporte a la comprensión del caso.', false, NULL, 7),
+  ('e771e46d-3d5a-4575-b385-d5891c1cf400', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', 'fc583234-5a64-45f1-aa9e-46e499fe6da4', NULL, 'text', 'Observaciones', true, NULL, 8),
   ('9e36e365-d720-474b-877d-c64548c348bd', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', '28632cfa-cdd1-4762-bc42-24e367ba5c5d', NULL, 'info', 'El listado lo trae el sistema. Este apartado integra las acciones nuevas de la entidad, las barreras nuevas y el seguimiento a las barreras que ya tenía.', false, NULL, 1),
   ('533d2140-9070-44b8-b58f-750088837dd3', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', '28632cfa-cdd1-4762-bc42-24e367ba5c5d', NULL, 'multiple', 'Selección de la entidad a actualizar', true, 'currentEntities', 2),
   ('a92070e2-e90c-4f1b-9512-75b1d5638250', 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f', '28632cfa-cdd1-4762-bc42-24e367ba5c5d', '2d252cc8-b411-49d3-b14c-732911af43a4', 'multiple', 'Acciones institucionales que ya se completaron', false, 'currentEntities.{_entryIndex}.obligaciones', 1),
@@ -498,6 +507,7 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_state_path, trigger_value, operator) VALUES
   ('f617ea22-6cce-411b-a35b-b93f3a7aeb66', 'QUESTION', 'fc3ec781-76f6-4b78-8760-9770653eeda0', 'ca4deb2c-ba78-4443-b0a4-a6aa3910b925', NULL, 'true', 'EQUALS'),
   ('bd7fe821-177b-4c80-baec-1d120ed0e439', 'QUESTION', 'c2bcbbee-6797-4cb1-b890-f4f0f313d85d', 'ca4deb2c-ba78-4443-b0a4-a6aa3910b925', NULL, 'true', 'EQUALS'),
+  ('1cb02c1e-ed01-4da8-b451-ae95f3a7e6ea', 'SECTION', 'fc583234-5a64-45f1-aa9e-46e499fe6da4', '86a2fa68-74e3-4e65-86bf-28dfdf2ab8c3', 'hasMedidas', 'true', 'EQUALS'),
   ('1a6b580c-7bc5-47ff-bd0e-d9bc8222d1f1', 'SECTION', '28632cfa-cdd1-4762-bc42-24e367ba5c5d', '86a2fa68-74e3-4e65-86bf-28dfdf2ab8c3', 'hasEntidades', 'true', 'EQUALS'),
   ('99f4e104-c815-4502-a8df-d7274cf992e7', 'QUESTION', '66f8aee9-d5f8-43e8-b91f-1bc55223632f', '86a2fa68-74e3-4e65-86bf-28dfdf2ab8c3', 'currentEntities.{_entryIndex}.hasBarriers', 'true', 'EQUALS'),
   ('cd282243-4a2b-4a2e-aa2f-eb24d0f32669', 'REPEATER_GROUP', 'c69a3952-ac2f-4134-9343-c946be8867a5', '86a2fa68-74e3-4e65-86bf-28dfdf2ab8c3', 'currentEntities.{_entryIndex}.hasBarriers', 'true', 'EQUALS'),

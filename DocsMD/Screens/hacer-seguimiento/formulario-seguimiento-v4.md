@@ -23,7 +23,7 @@ Reemplazan la definición sembrada el 21 de octubre. El id sigue siendo `c4a8e2b
 
 **Seguimiento al plan de acción.** «Equipo al que reasigna el caso» es la última pregunta de la sección. Es un desplegable obligatorio: Seguimiento de Riesgo, Seguimiento General, Abordaje Integral del Feminicidio, Ninguno.
 
-**Seguimiento a medidas de emergencia.** No está en esta versión. La sección va a cambiar y la lógica de momentos no se usa.
+**Seguimiento a medidas de emergencia.** El 23 de octubre no entró: la hoja todavía traía los tres momentos y esa lógica no se usa. El 26 de octubre la hoja quedó en seis textos. Esa versión sí está en el formulario. Ver el apartado 5.
 
 La pantalla real todavía no dibuja el repetidor hijo dentro de la entidad, Ninguna no es exclusiva y hacer seguimiento sigue abriendo el formulario vigente. Eso queda para otra pasada.
 
@@ -40,11 +40,11 @@ El formulario nuevo es otro registro.
 | Id | `c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f` |
 | Nombre | Seguimiento V.4 |
 | Seed | `src/internal/seed/seguimiento_v4_form.sql`, generado por `scripts/gen_seguimiento_v4_seed.js` |
-| Arranque | `seed.EnsureSeguimientoV4Form` lo crea si falta. Si la descripción no es la de esta versión, reemplaza la definición. Si ya coincide, no lo reescribe. Si el formulario tiene envíos, el reemplazo aborta |
+| Arranque | `seed.EnsureSeguimientoV4Form` lo crea si falta. Si la descripción no es la de esta versión, reemplaza la definición. Si ya coincide, no lo reescribe. Si el formulario tiene envíos, el reemplazo aborta. `seed.EnsureSeguimientoV4Medidas` agrega la sección de medidas cuando el formulario ya existe y la sección todavía no está, sin borrar envíos |
 
 Completarlo no crea barreras, entidades, remisiones ni cambia el riesgo. Ese id no está en `OnEndFormSubmission`, así que el guardado deja solo las respuestas.
 
-Son cinco secciones: Valoración del riesgo, Seguimiento a entidades, Identificación de entidades, Seguimiento al plan de acción y Conclusión del ciclo de atención. Las listas cerradas están en `salvia.option`. Departamento, municipio, ciudad, entidad, obligaciones, entidades del caso y barreras de la entidad no tienen opciones fijas: la pantalla las entrega por `state_options_path` o por `state_items`.
+Son seis secciones: Valoración del riesgo, Seguimiento a medidas de emergencia, Seguimiento a entidades, Identificación de entidades, Seguimiento al plan de acción y Conclusión del ciclo de atención. Las listas cerradas están en `salvia.option`. Departamento, municipio, ciudad, entidad, obligaciones, entidades del caso y barreras de la entidad no tienen opciones fijas: la pantalla las entrega por `state_options_path` o por `state_items`.
 
 Las barreras nuevas y el seguimiento de las barreras que la entidad ya trae quedan como repetidores hijos (`parent_repeater_group_id`). Esas columnas ya existen. El componente todavía no las lee: hasta la próxima pasada, ese repetidor se ve como otro repetidor de la sección y la condición entre grupos distintos está guardada pero el motor no la aplica.
 
@@ -218,7 +218,7 @@ La hoja `Orden` define qué se muestra y cuándo. No es una sección que el agen
 | | Identificación de factores de riesgo | | |
 | | Identificación de factores de riesgo extremo | | |
 | | Descripción | | |
-| Seguimiento a medidas de emergencia | Indaga el estado de entrega de la medida | | Solo cuando hay medidas de emergencia, posterior a la caracterización |
+| Seguimiento a medidas de emergencia | Seis textos sobre la medida ya recibida | | Solo cuando el caso ya tiene al menos una medida, en cualquier estado |
 | 2.0 Seguimiento a la ruta de atención integral | A. Seguimiento a entidades | Seguimiento a las entidades ya creadas, incluidas las acciones de las entidades que tienen barreras | Solo si hay entidades registradas antes |
 | | B. Identificación de entidades | Entidades a las que acudió la persona, o a las que otras entidades activaron ruta. ¿A dónde ha ido? | Obligatorio |
 | | C. Identificación de barreras | Registro de barreras nuevas | Solo si en valoración del riesgo, o en identificación o seguimiento de entidades, refiere tener barreras |
@@ -441,111 +441,22 @@ Notas sueltas en el margen derecho de la hoja, sin pregunta dueña:
 
 ## 5. Seguimiento a medidas de emergencia
 
-Hoja: `Seguimiento a medidas de emerge`. Solo cuando la persona tiene medidas de emergencia solicitadas y/o activas, después de la caracterización.
+Hoja: `Seguimiento a medidas de emerge`, leída el 26 de octubre de 2026. Los tres momentos y la periodicidad ya no están en la hoja. La sección va después de Valoración del riesgo.
 
-Instrucción del módulo: verificar la trazabilidad de la entrega, el uso para acceder a justicia y a la ruta, y la preparación para el egreso. Las preguntas se formulan en lenguaje sencillo, sin revictimizar y sin pedir que la persona repita los hechos.
+Aparece solo si el caso ya tiene al menos una fila en `salvia.emergency_measure`, en cualquier estado. Crear una remisión escribe esas filas, así que una remisión pendiente también abre la sección. La carga del seguimiento y el detalle exponen `hasEmergencyMeasures`, y la pantalla lo copia a `formState.hasMedidas`. Si no hay medidas, la sección no se muestra y sus obligatorios no bloquean el guardado.
 
-**Periodicidad (regla de sistema, no es una pregunta del agente)**
+Las respuestas quedan en el envío del formulario. Guardar no abre otra remisión, no cambia el estado de la que ya existe y no crea tareas.
 
-- Primer seguimiento: a la semana de la caracterización
-- Segundo: a los 15 días
-- Tercero: al mes
-- Cuarto: a los dos meses, según la evolución del caso
-
-Nota técnica de la hoja: la plataforma debe poder cambiar esa periodicidad si cambia el riesgo, hay nuevos hechos, fallas en la entrega o efectividad de la medida, u otras necesidades de protección. Debe existir un “Nuevo seguimiento” extemporáneo: elegir profesional (puede ser distinto de quien caracterizó), justificación, fecha y trazabilidad.
-
-La hoja detalla tres momentos. El cuarto seguimiento queda nombrado en la periodicidad y no tiene preguntas propias.
-
-### Primer seguimiento — primera semana
-
-Objetivo: verificar la seguridad inmediata, confirmar entrega y funcionamiento de las medidas e identificar necesidades urgentes no cubiertas.
-
-| Pregunta | Tipo | Visibilidad del texto adicional |
+| Pregunta | Tipo | Obligatorio |
 |---|---|---|
-| En una escala de 1 a 5 (1 muy bajo, 5 muy alto), ¿cómo califica hoy el riesgo para usted y su familia? | Única: 1 a 5 | Texto obligatorio siempre, para justificar la puntuación. La pregunta está repetida en las filas 9 y 14-15; es la misma escala |
-| En una escala de 1 a 5 (1 completamente segura, 5 peligro permanente), ¿cómo se siente actualmente? | Única: 1 a 5 | Texto obligatorio siempre |
-| Actualmente considera que sus necesidades básicas están | Única | Totalmente cubiertas / Parcialmente cubiertas / No cubiertas. Texto siempre, sea cual sea la opción |
-| ¿Se siente segura en el lugar donde está viviendo actualmente? | Única Sí/No | Texto siempre |
-| ¿Ha tenido algún contacto con el agresor desde que iniciaron las medidas? | Única Sí/No | Texto siempre |
-| ¿Ha recibido amenazas, llamadas, mensajes o intentos de ubicarla? | Única Sí/No | Texto siempre |
-| ¿Ha ocurrido alguna situación nueva que aumente su preocupación por su seguridad? | Única Sí/No | Texto siempre |
-| ¿Sus hijas, hijos o personas a cargo se encuentran seguras? | Única Sí/No | Texto siempre |
-
-**Estado de las medidas.** La hoja pide repetir estas preguntas por cada medida otorgada.
-
-| Pregunta | Visibilidad |
-|---|---|
-| ¿La recibió oportunamente? | Sí/No. Si es No, texto obligatorio de por qué no se entregó a tiempo |
-| ¿Ha podido utilizarla sin inconvenientes? | Solo si “¿La recibió oportunamente?” es Sí. Si es No, texto obligatorio |
-| ¿Ha presentado alguna dificultad para hacer efectiva la medida? | Solo si la primera pregunta de estado es Sí |
-| ¿Existe alguna necesidad urgente que aún no haya podido resolver? | Sí/No, después de revisar cada medida. Si es Sí, texto |
-
-**Redes de apoyo**
-
-| Pregunta | Visibilidad |
-|---|---|
-| ¿Cuenta con alguna persona con la que puede contar en este momento? | Si es Sí, texto obligatorio |
-| Además de familiares o amistades, ¿hay alguna persona, organización, comunidad, iglesia, lideresa, colectivo o institución que le esté brindando apoyo? | Si es Sí, texto obligatorio |
-| Si ocurriera una emergencia hoy, ¿sabe a quién acudir primero? | Si es Sí, texto obligatorio |
-| ¿Cuenta con un lugar seguro al que pueda trasladarse si fuera necesario? | Si es Sí, texto obligatorio |
-
-### Segundo seguimiento — 15 días
-
-Objetivo: verificar la activación de las rutas institucionales y fortalecer las redes de apoyo.
-
-Repite las dos escalas de riesgo y de sensación de seguridad, cada una con texto obligatorio de justificación.
-
-| Pregunta | Visibilidad |
-|---|---|
-| ¿Las medidas continúan respondiendo a sus necesidades? | Sí/No. Texto obligatorio siempre, explicando si cubrió o no |
-| ¿Ha requerido algún ajuste? | Sí/No. Si es Sí, texto obligatorio con los ajustes |
-| ¿Ha presentado denuncia? | Sí/No. Si es No, texto obligatorio con los motivos. Si es Sí, lista de instituciones a las que acudió |
-| ¿Ha acudido a la Comisaría de Familia? | Solo si presentó denuncia = Sí. Si es Sí, texto obligatorio del tipo de atención y de las medidas otorgadas |
-| ¿Ha recibido atención por parte de la Fiscalía? | Igual: solo si denunció. Si es Sí, texto obligatorio |
-| ¿La Policía ha intervenido en su caso? | Igual. Si es Sí, texto obligatorio |
-| ¿Ha recibido acompañamiento de la Defensoría del Pueblo? | Igual. Si es Sí, texto obligatorio |
-| ¿Ha recibido atención en salud física o mental? | Igual. Si es Sí, texto obligatorio |
-| ¿Ha recibido apoyo de la Alcaldía, Gobernación u otra entidad? | Igual. Si es Sí, texto obligatorio |
-| ¿Está recibiendo apoyos adicionales de otras instituciones? | Igual. Si es Sí, texto |
-| ¿Le asignaron número de radicado o noticia criminal? | Solo si denunció. Si es Sí, texto |
-| ¿Le otorgaron medidas de protección? | Aparece dos veces, con la misma condición. Si es Sí, texto obligatorio del número de medidas de emergencia |
-
-**Redes y recursos del segundo seguimiento**
-
-| Pregunta | Visibilidad |
-|---|---|
-| Redes personales: ¿quiénes la están acompañando actualmente? | Texto siempre |
-| Redes comunitarias: ¿hace parte de algún grupo de mujeres, organización, iglesia u otro espacio? | Sí/No. Si es Sí, texto obligatorio |
-| Redes institucionales: ¿conoce qué entidades puede contactar si el riesgo aumenta? | Sí/No. Si es Sí, texto |
-| Recursos personales: ¿qué fortalezas le han ayudado hasta ahora? | Texto siempre |
-| Actualmente, ¿cuenta con…? | Sí/No. Si es Sí, despliega las siete preguntas siguientes |
-| ¿Un lugar seguro? | Si es Sí, texto |
-| ¿Alguien que cuide a sus hijos si fuera necesario? | Si es Sí, texto |
-| ¿Acceso a salud? | Si es Sí, texto |
-| ¿Teléfono o internet? | Si es Sí, texto |
-| ¿Transporte? | Si es Sí, texto del tipo de transporte |
-| ¿Documentos personales? | Si es No, texto de qué documentos no tiene |
-| ¿Apoyo emocional? | Si es No, texto de quién puede brindarlo |
-
-### Tercer seguimiento — primer mes
-
-Objetivo: evaluar el avance hacia la estabilización y el funcionamiento de las rutas.
-
-Repite las dos escalas, con texto obligatorio. Repite “¿Las medidas continúan respondiendo?” (texto siempre) y “¿Ha requerido algún ajuste?” (texto si es Sí).
-
-| Pregunta | Visibilidad |
-|---|---|
-| ¿Cómo han avanzado sus procesos? | Texto |
-| ¿Ha tenido audiencias? | Sí/No. Si es Sí, texto del proceso jurídico |
-| ¿Ha sentido revictimización? | Sí/No. Si es Sí, texto de las situaciones |
-| ¿Cuenta actualmente con representación jurídica? | Sí/No. Si es Sí, texto |
-| ¿Actualmente tiene ingresos? | Sí/No. Si es Sí, texto del tipo de ingreso |
-| ¿Ha podido conseguir empleo? | Sí/No. Si es Sí, texto |
-| ¿Está desarrollando alguna actividad productiva? | Sí/No. Si es Sí, texto |
-| ¿Cuáles siguen siendo sus principales necesidades? | Texto |
-| ¿Han cambiado sus redes de apoyo? | Aparece dos veces. Sí/No. Si es Sí, texto |
-| ¿Qué recursos siente que hoy tiene para afrontar una nueva situación de riesgo? | Texto |
-| ¿Qué recursos considera que aún necesita fortalecer? | Texto |
+| ¿De qué manera la medida ha contribuido a la gestión de su seguridad y la reducción del riesgo desde el último seguimiento? | Texto | Sí |
+| ¿Cómo se ha sentido con las medidas de emergencia recibidas y qué cambios han generado en su situación actual? | Texto | Sí |
+| ¿Cómo perciben las personas beneficiarias las medidas otorgadas y de qué manera estas han impactado su bienestar o seguridad? (Si las personas beneficiarias son menores de edad u otras personas dependientes, la valoración puede realizarse a partir del reporte de la participante). | Texto | Sí |
+| Además de las medidas de emergencia, ¿qué alternativas o estrategias está construyendo para fortalecer su protección y bienestar a mediano plazo? | Texto | Sí |
+| Registre los acuerdos, acciones o gestiones que realizará la persona o los beneficiarios | Aviso | |
+| Compromisos | Texto | Sí |
+| Registre información relevante identificada durante el seguimiento que no haya sido consignada en otros campos y que aporte a la comprensión del caso. | Aviso | |
+| Observaciones | Texto | Sí |
 
 ---
 

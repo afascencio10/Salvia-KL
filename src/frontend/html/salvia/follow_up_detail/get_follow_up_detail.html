@@ -285,6 +285,7 @@
                     currentEntities:        [],
                     currentEntitiesOptions: [],
                     hasCurrentEntities:     '',
+                    hasMedidas:             '',
                     newEntidadesAcudidas:   [],
                     newEntidadesActivacion: [],
                 },
@@ -429,6 +430,7 @@
                     // /api/v1/casos/:id/entidades espera el iCode del caso (data.followUp.case_id).
                     await this.loadCurrentEntities(data.followUp.case_id);
                     if (this.formId === 'c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f' && window.SeguimientoV4) {
+                        this.formState.hasMedidas = data.hasEmergencyMeasures ? 'true' : '';
                         window.SeguimientoV4.attachCase(this.formState, data.activeBarriers || []);
                     }
                     this.submissionId   = data.followUp.form_submission_id || null;

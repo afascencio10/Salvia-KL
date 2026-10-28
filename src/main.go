@@ -157,6 +157,12 @@ func main() {
 		log.Printf("[INFO] formulario de seguimiento V.4 creado (%s)", seed.SeguimientoV4FormID)
 	}
 
+	if aplicado, err := seed.EnsureSeguimientoV4Medidas(gormDB); err != nil {
+		log.Printf("[WARN] sección de medidas de emergencia del seguimiento V.4: %v", err)
+	} else if aplicado {
+		log.Printf("[INFO] sección de medidas de emergencia agregada al seguimiento V.4")
+	}
+
 	if creadas, err := seed.EnsureValidationTasks(gormDB); err != nil {
 		log.Printf("[WARN] reparación de tareas de validación de remisiones: %v", err)
 	} else if creadas > 0 {

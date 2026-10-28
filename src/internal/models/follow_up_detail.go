@@ -31,6 +31,7 @@ type FollowUpDetailResponse struct {
 	ActiveBarriers         []ActiveBarrierInfo     `json:"activeBarriers"`
 	Permissions            Permissions             `json:"permissions"`
 	EmergencyMeasures      []EmergencyMeasure      `json:"emergencyMeasures"`
+	HasEmergencyMeasures   bool                    `json:"hasEmergencyMeasures"`
 	PsychosocialSupports   []PsychosocialSupport   `json:"psychosocialSupports"`
 	EconomicStabilizations []EconomicStabilization `json:"economicStabilizations"`
 	FormAnswers            *FollowUpFormAnswers    `json:"formAnswers,omitempty"`

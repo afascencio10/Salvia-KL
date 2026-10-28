@@ -66,10 +66,11 @@ type GenerateCalendarInput struct {
 
 // LoadFollowUpResult es la respuesta del endpoint hacer-seguimiento al cargar la página.
 type LoadFollowUpResult struct {
-	FollowUp       *models.FollowUpV2         `json:"followUp"`
-	VictimInfo     *repository.VictimCaseInfo `json:"victimInfo"`
-	CaseStatus     string                     `json:"caseStatus"`
-	ActiveBarriers []models.ActiveBarrierInfo `json:"activeBarriers"`
+	FollowUp             *models.FollowUpV2         `json:"followUp"`
+	VictimInfo           *repository.VictimCaseInfo `json:"victimInfo"`
+	CaseStatus           string                     `json:"caseStatus"`
+	ActiveBarriers       []models.ActiveBarrierInfo `json:"activeBarriers"`
+	HasEmergencyMeasures bool                       `json:"hasEmergencyMeasures"`
 }
 
 // FollowUpV2Service define el contrato de negocio para FollowUpV2.
@@ -252,7 +253,27 @@ func (s *followUpV2Service) LoadFollowUp(ctx context.Context, id, agentID, formI
 	// Cargar barreras activas
 	activeBarriers := s.loadActiveBarriers(ctx, fu)
 
-	return &LoadFollowUpResult{FollowUp: fu, VictimInfo: victimInfo, CaseStatus: caseStatus, ActiveBarriers: activeBarriers}, nil
+	return &LoadFollowUpResult{
+		FollowUp:             fu,
+		VictimInfo:           victimInfo,
+		CaseStatus:           caseStatus,
+		ActiveBarriers:       activeBarriers,
+		HasEmergencyMeasures: s.caseHasEmergencyMeasures(ctx, fu.CaseID),
+	}, nil
+}
+
+// caseHasEmergencyMeasures indica si el caso ya tiene alguna medida de emergencia,
+// en cualquier estado. La sección del formulario V.4 se muestra con ese dato.
+func (s *followUpV2Service) caseHasEmergencyMeasures(ctx context.Context, caseID string) bool {
+	if s.emRepo == nil || caseID == "" {
+		return false
+	}
+	items, err := s.emRepo.FindByCaseID(ctx, caseID)
+	if err != nil {
+		log.Printf("[SVC] medidas de emergencia del caso %s: %v", caseID, err)
+		return false
+	}
+	return len(items) > 0
 }
 
 // loadActiveBarriers retorna las barreras activas para el follow-up.
@@ -671,6 +692,7 @@ func (s *followUpV2Service) GetFollowUpDetail(ctx context.Context, id string, is
 		ActiveBarriers:         activeBarriers,
 		Permissions:            perms,
 		EmergencyMeasures:      emergencyMeasures,
+		HasEmergencyMeasures:   s.caseHasEmergencyMeasures(ctx, fu.CaseID),
 		PsychosocialSupports:   psychosocialSupports,
 		EconomicStabilizations: economicStabilizations,
 		FormAnswers:            formAnswers,
