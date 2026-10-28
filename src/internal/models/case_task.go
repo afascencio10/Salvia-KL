@@ -28,19 +28,23 @@ type CaseTask struct {
 	CompletedAt *time.Time `gorm:"column:completed_at"                   json:"completedAt,omitempty"`
 
 	// Asignación y estado
-	AssignedUserID string         `gorm:"type:varchar(36);not null;index;column:assigned_user_id" json:"assignedUserId"`
-	Status         string         `gorm:"type:varchar(10);not null;default:'ToDo'"                 json:"status"`
-	FormData       datatypes.JSON `gorm:"type:jsonb;column:form_data"                              json:"formData,omitempty"`
+	AssignedUserID string `gorm:"type:varchar(36);not null;index;column:assigned_user_id" json:"assignedUserId"`
+	// AssignedRole es el role_code que puede ver y gestionar la tarea.
+	// Vacío cuando la tarea sigue asignada a un usuario concreto.
+	AssignedRole *string        `gorm:"type:varchar(10);index;column:assigned_role"             json:"assignedRole,omitempty"`
+	Status       string         `gorm:"type:varchar(10);not null;default:'ToDo'"                 json:"status"`
+	FormData     datatypes.JSON `gorm:"type:jsonb;column:form_data"                              json:"formData,omitempty"`
 
 	// Relaciones (todas opcionales)
-	CaseID                  string  `gorm:"type:varchar(36);not null;index"                        json:"caseId"`
-	FollowUpID              *string `gorm:"type:uuid;column:follow_up_id"                          json:"followUpId,omitempty"`
-	EntityLetterID          *string `gorm:"type:uuid;column:entity_letter_id"                      json:"entityLetterId,omitempty"`
-	BarrierID               *string `gorm:"type:uuid;column:barrier_id;index"                      json:"barrierId,omitempty"`
-	EmergencyMeasureID      *string `gorm:"type:uuid;column:emergency_measure_id"                  json:"emergencyMeasureId,omitempty"`
-	PsychosocialSupportID   *string `gorm:"type:uuid;column:psychosocial_support_id"               json:"psychosocialSupportId,omitempty"`
-	EconomicStabilizationID *string `gorm:"type:uuid;column:economic_stabilization_id"             json:"economicStabilizationId,omitempty"`
-	EntityCaseID            *string `gorm:"type:varchar(36);column:entity_case_id;index"           json:"entityCaseId,omitempty"`
+	CaseID                      string  `gorm:"type:varchar(36);not null;index"                        json:"caseId"`
+	FollowUpID                  *string `gorm:"type:uuid;column:follow_up_id"                          json:"followUpId,omitempty"`
+	EntityLetterID              *string `gorm:"type:uuid;column:entity_letter_id"                      json:"entityLetterId,omitempty"`
+	BarrierID                   *string `gorm:"type:uuid;column:barrier_id;index"                      json:"barrierId,omitempty"`
+	EmergencyMeasureID          *string `gorm:"type:uuid;column:emergency_measure_id"                       json:"emergencyMeasureId,omitempty"`
+	EmergencyMeasureReferralID  *string `gorm:"type:uuid;column:emergency_measure_referral_id;index"        json:"emergencyMeasureReferralId,omitempty"`
+	PsychosocialSupportID       *string `gorm:"type:uuid;column:psychosocial_support_id"               json:"psychosocialSupportId,omitempty"`
+	EconomicStabilizationID     *string `gorm:"type:uuid;column:economic_stabilization_id"             json:"economicStabilizationId,omitempty"`
+	EntityCaseID                *string `gorm:"type:varchar(36);column:entity_case_id;index"           json:"entityCaseId,omitempty"`
 	CaseArticulatingMechanismID *string `gorm:"type:varchar(36);column:case_articulating_mechanism_id;index" json:"caseArticulatingMechanismId,omitempty"`
 
 	// Timestamps
@@ -72,6 +76,19 @@ const (
 const (
 	CaseTaskTypeComentarioEquipoTecnico = "comentario_equipo_tecnico"
 	CaseTaskCategoryEquipoTecnico       = "Equipo Técnico"
+)
+
+// Tarea de riesgo inminente: la ve y la gestiona cualquier usuario del rol.
+const (
+	CaseTaskTypeDecidirViaRiesgoInminente = "decidir_via_riesgo_inminente"
+	CaseTaskTypeIntentarContacto3x3       = "intentar_contacto_3x3"
+	CaseTaskTypeEscalarCruzRoja           = "escalar_cruz_roja"
+	CaseTaskCategoryMedidas               = "Medidas de Emergencia"
+	CaseTaskRoleSupervisorMedidas         = "sm"
+	CaseTaskRoleSupervisionConvenio       = "sc"
+	CaseTaskDescDecidirViaRiesgoInminente = "Decidir vía de atención — Riesgo inminente"
+	CaseTaskDescIntentarContacto3x3       = "Intentar contacto (3×3)"
+	CaseTaskDescEscalarCruzRoja           = "Escalar a Cruz Roja"
 )
 
 // CaseTaskCommentItem es un comentario del Equipo Técnico — una case_task Done

@@ -736,7 +736,7 @@ func (s *formService) v4ProcessPlan(ctx context.Context, fu *models.FollowUpV2, 
 	if tieneMedidas {
 		tipos := splitCSVValues(direct[v4Key("q:plan.medidasTipos")])
 		if len(tipos) > 0 {
-			if err := s.createEmergencyMeasureReferral(ctx, fu.CaseID, &fu.ID, actorID, tipos); err != nil {
+			if err := s.createEmergencyMeasureReferral(ctx, fu.CaseID, &fu.ID, actorID, tipos, direct[v4Key("q:plan.riesgoInminente")] == "true"); err != nil {
 				v4Warn("no se pudo crear la remisión de medidas: %v", err)
 			} else {
 				count += len(tipos)

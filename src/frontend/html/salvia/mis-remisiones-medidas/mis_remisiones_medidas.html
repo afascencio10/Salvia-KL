@@ -13,6 +13,8 @@
         <remisiones-medidas-component
             vista="agente"
             agente-id="{{.agentICode}}"
+            user-id="{{.agentICode}}"
+            user-role="{{.currentRole}}"
             @ver-caso="onVerCaso"
             @ver-detalle="onVerDetalle"
         ></remisiones-medidas-component>
@@ -59,6 +61,9 @@
 </script>
 
 <script src="/static/js/components/remisiones-medidas-component.js"></script>
+<script src="/static/js/components/case-tasks.js"></script>
+<script src="/static/js/components/case-task-modal.js"></script>
+<script src="/static/js/components/case-task-history.js"></script>
 
 <script>
     home.mount("#app");

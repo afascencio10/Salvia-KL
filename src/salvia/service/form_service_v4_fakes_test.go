@@ -220,6 +220,9 @@ func (f *v4TaskFake) FindByCaseIDAndBarrier(context.Context, string, string) ([]
 func (f *v4TaskFake) FindByCaseIDAndPsychosocial(context.Context, string, string) ([]models.CaseTask, error) {
 	return nil, nil
 }
+func (f *v4TaskFake) FindByReferralID(context.Context, string) ([]models.CaseTask, error) {
+	return nil, nil
+}
 func (f *v4TaskFake) FindByBarrierID(context.Context, string) ([]models.CaseTask, error) {
 	return nil, nil
 }
@@ -293,6 +296,7 @@ func (f *v4BarrierFake) GetDB() *gorm.DB { return nil }
 type v4ReferralFake struct {
 	referrals []models.EmergencyMeasureReferral
 	types     [][]string
+	riesgos   []bool
 }
 
 func (f *v4ReferralFake) CountByStatus(context.Context, string, string) (map[string]int, error) {
@@ -311,7 +315,10 @@ func (f *v4ReferralFake) Reassign(context.Context, []string, string) error { ret
 func (f *v4ReferralFake) Review(context.Context, string, string, string, string, string, string) (bool, bool, error) {
 	return false, false, nil
 }
-func (f *v4ReferralFake) CreateWithMeasures(_ context.Context, referral *models.EmergencyMeasureReferral, measureTypes []string) error {
+func (f *v4ReferralFake) CreateWithMeasures(_ context.Context, referral *models.EmergencyMeasureReferral, measureTypes []string, riesgoInminente bool) error {
+	if referral.ID == "" {
+		referral.ID = fmt.Sprintf("ref-%d", len(f.referrals)+1)
+	}
 	cp := *referral
 	if referral.FollowUpID != nil {
 		id := *referral.FollowUpID
@@ -320,6 +327,7 @@ func (f *v4ReferralFake) CreateWithMeasures(_ context.Context, referral *models.
 	f.referrals = append(f.referrals, cp)
 	copied := append([]string(nil), measureTypes...)
 	f.types = append(f.types, copied)
+	f.riesgos = append(f.riesgos, riesgoInminente)
 	return nil
 }
 

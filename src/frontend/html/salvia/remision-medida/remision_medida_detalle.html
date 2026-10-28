@@ -147,7 +147,7 @@
                 </div>
 
                 <div v-if="activeTab === 'tareas'">
-                    <case-tasks :case-id="remision.caseICode" :user-id="currentUserId" :user-role="currentRole"></case-tasks>
+                    <case-tasks :case-id="remision.caseICode" :referral-id="remisionId" :user-id="currentUserId" :user-role="currentRole" @task-completed="refrescar"></case-tasks>
                 </div>
 
                 <div v-if="activeTab === 'timeline'">
@@ -254,6 +254,14 @@
                     }
                     return body || {};
                 });
+            },
+            refrescar: function() {
+                var self = this;
+                if (!this.remisionId) return;
+                fetch('/api/v1/emergency-measure-referrals/' + encodeURIComponent(this.remisionId), { credentials: 'same-origin' })
+                    .then(function(res) { return self.leerJSON(res); })
+                    .then(function(data) { self.remision = data; })
+                    .catch(function() {});
             },
             cargar: function() {
                 var self = this;

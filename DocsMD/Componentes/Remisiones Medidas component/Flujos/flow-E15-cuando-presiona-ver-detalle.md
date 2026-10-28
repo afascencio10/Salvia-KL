@@ -20,12 +20,13 @@ PASO 1 — Qué botón es detalle
 
   El link "Ver detalle →" siempre emite, en cualquier vista y estado.
 
+  "Decidir vía de atención" no emite. Abre el panel de tareas (E-16).
+
   El botón de la fila emite solo en estas combinaciones. La etiqueta es la
   del botón; el payload es el mismo en todas.
 
   | Vista                  | Estado                                      | Etiqueta                      |
   |------------------------|---------------------------------------------|-------------------------------|
-  | supervisor             | riesgo_inminente_por_decidir_via            | Decidir vía de atención       |
   | supervision-convenio   | riesgo_inminente_por_escalar_cruz_roja      | Escalar a Cruz Roja           |
   | cruz-roja              | riesgo_inminente_por_entregar_medida        | Entregar medida inmediata     |
   | supervisor             | caracterizado                               | Revisar caracterización       |

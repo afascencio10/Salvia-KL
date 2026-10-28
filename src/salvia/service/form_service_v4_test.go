@@ -492,10 +492,13 @@ func TestCompleteFollowUpV4MedidasApaganPsico(t *testing.T) {
 	w.run(t)
 	if assert.Len(t, w.referrals.referrals, 1) {
 		assert.Equal(t, models.EmergencyReferralStatusPendienteDeRevision, w.referrals.referrals[0].Status)
+		assert.Equal(t, models.EmergencyReferralUrgencyNormal, w.referrals.referrals[0].Urgency)
 		assert.Equal(t, []string{"alojamiento", "transporte"}, w.referrals.types[0])
+		assert.False(t, w.referrals.riesgos[0])
 	}
 	assert.Empty(t, w.measures.rows)
 	assert.Empty(t, w.psicos.rows)
+	assert.NotContains(t, taskTypes(w.tasks.rows), models.CaseTaskTypeDecidirViaRiesgoInminente)
 
 	ok := newV4World(1)
 	ok.direct(
@@ -511,6 +514,41 @@ func TestCompleteFollowUpV4MedidasApaganPsico(t *testing.T) {
 		assert.Equal(t, "osignh", ok.psicos.rows[1].Type)
 	}
 	assert.Equal(t, []string{"validar_remision", "validar_remision"}, taskTypes(ok.tasks.rows))
+}
+
+func TestCompleteFollowUpV4RiesgoInminenteCreaTarea(t *testing.T) {
+	w := newV4World(1)
+	w.direct(
+		"q:plan.remision", "true",
+		"q:plan.equipos", "medidas",
+		"q:plan.medidasTipos", "alojamiento,transporte",
+		"q:plan.riesgoInminente", "true",
+	)
+	w.run(t)
+
+	if assert.Len(t, w.referrals.referrals, 1) {
+		assert.Equal(t, models.EmergencyReferralStatusRiesgoPorDecidirVia, w.referrals.referrals[0].Status)
+		assert.Equal(t, models.EmergencyReferralUrgencyRiesgoInminente, w.referrals.referrals[0].Urgency)
+		assert.True(t, w.referrals.riesgos[0])
+	}
+	var tarea *models.CaseTask
+	for i := range w.tasks.rows {
+		if w.tasks.rows[i].Type == models.CaseTaskTypeDecidirViaRiesgoInminente {
+			tarea = &w.tasks.rows[i]
+			break
+		}
+	}
+	if assert.NotNil(t, tarea) {
+		assert.Equal(t, models.CaseTaskCategoryMedidas, tarea.Category)
+		assert.Equal(t, models.CaseTaskDescDecidirViaRiesgoInminente, tarea.Description)
+		assert.Equal(t, "", tarea.AssignedUserID)
+		if assert.NotNil(t, tarea.AssignedRole) {
+			assert.Equal(t, models.CaseTaskRoleSupervisorMedidas, *tarea.AssignedRole)
+		}
+		if assert.NotNil(t, tarea.EmergencyMeasureReferralID) {
+			assert.Equal(t, w.referrals.referrals[0].ID, *tarea.EmergencyMeasureReferralID)
+		}
+	}
 }
 
 func TestCompleteFollowUpV4Reasignacion(t *testing.T) {

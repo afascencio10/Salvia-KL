@@ -12,6 +12,8 @@ Usado por: [Remisiones Medidas](../../Screens/Remisiones%20Medidas/remisiones-me
 
 Interfaz detallada: [remisiones-medidas-component-interface.md](./remisiones-medidas-component-interface.md)
 
+Changelog: [changelogOct2026.md](./changelogOct2026.md)
+
 ---
 
 ## Eventos de infraestructura
@@ -257,12 +259,32 @@ Requerido:    Sí
 Evento:       Cuando el usuario abre el detalle de la remisión
 Tipo:         User Interaction
 Descripción:  Un solo evento para el link "Ver detalle →" y para los botones
-              de fila de tipo detalle (decidir vía, escalar, entregar medida,
+              de fila de tipo detalle (escalar, entregar medida,
               caracterización, trazabilidad, cotizaciones, cargar cotizaciones,
-              confirmar seguridad). Emite ver-detalle con remisionId y
+              confirmar seguridad). "Decidir vía de atención" no entra: abre
+              el panel de tareas (E-16). Emite ver-detalle con remisionId y
               caseICode. El padre navega a /salvia/remision-medida/{remisionId}.
               Esa pantalla hoy solo lee. El ciclo de gestión de cada botón
               sigue pendiente ahí.
+Requerido:    Sí
+```
+
+---
+
+### E-16 — Cuando presiona "Tareas"
+
+📄 [Ver flujo → flow-E16-cuando-presiona-tareas.md](./Flujos/flow-E16-cuando-presiona-tareas.md)
+
+```
+Evento:       Cuando el usuario abre las tareas de la remisión
+Tipo:         User Interaction
+Descripción:  El link "Tareas" y el botón "Decidir vía de atención" abren un panel
+              en la misma pantalla. Monta case-tasks con caseId, referralId,
+              userId y userRole. No navega y no emite. El listado pide
+              GET /api/v1/case-tasks?referralId=. Fuera de sv, la respuesta
+              trae las tareas del rol y las asignadas al usuario de la sesión.
+              "Gestionar" abre case-task-modal. Al completar una tarea, el
+              listado se vuelve a pedir. Cerrar el panel no escribe nada.
 Requerido:    Sí
 ```
 
@@ -277,8 +299,9 @@ Requerido:    Sí
 - [x] ¿Reasignar? → E-08, E-09, E-10
 - [x] ¿Revisión técnica? → E-11, E-12, E-13
 - [x] ¿Navegación emitida al padre? → E-14, E-15
+- [x] ¿Panel de tareas de la remisión? → E-16
 - [x] ¿Cards y banner sobre el recorte, no sobre los filtros? → E-01
-- [x] ¿Flujos detallados escritos? → M-01, E-01 … E-15
+- [x] ¿Flujos detallados escritos? → M-01, E-01 … E-16
 - [ ] ¿M-01 y los endpoints implementados? → Pendiente
 - [x] ¿Mapeo currentRole → vista? → sm, em, sc, cr, am y sv (ver interfaz)
 - [x] ¿Pantalla de detalle de la remisión? → Lectura en /salvia/remision-medida/:id. El ciclo de gestión de E-15 sigue pendiente
@@ -305,3 +328,4 @@ Requerido:    Sí
 | E-13 | Cuando confirma la revisión | User Interaction / Backend write | Sí |
 | E-14 | Cuando presiona "Ver caso" | User Interaction | No (emite) |
 | E-15 | Cuando presiona "Ver detalle" o el botón de acción | User Interaction | No (emite) |
+| E-16 | Cuando presiona "Tareas" | User Interaction | No (solo lee) |

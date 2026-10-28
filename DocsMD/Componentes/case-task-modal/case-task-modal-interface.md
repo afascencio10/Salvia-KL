@@ -1,6 +1,6 @@
 # `case-task-modal` — Interfaz del Componente
 
-Modal reutilizable para completar tareas (`case_task`). El padre lo activa vía `open(taskId)`, `openArticulacion(ctx)` (Mis Barreras) o `openMecanismo(ctx)` (Casos Mecanismo). El componente carga la tarea del API (si hay id), renderiza el formulario según `case_task.type` (`gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio`, `justificar_remision`, `solicitud_entidad`, `respuesta_entidad`, `articulacion_territorial` o `gestion_mecanismo`) y al confirmar ejecuta el complete correspondiente.
+Modal reutilizable para completar tareas (`case_task`). El padre lo activa vía `open(taskId)`, `openArticulacion(ctx)` (Mis Barreras) o `openMecanismo(ctx)` (Casos Mecanismo). El componente carga la tarea del API (si hay id), renderiza el formulario según `case_task.type` (`gestion_llamada`, `proyectar_oficio`, `comite_caso`, `Corregir oficio`, `justificar_remision`, `solicitud_entidad`, `respuesta_entidad`, `articulacion_territorial`, `gestion_mecanismo`, `decidir_via_riesgo_inminente`, `intentar_contacto_3x3` o `escalar_cruz_roja`) y al confirmar ejecuta el complete correspondiente. `intentar_contacto_3x3` y `escalar_cruz_roja` cierran al pulsar Guardar o Confirmar y no llaman al API.
 
 ## Archivos relevantes
 
@@ -36,6 +36,11 @@ case-task-modal
         │   │         municipal     → "Gestión del Comité Municipal"
         │   │         departamental → "Gestión del Comité Departamental"
         │   │         nacional      → "Gestión de la Instancia Nacional"
+        │   │     'decidir_via_riesgo_inminente' → "Decidir vía de atención — Riesgo inminente"
+        │   │         subtítulo: "Elige una vía y asigna un agente de medidas."
+        │   │     'intentar_contacto_3x3' → "Registrar intento de contacto"
+        │   │         subtítulo: "Protocolo 3×3 — registra el resultado del intento."
+        │   │     'escalar_cruz_roja' → "Escalar a Cruz Roja"
         │   └── BtnCerrar  "✕"  → cancelar()
         │
         ├── [v-if cargandoTarea]
@@ -150,6 +155,24 @@ case-task-modal
             │       ├── <input type=date> Fecha asistencias técnicas*
             │       └── <textarea> Asistencias técnicas*  (si no aplica: «No aplica» + explicación)
             │
+            │   [tarea.type === 'decidir_via_riesgo_inminente']
+            │   FormDecidirVia
+            │   ├── Radio  Vía A — Asignación inmediata a Agente de Medidas
+            │   ├── Radio  Vía B — Derivar a Supervisión del Convenio
+            │   └── Select Asignar agente*  GET /emergency-measure-referrals/agentes
+            │       Confirmar decisión exige una vía y un agente.
+            │       PUT /case-tasks/:id/complete guarda la decisión.
+            │
+            │   [tarea.type === 'intentar_contacto_3x3']
+            │   FormContacto
+            │   ├── ¿Contestó?  Sí / No
+            │   └── Nota
+            │       Guardar cierra y no persiste.
+            │
+            │   [tarea.type === 'escalar_cruz_roja']
+            │   Texto  "Confirmar Derivar el caso a Cruz Roja para entrega inmediata de la medida"
+            │       Confirmar cierra y no persiste.
+            │
             │   [tarea.type === 'justificar_remision']
             │   FormJustificarRemision  (.ctm-form)
             │   ├── MotivoDevolucion  (fondo rojo claro)
@@ -189,6 +212,9 @@ case-task-modal
                     │     'respuesta_entidad'   → "Enviar respuesta"
                     │     'articulacion_territorial' → "Guardar"
                     │     'gestion_mecanismo'        → "Guardar"
+                    │     'decidir_via_riesgo_inminente' → "Confirmar decisión"  (vía y agente)
+                    │     'intentar_contacto_3x3' → "Guardar"  (cierra, no persiste)
+                    │     'escalar_cruz_roja'     → "Confirmar"  (cierra, no persiste)
                     │     default               → "Completar tarea"
                     :disabled si !formularioValido || guardando || cargandoTarea
                     → confirmar()

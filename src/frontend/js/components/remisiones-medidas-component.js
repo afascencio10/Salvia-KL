@@ -121,6 +121,8 @@
             vista: { type: String, default: 'supervisor' },
             agenteId: { type: String, default: '' },
             puedeReasignar: { type: Boolean, default: false },
+            userId: { type: String, default: '' },
+            userRole: { type: String, default: '' },
         },
 
         emits: ['ver-caso', 'ver-detalle'],
@@ -152,6 +154,7 @@
                 revisionConcepto: '',
                 revisionResultado: '',
                 revisionError: '',
+                panelTareas: null,
             };
         },
 
@@ -315,7 +318,7 @@
                 var estado = item.estado;
                 var vista = this.vista;
                 if (vista === 'supervisor' && estado === 'Riesgo inminente: por decidir vía') {
-                    return { tipo: 'detalle', label: '🔥 Decidir vía de atención', clase: 'rme-action--decidir rme-action--pulse' };
+                    return { tipo: 'tareas', label: '🔥 Decidir vía de atención', clase: 'rme-action--decidir rme-action--pulse' };
                 }
                 if (vista === 'supervision-convenio' && estado === 'Riesgo inminente: por escalar a Cruz Roja') {
                     return { tipo: 'detalle', label: '🔥 Escalar a Cruz Roja', clase: 'rme-action--escalar' };
@@ -351,6 +354,7 @@
                 if (!accion) return;
                 if (accion.tipo === 'revisar') this.abrirRevision(item);
                 else if (accion.tipo === 'asignar') this.abrirAsignarUno(item.id);
+                else if (accion.tipo === 'tareas') this.abrirTareas(item);
                 else this.onVerDetalle(item);
             },
             onVerCaso: function(item) {
@@ -358,6 +362,12 @@
             },
             onVerDetalle: function(item) {
                 this.$emit('ver-detalle', { remisionId: item.id, caseICode: item.caso.id });
+            },
+            abrirTareas: function(item) {
+                this.panelTareas = { caseICode: item.caso.id, remisionId: item.id, nombre: item.caso.nombre };
+            },
+            cerrarTareas: function() {
+                this.panelTareas = null;
             },
             abrirReasignarMasivo: function() {
                 this.reasignarAgenteId = '';

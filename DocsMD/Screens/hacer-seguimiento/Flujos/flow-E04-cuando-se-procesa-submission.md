@@ -353,17 +353,41 @@ PASO 4 — Procesar derivaciones a equipos
 PASO 5 — Procesar medidas de emergencia
 
   medidasVal = answerMap[qMedidasEmergencia]
+  riesgoInminente = answerMap["b7e4c2a1-9f30-4c58-8d16-5a2e7b3c0d48"] == "true"
 
   SI medidasVal está vacío → saltar este paso
 
-  Por cada medida en splitCSV(medidasVal):
-    → DB.emergency_measure.Create({ case_id, follow_up_id, type: medida, status: "ACTIVE" })
-    SI falla el insert:
-      → Retornar error (aborta la ejecución)
-    → Log: "✅ medida emergencia creada tipo=X (id=...)"
-    → remisionCount++
+  tipos = splitCSV(medidasVal)
+
+  SI riesgoInminente:
+    status  = "riesgo_inminente_por_decidir_via"
+    urgency = "riesgo_inminente"
+  SI NO:
+    status  = "pendiente_de_revision"
+    urgency = "normal"
+
+  → DB.emergency_measure_referral.Create + una emergency_measure ACTIVE por tipo
+    Cada medida guarda riesgo_inminente = riesgoInminente
+    Solo las medidas de esta remisión. Las anteriores del caso no cambian.
+  SI falla el insert:
+    → Retornar error (aborta la ejecución)
+
+  SI riesgoInminente:
+    → DB.case_task.Create({
+        category: "Medidas de Emergencia",
+        type: "decidir_via_riesgo_inminente",
+        description: "Decidir vía de atención — Riesgo inminente",
+        assigned_user_id: "",
+        assigned_role: "sm",
+        status: "ToDo",
+        case_id, follow_up_id,
+        emergency_measure_referral_id: referral.id,
+      })
+    SI falla la tarea:
+      → Loggear advertencia WARN (no aborta: la remisión ya quedó creada)
 
   Valores posibles: alojamiento | transporte | alimentacion | vestuario | apoyo_psico | otras_me
+  → remisionCount += cantidad de tipos
 
 
 PASO 6 — Marcar follow-up como REALIZADO

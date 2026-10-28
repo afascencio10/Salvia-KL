@@ -40,7 +40,7 @@ El formulario nuevo es otro registro.
 | Id | `c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f` |
 | Nombre | Seguimiento V.4 |
 | Seed | `src/internal/seed/seguimiento_v4_form.sql`, generado por `scripts/gen_seguimiento_v4_seed.js` |
-| Arranque | `seed.EnsureSeguimientoV4Form` lo crea si falta. Si la descripción no es la de esta versión, reemplaza la definición. Si ya coincide, no lo reescribe. Si el formulario tiene envíos, el reemplazo aborta. `seed.EnsureSeguimientoV4Medidas` agrega la sección de medidas cuando el formulario ya existe y la sección todavía no está, sin borrar envíos |
+| Arranque | `seed.EnsureSeguimientoV4Form` lo crea si falta. Si la descripción no es la de esta versión, reemplaza la definición. Si ya coincide, no lo reescribe. Si el formulario tiene envíos, el reemplazo aborta. `seed.EnsureSeguimientoV4Medidas` agrega la sección de medidas cuando el formulario ya existe y la sección todavía no está, sin borrar envíos. `seed.EnsureSeguimientoV4RiesgoInminente` agrega la pregunta de riesgo inminente si falta |
 
 Completarlo no crea barreras, entidades, remisiones ni cambia el riesgo. Ese id no está en `OnEndFormSubmission`, así que el guardado deja solo las respuestas.
 
@@ -487,11 +487,14 @@ La hoja Orden dice que, si en la conclusión se marca que sí se realizó una ac
 | Durante la atención se han generado necesidades que requieran remisión a los equipos SALVIA | Única | Sí | | Sí / No |
 | Equipos | Múltiple | | Si la anterior es Sí | Medidas de Emergencia. Atención psicosocial. Psicosocial Personas OSIGNH. Atención Hombres. Equipo Discapacidad. Estabilización. Regla de la hoja: si remite a medidas, no puede remitir a psicosocial |
 | Medidas de emergencia | Múltiple | | Si eligió Medidas de Emergencia | Alojamiento. Transporte. Alimentación. Vestuario. Apoyo psicosocial. Otras ME |
+| ¿La remisión a medidas de emergencia es de riesgo inminente? | Booleana | Sí | Si hay remisión a equipos y Equipos incluye Medidas de Emergencia | Sí / No. Id `10164e84-0e54-4ebc-80f2-8143c90820e1` (`q:plan.riesgoInminente`) |
 | Criterios de remisión a psicosocial | Múltiple | | Si eligió Atención psicosocial | Ver lista y puntajes |
 | Criterios OSIGNH | | | Si eligió Psicosocial Personas OSIGNH | Dos ítems, abajo |
 | Atención Hombres | | | Si eligió ese equipo | Hombres diversos victimarios o posibles victimarios |
 | Equipo Discapacidad | Múltiple | | Si eligió ese equipo | Apoyo comunicativo en LSC. Apoyo con enfoque de discapacidad (ley de capacidad legal) |
 | Estabilización | Múltiple | | Si eligió ese equipo | Ver lista |
+
+Si esa pregunta booleana queda en Sí, al completar el V.4 la cabecera nace con urgencia `riesgo_inminente` y estado `riesgo_inminente_por_decidir_via`. Cada medida elegida en esa remisión se guarda con `riesgo_inminente = true`. Se crea una `case_task` `decidir_via_riesgo_inminente` con `assigned_role = sm`. Si es No, la cabecera sigue en urgencia normal y pendiente de revisión, las medidas quedan en false y no hay tarea.
 
 **Criterios psicosociales**
 

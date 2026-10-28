@@ -36,6 +36,9 @@ type CaseTaskService interface {
 	// ListByCaseIDAndPsychosocial devuelve las tareas de un caso filtradas por remisión psicosocial.
 	ListByCaseIDAndPsychosocial(ctx context.Context, caseID, psychosocialID string) ([]models.CaseTask, error)
 
+	// ListByReferralID devuelve las tareas de una remisión de medidas de emergencia.
+	ListByReferralID(ctx context.Context, referralID string) ([]models.CaseTask, error)
+
 	// UpdateEntityLetter actualiza campos de un EntityLetter.
 	UpdateEntityLetter(ctx context.Context, entityLetterID string, fields map[string]interface{}) error
 
@@ -189,6 +192,10 @@ func (s *caseTaskService) ListByCaseIDAndPsychosocial(ctx context.Context, caseI
 	return s.repo.FindByCaseIDAndPsychosocial(ctx, caseID, psychosocialID)
 }
 
+func (s *caseTaskService) ListByReferralID(ctx context.Context, referralID string) ([]models.CaseTask, error) {
+	return s.repo.FindByReferralID(ctx, referralID)
+}
+
 func (s *caseTaskService) UpdateEntityLetter(ctx context.Context, entityLetterID string, fields map[string]interface{}) error {
 	if s.entityLetterRepo == nil {
 		return nil
@@ -310,6 +317,99 @@ func (s *caseTaskService) Complete(ctx context.Context, id string, result string
 	return nil
 }
 
+// completeDecidirVia asigna el agente, mueve el estado de la remisión,
+// crea la tarea siguiente y cierra la de decidir vía. Si algo falla, no queda nada escrito.
+func (s *caseTaskService) completeDecidirVia(ctx context.Context, task *models.CaseTask, formData datatypes.JSON, fd map[string]interface{}, now time.Time) error {
+	if task.Status != models.CaseTaskStatusToDo {
+		return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+	}
+	if task.EmergencyMeasureReferralID == nil || strings.TrimSpace(*task.EmergencyMeasureReferralID) == "" {
+		return fmt.Errorf("CompleteWithFormData: la tarea no tiene remisión")
+	}
+	via, _ := fd["via"].(string)
+	via = strings.TrimSpace(via)
+	agentID, _ := fd["agentId"].(string)
+	agentID = strings.TrimSpace(agentID)
+	if (via != "A" && via != "B") || agentID == "" {
+		return fmt.Errorf("CompleteWithFormData: vía o agente inválido")
+	}
+	if s.db == nil {
+		return fmt.Errorf("CompleteWithFormData: sin base de datos")
+	}
+
+	var activos int
+	if err := s.db.WithContext(ctx).Raw(`
+		SELECT COUNT(*)::int
+		FROM security.general_user gu
+		JOIN security.rel_role_general_user rr ON rr.general_user_id = gu.general_user_id
+		JOIN security.role role ON role.role_id = rr.role_id
+		WHERE gu.general_user_i_code = ?
+		  AND role.role_code = 'am'
+		  AND gu.general_user_status = 'e'
+	`, agentID).Scan(&activos).Error; err != nil {
+		return fmt.Errorf("CompleteWithFormData: validar agente: %w", err)
+	}
+	if activos == 0 {
+		return fmt.Errorf("CompleteWithFormData: el agente no es un Agente de Medidas activo")
+	}
+
+	refID := strings.TrimSpace(*task.EmergencyMeasureReferralID)
+	status := models.EmergencyReferralStatusAsignada
+	next := &models.CaseTask{
+		Category:                   models.CaseTaskCategoryMedidas,
+		Status:                     models.CaseTaskStatusToDo,
+		CaseID:                     task.CaseID,
+		FollowUpID:                 task.FollowUpID,
+		EmergencyMeasureReferralID: &refID,
+	}
+	if via == "A" {
+		next.Type = models.CaseTaskTypeIntentarContacto3x3
+		next.Description = models.CaseTaskDescIntentarContacto3x3
+		next.AssignedUserID = agentID
+	} else {
+		status = models.EmergencyReferralStatusRiesgoPorEscalarCruzRoja
+		role := models.CaseTaskRoleSupervisionConvenio
+		next.Type = models.CaseTaskTypeEscalarCruzRoja
+		next.Description = models.CaseTaskDescEscalarCruzRoja
+		next.AssignedRole = &role
+	}
+
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Exec(`
+			UPDATE salvia.emergency_measure_referral
+			   SET assigned_agent_id = ?,
+			       status = ?,
+			       updated_at = NOW()
+			 WHERE id::text = ?
+			   AND status = ?
+			   AND deleted_at IS NULL
+		`, agentID, status, refID, models.EmergencyReferralStatusRiesgoPorDecidirVia)
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: actualizar remisión: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la remisión ya no está por decidir vía")
+		}
+		if err := tx.Create(next).Error; err != nil {
+			return fmt.Errorf("CompleteWithFormData: crear tarea siguiente: %w", err)
+		}
+		res = tx.Model(&models.CaseTask{}).
+			Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+			Updates(map[string]interface{}{
+				"form_data":    formData,
+				"status":       models.CaseTaskStatusDone,
+				"completed_at": now,
+			})
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: cerrar la decisión: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+		}
+		return nil
+	})
+}
+
 // CompleteWithFormData completa una CaseTask de tipo gestion_llamada,
 // proyectar_oficio, comite_caso o Corregir oficio. Persiste el JSON del
 // formulario y ejecuta los efectos de lado propios de cada tipo.
@@ -416,6 +516,11 @@ func (s *caseTaskService) CompleteWithFormData(ctx context.Context, id string, u
 
 	case "solicitud_entidad":
 		if err := s.completeSolicitudEntidad(ctx, task, userId, formData, fd, now); err != nil {
+			return nil, err
+		}
+
+	case models.CaseTaskTypeDecidirViaRiesgoInminente:
+		if err := s.completeDecidirVia(ctx, task, formData, fd, now); err != nil {
 			return nil, err
 		}
 

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -107,6 +108,10 @@ var misTareasRoles = map[string]bool{"op": true, "ro": true, "sv": true, "no": t
 // Técnico en el tab Derivaciones de Detalle del Caso.
 var equipoTecnicoRoles = map[string]bool{"te": true}
 
+// medidasTaskRoles puede pedir las tareas de una remisión. No abre la bandeja
+// completa del caso: el listado va filtrado por referralId.
+var medidasTaskRoles = map[string]bool{"sm": true, "em": true, "sc": true, "cr": true, "am": true, "sv": true}
+
 // misTareasRolesExcludingEntidadMecanismo — mismos roles que misTareasRoles salvo
 // entidad y mecanismo. Gatea las tareas de un caso completo (caseId sin barrierId ni
 // psychosocialId), que alimentan la pestaña "Tareas" del detalle de caso — gestión
@@ -163,6 +168,21 @@ func (c *CaseTaskController) GetByID(ctx *gin.Context) {
 func (c *CaseTaskController) ListByAssignedUser(ctx *gin.Context) {
 	assignedUserID := ctx.Query("assignedUserId")
 	caseID := ctx.Query("caseId")
+	referralID := strings.TrimSpace(ctx.Query("referralId"))
+
+	if referralID != "" {
+		s := requireSessionRole(ctx, medidasTaskRoles)
+		if s == nil {
+			return
+		}
+		items, err := c.svc.ListByReferralID(ctx.Request.Context(), referralID)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+			return
+		}
+		ctx.JSON(http.StatusOK, c.enrichTasksWithNames(filterTasksByAssignedRole(items, s.CurrentRole, s.UserICode)))
+		return
+	}
 
 	if assignedUserID == "" && caseID == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "parámetro 'assignedUserId' o 'caseId' requerido"})
@@ -226,6 +246,26 @@ func optionalSession(ctx *gin.Context) *utils.CommonSession {
 		return nil
 	}
 	return s
+}
+
+// filterTasksByAssignedRole deja, para un rol distinto de sv, las tareas cuyo
+// assigned_role coincide con la sesión y las asignadas al usuario de la sesión.
+// sv ve todas las de la remisión.
+func filterTasksByAssignedRole(items []models.CaseTask, role, userID string) []models.CaseTask {
+	if role == "sv" {
+		return items
+	}
+	out := make([]models.CaseTask, 0, len(items))
+	for _, t := range items {
+		if t.AssignedRole != nil && *t.AssignedRole == role {
+			out = append(out, t)
+			continue
+		}
+		if userID != "" && t.AssignedUserID == userID {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 // filterTasksForEntityRole deja solo las asignadas al usuario si el rol de
@@ -672,23 +712,25 @@ func (c *CaseTaskController) lookupUserName(userID string) string {
 // listado devuelvan siempre el mismo conjunto de campos.
 func (c *CaseTaskController) taskToJSON(t models.CaseTask, assignedUserName, entityName string) gin.H {
 	result := gin.H{
-		"id":               t.ID,
-		"caseId":           t.CaseID,
-		"category":         t.Category,
-		"type":             t.Type,
-		"description":      t.Description,
-		"status":           t.Status,
-		"assignedUserId":   t.AssignedUserID,
-		"assignedUserName": assignedUserName,
-		"barrierId":        t.BarrierID,
-		"entityLetterId":   t.EntityLetterID,
-		"entityCaseId":     t.EntityCaseID,
-		"followUpId":       t.FollowUpID,
-		"result":           t.Result,
-		"formData":         t.FormData,
-		"completedAt":      t.CompletedAt,
-		"createdAt":        t.CreatedAt,
-		"updatedAt":        t.UpdatedAt,
+		"id":                         t.ID,
+		"caseId":                     t.CaseID,
+		"category":                   t.Category,
+		"type":                       t.Type,
+		"description":                t.Description,
+		"status":                     t.Status,
+		"assignedUserId":             t.AssignedUserID,
+		"assignedUserName":           assignedUserName,
+		"assignedRole":               t.AssignedRole,
+		"emergencyMeasureReferralId": t.EmergencyMeasureReferralID,
+		"barrierId":                  t.BarrierID,
+		"entityLetterId":             t.EntityLetterID,
+		"entityCaseId":               t.EntityCaseID,
+		"followUpId":                 t.FollowUpID,
+		"result":                     t.Result,
+		"formData":                   t.FormData,
+		"completedAt":                t.CompletedAt,
+		"createdAt":                  t.CreatedAt,
+		"updatedAt":                  t.UpdatedAt,
 	}
 	if entityName != "" {
 		result["entityName"] = entityName

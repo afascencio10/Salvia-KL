@@ -446,6 +446,27 @@
     animation: rme-pulse 1.6s ease-in-out infinite;
 }
 
+.rme-tareas {
+    margin-top: 16px;
+    padding: 16px 18px 8px;
+    border: 1px solid #d1fae5;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.rme-tareas-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.rme-tareas-head h3 {
+    margin: 0;
+    font-size: .95rem;
+    color: #065f46;
+}
+
 @keyframes rme-pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.55; }

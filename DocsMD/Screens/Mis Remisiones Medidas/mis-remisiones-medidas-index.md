@@ -35,12 +35,14 @@ El recorte (solo lo asignado a ese agente, y solo cinco estados) está en E-01 d
   agente-id="{general_user_i_code de la sesión}"
   @ver-caso="onVerCaso"
   @ver-detalle="onVerDetalle"
+  user-id="{icode de la sesión}"
+  user-role="{role_code de la sesión}"
 ></remisiones-medidas-component>
 ```
 
 El seed usa ids de mentira (`am-1`, `am-2`, `am-3`). Con el icode real de la sesión la bandeja abre vacía hasta que el listado lea `emergency_measure_referral`.
 
-`onVerDetalle` navega a `/salvia/remision-medida/{remisionId}` (E-15). `onVerCaso` sigue vacío (E-14).
+`onVerDetalle` navega a `/salvia/remision-medida/{remisionId}` (E-15). `onVerCaso` sigue vacío (E-14). "Tareas" abre el panel de la remisión (E-16). El agente ve la tarea `intentar_contacto_3x3` cuando está asignada a su usuario. La de decidir vía sigue siendo de `sm`.
 
 ## Checklist de completitud
 

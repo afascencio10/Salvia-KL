@@ -15,6 +15,21 @@ INPUT: {
 │  SUB-FLUJO: Validación según tarea.type                         │
 └─────────────────────────────────────────────────────────────────┘
 
+  CASO 'decidir_via_riesgo_inminente':
+    formularioValido si form.via es "A" o "B" y form.agentId no está vacío.
+    confirmar() llama a PUT /api/v1/case-tasks/:id/complete
+    con formData { via, agentId }.
+    En una transacción: asigna el agente a la remisión,
+    Vía A deja el estado en asignada y crea intentar_contacto_3x3 para ese agente,
+    Vía B deja el estado en riesgo_inminente_por_escalar_cruz_roja y crea
+    escalar_cruz_roja con assigned_role sc,
+    y marca esta tarea Done.
+
+  CASO 'intentar_contacto_3x3':
+  CASO 'escalar_cruz_roja':
+    El botón está habilitado.
+    confirmar() cierra el modal y no llama al API.
+
   CASO 'gestion_llamada':
     Validar formulario:
       • departamentoId:  required

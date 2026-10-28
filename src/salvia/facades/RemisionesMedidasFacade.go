@@ -53,6 +53,7 @@ func RemisionesMedidasGET(c *gin.Context) {
 		map[string]interface{}{
 			"windowTitle":    "Remisiones Medidas de Emergencia",
 			"currentUser":    s.Names + " " + s.LastNames,
+			"currentUserId":  s.UserICode,
 			"currentRole":    s.CurrentRole,
 			"locale":         salvia_config.Locale,
 			"lang":           s.Lang,

@@ -32,6 +32,8 @@ Los dos modales (reasignar y revisión técnica) viven en este mismo componente.
 | `vista` | `String` | No | `supervisor` | Recorte y presentación. Valores: `supervisor`, `equipo-tecnico`, `supervision-convenio`, `cruz-roja`, `agente` |
 | `agenteId` | `String` | No | `""` | Solo lo usa `vista="agente"`. Es el `general_user_i_code` de la sesión |
 | `puedeReasignar` | `Boolean` | No | `false` | Enciende checkbox, barra de reasignar y "Asignar agente". Roles `sm` y `sv` |
+| `userId` | `String` | No | `""` | Icode de la sesión. Lo usa el panel de tareas |
+| `userRole` | `String` | No | `""` | `role_code` de la sesión. Lo usa el panel de tareas |
 
 El padre fija `vista` según el rol. Estas son las cinco vistas del componente y quién las monta:
 
@@ -164,9 +166,11 @@ RemisionesMedidasComponent  (.rme-wrapper)
 │   └── Row × N
 │       ├── Checkbox                    → E-07, solo si puedeReasignar
 │       ├── Columna Caso                "Ver caso →" → E-14
-│       ├── Columna Remisión o Medidas  "Ver detalle →" → E-15
+│       ├── Columna Remisión o Medidas  "Ver detalle →" → E-15, "Tareas" → E-16
 │       └── Columna Estado              botón de acción, agente o concepto
-└── Footer  "{visibles} de {alcance} remisiones"
+├── Footer  "{visibles} de {alcance} remisiones"
+└── Panel Tareas                        v-if hay fila elegida en E-16
+    └── <case-tasks :case-id :referral-id :user-id :user-role>
 
 Modal Reasignar                         E-08 abre, E-09 cancela, E-10 confirma
 Modal Revisión Equipo Técnico          E-11 abre, E-12 cancela, E-13 confirma
@@ -206,19 +210,19 @@ La columna del agente no muestra agente, "Sin agente asignado" ni concepto.
 
 ## Botón de acción de la fila
 
-Una fila tiene como máximo un botón. La regla está en `accionDe` y queda partida en tres eventos:
+Una fila tiene como máximo un botón. La regla está en `accionDe` y queda partida en cuatro eventos:
 
 | Tipo | Evento | Qué hace |
 |---|---|---|
 | `asignar` | E-08 | Abre el modal de reasignar con esa sola fila |
 | `revisar` | E-11 | Abre el modal de revisión técnica |
+| `tareas` | E-16 | Abre el panel de tareas de la fila |
 | `detalle` | E-15 | Emite `ver-detalle` |
 
-Etiquetas de tipo `detalle` (el negocio de cada una queda en la pantalla de detalle):
+«Decidir vía de atención» es tipo `tareas`. El resto de estas etiquetas son tipo `detalle` (el negocio de cada una queda en la pantalla de detalle):
 
 | Vista | Estado | Etiqueta |
 |---|---|---|
-| `supervisor` | `riesgo_inminente_por_decidir_via` | Decidir vía de atención |
 | `supervision-convenio` | `riesgo_inminente_por_escalar_cruz_roja` | Escalar a Cruz Roja |
 | `cruz-roja` | `riesgo_inminente_por_entregar_medida` | Entregar medida inmediata |
 | `supervisor` | `caracterizado` | Revisar caracterización |

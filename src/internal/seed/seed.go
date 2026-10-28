@@ -25,6 +25,12 @@ var seguimientoV4FormSQL string
 //go:embed seguimiento_v4_medidas.sql
 var seguimientoV4MedidasSQL string
 
+//go:embed seguimiento_riesgo_inminente.sql
+var seguimientoRiesgoInminenteSQL string
+
+//go:embed seguimiento_v4_riesgo_inminente.sql
+var seguimientoV4RiesgoInminenteSQL string
+
 //go:embed validation_tasks.sql
 var validationTasksSQL string
 
@@ -156,5 +162,46 @@ func EnsureSeguimientoV4Medidas(db *gorm.DB) (bool, error) {
 	}
 	// El SQL no inserta si el formulario V.4 todavía no existe. Eso no es un fallo:
 	// quien crea el formulario ya incluye la sección.
+	return presente > 0, nil
+}
+
+// EnsureSeguimientoRiesgoInminente agrega la pregunta booleana al seguimiento
+// vigente, visible al elegir Medidas de Emergencia. Si la pregunta de medidas
+// no está, no escribe nada.
+func EnsureSeguimientoRiesgoInminente(db *gorm.DB) (bool, error) {
+	const questionID = "b7e4c2a1-9f30-4c58-8d16-5a2e7b3c0d48"
+	return ensureQuestion(db, questionID, seguimientoRiesgoInminenteSQL, "de riesgo inminente del seguimiento")
+}
+
+// EnsureSeguimientoV4RiesgoInminente agrega la misma pregunta al seguimiento V.4.
+// El UUID es el de la clave q:plan.riesgoInminente.
+func EnsureSeguimientoV4RiesgoInminente(db *gorm.DB) (bool, error) {
+	const questionID = "10164e84-0e54-4ebc-80f2-8143c90820e1"
+	return ensureQuestion(db, questionID, seguimientoV4RiesgoInminenteSQL, "de riesgo inminente del seguimiento V.4")
+}
+
+func ensureQuestion(db *gorm.DB, questionID, sql, nombre string) (bool, error) {
+	var presente int64
+	err := db.Raw(
+		`SELECT COUNT(*) FROM salvia.question WHERE id = ?`,
+		questionID,
+	).Scan(&presente).Error
+	if err != nil {
+		return false, fmt.Errorf("verificando la pregunta %s: %w", nombre, err)
+	}
+	if presente > 0 {
+		return false, nil
+	}
+
+	if err := db.Exec(sql).Error; err != nil {
+		return false, fmt.Errorf("agregando la pregunta %s: %w", nombre, err)
+	}
+
+	if err := db.Raw(
+		`SELECT COUNT(*) FROM salvia.question WHERE id = ?`,
+		questionID,
+	).Scan(&presente).Error; err != nil {
+		return false, fmt.Errorf("verificando la pregunta %s tras agregarla: %w", nombre, err)
+	}
 	return presente > 0, nil
 }

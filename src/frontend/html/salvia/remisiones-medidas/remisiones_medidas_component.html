@@ -105,6 +105,7 @@
                             <span class="rme-urgencia" :class="claseUrgencia(item.urgencia)">${ item.urgencia }</span>
                             <p class="rme-meta">desde ${ item.fechaRemision }</p>
                             <button type="button" class="rme-link" @click="onVerDetalle(item)">Ver detalle →</button>
+                            <button type="button" class="rme-link" @click="abrirTareas(item)">Tareas</button>
                         </div>
                         <div class="rme-cell">
                             <span class="rme-estado" :class="claseEstado(item.estado)">${ item.estado }</span>
@@ -136,6 +137,7 @@
                             <p class="rme-meta"><span class="rme-por">Por:</span> ${ item.remitidoPor.nombre }</p>
                             <p class="rme-meta">${ item.fechaRemision }</p>
                             <button type="button" class="rme-link" @click="onVerDetalle(item)">Ver detalle →</button>
+                            <button type="button" class="rme-link" @click="abrirTareas(item)">Tareas</button>
                         </div>
                         <div class="rme-cell">
                             <span class="rme-estado" :class="claseEstado(item.estado)">${ item.estado }</span>
@@ -166,6 +168,20 @@
     </div>
 
     <p class="rme-count">${ visibles.length } de ${ alcanceTotal } remisiones</p>
+
+    <section v-if="panelTareas" class="rme-tareas">
+        <div class="rme-tareas-head">
+            <h3>Tareas · ${ panelTareas.nombre }</h3>
+            <button type="button" class="rme-link" @click="cerrarTareas">Cerrar</button>
+        </div>
+        <case-tasks
+            :case-id="panelTareas.caseICode"
+            :referral-id="panelTareas.remisionId"
+            :user-id="userId"
+            :user-role="userRole"
+            @task-completed="cargar"
+        ></case-tasks>
+    </section>
 
     <div v-if="reasignarAbierto" class="rme-modal-backdrop">
         <div class="rme-modal rme-modal--sm" role="dialog" aria-modal="true" aria-labelledby="rme-reasignar-titulo">

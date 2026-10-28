@@ -120,8 +120,8 @@ type EmergencyMeasureReferralRepository interface {
 	Reassign(ctx context.Context, ids []string, agentID string) error
 	Review(ctx context.Context, id, professionalID, concept, result, newStatus, reviewDate string) (found bool, pending bool, err error)
 	// CreateWithMeasures inserta la cabecera y sus medidas en una transacción.
-	// El id de la cabecera queda en referral.ID.
-	CreateWithMeasures(ctx context.Context, referral *models.EmergencyMeasureReferral, measureTypes []string) error
+	// El id de la cabecera queda en referral.ID. riesgoInminente se copia en cada medida.
+	CreateWithMeasures(ctx context.Context, referral *models.EmergencyMeasureReferral, measureTypes []string, riesgoInminente bool) error
 }
 
 type emergencyMeasureReferralRepository struct {
@@ -133,8 +133,8 @@ func NewEmergencyMeasureReferralRepository(db *gorm.DB) EmergencyMeasureReferral
 }
 
 // CreateWithMeasures crea una remisión y una medida ACTIVE por cada tipo.
-// Si no queda ningún tipo, no inserta nada.
-func (r *emergencyMeasureReferralRepository) CreateWithMeasures(ctx context.Context, referral *models.EmergencyMeasureReferral, measureTypes []string) error {
+// Si no queda ningún tipo, no inserta nada. riesgoInminente queda en cada medida.
+func (r *emergencyMeasureReferralRepository) CreateWithMeasures(ctx context.Context, referral *models.EmergencyMeasureReferral, measureTypes []string, riesgoInminente bool) error {
 	types := make([]string, 0, len(measureTypes))
 	for _, tipo := range measureTypes {
 		if tipo = strings.TrimSpace(tipo); tipo != "" {
@@ -165,11 +165,12 @@ func (r *emergencyMeasureReferralRepository) CreateWithMeasures(ctx context.Cont
 		referralID := referral.ID
 		for _, tipo := range types {
 			measure := &models.EmergencyMeasure{
-				CaseID:     referral.CaseID,
-				FollowUpID: referral.FollowUpID,
-				Type:       tipo,
-				Status:     "ACTIVE",
-				ReferralID: &referralID,
+				CaseID:          referral.CaseID,
+				FollowUpID:      referral.FollowUpID,
+				Type:            tipo,
+				Status:          "ACTIVE",
+				ReferralID:      &referralID,
+				RiesgoInminente: riesgoInminente,
 			}
 			if err := tx.Create(measure).Error; err != nil {
 				return err

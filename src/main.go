@@ -163,6 +163,18 @@ func main() {
 		log.Printf("[INFO] sección de medidas de emergencia agregada al seguimiento V.4")
 	}
 
+	if aplicado, err := seed.EnsureSeguimientoRiesgoInminente(gormDB); err != nil {
+		log.Printf("[WARN] pregunta de riesgo inminente del seguimiento: %v", err)
+	} else if aplicado {
+		log.Printf("[INFO] pregunta de riesgo inminente agregada al seguimiento")
+	}
+
+	if aplicado, err := seed.EnsureSeguimientoV4RiesgoInminente(gormDB); err != nil {
+		log.Printf("[WARN] pregunta de riesgo inminente del seguimiento V.4: %v", err)
+	} else if aplicado {
+		log.Printf("[INFO] pregunta de riesgo inminente agregada al seguimiento V.4")
+	}
+
 	if creadas, err := seed.EnsureValidationTasks(gormDB); err != nil {
 		log.Printf("[WARN] reparación de tareas de validación de remisiones: %v", err)
 	} else if creadas > 0 {

@@ -7,7 +7,7 @@
 | Interfaz | [case-task-modal-interface.md](case-task-modal-interface.md) |
 | Uso | [case-task-modal-usage.md](case-task-modal-usage.md) |
 
-**Changelogs:** [changelogAgo2026.md](changelogAgo2026.md) · [changelogSep2026.md](changelogSep2026.md)
+**Changelogs:** [changelogAgo2026.md](changelogAgo2026.md) · [changelogSep2026.md](changelogSep2026.md) · [changelogOct2026.md](changelogOct2026.md)
 
 ---
 
@@ -25,6 +25,7 @@
 | E08 | Cuando cambia decisiones del comité | User Interaction | [📄 Ver flujo](Flujos/flow-E08-cuando-cambia-decisiones-del-comite.md) |
 | E09 | Cuando confirma el formulario | User Interaction | [📄 Ver flujo](Flujos/flow-E09-cuando-confirma-formulario.md) |
 | E10 | Cuando selecciona ítem del checklist entidad | User Interaction | [📄 Ver flujo](Flujos/flow-E10-cuando-selecciona-item-checklist-entidad.md) |
+| E11 | Cuando abre decidir vía de riesgo inminente | User Interaction | [📄 Ver flujo](Flujos/flow-E11-cuando-abre-decidir-via.md) |
 
 ---
 
@@ -114,6 +115,15 @@
 **Evento:** Cuando selecciona ítem del checklist entidad
 **Tipo:** User Interaction
 **Descripción:** Aplica únicamente en el formulario `solicitud_entidad`. El usuario pulsa un ítem del checklist de obligaciones pendientes. Alterna `form.seleccion[id].selected`. Si queda seleccionado, Vue muestra el textarea de descripción debajo; si se deselecciona, limpia la descripción.
+**Requerido:** Sí
+
+---
+
+📄 [Ver flujo → flow-E11-cuando-abre-decidir-via.md](Flujos/flow-E11-cuando-abre-decidir-via.md)
+
+**Evento:** Cuando abre decidir vía de riesgo inminente
+**Tipo:** User Interaction
+**Descripción:** Después de E02, si `tarea.type` es `decidir_via_riesgo_inminente`, el modal muestra una sola vía y el agente de medidas. Confirmar decisión persiste si hay vía y agente.
 **Requerido:** Sí
 
 ---

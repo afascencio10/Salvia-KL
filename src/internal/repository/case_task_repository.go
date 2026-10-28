@@ -39,6 +39,9 @@ type CaseTaskRepository interface {
 	// FindByCaseIDAndPsychosocial devuelve las tareas de un caso filtradas por remisión psicosocial.
 	FindByCaseIDAndPsychosocial(ctx context.Context, caseID, psychosocialID string) ([]models.CaseTask, error)
 
+	// FindByReferralID devuelve las tareas de una remisión de medidas de emergencia.
+	FindByReferralID(ctx context.Context, referralID string) ([]models.CaseTask, error)
+
 	// FindByBarrierID devuelve todas las tareas relacionadas a una barrera.
 	FindByBarrierID(ctx context.Context, barrierID string) ([]models.CaseTask, error)
 
@@ -95,6 +98,15 @@ func (r *caseTaskRepository) FindByCaseIDAndPsychosocial(ctx context.Context, ca
 	var items []models.CaseTask
 	err := r.db.WithContext(ctx).
 		Where("case_id = ? AND psychosocial_support_id = ?", caseID, psychosocialID).
+		Order("created_at DESC").
+		Find(&items).Error
+	return items, err
+}
+
+func (r *caseTaskRepository) FindByReferralID(ctx context.Context, referralID string) ([]models.CaseTask, error) {
+	var items []models.CaseTask
+	err := r.db.WithContext(ctx).
+		Where("emergency_measure_referral_id = ?", referralID).
 		Order("created_at DESC").
 		Find(&items).Error
 	return items, err

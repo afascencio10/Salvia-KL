@@ -2,7 +2,7 @@
 
 Pantalla de lectura de una remisión. Se llega desde "Ver detalle →" y desde los botones de fila de tipo detalle (E-15 del componente). Ruta `GET /salvia/remision-medida/:id`. El `:id` es el uuid de `emergency_measure_referral`.
 
-No hay select de rol. `currentRole` decide el recorte de lectura y si aparece "Reasignar agente de medidas". Tareas y Timeline son los componentes del caso, con el `caseICode` de la remisión.
+No hay select de rol. `currentRole` decide el recorte de lectura y si aparece "Reasignar agente de medidas". El tab Tareas filtra por la remisión. Timeline sigue con el `caseICode`.
 
 ## Navegación
 
@@ -14,6 +14,7 @@ No hay select de rol. `currentRole` decide el recorte de lectura y si aparece "R
 | Origen del clic | [flow-E15-cuando-presiona-ver-detalle.md](../../Componentes/Remisiones%20Medidas%20component/Flujos/flow-E15-cuando-presiona-ver-detalle.md) |
 | Bandeja general | [remisiones-medidas-index.md](../Remisiones%20Medidas/remisiones-medidas-index.md) |
 | Bandeja del agente | [mis-remisiones-medidas-index.md](../Mis%20Remisiones%20Medidas/mis-remisiones-medidas-index.md) |
+| Changelog octubre 2026 | [changelogOct2026.md](./changelogOct2026.md) |
 
 ## Ruta y permiso
 

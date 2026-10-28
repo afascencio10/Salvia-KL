@@ -72,6 +72,7 @@ app.component('case-tasks', {
         entityBranchId: { default: null },
         entityName: { type: String, default: '' },
         barrierDescription: { type: String, default: '' },
+        referralId: { type: String, default: '' },
     },
     emits: ['task-completed'],
     data: function() {
@@ -88,24 +89,26 @@ app.component('case-tasks', {
     computed: {
         scopedTasks: function() {
             var self = this;
+            var tasks = this.tasks;
             // Rol Entidad ('et'): filtro original del equipo — solo sus tareas asignadas.
             if (this.userRole === 'et') {
-                return this.tasks.filter(function(t) {
+                tasks = tasks.filter(function(t) {
                     return String(t.assignedUserId || '') === String(self.userId || '');
                 });
-            }
-            // Equipo Técnico ('te'): ve las tareas asignadas a sí mismo y, además, las
-            // tareas "comite_caso" del pool (sin dueño), disponibles para que cualquier
-            // integrante del equipo técnico las tome y gestione. El backend ya aplica
-            // este mismo criterio; aquí se replica para mantener la vista consistente.
-            if (this.userRole === 'te') {
-                return this.tasks.filter(function(t) {
+            } else if (this.userRole === 'te') {
+                // Equipo Técnico ('te'): ve las tareas asignadas a sí mismo y, además, las
+                // tareas "comite_caso" del pool (sin dueño), disponibles para que cualquier
+                // integrante del equipo técnico las tome y gestione.
+                tasks = tasks.filter(function(t) {
                     if (String(t.assignedUserId || '') === String(self.userId || '')) return true;
                     if (t.type === 'comite_caso' && !t.assignedUserId) return true;
                     return false;
                 });
             }
-            return this.tasks;
+            return tasks.filter(function(t) {
+                if (!t.assignedRole) return true;
+                return self.userRole === t.assignedRole || self.userRole === 'sv';
+            });
         },
         pendingTasks: function() {
             return this.scopedTasks.filter(function(t) { return t.status === 'ToDo'; });
@@ -124,7 +127,9 @@ app.component('case-tasks', {
         async cargar() {
             this.loading = true;
             try {
-                var url = '/api/v1/case-tasks?caseId=' + this.caseId;
+            var url = this.referralId
+                ? '/api/v1/case-tasks?referralId=' + encodeURIComponent(this.referralId)
+                : '/api/v1/case-tasks?caseId=' + this.caseId;
                 if (this.barrierId) url += '&barrierId=' + this.barrierId;
                 if (this.psychosocialId) url += '&psychosocialId=' + this.psychosocialId;
                 var res = await fetch(url);
@@ -175,6 +180,9 @@ app.component('case-tasks', {
             if (this.esSoloAsignado(task)) {
                 return String(task.assignedUserId || '') === String(this.userId || '');
             }
+            if (task.assignedRole) {
+                return this.userRole === task.assignedRole || this.userRole === 'sv';
+            }
             if (this.userRole === 'sv') return true;
             // El Equipo Técnico puede gestionar las comite_caso del pool.
             if (this.userRole === 'te' && this.esComiteDelPool(task)) return true;
@@ -185,6 +193,9 @@ app.component('case-tasks', {
             // validar_remision del profesional): solo las gestiona su asignado, NO el sv.
             if (this.esSoloAsignado(task)) {
                 return String(task.assignedUserId || '') === String(this.userId || '');
+            }
+            if (task.assignedRole) {
+                return this.userRole === task.assignedRole || this.userRole === 'sv';
             }
             // Para las demás tareas: sv siempre puede, o ser el asignado
             if (this.userRole === 'sv') return true;
@@ -248,8 +259,25 @@ app.component('case-tasks', {
                 'compromiso_con_enlace': 'Compromiso con Enlace',
                 'solicitud_entidad': 'Hacer solicitudes a la entidad',
                 'respuesta_entidad': 'Responder solicitud de la entidad',
+                'decidir_via_riesgo_inminente': 'Decidir vía de atención',
+                'intentar_contacto_3x3': 'Intentar contacto (3×3)',
+                'escalar_cruz_roja': 'Escalar a Cruz Roja',
             };
             return labels[type] || type || task.category || 'Tarea';
+        },
+        nombreAsignado: function(task) {
+            if (task.assignedRole) {
+                var nombres = {
+                    sm: 'Supervisor de Medidas',
+                    sv: 'Supervisor',
+                    em: 'Equipo Técnico de Medidas',
+                    sc: 'Supervisión del Convenio',
+                    cr: 'Cruz Roja',
+                    am: 'Agente de Medidas',
+                };
+                return nombres[task.assignedRole] || task.assignedRole;
+            }
+            return task.assignedUserName || 'Sin asignar';
         },
         tituloTarea: function(task) {
             if (task.type === 'solicitud_entidad') {
@@ -348,7 +376,7 @@ app.component('case-tasks', {
                             <div v-if="entidadTarea(task)" style="font-size:.74rem;color:#374151"><i class="fa fa-building" style="color:#2563eb;margin-right:5px"></i><strong>Entidad:</strong> \${ entidadTarea(task) }</div>
                             <div v-if="solicitudTarea(task)" style="font-size:.74rem;color:#374151"><i class="fa fa-file-lines" style="color:#7c3aed;margin-right:5px"></i><strong>Solicitud:</strong> \${ solicitudTarea(task) }</div>
                         </div>
-                        <div style="font-size:.73rem;color:#9ca3af;margin-top:2px">Asignado a: \${ task.assignedUserName || 'Sin asignar' }</div>
+                        <div style="font-size:.73rem;color:#9ca3af;margin-top:2px">Asignado a: \${ nombreAsignado(task) }</div>
                     </div>
                     <div style="display:flex;gap:6px;flex-shrink:0">
                         <button v-if="puedeCompletar(task) && esAsignadoOSv(task)" class="ct-btn-complete" @click="abrirModal(task)">Gestionar</button>

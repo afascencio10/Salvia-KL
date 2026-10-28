@@ -2878,7 +2878,7 @@ func (s *formService) processPsicosocialDerivacionEquipos(ctx context.Context, f
 				break
 			}
 			medidas := splitCSVValues(medidasVal)
-			if err := s.createEmergencyMeasureReferral(ctx, caseID, nil, actorID, medidas); err != nil {
+			if err := s.createEmergencyMeasureReferral(ctx, caseID, nil, actorID, medidas, false); err != nil {
 				return err
 			}
 			log.Printf("[processPsicosocialDerivacionEquipos] ✅ remisión a medidas creada tipos=%s psicosocialId=%s", medidasVal, ps.ID)
@@ -3953,6 +3953,7 @@ func (s *formService) processEquiposYMedidas(ctx context.Context, caseID string,
 	const (
 		qEquipos                 = "e0d38cf5-fe3f-45cb-9fd3-f5b8f7b2f7dc" // Derivaciones a equipos (multi-select)
 		qMedidasEmergencia       = "1a36260c-33a4-4ebd-bffb-e387d7964b96" // Medidas de emergencia (multi-select)
+		qRiesgoInminenteMedidas  = "b7e4c2a1-9f30-4c58-8d16-5a2e7b3c0d48" // ¿La remisión es de riesgo inminente? (boolean)
 		qCriteriosPsico          = "71c42c4a-f640-47ad-b2c1-5d4c18480449" // Criterios de remisión — Atención Psicosocial (multiple)
 		qCriteriosHombres        = "f7edf4fc-d1cd-4591-a358-31566c806365" // Criterios de remisión — Atención Hombres (multiple)
 		qCriteriosEstabilizacion = "28accaa6-99dc-4ec4-967b-f26045ad707c" // Criterios de remisión — Estabilización (multiple)
@@ -4156,7 +4157,8 @@ func (s *formService) processEquiposYMedidas(ctx context.Context, caseID string,
 	if medidasVal, ok := answerMap[qMedidasEmergencia]; ok && medidasVal != "" {
 		log.Printf("[processEquiposYMedidas] medidas de emergencia: %s", medidasVal)
 		medidas := splitValues(medidasVal)
-		if err := s.createEmergencyMeasureReferral(ctx, caseID, followUpID, actorID, medidas); err != nil {
+		riesgoInminente := answerMap[qRiesgoInminenteMedidas] == "true"
+		if err := s.createEmergencyMeasureReferral(ctx, caseID, followUpID, actorID, medidas, riesgoInminente); err != nil {
 			return remisionCount, fmt.Errorf("crear remisión a medidas: %w", err)
 		}
 		remisionCount += len(medidas)
@@ -4168,7 +4170,9 @@ func (s *formService) processEquiposYMedidas(ctx context.Context, caseID string,
 
 // createEmergencyMeasureReferral abre una fila de la bandeja y liga las medidas.
 // submitted_by_team queda nulo si el usuario no tiene general_user_team.
-func (s *formService) createEmergencyMeasureReferral(ctx context.Context, caseID string, followUpID *string, actorID string, measureTypes []string) error {
+// Si riesgoInminente, la cabecera nace por decidir vía, cada medida queda
+// marcada y se crea la tarea del Supervisor de Medidas.
+func (s *formService) createEmergencyMeasureReferral(ctx context.Context, caseID string, followUpID *string, actorID string, measureTypes []string, riesgoInminente bool) error {
 	if len(measureTypes) == 0 {
 		return nil
 	}
@@ -4182,16 +4186,53 @@ func (s *formService) createEmergencyMeasureReferral(ctx context.Context, caseID
 	}
 	now := time.Now()
 	day := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	status := models.EmergencyReferralStatusPendienteDeRevision
+	urgency := models.EmergencyReferralUrgencyNormal
+	if riesgoInminente {
+		status = models.EmergencyReferralStatusRiesgoPorDecidirVia
+		urgency = models.EmergencyReferralUrgencyRiesgoInminente
+	}
 	referral := &models.EmergencyMeasureReferral{
 		CaseID:          caseID,
 		FollowUpID:      followUpID,
-		Status:          models.EmergencyReferralStatusPendienteDeRevision,
-		Urgency:         models.EmergencyReferralUrgencyNormal,
+		Status:          status,
+		Urgency:         urgency,
 		SubmittedBy:     submittedBy,
 		SubmittedByTeam: s.submittedByTeam(ctx, actorID),
 		ReferredAt:      &day,
 	}
-	return s.emergencyMeasureReferralRepo.CreateWithMeasures(ctx, referral, measureTypes)
+	if err := s.emergencyMeasureReferralRepo.CreateWithMeasures(ctx, referral, measureTypes, riesgoInminente); err != nil {
+		return err
+	}
+	if riesgoInminente {
+		s.crearTareaDecidirVia(ctx, caseID, followUpID, referral.ID)
+	}
+	return nil
+}
+
+// crearTareaDecidirVia deja la tarea en el rol sm. Un fallo no revierte la remisión:
+// el seguimiento ya no se puede reprocesar una vez queda REALIZADO.
+func (s *formService) crearTareaDecidirVia(ctx context.Context, caseID string, followUpID *string, referralID string) {
+	if s.caseTaskRepo == nil || referralID == "" {
+		log.Printf("[crearTareaDecidirVia] WARN: no se crea la tarea (repo=%v referral=%s)", s.caseTaskRepo != nil, referralID)
+		return
+	}
+	role := models.CaseTaskRoleSupervisorMedidas
+	refID := referralID
+	task := &models.CaseTask{
+		Category:                   models.CaseTaskCategoryMedidas,
+		Type:                       models.CaseTaskTypeDecidirViaRiesgoInminente,
+		Description:                models.CaseTaskDescDecidirViaRiesgoInminente,
+		AssignedUserID:             "",
+		AssignedRole:               &role,
+		Status:                     models.CaseTaskStatusToDo,
+		CaseID:                     caseID,
+		FollowUpID:                 followUpID,
+		EmergencyMeasureReferralID: &refID,
+	}
+	if err := s.caseTaskRepo.Create(ctx, task); err != nil {
+		log.Printf("[crearTareaDecidirVia] WARN: no se pudo crear la tarea de la remisión %s: %v", referralID, err)
+	}
 }
 
 // submittedByTeam lee general_user_team. Nil si el usuario no tiene equipo o no se puede leer.

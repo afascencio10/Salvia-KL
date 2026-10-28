@@ -42,7 +42,7 @@ RemisionMedidaDetalle  (.rmd-page)
     │   │   ├── Hijos menores                 form 1 más reciente
     │   │   └── Requiere intérprete           form 2 más reciente
     │   └── Asignación                        solo sm y sv → E-02
-    ├── Tareas                     <case-tasks :case-id :user-id :user-role>
+    ├── Tareas                     <case-tasks :case-id :referral-id :user-id :user-role>
     └── Timeline                   <case-timeline :case-id>
 ```
 
@@ -62,4 +62,4 @@ No hay descripción de la situación ni observaciones. No hay select de rol.
 | Hijos | `victim_case_form1_victim_children_number` y `victim_case_form1_victim_children_age` del form 1 con mayor id. Sin número, "No" |
 | Intérprete | Código del enum `victim_case_form2_require_language_interpreter` del form 2 con mayor id. `y` es "Sí". Vacío u otro código es "No" |
 
-Tareas y Timeline piden el caso entero. No filtran por remisión. `case-tasks` conserva sus reglas: no se agregan permisos para `sm`, `em`, `sc`, `cr` ni `am`.
+Tareas pide `GET /api/v1/case-tasks?referralId=` de esta remisión. La ven y las gestionan las sesiones cuyo `role_code` coincide con `assigned_role`, y también quien tenga la tarea en `assigned_user_id`. `sv` ve todas las de la remisión. Al completar una tarea, la pantalla vuelve a pedir la remisión para refrescar el estado. Timeline sigue pidiendo el caso entero.

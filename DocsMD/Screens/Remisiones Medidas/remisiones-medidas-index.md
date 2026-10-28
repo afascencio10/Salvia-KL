@@ -12,6 +12,7 @@ La vista sale de `currentRole`. El listado todavía usa el seed del componente. 
 | Componente | [remisiones-medidas-component-events.md](../../Componentes/Remisiones%20Medidas%20component/remisiones-medidas-component-events.md) |
 | Detalle | [detalle-remision-medida-index.md](../Detalle%20Remision%20Medida/detalle-remision-medida-index.md) |
 | Interfaz del componente | [remisiones-medidas-component-interface.md](../../Componentes/Remisiones%20Medidas%20component/remisiones-medidas-component-interface.md) |
+| Changelog octubre 2026 | [changelogOct2026.md](./changelogOct2026.md) |
 
 ## Ruta, permiso y menú
 
@@ -37,7 +38,7 @@ La vista sale de `currentRole`. El listado todavía usa el seed del componente. 
 
 El handler traduce el rol y el template recibe `vista`. Para `sm` y `sv` también envía `:puede-reasignar="true"`.
 
-`onVerDetalle` navega a `/salvia/remision-medida/{remisionId}` (E-15). `onVerCaso` sigue vacío (E-14).
+`onVerDetalle` navega a `/salvia/remision-medida/{remisionId}` (E-15). `onVerCaso` sigue vacío (E-14). "Tareas" y "Decidir vía de atención" abren el panel de `case-tasks` de esa remisión (E-16). La pantalla pasa `user-id` y `user-role` de la sesión. Al completar la decisión, el listado se vuelve a cargar.
 
 Filtros, cards, selección, reasignación y revisión técnica no se documentan otra vez: son E-01 a E-13 del componente.
 

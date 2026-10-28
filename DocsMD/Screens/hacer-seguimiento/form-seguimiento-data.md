@@ -168,11 +168,14 @@ Patrón repetido: `boolean` de sector → `multiple` de instituciones (condicion
 | 2 | `fc64033e` | `boolean` | ✅ | ¿Durante la atención se han generado necesidades que requieran remisión a los equipos SALVIA? | — |
 | 3 | `e0d38cf5` | `multiple` | ✅ | ¿Cuáles equipos? | Q2 = `true` \| `EQUALS` (5 opts) |
 | 4 | `1a36260c` | `multiple` | ❌ | ¿Cuáles medidas de emergencia? | Q3 CONTAINS `medidas_emergencia` (6 opts) |
-| 5 | `71c42c4a` | `multiple` | ❌ | Criterios de remisión — Atención Psicosocial | Q3 CONTAINS `atencion_psico` (7 opts) |
-| 6 | `f7edf4fc` | `multiple` | ❌ | Criterios de remisión — Atención Hombres | Q3 CONTAINS `atencion_hombres` |
-| 7 | `47b122b1` | `multiple` | ❌ | Criterios de remisión — Salvia Dignidad | Q3 CONTAINS `salvia_dignidad` (2 opts) |
-| 8 | `28accaa6` | `multiple` | ❌ | Criterios de remisión — Estabilización | Q3 CONTAINS `estabilizacion` (3 opts) |
-| 9 | `1bdc8b52` | `text` | ✅ | Describa los elementos que evidencia para realizar la remisión | Q2 = `true` \| `EQUALS` |
+| 5 | `b7e4c2a1` | `boolean` | ✅ | ¿La remisión a medidas de emergencia es de riesgo inminente? | Q3 INCLUDES `medidas_emergencia`. El seed la inserta justo después de las medidas y corre el orden de las preguntas siguientes |
+| 6 | `71c42c4a` | `multiple` | ❌ | Criterios de remisión — Atención Psicosocial | Q3 CONTAINS `atencion_psico` (7 opts) |
+| 7 | `f7edf4fc` | `multiple` | ❌ | Criterios de remisión — Atención Hombres | Q3 CONTAINS `atencion_hombres` |
+| 8 | `47b122b1` | `multiple` | ❌ | Criterios de remisión — Salvia Dignidad | Q3 CONTAINS `salvia_dignidad` (2 opts) |
+| 9 | `28accaa6` | `multiple` | ❌ | Criterios de remisión — Estabilización | Q3 CONTAINS `estabilizacion` (3 opts) |
+| 10 | `1bdc8b52` | `text` | ✅ | Describa los elementos que evidencia para realizar la remisión | Q2 = `true` \| `EQUALS` |
+
+La pregunta de riesgo inminente (`b7e4c2a1-9f30-4c58-8d16-5a2e7b3c0d48`) se siembra con `seed.EnsureSeguimientoRiesgoInminente` sin reescribir envíos. Si la respuesta es `true`, al procesar el seguimiento la cabecera nace con urgencia `riesgo_inminente` y estado `riesgo_inminente_por_decidir_via`, cada medida elegida en esa remisión se guarda con `riesgo_inminente = true` y se crea la `case_task` `decidir_via_riesgo_inminente` con `assigned_role = sm`. Si es `false` o no hay respuesta, la cabecera sigue en urgencia normal y pendiente de revisión, las medidas quedan en false y no hay tarea. El detalle está en el PASO 5 de [flow-E04](Flujos/flow-E04-cuando-se-procesa-submission.md).
 
 ### Opciones de Q3 — ¿Cuáles equipos?
 | Value | Label |

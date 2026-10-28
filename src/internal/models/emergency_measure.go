@@ -21,10 +21,13 @@ type EmergencyMeasure struct {
 	Notes            *string    `gorm:"type:text" json:"notes"`
 	// ReferralID agrupa las medidas de una misma remisión de la bandeja.
 	// Las filas sin este dato no entran al listado.
-	ReferralID *string        `gorm:"type:uuid;column:referral_id" json:"referralId,omitempty"`
-	CreatedAt  time.Time      `json:"createdAt"`
-	UpdatedAt  time.Time      `json:"updatedAt"`
-	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+	ReferralID *string `gorm:"type:uuid;column:referral_id" json:"referralId,omitempty"`
+	// RiesgoInminente marca las medidas de una remisión que el seguimiento
+	// declaró de riesgo inminente. Las filas anteriores quedan en false.
+	RiesgoInminente bool           `gorm:"column:riesgo_inminente;not null;default:false" json:"riesgoInminente"`
+	CreatedAt       time.Time      `json:"createdAt"`
+	UpdatedAt       time.Time      `json:"updatedAt"`
+	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (EmergencyMeasure) TableName() string {

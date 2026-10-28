@@ -539,6 +539,10 @@ func (m *MockCaseTaskRepo) FindByCaseIDAndPsychosocial(ctx context.Context, case
 	args := m.Called(ctx, caseID, psychosocialID)
 	return args.Get(0).([]models.CaseTask), args.Error(1)
 }
+func (m *MockCaseTaskRepo) FindByReferralID(ctx context.Context, referralID string) ([]models.CaseTask, error) {
+	args := m.Called(ctx, referralID)
+	return args.Get(0).([]models.CaseTask), args.Error(1)
+}
 func (m *MockCaseTaskRepo) FindByBarrierID(ctx context.Context, barrierID string) ([]models.CaseTask, error) {
 	args := m.Called(ctx, barrierID)
 	return args.Get(0).([]models.CaseTask), args.Error(1)
