@@ -5,8 +5,10 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Disparado por: botón "Revisar (Equipo Técnico)"
-Lo ven sm y sv (vista supervisor) y em (vista equipo-tecnico),
-con estado pendiente_de_revision.
+Lo ven sm y sv (vista supervisor), con estado pendiente_de_revision.
+En la vista equipo-tecnico el mismo botón abre el modal de la tarea
+revision_equipo_tecnico: pide GET /api/v1/case-tasks?referralId=
+y llama a case-task-modal.open con la tarea ToDo de ese tipo.
 Permiso review_remisiones_medidas: sm, em y sv.
 
 

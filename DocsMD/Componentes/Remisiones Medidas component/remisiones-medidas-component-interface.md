@@ -231,7 +231,7 @@ Una fila tiene como máximo un botón. La regla está en `accionDe` y queda part
 | `cruz-roja` | `por_cotizar` | Cargar cotizaciones |
 | `agente` | `riesgo_inminente_por_confirmar_seguridad` | Confirmar seguridad |
 
-"Revisar (Equipo Técnico)" aparece en `supervisor` y `equipo-tecnico` cuando el estado es `pendiente_de_revision`. Lo usan `sm`, `em` y `sv` (`review_remisiones_medidas`). "Asignar agente" aparece con `puedeReasignar` (`sm` y `sv`, `reassign_remisiones_medidas`) cuando el estado es `por_asignar`.
+"Revisar (Equipo Técnico)" aparece en `supervisor` y `equipo-tecnico` cuando el estado es `pendiente_de_revision`. En `equipo-tecnico` abre el modal de la tarea `revision_equipo_tecnico`. En `supervisor` abre la revisión de la bandeja. Lo usan `sm`, `em` y `sv` (`review_remisiones_medidas`). "Asignar agente" aparece con `puedeReasignar` (`sm` y `sv`, `reassign_remisiones_medidas`) cuando el estado es `por_asignar`.
 
 ---
 

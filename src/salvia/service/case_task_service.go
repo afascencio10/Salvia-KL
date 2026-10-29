@@ -867,6 +867,119 @@ func (s *caseTaskService) registrarTimelineEntregaConfirmada(ctx context.Context
 	}
 }
 
+// completeRevisionEquipoTecnico aprueba la remisión para caracterización,
+// la deja por asignar y crea la tarea del supervisor de medidas.
+func (s *caseTaskService) completeRevisionEquipoTecnico(ctx context.Context, task *models.CaseTask, userID string, formData datatypes.JSON, fd map[string]interface{}, now time.Time) error {
+	if task.Status != models.CaseTaskStatusToDo {
+		return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+	}
+	if task.EmergencyMeasureReferralID == nil || strings.TrimSpace(*task.EmergencyMeasureReferralID) == "" {
+		return fmt.Errorf("CompleteWithFormData: la tarea no tiene remisión")
+	}
+	if strings.TrimSpace(userID) == "" {
+		return fmt.Errorf("CompleteWithFormData: sin usuario de la sesión")
+	}
+	concepto, _ := fd["concepto"].(string)
+	concepto = strings.TrimSpace(concepto)
+	resultado, _ := fd["resultado"].(string)
+	resultado = strings.TrimSpace(resultado)
+	if concepto == "" || resultado != models.EmergencyReferralReviewAprobadoCaracterizacion {
+		return fmt.Errorf("CompleteWithFormData: la revisión exige concepto y aprobación para caracterización")
+	}
+	if s.db == nil {
+		return fmt.Errorf("CompleteWithFormData: sin base de datos")
+	}
+	refID := strings.TrimSpace(*task.EmergencyMeasureReferralID)
+	role := models.CaseTaskRoleSupervisorMedidas
+	next := &models.CaseTask{
+		Category:                   models.CaseTaskCategoryMedidas,
+		Type:                       models.CaseTaskTypeAsignarAgenteMedidas,
+		Description:                models.CaseTaskDescAsignarAgenteMedidas,
+		AssignedRole:               &role,
+		Status:                     models.CaseTaskStatusToDo,
+		CaseID:                     task.CaseID,
+		FollowUpID:                 task.FollowUpID,
+		EmergencyMeasureReferralID: &refID,
+	}
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Exec(`
+			UPDATE salvia.emergency_measure_referral
+			   SET review_professional_id = ?,
+			       review_concept = ?,
+			       review_result = ?,
+			       review_date = ?::date,
+			       status = ?,
+			       updated_at = NOW()
+			 WHERE id::text = ?
+			   AND status = ?
+			   AND deleted_at IS NULL
+		`, userID, concepto, resultado, now.Format("2006-01-02"), models.EmergencyReferralStatusPorAsignar, refID, models.EmergencyReferralStatusPendienteDeRevision)
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: actualizar remisión: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la remisión ya no está pendiente de revisión")
+		}
+		if err := tx.Create(next).Error; err != nil {
+			return fmt.Errorf("CompleteWithFormData: crear la asignación de agente: %w", err)
+		}
+		res = tx.Model(&models.CaseTask{}).
+			Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+			Updates(map[string]interface{}{
+				"form_data":    formData,
+				"status":       models.CaseTaskStatusDone,
+				"completed_at": now,
+			})
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: cerrar la revisión: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	s.registrarTimelineEnviadaAsignacion(ctx, task, userID, now)
+	return nil
+}
+
+func (s *caseTaskService) registrarTimelineEnviadaAsignacion(ctx context.Context, task *models.CaseTask, userID string, now time.Time) {
+	if s.timelineRepo == nil {
+		log.Printf("[registrarTimelineEnviadaAsignacion] WARN: sin repositorio de timeline")
+		return
+	}
+	actorName := strings.TrimSpace(userID)
+	if s.mechanismRepo != nil && userID != "" {
+		if name, err := s.mechanismRepo.UserFullName(ctx, userID); err == nil && strings.TrimSpace(name) != "" {
+			actorName = strings.TrimSpace(name)
+		}
+	}
+	followUp := ""
+	if task.FollowUpID != nil {
+		followUp = *task.FollowUpID
+	}
+	event := &models.CaseTimelineEvent{
+		CaseID:      task.CaseID,
+		FollowUpID:  followUp,
+		TaskID:      task.ID,
+		EventType:   models.TimelineEventEnviadaAsignacion,
+		Category:    models.TimelineCategoryMedidas,
+		Type:        models.TimelineTypeEnviadaAsignacion,
+		Icon:        models.TimelineIconRiesgoInminente,
+		Color:       models.TimelineColorRed,
+		Description: models.TimelineDescEnviadaAsignacion,
+		EventUserID: userID,
+		ActorID:     userID,
+		ActorName:   actorName,
+		Date:        now,
+		CreatedAt:   now,
+	}
+	if err := s.timelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[registrarTimelineEnviadaAsignacion] WARN: no se pudo crear el evento del caso %s: %v", task.CaseID, err)
+	}
+}
+
 // CompleteWithFormData completa una CaseTask de tipo gestion_llamada,
 // proyectar_oficio, comite_caso o Corregir oficio. Persiste el JSON del
 // formulario y ejecuta los efectos de lado propios de cada tipo.
@@ -993,6 +1106,11 @@ func (s *caseTaskService) CompleteWithFormData(ctx context.Context, id string, u
 
 	case models.CaseTaskTypeConfirmarLugarSeguro:
 		if err := s.completeConfirmarLugarSeguro(ctx, task, userId, formData, now); err != nil {
+			return nil, err
+		}
+
+	case models.CaseTaskTypeRevisionEquipoTecnico:
+		if err := s.completeRevisionEquipoTecnico(ctx, task, userId, formData, fd, now); err != nil {
 			return nil, err
 		}
 

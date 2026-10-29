@@ -4172,6 +4172,7 @@ func (s *formService) processEquiposYMedidas(ctx context.Context, caseID string,
 // submitted_by_team queda nulo si el usuario no tiene general_user_team.
 // Si riesgoInminente, la cabecera nace por decidir vía, cada medida queda
 // marcada y se crea la tarea del Supervisor de Medidas.
+// Si no lo es y viene de un seguimiento, se crea la revisión del Equipo Técnico.
 func (s *formService) createEmergencyMeasureReferral(ctx context.Context, caseID string, followUpID *string, actorID string, measureTypes []string, riesgoInminente bool) error {
 	if len(measureTypes) == 0 {
 		return nil
@@ -4208,6 +4209,10 @@ func (s *formService) createEmergencyMeasureReferral(ctx context.Context, caseID
 		if taskID, ok := s.crearTareaDecidirVia(ctx, caseID, followUpID, referral.ID); ok {
 			s.registrarTimelineRemisionRiesgoInminente(ctx, caseID, followUpID, actorID, taskID)
 		}
+	} else if followUpID != nil && strings.TrimSpace(*followUpID) != "" {
+		if taskID, ok := s.crearTareaRevisionEquipoTecnico(ctx, caseID, followUpID, referral.ID); ok {
+			s.registrarTimelineMedidasEnRevision(ctx, caseID, followUpID, actorID, taskID, measureTypes)
+		}
 	}
 	return nil
 }
@@ -4237,6 +4242,83 @@ func (s *formService) crearTareaDecidirVia(ctx context.Context, caseID string, f
 		return "", false
 	}
 	return task.ID, true
+}
+
+// crearTareaRevisionEquipoTecnico deja la revisión en el rol em.
+// Un fallo no revierte la remisión: el seguimiento ya quedó procesado.
+func (s *formService) crearTareaRevisionEquipoTecnico(ctx context.Context, caseID string, followUpID *string, referralID string) (string, bool) {
+	if s.caseTaskRepo == nil || referralID == "" {
+		log.Printf("[crearTareaRevisionEquipoTecnico] WARN: no se crea la tarea (repo=%v referral=%s)", s.caseTaskRepo != nil, referralID)
+		return "", false
+	}
+	role := models.CaseTaskRoleEquipoTecnicoMedidas
+	refID := referralID
+	task := &models.CaseTask{
+		Category:                   models.CaseTaskCategoryMedidas,
+		Type:                       models.CaseTaskTypeRevisionEquipoTecnico,
+		Description:                models.CaseTaskDescRevisionEquipoTecnico,
+		AssignedUserID:             "",
+		AssignedRole:               &role,
+		Status:                     models.CaseTaskStatusToDo,
+		CaseID:                     caseID,
+		FollowUpID:                 followUpID,
+		EmergencyMeasureReferralID: &refID,
+	}
+	if err := s.caseTaskRepo.Create(ctx, task); err != nil {
+		log.Printf("[crearTareaRevisionEquipoTecnico] WARN: no se pudo crear la tarea de la remisión %s: %v", referralID, err)
+		return "", false
+	}
+	return task.ID, true
+}
+
+func descripcionMedidasEnRevision(codes []string) string {
+	nombres := make([]string, 0, len(codes))
+	for _, code := range codes {
+		nombres = append(nombres, models.EmergencyMeasureTypeLabel(strings.TrimSpace(code)))
+	}
+	return "Se enviaron " + unirMedidas(nombres) + " a revisión del Equipo Técnico."
+}
+
+// registrarTimelineMedidasEnRevision deja constancia de las medidas enviadas a revisión.
+// Un fallo no revierte la remisión ni la tarea.
+func (s *formService) registrarTimelineMedidasEnRevision(ctx context.Context, caseID string, followUpID *string, actorID, taskID string, measureTypes []string) {
+	if s.caseTimelineRepo == nil {
+		log.Printf("[registrarTimelineMedidasEnRevision] WARN: sin repositorio de timeline")
+		return
+	}
+	now := time.Now()
+	followUp := ""
+	if followUpID != nil {
+		followUp = *followUpID
+	}
+	actorName := actorID
+	if s.agentLightRepo != nil && actorID != "" {
+		agent, err := s.agentLightRepo.FindByICode(ctx, actorID)
+		if err == nil && agent != nil {
+			if name := strings.TrimSpace(agent.Names + " " + agent.LastNames); name != "" {
+				actorName = name
+			}
+		}
+	}
+	event := &models.CaseTimelineEvent{
+		CaseID:      caseID,
+		FollowUpID:  followUp,
+		TaskID:      taskID,
+		EventType:   models.TimelineEventMedidasEnRevision,
+		Category:    models.TimelineCategoryMedidas,
+		Type:        models.TimelineTypeMedidasEnRevision,
+		Icon:        models.TimelineIconRiesgoInminente,
+		Color:       models.TimelineColorRed,
+		Description: descripcionMedidasEnRevision(measureTypes),
+		EventUserID: actorID,
+		ActorID:     actorID,
+		ActorName:   actorName,
+		Date:        now,
+		CreatedAt:   now,
+	}
+	if err := s.caseTimelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[registrarTimelineMedidasEnRevision] WARN: no se pudo crear el evento del caso %s: %v", caseID, err)
+	}
 }
 
 // registrarTimelineRemisionRiesgoInminente deja constancia en el caso.

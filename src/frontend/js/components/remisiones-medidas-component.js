@@ -154,6 +154,8 @@
                 revisionConcepto: '',
                 revisionResultado: '',
                 revisionError: '',
+                accionError: '',
+                abriendoRevisionId: '',
                 panelTareas: null,
             };
         },
@@ -352,7 +354,8 @@
             onAccion: function(item) {
                 var accion = this.accionDe(item);
                 if (!accion) return;
-                if (accion.tipo === 'revisar') this.abrirRevision(item);
+                if (accion.tipo === 'revisar' && this.vista === 'equipo-tecnico') this.abrirRevisionTarea(item);
+                else if (accion.tipo === 'revisar') this.abrirRevision(item);
                 else if (accion.tipo === 'asignar') this.abrirAsignarUno(item.id);
                 else if (accion.tipo === 'tareas') this.abrirTareas(item);
                 else this.onVerDetalle(item);
@@ -406,6 +409,29 @@
                     .catch(function(err) {
                         self.reasignarError = err.message || 'No se pudo reasignar.';
                     });
+            },
+            abrirRevisionTarea: function(item) {
+                var self = this;
+                if (!item || this.abriendoRevisionId) return;
+                this.accionError = '';
+                this.abriendoRevisionId = item.id;
+                fetch('/api/v1/case-tasks?referralId=' + encodeURIComponent(item.id), { credentials: 'same-origin' })
+                    .then(function(res) { return self.leerJSON(res); })
+                    .then(function(tareas) {
+                        var lista = Array.isArray(tareas) ? tareas : [];
+                        var tarea = lista.find(function(t) {
+                            return t.type === 'revision_equipo_tecnico' && t.status === 'ToDo';
+                        });
+                        if (!tarea || !self.$refs.taskModal) {
+                            self.accionError = 'Esta remisión no tiene una revisión pendiente.';
+                            return;
+                        }
+                        self.$refs.taskModal.open(tarea.id);
+                    })
+                    .catch(function() {
+                        self.accionError = 'No se pudo abrir la revisión.';
+                    })
+                    .finally(function() { self.abriendoRevisionId = ''; });
             },
             abrirRevision: function(item) {
                 this.revisionItem = item;

@@ -264,6 +264,8 @@ app.component('case-tasks', {
                 'escalar_cruz_roja': 'Escalar a Cruz Roja',
                 'entregar_medida_inmediata': 'Entregar medida inmediata (sin caracterización previa)',
                 'confirmar_lugar_seguro': 'Confirmar que la persona está en lugar seguro',
+                'revision_equipo_tecnico': 'Revisión Equipo Técnico',
+                'asignar_agente_medidas': 'Asignar agente de medidas',
             };
             return labels[type] || type || task.category || 'Tarea';
         },

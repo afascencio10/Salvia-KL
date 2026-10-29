@@ -168,6 +168,7 @@
     </div>
 
     <p class="rme-count">${ visibles.length } de ${ alcanceTotal } remisiones</p>
+    <p v-if="accionError" class="rme-modal-text">${ accionError }</p>
 
     <section v-if="panelTareas" class="rme-tareas">
         <div class="rme-tareas-head">
@@ -239,6 +240,8 @@
             </div>
         </div>
     </div>
+
+    <case-task-modal ref="taskModal" :current-user-id="userId" @completed="cargar"></case-task-modal>
 
 </div>
 </script>

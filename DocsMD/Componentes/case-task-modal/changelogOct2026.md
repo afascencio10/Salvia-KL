@@ -63,5 +63,15 @@ Al confirmar, la remisión pasa a `asignada` y se crea `intentar_contacto_3x3` p
 
 El 3×3 abre su modal. Guardar cierra y no persiste.
 
+## 2026-10-29 — Revisión del Equipo Técnico
+
+Al guardar un seguimiento viejo o V.4 con medidas que no son de riesgo inminente, nace `revision_equipo_tecnico` para el rol `em`. El caso recibe «Medidas enviadas a revisión» con los nombres de las medidas. Si la tarea no se crea, no hay timeline y la remisión queda. Las derivaciones psicosociales no crean esta tarea.
+
+El modal es «Revisión Equipo Técnico», sin el select de profesional. Guardar revisión exige concepto y «Aprobado para caracterización ME». Los otros dos resultados se ven y no guardan.
+
+Al aprobar, la remisión pasa a `por_asignar` y se crea `asignar_agente_medidas` para el rol `sm`. El caso recibe «Enviada a asignación de agente»: «Se envió para asignación de agente.» Si el timeline falla, la aprobación queda.
+
+Esa tarea abre «Reasignar remisiones» con el select de agentes. Reasignar cierra y no guarda.
+
 
 

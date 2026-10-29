@@ -64,6 +64,25 @@ INPUT: {
     "El agente de medidas confirmó la entrega de la medida."
     Un fallo del timeline no revierte la confirmación.
 
+  CASO 'revision_equipo_tecnico':
+    formularioValido exige concepto y resultado "aprobado_para_caracterizacion_me".
+    Devuelto para ajuste y Devuelto para acompañamiento se ven y no habilitan el guardado.
+    confirmar() llama a PUT /api/v1/case-tasks/:id/complete
+    con formData { concepto, resultado }.
+    La remisión pasa de pendiente_de_revision a por_asignar.
+    Se guardan el concepto, el resultado, la fecha y el usuario de la sesión.
+    Se crea asignar_agente_medidas con assigned_role sm
+    y descripción "Asignar agente de medidas".
+    Esta tarea queda Done.
+    El timeline queda "Enviada a asignación de agente":
+    "Se envió para asignación de agente."
+    Un fallo del timeline no revierte la aprobación.
+
+  CASO 'asignar_agente_medidas':
+    El modal muestra el select de Agente de Medidas.
+    Reasignar se habilita con un agente.
+    confirmar() cierra el modal y no llama al API.
+
   CASO 'intentar_contacto_3x3':
     El botón está habilitado.
     confirmar() cierra el modal y no llama al API.
