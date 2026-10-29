@@ -266,6 +266,7 @@ app.component('case-tasks', {
                 'confirmar_lugar_seguro': 'Confirmar que la persona está en lugar seguro',
                 'revision_equipo_tecnico': 'Revisión Equipo Técnico',
                 'asignar_agente_medidas': 'Asignar agente de medidas',
+                'ajustar_remision_devuelta': 'Ajustar remisión devuelta por el Equipo Técnico',
             };
             return labels[type] || type || task.category || 'Tarea';
         },

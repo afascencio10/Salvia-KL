@@ -65,18 +65,33 @@ INPUT: {
     Un fallo del timeline no revierte la confirmación.
 
   CASO 'revision_equipo_tecnico':
-    formularioValido exige concepto y resultado "aprobado_para_caracterizacion_me".
-    Devuelto para ajuste y Devuelto para acompañamiento se ven y no habilitan el guardado.
+    formularioValido exige concepto y uno de los tres resultados.
     confirmar() llama a PUT /api/v1/case-tasks/:id/complete
     con formData { concepto, resultado }.
-    La remisión pasa de pendiente_de_revision a por_asignar.
+    Si el resultado es aprobado_para_caracterizacion_me:
+      la remisión pasa de pendiente_de_revision a por_asignar,
+      se crea asignar_agente_medidas con assigned_role sm
+      y el timeline queda "Enviada a asignación de agente".
+    Si el resultado es devuelto_para_ajuste o devuelto_para_acompanamiento:
+      la remisión pasa a devuelta_para_justificacion o devuelta_a_seguimiento,
+      se crea ajustar_remision_devuelta para submitted_by
+      y el timeline "Devolución del Equipo Técnico" incluye el concepto.
     Se guardan el concepto, el resultado, la fecha y el usuario de la sesión.
-    Se crea asignar_agente_medidas con assigned_role sm
-    y descripción "Asignar agente de medidas".
     Esta tarea queda Done.
-    El timeline queda "Enviada a asignación de agente":
-    "Se envió para asignación de agente."
-    Un fallo del timeline no revierte la aprobación.
+    Un fallo del timeline no revierte la revisión.
+    Si ya hay vueltas, el modal muestra el hilo de GET /case-tasks/:id/chat.
+
+  CASO 'ajustar_remision_devuelta':
+    El modal muestra el hilo, el último concepto del equipo y el ajuste.
+    Sin la casilla, formularioValido exige el ajuste.
+    confirmar() reenvía: la remisión vuelve a pendiente_de_revision
+    y se crea otra revision_equipo_tecnico para el rol em.
+    El timeline incluye el texto del ajuste.
+    Con la casilla, el botón descarta: la remisión pasa a descartada,
+    las medidas ACTIVE de esa remisión pasan a CLOSED
+    y no nace otra revisión.
+    El timeline queda "Remisión descartada".
+    Un fallo del timeline no revierte el reenvío ni el descarte.
 
   CASO 'asignar_agente_medidas':
     El modal muestra el select de Agente de Medidas.

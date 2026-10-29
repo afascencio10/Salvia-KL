@@ -66,6 +66,9 @@ const (
 	TimelineTypeEntregaMedidaConfirmada = "Entrega de medida confirmada"
 	TimelineTypeMedidasEnRevision       = "Medidas enviadas a revisión"
 	TimelineTypeEnviadaAsignacion       = "Enviada a asignación de agente"
+	TimelineTypeDevolucionEquipoTecnico = "Devolución del Equipo Técnico"
+	TimelineTypeRemisionReenviada       = "Remisión reenviada a revisión"
+	TimelineTypeRemisionDescartada      = "Remisión descartada"
 
 	TimelineDescRemisionRiesgoInminente = "Se remitió a medidas de emergencia por riesgo inminente"
 	TimelineDescViaA                    = "Vía A — asignación al agente"
@@ -73,6 +76,7 @@ const (
 	TimelineDescEscalamientoCruzRoja    = "Supervisión del Convenio confirmó el escalamiento a Cruz Roja"
 	TimelineDescEntregaMedidaConfirmada = "El agente de medidas confirmó la entrega de la medida."
 	TimelineDescEnviadaAsignacion       = "Se envió para asignación de agente."
+	TimelineDescRemisionDescartada      = "El agente de seguimiento descartó la remisión."
 
 	TimelineTypeMesaTecnicaAbierta = "Mesa técnica abierta"
 )
@@ -147,6 +151,9 @@ const (
 	TimelineEventEntregaMedidaConfirmada = "ENTREGA_CONFIRMADA"
 	TimelineEventMedidasEnRevision       = "MEDIDAS_A_REVISION"
 	TimelineEventEnviadaAsignacion       = "ENVIADA_ASIGNACION"
+	TimelineEventDevolucionEquipoTecnico = "DEVOLUCION_EQUIPO"
+	TimelineEventRemisionReenviada       = "REENVIO_A_REVISION"
+	TimelineEventRemisionDescartada      = "REMISION_DESCARTADA"
 )
 
 // CaseTimelineEvent registra un evento en la vida de un caso.

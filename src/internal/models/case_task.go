@@ -87,6 +87,7 @@ const (
 	CaseTaskTypeConfirmarLugarSeguro      = "confirmar_lugar_seguro"
 	CaseTaskTypeRevisionEquipoTecnico     = "revision_equipo_tecnico"
 	CaseTaskTypeAsignarAgenteMedidas      = "asignar_agente_medidas"
+	CaseTaskTypeAjustarRemisionDevuelta   = "ajustar_remision_devuelta"
 	CaseTaskCategoryMedidas               = "Medidas de Emergencia"
 	CaseTaskRoleEquipoTecnicoMedidas      = "em"
 	CaseTaskRoleSupervisorMedidas         = "sm"
@@ -99,6 +100,7 @@ const (
 	CaseTaskDescConfirmarLugarSeguro      = "Confirmar que la persona está en lugar seguro"
 	CaseTaskDescRevisionEquipoTecnico     = "Revisión Equipo Técnico"
 	CaseTaskDescAsignarAgenteMedidas      = "Asignar agente de medidas"
+	CaseTaskDescAjustarRemisionDevuelta   = "Ajustar remisión devuelta por el Equipo Técnico"
 )
 
 // CaseTaskCommentItem es un comentario del Equipo Técnico — una case_task Done

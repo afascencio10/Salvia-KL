@@ -382,9 +382,22 @@
             cursor: pointer;
         }
         .ctm-resultado.is-on {
-            border-color: #111827;
-            background: #f9fafb;
+            border-color: #1d4ed8;
+            background: #1d4ed8;
+            color: #fff;
+            font-weight: 600;
+            box-shadow: 0 0 0 3px rgba(29, 78, 216, .28);
         }
+        .ctm-chat { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+        .ctm-chat-msg { border-radius: 10px; padding: 8px 12px; font-size: .84rem; color: #111827; }
+        .ctm-chat-msg strong { display: block; margin-bottom: 4px; }
+        .ctm-chat-msg p { margin: 0; }
+        .ctm-chat-equipo { background: #f3f4f6; }
+        .ctm-chat-agente { background: #ede9fe; }
+        .ctm-obs { background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 12px; margin-bottom: 14px; color: #b91c1c; }
+        .ctm-obs strong { display: block; margin-bottom: 4px; }
+        .ctm-obs p { margin: 0; }
+        .ctm-check-descartar { display: flex; gap: 8px; align-items: center; margin: 4px 0 8px; color: #b91c1c; font-size: .9rem; }
         .ctm-modal.ctm-articulacion .ctm-btn-confirm {
             background: #5106A7;
         }
@@ -504,6 +517,8 @@ app.component('case-task-modal', {
             casoRevisionNombre: '',
             casoRevisionCodigo: '',
             cargandoCasoRevision: false,
+            hiloChat: [],
+            cargandoChat: false,
         };
     },
 
@@ -542,6 +557,7 @@ app.component('case-task-modal', {
                 confirmar_lugar_seguro: 'Confirmar que la persona está en lugar seguro',
                 revision_equipo_tecnico: 'Revisión Equipo Técnico',
                 asignar_agente_medidas: 'Reasignar remisiones',
+                ajustar_remision_devuelta: 'Remisión devuelta por el Equipo Técnico',
             }[this.tarea.type] || 'Completar tarea';
         },
 
@@ -570,9 +586,37 @@ app.component('case-task-modal', {
                 confirmar_lugar_seguro: 'fa-shield-alt',
                 revision_equipo_tecnico: 'fa-clipboard-check',
                 asignar_agente_medidas: 'fa-user-plus',
+                ajustar_remision_devuelta: 'fa-undo',
             }[this.tarea.type] || 'fa-tasks';
         },
 
+        ultimoMensajeEquipo() {
+            var items = this.hiloChat || [];
+            for (var i = items.length - 1; i >= 0; i--) {
+                if (items[i].lado === 'equipo') return items[i];
+            }
+            return null;
+        },
+        hiloAnterior() {
+            var items = this.hiloChat || [];
+            var ultimo = this.ultimoMensajeEquipo;
+            if (!ultimo) return items;
+            var out = [];
+            var omitido = false;
+            for (var i = items.length - 1; i >= 0; i--) {
+                if (!omitido && items[i] === ultimo) {
+                    omitido = true;
+                    continue;
+                }
+                out.unshift(items[i]);
+            }
+            return out;
+        },
+        textoDevolucion() {
+            var resultado = this.ultimoMensajeEquipo && this.ultimoMensajeEquipo.resultado;
+            var motivo = resultado === 'devuelto_para_acompanamiento' ? 'para acompañamiento' : 'para ajuste';
+            return 'El Equipo Técnico revisó esta remisión a Medidas de Emergencia y la devolvió ' + motivo + '. Corrige o complementa la información señalada y reenvíala para una nueva revisión, o descarta la remisión si ya no aplica.';
+        },
         tareaFormData() {
             var fd = this.tarea && this.tarea.formData;
             if (!fd) return {};
@@ -660,7 +704,13 @@ app.component('case-task-modal', {
                 case 'confirmar_lugar_seguro':
                     return true;
                 case 'revision_equipo_tecnico':
-                    return !!(f.concepto && String(f.concepto).trim()) && f.resultado === 'aprobado_para_caracterizacion_me';
+                    return !!(f.concepto && String(f.concepto).trim()) && (
+                        f.resultado === 'aprobado_para_caracterizacion_me' ||
+                        f.resultado === 'devuelto_para_ajuste' ||
+                        f.resultado === 'devuelto_para_acompanamiento'
+                    );
+                case 'ajustar_remision_devuelta':
+                    return !!f.descartar || !!(f.ajuste && String(f.ajuste).trim());
                 case 'asignar_agente_medidas':
                     return !!f.agentId && !this.cargandoAgentes;
                 case 'entregar_medida_inmediata':
@@ -882,6 +932,11 @@ app.component('case-task-modal', {
                 case 'revision_equipo_tecnico':
                     this.form = { concepto: '', resultado: '' };
                     this.cargarCasoRemision();
+                    this.cargarChat();
+                    break;
+                case 'ajustar_remision_devuelta':
+                    this.form = { ajuste: '', descartar: false };
+                    this.cargarChat();
                     break;
                 case 'asignar_agente_medidas':
                     this.form = { agentId: '' };
@@ -1272,6 +1327,21 @@ app.component('case-task-modal', {
                 .finally(function() { self.cargandoCasoRevision = false; });
         },
 
+        cargarChat() {
+            var self = this;
+            var id = this.tarea && this.tarea.id;
+            this.hiloChat = [];
+            if (!id) return;
+            this.cargandoChat = true;
+            fetch('/api/v1/case-tasks/' + encodeURIComponent(id) + '/chat', { credentials: 'same-origin' })
+                .then(function(res) { return res.json().then(function(body) { return { ok: res.ok, body: body }; }); })
+                .then(function(res) {
+                    self.hiloChat = (res.ok && res.body && Array.isArray(res.body.items)) ? res.body.items : [];
+                })
+                .catch(function() { self.hiloChat = []; })
+                .finally(function() { self.cargandoChat = false; });
+        },
+
         medidaSeleccionada(code) {
             return Array.isArray(this.form.medidas) && this.form.medidas.indexOf(code) !== -1;
         },
@@ -1304,6 +1374,11 @@ app.component('case-task-modal', {
                     return {
                         concepto: String(f.concepto || '').trim(),
                         resultado: f.resultado,
+                    };
+                case 'ajustar_remision_devuelta':
+                    return {
+                        ajuste: f.descartar ? '' : String(f.ajuste || '').trim(),
+                        descartar: !!f.descartar,
                     };
                 case 'entregar_medida_inmediata':
                     return {
@@ -1552,7 +1627,7 @@ app.component('case-task-modal', {
                 <p v-else-if="tarea && tarea.type === 'entregar_medida_inmediata'" class="ctm-header-sub">Riesgo inminente: entrega sin esperar caracterización completa ni declaración jurada.</p>
                 <p v-else-if="tarea && tarea.type === 'revision_equipo_tecnico'" class="ctm-header-sub">\${ cargandoCasoRevision ? 'Cargando caso…' : ('Caso ' + (casoRevisionNombre || 'sin nombre') + (casoRevisionCodigo ? ' · ' + casoRevisionCodigo : '')) }</p>
                 <p v-else-if="tarea && tarea.type === 'asignar_agente_medidas'" class="ctm-header-sub">1 remisión seleccionada. Elige el agente destino.</p>
-                <p v-else-if="tarea && tarea.id && tarea.type !== 'solicitud_entidad' && tarea.type !== 'respuesta_entidad' && tarea.type !== 'decidir_via_riesgo_inminente' && tarea.type !== 'intentar_contacto_3x3' && tarea.type !== 'escalar_cruz_roja' && tarea.type !== 'entregar_medida_inmediata' && tarea.type !== 'confirmar_lugar_seguro' && tarea.type !== 'revision_equipo_tecnico' && tarea.type !== 'asignar_agente_medidas'" class="ctm-header-sub">ID \${ tarea.id.substring(0,8) }…</p>
+                <p v-else-if="tarea && tarea.id && tarea.type !== 'solicitud_entidad' && tarea.type !== 'respuesta_entidad' && tarea.type !== 'decidir_via_riesgo_inminente' && tarea.type !== 'intentar_contacto_3x3' && tarea.type !== 'escalar_cruz_roja' && tarea.type !== 'entregar_medida_inmediata' && tarea.type !== 'confirmar_lugar_seguro' && tarea.type !== 'revision_equipo_tecnico' && tarea.type !== 'asignar_agente_medidas' && tarea.type !== 'ajustar_remision_devuelta'" class="ctm-header-sub">ID \${ tarea.id.substring(0,8) }…</p>
                 <p v-else-if="tarea && tarea.type === 'solicitud_entidad'" class="ctm-header-sub">Selecciona los ítems pendientes del checklist entidad sobre los que deseas hacer una solicitud y describe cada uno.</p>
             </div>
         </div>
@@ -2289,7 +2364,37 @@ app.component('case-task-modal', {
             <p style="margin:0;color:#111827;font-size:.95rem">Confirma entrega de medidas</p>
         </template>
 
+        <template v-else-if="tarea && tarea.type === 'ajustar_remision_devuelta'">
+            <p style="margin:0 0 14px;color:#374151;font-size:.9rem">\${ textoDevolucion }</p>
+            <p v-if="cargandoChat" class="ctm-hint">Cargando historial…</p>
+            <div v-else-if="hiloAnterior.length" class="ctm-chat">
+                <div v-for="(msg, i) in hiloAnterior" :key="i" class="ctm-chat-msg" :class="msg.lado === 'agente' ? 'ctm-chat-agente' : 'ctm-chat-equipo'">
+                    <strong>\${ msg.lado === 'agente' ? 'Agente de seguimiento' : 'Equipo Técnico' }</strong>
+                    <p>\${ msg.texto }</p>
+                </div>
+            </div>
+            <div v-if="ultimoMensajeEquipo" class="ctm-obs">
+                <strong>Observaciones del Equipo Técnico</strong>
+                <p>\${ ultimoMensajeEquipo.texto }</p>
+            </div>
+            <div class="ctm-field">
+                <label class="ctm-label">Ajuste o información complementada</label>
+                <textarea class="ctm-textarea" rows="4" maxlength="2000" v-model="form.ajuste" :disabled="form.descartar" placeholder="Describe la información adicional o el ajuste realizado para que el Equipo Técnico pueda revisar nuevamente el caso..."></textarea>
+            </div>
+            <label class="ctm-check-descartar">
+                <input type="checkbox" v-model="form.descartar">
+                Descartar remisión definitivamente
+            </label>
+        </template>
+
         <template v-else-if="tarea && tarea.type === 'revision_equipo_tecnico'">
+            <p v-if="cargandoChat" class="ctm-hint">Cargando historial…</p>
+            <div v-else-if="hiloChat.length" class="ctm-chat">
+                <div v-for="(msg, i) in hiloChat" :key="i" class="ctm-chat-msg" :class="msg.lado === 'agente' ? 'ctm-chat-agente' : 'ctm-chat-equipo'">
+                    <strong>\${ msg.lado === 'agente' ? 'Agente de seguimiento' : 'Equipo Técnico' }</strong>
+                    <p>\${ msg.texto }</p>
+                </div>
+            </div>
             <div class="ctm-field">
                 <label class="ctm-label">Concepto técnico</label>
                 <textarea class="ctm-textarea" rows="4" maxlength="2000" v-model="form.concepto" placeholder="Análisis cualificado del caso: criterios identificados, condiciones de riesgo y recomendaciones de la revisión."></textarea>
@@ -2375,6 +2480,9 @@ app.component('case-task-modal', {
                 </template>
                 <template v-else-if="tarea && tarea.type === 'revision_equipo_tecnico'">
                     Guardar revisión
+                </template>
+                <template v-else-if="tarea && tarea.type === 'ajustar_remision_devuelta'">
+                    \${ form.descartar ? 'Descartar remisión' : 'Reenviar al Equipo Técnico' }
                 </template>
                 <template v-else-if="tarea && tarea.type === 'asignar_agente_medidas'">
                     Reasignar

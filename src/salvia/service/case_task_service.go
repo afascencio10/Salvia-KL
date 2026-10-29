@@ -39,6 +39,9 @@ type CaseTaskService interface {
 	// ListByReferralID devuelve las tareas de una remisión de medidas de emergencia.
 	ListByReferralID(ctx context.Context, referralID string) ([]models.CaseTask, error)
 
+	// ReferralChat arma el hilo de revisión y ajustes de una remisión.
+	ReferralChat(ctx context.Context, referralID string) ([]ReferralChatMessage, error)
+
 	// UpdateEntityLetter actualiza campos de un EntityLetter.
 	UpdateEntityLetter(ctx context.Context, entityLetterID string, fields map[string]interface{}) error
 
@@ -883,8 +886,14 @@ func (s *caseTaskService) completeRevisionEquipoTecnico(ctx context.Context, tas
 	concepto = strings.TrimSpace(concepto)
 	resultado, _ := fd["resultado"].(string)
 	resultado = strings.TrimSpace(resultado)
-	if concepto == "" || resultado != models.EmergencyReferralReviewAprobadoCaracterizacion {
-		return fmt.Errorf("CompleteWithFormData: la revisión exige concepto y aprobación para caracterización")
+	if concepto == "" {
+		return fmt.Errorf("CompleteWithFormData: la revisión exige concepto")
+	}
+	if resultado == models.EmergencyReferralReviewDevueltoAjuste || resultado == models.EmergencyReferralReviewDevueltoAcompanamiento {
+		return s.completeDevolucionRevision(ctx, task, userID, formData, concepto, resultado, now)
+	}
+	if resultado != models.EmergencyReferralReviewAprobadoCaracterizacion {
+		return fmt.Errorf("CompleteWithFormData: resultado de revisión inválido")
 	}
 	if s.db == nil {
 		return fmt.Errorf("CompleteWithFormData: sin base de datos")
@@ -977,6 +986,297 @@ func (s *caseTaskService) registrarTimelineEnviadaAsignacion(ctx context.Context
 	}
 	if err := s.timelineRepo.Create(ctx, event); err != nil {
 		log.Printf("[registrarTimelineEnviadaAsignacion] WARN: no se pudo crear el evento del caso %s: %v", task.CaseID, err)
+	}
+}
+
+// completeDevolucionRevision devuelve la remisión a quien la remitió.
+func (s *caseTaskService) completeDevolucionRevision(ctx context.Context, task *models.CaseTask, userID string, formData datatypes.JSON, concepto, resultado string, now time.Time) error {
+	if s.db == nil {
+		return fmt.Errorf("CompleteWithFormData: sin base de datos")
+	}
+	refID := strings.TrimSpace(*task.EmergencyMeasureReferralID)
+	status := models.EmergencyReferralStatusDevueltaParaJustificacion
+	if resultado == models.EmergencyReferralReviewDevueltoAcompanamiento {
+		status = models.EmergencyReferralStatusDevueltaASeguimiento
+	}
+	next := &models.CaseTask{
+		Category:                   models.CaseTaskCategoryMedidas,
+		Type:                       models.CaseTaskTypeAjustarRemisionDevuelta,
+		Description:                models.CaseTaskDescAjustarRemisionDevuelta,
+		Status:                     models.CaseTaskStatusToDo,
+		CaseID:                     task.CaseID,
+		FollowUpID:                 task.FollowUpID,
+		EmergencyMeasureReferralID: &refID,
+	}
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var submitter string
+		if err := tx.Raw(`
+			SELECT COALESCE(BTRIM(submitted_by), '')
+			FROM salvia.emergency_measure_referral
+			WHERE id::text = ?
+			  AND deleted_at IS NULL
+		`, refID).Scan(&submitter).Error; err != nil {
+			return fmt.Errorf("CompleteWithFormData: leer quien remitió: %w", err)
+		}
+		submitter = strings.TrimSpace(submitter)
+		if submitter == "" {
+			return fmt.Errorf("CompleteWithFormData: la remisión no tiene agente de seguimiento")
+		}
+		res := tx.Exec(`
+			UPDATE salvia.emergency_measure_referral
+			   SET review_professional_id = ?,
+			       review_concept = ?,
+			       review_result = ?,
+			       review_date = ?::date,
+			       status = ?,
+			       updated_at = NOW()
+			 WHERE id::text = ?
+			   AND status = ?
+			   AND deleted_at IS NULL
+		`, userID, concepto, resultado, now.Format("2006-01-02"), status, refID, models.EmergencyReferralStatusPendienteDeRevision)
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: actualizar remisión: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la remisión ya no está pendiente de revisión")
+		}
+		next.AssignedUserID = submitter
+		if err := tx.Create(next).Error; err != nil {
+			return fmt.Errorf("CompleteWithFormData: crear el ajuste: %w", err)
+		}
+		res = tx.Model(&models.CaseTask{}).
+			Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+			Updates(map[string]interface{}{
+				"form_data":    formData,
+				"status":       models.CaseTaskStatusDone,
+				"completed_at": now,
+			})
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: cerrar la revisión: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	s.registrarTimelineDevolucion(ctx, task, userID, concepto, resultado, now)
+	return nil
+}
+
+func descripcionDevolucion(concepto, resultado string) string {
+	motivo := "para ajuste"
+	if resultado == models.EmergencyReferralReviewDevueltoAcompanamiento {
+		motivo = "para acompañamiento"
+	}
+	return "El Equipo Técnico devolvió la remisión " + motivo + ". Observaciones: " + strings.TrimSpace(concepto)
+}
+
+func (s *caseTaskService) registrarTimelineDevolucion(ctx context.Context, task *models.CaseTask, userID, concepto, resultado string, now time.Time) {
+	s.registrarTimelineMedidas(ctx, task, userID, now, "registrarTimelineDevolucion", models.TimelineEventDevolucionEquipoTecnico, models.TimelineTypeDevolucionEquipoTecnico, descripcionDevolucion(concepto, resultado))
+}
+
+// completeAjustarRemision reenvía la remisión al Equipo Técnico o la descarta.
+func (s *caseTaskService) completeAjustarRemision(ctx context.Context, task *models.CaseTask, userID string, formData datatypes.JSON, fd map[string]interface{}, now time.Time) error {
+	if task.Status != models.CaseTaskStatusToDo {
+		return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+	}
+	if task.EmergencyMeasureReferralID == nil || strings.TrimSpace(*task.EmergencyMeasureReferralID) == "" {
+		return fmt.Errorf("CompleteWithFormData: la tarea no tiene remisión")
+	}
+	if s.db == nil {
+		return fmt.Errorf("CompleteWithFormData: sin base de datos")
+	}
+	descartar, _ := fd["descartar"].(bool)
+	ajuste, _ := fd["ajuste"].(string)
+	ajuste = strings.TrimSpace(ajuste)
+	if !descartar && ajuste == "" {
+		return fmt.Errorf("CompleteWithFormData: el ajuste es obligatorio para reenviar")
+	}
+	refID := strings.TrimSpace(*task.EmergencyMeasureReferralID)
+	role := models.CaseTaskRoleEquipoTecnicoMedidas
+	next := &models.CaseTask{
+		Category:                   models.CaseTaskCategoryMedidas,
+		Type:                       models.CaseTaskTypeRevisionEquipoTecnico,
+		Description:                models.CaseTaskDescRevisionEquipoTecnico,
+		AssignedRole:               &role,
+		Status:                     models.CaseTaskStatusToDo,
+		CaseID:                     task.CaseID,
+		FollowUpID:                 task.FollowUpID,
+		EmergencyMeasureReferralID: &refID,
+	}
+	nuevoEstado := models.EmergencyReferralStatusPendienteDeRevision
+	if descartar {
+		nuevoEstado = models.EmergencyReferralStatusDescartada
+	}
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Exec(`
+			UPDATE salvia.emergency_measure_referral
+			   SET status = ?,
+			       updated_at = NOW()
+			 WHERE id::text = ?
+			   AND status IN (?, ?)
+			   AND deleted_at IS NULL
+		`, nuevoEstado, refID, models.EmergencyReferralStatusDevueltaParaJustificacion, models.EmergencyReferralStatusDevueltaASeguimiento)
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: actualizar remisión: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la remisión ya no está devuelta")
+		}
+		if descartar {
+			res = tx.Exec(`
+				UPDATE salvia.emergency_measure
+				   SET status = ?,
+				       updated_at = NOW()
+				 WHERE referral_id::text = ?
+				   AND deleted_at IS NULL
+				   AND status = ?
+			`, models.EmergencyMeasureStatusClosed, refID, models.EmergencyMeasureStatusActive)
+			if res.Error != nil {
+				return fmt.Errorf("CompleteWithFormData: cerrar medidas: %w", res.Error)
+			}
+		}
+		if !descartar {
+			if err := tx.Create(next).Error; err != nil {
+				return fmt.Errorf("CompleteWithFormData: crear la nueva revisión: %w", err)
+			}
+		}
+		res = tx.Model(&models.CaseTask{}).
+			Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+			Updates(map[string]interface{}{
+				"form_data":    formData,
+				"status":       models.CaseTaskStatusDone,
+				"completed_at": now,
+			})
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: cerrar el ajuste: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	if descartar {
+		s.registrarTimelineMedidas(ctx, task, userID, now, "registrarTimelineDescarte", models.TimelineEventRemisionDescartada, models.TimelineTypeRemisionDescartada, models.TimelineDescRemisionDescartada)
+		return nil
+	}
+	s.registrarTimelineMedidas(ctx, task, userID, now, "registrarTimelineReenvio", models.TimelineEventRemisionReenviada, models.TimelineTypeRemisionReenviada, "El agente de seguimiento reenvió la remisión a revisión del Equipo Técnico. Ajuste: "+ajuste)
+	return nil
+}
+
+func (s *caseTaskService) registrarTimelineMedidas(ctx context.Context, task *models.CaseTask, userID string, now time.Time, logName, eventType, timelineType, description string) {
+	if s.timelineRepo == nil {
+		log.Printf("[%s] WARN: sin repositorio de timeline", logName)
+		return
+	}
+	actorName := strings.TrimSpace(userID)
+	if s.mechanismRepo != nil && userID != "" {
+		if name, err := s.mechanismRepo.UserFullName(ctx, userID); err == nil && strings.TrimSpace(name) != "" {
+			actorName = strings.TrimSpace(name)
+		}
+	}
+	followUp := ""
+	if task.FollowUpID != nil {
+		followUp = *task.FollowUpID
+	}
+	event := &models.CaseTimelineEvent{
+		CaseID:      task.CaseID,
+		FollowUpID:  followUp,
+		TaskID:      task.ID,
+		EventType:   eventType,
+		Category:    models.TimelineCategoryMedidas,
+		Type:        timelineType,
+		Icon:        models.TimelineIconRiesgoInminente,
+		Color:       models.TimelineColorRed,
+		Description: description,
+		EventUserID: userID,
+		ActorID:     userID,
+		ActorName:   actorName,
+		Date:        now,
+		CreatedAt:   now,
+	}
+	if err := s.timelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[%s] WARN: no se pudo crear el evento del caso %s: %v", logName, task.CaseID, err)
+	}
+}
+
+// ReferralChatMessage es un turno del historial de revisión de una remisión.
+type ReferralChatMessage struct {
+	Lado      string    `json:"lado"`
+	Texto     string    `json:"texto"`
+	Resultado string    `json:"resultado,omitempty"`
+	Fecha     time.Time `json:"fecha"`
+}
+
+// ReferralChat arma el hilo con las revisiones y los ajustes ya cerrados.
+func (s *caseTaskService) ReferralChat(ctx context.Context, referralID string) ([]ReferralChatMessage, error) {
+	referralID = strings.TrimSpace(referralID)
+	if referralID == "" || s.db == nil {
+		return []ReferralChatMessage{}, nil
+	}
+	var rows []struct {
+		Type        string         `gorm:"column:type"`
+		FormData    datatypes.JSON `gorm:"column:form_data"`
+		CompletedAt *time.Time     `gorm:"column:completed_at"`
+	}
+	if err := s.db.WithContext(ctx).Raw(`
+		SELECT type, form_data, completed_at
+		FROM salvia.case_task
+		WHERE emergency_measure_referral_id::text = ?
+		  AND status = ?
+		  AND deleted_at IS NULL
+		  AND type IN (?, ?)
+		ORDER BY completed_at ASC NULLS LAST, created_at ASC
+	`, referralID, models.CaseTaskStatusDone, models.CaseTaskTypeRevisionEquipoTecnico, models.CaseTaskTypeAjustarRemisionDevuelta).Scan(&rows).Error; err != nil {
+		return nil, fmt.Errorf("ReferralChat: %w", err)
+	}
+	out := make([]ReferralChatMessage, 0, len(rows))
+	for _, row := range rows {
+		msg, ok := mensajeDeTarea(row.Type, row.FormData, row.CompletedAt)
+		if ok {
+			out = append(out, msg)
+		}
+	}
+	return out, nil
+}
+
+func mensajeDeTarea(taskType string, raw datatypes.JSON, completedAt *time.Time) (ReferralChatMessage, bool) {
+	if len(raw) == 0 {
+		return ReferralChatMessage{}, false
+	}
+	var fd map[string]interface{}
+	if err := json.Unmarshal(raw, &fd); err != nil {
+		return ReferralChatMessage{}, false
+	}
+	fecha := time.Time{}
+	if completedAt != nil {
+		fecha = *completedAt
+	}
+	switch taskType {
+	case models.CaseTaskTypeRevisionEquipoTecnico:
+		texto, _ := fd["concepto"].(string)
+		texto = strings.TrimSpace(texto)
+		if texto == "" {
+			return ReferralChatMessage{}, false
+		}
+		resultado, _ := fd["resultado"].(string)
+		return ReferralChatMessage{Lado: "equipo", Texto: texto, Resultado: strings.TrimSpace(resultado), Fecha: fecha}, true
+	case models.CaseTaskTypeAjustarRemisionDevuelta:
+		if descartar, _ := fd["descartar"].(bool); descartar {
+			return ReferralChatMessage{}, false
+		}
+		texto, _ := fd["ajuste"].(string)
+		texto = strings.TrimSpace(texto)
+		if texto == "" {
+			return ReferralChatMessage{}, false
+		}
+		return ReferralChatMessage{Lado: "agente", Texto: texto, Fecha: fecha}, true
+	default:
+		return ReferralChatMessage{}, false
 	}
 }
 
@@ -1111,6 +1411,11 @@ func (s *caseTaskService) CompleteWithFormData(ctx context.Context, id string, u
 
 	case models.CaseTaskTypeRevisionEquipoTecnico:
 		if err := s.completeRevisionEquipoTecnico(ctx, task, userId, formData, fd, now); err != nil {
+			return nil, err
+		}
+
+	case models.CaseTaskTypeAjustarRemisionDevuelta:
+		if err := s.completeAjustarRemision(ctx, task, userId, formData, fd, now); err != nil {
 			return nil, err
 		}
 

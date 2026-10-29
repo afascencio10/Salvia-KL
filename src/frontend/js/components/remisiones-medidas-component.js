@@ -35,6 +35,7 @@
         { value: 'en_seguimiento', label: 'En Seguimiento' },
         { value: 'devuelta_para_justificacion', label: 'Devuelta para justificación' },
         { value: 'devuelta_a_seguimiento', label: 'Devuelta a seguimiento' },
+        { value: 'descartada', label: 'Descartada' },
     ];
 
     var ESTADOS_AGENTE = [

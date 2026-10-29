@@ -129,6 +129,7 @@ func (c *CaseTaskController) RegisterRoutes(rg *gin.RouterGroup) {
 	group.GET("", c.ListByAssignedUser)
 	group.GET("/mine", c.ListMine)
 	group.GET("/:id", c.GetByID)
+	group.GET("/:id/chat", c.Chat)
 	group.POST("/:id/complete", c.Complete)
 	group.PUT("/:id/complete", c.CompleteWithFormData)
 	group.POST("/:id/reassign", c.Reassign)
@@ -159,6 +160,48 @@ func (c *CaseTaskController) GetByID(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, c.enrichTaskWithName(*task))
+}
+
+// Chat devuelve el hilo de revisión de la remisión de la tarea.
+// GET /api/v1/case-tasks/:id/chat
+func (c *CaseTaskController) Chat(ctx *gin.Context) {
+	s := optionalSession(ctx)
+	if s == nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "no autenticado"})
+		return
+	}
+	task, err := c.svc.GetByID(ctx.Request.Context(), ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "tarea no encontrada"})
+		return
+	}
+	if !puedeVerChatRemision(s, task) {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "su rol no tiene permiso para acceder a este recurso"})
+		return
+	}
+	referralID := ""
+	if task.EmergencyMeasureReferralID != nil {
+		referralID = *task.EmergencyMeasureReferralID
+	}
+	items, err := c.svc.ReferralChat(ctx.Request.Context(), referralID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error interno del servidor"})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"items": items})
+}
+
+func puedeVerChatRemision(s *utils.CommonSession, task *models.CaseTask) bool {
+	if s == nil || task == nil {
+		return false
+	}
+	if s.CurrentRole == "sv" || s.CurrentRole == "em" || s.CurrentRole == "sm" {
+		return true
+	}
+	if strings.TrimSpace(task.AssignedUserID) != "" && task.AssignedUserID == s.UserICode {
+		return true
+	}
+	return task.AssignedRole != nil && *task.AssignedRole == s.CurrentRole
 }
 
 // ListByAssignedUser devuelve las tareas asignadas a un usuario o las de un caso.

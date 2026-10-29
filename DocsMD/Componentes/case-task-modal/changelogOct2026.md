@@ -67,11 +67,19 @@ El 3×3 abre su modal. Guardar cierra y no persiste.
 
 Al guardar un seguimiento viejo o V.4 con medidas que no son de riesgo inminente, nace `revision_equipo_tecnico` para el rol `em`. El caso recibe «Medidas enviadas a revisión» con los nombres de las medidas. Si la tarea no se crea, no hay timeline y la remisión queda. Las derivaciones psicosociales no crean esta tarea.
 
-El modal es «Revisión Equipo Técnico», sin el select de profesional. Guardar revisión exige concepto y «Aprobado para caracterización ME». Los otros dos resultados se ven y no guardan.
+El modal es «Revisión Equipo Técnico», sin el select de profesional. Guardar revisión exige concepto y un resultado. Aprobar deja la remisión por asignar. Devolver se describe más abajo.
 
 Al aprobar, la remisión pasa a `por_asignar` y se crea `asignar_agente_medidas` para el rol `sm`. El caso recibe «Enviada a asignación de agente»: «Se envió para asignación de agente.» Si el timeline falla, la aprobación queda.
 
 Esa tarea abre «Reasignar remisiones» con el select de agentes. Reasignar cierra y no guarda.
+
+## 2026-10-29 — Devolución y reenvío
+
+Al devolver para ajuste o para acompañamiento, la remisión pasa a `devuelta_para_justificacion` o `devuelta_a_seguimiento` y nace `ajustar_remision_devuelta` para quien remitió. El caso recibe «Devolución del Equipo Técnico», con el concepto.
+
+El modal muestra el hilo de `GET /case-tasks/:id/chat` y el último comentario del equipo. Reenviar vuelve la remisión a `pendiente_de_revision` y crea otra revisión para `em`. Descartar la deja en `descartada`, pasa a `CLOSED` las medidas `ACTIVE` de esa remisión y no crea revisión. Si el timeline falla, la operación queda.
+
+La revisión que ya tiene vueltas muestra el mismo hilo encima del concepto.
 
 
 

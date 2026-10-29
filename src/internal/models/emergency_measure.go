@@ -37,6 +37,7 @@ func (EmergencyMeasure) TableName() string {
 const (
 	EmergencyMeasureStatusActive    = "ACTIVE"
 	EmergencyMeasureStatusEntregada = "ENTREGADA"
+	EmergencyMeasureStatusClosed    = "CLOSED"
 )
 
 // EmergencyMeasureTypeLabel es el nombre que ve Cruz Roja y el timeline.
