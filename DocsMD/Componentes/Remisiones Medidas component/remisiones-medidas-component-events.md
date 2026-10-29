@@ -152,9 +152,9 @@ Requerido:    Sí
 ```
 Evento:       Cuando abre el modal de reasignación
 Tipo:         User Interaction
-Descripción:  Desde la barra (usa la selección actual) o desde "Asignar agente".
-              Las dos entradas exigen puedeReasignar (roles sm y sv). Carga GET .../agentes
-              (role_code = am). No persiste.
+Descripción:  Desde la barra (usa la selección actual). Exige puedeReasignar
+              (roles sm y sv). Carga GET .../agentes (role_code = am). No persiste.
+              "Asignar agente" abre la tarea asignar_agente_medidas.
 Requerido:    Sí
 ```
 

@@ -50,6 +50,7 @@ PASO 4 — Si responde 200
   Cierra el formulario y repite la lectura de E-01.
   La cabecera y el campo "Agente asignado" muestran al nuevo agente.
   E-10 deja la remisión en status asignada. El badge pasa a "Asignada".
+  Si estaba en por_asignar, también nace intentar_contacto_3x3.
 
 PASO 5 — Si responde 4xx o 5xx
 

@@ -311,7 +311,7 @@ func (f *v4ReferralFake) FindDetail(context.Context, string, string, string) (*r
 func (f *v4ReferralFake) UserHasActiveRole(context.Context, string, string) (bool, error) {
 	return false, nil
 }
-func (f *v4ReferralFake) Reassign(context.Context, []string, string) error { return nil }
+func (f *v4ReferralFake) Reassign(context.Context, []string, string, string) error { return nil }
 func (f *v4ReferralFake) Review(context.Context, string, string, string, string, string, string) (bool, bool, error) {
 	return false, false, nil
 }

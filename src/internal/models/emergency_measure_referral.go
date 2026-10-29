@@ -50,6 +50,7 @@ const (
 	EmergencyReferralStatusDevueltaParaJustificacion   = "devuelta_para_justificacion"
 	EmergencyReferralStatusDevueltaASeguimiento        = "devuelta_a_seguimiento"
 	EmergencyReferralStatusDescartada                  = "descartada"
+	EmergencyReferralStatusCerradaPorNoContacto        = "cerrada_por_no_contacto"
 )
 
 const (
@@ -100,6 +101,8 @@ func EmergencyReferralStatusLabel(status string) string {
 		return "Devuelta a seguimiento"
 	case EmergencyReferralStatusDescartada:
 		return "Descartada"
+	case EmergencyReferralStatusCerradaPorNoContacto:
+		return "Cerrada por no contacto"
 	default:
 		return status
 	}

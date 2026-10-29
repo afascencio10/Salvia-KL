@@ -6,10 +6,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -117,7 +119,7 @@ type EmergencyMeasureReferralRepository interface {
 	// FindDetail lee una remisión dentro del recorte de la vista. Nil si no entra.
 	FindDetail(ctx context.Context, vista, agentICode, id string) (*EmergencyReferralDetailRow, error)
 	UserHasActiveRole(ctx context.Context, iCode, roleCode string) (bool, error)
-	Reassign(ctx context.Context, ids []string, agentID string) error
+	Reassign(ctx context.Context, ids []string, agentID, actorID string) error
 	Review(ctx context.Context, id, professionalID, concept, result, newStatus, reviewDate string) (found bool, pending bool, err error)
 	// CreateWithMeasures inserta la cabecera y sus medidas en una transacción.
 	// El id de la cabecera queda en referral.ID. riesgoInminente se copia en cada medida.
@@ -435,24 +437,161 @@ func (r *emergencyMeasureReferralRepository) UserHasActiveRole(ctx context.Conte
 	return n > 0, err
 }
 
-func (r *emergencyMeasureReferralRepository) Reassign(ctx context.Context, ids []string, agentID string) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		res := tx.Exec(`
-			UPDATE salvia.emergency_measure_referral
-			   SET assigned_agent_id = ?,
-			       status = ?,
-			       updated_at = NOW()
-			 WHERE id::text IN ?
-			   AND deleted_at IS NULL
-		`, agentID, models.EmergencyReferralStatusAsignada, ids)
-		if res.Error != nil {
-			return res.Error
-		}
-		if int(res.RowsAffected) != len(ids) {
-			return errReferralMissing
+type referralAssignmentNotice struct {
+	CaseID     string
+	FollowUpID string
+	TaskID     string
+}
+
+func (r *emergencyMeasureReferralRepository) Reassign(ctx context.Context, ids []string, agentID, actorID string) error {
+	var notices []referralAssignmentNotice
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, id := range ids {
+			var row struct {
+				Status     string         `gorm:"column:status"`
+				CaseID     string         `gorm:"column:case_id"`
+				FollowUpID sql.NullString `gorm:"column:follow_up_id"`
+			}
+			if err := tx.Raw(`
+				SELECT status, case_id, follow_up_id::text AS follow_up_id
+				FROM salvia.emergency_measure_referral
+				WHERE id::text = ?
+				  AND deleted_at IS NULL
+				FOR UPDATE
+			`, id).Scan(&row).Error; err != nil {
+				return err
+			}
+			if strings.TrimSpace(row.CaseID) == "" {
+				return errReferralMissing
+			}
+			res := tx.Exec(`
+				UPDATE salvia.emergency_measure_referral
+				   SET assigned_agent_id = ?,
+				       status = ?,
+				       updated_at = NOW()
+				 WHERE id::text = ?
+				   AND deleted_at IS NULL
+			`, agentID, models.EmergencyReferralStatusAsignada, id)
+			if res.Error != nil {
+				return res.Error
+			}
+			if res.RowsAffected != 1 {
+				return errReferralMissing
+			}
+			if row.Status != models.EmergencyReferralStatusPorAsignar {
+				continue
+			}
+			refID := id
+			next := &models.CaseTask{
+				Category:                   models.CaseTaskCategoryMedidas,
+				Type:                       models.CaseTaskTypeIntentarContacto3x3,
+				Description:                models.CaseTaskDescIntentarContacto3x3,
+				AssignedUserID:             agentID,
+				Status:                     models.CaseTaskStatusToDo,
+				CaseID:                     row.CaseID,
+				EmergencyMeasureReferralID: &refID,
+			}
+			followUp := ""
+			if row.FollowUpID.Valid {
+				followUp = strings.TrimSpace(row.FollowUpID.String)
+			}
+			if followUp != "" {
+				fu := followUp
+				next.FollowUpID = &fu
+			}
+			if err := tx.Create(next).Error; err != nil {
+				return err
+			}
+			payload, err := json.Marshal(map[string]string{"agentId": agentID})
+			if err != nil {
+				return err
+			}
+			res = tx.Model(&models.CaseTask{}).
+				Where("emergency_measure_referral_id = ? AND type = ? AND status = ?", id, models.CaseTaskTypeAsignarAgenteMedidas, models.CaseTaskStatusToDo).
+				Updates(map[string]interface{}{
+					"status":       models.CaseTaskStatusDone,
+					"completed_at": time.Now(),
+					"form_data":    datatypes.JSON(payload),
+				})
+			if res.Error != nil {
+				return res.Error
+			}
+			taskID := next.ID
+			if res.RowsAffected > 0 {
+				var closed string
+				if err := tx.Raw(`
+					SELECT id::text
+					FROM salvia.case_task
+					WHERE emergency_measure_referral_id::text = ?
+					  AND type = ?
+					  AND status = ?
+					  AND deleted_at IS NULL
+					ORDER BY completed_at DESC NULLS LAST
+					LIMIT 1
+				`, id, models.CaseTaskTypeAsignarAgenteMedidas, models.CaseTaskStatusDone).Scan(&closed).Error; err != nil {
+					return err
+				}
+				if strings.TrimSpace(closed) != "" {
+					taskID = strings.TrimSpace(closed)
+				}
+			}
+			notices = append(notices, referralAssignmentNotice{
+				CaseID:     row.CaseID,
+				FollowUpID: followUp,
+				TaskID:     taskID,
+			})
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+	r.registrarTimelineAsignaciones(ctx, notices, actorID)
+	return nil
+}
+
+func (r *emergencyMeasureReferralRepository) registrarTimelineAsignaciones(ctx context.Context, notices []referralAssignmentNotice, actorID string) {
+	if len(notices) == 0 {
+		return
+	}
+	actorID = strings.TrimSpace(actorID)
+	actorName := actorID
+	if actorID != "" {
+		var name string
+		err := r.db.WithContext(ctx).Raw(`
+			SELECT TRIM(COALESCE(gup.general_user_profile_names, '') || ' ' || COALESCE(gup.general_user_profile_last_names, ''))
+			FROM security.general_user gu
+			JOIN security.general_user_profile gup ON gup.general_user_profile_id = gu.general_user_general_user_profile
+			WHERE gu.general_user_i_code = ?
+			LIMIT 1
+		`, actorID).Scan(&name).Error
+		if err != nil {
+			log.Printf("[registrarTimelineAsignaciones] WARN: no se pudo leer el nombre de %s: %v", actorID, err)
+		} else if strings.TrimSpace(name) != "" {
+			actorName = strings.TrimSpace(name)
+		}
+	}
+	now := time.Now()
+	for _, notice := range notices {
+		event := &models.CaseTimelineEvent{
+			CaseID:      notice.CaseID,
+			FollowUpID:  notice.FollowUpID,
+			TaskID:      notice.TaskID,
+			EventType:   models.TimelineEventAgenteMedidasAsignado,
+			Category:    models.TimelineCategoryMedidas,
+			Type:        models.TimelineTypeAgenteMedidasAsignado,
+			Icon:        models.TimelineIconRiesgoInminente,
+			Color:       models.TimelineColorRed,
+			Description: models.TimelineDescAgenteMedidasAsignado,
+			EventUserID: actorID,
+			ActorID:     actorID,
+			ActorName:   actorName,
+			Date:        now,
+			CreatedAt:   now,
+		}
+		if err := r.db.WithContext(ctx).Create(event).Error; err != nil {
+			log.Printf("[registrarTimelineAsignaciones] WARN: no se pudo crear el evento del caso %s: %v", notice.CaseID, err)
+		}
+	}
 }
 
 func (r *emergencyMeasureReferralRepository) Review(ctx context.Context, id, professionalID, concept, result, newStatus, reviewDate string) (bool, bool, error) {

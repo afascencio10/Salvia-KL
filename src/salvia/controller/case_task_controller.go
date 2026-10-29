@@ -306,6 +306,10 @@ func filterTasksByAssignedRole(items []models.CaseTask, role, userID string) []m
 		}
 		if userID != "" && t.AssignedUserID == userID {
 			out = append(out, t)
+			continue
+		}
+		if t.Type == models.CaseTaskTypeIntentarContacto3x3 && t.Status == models.CaseTaskStatusDone {
+			out = append(out, t)
 		}
 	}
 	return out

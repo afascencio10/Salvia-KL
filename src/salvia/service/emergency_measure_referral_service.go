@@ -115,7 +115,7 @@ type EmergencyMeasureReferralService interface {
 	Detail(ctx context.Context, vista, sessionAgentID, id string) (*EmergencyReferralDetail, error)
 	Agents(ctx context.Context) (*EmergencyReferralCatalogResponse, error)
 	Reviewers(ctx context.Context) (*EmergencyReferralCatalogResponse, error)
-	Reassign(ctx context.Context, ids []string, agentID string) (*EmergencyReferralReassignResult, error)
+	Reassign(ctx context.Context, ids []string, agentID, actorID string) (*EmergencyReferralReassignResult, error)
 	Review(ctx context.Context, id, professionalID, concept, result string) (*EmergencyReferralItem, error)
 }
 
@@ -208,7 +208,7 @@ func (s *emergencyMeasureReferralService) catalog(ctx context.Context, role stri
 	return &EmergencyReferralCatalogResponse{Items: items}, nil
 }
 
-func (s *emergencyMeasureReferralService) Reassign(ctx context.Context, ids []string, agentID string) (*EmergencyReferralReassignResult, error) {
+func (s *emergencyMeasureReferralService) Reassign(ctx context.Context, ids []string, agentID, actorID string) (*EmergencyReferralReassignResult, error) {
 	clean := uniqueIDs(ids)
 	if len(clean) == 0 || strings.TrimSpace(agentID) == "" {
 		return nil, ErrReferralInvalidFilter
@@ -220,7 +220,7 @@ func (s *emergencyMeasureReferralService) Reassign(ctx context.Context, ids []st
 	if !ok {
 		return nil, ErrReferralInvalidAgent
 	}
-	if err := s.repo.Reassign(ctx, clean, agentID); err != nil {
+	if err := s.repo.Reassign(ctx, clean, agentID, actorID); err != nil {
 		if errors.Is(err, repository.ErrReferralMissing) {
 			return nil, ErrReferralNotFound
 		}

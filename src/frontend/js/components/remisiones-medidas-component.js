@@ -36,6 +36,7 @@
         { value: 'devuelta_para_justificacion', label: 'Devuelta para justificación' },
         { value: 'devuelta_a_seguimiento', label: 'Devuelta a seguimiento' },
         { value: 'descartada', label: 'Descartada' },
+        { value: 'cerrada_por_no_contacto', label: 'Cerrada por no contacto' },
     ];
 
     var ESTADOS_AGENTE = [
@@ -157,6 +158,7 @@
                 revisionError: '',
                 accionError: '',
                 abriendoRevisionId: '',
+                abriendoAsignacionId: '',
                 panelTareas: null,
             };
         },
@@ -357,7 +359,7 @@
                 if (!accion) return;
                 if (accion.tipo === 'revisar' && this.vista === 'equipo-tecnico') this.abrirRevisionTarea(item);
                 else if (accion.tipo === 'revisar') this.abrirRevision(item);
-                else if (accion.tipo === 'asignar') this.abrirAsignarUno(item.id);
+                else if (accion.tipo === 'asignar') this.abrirAsignacionTarea(item);
                 else if (accion.tipo === 'tareas') this.abrirTareas(item);
                 else this.onVerDetalle(item);
             },
@@ -379,12 +381,28 @@
                 this.reasignarAbierto = true;
                 this.cargarAgentes();
             },
-            abrirAsignarUno: function(id) {
-                this.selectedIds = [id];
-                this.reasignarAgenteId = '';
-                this.reasignarError = '';
-                this.reasignarAbierto = true;
-                this.cargarAgentes();
+            abrirAsignacionTarea: function(item) {
+                var self = this;
+                if (!item || this.abriendoAsignacionId) return;
+                this.accionError = '';
+                this.abriendoAsignacionId = item.id;
+                fetch('/api/v1/case-tasks?referralId=' + encodeURIComponent(item.id), { credentials: 'same-origin' })
+                    .then(function(res) { return self.leerJSON(res); })
+                    .then(function(tareas) {
+                        var lista = Array.isArray(tareas) ? tareas : [];
+                        var tarea = lista.find(function(t) {
+                            return t.type === 'asignar_agente_medidas' && t.status === 'ToDo';
+                        });
+                        if (!tarea || !self.$refs.taskModal) {
+                            self.accionError = 'Esta remisión no tiene una asignación pendiente.';
+                            return;
+                        }
+                        self.$refs.taskModal.open(tarea.id);
+                    })
+                    .catch(function() {
+                        self.accionError = 'No se pudo abrir la asignación.';
+                    })
+                    .finally(function() { self.abriendoAsignacionId = ''; });
             },
             cerrarReasignar: function() {
                 this.reasignarAbierto = false;

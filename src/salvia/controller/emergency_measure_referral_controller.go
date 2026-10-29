@@ -144,7 +144,7 @@ func (c *EmergencyMeasureReferralController) Reassign(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "body inválido"})
 		return
 	}
-	result, err := c.svc.Reassign(ctx.Request.Context(), body.IDs, body.AgentID)
+	result, err := c.svc.Reassign(ctx.Request.Context(), body.IDs, body.AgentID, s.UserICode)
 	if err != nil {
 		writeReferralErr(ctx, err)
 		return

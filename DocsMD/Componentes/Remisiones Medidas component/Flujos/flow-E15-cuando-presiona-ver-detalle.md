@@ -8,7 +8,7 @@ Disparado por:
   - el link "Ver detalle →" de la columna Remisión o Medidas
   - un botón de fila cuyo tipo es detalle
 
-"Asignar agente" es E-08. "Revisar (Equipo Técnico)" es E-11.
+"Asignar agente" abre la tarea de asignación. "Revisar (Equipo Técnico)" es E-11.
 Este evento no abre esos modales.
 
 

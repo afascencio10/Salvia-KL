@@ -4,11 +4,13 @@
    Código: E-08
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Disparado por:
-  - la barra "↺ Reasignar N seleccionada(s)" (E-07)
-  - el botón "Asignar agente" de una fila en estado por_asignar
+Disparado por la barra "↺ Reasignar N seleccionada(s)" (E-07).
 
-Las dos exigen puedeReasignar (roles sm y sv, permiso reassign_remisiones_medidas).
+Exige puedeReasignar (roles sm y sv, permiso reassign_remisiones_medidas).
+
+"Asignar agente" no abre este modal. Busca la tarea ToDo asignar_agente_medidas
+de esa remisión y abre el modal de la tarea. Si no hay tarea pendiente, muestra
+"Esta remisión no tiene una asignación pendiente."
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -20,10 +22,6 @@ PASO 1 — Qué queda seleccionado
   Desde la barra:
     → selectedIds se queda como está
     → si está vacío, la barra no se pinta y este camino no corre
-
-  Desde "Asignar agente":
-    → selectedIds = [id de esa fila]
-    → cualquier otra fila que estuviera marcada deja de estarlo
 
 PASO 2 — Abrir
 

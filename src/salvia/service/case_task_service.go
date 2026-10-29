@@ -1077,6 +1077,227 @@ func (s *caseTaskService) registrarTimelineDevolucion(ctx context.Context, task 
 	s.registrarTimelineMedidas(ctx, task, userID, now, "registrarTimelineDevolucion", models.TimelineEventDevolucionEquipoTecnico, models.TimelineTypeDevolucionEquipoTecnico, descripcionDevolucion(concepto, resultado))
 }
 
+// completeIntentarContacto3x3 cierra el intento. Si contestó, abre la entrevista.
+// Si no, deja otro intento hasta el tercero, que cierra la remisión.
+func (s *caseTaskService) completeIntentarContacto3x3(ctx context.Context, task *models.CaseTask, userID string, formData datatypes.JSON, fd map[string]interface{}, now time.Time) error {
+	if task.Status != models.CaseTaskStatusToDo {
+		return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+	}
+	if task.EmergencyMeasureReferralID == nil || strings.TrimSpace(*task.EmergencyMeasureReferralID) == "" {
+		return fmt.Errorf("CompleteWithFormData: la tarea no tiene remisión")
+	}
+	agentID := strings.TrimSpace(task.AssignedUserID)
+	if agentID == "" {
+		return fmt.Errorf("CompleteWithFormData: la tarea no tiene agente")
+	}
+	contesto, _ := fd["contesto"].(string)
+	contesto = strings.TrimSpace(contesto)
+	if contesto != "si" && contesto != "no" {
+		return fmt.Errorf("CompleteWithFormData: indica si contestó")
+	}
+	nota, _ := fd["nota"].(string)
+	nota = strings.TrimSpace(nota)
+	if s.db == nil {
+		return fmt.Errorf("CompleteWithFormData: sin base de datos")
+	}
+	refID := strings.TrimSpace(*task.EmergencyMeasureReferralID)
+	cerrar := false
+	numero := 0
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var status string
+		if err := tx.Raw(`
+			SELECT status
+			FROM salvia.emergency_measure_referral
+			WHERE id::text = ?
+			  AND deleted_at IS NULL
+			FOR UPDATE
+		`, refID).Scan(&status).Error; err != nil {
+			return fmt.Errorf("CompleteWithFormData: leer la remisión: %w", err)
+		}
+		if strings.TrimSpace(status) != models.EmergencyReferralStatusAsignada {
+			return fmt.Errorf("CompleteWithFormData: la remisión ya no está asignada")
+		}
+		next := &models.CaseTask{
+			Category:                   models.CaseTaskCategoryMedidas,
+			AssignedUserID:             agentID,
+			Status:                     models.CaseTaskStatusToDo,
+			CaseID:                     task.CaseID,
+			FollowUpID:                 task.FollowUpID,
+			EmergencyMeasureReferralID: &refID,
+		}
+		if contesto == "si" {
+			next.Type = models.CaseTaskTypeEntrevistaCaracterizacion
+			next.Description = models.CaseTaskDescEntrevistaCaracterizacion
+		} else {
+			var previos int
+			if err := tx.Raw(`
+				SELECT COUNT(*)::int
+				FROM salvia.case_task
+				WHERE emergency_measure_referral_id::text = ?
+				  AND type = ?
+				  AND status = ?
+				  AND deleted_at IS NULL
+				  AND form_data->>'contesto' = 'no'
+			`, refID, models.CaseTaskTypeIntentarContacto3x3, models.CaseTaskStatusDone).Scan(&previos).Error; err != nil {
+				return fmt.Errorf("CompleteWithFormData: contar intentos: %w", err)
+			}
+			numero = previos + 1
+			if numero >= 3 {
+				cerrar = true
+				numero = 3
+				res := tx.Exec(`
+					UPDATE salvia.emergency_measure_referral
+					   SET status = ?,
+					       updated_at = NOW()
+					 WHERE id::text = ?
+					   AND status = ?
+					   AND deleted_at IS NULL
+				`, models.EmergencyReferralStatusCerradaPorNoContacto, refID, models.EmergencyReferralStatusAsignada)
+				if res.Error != nil {
+					return fmt.Errorf("CompleteWithFormData: cerrar la remisión: %w", res.Error)
+				}
+				if res.RowsAffected != 1 {
+					return fmt.Errorf("CompleteWithFormData: la remisión ya no está asignada")
+				}
+				res = tx.Exec(`
+					UPDATE salvia.emergency_measure
+					   SET status = ?,
+					       updated_at = NOW()
+					 WHERE referral_id::text = ?
+					   AND deleted_at IS NULL
+					   AND status = ?
+				`, models.EmergencyMeasureStatusClosed, refID, models.EmergencyMeasureStatusActive)
+				if res.Error != nil {
+					return fmt.Errorf("CompleteWithFormData: cerrar medidas: %w", res.Error)
+				}
+			} else {
+				next.Type = models.CaseTaskTypeIntentarContacto3x3
+				next.Description = models.CaseTaskDescIntentarContacto3x3
+			}
+		}
+		if !cerrar {
+			if err := tx.Create(next).Error; err != nil {
+				return fmt.Errorf("CompleteWithFormData: crear la tarea siguiente: %w", err)
+			}
+		}
+		res := tx.Model(&models.CaseTask{}).
+			Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+			Updates(map[string]interface{}{
+				"form_data":    formData,
+				"status":       models.CaseTaskStatusDone,
+				"completed_at": now,
+			})
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: cerrar el intento: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	descripcion := models.TimelineDescContactoVictima
+	tipo := models.TimelineTypeContactoVictima
+	evento := models.TimelineEventContactoVictima
+	if contesto == "no" && cerrar {
+		descripcion = models.TimelineDescCierreNoContacto
+		tipo = models.TimelineTypeCierreNoContacto
+		evento = models.TimelineEventCierreNoContacto
+	} else if contesto == "no" {
+		descripcion = fmt.Sprintf("Intento de contacto fallido (%d de 3).", numero)
+		tipo = models.TimelineTypeIntentoFallido
+		evento = models.TimelineEventIntentoFallido
+	}
+	if nota != "" {
+		descripcion += " Nota: " + nota
+	}
+	s.registrarTimelineMedidas(ctx, task, userID, now, "registrarTimelineContacto", evento, tipo, descripcion)
+	return nil
+}
+
+// completeAsignarAgenteMedidas deja la remisión asignada y abre el contacto 3×3.
+func (s *caseTaskService) completeAsignarAgenteMedidas(ctx context.Context, task *models.CaseTask, userID string, formData datatypes.JSON, fd map[string]interface{}, now time.Time) error {
+	if task.Status != models.CaseTaskStatusToDo {
+		return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+	}
+	if task.EmergencyMeasureReferralID == nil || strings.TrimSpace(*task.EmergencyMeasureReferralID) == "" {
+		return fmt.Errorf("CompleteWithFormData: la tarea no tiene remisión")
+	}
+	agentID, _ := fd["agentId"].(string)
+	agentID = strings.TrimSpace(agentID)
+	if agentID == "" {
+		return fmt.Errorf("CompleteWithFormData: el agente es obligatorio")
+	}
+	if s.db == nil {
+		return fmt.Errorf("CompleteWithFormData: sin base de datos")
+	}
+	var activos int
+	if err := s.db.WithContext(ctx).Raw(`
+		SELECT COUNT(*)::int
+		FROM security.general_user gu
+		JOIN security.rel_role_general_user rr ON rr.general_user_id = gu.general_user_id
+		JOIN security.role role ON role.role_id = rr.role_id
+		WHERE gu.general_user_i_code = ?
+		  AND role.role_code = 'am'
+		  AND gu.general_user_status = 'e'
+	`, agentID).Scan(&activos).Error; err != nil {
+		return fmt.Errorf("CompleteWithFormData: validar agente: %w", err)
+	}
+	if activos == 0 {
+		return fmt.Errorf("CompleteWithFormData: el agente no es un Agente de Medidas activo")
+	}
+	refID := strings.TrimSpace(*task.EmergencyMeasureReferralID)
+	next := &models.CaseTask{
+		Category:                   models.CaseTaskCategoryMedidas,
+		Type:                       models.CaseTaskTypeIntentarContacto3x3,
+		Description:                models.CaseTaskDescIntentarContacto3x3,
+		AssignedUserID:             agentID,
+		Status:                     models.CaseTaskStatusToDo,
+		CaseID:                     task.CaseID,
+		FollowUpID:                 task.FollowUpID,
+		EmergencyMeasureReferralID: &refID,
+	}
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Exec(`
+			UPDATE salvia.emergency_measure_referral
+			   SET assigned_agent_id = ?,
+			       status = ?,
+			       updated_at = NOW()
+			 WHERE id::text = ?
+			   AND status = ?
+			   AND deleted_at IS NULL
+		`, agentID, models.EmergencyReferralStatusAsignada, refID, models.EmergencyReferralStatusPorAsignar)
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: actualizar remisión: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la remisión ya no está por asignar")
+		}
+		if err := tx.Create(next).Error; err != nil {
+			return fmt.Errorf("CompleteWithFormData: crear el contacto: %w", err)
+		}
+		res = tx.Model(&models.CaseTask{}).
+			Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+			Updates(map[string]interface{}{
+				"form_data":    formData,
+				"status":       models.CaseTaskStatusDone,
+				"completed_at": now,
+			})
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: cerrar la asignación: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	s.registrarTimelineMedidas(ctx, task, userID, now, "registrarTimelineAsignacionAgente", models.TimelineEventAgenteMedidasAsignado, models.TimelineTypeAgenteMedidasAsignado, models.TimelineDescAgenteMedidasAsignado)
+	return nil
+}
+
 // completeAjustarRemision reenvía la remisión al Equipo Técnico o la descarta.
 func (s *caseTaskService) completeAjustarRemision(ctx context.Context, task *models.CaseTask, userID string, formData datatypes.JSON, fd map[string]interface{}, now time.Time) error {
 	if task.Status != models.CaseTaskStatusToDo {
@@ -1411,6 +1632,16 @@ func (s *caseTaskService) CompleteWithFormData(ctx context.Context, id string, u
 
 	case models.CaseTaskTypeRevisionEquipoTecnico:
 		if err := s.completeRevisionEquipoTecnico(ctx, task, userId, formData, fd, now); err != nil {
+			return nil, err
+		}
+
+	case models.CaseTaskTypeIntentarContacto3x3:
+		if err := s.completeIntentarContacto3x3(ctx, task, userId, formData, fd, now); err != nil {
+			return nil, err
+		}
+
+	case models.CaseTaskTypeAsignarAgenteMedidas:
+		if err := s.completeAsignarAgenteMedidas(ctx, task, userId, formData, fd, now); err != nil {
 			return nil, err
 		}
 

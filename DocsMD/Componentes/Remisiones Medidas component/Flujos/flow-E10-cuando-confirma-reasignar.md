@@ -50,7 +50,7 @@ PASO 3 — Si responde 4xx o 5xx
   BACKEND
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  Para cada id de ids, en una transacción:
+  Para cada id de ids, en una transacción, se lee el estado y luego:
 
     UPDATE salvia.emergency_measure_referral
        SET assigned_agent_id = {agentId},
@@ -62,6 +62,13 @@ PASO 3 — Si responde 4xx o 5xx
   Vale para cualquier estado previo. La barra del supervisor puede incluir
   filas que no estaban en por_asignar; todas pasan a asignada.
   No modifica la revisión técnica ni las medidas hijas.
+
+  Si el estado leído era por_asignar, en la misma transacción nace
+  intentar_contacto_3x3 para ese agente y se cierra la tarea ToDo
+  asignar_agente_medidas de esa remisión. Si no había tarea pendiente,
+  la asignación igual queda. El caso recibe "Agente de medidas asignado":
+  "Se asignó el agente de medidas." Si el timeline falla, la reasignación queda.
+  Otro estado solo cambia el agente y pasa a asignada. No nace el 3×3.
 
   Rechaza con 400 si ids está vacío, si agentId está vacío o si agentId
   no pertenece al catálogo de GET .../agentes (role_code = am).

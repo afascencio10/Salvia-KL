@@ -214,7 +214,7 @@ Una fila tiene como máximo un botón. La regla está en `accionDe` y queda part
 
 | Tipo | Evento | Qué hace |
 |---|---|---|
-| `asignar` | E-08 | Abre el modal de reasignar con esa sola fila |
+| `asignar` | — | Abre la tarea ToDo `asignar_agente_medidas` |
 | `revisar` | E-11 | Abre el modal de revisión técnica |
 | `tareas` | E-16 | Abre el panel de tareas de la fila |
 | `detalle` | E-15 | Emite `ver-detalle` |
@@ -231,7 +231,7 @@ Una fila tiene como máximo un botón. La regla está en `accionDe` y queda part
 | `cruz-roja` | `por_cotizar` | Cargar cotizaciones |
 | `agente` | `riesgo_inminente_por_confirmar_seguridad` | Confirmar seguridad |
 
-"Revisar (Equipo Técnico)" aparece en `supervisor` y `equipo-tecnico` cuando el estado es `pendiente_de_revision`. En `equipo-tecnico` abre el modal de la tarea `revision_equipo_tecnico`. En `supervisor` abre la revisión de la bandeja. Lo usan `sm`, `em` y `sv` (`review_remisiones_medidas`). "Asignar agente" aparece con `puedeReasignar` (`sm` y `sv`, `reassign_remisiones_medidas`) cuando el estado es `por_asignar`.
+"Revisar (Equipo Técnico)" aparece en `supervisor` y `equipo-tecnico` cuando el estado es `pendiente_de_revision`. En `equipo-tecnico` abre el modal de la tarea `revision_equipo_tecnico`. En `supervisor` abre la revisión de la bandeja. Lo usan `sm`, `em` y `sv` (`review_remisiones_medidas`). "Asignar agente" aparece con `puedeReasignar` (`sm` y `sv`, `reassign_remisiones_medidas`) cuando el estado es `por_asignar` y abre la tarea `asignar_agente_medidas`.
 
 ---
 
@@ -239,7 +239,7 @@ Una fila tiene como máximo un botón. La regla está en `accionDe` y queda part
 
 Título "Reasignar remisiones". Texto con la cantidad seleccionada. Select "Agente de Medidas" cargado con `GET .../agentes`. "Reasignar" queda deshabilitado hasta elegir un agente. Cancelar, o confirmar (E-10).
 
-Abrirlo desde "Asignar agente" reemplaza la selección por esa única fila. Abrirlo desde la barra usa la selección que ya había.
+Abrirlo desde la barra usa la selección que ya había. "Asignar agente" no abre este modal.
 
 ---
 

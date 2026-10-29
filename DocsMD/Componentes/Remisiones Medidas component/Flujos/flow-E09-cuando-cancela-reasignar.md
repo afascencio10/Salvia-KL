@@ -17,9 +17,7 @@ PASO 1 — Cerrar sin guardar
   reasignarAgenteId = ""
 
   selectedIds no se toca.
-  Si se abrió desde "Asignar agente", la selección sigue siendo esa única fila
-  y la barra de reasignar sigue visible.
-  Si se abrió desde la barra, la selección múltiple sigue igual.
+  La selección múltiple de la barra sigue igual.
 
   No hay POST. No se recarga el listado.
 

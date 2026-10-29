@@ -66,9 +66,13 @@ const (
 	TimelineTypeEntregaMedidaConfirmada = "Entrega de medida confirmada"
 	TimelineTypeMedidasEnRevision       = "Medidas enviadas a revisión"
 	TimelineTypeEnviadaAsignacion       = "Enviada a asignación de agente"
+	TimelineTypeAgenteMedidasAsignado   = "Agente de medidas asignado"
 	TimelineTypeDevolucionEquipoTecnico = "Devolución del Equipo Técnico"
 	TimelineTypeRemisionReenviada       = "Remisión reenviada a revisión"
 	TimelineTypeRemisionDescartada      = "Remisión descartada"
+	TimelineTypeContactoVictima         = "Contacto con la víctima"
+	TimelineTypeIntentoFallido          = "Intento de contacto fallido"
+	TimelineTypeCierreNoContacto        = "Remisión cerrada por no contacto"
 
 	TimelineDescRemisionRiesgoInminente = "Se remitió a medidas de emergencia por riesgo inminente"
 	TimelineDescViaA                    = "Vía A — asignación al agente"
@@ -76,7 +80,10 @@ const (
 	TimelineDescEscalamientoCruzRoja    = "Supervisión del Convenio confirmó el escalamiento a Cruz Roja"
 	TimelineDescEntregaMedidaConfirmada = "El agente de medidas confirmó la entrega de la medida."
 	TimelineDescEnviadaAsignacion       = "Se envió para asignación de agente."
+	TimelineDescAgenteMedidasAsignado   = "Se asignó el agente de medidas."
 	TimelineDescRemisionDescartada      = "El agente de seguimiento descartó la remisión."
+	TimelineDescContactoVictima         = "La víctima contestó. Se abrió la entrevista de caracterización."
+	TimelineDescCierreNoContacto        = "Se cerró la remisión por no contacto tras 3 intentos fallidos."
 
 	TimelineTypeMesaTecnicaAbierta = "Mesa técnica abierta"
 )
@@ -151,9 +158,13 @@ const (
 	TimelineEventEntregaMedidaConfirmada = "ENTREGA_CONFIRMADA"
 	TimelineEventMedidasEnRevision       = "MEDIDAS_A_REVISION"
 	TimelineEventEnviadaAsignacion       = "ENVIADA_ASIGNACION"
+	TimelineEventAgenteMedidasAsignado   = "AGENTE_ASIGNADO"
 	TimelineEventDevolucionEquipoTecnico = "DEVOLUCION_EQUIPO"
 	TimelineEventRemisionReenviada       = "REENVIO_A_REVISION"
 	TimelineEventRemisionDescartada      = "REMISION_DESCARTADA"
+	TimelineEventContactoVictima         = "CONTACTO_VICTIMA"
+	TimelineEventIntentoFallido          = "INTENTO_FALLIDO"
+	TimelineEventCierreNoContacto        = "CIERRE_NO_CONTACTO"
 )
 
 // CaseTimelineEvent registra un evento en la vida de un caso.

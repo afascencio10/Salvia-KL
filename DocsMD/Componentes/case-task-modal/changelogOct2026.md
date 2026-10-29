@@ -71,7 +71,9 @@ El modal es «Revisión Equipo Técnico», sin el select de profesional. Guardar
 
 Al aprobar, la remisión pasa a `por_asignar` y se crea `asignar_agente_medidas` para el rol `sm`. El caso recibe «Enviada a asignación de agente»: «Se envió para asignación de agente.» Si el timeline falla, la aprobación queda.
 
-Esa tarea abre «Reasignar remisiones» con el select de agentes. Reasignar cierra y no guarda.
+Esa tarea abre «Reasignar remisiones» con el select de agentes. Reasignar asigna el agente, deja la remisión en `asignada` y crea `intentar_contacto_3x3`. El caso recibe «Agente de medidas asignado»: «Se asignó el agente de medidas.» Si el timeline falla, la asignación queda.
+
+En la bandeja, «Asignar agente» abre esa tarea. La barra «Reasignar» sigue en su modal: si la remisión estaba en `por_asignar`, nace el mismo 3×3 y se cierra la tarea; en otro estado solo cambia el agente y pasa a `asignada`.
 
 ## 2026-10-29 — Devolución y reenvío
 
@@ -80,6 +82,14 @@ Al devolver para ajuste o para acompañamiento, la remisión pasa a `devuelta_pa
 El modal muestra el hilo de `GET /case-tasks/:id/chat` y el último comentario del equipo. Reenviar vuelve la remisión a `pendiente_de_revision` y crea otra revisión para `em`. Descartar la deja en `descartada`, pasa a `CLOSED` las medidas `ACTIVE` de esa remisión y no crea revisión. Si el timeline falla, la operación queda.
 
 La revisión que ya tiene vueltas muestra el mismo hilo encima del concepto.
+
+## 2026-10-29 — Contacto 3×3
+
+Guardar el intento exige Sí o No. Si contestó, nace `entrevista_caracterizacion` para el mismo agente y el caso recibe «Contacto con la víctima». Ese modal abre y Guardar no persiste.
+
+Si no contestó, el intento queda cerrado. En el primero y en el segundo nace otro `intentar_contacto_3x3`. A la tercera, la remisión pasa a `cerrada_por_no_contacto`, las medidas `ACTIVE` pasan a `CLOSED` y el caso recibe «Remisión cerrada por no contacto». Si el timeline falla, el intento queda.
+
+Arriba de las tareas de la remisión se ven los intentos fallidos, de 0 a 3.
 
 
 

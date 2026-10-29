@@ -552,6 +552,7 @@ app.component('case-task-modal', {
                 respuesta_entidad: 'Respuesta institucional',
                 decidir_via_riesgo_inminente: 'Decidir vía de atención — Riesgo inminente',
                 intentar_contacto_3x3: 'Registrar intento de contacto',
+                entrevista_caracterizacion: 'Contactar víctima y realizar entrevista de caracterización',
                 escalar_cruz_roja: 'Escalar a Cruz Roja',
                 entregar_medida_inmediata: 'Entregar medida inmediata',
                 confirmar_lugar_seguro: 'Confirmar que la persona está en lugar seguro',
@@ -581,6 +582,7 @@ app.component('case-task-modal', {
                 gestion_mecanismo: 'fa-balance-scale',
                 decidir_via_riesgo_inminente: 'fa-fire',
                 intentar_contacto_3x3: 'fa-phone',
+                entrevista_caracterizacion: 'fa-user-check',
                 escalar_cruz_roja: 'fa-ambulance',
                 entregar_medida_inmediata: 'fa-box',
                 confirmar_lugar_seguro: 'fa-shield-alt',
@@ -700,6 +702,8 @@ app.component('case-task-modal', {
                 case 'decidir_via_riesgo_inminente':
                     return (f.via === 'A' || f.via === 'B') && !!f.agentId;
                 case 'intentar_contacto_3x3':
+                    return f.contesto === 'si' || f.contesto === 'no';
+                case 'entrevista_caracterizacion':
                 case 'escalar_cruz_roja':
                 case 'confirmar_lugar_seguro':
                     return true;
@@ -918,6 +922,9 @@ app.component('case-task-modal', {
                     break;
                 case 'intentar_contacto_3x3':
                     this.form = { contesto: '', nota: '' };
+                    break;
+                case 'entrevista_caracterizacion':
+                    this.form = {};
                     break;
                 case 'escalar_cruz_roja':
                     this.form = {};
@@ -1380,6 +1387,13 @@ app.component('case-task-modal', {
                         ajuste: f.descartar ? '' : String(f.ajuste || '').trim(),
                         descartar: !!f.descartar,
                     };
+                case 'asignar_agente_medidas':
+                    return { agentId: f.agentId };
+                case 'intentar_contacto_3x3':
+                    return {
+                        contesto: f.contesto,
+                        nota: String(f.nota || '').trim(),
+                    };
                 case 'entregar_medida_inmediata':
                     return {
                         medidas: (f.medidas || []).slice(),
@@ -1534,7 +1548,7 @@ app.component('case-task-modal', {
 
         async confirmar() {
             if (!this.formularioValido || this.guardando) return;
-            if (this.tarea && (this.tarea.type === 'intentar_contacto_3x3' || this.tarea.type === 'asignar_agente_medidas')) {
+            if (this.tarea && this.tarea.type === 'entrevista_caracterizacion') {
                 this.cancelar();
                 return;
             }
@@ -1627,7 +1641,7 @@ app.component('case-task-modal', {
                 <p v-else-if="tarea && tarea.type === 'entregar_medida_inmediata'" class="ctm-header-sub">Riesgo inminente: entrega sin esperar caracterización completa ni declaración jurada.</p>
                 <p v-else-if="tarea && tarea.type === 'revision_equipo_tecnico'" class="ctm-header-sub">\${ cargandoCasoRevision ? 'Cargando caso…' : ('Caso ' + (casoRevisionNombre || 'sin nombre') + (casoRevisionCodigo ? ' · ' + casoRevisionCodigo : '')) }</p>
                 <p v-else-if="tarea && tarea.type === 'asignar_agente_medidas'" class="ctm-header-sub">1 remisión seleccionada. Elige el agente destino.</p>
-                <p v-else-if="tarea && tarea.id && tarea.type !== 'solicitud_entidad' && tarea.type !== 'respuesta_entidad' && tarea.type !== 'decidir_via_riesgo_inminente' && tarea.type !== 'intentar_contacto_3x3' && tarea.type !== 'escalar_cruz_roja' && tarea.type !== 'entregar_medida_inmediata' && tarea.type !== 'confirmar_lugar_seguro' && tarea.type !== 'revision_equipo_tecnico' && tarea.type !== 'asignar_agente_medidas' && tarea.type !== 'ajustar_remision_devuelta'" class="ctm-header-sub">ID \${ tarea.id.substring(0,8) }…</p>
+                <p v-else-if="tarea && tarea.id && tarea.type !== 'solicitud_entidad' && tarea.type !== 'respuesta_entidad' && tarea.type !== 'decidir_via_riesgo_inminente' && tarea.type !== 'intentar_contacto_3x3' && tarea.type !== 'escalar_cruz_roja' && tarea.type !== 'entregar_medida_inmediata' && tarea.type !== 'confirmar_lugar_seguro' && tarea.type !== 'revision_equipo_tecnico' && tarea.type !== 'asignar_agente_medidas' && tarea.type !== 'ajustar_remision_devuelta' && tarea.type !== 'entrevista_caracterizacion'" class="ctm-header-sub">ID \${ tarea.id.substring(0,8) }…</p>
                 <p v-else-if="tarea && tarea.type === 'solicitud_entidad'" class="ctm-header-sub">Selecciona los ítems pendientes del checklist entidad sobre los que deseas hacer una solicitud y describe cada uno.</p>
             </div>
         </div>
@@ -2344,11 +2358,15 @@ app.component('case-task-modal', {
             </div>
         </template>
 
+        <template v-else-if="tarea && tarea.type === 'entrevista_caracterizacion'">
+            <p style="margin:0;color:#111827;font-size:.95rem">Contactar víctima y realizar entrevista de caracterización</p>
+        </template>
+
         <template v-else-if="tarea && tarea.type === 'intentar_contacto_3x3'">
             <p class="ctm-label" style="margin-bottom:10px">¿Contestó?</p>
             <div style="display:flex;gap:10px;margin-bottom:16px">
                 <button type="button" class="ctm-btn ctm-btn-confirm" :style="form.contesto === 'si' ? '' : 'background:#fff;color:#166534;border:1px solid #86efac'" @click="form.contesto = 'si'">Sí</button>
-                <button type="button" class="ctm-btn ctm-btn-cancel" :style="form.contesto === 'no' ? 'background:#f3f4f6;border-color:#111827' : ''" @click="form.contesto = 'no'">No</button>
+                <button type="button" class="ctm-btn ctm-btn-cancel" :style="form.contesto === 'no' ? 'background:#b91c1c;border-color:#b91c1c;color:#fff;font-weight:600;box-shadow:0 0 0 3px rgba(185,28,28,.28)' : 'background:#fff;color:#b91c1c;border:1px solid #fecaca'" @click="form.contesto = 'no'">No</button>
             </div>
             <div class="ctm-field">
                 <label class="ctm-label">Nota</label>
@@ -2467,6 +2485,9 @@ app.component('case-task-modal', {
                     Confirmar decisión
                 </template>
                 <template v-else-if="tarea && tarea.type === 'intentar_contacto_3x3'">
+                    Guardar
+                </template>
+                <template v-else-if="tarea && tarea.type === 'entrevista_caracterizacion'">
                     Guardar
                 </template>
                 <template v-else-if="tarea && tarea.type === 'escalar_cruz_roja'">

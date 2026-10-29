@@ -42,6 +42,14 @@
         .ct-btn-complete:disabled { opacity:.5;cursor:not-allowed }
         .ct-empty { text-align:center;padding:40px 0;color:#9ca3af;font-size:.85rem }
         .ct-loading { text-align:center;padding:40px 0;color:#9ca3af }
+        .ct-intentos { border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:16px;background:#fff }
+        .ct-intentos-head { display:flex;align-items:center;gap:10px;flex-wrap:wrap }
+        .ct-intentos-head strong { font-size:.9rem;color:#111827 }
+        .ct-intentos-dots { display:flex;gap:6px }
+        .ct-intento-dot { width:10px;height:10px;border-radius:50%;background:#e5e7eb }
+        .ct-intento-dot.is-on { background:#6b7280 }
+        .ct-intentos-count { margin-left:auto;font-size:.84rem;font-weight:700;color:#6b7280 }
+        .ct-intentos p { margin:8px 0 0;font-size:.82rem;color:#9ca3af }
         .ct-modal-backdrop { position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:10000 }
         .ct-modal { background:#fff;border-radius:12px;width:95%;max-width:550px;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,.2) }
         .ct-modal-title { font-size:1rem;font-weight:700;margin:0 0 16px;color:#111827 }
@@ -118,6 +126,19 @@ app.component('case-tasks', {
         },
         visibleTasks: function() {
             return this.activeTab === 'pending' ? this.pendingTasks : this.completedTasks;
+        },
+        intentosFallidos: function() {
+            if (!this.referralId) return 0;
+            var n = 0;
+            (this.tasks || []).forEach(function(t) {
+                if (!t || t.type !== 'intentar_contacto_3x3' || t.status !== 'Done') return;
+                var fd = t.formData;
+                if (typeof fd === 'string') {
+                    try { fd = JSON.parse(fd); } catch (e) { fd = null; }
+                }
+                if (fd && fd.contesto === 'no') n += 1;
+            });
+            return n > 3 ? 3 : n;
         },
     },
     mounted: function() {
@@ -261,6 +282,7 @@ app.component('case-tasks', {
                 'respuesta_entidad': 'Responder solicitud de la entidad',
                 'decidir_via_riesgo_inminente': 'Decidir vía de atención',
                 'intentar_contacto_3x3': 'Intentar contacto (3×3)',
+                'entrevista_caracterizacion': 'Contactar víctima y realizar entrevista de caracterización',
                 'escalar_cruz_roja': 'Escalar a Cruz Roja',
                 'entregar_medida_inmediata': 'Entregar medida inmediata (sin caracterización previa)',
                 'confirmar_lugar_seguro': 'Confirmar que la persona está en lugar seguro',
@@ -338,6 +360,18 @@ app.component('case-tasks', {
 <div class="ct-container">
     <div v-if="loading" class="ct-loading"><i class="fa fa-spinner fa-spin"></i> Cargando tareas...</div>
     <template v-else>
+        <div v-if="referralId" class="ct-intentos">
+            <div class="ct-intentos-head">
+                <strong>Intentos de contacto fallidos (3×3)</strong>
+                <span class="ct-intentos-dots">
+                    <span class="ct-intento-dot" :class="{ 'is-on': intentosFallidos >= 1 }"></span>
+                    <span class="ct-intento-dot" :class="{ 'is-on': intentosFallidos >= 2 }"></span>
+                    <span class="ct-intento-dot" :class="{ 'is-on': intentosFallidos >= 3 }"></span>
+                </span>
+                <span class="ct-intentos-count">\${ intentosFallidos }/3</span>
+            </div>
+            <p v-if="intentosFallidos === 0">Sin intentos registrados.</p>
+        </div>
         <!-- Tabs: Pendientes / Completadas + acción Registrar gestión propia -->
         <div v-if="tasks.length > 0 || puedeGestionPropia" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px;border-bottom:1px solid #e5e7eb;padding-bottom:0">
             <div v-if="tasks.length > 0" style="display:flex;gap:4px">

@@ -88,6 +88,7 @@ const (
 	CaseTaskTypeRevisionEquipoTecnico     = "revision_equipo_tecnico"
 	CaseTaskTypeAsignarAgenteMedidas      = "asignar_agente_medidas"
 	CaseTaskTypeAjustarRemisionDevuelta   = "ajustar_remision_devuelta"
+	CaseTaskTypeEntrevistaCaracterizacion = "entrevista_caracterizacion"
 	CaseTaskCategoryMedidas               = "Medidas de Emergencia"
 	CaseTaskRoleEquipoTecnicoMedidas      = "em"
 	CaseTaskRoleSupervisorMedidas         = "sm"
@@ -101,6 +102,7 @@ const (
 	CaseTaskDescRevisionEquipoTecnico     = "Revisión Equipo Técnico"
 	CaseTaskDescAsignarAgenteMedidas      = "Asignar agente de medidas"
 	CaseTaskDescAjustarRemisionDevuelta   = "Ajustar remisión devuelta por el Equipo Técnico"
+	CaseTaskDescEntrevistaCaracterizacion = "Contactar víctima y realizar entrevista de caracterización"
 )
 
 // CaseTaskCommentItem es un comentario del Equipo Técnico — una case_task Done

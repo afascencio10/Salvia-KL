@@ -96,9 +96,32 @@ INPUT: {
   CASO 'asignar_agente_medidas':
     El modal muestra el select de Agente de Medidas.
     Reasignar se habilita con un agente.
-    confirmar() cierra el modal y no llama al API.
+    confirmar() llama a PUT /api/v1/case-tasks/:id/complete
+    con formData { agentId }.
+    La remisión pasa de por_asignar a asignada y guarda el agente.
+    Se crea intentar_contacto_3x3 para ese agente.
+    Esta tarea queda Done.
+    El timeline queda "Agente de medidas asignado":
+    "Se asignó el agente de medidas."
+    Un fallo del timeline no revierte la asignación.
+    Si la remisión ya no está por asignar, la operación se rechaza.
 
   CASO 'intentar_contacto_3x3':
+    formularioValido exige Sí o No. La nota puede ir vacía.
+    confirmar() llama a PUT /api/v1/case-tasks/:id/complete
+    con formData { contesto, nota }.
+    La remisión tiene que estar en asignada.
+    Si contestó, se crea entrevista_caracterizacion para el mismo agente
+    y el timeline queda "Contacto con la víctima".
+    Si no contestó y van menos de tres, se crea otro intentar_contacto_3x3
+    y el timeline queda "Intento de contacto fallido" con el número.
+    A la tercera, la remisión pasa a cerrada_por_no_contacto,
+    las medidas ACTIVE pasan a CLOSED y no nace otra tarea.
+    El timeline queda "Remisión cerrada por no contacto".
+    Esta tarea queda Done.
+    Un fallo del timeline no revierte el intento.
+
+  CASO 'entrevista_caracterizacion':
     El botón está habilitado.
     confirmar() cierra el modal y no llama al API.
 
