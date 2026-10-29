@@ -57,5 +57,11 @@ En una transacción, las medidas elegidas quedan en `ENTREGADA`, la remisión pa
 
 La tarea nueva abre el modal con «Confirma entrega de medidas». Confirmar y Cancelar cierran y no guardan.
 
+## 2026-10-29 — Confirmar la entrega de la medida
+
+Al confirmar, la remisión pasa a `asignada` y se crea `intentar_contacto_3x3` para el mismo agente. El caso recibe «Entrega de medida confirmada»: «El agente de medidas confirmó la entrega de la medida.» Si el timeline falla, la confirmación queda.
+
+El 3×3 abre su modal. Guardar cierra y no persiste.
+
 
 

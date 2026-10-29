@@ -1245,6 +1245,7 @@ app.component('case-task-modal', {
                 case 'decidir_via_riesgo_inminente':
                     return { via: f.via, agentId: f.agentId };
                 case 'escalar_cruz_roja':
+                case 'confirmar_lugar_seguro':
                     return { confirmado: true };
                 case 'entregar_medida_inmediata':
                     return {
@@ -1400,7 +1401,7 @@ app.component('case-task-modal', {
 
         async confirmar() {
             if (!this.formularioValido || this.guardando) return;
-            if (this.tarea && (this.tarea.type === 'intentar_contacto_3x3' || this.tarea.type === 'confirmar_lugar_seguro')) {
+            if (this.tarea && this.tarea.type === 'intentar_contacto_3x3') {
                 this.cancelar();
                 return;
             }

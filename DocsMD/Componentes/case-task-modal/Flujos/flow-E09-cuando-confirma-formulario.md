@@ -53,8 +53,16 @@ INPUT: {
     Un fallo del timeline no revierte la entrega.
 
   CASO 'confirmar_lugar_seguro':
-    El modal muestra "Confirma entrega de medidas".
-    Confirmar y Cancelar cierran y no llaman al API.
+    formularioValido es true.
+    confirmar() llama a PUT /api/v1/case-tasks/:id/complete
+    con formData { confirmado: true }.
+    La remisión pasa a asignada.
+    Se crea intentar_contacto_3x3 para el mismo agente,
+    con descripción "Intentar contacto (3×3)".
+    Esta tarea queda Done.
+    El timeline queda "Entrega de medida confirmada":
+    "El agente de medidas confirmó la entrega de la medida."
+    Un fallo del timeline no revierte la confirmación.
 
   CASO 'intentar_contacto_3x3':
     El botón está habilitado.

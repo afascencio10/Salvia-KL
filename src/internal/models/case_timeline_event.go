@@ -63,11 +63,13 @@ const (
 	TimelineTypeViaAtencionDecidida     = "Vía de atención decidida"
 	TimelineTypeEscalamientoCruzRoja    = "Escalamiento a Cruz Roja confirmado"
 	TimelineTypeMedidaEntregadaCruzRoja = "Medida entregada por Cruz Roja"
+	TimelineTypeEntregaMedidaConfirmada = "Entrega de medida confirmada"
 
 	TimelineDescRemisionRiesgoInminente = "Se remitió a medidas de emergencia por riesgo inminente"
 	TimelineDescViaA                    = "Vía A — asignación al agente"
 	TimelineDescViaB                    = "Vía B — escalar a Cruz Roja"
 	TimelineDescEscalamientoCruzRoja    = "Supervisión del Convenio confirmó el escalamiento a Cruz Roja"
+	TimelineDescEntregaMedidaConfirmada = "El agente de medidas confirmó la entrega de la medida."
 
 	TimelineTypeMesaTecnicaAbierta = "Mesa técnica abierta"
 )
@@ -139,6 +141,7 @@ const (
 	TimelineEventViaAtencionDecidida     = "VIA_ATENCION_DECIDIDA"
 	TimelineEventEscalamientoCruzRoja    = "ESCALAMIENTO_CRUZ_ROJA"
 	TimelineEventMedidaEntregadaCruzRoja = "MEDIDA_ENTREGADA_CR"
+	TimelineEventEntregaMedidaConfirmada = "ENTREGA_CONFIRMADA"
 )
 
 // CaseTimelineEvent registra un evento en la vida de un caso.

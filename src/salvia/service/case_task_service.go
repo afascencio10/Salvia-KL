@@ -765,6 +765,108 @@ func (s *caseTaskService) registrarTimelineEntregaCruzRoja(ctx context.Context, 
 	}
 }
 
+// completeConfirmarLugarSeguro cierra la confirmación del agente, deja la
+// remisión asignada y crea el contacto 3×3 para ese mismo agente.
+func (s *caseTaskService) completeConfirmarLugarSeguro(ctx context.Context, task *models.CaseTask, userID string, formData datatypes.JSON, now time.Time) error {
+	if task.Status != models.CaseTaskStatusToDo {
+		return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+	}
+	if task.EmergencyMeasureReferralID == nil || strings.TrimSpace(*task.EmergencyMeasureReferralID) == "" {
+		return fmt.Errorf("CompleteWithFormData: la tarea no tiene remisión")
+	}
+	agentID := strings.TrimSpace(task.AssignedUserID)
+	if agentID == "" {
+		return fmt.Errorf("CompleteWithFormData: la tarea no tiene agente de medidas")
+	}
+	if s.db == nil {
+		return fmt.Errorf("CompleteWithFormData: sin base de datos")
+	}
+	refID := strings.TrimSpace(*task.EmergencyMeasureReferralID)
+	next := &models.CaseTask{
+		Category:                   models.CaseTaskCategoryMedidas,
+		Type:                       models.CaseTaskTypeIntentarContacto3x3,
+		Description:                models.CaseTaskDescIntentarContacto3x3,
+		AssignedUserID:             agentID,
+		Status:                     models.CaseTaskStatusToDo,
+		CaseID:                     task.CaseID,
+		FollowUpID:                 task.FollowUpID,
+		EmergencyMeasureReferralID: &refID,
+	}
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Exec(`
+			UPDATE salvia.emergency_measure_referral
+			   SET status = ?,
+			       updated_at = NOW()
+			 WHERE id::text = ?
+			   AND status = ?
+			   AND deleted_at IS NULL
+		`, models.EmergencyReferralStatusAsignada, refID, models.EmergencyReferralStatusRiesgoPorConfirmarSeguridad)
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: actualizar remisión: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la remisión ya no está por confirmar seguridad")
+		}
+		if err := tx.Create(next).Error; err != nil {
+			return fmt.Errorf("CompleteWithFormData: crear el contacto 3×3: %w", err)
+		}
+		res = tx.Model(&models.CaseTask{}).
+			Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+			Updates(map[string]interface{}{
+				"form_data":    formData,
+				"status":       models.CaseTaskStatusDone,
+				"completed_at": now,
+			})
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: cerrar la confirmación: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	s.registrarTimelineEntregaConfirmada(ctx, task, userID, now)
+	return nil
+}
+
+func (s *caseTaskService) registrarTimelineEntregaConfirmada(ctx context.Context, task *models.CaseTask, userID string, now time.Time) {
+	if s.timelineRepo == nil {
+		log.Printf("[registrarTimelineEntregaConfirmada] WARN: sin repositorio de timeline")
+		return
+	}
+	actorName := strings.TrimSpace(userID)
+	if s.mechanismRepo != nil && userID != "" {
+		if name, err := s.mechanismRepo.UserFullName(ctx, userID); err == nil && strings.TrimSpace(name) != "" {
+			actorName = strings.TrimSpace(name)
+		}
+	}
+	followUp := ""
+	if task.FollowUpID != nil {
+		followUp = *task.FollowUpID
+	}
+	event := &models.CaseTimelineEvent{
+		CaseID:      task.CaseID,
+		FollowUpID:  followUp,
+		TaskID:      task.ID,
+		EventType:   models.TimelineEventEntregaMedidaConfirmada,
+		Category:    models.TimelineCategoryMedidas,
+		Type:        models.TimelineTypeEntregaMedidaConfirmada,
+		Icon:        models.TimelineIconRiesgoInminente,
+		Color:       models.TimelineColorRed,
+		Description: models.TimelineDescEntregaMedidaConfirmada,
+		EventUserID: userID,
+		ActorID:     userID,
+		ActorName:   actorName,
+		Date:        now,
+		CreatedAt:   now,
+	}
+	if err := s.timelineRepo.Create(ctx, event); err != nil {
+		log.Printf("[registrarTimelineEntregaConfirmada] WARN: no se pudo crear el evento del caso %s: %v", task.CaseID, err)
+	}
+}
+
 // CompleteWithFormData completa una CaseTask de tipo gestion_llamada,
 // proyectar_oficio, comite_caso o Corregir oficio. Persiste el JSON del
 // formulario y ejecuta los efectos de lado propios de cada tipo.
@@ -886,6 +988,11 @@ func (s *caseTaskService) CompleteWithFormData(ctx context.Context, id string, u
 
 	case models.CaseTaskTypeEntregarMedidaInmediata:
 		if err := s.completeEntregarMedidaInmediata(ctx, task, userId, formData, fd, now); err != nil {
+			return nil, err
+		}
+
+	case models.CaseTaskTypeConfirmarLugarSeguro:
+		if err := s.completeConfirmarLugarSeguro(ctx, task, userId, formData, now); err != nil {
 			return nil, err
 		}
 
