@@ -17,6 +17,9 @@ var (
 	ErrReferralInvalidReview = errors.New("revisión inválida")
 )
 
+// emergencyReferralPageSize es el tamaño fijo de cada página del listado.
+const emergencyReferralPageSize = 10
+
 // EmergencyReferralListInput es lo que el controller ya resolvió desde la sesión.
 type EmergencyReferralListInput struct {
 	Vista          string
@@ -25,6 +28,7 @@ type EmergencyReferralListInput struct {
 	Status         string
 	AgentID        string
 	Urgency        string
+	Page           int
 }
 
 // EmergencyReferralCard es una métrica del recorte, antes de los filtros de UI.
@@ -72,6 +76,7 @@ type EmergencyReferralItem struct {
 	CaseICode       string                   `json:"caseICode"`
 	CaseName        string                   `json:"caseName"`
 	DocNumber       string                   `json:"docNumber"`
+	VictimPhone     string                   `json:"victimPhone"`
 	RiskLabel       string                   `json:"riskLabel"`
 	Municipality    string                   `json:"municipality"`
 	Measures        []string                 `json:"measures"`
@@ -87,10 +92,13 @@ type EmergencyReferralItem struct {
 
 // EmergencyReferralListResponse es la respuesta de E-01.
 type EmergencyReferralListResponse struct {
-	Alcance int                      `json:"alcance"`
-	Cards   []EmergencyReferralCard  `json:"cards"`
-	Banner  *EmergencyReferralBanner `json:"banner"`
-	Items   []EmergencyReferralItem  `json:"items"`
+	Alcance  int                      `json:"alcance"`
+	Cards    []EmergencyReferralCard  `json:"cards"`
+	Banner   *EmergencyReferralBanner `json:"banner"`
+	Items    []EmergencyReferralItem  `json:"items"`
+	Total    int                      `json:"total"`
+	Page     int                      `json:"page"`
+	PageSize int                      `json:"pageSize"`
 }
 
 // EmergencyReferralCatalogItem es una opción de agente o de profesional.
@@ -136,14 +144,25 @@ func (s *emergencyMeasureReferralService) List(ctx context.Context, in Emergency
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.repo.List(ctx, repository.EmergencyReferralListFilter{
+	page := in.Page
+	if page < 1 {
+		page = 1
+	}
+	filter := repository.EmergencyReferralListFilter{
 		Vista:      in.Vista,
 		AgentICode: in.SessionAgentID,
 		Q:          strings.TrimSpace(in.Q),
 		Status:     in.Status,
 		AgentID:    in.AgentID,
 		Urgency:    in.Urgency,
-	})
+		Page:       page,
+		PageSize:   emergencyReferralPageSize,
+	}
+	total, err := s.repo.Count(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.repo.List(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -152,12 +171,15 @@ func (s *emergencyMeasureReferralService) List(ctx context.Context, in Emergency
 		items = append(items, toItem(row))
 	}
 	resp := &EmergencyReferralListResponse{
-		Alcance: sumCounts(counts),
-		Items:   items,
+		Alcance:  sumCounts(counts),
+		Items:    items,
+		Total:    total,
+		Page:     page,
+		PageSize: emergencyReferralPageSize,
 	}
 	if in.Vista == "supervisor" {
 		resp.Cards = supervisorCards(counts, resp.Alcance)
-	} else if in.Vista == "agente" {
+	} else if in.Vista == "agente" || in.Vista == "remitente" {
 		resp.Cards = agenteCards(counts, resp.Alcance)
 	} else {
 		resp.Banner = bannerDe(in.Vista)
@@ -377,6 +399,7 @@ func toItem(row repository.EmergencyReferralRow) EmergencyReferralItem {
 		CaseICode:       row.CaseICode,
 		CaseName:        row.CaseName,
 		DocNumber:       row.DocNumber,
+		VictimPhone:     row.VictimPhone,
 		RiskLabel:       row.RiskLabel,
 		Municipality:    row.Municipality,
 		Measures:        row.Measures,

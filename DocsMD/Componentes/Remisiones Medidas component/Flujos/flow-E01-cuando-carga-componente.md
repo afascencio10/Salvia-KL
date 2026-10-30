@@ -47,11 +47,13 @@ PASO 2 — Pedir el listado del recorte
   Remisiones lo envía porque el padre ya lo leyó de la sesión. El backend
   de la vista agente usa el icode de la sesión y rechaza un agent_id distinto.
 
-  La vista la elige el padre según el rol: sm y sv = supervisor, em =
-  equipo-tecnico, sc = supervision-convenio, cr = cruz-roja, am = agente.
+  La vista de la UI la elige el padre según el rol: sm y sv = supervisor, em =
+  equipo-tecnico, sc = supervision-convenio, cr = cruz-roja, am y ro = agente.
+  El API no lee esa prop: la vista sale del rol de la sesión. ro usa la vista
+  remitente (submitted_by de la sesión, cualquier estado).
   sm y sv envían puedeReasignar.
 
-  Sin page ni page_size. La pantalla no pagina.
+  Siempre envía page. El backend fija page_size en 10.
 
   Los filtros de UI (E-02 … E-05) se agregan a esta misma URL. En la carga
   inicial van vacíos.
@@ -91,8 +93,12 @@ PASO 3 — Recorte que aplica el backend (antes de los filtros de UI)
            en_seguimiento
          )
 
-  Ese conjunto es el alcance. Las cards, el banner y el denominador del pie
-  salen de ahí. Búsqueda, estado, agente y urgencia recortan solo `items`.
+  vista = remitente
+    → submitted_by = icode de la sesión
+      sin recorte de estado
+
+  Ese conjunto es el alcance. Las cards y el banner salen de ahí.
+  Búsqueda, estado, agente y urgencia recortan `items` y `total`.
 
 
 PASO 4 — Respuesta
@@ -101,11 +107,14 @@ PASO 4 — Respuesta
     "alcance": 15,
     "cards": [ { "key": "total", "label": "Total", "value": 15 } ],
     "banner": null,
-    "items": [ ReferralListItem ]
+    "items": [ ReferralListItem ],
+    "total": 15,
+    "page": 1,
+    "pageSize": 10
   }
 
   supervisor → cards con las 8 métricas de la interfaz, banner null
-  agente    → cards con las 6 métricas, banner null
+  agente y remitente → cards con las 6 métricas, banner null
   equipo-tecnico, supervision-convenio, cruz-roja
             → cards null, banner { "tono", "texto" } con el copy de la interfaz
 
@@ -116,6 +125,7 @@ PASO 4 — Respuesta
     "caseICode": "SAL-001",
     "caseName": "Ana Torres Velásquez",
     "docNumber": "1098234567",
+    "victimPhone": "3001234567",
     "riskLabel": "Alto",
     "municipality": "Cali",
     "measures": ["Alojamiento temporal", "Kit de alimentación"],
@@ -146,16 +156,21 @@ PASO 4 — Respuesta
 
   Orden de items:
 
-    ORDER BY (urgency = 'riesgo_inminente') DESC, referred_at DESC
+    ORDER BY created_at DESC
+
+  La respuesta también trae total (después de los filtros de UI), page y pageSize (10).
+  alcance y las cards no cambian al pasar de página.
 
 
 PASO 5 — Pintar
 
   SI cards tiene elementos → fila de cards (8 o 6). No son botones.
   SI banner no es null     → banner. No hay cards.
-  Tabla con items.
-  Pie: "{items.length} de {alcance} remisiones".
+  Tabla con items de la página.
+  Barra: Anterior, "Página {page} de {totalPages}", "Total de registros: {total}", Siguiente.
 
+  SI vista = agente AND alcance = 0 AND rol = ro:
+    → "No has remitido casos."
   SI vista = agente AND alcance = 0:
     → "No tienes remisiones asignadas."
   SI items está vacío y alcance > 0:

@@ -259,7 +259,7 @@ func StartRouter(router *gin.Engine) {
 		/*
 			Remisiones Medidas de Emergencia.
 			sm, em, sc, cr y sv entran a /remisiones-medidas (la vista sale del rol).
-			am entra a /mis-remisiones-medidas.
+			am y ro entran a /mis-remisiones-medidas.
 		*/
 		secRouter.GET("/remisiones-medidas", RemisionesMedidasGET)
 		secRouter.GET("/mis-remisiones-medidas", MisRemisionesMedidasGET)

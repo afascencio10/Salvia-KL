@@ -44,6 +44,7 @@ El padre fija `vista` según el rol. Estas son las cinco vistas del componente y
 | `sc` | Supervisión del Convenio | `supervision-convenio` | `/salvia/remisiones-medidas` |
 | `cr` | Cruz Roja | `cruz-roja` | `/salvia/remisiones-medidas` |
 | `am` | Agente de Medidas | `agente` | `/salvia/mis-remisiones-medidas`, `agenteId` de la sesión |
+| `ro` | Agente de Seguimiento | `agente` | `/salvia/mis-remisiones-medidas`. El API usa la vista `remitente`: `submitted_by` de la sesión, cualquier estado |
 | `sv` | Supervisor | `supervisor` | `/salvia/remisiones-medidas`, con `puedeReasignar`. Puede revisar |
 
 `te` sigue siendo el Equipo Técnico de las decisiones del comité. No entra a esta bandeja.
@@ -135,6 +136,8 @@ Se pintan encima de los filtros solo en `supervisor` y `agente`. El valor sale d
 | `aprobadas` | Aprobadas | `aprobadas` |
 | `seguimiento` | En Seguimiento | `en_seguimiento` |
 
+Para `ro` se pintan estas mismas seis cards. «Mis remisiones» cuenta todo lo que envió. Las otras cinco solo cuentan su estado, así que no suman el total. El filtro de estado de `ro` lista los 16 estados; el de `am` sigue con estos cinco.
+
 Las otras tres vistas no llevan cards. Llevan un banner:
 
 | Vista | Tono | Texto |
@@ -168,7 +171,7 @@ RemisionesMedidasComponent  (.rme-wrapper)
 │       ├── Columna Caso                "Ver caso →" → E-14
 │       ├── Columna Remisión o Medidas  "Ver detalle →" → E-15, "Tareas" → E-16
 │       └── Columna Estado              botón de acción, agente o concepto
-├── Footer  "{visibles} de {alcance} remisiones"
+├── Paginación                          Anterior / Página / Siguiente. Cada clic pide la página
 └── Panel Tareas                        v-if hay fila elegida en E-16
     └── <case-tasks :case-id :referral-id :user-id :user-role>
 
@@ -176,7 +179,7 @@ Modal Reasignar                         E-08 abre, E-09 cancela, E-10 confirma
 Modal Revisión Equipo Técnico          E-11 abre, E-12 cancela, E-13 confirma
 ```
 
-No hay paginación.
+La paginación es de 10 filas y la resuelve el backend. `page` menor a 1 se trata como 1. Un `page_size` del cliente no cambia el tamaño. `total` cuenta después de búsqueda, estado, agente y urgencia. `alcance` y las cards siguen siendo el recorte del rol antes de esos filtros. Buscar, filtrar o limpiar vuelve a la página 1 y limpia la selección. El orden de las filas es `created_at` descendente en todas las vistas.
 
 ---
 
@@ -188,9 +191,12 @@ La grilla del agente tiene tres columnas: Caso, Medidas, Estado. La del resto: C
 
 | Vista agente | Resto de vistas |
 |---|---|
-| Avatar con la inicial, nombre, documento | Nombre y badge de riesgo en la misma línea |
-| Riesgo y municipio en la misma línea | `{iCode} · {documento}` y municipio debajo |
+| Avatar con la inicial, nombre | Nombre y badge de riesgo en la misma línea |
+| `Doc: {documento} · Tel: {celular}`, o `—` si falta | `Doc: {documento} · Tel: {celular}`, o `—` si falta |
+| Riesgo y municipio en la misma línea | Municipio debajo |
 | "Ver caso →" | "Ver caso →" |
+
+El id del caso no se pinta en la tabla. Sigue en «Ver caso», «Tareas» y el modal de revisión. El celular es el teléfono del form 2 del caso y, si no hay, el del contacto.
 
 El badge de riesgo usa el texto ya resuelto del caso: `victim_case_form2_risk_level` con el mismo mapa que el detalle del caso (`1` Bajo, `2` Moderado, `3` Alto, `4` Extremo; si no hay form 2 y el form 1 marca riesgo de feminicidio, "Alto (feminicidio)"). El seed pinta "Crítico" y "Medio"; al cablear el API se muestran las etiquetas reales. Municipio: `town_name` del municipio de la víctima, el mismo join del listado de Atención Psicosocial.
 

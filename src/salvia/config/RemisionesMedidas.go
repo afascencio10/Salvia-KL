@@ -6,10 +6,12 @@ const (
 	VistaMedidasSupervisionConvenio = "supervision-convenio"
 	VistaMedidasCruzRoja            = "cruz-roja"
 	VistaMedidasAgente              = "agente"
+	VistaMedidasRemitente           = "remitente"
 )
 
 // VistaRemisionesMedidas traduce el rol de sesión a la vista de la bandeja.
-// sm y sv reasignan. am es la bandeja propia. ok es false si el rol no participa.
+// sm y sv reasignan. am es la bandeja propia. ro ve lo que él envió.
+// ok es false si el rol no participa.
 func VistaRemisionesMedidas(role string) (vista string, puedeReasignar bool, ok bool) {
 	switch role {
 	case "em":
@@ -22,6 +24,8 @@ func VistaRemisionesMedidas(role string) (vista string, puedeReasignar bool, ok 
 		return VistaMedidasSupervisor, true, true
 	case "am":
 		return VistaMedidasAgente, false, true
+	case "ro":
+		return VistaMedidasRemitente, false, true
 	default:
 		return "", false, false
 	}

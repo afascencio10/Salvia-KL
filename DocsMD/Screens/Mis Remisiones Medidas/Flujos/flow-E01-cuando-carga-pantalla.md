@@ -27,7 +27,7 @@ PASO 1 — Sesión
 PASO 2 — Permiso HTML
 
   CheckPermission(..., "get_mis_remisiones_medidas", s.CurrentRole)
-  El permiso es true solo para am.
+  El permiso es true para am y ro.
   Si se niega, CheckPermission responde 401 y TERMINAR.
 
 PASO 3 — Render

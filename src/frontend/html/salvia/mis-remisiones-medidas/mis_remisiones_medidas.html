@@ -3,7 +3,11 @@
     <div class="welcome-section">
         <div>
             <h2><b>Mis Remisiones — Medidas de Emergencia</b></h2>
+            {{ if eq .currentRole "ro" }}
+            <p class="text-muted mb-0">Remisiones que enviaste</p>
+            {{ else }}
             <p class="text-muted mb-0">Remisiones asignadas a tu perfil</p>
+            {{ end }}
         </div>
     </div>
 

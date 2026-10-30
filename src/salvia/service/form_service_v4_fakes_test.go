@@ -302,6 +302,9 @@ type v4ReferralFake struct {
 func (f *v4ReferralFake) CountByStatus(context.Context, string, string) (map[string]int, error) {
 	return nil, nil
 }
+func (f *v4ReferralFake) Count(context.Context, repository.EmergencyReferralListFilter) (int, error) {
+	return 0, nil
+}
 func (f *v4ReferralFake) List(context.Context, repository.EmergencyReferralListFilter) ([]repository.EmergencyReferralRow, error) {
 	return nil, nil
 }

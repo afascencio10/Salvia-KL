@@ -16,8 +16,9 @@ import (
 )
 
 // EmergencyReferralListFilter es el recorte de la vista más los filtros de UI.
-// AgentICode es el icode de sesión y solo aplica en la vista agente.
+// AgentICode es el icode de sesión. Lo usan las vistas agente y remitente.
 // AgentID es el filtro del supervisor: un icode o "sin-asignar".
+// Page y PageSize recortan el listado. PageSize en 0 devuelve todas las filas.
 type EmergencyReferralListFilter struct {
 	Vista      string
 	AgentICode string
@@ -26,6 +27,8 @@ type EmergencyReferralListFilter struct {
 	AgentID    string
 	Urgency    string
 	ID         string
+	Page       int
+	PageSize   int
 }
 
 // EmergencyReferralRow es una fila ya unida al caso, al agente y a la revisión.
@@ -34,6 +37,7 @@ type EmergencyReferralRow struct {
 	CaseICode              string
 	CaseName               string
 	DocNumber              string
+	VictimPhone            string
 	RiskLabel              string
 	Municipality           string
 	Measures               []string
@@ -66,6 +70,7 @@ type emergencyReferralScan struct {
 	CaseICode              string `gorm:"column:case_i_code"`
 	CaseName               string `gorm:"column:case_name"`
 	DocNumber              string `gorm:"column:doc_number"`
+	VictimPhone            string `gorm:"column:victim_phone"`
 	RiskLabel              string `gorm:"column:risk_label"`
 	Municipality           string `gorm:"column:municipality"`
 	MeasuresJSON           string `gorm:"column:measures"`
@@ -86,6 +91,7 @@ type emergencyReferralDetailScan struct {
 	CaseICode              string        `gorm:"column:case_i_code"`
 	CaseName               string        `gorm:"column:case_name"`
 	DocNumber              string        `gorm:"column:doc_number"`
+	VictimPhone            string        `gorm:"column:victim_phone"`
 	RiskLabel              string        `gorm:"column:risk_label"`
 	Municipality           string        `gorm:"column:municipality"`
 	MeasuresJSON           string        `gorm:"column:measures"`
@@ -115,6 +121,8 @@ type statusCountRow struct {
 // EmergencyMeasureReferralRepository lee y actualiza la bandeja de medidas.
 type EmergencyMeasureReferralRepository interface {
 	CountByStatus(ctx context.Context, vista, agentICode string) (map[string]int, error)
+	// Count cuenta las filas del listado después de los filtros de UI.
+	Count(ctx context.Context, f EmergencyReferralListFilter) (int, error)
 	List(ctx context.Context, f EmergencyReferralListFilter) ([]EmergencyReferralRow, error)
 	// FindDetail lee una remisión dentro del recorte de la vista. Nil si no entra.
 	FindDetail(ctx context.Context, vista, agentICode, id string) (*EmergencyReferralDetailRow, error)
@@ -182,11 +190,35 @@ func (r *emergencyMeasureReferralRepository) CreateWithMeasures(ctx context.Cont
 	})
 }
 
+// referralVictimPhoneSelect usa el mismo criterio que el listado de casos:
+// teléfono del form 2 y, si no hay, el del contacto.
+const referralVictimPhoneSelect = `
+COALESCE(
+	NULLIF((
+		SELECT vf2.victim_case_form2_victim_phone::text
+		FROM salvia.victim_case_form2 vf2
+		WHERE vc.victim_case_id IS NOT NULL
+		  AND vf2.victim_case_form2_victim_case = vc.victim_case_id
+		ORDER BY vf2.victim_case_form2_id DESC
+		LIMIT 1
+	), ''),
+	(
+		SELECT vcf1.victim_contact_form1_phone::text
+		FROM salvia.victim_contact_form1 vcf1
+		WHERE vc.victim_case_victim_contact IS NOT NULL
+		  AND vcf1.victim_contact_form1_victim_contact = vc.victim_case_victim_contact
+		ORDER BY vcf1.victim_contact_form1_id DESC
+		LIMIT 1
+	),
+	''
+)`
+
 const referralListSelect = `
 	r.id::text AS id,
 	COALESCE(vc.victim_case_i_code, r.case_id, '') AS case_i_code,
 	TRIM(CONCAT(COALESCE(vc.victim_case_victim_names, ''), ' ', COALESCE(vc.victim_case_victim_last_names, ''))) AS case_name,
 	COALESCE(vc.victim_case_victim_doc_number, '') AS doc_number,
+	(` + referralVictimPhoneSelect + `) AS victim_phone,
 	CASE
 		WHEN risk_level.level IS NOT NULL THEN
 			CASE risk_level.level
@@ -311,17 +343,39 @@ func (r *emergencyMeasureReferralRepository) CountByStatus(ctx context.Context, 
 	return out, nil
 }
 
-func (r *emergencyMeasureReferralRepository) List(ctx context.Context, f EmergencyReferralListFilter) ([]EmergencyReferralRow, error) {
+func (r *emergencyMeasureReferralRepository) Count(ctx context.Context, f EmergencyReferralListFilter) (int, error) {
 	clause, args := scopeClause(f.Vista, f.AgentICode)
 	clause, args = appendFilters(clause, args, f)
-	var scanned []emergencyReferralScan
+	var n int
 	err := r.db.WithContext(ctx).Raw(`
-		SELECT `+referralListSelect+`
+		SELECT COUNT(DISTINCT r.id)::int
 		`+referralListFrom+`
 		WHERE r.deleted_at IS NULL
 		`+clause+`
-		ORDER BY (r.urgency = ?) DESC, r.referred_at DESC NULLS LAST, r.created_at DESC
-	`, append(args, models.EmergencyReferralUrgencyRiesgoInminente)...).Scan(&scanned).Error
+	`, args...).Scan(&n).Error
+	return n, err
+}
+
+func (r *emergencyMeasureReferralRepository) List(ctx context.Context, f EmergencyReferralListFilter) ([]EmergencyReferralRow, error) {
+	clause, args := scopeClause(f.Vista, f.AgentICode)
+	clause, args = appendFilters(clause, args, f)
+	query := `
+		SELECT ` + referralListSelect + `
+		` + referralListFrom + `
+		WHERE r.deleted_at IS NULL
+		` + clause + `
+		ORDER BY r.created_at DESC`
+	if f.PageSize > 0 {
+		page := f.Page
+		if page < 1 {
+			page = 1
+		}
+		query += `
+		LIMIT ? OFFSET ?`
+		args = append(args, f.PageSize, (page-1)*f.PageSize)
+	}
+	var scanned []emergencyReferralScan
+	err := r.db.WithContext(ctx).Raw(query, args...).Scan(&scanned).Error
 	if err != nil {
 		return nil, err
 	}
@@ -339,6 +393,7 @@ func (r *emergencyMeasureReferralRepository) List(ctx context.Context, f Emergen
 			CaseICode:              strings.TrimSpace(row.CaseICode),
 			CaseName:               strings.TrimSpace(row.CaseName),
 			DocNumber:              row.DocNumber,
+			VictimPhone:            strings.TrimSpace(row.VictimPhone),
 			RiskLabel:              row.RiskLabel,
 			Municipality:           row.Municipality,
 			Measures:               measures,
@@ -396,6 +451,7 @@ func (r *emergencyMeasureReferralRepository) FindDetail(ctx context.Context, vis
 			CaseICode:              strings.TrimSpace(scanned.CaseICode),
 			CaseName:               strings.TrimSpace(scanned.CaseName),
 			DocNumber:              scanned.DocNumber,
+			VictimPhone:            strings.TrimSpace(scanned.VictimPhone),
 			RiskLabel:              scanned.RiskLabel,
 			Municipality:           scanned.Municipality,
 			Measures:               measures,
@@ -651,6 +707,8 @@ func scopeClause(vista, agentICode string) (string, []interface{}) {
 		return "AND r.status IN ?", []interface{}{models.EmergencyReferralStatusesCruzRoja()}
 	case "agente":
 		return "AND r.assigned_agent_id = ? AND r.status IN ?", []interface{}{agentICode, models.EmergencyReferralStatusesAgente()}
+	case "remitente":
+		return "AND BTRIM(r.submitted_by::text) = ?", []interface{}{agentICode}
 	default:
 		return "", nil
 	}

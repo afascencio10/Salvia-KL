@@ -9,9 +9,9 @@ import (
 )
 
 // remisionMedidaBackFallbackPath es el listado de origen según el rol.
-// am entra desde su bandeja. El resto, desde Remisiones Medidas.
+// am y ro entran desde su bandeja. El resto, desde Remisiones Medidas.
 func remisionMedidaBackFallbackPath(role string) string {
-	if role == "am" {
+	if role == "am" || role == "ro" {
 		return "/salvia/mis-remisiones-medidas"
 	}
 	return "/salvia/remisiones-medidas"
@@ -19,7 +19,7 @@ func remisionMedidaBackFallbackPath(role string) string {
 
 // RemisionMedidaDetalleGET renderiza el detalle de una remisión de medidas.
 // Ruta: GET /salvia/remision-medida/:id
-// Acceso: get_remision_medida_detalle (sm, em, sc, cr, sv, am).
+// Acceso: get_remision_medida_detalle (sm, em, sc, cr, sv, am, ro).
 func RemisionMedidaDetalleGET(c *gin.Context) {
 	sc := CheckAndGetSession(c, "get_remision_medida_detalle")
 	if sc == nil {

@@ -33,16 +33,16 @@
                 autocomplete="off"
                 @input="onSearchInput"
             >
-            <select v-if="muestraFiltroEstado" class="rme-input" v-model="filtroEstado" @change="cargar">
+            <select v-if="muestraFiltroEstado" class="rme-input" v-model="filtroEstado" @change="cargarDesdeInicio">
                 <option value="">Estado remisión</option>
                 <option v-for="estado in estadosFiltro" :key="estado.value" :value="estado.value">${ estado.label }</option>
             </select>
-            <select v-if="muestraFiltroAgente" class="rme-input" v-model="filtroAgente" @change="cargar">
+            <select v-if="muestraFiltroAgente" class="rme-input" v-model="filtroAgente" @change="cargarDesdeInicio">
                 <option value="">Agente asignado</option>
                 <option value="sin-asignar">Sin asignar</option>
                 <option v-for="agente in agentes" :key="agente.id" :value="agente.id">${ agente.nombre }</option>
             </select>
-            <select class="rme-input" v-model="filtroUrgencia" @change="cargar">
+            <select class="rme-input" v-model="filtroUrgencia" @change="cargarDesdeInicio">
                 <option value="">Urgencia</option>
                 <option value="riesgo_inminente">Riesgo inminente</option>
                 <option value="normal">Normal</option>
@@ -67,7 +67,12 @@
                 <span>${ esAgente ? 'Estado' : 'Estado y asignación' }</span>
             </div>
 
-            <div v-if="visibles.length === 0" class="rme-empty">${ emptyMessage }</div>
+            <div v-if="loading" class="rme-table-loading">
+                <div class="rme-loading-spinner"></div>
+                <span>Cargando remisiones...</span>
+            </div>
+
+            <div v-else-if="visibles.length === 0" class="rme-empty">${ emptyMessage }</div>
 
             <template v-else>
                 <div
@@ -91,7 +96,7 @@
                                 <span class="rme-avatar">${ inicial(item.caso.nombre) }</span>
                                 <span class="rme-nombre">${ item.caso.nombre }</span>
                             </div>
-                            <p class="rme-meta rme-meta--indent">${ item.caso.docNumero }</p>
+                            <p class="rme-meta rme-meta--indent">Doc: ${ item.caso.docNumero || '—' } · Tel: ${ item.caso.celular || '—' }</p>
                             <div class="rme-meta-row rme-meta--indent">
                                 <span class="rme-risk" :class="claseRiesgo(item.caso.nivelRiesgo)">${ item.caso.nivelRiesgo }</span>
                                 <span class="rme-meta">${ item.caso.municipio }</span>
@@ -125,7 +130,7 @@
                                 <span class="rme-nombre">${ item.caso.nombre }</span>
                                 <span class="rme-risk" :class="claseRiesgo(item.caso.nivelRiesgo)">${ item.caso.nivelRiesgo }</span>
                             </div>
-                            <p class="rme-meta">${ item.caso.id } · ${ item.caso.docNumero }</p>
+                            <p class="rme-meta">Doc: ${ item.caso.docNumero || '—' } · Tel: ${ item.caso.celular || '—' }</p>
                             <p class="rme-muni">${ item.caso.municipio }</p>
                             <button type="button" class="rme-link" @click="onVerCaso(item)">Ver caso →</button>
                         </div>
@@ -167,7 +172,24 @@
         </div>
     </div>
 
-    <p class="rme-count">${ visibles.length } de ${ alcanceTotal } remisiones</p>
+    <div class="rme-pagination">
+        <button
+            type="button"
+            class="rme-page-btn"
+            :disabled="currentPage === 1 || loading"
+            @click="changePage(currentPage - 1)"
+        >← Anterior</button>
+        <div class="rme-pagination-meta">
+            <span class="rme-page-info">Página ${ currentPage } de ${ totalPages }</span>
+            <span class="rme-total-records">Total de registros: ${ totalFiltrado }</span>
+        </div>
+        <button
+            type="button"
+            class="rme-page-btn"
+            :disabled="currentPage === totalPages || loading"
+            @click="changePage(currentPage + 1)"
+        >Siguiente →</button>
+    </div>
     <p v-if="accionError" class="rme-modal-text">${ accionError }</p>
 
     <section v-if="panelTareas" class="rme-tareas">

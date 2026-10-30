@@ -76,7 +76,7 @@
                 <span>Remisiones Medidas</span>
             </a>
             {{ end }}
-            {{ if eq .currentRole "am" }}
+            {{ if or (eq .currentRole "am") (eq .currentRole "ro") }}
             <a href="/salvia/mis-remisiones-medidas" class="salvia-sidebar__nav-link">
                 <i class="fas fa-folder-open" aria-hidden="true"></i>
                 <span>Mis Remisiones Medidas</span>

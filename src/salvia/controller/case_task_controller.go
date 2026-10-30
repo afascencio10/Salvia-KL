@@ -110,7 +110,7 @@ var equipoTecnicoRoles = map[string]bool{"te": true}
 
 // medidasTaskRoles puede pedir las tareas de una remisión. No abre la bandeja
 // completa del caso: el listado va filtrado por referralId.
-var medidasTaskRoles = map[string]bool{"sm": true, "em": true, "sc": true, "cr": true, "am": true, "sv": true}
+var medidasTaskRoles = map[string]bool{"sm": true, "em": true, "sc": true, "cr": true, "am": true, "sv": true, "ro": true}
 
 // misTareasRolesExcludingEntidadMecanismo — mismos roles que misTareasRoles salvo
 // entidad y mecanismo. Gatea las tareas de un caso completo (caseId sin barrierId ni

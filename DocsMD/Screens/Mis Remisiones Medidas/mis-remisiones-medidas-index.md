@@ -1,8 +1,8 @@
 # Mis Remisiones — Medidas de Emergencia — Índice
 
-Bandeja del agente de medidas (`am`). Monta el mismo [`remisiones-medidas-component`](../../Componentes/Remisiones%20Medidas%20component/remisiones-medidas-component-events.md) con `vista="agente"`. Ruta `GET /salvia/mis-remisiones-medidas`.
+Bandeja propia de medidas. La montan el agente de medidas (`am`) y el agente de seguimiento (`ro`), con el mismo [`remisiones-medidas-component`](../../Componentes/Remisiones%20Medidas%20component/remisiones-medidas-component-events.md) en `vista="agente"`. Ruta `GET /salvia/mis-remisiones-medidas`.
 
-El recorte (solo lo asignado a ese agente, y solo cinco estados) está en E-01 del componente. Esta pantalla no vuelve a documentar filtros ni cards.
+`am` ve lo asignado a su icode y solo cinco estados. `ro` ve las remisiones cuyo `submitted_by` es su icode, en cualquier estado. El API distingue esas dos con las vistas `agente` y `remitente`. Esta pantalla no vuelve a documentar filtros ni cards.
 
 ## Navegación
 
@@ -22,10 +22,10 @@ El recorte (solo lo asignado a ese agente, y solo cinco estados) está en E-01 d
 | Handler | `MisRemisionesMedidasGET` en `src/salvia/facades/MisRemisionesMedidasFacade.go` |
 | Template | `src/frontend/html/salvia/mis-remisiones-medidas/mis_remisiones_medidas.html` |
 | Título | Mis Remisiones — Medidas de Emergencia |
-| Subtítulo | Remisiones asignadas a tu perfil |
-| Permiso | `get_mis_remisiones_medidas`: solo `am` |
-| Menú | Ítem **Mis Remisiones Medidas**, solo para `am` |
-| Entrada al iniciar sesión | `/salvia/mis-remisiones-medidas` |
+| Permiso | `get_mis_remisiones_medidas`: `am` y `ro` |
+| Menú | Ítem **Mis Remisiones Medidas**, para `am` y `ro` |
+| Entrada al iniciar sesión | `/salvia/mis-remisiones-medidas` solo para `am`. El login de `ro` no cambia |
+| Subtítulo | `am`: Remisiones asignadas a tu perfil. `ro`: Remisiones que enviaste |
 
 ## Qué monta
 

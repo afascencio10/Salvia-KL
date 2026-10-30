@@ -97,6 +97,7 @@
                 id: item.caseICode || '',
                 nombre: item.caseName || '',
                 docNumero: item.docNumber || '',
+                celular: item.victimPhone || '',
                 nivelRiesgo: item.riskLabel || '',
                 municipio: item.municipality || '',
             },
@@ -136,6 +137,9 @@
                 resultadosRevision: RESULTADOS_REVISION,
                 remisiones: [],
                 alcanceTotal: 0,
+                currentPage: 1,
+                pageSize: 10,
+                totalFiltrado: 0,
                 cards: [],
                 banner: null,
                 loading: true,
@@ -176,7 +180,12 @@
                 return this.esAgente ? 'Limpiar' : 'Limpiar filtros';
             },
             estadosFiltro: function() {
+                if (this.userRole === 'ro') return ESTADOS;
                 return this.esAgente ? estadosDe(ESTADOS_AGENTE) : ESTADOS;
+            },
+            totalPages: function() {
+                var pages = Math.ceil((this.totalFiltrado || 0) / (this.pageSize || 10));
+                return pages > 0 ? pages : 1;
             },
             claseGrilla: function() {
                 return this.puedeReasignar ? 'rme-grid--check' : 'rme-grid--3';
@@ -194,6 +203,7 @@
                 if (this.loadError) return this.loadError;
                 if (this.loading) return '';
                 if (this.esAgente && this.alcanceTotal === 0) {
+                    if (this.userRole === 'ro') return 'No has remitido casos.';
                     return 'No tienes remisiones asignadas.';
                 }
                 return 'No hay remisiones que coincidan con los filtros.';
@@ -243,7 +253,10 @@
             onSearchInput: function() {
                 var self = this;
                 clearTimeout(this.searchTimer);
-                this.searchTimer = setTimeout(function() { self.cargar(); }, 400);
+                this.reqSeq += 1;
+                this.loading = true;
+                this.loadError = '';
+                this.searchTimer = setTimeout(function() { self.cargarDesdeInicio(); }, 400);
             },
             limpiarFiltros: function() {
                 clearTimeout(this.searchTimer);
@@ -251,6 +264,17 @@
                 this.filtroEstado = '';
                 this.filtroAgente = '';
                 this.filtroUrgencia = '';
+                this.cargarDesdeInicio();
+            },
+            cargarDesdeInicio: function() {
+                this.currentPage = 1;
+                this.selectedIds = [];
+                this.cargar();
+            },
+            changePage: function(newPage) {
+                if (newPage < 1 || newPage > this.totalPages || newPage === this.currentPage) return;
+                this.currentPage = newPage;
+                this.selectedIds = [];
                 this.cargar();
             },
             cargar: function() {
@@ -263,6 +287,7 @@
                 if (this.filtroUrgencia) params.set('urgency', this.filtroUrgencia);
                 if (this.vista === 'supervisor' && this.filtroAgente) params.set('agent_id', this.filtroAgente);
                 if (this.vista === 'agente' && this.agenteId) params.set('agent_id', this.agenteId);
+                params.set('page', String(this.currentPage || 1));
                 this.loading = true;
                 this.loadError = '';
                 fetch('/api/v1/emergency-measure-referrals?' + params.toString(), { credentials: 'same-origin' })
@@ -270,6 +295,9 @@
                     .then(function(data) {
                         if (seq !== self.reqSeq) return;
                         self.alcanceTotal = data.alcance || 0;
+                        self.totalFiltrado = data.total || 0;
+                        self.pageSize = data.pageSize || 10;
+                        self.currentPage = data.page || self.currentPage;
                         self.remisiones = (data.items || []).map(aFila);
                         self.cards = (data.cards || []).map(function(card) {
                             return {
@@ -290,6 +318,7 @@
                         if (seq !== self.reqSeq) return;
                         self.remisiones = [];
                         self.alcanceTotal = 0;
+                        self.totalFiltrado = 0;
                         self.cards = [];
                         self.banner = null;
                         self.loading = false;

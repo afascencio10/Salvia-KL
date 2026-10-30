@@ -1,5 +1,5 @@
 // Package salvia_facades — MisRemisionesMedidasFacade: pantalla Mis Remisiones — Medidas de Emergencia.
-// Solo el rol am. El id del agente sale de la sesión.
+// am ve lo asignado. ro ve lo que él envió. El icode sale de la sesión.
 package salvia_facades
 
 import (
@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// MisRemisionesMedidasGET renderiza la bandeja del agente de medidas.
+// MisRemisionesMedidasGET renderiza la bandeja propia de medidas.
 func MisRemisionesMedidasGET(c *gin.Context) {
 	session := sessions.Default(c)
 	sessionID, ok := session.Get("userData").(string)

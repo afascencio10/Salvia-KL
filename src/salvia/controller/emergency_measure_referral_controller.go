@@ -6,6 +6,7 @@ import (
 	"bitsflow/salvia/service"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-contrib/sessions"
@@ -41,19 +42,19 @@ func (c *EmergencyMeasureReferralController) List(ctx *gin.Context) {
 		return
 	}
 	perm := "get_remisiones_medidas"
-	if vista == salvia_config.VistaMedidasAgente {
+	if vista == salvia_config.VistaMedidasAgente || vista == salvia_config.VistaMedidasRemitente {
 		perm = "get_mis_remisiones_medidas"
 	}
 	if !utils.CheckPermission(salvia_config.PermissionsByRole, perm, s.CurrentRole, ctx) {
 		return
 	}
 	queryAgent := strings.TrimSpace(ctx.Query("agent_id"))
-	if vista == salvia_config.VistaMedidasAgente && queryAgent != "" && queryAgent != s.UserICode {
+	if (vista == salvia_config.VistaMedidasAgente || vista == salvia_config.VistaMedidasRemitente) && queryAgent != "" && queryAgent != s.UserICode {
 		ctx.JSON(http.StatusForbidden, gin.H{"error": "el agente no coincide con la sesión"})
 		return
 	}
 	status := ""
-	if vista == salvia_config.VistaMedidasSupervisor || vista == salvia_config.VistaMedidasAgente {
+	if vista == salvia_config.VistaMedidasSupervisor || vista == salvia_config.VistaMedidasAgente || vista == salvia_config.VistaMedidasRemitente {
 		status = strings.TrimSpace(ctx.Query("status"))
 	}
 	agentFilter := ""
@@ -67,6 +68,7 @@ func (c *EmergencyMeasureReferralController) List(ctx *gin.Context) {
 		Status:         status,
 		AgentID:        agentFilter,
 		Urgency:        strings.TrimSpace(ctx.Query("urgency")),
+		Page:           referralPage(ctx.Query("page")),
 	})
 	if err != nil {
 		writeReferralErr(ctx, err)
@@ -175,6 +177,14 @@ func (c *EmergencyMeasureReferralController) Review(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, item)
+}
+
+func referralPage(raw string) int {
+	n, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || n < 1 {
+		return 1
+	}
+	return n
 }
 
 func referralSession(ctx *gin.Context) *utils.CommonSession {

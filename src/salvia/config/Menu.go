@@ -344,10 +344,10 @@ var PermissionsByRole map[string]map[string]bool = map[string]map[string]bool{
 	// ── Remisiones Medidas de Emergencia ────────────────────────────────────
 	// sm, em, sc y cr comparten /salvia/remisiones-medidas; la vista sale del rol.
 	// sv entra a esa misma pantalla (vista supervisor), puede revisar y reasignar.
-	// La bandeja del agente es solo am.
+	// am ve lo asignado. ro ve lo que él envió, en la misma pantalla.
 	"get_remisiones_medidas":      {"sm": true, "em": true, "sc": true, "cr": true, "sv": true},
-	"get_mis_remisiones_medidas":  {"am": true},
-	"get_remision_medida_detalle": {"sm": true, "em": true, "sc": true, "cr": true, "sv": true, "am": true},
+	"get_mis_remisiones_medidas":  {"am": true, "ro": true},
+	"get_remision_medida_detalle": {"sm": true, "em": true, "sc": true, "cr": true, "sv": true, "am": true, "ro": true},
 	"reassign_remisiones_medidas": {"sm": true, "sv": true},
 	"review_remisiones_medidas":   {"sm": true, "em": true, "sv": true},
 
