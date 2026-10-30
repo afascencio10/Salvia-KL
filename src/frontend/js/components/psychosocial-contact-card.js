@@ -2,7 +2,8 @@
  * psychosocial-contact-card
  * Card "Intentos de contacto 3x3": contador (X de N), tiles de último/próximo
  * intento, historial colapsable con badges (NO CONTESTÓ / SÍ CONTESTÓ / PROGRAMADO)
- * y botón "Registrar intento" que dispara el flujo <psychosocial-contact-modal>.
+ * y botón exclusivo "Registrar intento". El cierre por falta de contacto y
+ * "Fijar próximo intento" son botones aparte.
  * Autosuficiente: carga su historial vía GET. Se monta en una o varias pantallas.
  */
 (function injectPsychosocialContactCardStyles() {
@@ -15,8 +16,12 @@
         .psc-card-title { font-size:1.15rem; font-weight:800; color:#111827; margin:0; }
         .psc-card-count { font-size:.85rem; color:#6b7280; margin:.15rem 0 0; }
         .psc-card-help { font-size:.72rem; color:#9ca3af; margin:.35rem 0 0; }
+        .psc-card-actions { display:flex; flex-direction:column; align-items:stretch; gap:.45rem; }
         .psc-register-btn { background:#7c3aed; color:#fff; border:none; border-radius:.65rem; padding:.7rem 1.1rem; font-weight:700; font-size:.85rem; cursor:pointer; white-space:nowrap; }
         .psc-register-btn:disabled { opacity:.6; cursor:not-allowed; }
+        .psc-next-btn { background:#fff; color:#6d28d9; border:1px solid #ddd6fe; border-radius:.65rem; padding:.7rem 1.1rem; font-weight:700; font-size:.85rem; cursor:pointer; white-space:nowrap; }
+        .psc-close-btn { background:#fff; color:#b91c1c; border:1px solid #fecaca; border-radius:.65rem; padding:.7rem 1.1rem; font-weight:700; font-size:.85rem; cursor:pointer; white-space:nowrap; }
+        .psc-next-btn:disabled, .psc-close-btn:disabled { opacity:.6; cursor:not-allowed; }
         .psc-tiles { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; margin:1.1rem 0; }
         .psc-tile { background:#f5f3ff; border:1px solid #ede9fe; border-radius:.75rem; padding:.8rem .9rem; }
         .psc-tile-label { font-size:.72rem; font-weight:700; color:#6d28d9; display:flex; align-items:center; gap:.4rem; }
@@ -58,7 +63,16 @@ app.component('psychosocial-contact-card', {
     computed: {
         attempts: function() { return (this.data && this.data.attempts) || []; },
         counters: function() { return (this.data && this.data.counters) || {}; },
-        caseName: function() { return (this.data && this.data.caseName) || ''; }
+        caseName: function() { return (this.data && this.data.caseName) || ''; },
+        processStatus: function() { return (this.data && this.data.processStatus) || ''; },
+        // Cierre visible solo con la regla 9 intentos en ≥3 días, y si el proceso sigue abierto a cierre.
+        canCloseForNoContact: function() {
+            return this.canRegister && !!this.counters.closureEligible && this.processStatus !== 'cerrado';
+        },
+        // El agendamiento del próximo intento queda aparte del botón de registrar.
+        canScheduleNext: function() {
+            return this.canRegister && (this.counters.dailyFailedCount || 0) >= 3 && this.processStatus !== 'cerrado';
+        }
     },
     mounted: function() { this.fetchHistory(); },
     methods: {
@@ -78,16 +92,25 @@ app.component('psychosocial-contact-card', {
                 })
                 .catch(function(e) { self.loading = false; if (!isRefresh) { self.error = e.message; } });
         },
-        openRegister: function() {
+        processContext: function() {
             var c = this.counters;
-            this.$refs.modal.start({
+            return {
                 id: this.psicosocialId,
                 caseName: this.caseName,
                 dailyFailedCount: c.dailyFailedCount || 0,
                 totalCount: c.totalCount || 0,
                 distinctDaysCount: c.distinctDaysCount || 0,
                 closureEligible: !!c.closureEligible
-            });
+            };
+        },
+        openRegister: function() {
+            this.$refs.modal.start(this.processContext());
+        },
+        openClosure: function() {
+            this.$refs.modal.startClosure(this.processContext());
+        },
+        openNextAttempt: function() {
+            this.$refs.modal.startNextAttempt(this.processContext());
         },
         onModalCompleted: function() { this.fetchHistory(true); },
         fmt: function(v) {
@@ -115,9 +138,17 @@ app.component('psychosocial-contact-card', {
             <p class="psc-card-count">\${ counters.totalCount || 0 } de \${ closureThreshold } intentos</p>
             <p class="psc-card-help">Al llegar a \${ closureThreshold } intentos en ≥3 días distintos se habilita el cierre por imposibilidad de contacto.</p>
           </div>
-          <button v-if="canRegister" class="psc-register-btn" :disabled="counters.maxAttemptsReached" @click="openRegister">
-            <i class="fas fa-phone-alt"></i> Registrar intento
-          </button>
+          <div v-if="canRegister" class="psc-card-actions">
+            <button class="psc-register-btn" :disabled="counters.maxAttemptsReached" @click="openRegister">
+              <i class="fas fa-phone-alt"></i> Registrar intento
+            </button>
+            <button v-if="canScheduleNext" class="psc-next-btn" @click="openNextAttempt">
+              <i class="far fa-calendar-alt"></i> Fijar próximo intento
+            </button>
+            <button v-if="canCloseForNoContact" class="psc-close-btn" @click="openClosure">
+              <i class="fas fa-times-circle"></i> Cerrar por falta de contacto
+            </button>
+          </div>
         </div>
 
         <div class="psc-tiles">

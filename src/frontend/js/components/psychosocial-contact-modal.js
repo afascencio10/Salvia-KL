@@ -3,11 +3,11 @@
  * Flujo de modales del esquema 3x3 de Atención Psicosocial. Autónomo (no usa
  * follow_up_v2). Invocado por `ref` desde <psychosocial-contact-card> vía start(process).
  *
+ *  "Registrar intento" abre siempre ¿Contestó? (botón exclusivo del contacto).
  *  ¿Contestó? ──No──> registra intento fallido (con nota) y cierra (o abre Acciones al 3º del día)
- *             ──Sí──> registra contacto exitoso ──> Consentimiento
- *                        ──No acepta──> (formulario de cierre — futuro)
- *                        ──Sí acepta──> Sesión (inmediata / agendada)
- *  Acciones (3 fallidos/día): 3a próximo intento · 3b añadir intento (<50) · 3c cierre (9 en 3 días)
+ *             ──Sí──> registra contacto exitoso ──> Sesión (inmediata / agendada)
+ *  Acciones (tras el 3º fallido del día): próximo intento · añadir intento (<50) · cierre si ya es elegible
+ *  El cierre por falta de contacto también se abre directo desde el card (startClosure).
  */
 (function injectPsychosocialContactModalStyles() {
     if (document.getElementById('psc-modal-styles')) return;
@@ -92,14 +92,27 @@ app.component('psychosocial-contact-modal', {
             this.proc = process || {};
             this.note = '';
             this.initAttemptDateTime();
-            // Abre directo el modal de acciones si (a) hay 3 fallidos del día (RN-04)
-            // o (b) el proceso ya es elegible para cierre por imposibilidad (RN-06):
-            // en ese caso la opción de cierre debe estar siempre a la vista.
-            if ((this.proc.dailyFailedCount || 0) >= 3 || this.proc.closureEligible) {
-                this.modalAcciones = true;
-            } else {
-                this.modalContesto = true;
-            }
+            // "Registrar intento" es exclusivo del contacto: siempre abre ¿Contestó?,
+            // aunque el día ya tenga 3 fallidos o el proceso ya pueda cerrarse.
+            // El cierre vive en su propio botón (startClosure).
+            this.modalConsentimiento = this.modalSesion = this.modalAcciones = false;
+            this.modalNextAttempt = this.modalCierre = false;
+            this.modalContesto = true;
+        },
+        // Cierre por falta de contacto, disparado por el botón propio del card.
+        startClosure: function(process) {
+            this.proc = process || {};
+            if (!this.proc.closureEligible) return;
+            this.modalContesto = this.modalConsentimiento = this.modalSesion = false;
+            this.modalAcciones = this.modalNextAttempt = false;
+            this.closeByImpossibility();
+        },
+        // Próximo intento, disparado por el botón propio del card (umbral diario).
+        startNextAttempt: function(process) {
+            this.proc = process || {};
+            this.modalContesto = this.modalConsentimiento = this.modalSesion = false;
+            this.modalAcciones = this.modalCierre = false;
+            this.openNextAttempt();
         },
 
         // ── Helpers ────────────────────────────────────────────────────
@@ -370,7 +383,7 @@ app.component('psychosocial-contact-modal', {
           <div class="psc-stack">
             <button class="psc-btn psc-btn-primary" :disabled="loading" @click="openNextAttempt"><i class="far fa-calendar-alt"></i> Fijar próximo intento</button>
             <button class="psc-btn psc-btn-ghost" :disabled="loading || (proc && proc.totalCount >= 50)" @click="addAttempt"><i class="fas fa-plus-circle"></i> Añadir intento \${ proc && proc.totalCount >= 50 ? '(tope 50)' : '' }</button>
-            <button v-if="proc && proc.closureEligible" class="psc-btn psc-btn-danger" :disabled="loading" @click="closeByImpossibility"><i class="fas fa-times-circle"></i> Cerrar por imposibilidad</button>
+            <button v-if="proc && proc.closureEligible" class="psc-btn psc-btn-danger" :disabled="loading" @click="closeByImpossibility"><i class="fas fa-times-circle"></i> Cerrar por falta de contacto</button>
           </div>
           <button class="psc-cancel" :disabled="loading" @click="closeAll">VOLVER</button>
         </div>
