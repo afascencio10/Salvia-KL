@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"io/fs"
 	"math/rand/v2"
+	"os"
 	"strconv"
 	"unicode"
 
@@ -226,12 +227,33 @@ func CheckPasswordStrength(password string) []string {
 }
 
 func LoadDBCLientConfig() db.DBClientConfig {
+	// En el sandbox cloud de Claude Code no hay salida de red hacia la BD
+	// compartida del equipo (Supabase) — se apunta a la BD local del sandbox.
+	// Ver cloudDevelopment/README.md. db_config.json (local) no se toca.
+	if os.Getenv("CLAUDE_CODE_REMOTE") == "true" {
+		return db.DBClientConfig{
+			Hostname:     getenvDefault("DB_HOST", "127.0.0.1"),
+			Port:         getenvDefault("DB_PORT", "5432"),
+			DatabaseName: getenvDefault("DB_NAME", "salvia_local"),
+			UserName:     getenvDefault("DB_USER", "postgres"),
+			Password:     getenvDefault("DB_PASSWORD", "postgres"),
+			SSLMode:      "disable",
+		}
+	}
+
 	data, err := fs.ReadFile(ConfigAssets, "config/db_config.json")
 	var config db.DBClientConfig = db.DBClientConfig{}
 	if err == nil {
 		json.Unmarshal([]byte(data), &config)
 	}
 	return config
+}
+
+func getenvDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
 
 func ParseUint64(u string) uint64 {

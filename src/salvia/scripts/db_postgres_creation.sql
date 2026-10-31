@@ -129,7 +129,7 @@ CREATE TABLE salvia.victim_case_form1
    victim_case_form1_victim_case BIGINT NOT NULL,
    CONSTRAINT victim_case_form1_pkey PRIMARY KEY (victim_case_form1_id),
    CONSTRAINT victim_case_form1_victim_case_form1_i_code_key UNIQUE (victim_case_form1_i_code)
-)
+);
 
 
 CREATE TABLE case_owner (
@@ -279,7 +279,7 @@ ALTER TABLE rel_alert_victim_case ADD CONSTRAINT rel_alert_id
 
 
 ALTER TABLE moment ADD CONSTRAINT moment_victim_case
-   FOREIGN KEY ( moment_victim_case) REFERENCES case(case_id) MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION ;
+   FOREIGN KEY ( moment_victim_case) REFERENCES victim_case(victim_case_id) MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION ;
 ALTER TABLE moment ADD CONSTRAINT moment_approval_owner
    FOREIGN KEY ( moment_approval_owner) REFERENCES case_owner(case_owner_id) MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION ;ALTER TABLE moment ADD CONSTRAINT moment_entity_branch
    FOREIGN KEY ( moment_entity_branch) REFERENCES entity_branch(entity_branch_id) MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION ;
@@ -1838,6 +1838,7 @@ CREATE TABLE feminicide_risk (
 
 CREATE TABLE rel_case_owner_feminicide (
     rel_case_owner_feminicide_id SERIAL NOT NULL,
+    rel_case_owner_feminicide_i_code CHARACTER VARYING(36) NOT NULL,
     rel_case_owner_feminicide_creation_date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     rel_case_owner_feminicide_status CHARACTER VARYING(1) NOT NULL,
     rel_case_owner_feminicide_case_owner BIGINT NOT NULL,
@@ -1848,6 +1849,7 @@ CREATE TABLE rel_case_owner_feminicide (
 
 CREATE TABLE rel_case_owner_feminicide_risk (
     rel_case_owner_feminicide_risk_id SERIAL NOT NULL,
+    rel_case_owner_feminicide_risk_i_code CHARACTER VARYING(36) NOT NULL,
     rel_case_owner_feminicide_risk_creation_date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     rel_case_owner_feminicide_risk_status CHARACTER VARYING(1) NOT NULL,
     rel_case_owner_feminicide_risk_case_owner BIGINT NOT NULL,

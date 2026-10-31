@@ -9,6 +9,8 @@ ContextoRequerimientosDesarrollo
 # al arrancar. Si quedan fuera del repositorio, el binario no compila y el
 # ambiente se queda sin los formularios que el código abre por UUID fijo.
 !src/internal/seed/*.sql
+# Excepción: seed sintético para la BD local del sandbox cloud (cloudDevelopment/).
+!cloudDevelopment/*.sql
 # Sesiones activas del servidor (contienen tokens y datos de usuario)
 src/sessions
 
