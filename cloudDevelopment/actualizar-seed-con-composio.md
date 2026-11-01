@@ -47,7 +47,8 @@ de solo-lectura sin tocar ni ver el secreto.
 
 | Qué se trae | Archivo | Cuándo se aplica |
 |---|---|---|
-| Catálogo y definiciones: `security.role`, geografía, `salvia.entity`, `sector_barrier`, `attention_line`, motor de formularios (`form`, `form_section`, `question`, `option`, `visibility_condition`, `repeater_group`), `victim_case_form2_enums` | `seed_reference_data.sql` (generado, no se edita a mano: se regenera repitiendo este procedimiento) | Fase 1: antes del primer arranque de la app |
+| Catálogo y definiciones: `security.role`, geografía, `salvia.entity`, `sector_barrier`, `attention_line`, motor de formularios (`form`, `form_section`, `question`, `option`, `visibility_condition`, `repeater_group`) | `seed_reference_data.sql` (generado, no se edita a mano: se regenera repitiendo este procedimiento) | Fase 1: antes del primer arranque de la app |
+| Catálogo de opciones `salvia.victim_case_form2_enums` (912 filas: sí/no, tipos de documento, tipo de reporte, sectores, barreras, criterios de remisión...) | `seed_reference_enums.sql` (generado; **reemplaza** el catálogo del dump legacy) | Fase 1. La app lo carga a memoria **una vez al arrancar**: tras cambiarlo con la app corriendo, reiníciala |
 | Cuentas de prueba sintéticas (`cloud.test.*`) y lo que cada rol necesita en tablas legacy | `seed_local_dev.sql` (a mano, `ON CONFLICT DO NOTHING` / `WHERE NOT EXISTS`) | Fase 1 |
 | Datos que un requerimiento necesita para probarse (casos, víctimas, contactos, seguimientos, barreras, remisiones, tareas, respuestas de formularios, etc.) **y cualquier dato en tablas que crea la app (GORM)** | `seed_test_data/AAAAMMDD-<slug>.sql` (un archivo por requerimiento) | Fase 2: **después** de que la app arranca |
 | Esquema (columnas/tablas que la BD real tiene y el sandbox no) | `schema_drift_patch.sql` | Fase 1, antes de los seeds |
@@ -222,14 +223,13 @@ generó el parche vigente el 2026-11-01.
 
 ## Gaps conocidos
 
-- `salvia.victim_case_form2_enums`: el dump de `db_postgres_creation.sql`
-  trae 790 filas; la BD real tiene 912. Son solo catálogo (opciones de
-  formulario) — no se completó porque requiere resolver conflicto de ID
-  contra las 790 ya cargadas por el DDL (deduplicar por `_name`, no por
-  ID). Si un feature nuevo necesita una opción de las ~122 faltantes, es
-  el próximo candidato para este procedimiento. Por esta misma razón
-  `schema_drift_patch.sql` **no** crea las FK de `victim_case_form2` hacia
-  esa tabla.
+- `salvia.victim_case_form2_enums`: **resuelto el 2026-11-01.** Se creyó que
+  al dump le faltaban 122 de 912 filas, pero la comparación con Supabase mostró
+  que el catálogo del dump era otra generación: 788 de sus 790 ids significaban
+  otra cosa (la BD real renombró y renumeró), faltaban 27 categorías y sobraban 6.
+  Por eso `seed_reference_enums.sql` lo **reemplaza** por el real (912 filas, mismos
+  ids) en vez de completarlo. Si un enum cambia en Supabase, regenerar ese archivo
+  con este procedimiento.
 - Geografía: se trajo `country`/`department`/`city`/`town` completos (1+33+
   1121+7838 filas) — el catálogo DIVIPOLA entero, no una muestra.
 - `schema_drift_patch.sql` no replica los índices únicos parciales de

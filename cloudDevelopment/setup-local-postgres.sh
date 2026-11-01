@@ -149,6 +149,10 @@ if [ ! -f "$SCHEMA_MARKER" ]; then
     # — ver cloudDevelopment/actualizar-seed-con-composio.md. Antes de los
     # usuarios de prueba: estos dependen de que los roles ya existan.
     $PSQL -d "$DB_NAME" -v ON_ERROR_STOP=1 -f "$REPO_ROOT/cloudDevelopment/seed_reference_data.sql"
+    # Catálogo de opciones real (victim_case_form2_enums, 912 filas): reemplaza el del
+    # dump legacy, que tiene otra numeración y le faltan 27 categorías. La app lo carga
+    # a memoria UNA vez al arrancar, así que tiene que estar antes del primer arranque.
+    $PSQL -d "$DB_NAME" -v ON_ERROR_STOP=1 -f "$REPO_ROOT/cloudDevelopment/seed_reference_enums.sql"
     $PSQL -d "$DB_NAME" -v ON_ERROR_STOP=1 -f "$REPO_ROOT/cloudDevelopment/seed_local_dev.sql"
 
     touch "$SCHEMA_MARKER"

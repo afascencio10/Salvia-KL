@@ -34,6 +34,8 @@ if [ -z "$PSQL_BIN" ]; then
     echo "[seed_test_data] ERROR: no encontré psql." >&2
     exit 1
 fi
+# Sin los avisos NOTICE de "IF NOT EXISTS ... skipping" en cada corrida.
+export PGOPTIONS="${PGOPTIONS:+$PGOPTIONS }-c client_min_messages=warning"
 PSQL="$PSQL_BIN -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -X -q"
 
 if [ "${1:-}" = "--wait" ]; then
