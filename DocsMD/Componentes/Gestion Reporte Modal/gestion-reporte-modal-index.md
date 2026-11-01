@@ -2,7 +2,7 @@
 
 Componente **nuevo** — concentra toda la máquina de estados de "Gestión reportes" (validación previa, esquema 3x3, cierre). Ver diseño completo, tomado literal de `Mockup_Reportes_Registro.html`, en [`gestion-reporte-modal-interface.md`](gestion-reporte-modal-interface.md).
 
-> **Estado:** ✅ Implementado y probado — 2026-10-13. 155 pruebas de Playwright en verde (ver [`QA/`](../../Screens/Listado%20Reportes/QA/gestion-reportes-qa-plan.md)); resumen del cambio en [`changelogOct2026.md`](changelogOct2026.md). La apertura de caso (M-10) queda diseñada pero **diferida, fuera de alcance de esta fase** (instrucción del usuario, 2026-10-11 — coincide con la nota de FigJam); el backend rechaza `close_reason='ap'` con 400 mientras tanto.
+> **Estado:** ✅ Implementado y probado — 2026-10-13. 155 pruebas de Playwright en verde (ver [`QA/`](../../Screens/Listado%20Reportes/QA/gestion-reportes-qa-plan.md)); resumen del cambio en [`changelogOct2026.md`](changelogOct2026.md). Re-verificado contra `develop` el 2026-10-31: sin cambios en el modal ni en sus endpoints. La apertura de caso (M-10) queda diseñada pero **diferida, fuera de alcance de esta fase** (instrucción del usuario, 2026-10-11 — coincide con la nota de FigJam); el backend rechaza `close_reason='ap'` con 400 mientras tanto.
 
 ## Archivos de este componente
 

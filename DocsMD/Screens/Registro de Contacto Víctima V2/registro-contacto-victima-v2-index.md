@@ -1,6 +1,6 @@
 # `registro-contacto-victima-v2` — Inventario de Eventos
 
-> ✅ **Implementado y probado — 2026-09-27.** Ver [`changelogSep2026.md`](changelogSep2026.md) para el resumen del cambio y [`QA/E10-cuando-envia-reporte-qa-cases.md`](QA/E10-cuando-envia-reporte-qa-cases.md) para los casos de prueba y su cobertura.
+> ✅ **Implementado y probado — 2026-09-27; MD sincronizado con el código el 2026-10-31.** Ver [`changelogSep2026.md`](changelogSep2026.md) para el resumen del cambio y [`QA/E10-cuando-envia-reporte-qa-cases.md`](QA/E10-cuando-envia-reporte-qa-cases.md) para los casos de prueba y su cobertura. Limitaciones conocidas (L1-L4) en [`registro-contacto-victima-v2-interface.md`](registro-contacto-victima-v2-interface.md#limitaciones-conocidas-verificadas-leyendo-el-código-2026-10-31).
 
 ## Archivos de esta pantalla
 
@@ -33,7 +33,7 @@
 | E-10 | [Cuando presiona "Enviar Reporte"](Flujos/flow-E10-cuando-envia-reporte.md) | User Interaction | **Sí** (crea `victim_contact` + `victim_contact_form2`) |
 | E-11 | [Cuando presiona "Volver al Inicio"](Flujos/flow-E11-cuando-vuelve-al-inicio.md) | User Interaction | No |
 
-> **Nota de alcance:** este inventario cubre únicamente el **Flujo A** del prototipo (`Mockup_Reportes_Registro.html`, pasos `auth → perfil → formulario → confirmacion`). El Flujo B (bandeja de agente, recontacto 3x3, apertura de caso) pertenece a una pantalla distinta, fuera del alcance de esta planeación.
+> **Nota de alcance:** este inventario cubre únicamente el **Flujo A** del prototipo (`Mockup_Reportes_Registro.html`, pasos `auth → perfil → formulario → confirmacion`). El Flujo B (bandeja de agente, recontacto 3x3, cierre del reporte) ya existe como pantallas aparte: [Listado Reportes](../Listado%20Reportes/listado-reportes-index.md) (asignación por el supervisor), [Mis Reportes](../Mis%20Reportes/mis-reportes-index.md) y el modal [`gestion-reporte-modal`](../../Componentes/Gestion%20Reporte%20Modal/gestion-reporte-modal-index.md). La apertura de caso (M-10) sigue diferida.
 
 > **Nota de completitud:** todos los eventos —incluidos los de navegación trivial (E-03, E-06, E-07, E-09, E-11)— tienen flujo documentado, siguiendo la regla de `dev-docs-workflow.md` para ítems nuevos (categoría A: "sin excepciones, no solo los complejos").
 
@@ -50,11 +50,14 @@
 ```
 Evento:       Cuando carga la pantalla
 Tipo:         Lifecycle
-Descripción:  Se ejecuta al montar el app Vue de /salvia/public-v2/nuevo. Inicializa
-              el wizard en step='auth' con un objeto form vacío, y solicita un
-              captchaID nuevo al backend (decisión 4: se mantiene captcha,
-              igual que V1). El widget de captcha se muestra recién en el
-              último paso, justo antes de "Enviar Reporte".
+Descripción:  Se ejecuta al abrir GET /salvia/public-v2/nuevo. El backend genera un
+              captchaID nuevo y renderiza el template con los catálogos (sí/no,
+              tipo de reporte V2, ajustes razonables, anonimato, parentesco);
+              si la petición trae `Accept: application/json` devuelve esos
+              catálogos y el captchaID en JSON (lo usan la app móvil y los
+              helpers de QA). El app Vue arranca en step='auth' con un form en
+              blanco (data()) y mounted() fija el título y muestra #app. El
+              captcha se muestra recién en el paso 'formulario'.
 Requerido:    Sí
 ```
 
@@ -67,9 +70,10 @@ Requerido:    Sí
 ```
 Evento:       Cuando selecciona la autorización de datos personales
 Tipo:         User Interaction
-Descripción:  Fija form.autorizacion ('Si' / 'No'). Si es 'No', muestra de forma
-              reactiva el aviso de corte de flujo y deshabilita "Continuar";
-              si es 'Si', lo habilita. Sin llamada a backend.
+Descripción:  Fija form.autorizacion (objeto enum, code 'y' = "Sí, autorizo" / 'n' =
+              "No autorizo"). Si el code es 'n', muestra de forma reactiva el
+              aviso de corte de flujo y deshabilita "Continuar"; si es 'y', lo
+              habilita. Sin llamada a backend.
 Requerido:    Sí
 ```
 
@@ -83,7 +87,7 @@ Requerido:    Sí
 Evento:       Cuando presiona "Continuar" en el paso de Autorización
 Tipo:         User Interaction
 Descripción:  Navegación pura: step = 'perfil'. Solo alcanzable si
-              form.autorizacion === 'Si' (botón deshabilitado en caso contrario).
+              form.autorizacion.code === 'y' (botón deshabilitado en caso contrario).
 Requerido:    Sí
 ```
 
@@ -96,7 +100,8 @@ Requerido:    Sí
 ```
 Evento:       Cuando selecciona el tipo de reporte
 Tipo:         User Interaction
-Descripción:  Fija form.tipoReporte (Víctima | Tercero | Familiar | Hombre).
+Descripción:  Fija form.tipoReporte (code v | r | fm | ho; textos largos en la tabla de
+              etiquetas de la interfaz).
               No dispara backend, pero determina qué bloques condicionales del
               paso "formulario" serán visibles más adelante (efecto reactivo
               documentado en ese mismo evento, no como evento aparte).
@@ -112,7 +117,7 @@ Requerido:    Sí
 ```
 Evento:       Cuando selecciona el ajuste razonable
 Tipo:         User Interaction
-Descripción:  Fija form.ajusteRazonable (10 opciones posibles). Junto con
+Descripción:  Fija form.ajusteRazonable (12 opciones posibles). Junto con
               tipoReporte, habilita el botón "Continuar" del paso Perfil.
 Requerido:    Sí
 ```
@@ -154,7 +159,7 @@ Requerido:    Sí
 ```
 Evento:       Cuando selecciona la forma del reporte (Anónimo / A nombre propio)
 Tipo:         User Interaction
-Descripción:  Solo visible si tipoReporte === 'Tercero'. Fija form.anonimato y,
+Descripción:  Solo visible si tipoReporte.code === 'r' (Tercero). Fija form.anonimato y,
               de forma reactiva, muestra u oculta los campos de identidad del
               reportante (nombre, apellido, correo) — mismo criterio que
               identifyTriggers.md sobre reactividad de framework: es el mismo
@@ -185,8 +190,9 @@ Requerido:    Sí
 ```
 Evento:       Cuando presiona "Enviar Reporte"
 Tipo:         User Interaction
-Descripción:  Único evento que persiste en backend. Valida el formulario según
-              tipoReporte, arma el payload y hace POST a /salvia/public-v2
+Descripción:  Único evento que persiste en backend. El botón solo se habilita si
+              isFormValid (computed, según tipoReporte); al presionarlo arma el
+              payload y hace POST a /salvia/public-v2
               (VictimContactPOST_Public_V2 → SetVictimContactV2, controller y
               DAO nuevos e independientes de V1 — decisión 2A). Escribe en
               victim_contact/victim_contact_form2 (columnas existentes, vía
@@ -197,9 +203,10 @@ Descripción:  Único evento que persiste en backend. Valida el formulario segú
               condicionales de todo el inventario — ver flujo detallado en
               Flujos/flow-E10-cuando-envia-reporte.md.
               Implementado y probado end-to-end (Playwright + curl contra
-              backend real, ver QA/) para los 4 tipos de reportante — 4
-              bugs de backend encontrados y corregidos en esta implementación,
-              ver related-tables.md.
+              backend real, ver QA/) — 7 bugs encontrados y corregidos en esta
+              implementación, ver related-tables.md. Limitación vigente (L1):
+              Familiar/Hombre con disposición "Sí" y hora digitada reciben 400
+              (reporterBestContactTime no se deserializa).
 Requerido:    Sí
 ```
 
@@ -212,8 +219,10 @@ Requerido:    Sí
 ```
 Evento:       Cuando presiona "Volver al Inicio" en la Confirmación
 Tipo:         User Interaction
-Descripción:  Resetea form a su estado en blanco y step = 'auth'. Permite
-              radicar un segundo reporte sin recargar la página.
+Descripción:  Resetea form a su estado en blanco (conservando el mismo captchaID) y
+              step = 'auth'. Permite iniciar un segundo reporte sin recargar la
+              página, pero ese captchaID ya fue consumido por el envío anterior
+              (L2): el segundo envío recibe 400 de captcha y un id nuevo.
 Requerido:    Sí
 ```
 

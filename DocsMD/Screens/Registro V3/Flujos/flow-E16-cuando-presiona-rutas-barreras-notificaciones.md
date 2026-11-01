@@ -1,3 +1,5 @@
+> ⛔ **No implementado (verificado en el código el 2026-10-31).** El Formulario no tiene el grupo "Registro de gestión" (Rutas / Barreras / Notificaciones): fuera de alcance de la ronda ("Notificaciones" se ignoró por indicación del usuario el 2026-10-15). El registro de entidades y barreras de ESTE Caso ocurre en GS § C/D (flow-E17, flow-E18). Se conserva el diseño original por si se retoma.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando presiona un acceso de Rutas/Barreras/Notificaciones
    Tipo: User Interaction

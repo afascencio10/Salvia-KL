@@ -5,9 +5,8 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 INPUT: {
-  ajusteRazonable:  valor seleccionado (10 opciones — Guía-intérprete, Traducción,
-                     Apoyos, Formatos accesibles, Física, Dispositivos, Confianza,
-                     Transporte, No informa, No requiere)  → <select> del usuario
+  ajusteRazonable:  objeto enum {icode, code, name}; 12 opciones (sc, gi, id, ap, in, ad, dt, pr, tr, ni, nr, ns —
+                     textos en la tabla de etiquetas de registro-contacto-victima-v2-interface.md)  → <select> del usuario
 }
 
 PASO 1 — Actualizar form.ajusteRazonable con el valor seleccionado

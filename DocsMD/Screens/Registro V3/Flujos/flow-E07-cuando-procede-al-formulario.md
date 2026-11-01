@@ -1,39 +1,43 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando presiona "Proceder al formulario"
    Tipo: User Interaction
-   Función: procederAlFormulario(borrador) → components/cabezote-busqueda.js
+   Estado: 🟡 Implementado con cambios — hoy es el botón "Abrir" de cada fila del Cabezote
+   Funciones: abrirCaso(icode) → registro-v3-app.js · GetCase() → victim_case_v3_controller.go
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+> La planeación distinguía "Proceder al formulario" (solo Borradores, con trazabilidad de retome) de otros accesos.
+> En el código hay **un solo acceso**: el botón "Abrir" de cualquier fila (Borrador, Iniciado o Terminado). No se
+> registra quién retoma ni cuándo (`/retome` no existe). `abrirCaso` también lo usa "+ Nuevo registro" (flow-E06).
+
 INPUT: {
-  borrador: { icode, telefono, fechaCreacion, canal }   → objeto BorradorResumen sobre el que se hizo click
-  agentId:  id del Agente Integral                       → sesión
+  icode:  del Caso de la fila   → resultadosBusqueda[i].icode (o el icode que devuelve el draft)
 }
 
-PASO 1 — Registrar trazabilidad de retome
+PASO 1 — Cargar el Caso completo
+  [GET] /api/v1/victim-cases-v3/{icode}
+  Respuesta (CaseStateV3): {
+    summary:        { icode, names, lastNames, docType, docNumber, status },
+    answers:        todas las respuestas guardadas, por FieldKey (CI_1, DP_5, …), con valores dummy incluidos,
+    answeredKeys:   las keys que el agente respondió alguna vez,
+    triadaCompleta: ¿todas las obligatorias de la tríada ya respondidas?,
+    entities:       entidades del Caso (entity_case con sede, sector y ubicación),
+    barriers:       barreras del Caso (barrier_v2),
+    tzResultado:    { riskType, riskLevel, score } o null si el Tamizaje nunca se guardó
+  }
 
-[POST] /api/v1/victim-cases/{borrador.icode}/retome
-// payload:
-{
-  "agent_id": agentId,   // quién retoma
-  "fecha":    now()      // cuándo
-}
-→ Se agrega una entrada a la bitácora/log del Caso: "{agentId} retomó el Borrador el {fecha}"
+PASO 2 — Poblar el estado
+  icode = icode; resumenCaso = data.summary
+  answers = SOLO las keys que están en answeredKeys   // las demás son valores dummy que el agente nunca respondió
+  entidades = data.entities; barreras = data.barriers; tzResultado = data.tzResultado; triadaCompleta = data.triadaCompleta
 
-PASO 2 — Cargar el Caso completo
-
-[GET] /api/v1/victim-cases/{borrador.icode}
-→ caso = { icode, estado: 'Borrador', ...respuestas ya diligenciadas }
-→ registro = perfil calculado de CI+DP+CA ya diligenciado (estado 'Incompleto' por definición, un Borrador nunca es Completo)
-
-PASO 3 — Determinar el módulo de entrada
-  moduloActual = módulo con menor progreso dentro de los ya habilitados (típicamente CI si nada se ha diligenciado, o el primer módulo incompleto)
-
-PASO 4 — Abrir el Formulario
-  stage = 'formulario'
+PASO 3 — Abrir el Formulario
+  etapa = 'formulario'; moduloActivo = 'CI'    // siempre entra por CI, no por "el último módulo con progreso"
+  Vue muestra el encabezado, las pestañas (TZ/GS bloqueadas si !triadaCompleta) y el módulo CI
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️  GAPS — Información pendiente
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-| Variable / decisión                                  | Paso afectado |
-|-----------------------------------------------------------|---------------|
-| Regla exacta para elegir "el módulo de entrada" cuando hay progreso parcial en varios módulos no contiguos | PASO 3 |
+| Variable / decisión | Paso afectado |
+|---|---|
+| Planeado y no implementado: trazabilidad del retome (`POST …/retome`) y entrada en el módulo con menor progreso | PASO 1 · PASO 3 |
+| Si la petición falla, la pantalla no muestra ningún error y se queda en el Cabezote | PASO 1 |

@@ -14,10 +14,12 @@
 > fragmento tiene su propia regla de inclusión/omisión — estas reglas están
 > transcritas literales del PDF del cliente, sin reinterpretar.
 >
-> **Dónde se recalcula:** es un valor derivado, no una pregunta — se
-> recalcula en cada `Cuando actualiza una respuesta del formulario`
-> (ver [flow-E11](Flujos/flow-E11-cuando-actualiza-una-respuesta.md)), no
-> tiene su propio evento.
+> **Dónde se recalcula:** es un valor derivado, no una pregunta, y no tiene
+> su propio evento. En el código (2026-10-31) lo calcula `parrafoSintesis()`
+> (`sintesisA` a `sintesisD` en `registro-v3-app.js`) en cada render de Vue
+> a partir de `answers`: se ve al entrar al módulo GS y en la pantalla de
+> Cierre, y **no se guarda** en la BD. Ver
+> [flow-E11](Flujos/flow-E11-cuando-actualiza-una-respuesta.md) paso 7.
 
 ---
 

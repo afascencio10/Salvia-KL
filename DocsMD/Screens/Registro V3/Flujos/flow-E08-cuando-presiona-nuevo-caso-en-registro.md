@@ -1,3 +1,5 @@
+> ⛔ **No implementado (verificado en el código el 2026-10-31).** El Cabezote no tiene el botón "Nuevo Caso en Registro existente" ni existe el endpoint `nuevo-caso-mismo-registro`. Está diferido junto con la separación Registro/Caso (decisión D1); hoy cada "+ Nuevo registro" crea un Caso independiente (con sincronización del Perfil al guardar, ver flow-E11). Se conserva el diseño original por si se retoma.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando presiona "Nuevo Caso en Registro existente"
    Tipo: User Interaction

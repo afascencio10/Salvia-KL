@@ -1,3 +1,5 @@
+> ⛔ **No implementado (verificado en el código el 2026-10-31).** El Cabezote no tiene botón "Limpiar"; para empezar otra búsqueda se vuelve a escribir en los inputs. Se conserva el diseño original por si se retoma.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando presiona "Limpiar" en el Cabezote
    Tipo: User Interaction

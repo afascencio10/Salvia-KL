@@ -181,7 +181,8 @@ casos-component  (.cc-wrapper)
             │           │
             │           ├── [col.key === 'registration_date']
             │           │   <td>  (.cc-cell)
-            │           │   └── case.creationDate  (formateada DD/MM/YYYY)
+            │           │   └── formatFechaCO(case.creationDateCO)  (DD/MM/YYYY por split del "YYYY-MM-DD" que entrega el backend; "—" si el campo no viene)
+            │           │   // los reportes (ReportListItem) NO traen creationDateCO → esta celda muestra "—" en Listado Reportes y Mis Reportes (ver QA plan H11)
             │           │
             │           ├── [col.key === 'risk_level']
             │           │   <td>  (.cc-cell)
@@ -366,7 +367,7 @@ Ejemplo: caso con dos barreras OPEN (salud + proteccion) → `Abierta → Sector
 |---|---|---|
 | `victim_info` | `VictimCaseLight.names` + `lastNames` + `i_code` | Nombre completo e ID del caso |
 | `operator` | `rel_case_owner_victim_case` (status=`'a'`) → perfil del agente | Profesional actualmente asignado al caso |
-| `registration_date` | `VictimCaseLight.creationDate` | Fecha de creación del caso |
+| `registration_date` | `CaseListItem.creationDateCO` (string "YYYY-MM-DD" en hora Colombia) | Fecha de creación del caso. En reportes (`ReportListItem` solo trae `creationDate`) queda "—" |
 | `risk_level` | `FollowUpV2.risk_status` | Nivel de riesgo del último seguimiento activo |
 | `team` | `AgentLight.team` (del agente asignado vía `rel_case_owner`) | Equipo del profesional asignado al caso |
 | `assigned_person` | `rel_case_owner_victim_case` (status=`'a'`) → perfil del agente | Persona con el caso asignado |

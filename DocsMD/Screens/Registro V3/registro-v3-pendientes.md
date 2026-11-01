@@ -5,6 +5,12 @@
 > `registro-v3-parrafo-sintesis.md`, `registro-v3-index.md` y los 18 `Flujos/flow-E*`.
 > Cada item se marca `[x]` cuando queda implementado **y probado**. No se marca
 > solo por estar codificado — ver criterio de prueba en cada item.
+>
+> **Nota 2026-10-31:** esta lista es el cierre de la ronda del 15/10. Al sincronizar los MDs con el código se
+> encontraron cinco brechas nuevas (G-V3-22 a G-V3-26 en [`registro-v3-data.md`](registro-v3-data.md#estado-de-los-gaps-2026-10-31)):
+> eliminar una entidad no elimina sus barreras, el Tamizaje no se puede guardar si las 5 iniciales son "No",
+> `triadaCompleta` se pone en false al guardar GS/TZ, `enviarSeccion` no revisa `r.ok` y Finalizar no guarda GS antes de validar.
+> Los eventos no construidos (E-05, E-08, E-09, E-16) están marcados ⛔ en [`registro-v3-index.md`](registro-v3-index.md).
 
 ---
 

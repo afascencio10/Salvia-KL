@@ -2,7 +2,7 @@
 
 Pantalla **nueva** — implementa la funcionalidad "Listado reportes" descrita en FigJam (canal `l25jrzyf`, sección "Gestion reportes"): ve todos los reportes, con filtros y reasignación por el supervisor. Reemplaza en este documento la planeación anterior (que proponía adaptar `get_victim_cases_sv.html`) — se descartó a favor de reutilizar `casos-component`, ya probado en producción. Ver veredicto completo en el chat de la sesión 2026-10-10.
 
-> **Estado:** ✅ Implementado y probado — 2026-10-13. 155 pruebas de Playwright en verde más un E2E repetible de un reporte nuevo (ver [`QA/gestion-reportes-qa-plan.md`](QA/gestion-reportes-qa-plan.md)); resumen del cambio en [`changelogOct2026.md`](changelogOct2026.md).
+> **Estado:** ✅ Implementado y probado — 2026-10-13. 155 pruebas de Playwright en verde más un E2E repetible de un reporte nuevo (ver [`QA/gestion-reportes-qa-plan.md`](QA/gestion-reportes-qa-plan.md)); resumen del cambio en [`changelogOct2026.md`](changelogOct2026.md). **Re-verificado contra `develop` el 2026-10-31:** el código de las pantallas y del backend de reportes no cambió desde entonces; la única brecha es la columna "Fecha Reporte", que hoy sale en "—" (H11 del plan de QA).
 
 ## Archivos de esta pantalla
 

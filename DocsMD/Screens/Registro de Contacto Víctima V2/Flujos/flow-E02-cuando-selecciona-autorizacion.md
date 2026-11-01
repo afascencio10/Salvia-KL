@@ -5,19 +5,19 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 INPUT: {
-  autorizacion:  valor seleccionado ('Si' | 'No')   → <select> del usuario
+  autorizacion:  objeto enum {icode, code, name} (code 'y' = "Sí, autorizo" | 'n' = "No autorizo")   → <select> del usuario
 }
 
 PASO 1 — Actualizar form.autorizacion con el valor seleccionado
 
-SI form.autorizacion === 'No':
+SI form.autorizacion.code === 'n':
   → Vue re-evalúa el binding v-if del aviso de corte
   → Se muestra el bloque "No es posible continuar con el reporte sin la
     autorización de tratamiento de datos. Hasta aquí llega el formulario."
-  → El botón "Continuar" queda deshabilitado (:disabled="form.autorizacion !== 'Si'")
+  → El botón "Continuar" queda deshabilitado (:disabled="!form.autorizacion || form.autorizacion.code !== 'y'")
   → CONTINÚA FLUJO GENERAL (el usuario permanece en el paso 'auth')
 
-SI form.autorizacion === 'Si':
+SI form.autorizacion.code === 'y':
   → El aviso de corte se oculta si estaba visible
   → El botón "Continuar" se habilita
   → CONTINÚA FLUJO GENERAL

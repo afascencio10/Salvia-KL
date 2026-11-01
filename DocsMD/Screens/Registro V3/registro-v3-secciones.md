@@ -21,6 +21,29 @@
 
 ---
 
+## Divergencias entre este catálogo y el código (2026-10-31)
+
+Este MD es la **fuente de contenido** (preguntas, opciones, reglas del cliente); el catálogo que ejecuta la pantalla es `src/frontend/js/components/registro-v3-campos.js`. Comparadas las 82 filas de módulos contra el catálogo, **el código manda** en lo siguiente:
+
+| Tema | Este MD dice | El código hace |
+|---|---|---|
+| Obligatoriedad (`req`) | "máx. 2º contacto" en DP_4, DP_16, DP_18, DP_23, DP_24, DP_25, DP_30, HV_3, HV_7, AG_4 y AG_6 | Las marca **Deseable** (`D`); no se exigen ni al guardar ni al finalizar |
+| Obligatoriedad de DP_26 (gestación) | "1er contacto · condicional" | `C2`, y la condición devuelve siempre `true` (se muestra a todas las personas) |
+| [máx. 2º contacto] al finalizar | "Todas las [máx. 2º contacto] de los 7 módulos" | Solo DP_10, DP_15 y CA_1-4; el resto de C2 y todas las condicionales no se exigen (`obligatoriasFinalizarV3`) |
+| DP_3 (actividades con dificultad) | 9 actividades, cada una en escala 1-4 | Checklist `multiple` de la categoría `victim_case_form2_activities_unable_to_perform`; sin escala |
+| Departamento / municipio (DP_27-28, HV_4-5) | Desplegables DIVIPOLA encadenados | DP_27/HV_4: lista fija de nombres de departamento; DP_28/HV_5: **texto libre** (DP_28 se guarda en `victim_case_victim_town_code`) |
+| HV_5 | "dropdown · condicional (depende de Q4)" | `text` sin condición |
+| Tamizaje — preguntas condicionales | Preguntas OSIGD y de ámbito laboral ocultas según el caso; VPP solo si OSIGD | Se muestran las 24 preguntas de la rama y TZ_8 siempre que se revele el resto; el código declara los índices condicionales pero no los usa |
+| Tamizaje — rama pareja | Encabezado dice "23 preguntas" | Son 24 (la 24 es ideación suicida, igual que en la rama no pareja) |
+| GS_5-GS_8, GS_13-GS_17 | Preguntas numeradas del catálogo | No están en `registro-v3-campos.js`: se dibujan directamente en `registro_v3.html` (por eso `guardarModulo('GS')` no las valida) |
+| GS_18 | "Botón Activar Alerta Inminente" | Radio "¿Activar alerta inminente?" (GS_18) + textarea de justificación (GS_19, opcional) |
+| GS § C/D | Repeaters con 11 y 15 campos por entrada | Entidad: tipo, ubicación en cascada, sector, sede, radicado, canal, objetivo y acciones; Barrera anidada en la entidad: barreras específicas, categorías transversales, competencias, fecha, funcionario, descripción y gestión |
+| Opciones | Conteos de la planeación | Ver "Conteos reales de enums" en [`registro-v3-data.md`](registro-v3-data.md) |
+
+Coinciden con el MD: CI completo (incluida la máscara de CI_6 y la regla de CI_5 = "Persona sin identificación"), DP_17 como 1er contacto, DP_19-22 con sus condicionales, CA_1-4 como [máx. 2º contacto], HV_11 con máximo 2 y los 6 equipos de remisión con sus criterios y puntajes.
+
+---
+
 ## Pre-sección — Habeas data (gate, antes de los módulos)
 
 | # | Pregunta | Tipo | Requerida | Notas |
