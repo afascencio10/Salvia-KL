@@ -1,3 +1,5 @@
+> ⛔ **No implementado (verificado en el código el 2026-10-31).** El Cabezote no tiene el botón "Actualizar Caso" ni existe el endpoint `nuevo-episodio`. Un Caso Iniciado o Terminado se puede abrir con "Abrir" y editar, pero sin registrar un episodio ni dejar trazabilidad. Se conserva el diseño original por si se retoma.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando presiona "Actualizar Caso"
    Tipo: User Interaction

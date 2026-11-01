@@ -7,7 +7,7 @@
 INPUT: {}
 
 PASO 1 — Navegar al paso anterior
-  step.value = 'auth'
+  this.step = 'auth'   // goTo('auth')
 
 No hay validación, ni llamada a backend, ni limpieza de form. tipoReporte y
 ajusteRazonable quedan en memoria por si el usuario vuelve a avanzar.

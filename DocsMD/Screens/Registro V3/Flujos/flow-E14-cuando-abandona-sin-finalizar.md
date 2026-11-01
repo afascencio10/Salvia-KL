@@ -1,37 +1,43 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando abandona la pantalla sin finalizar
    Tipo: User Interaction (primario) + Lifecycle (respaldo)
-   Función: guardarYSalir() → set_victim_case_v3.html · también beforeUnmount()/beforeunload como respaldo
+   Estado: ✅ Implementado — sincronizado con el código 2026-10-31
+   Funciones: guardarYSalir() · volverACabezote() · listener 'beforeunload' de mounted() → registro-v3-app.js
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-> Camino primario confirmado al revisar `Mockup_Reportes_Registro (1).html`:
-> existe un botón explícito **"Finalizar llamada (guardar y salir)"** en la
-> navegación inferior del Formulario — el agente lo presiona deliberadamente
-> al colgar la llamada, no se depende solo de detectar el cierre de pestaña.
-> El respaldo de `beforeunload` (ya documentado en la versión anterior de
-> este flujo) se mantiene para el caso en que el agente cierre sin presionar
-> el botón.
-
 INPUT: {
-  stage: etapa actual de la pantalla       → estado de la pantalla
-  caso:  Caso en curso, si aplica           → estado de la pantalla
+  etapa, moduloActivo, icode, answers   → estado local
 }
 
-SI stage !== 'formulario':
-  → No hay nada que guardar (Habeas data y Cabezote no persisten estado parcial)
-  → TERMINAR ejecución
+CAMINO PRIMARIO — botón "Finalizar llamada (guardar y salir)" (solo visible en etapa 'formulario')
 
-SI stage === 'formulario':
-  → PASO 1 — Asegurar guardado del módulo actual
-    SI el módulo actual tiene cambios sin guardar:
-      → Ver flujo: Cuando guarda una sección/módulo (ejecuta el mismo saveSection, sin exigir que las obligatorias [1er contacto] estén completas — guardado parcial de cierre de llamada)
-  → PASO 2 — El Caso permanece en su estado actual (Borrador o Iniciado)
-    → Queda visible en el Cabezote para que cualquier agente lo retome (ver flow-E07)
+  SI moduloActivo ∉ CI/DP/CA/HV/AG/GS (es TZ):
+    → volverACabezote() sin guardar nada (el Tamizaje se guarda con su propio botón)
+    → TERMINAR ejecución
+
+  SI NO:
+    PASO 1 — Guardar el módulo activo sin exigir obligatorias
+      guardando = true
+      enviarSeccion(moduloActivo)   → [POST] /api/v1/victim-cases-v3/{icode}/seccion/{moduloActivo}  (ver flow-E12; sin validaciones)
+      SI la petición falla: se ignora el error (best-effort)
+    PASO 2 — Salir
+      guardando = false
+      volverACabezote():  etapa = 'cabezote'; icode = null; answers = {}; entidades = []; barreras = []
+      (el Caso conserva su estado: Borrador o Iniciado; las entidades y barreras ya se guardaron al agregarlas)
+
+CAMINO DE RESPALDO — cierre o recarga de la pestaña (window 'beforeunload')
+
+  SI etapa !== 'formulario' o moduloActivo ∉ CI/DP/CA/HV/AG/GS:
+    → no hace nada
+  SI NO:
+    → payload = { answers: solo las keys "{moduloActivo}_*" }
+    → navigator.sendBeacon("/api/v1/victim-cases-v3/{icode}/seccion/{moduloActivo}", Blob JSON)   // fire-and-forget
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️  GAPS — Información pendiente
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-| Variable / decisión                                                                       | Paso afectado |
-|------------------------------------------------------------------------------------------------|---------------|
-| El guardado de cierre de llamada no exige obligatorias [1er contacto] completas — confirmar que `saveSection` soporta un modo "parcial" sin fallar la validación normal | PASO 1 |
-| Detección real de cierre de pestaña/navegador (`beforeunload`) es poco confiable para disparar una llamada async — confirmar si basta con el guardado automático periódico en vez de depender de este evento | Todo el evento |
+| Variable / decisión | Paso afectado |
+|---|---|
+| Solo se guarda el módulo activo: lo editado en otros módulos sin guardar se pierde al salir | Ambos caminos |
+| `sendBeacon` envía un Blob `application/json`; si el navegador lo rechaza (política de tipo de contenido) el respaldo no persiste. No verificado | Camino de respaldo |
+| Por lo dicho en flow-E12/E10, guardar estando en GS deja `triadaCompleta` en false en el cliente, pero como se vuelve al Cabezote no tiene efecto visible | Camino primario |

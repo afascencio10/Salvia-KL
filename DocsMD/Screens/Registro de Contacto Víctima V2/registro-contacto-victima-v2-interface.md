@@ -1,10 +1,10 @@
 # `/salvia/public-v2/nuevo` — Interfaz de la Pantalla
 
-> ✅ **Implementado y probado — 2026-09-27.** Ruta y nombre de archivo confirmados y en funcionamiento: `set_victim_contact_v2.html` en `/salvia/public-v2/nuevo` (GET) / `/salvia/public-v2` (POST), siguiendo la convención `_v2` ya usada en este repo (`follow_up_v2`, `set_victim_case_v2.html`). QA completo (Playwright + backend) documentado en [`QA/E10-cuando-envia-reporte-qa-cases.md`](QA/E10-cuando-envia-reporte-qa-cases.md). Ver razones de aislamiento de ruta en la sección "Por qué una ruta y no solo un archivo nuevo" más abajo.
+> ✅ **Implementado y probado — 2026-09-27; MD sincronizado con el código el 2026-10-31.** Ruta pública `GET /salvia/public-v2/nuevo` (wizard) y `POST /salvia/public-v2` (radicación), sin sesión ni permisos. Casos de prueba en [`QA/E10-cuando-envia-reporte-qa-cases.md`](QA/E10-cuando-envia-reporte-qa-cases.md). Limitaciones conocidas al final de este archivo.
 
-Segunda versión pública (sin autenticación) del reporte ciudadano de hechos de VBG/VpP. Coexiste con la pantalla actual (`Registro de Contacto Víctima` / `set_victim_contact.html`) sin reemplazarla ni modificarla. Implementa el **Flujo A** del prototipo `Mockup_Reportes_Registro.html`: un wizard de 4 pasos (Autorización → Perfil de ingreso → Formulario específico por tipo de reportante → Confirmación con radicado), con 4 tipos de reportante (Víctima, Tercero, Familiar, Hombre) en vez de los 2 que distingue implícitamente la versión actual.
+Segunda versión pública del reporte ciudadano de hechos de VBG/VpP. Coexiste con la pantalla anterior (`set_victim_contact.html`) sin modificarla. Es un wizard de 4 pasos (Autorización → Perfil de ingreso → Formulario específico → Confirmación con radicado) con 4 tipos de reportante: Víctima (`v`), Tercero (`r`), Familiar (`fm`) y Hombre (`ho`). Lo que se radica entra a [Listado Reportes](../Listado%20Reportes/listado-reportes-index.md) como "Sin asignar" y desde ahí lo gestionan [Mis Reportes](../Mis%20Reportes/mis-reportes-index.md) y el modal [`gestion-reporte-modal`](../../Componentes/Gestion%20Reporte%20Modal/gestion-reporte-modal-index.md).
 
-Archivo fuente (nuevo): `src/frontend/html/salvia/victim_contact/set_victim_contact_v2.html`
+Archivo fuente: `src/frontend/html/salvia/victim_contact/set_victim_contact_v2.html` (app Vue 3 `appV2`, Options API, delimitadores `${ }`).
 
 ## Decisiones de arquitectura confirmadas (2026-09-25)
 
@@ -26,12 +26,14 @@ Detalle completo de cada decisión y su impacto en el esquema: [`related-tables.
 
 | Archivo | Rol |
 |---|---|
-| `src/frontend/html/salvia/victim_contact/set_victim_contact_v2.html` *(nuevo)* | Pantalla anfitriona — wizard de 4 pasos, Vue standalone (sin `dinamic-form`; ver nota de arquitectura) |
-| `src/salvia/facades/VictimContactFacadeV2.go` *(nuevo)* | Handlers públicos `VictimContactPOST_Public_V2` / `VictimContactPOST_GET_Public_V2` |
-| `src/salvia/controllers/VictimContactControllerV2.go` *(nuevo)* | `SetVictimContactV2` — validación y creación propias, independientes de `SetVictimContact` (V1) |
-| `src/salvia/dao/VictimContactForm2V2DAO.go` *(nuevo)* | Escribe `victim_contact_form2_v2` (tabla de extensión nueva) e invoca —sin modificarlas— las funciones DAO existentes para las columnas que sí reutiliza. Cero cambios en `VictimContactDAO.go` / `VictimContactForm2DAO.go` |
-| `src/salvia/config/Locale.go` *(existente, solo adiciones)* | Nuevas keys de enum/labels exclusivas de V2 — ninguna entrada existente se modifica |
-| `src/salvia/facades/MainRouter.go` *(existente, solo adiciones)* | Registra las 2 rutas nuevas en un grupo `/salvia/public-v2` separado del grupo `/salvia/public` actual |
+| `src/frontend/html/salvia/victim_contact/set_victim_contact_v2.html` | Pantalla anfitriona — wizard de 4 pasos, Vue standalone (sin `dinamic-form`) |
+| `src/frontend/templates/layouts/header.html` · `footer.html` *(compartidos)* | Layout: `<body id="app" style="display:none">`, franja GOV.CO, banner de SALVIA y pie GOV.CO. La pantalla no dibuja encabezado propio |
+| `src/frontend/templates/layouts/overlay.html` *(compartido)* | Popups de éxito/error globales (`#successOverlay`) |
+| `src/salvia/facades/VictimContactFacadeV2.go` | Handlers públicos `VictimContactPOST_Public_V2` (POST) y `VictimContactPOST_GET_Public_V2` (GET: HTML, o catálogos en JSON si `Accept: application/json`) |
+| `src/salvia/controllers/VictimContactControllerV2.go` | `SetVictimContactV2` — validación y creación propias, independientes de `SetVictimContact` (V1) |
+| `src/salvia/dao/VictimContactForm2V2DAO.go` | Escribe `victim_contact_form2_v2` (tabla de extensión nueva) e invoca —sin modificarlas— las funciones DAO existentes para las columnas que sí reutiliza. Cero cambios en `VictimContactDAO.go` / `VictimContactForm2DAO.go` |
+| `src/salvia/config/Locale.go` *(existente, solo adiciones)* | Textos de los enums de V2 (`victim_case_form2_report_type_v2_*`, `_anonimato_*`, `_parentesco_*`) y de los ajustes razonables |
+| `src/salvia/facades/MainRouter.go` · `salvia/config/Enums.go` *(existentes)* | Registran las 2 rutas (`MainRouter.go:63-64`) y sus `FormPaths` (`Enums.go:96-97`) |
 
 ---
 
@@ -45,96 +47,108 @@ La decisión 2 (backend totalmente separado) extiende este mismo criterio a todo
 
 ## Árbol de interfaz
 
+> Los valores de los `<select>` son objetos enum `{icode, code, name}` que entrega el backend; las condiciones del template comparan por `code`. Códigos: autorización `y`/`n`; tipo de reporte `v`/`r`/`fm`/`ho`; anonimato `an`/`pr`; sí/no `y`/`n`.
+
 ```
-Page  (#app)
+Layout compartido  (header.html)  <body id="app">
+├── Franja GOV.CO  +  Banner "Ministerio de la igualdad"
 │
-├── Header  (.bg-salvia)
-│   ├── Titulo  "Sistema SALVIA"
-│   └── Subtitulo  {{ tituloPaso }}
-│
-└── Main
+└── Page  (.container.mt-5 > .row.justify-content-center > .col-lg-10)
     │
-    ├── [step === 'auth']
+    ├── [v-if errors.default && errors.default.global_msg]
+    │   AlertaGlobal  (#alert .alert-danger)  ${errors.default.global_msg}
+    ├── RegionAria  (#global-errors-live .sr-only, aria-live="assertive")   ← resumen de errores por campo para lectores de pantalla
+    │
+    ├── [v-if step === 'auth']
     │   SeccionAutorizacion
-    │   ├── Titulo  "Autorización de datos personales"
-    │   ├── TextoLegal  (Ley 1581 de 2012 · derechos ARCO · Ley 1437/2011 art.56 mod. Ley 2080/2021 — notificaciones electrónicas)
-    │   ├── SelectSingle  form.autorizacion  ["Sí, autorizo" | "No autorizo"]
-    │   ├── [v-if form.autorizacion === 'No']
-    │   │   └── AvisoCorte  (.bg-red-50)  "No es posible continuar sin autorización"
-    │   └── BtnContinuar  :disabled="form.autorizacion !== 'Si'"  → goTo('perfil')
+    │   ├── Titulo  "Autorización de datos personales"  (.tituloform, ícono fa-list-alt)
+    │   ├── Texto legal  (Ley 1581/2012 · derechos del titular · art. 56 Ley 1437/2011 mod. Ley 2080/2021 — notificaciones electrónicas · Resolución 772/2024)
+    │   ├── <select>  form.autorizacion   ["Sí, autorizo" (code y) | "No autorizo" (code n)]
+    │   ├── [v-if form.autorizacion.code === 'n']
+    │   │   └── Aviso  (.alert-danger)  "No es posible continuar con el reporte sin la autorización de tratamiento de datos. Hasta aquí llega el formulario."
+    │   └── BtnContinuar  "Continuar"  :disabled="form.autorizacion?.code !== 'y'"  → goTo('perfil')
     │
     ├── [v-else-if step === 'perfil']
-    │   SeccionPerfil
-    │   ├── SelectSingle  form.tipoReporte  ["Víctima" | "Tercero" | "Familiar" | "Hombre"]
-    │   ├── SelectSingle  form.ajusteRazonable  (10 opciones — Guía-intérprete, Traducción, Apoyos, Formatos accesibles, Física, Dispositivos, Confianza, Transporte, No informa, No requiere)
-    │   ├── BtnAtras  → goTo('auth')
-    │   └── BtnContinuar  :disabled="!form.tipoReporte || !form.ajusteRazonable"  → goTo('formulario')
+    │   SeccionPerfil  "Perfil de Ingreso"
+    │   ├── <select>  form.tipoReporte  × 4  [v-for enums.reportTypeV2]  (texto largo, ver tabla de etiquetas)
+    │   ├── <select>  form.ajusteRazonable  × 12  [v-for enums.adjustmentsGBV]  (ver tabla de etiquetas)
+    │   ├── BtnAtras  "Atrás"  → goTo('auth')
+    │   └── BtnContinuar  "Continuar"  :disabled="!form.tipoReporte || !form.ajusteRazonable"  → goTo('formulario')
     │
     ├── [v-else-if step === 'formulario']
-    │   SeccionFormulario  "Datos del Reporte ({{ tipoReporteTexto }})"
+    │   SeccionFormulario  "Datos del Reporte (${tipoReporteTexto})"   ← tipoReporteTexto = nombre largo del tipo elegido
     │   │
-    │   ├── [v-if form.tipoReporte !== 'Victima']
-    │   │   BloqueDatosReportante
-    │   │   ├── [v-if form.tipoReporte === 'Tercero']
-    │   │   │   └── SelectSingle  form.anonimato  ["Anónimo" | "A nombre propio"]
-    │   │   │
-    │   │   ├── [v-if mostrarNombreReportante]        ← computed: Tercero+Propio, o Familiar, o Hombre
-    │   │   │   ├── InputText  form.nombreReportante
-    │   │   │   ├── InputText  form.apellidoReportante
-    │   │   │   └── InputEmail  form.correoReportante  (opcional)
-    │   │   │
-    │   │   ├── [v-if form.tipoReporte === 'Familiar']
-    │   │   │   └── SelectSingle  form.parentesco  ["Familia" | "Familia social" | "Otra"]
-    │   │   │
-    │   │   ├── [v-if form.tipoReporte === 'Familiar' || form.tipoReporte === 'Hombre']
-    │   │   │   └── InputTel  form.telefonoReportante
-    │   │   │
-    │   │   ├── [v-if form.tipoReporte === 'Tercero' || form.tipoReporte === 'Familiar']
-    │   │   │   └── SelectSingle  form.rolCuidado  ["Sí" | "No"]
-    │   │   │
-    │   │   ├── [v-if form.tipoReporte === 'Tercero']
-    │   │   │   └── SelectSingle  form.victimaConoce  ["Sí" | "No"]
-    │   │   │
-    │   │   └── [v-if form.tipoReporte === 'Familiar' || form.tipoReporte === 'Hombre']
-    │   │       ├── SelectSingle  form.disposicionReportante  ["Sí" | "No"]
-    │   │       └── [v-if form.disposicionReportante === 'Si']
-    │   │           └── <input type="time">  form.horaReportante
+    │   ├── [v-if tipoReporte.code !== 'v']
+    │   │   BloqueQuienReporta  "Datos de quien reporta"
+    │   │   ├── [v-if code === 'r']  <select>  form.anonimato  ["Anónimo" (an) | "A nombre propio" (pr)]
+    │   │   ├── [v-if mostrarNombreReportante]       ← computed: fm, ho, o (r y anonimato = pr)
+    │   │   │   ├── <input>  form.nombreReportante   "Nombres *"
+    │   │   │   ├── <input>  form.apellidoReportante  "Apellidos *"
+    │   │   │   └── <input type="email">  form.correoReportante  "Correo electrónico" (opcional)
+    │   │   ├── [v-if code === 'fm']  <select>  form.parentesco  ["Familia" | "Familia social" | "Otra"]
+    │   │   ├── [v-if code === 'fm' || 'ho']  <input type="tel">  form.telefonoReportante
+    │   │   ├── [v-if code === 'r' || 'fm']  <select>  form.rolCuidado  [Sí | No]
+    │   │   ├── [v-if code === 'r']  <select>  form.victimaConoce  [Sí | No]
+    │   │   └── [v-if code === 'fm' || 'ho']
+    │   │       ├── <select>  form.disposicionReportante  [Sí | No]
+    │   │       └── [v-if disposicionReportante.code === 'y']  <input type="time">  form.horaReportante
     │   │
-    │   ├── [v-if form.tipoReporte !== 'Hombre']
-    │   │   BloqueDatosVictima  "Datos de la persona afectada"
-    │   │   ├── InputText  form.nombreVictima
-    │   │   ├── InputText  form.apellidoVictima
-    │   │   │
-    │   │   ├── [v-if form.tipoReporte === 'Tercero' || form.tipoReporte === 'Victima']
-    │   │   │   ├── InputTel  form.telefonoVictima
-    │   │   │   ├── SelectSingle  form.disposicionLlamada  ["Sí" | "No"]
-    │   │   │   └── [v-if form.disposicionLlamada === 'Si']
-    │   │   │       └── <input type="time">  form.horaContacto
-    │   │   │
-    │   │   └── [v-if form.tipoReporte === 'Familiar']
-    │   │       └── NotaInformativa  "no se pide teléfono/disposición de la víctima fallecida"
+    │   ├── [v-if tipoReporte.code !== 'ho']
+    │   │   BloquePersonaAfectada  "Datos de la persona afectada"
+    │   │   ├── <input>  form.nombreVictima  "Nombres *"
+    │   │   ├── <input>  form.apellidoVictima  "Apellidos *"
+    │   │   ├── [v-if code === 'r' || 'v']
+    │   │   │   ├── <input type="tel">  form.telefonoVictima
+    │   │   │   ├── <select>  form.disposicionLlamada  [Sí | No]
+    │   │   │   └── [v-if disposicionLlamada.code === 'y']  <input type="time">  form.horaContacto
+    │   │   └── [v-if code === 'fm']
+    │   │       └── Aviso  (.alert-warning)  "Para reportes de Familiar no se solicita teléfono ni disposición de la víctima (fallecida) — el recontacto se hace al teléfono de quien reporta, capturado arriba."
     │   │
-    │   ├── BloqueDescripcion
-    │   │   └── <textarea>  form.descripcionHechos  (todos los tipos de reporte)
+    │   ├── BloqueDescripcion  "Descripción"
+    │   │   └── <textarea>  form.descripcionHechos  "Descripción detallada de los hechos *"  (todos los tipos)
     │   │
-    │   ├── BloqueCaptcha                              ← decisión 4: se mantiene
-    │   │   ├── <img>  src="/captcha/{{ form.captchaID }}.png"
-    │   │   └── <input>  form.captchaSolution
+    │   ├── BloqueCaptcha
+    │   │   ├── <img>  #captchaIMG  src=/seguridad/login/captcha/${form.captchaID}/img
+    │   │   ├── <audio controls>  #captchaAudio  src=/seguridad/login/captcha/${form.captchaID}/audio
+    │   │   └── <input>  form.captchaSolution  "Escriba el texto de la imagen *"
     │   │
-    │   ├── BtnAtras  → goTo('perfil')
+    │   ├── BtnAtras  "Atrás"  → goTo('perfil')
     │   └── BtnEnviar  "Enviar Reporte"  :disabled="!isFormValid"  → submitForm()
     │
     └── [v-else-if step === 'confirmacion']
-        SeccionConfirmacion
-        ├── IconoCheck  (SVG verde)
+        SeccionConfirmacion  (.text-center)
+        ├── Icono  (fa-check-circle, verde)
         ├── Titulo  "¡Reporte Enviado!"
-        ├── DatosRadicado  (.bg-gray-50)
-        │   ├── Fecha
-        │   ├── Hora
-        │   └── NumeroRadicado
-        ├── NotaRecontacto  "Un agente intentará comunicarse al número de contacto proporcionado"
-        └── BtnVolver  "← Volver al Inicio"  → resetForm()
+        ├── Texto  "Salvia le agradece por aportar a la identificación de hechos de violencia. Su reporte ha quedado ingresado en el sistema."
+        ├── DatosRadicado  (.border.rounded.p-4)
+        │   ├── "Fecha:"  ${fechaActual}  (toLocaleDateString('es-CO'))
+        │   ├── "Hora:"  ${horaActual}  (toLocaleTimeString('es-CO'))
+        │   └── "Número de Radicado:"  ${radicado}  (icode devuelto por el backend)
+        ├── Texto  "Un agente integral intentará comunicarse al número de contacto proporcionado para la validación y posible apertura del caso."
+        └── BtnVolver  "← Volver al Inicio"  (.btn-link)  → resetForm()
 ```
+
+### Etiquetas reales de los catálogos
+
+| Catálogo | Código → texto que ve la persona |
+|---|---|
+| Tipo de reporte (`reportTypeV2`) | `v` "Usted es la víctima de violencia basada en género y/o por prejuicio" · `r` "Usted quiere reportar un hecho de violencia basada en género y/o por prejuicio experimentado por otra persona" · `fm` "Usted es un familiar de víctima de feminicidio o de homicidio abyecto o fútil" · `ho` "Usted es un hombre con posibilidad de ejercer violencia de género" |
+| Ajuste razonable (`adjustmentsGBV`, 12) | `sc` Intérprete de lengua de señas colombiana · `gi` Guía–intérprete para personas sordociegas · `id` Intérprete de idiomas / traducción · `ap` Apoyos para la comunicación · `in` Información en formatos accesibles · `ad` Adecuaciones de accesibilidad física · `dt` Dispositivos o ayudas técnicas · `pr` Presencia de una persona de confianza · `tr` Transporte seguro o acompañamiento · `ni` No informa · `nr` No requiere · `ns` No requiere apoyos especiales |
+| Anonimato | `an` Anónimo · `pr` A nombre propio |
+| Parentesco | `fa` Familia · `fs` Familia social · `ot` Otra |
+
+### Campos que exige cada tipo (`isFormValid`, habilita "Enviar Reporte")
+
+Siempre: tipo de reporte, ajuste razonable, descripción de ≥ 10 caracteres (sin espacios sobrantes) y texto del captcha.
+
+| Tipo | Además exige |
+|---|---|
+| Víctima (`v`) | nombres y apellidos de la víctima, teléfono, disposición de llamada (y hora si es "Sí") |
+| Tercero (`r`) | lo de Víctima + forma del reporte; si es "A nombre propio": nombres y apellidos del reportante; rol de cuidado; si la víctima conoce el reporte |
+| Familiar (`fm`) | nombres, apellidos y teléfono del reportante; disposición del reportante (y hora si es "Sí"); nombres y apellidos de la víctima; parentesco; rol de cuidado |
+| Hombre (`ho`) | nombres, apellidos y teléfono del reportante; disposición del reportante (y hora si es "Sí") |
+
+El teléfono no se valida por formato en el cliente: se envía como `parseInt(valor.replace(/\D/g, ''), 10)`. El botón solo se habilita; **no se pintan errores por campo en el cliente**. Los errores por campo que devuelve el backend (400) se reflejan solo en el alert global y en la región `aria-live`.
 
 ---
 
@@ -148,7 +162,7 @@ Page  (#app)
 | Parentesco | No contemplado | Nuevo — solo para Familiar (`form.parentesco`) |
 | Correo del reportante | No contemplado | Nuevo — opcional, para Familiar/Tercero/Hombre con identidad |
 | Ajuste razonable | Multi-select (`VictimContactForm2AdjustmentsGBV []enum`) | Single-select en UI; se envía como arreglo de 1 elemento — mismo campo, sin cambio de esquema |
-| Captcha | Visible y requerido | Visible y requerido igual que V1 (decisión 4) — el prototipo del Flujo A no lo dibujaba, pero se mantiene por ser un endpoint público |
+| Captcha | Visible y requerido | Visible y requerido igual que V1 (decisión 4), con imagen y audio; el cliente móvil lo omite con el `User-Agent` `flutter-client` |
 | Radicado / confirmación | Respuesta JSON simple | Pantalla de confirmación dedicada con fecha, hora y número de radicado, y aviso del esquema de recontacto |
 
 ---
@@ -172,3 +186,15 @@ Ninguno de estos estaba en la planeación original — surgieron al implementar 
 | 5 | Faltaban permisos `GRANT` para `salvia_legacy` (el rol con el que la app corre queries) sobre la tabla nueva | Migración / BD |
 | 6 | El popup de éxito compartido (`overlay.html`) no se auto-oculta — bloqueaba el botón "Volver al Inicio" en la confirmación | Frontend |
 | 7 | Validación de longitud de `factsDescription` comparaba contra un `MinSize` que siempre es 0 — nunca se disparaba | Backend |
+
+---
+
+## Limitaciones conocidas (verificadas leyendo el código, 2026-10-31)
+
+| # | Qué pasa | Dónde |
+|---|---|---|
+| L1 | **Familiar y Hombre no pueden enviar si eligen "Sí" en la disposición de llamada y digitan la hora.** El wizard manda `reporterBestContactTime: "HH:MM:00"`, pero `VictimContactForm2V2DTO` no tiene `UnmarshalJSON` y el campo es `time.Time` (espera RFC 3339): `utils.JSONToStruct` descarta el error, el campo queda en cero y el controller responde 400 `form2V2.reporterBestContactTime` ("Este campo es obligatorio"). Con "No" sí funciona. Observado por API el 2026-10-13; no verificado por el wizard | `VictimContactForm2V2DAO.go:50-63`, `VictimContactControllerV2.go:164-168` |
+| L2 | **El captcha no se regenera tras un envío exitoso.** `resetForm()` reutiliza `form.captchaID`, y `captcha.Verify` borra el id al verificarlo; un segundo reporte en la misma página recibe 400 de captcha y recién ahí obtiene un id nuevo (`errors.default.captchaID`). Por lectura de código; no verificado en el navegador | `set_victim_contact_v2.html:327-331`, `dchest/captcha` `Verify` |
+| L3 | El botón "Enviar Reporte" se deshabilita sin decir qué falta: no hay errores por campo del lado del cliente | `isFormValid` (`set_victim_contact_v2.html:280-304`) |
+| L4 | Cualquier 400 del backend (no solo el de captcha) devuelve un `captchaID` nuevo y el cliente lo asigna, porque el controller lo regenera siempre que hay errores | `VictimContactControllerV2.go:199-201` |
+

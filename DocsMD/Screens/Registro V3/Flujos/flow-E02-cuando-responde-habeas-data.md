@@ -1,29 +1,29 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando responde la autorización de datos personales
    Tipo: User Interaction
-   Función: responderHabeasData(autoriza) → components/habeas-data-gate.js
+   Estado: ✅ Implementado — sincronizado con el código 2026-10-31
+   Funciones: aceptarHabeasData() · rechazarHabeasData() → registro-v3-app.js
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 INPUT: {
-  autoriza: boolean   → click en BtnSí / BtnNo del HabeasDataGate
+  decisión:  botón "Acepto y continuar" o "No acepto"   → etapa 'habeas'
 }
 
-PASO 1 — Evaluar la respuesta
-
-SI autoriza === true:
-  → stage = 'tipoContacto'
-  → Vue re-evalúa stage → se oculta HabeasDataGate, se muestra TipoContactoBlock
+SI presiona "Acepto y continuar":
+  → habeasAceptado = true
+  → etapa = 'tipoContacto'
+  → Vue oculta el bloque de Habeas data y muestra "Tipo de contacto"
   → CONTINÚA FLUJO GENERAL
 
-SI NO (autoriza === false):
-  → stage = 'formularioCerrado'
-  → No se crea ningún `victim_case`, no se guarda ninguna respuesta
-  → Vue re-evalúa stage → se muestra MensajeCierre
-  → TERMINAR ejecución — no hay nada más que hacer en esta pantalla
+SI presiona "No acepto":
+  → etapa = 'formularioCerrado'
+  → No se llama a ningún endpoint: no se crea `victim_case` ni se guarda ninguna respuesta
+  → Vue muestra "La persona no autorizó el tratamiento de sus datos personales. No se crea ningún registro ni se guarda ninguna respuesta."
+  → TERMINAR ejecución (no hay botón para volver: hay que recargar la página)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️  GAPS — Información pendiente
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-| Variable / decisión                                          | Paso afectado |
-|-----------------------------------------------------------------|---------------|
-| ¿Se debe registrar en algún log/analítica el número de personas que responden "No" a habeas data? (el Excel no lo pide explícitamente) | PASO 1 (rama No) |
+| Variable / decisión | Paso afectado |
+|---|---|
+| ¿Se debe registrar en algún log/analítica el número de personas que responden "No"? El Excel no lo pide; hoy no se registra nada | rama "No acepto" |

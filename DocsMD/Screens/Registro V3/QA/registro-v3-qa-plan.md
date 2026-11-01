@@ -21,7 +21,7 @@ Todos los casos marcados PASS se confirmaron contra el navegador real (Chrome v�
 
 ## Alcance real vs. planeado
 
-`registro-v3-index.md` describe 18 eventos, pero varios se escribieron **antes** del pivote a "sin dinamic-form" (decisión A1) y de la implementación real. El código manda sobre el MD (`dev-docs-system.md`). Estos casos prueban lo que **existe hoy**:
+`registro-v3-index.md` describía 18 eventos escritos **antes** del pivote a "sin dinamic-form" (decisión A1) y de la implementación real (el index se sincronizó con el código el 2026-10-31 y marca cada evento ✅/🟡/⛔). El código manda sobre el MD (`dev-docs-system.md`). Estos casos prueban lo que **existe hoy**:
 
 | Implementado y cubierto aquí | Planeado en el MD pero NO implementado (no generar casos todavía) |
 |---|---|

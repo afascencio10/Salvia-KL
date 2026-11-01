@@ -1,321 +1,116 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando actualiza una respuesta del formulario
    Tipo: User Interaction
-   Función: handleChangeValor(campoId, valor) → dinamic-form.js (answers-updated)
+   Estado: 🟡 Implementado con cambios (subconjunto de lo planeado) — sincronizado con el código 2026-10-31
+   Funciones: setVal() · setBool() · toggleMarcado() · tzToggle() · guardarTamizaje() → registro-v3-app.js
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+> Sin `dinamic-form`: cada control escribe en `answers[campoId]` y Vue re-evalúa los bindings. **No hay guardado ni
+> llamada al backend por cada cambio** (se guarda por sección, flow-E12, y el Tamizaje con su propio botón). Todo lo que
+> sigue ocurre dentro del mismo evento porque es reactividad del framework.
+
 INPUT: {
-  campoId: id de la pregunta modificada   → FieldRenderer que disparó el cambio
-  valor:   nuevo valor (string | boolean | string[] | número)   → input del agente
+  campoId:  FieldKey de la pregunta (CI_1, DP_5, HV_9, TZ_3, GS_6…)   → control que disparó el cambio
+  valor:    texto | "true"/"false" | icode de enum | CSV de icodes     → input del agente
 }
 
 PASO 1 — Guardar el valor en el estado local
-  respuestas[campoId] = valor
+  SEGÚN el tipo de control:
+    text / textarea / date / dropdown → setVal(id, v):  answers[id] = v
+    boolean (radio Sí/No)             → setBool(id, v): answers[id] = 'true' | 'false'
+    multiple (checkboxes)             → toggleMarcado(id, icode, max): agrega o quita el icode del CSV;
+                                        si ya hay `max` marcados, ignora el nuevo (HV_11 tiene max 2)
+    radios del Tamizaje TZ_1…TZ_7     → tzToggle(id, v) (ver PASO 4)
 
-PASO 2 — Recalcular condicionales de visibilidad
-  Para cada pregunta con `visibility_condition` que depende de campoId:
-    Evaluar EQUALS/CONTAINS contra el nuevo valor (motor existente de dinamic-form, sin cambios)
-  → Angular/Vue re-evalúa los `[v-if]` del árbol → preguntas se muestran/ocultan según corresponda
-  (ver SUB-FLUJO: Recalcular visibilidad específica de Registro V3)
+PASO 2 — Efectos por campo (dentro de setVal)
+  SI campoId === 'CI_5' (tipo de documento):
+    → sugerirNacionalidadPorDocumento():  SI DP_5 sigue vacío (nunca pisa una respuesta manual):
+        code ∈ {cc, ti, rc, nc} → DP_5 = "Colombiana" (code 'co')
+        code ∈ {ce, ps, pp, pf, pt, dn, vs, vr, sc, mv, no, pn} → DP_5 = "Extranjera" (code 'ex')
+        cd / oe / si → no sugiere (ambiguos)
+  SI campoId ∈ {'CI_5', 'CI_6'}:
+    → verificarDuplicidadDocumento():  espera 500 ms sin cambios (debounce);
+        SI hay tipo (code) y número:
+          [GET] /api/v1/victim-cases-v3/buscar?tipo_documento=<code>&documento=<número>
+          SI hay resultados con icode distinto del actual:
+            avisoDuplicidad = "Ya existe un Registro con este documento: <nombres>." (o "Ya existen N Registros …")  → se muestra bajo CI_6
+          SI NO: sin aviso
+        No bloquea el guardado
+  SI campoId === 'CI_1': el encabezado del Formulario recalcula el tratamiento (code la → "Sra.", el → "Sr.", le → "Sre."); también lo usa el párrafo síntesis
 
-┌─────────────────────────────────────────┐
-│  SUB-FLUJO: Recalcular visibilidad específica de Registro V3  │
-└─────────────────────────────────────────┘
+PASO 3 — Re-evaluar visibilidad y validaciones en vivo (Vue)
+  mostrarCampo(campo) por cada pregunta del módulo; condicionales vigentes en el catálogo:
+    CI_6    visible si CI_5 ≠ "Persona sin identificación" (code si)
+    CI_8    visible si CI_7 = Sí            ·  DP_4  visible si CI_7 = Sí
+    DP_3    visible si DP_2 = Sí
+    DP_6    visible si DP_5 tiene code 'ex'
+    DP_13   visible si la etiqueta de DP_12 contiene "Indígena"
+    DP_19   visible si DP_18 tiene code 'em' o 'ta'
+    DP_20-22 visibles si DP_17 tiene code 'as' o DP_18 tiene code 'pr' (persona en ASP)
+    DP_26   siempre visible (la condición por sexo/identidad planeada devuelve true)
+    HV_10   visible si hay tipos marcados en HV_9; sus opciones son los subtipos de los tipos marcados
+    HV_12   visible si HV_11 incluye un ámbito con "laboral"
+    AG_5    visible si la etiqueta de AG_2 no contiene "desconocid"
+  Validaciones visibles al escribir (no bloquean hasta guardar, flow-E12):
+    "solo letras" (CI_2, CI_3, CA_1, AG_7): campo en rojo + "No puede ser solo números."
+    CI_6: texto "Formato esperado: …" según el tipo de documento, y "No cumple el formato esperado." si no coincide (máscaras en registro-v3-campos.js)
+  Si un campo se oculta, su respuesta NO se borra de `answers`.
 
-  S0. SI campoId === 'pronombres':
-        → Recalcula `tratamiento`: Ella → "Señora", Él → "Señor", Elle → "Señore"
-        → Se refleja de inmediato en NombreIdentitarioPrevalente (header) y en el párrafo síntesis § A (ver S10)
-  S0b. SI campoId ∈ {'nombres', 'nombre_identitario', 'contacto_nombres', 'nombres_agresor'} (campos de nombre):
-        → Validar "solo letras": si `valor` coincide con `/^\d+$/` (solo dígitos) → marcar el campo como inválido, mostrar error inline "Este campo no admite solo números" (obs. #13 del cliente)
-        → No bloquea el resto del flujo — solo impide que ese campo se cuente como respondido para la barra de avance (PASO 3) hasta que se corrija
-  S1. SI campoId === 'tipo_documento':
-        → Auto-sugerir Nacionalidad: si tipo_documento ∈ {colombianos} → respuestas.nacionalidad = 'Colombiana' (editable después); si no → 'Extranjero(a)'
-        → Si Nacionalidad = Colombiana(o): oculta/inhabilita "condición migratoria"
-        → Aplica la máscara de validación de "número de documento" correspondiente (ver registro-v3-secciones.md § CI)
-  S2. SI campoId === 'nacionalidad' Y valor !== 'Extranjero(a)':
-        → Oculta "¿De qué país es su nacionalidad?" y "condición migratoria"
-  S3. SI campoId === 'identidad_genero':
-        → Inhabilita "Gay" en orientación sexual si valor ∈ {Mujer, Mujer Trans}; inhabilita "Lesbiana" si valor ∈ {Hombre, Hombre Trans}
-        → Inhabilita "Masculino" en sexo asignado al nacer si valor === 'No binaria-asignado femenino al nacer'; inhabilita "Femenino" si valor === 'No binaria-asignado masculino al nacer'
-        → Recalcula `esOsigd` (ver S7)
-  S4. SI campoId === 'orientacion_sexual' O campoId === 'sexo_asignado_nacer':
-        → Recalcula `esOsigd` (ver S7)
-  S5. SI campoId === 'tiene_discapacidad' (Q2 de DP) Y valor === false:
-        → Limpia y oculta las 9 preguntas de escala de dificultad
-  S5b. SI campoId === 'se_reconoce_discapacidad' (CI.Q7) Y valor === false:
-        → Limpia y oculta "Ley 1996" (DP.Q4) — **corregido por obs. #7 del cliente**: Ley 1996 depende de CI.Q7
-          ("¿se reconoce con discapacidad?"), no de DP.Q2 ("dificultades físicas/mentales/sensoriales") como se
-          había asumido de la redacción del Excel
-  S6. SI campoId === 'tipo_violencia':
-        → Recalcula las opciones disponibles de "subtipo_violencia" según la tabla de subtipos por tipo (registro-v3-secciones.md § HV)
-        → Si se desmarca un tipo, se eliminan de la respuesta los subtipos que ya no aplican
-  S7. Recalcular `esOsigd`:
-        esOsigd = identidad_genero ∈ {Mujer Trans, Hombre Trans, No binaria-*, Otro}
-                  O orientacion_sexual ∈ {Gay, Lesbiana, Bisexual, Otro, No estoy segura/o/e}
-                  O sexo_asignado_nacer === 'Intersexual o indeterminado'
-        → Si esOsigd cambia de false a true: se revela la pregunta fuerte VPP en TZ (si el módulo ya está desbloqueado)
-        → Si cambia de true a false: se oculta y se limpia esa respuesta
-  S8. SI campoId === 'relacion_agresor' (AG):
-        → wasPartner = valor ∈ {'Pareja íntima', 'Expareja o antigua pareja'}
-        → Si wasPartner cambia: cambia la rama de Tamizaje visible (pareja ↔ no pareja) — las respuestas de la rama anterior se conservan en memoria pero no se envían al guardar
-  S9. SI campoId pertenece al módulo DP y es "¿Cuál es tu condición migratoria?" (Q7) O cualquier campo con el flag `soloSiAmbitoLaboral`:
-        → Visible solo si 'Laboral' ∈ ambito_violencia (ver también sub-flujo Tamizaje más abajo para las preguntas de jerarquía/autoridad)
-  S9b. Recalcular visibilidad de "¿Actualmente en embarazo?" (DP.Q26) — **condición corregida por obs. #8 del cliente**:
-        visible = (sexo_asignado_nacer === 'Femenino') O (identidad_genero ∈ {'Mujer', 'Hombre Trans', 'No binaria-asignado femenino al nacer'})
-        → Se re-evalúa cada vez que cambia `sexo_asignado_nacer` o `identidad_genero`, no solo una de las dos
-  → FIN SUB-FLUJO → CONTINÚA FLUJO GENERAL
+PASO 4 — Tamizaje: revelar el resto (solo TZ_1…TZ_7)
+  tzToggle(id, v): answers[id] = 'true'|'false'
+  tzRevelarResto = alguna de las 5 iniciales (TZ_1, TZ_2, TZ_3, TZ_4, TZ_7) está en 'true'
+  SI tzRevelarResto: se muestran TZ_5, TZ_6, TZ_8 (VPP), la rama de 24 preguntas y el botón "Calcular y guardar Tamizaje"
+  SI NO: solo se ven las 5 iniciales (+ TZ_5/TZ_6 ocultas); no se muestra ningún botón de guardado (ver GAP)
+  Rama: tzWasPartner() = la etiqueta elegida en AG_3 contiene "pareja" → 24 preguntas de pareja (TZP_1…24); si no, 24 de no pareja (TZNP_1…24)
 
-PASO 3 — Recalcular barra de avance del módulo del campo modificado
-  progresoModulo(moduloDelCampo) = (preguntas obligatorias respondidas / preguntas obligatorias visibles) × 100
-  → Vue re-evalúa la BarraProgreso del ModuloItem correspondiente en el sidebar
+PASO 5 — "Calcular y guardar Tamizaje" (guardarTamizaje)
+  wasPartner = tzWasPartner()
+  esOsigd    = (DP_9 respondida y su etiqueta no contiene "heterosexual") o (la etiqueta de DP_8 contiene "trans" o "no binaria")
+  subtipoFeminicidio / subtipoHomicidioAbyecto = HV_10 incluye "tentativa feminicidio" / "tentativa homicidio"
+  tzAnswers = TZ_1…TZ_8 + las 24 de la rama activa, cada una 'true' o 'false'
+  [POST] /api/v1/victim-cases-v3/{icode}/tamizaje
+  { "answers": tzAnswers, "wasPartner": wasPartner, "esOsigd": esOsigd, "subtipoFeminicidio": …, "subtipoHomicidioAbyecto": … }
 
-PASO 4 — Recalcular habilitación secuencial
+  Backend (SaveTamizaje):
+    riskType = esOsigd ? "homicidio_abyecto" : "feminicidio"
+    SEGÚN subtipos de tentativa:
+      ambos      → riskType = "feminicidio" y tieFlag = true      // G-V3-02 resuelto: prioridad a Feminicidio
+      solo fem.  → "feminicidio"
+      solo hom.  → "homicidio_abyecto"
+    score = número de respuestas "true" en `answers` (7 generales + VPP + 24 de la rama)
+    nivel = primer umbral con score ≤ máximo:
+      feminicidio + pareja:      ≤4 bajo · ≤8 moderado · ≤15 alto · más: extremo
+      feminicidio + no pareja:   ≤2 bajo · ≤5 moderado · ≤8 alto  · más: extremo
+      homicidio abyecto:         ≤5 bajo · ≤11 moderado · ≤16 alto · más: extremo   (misma escala para pareja y no pareja)
+    Persiste: marca las keys como respondidas, actualiza las columnas de la rama activa y victim_case_form2_tzv3_risk_type / _risk_level / _risk_score / _risk_tie_flag
+    Respuesta: { riskType, riskLevel, score, tieFlag }   (rangos "pendientes de ajuste final" según el cliente: no recalibrar)
 
-┌─────────────────────────────────────────┐
-│  SUB-FLUJO: Recalcular habilitación secuencial (triadaCompleta)  │
-└─────────────────────────────────────────┘
+  Cliente: tzResultado = respuesta
+    Vue muestra "Tipo de riesgo: … — Nivel: … — Puntaje: N" (rojo si alto/extremo, con "⚠️ Nivel de riesgo alto — considere activar la Alerta Inminente en Gestión Salvia.") y, si tieFlag, la nota de empate
+    SI TZP_24 o TZNP_24 = 'true': "⚠️ Se marcó ideación suicida. Debe abordarse con remisión psicosocial (Gestión Salvia § B, Atención Psicosocial)."
 
-  S1. triadaCompleta = todas las obligatorias **[1er contacto]** (no se exige [máx. 2º contacto]) de CI, DP, CA, HV y AG están respondidas
-      — unificado con el umbral de Borrador→Iniciado de `flow-E12` (antes este sub-flujo exigía también [máx. 2º contacto], inconsistente con esa transición — ver registro-v3-data.md)
-      — CA no aporta preguntas a este cálculo: sus 4 preguntas son todas [máx. 2º contacto], puede quedar vacío sin bloquear la tríada
-  S2. SI triadaCompleta cambia de false a true:
-        → Se desbloquean TZ y GS en el sidebar (se quita el 🔒)
-  S3. SI triadaCompleta cambia de true a false (el agente borró una respuesta obligatoria ya diligenciada):
-        → Se vuelven a bloquear TZ y GS
-        → SI moduloActual ∈ ['TZ', 'GS']: → moduloActual = último módulo de la tríada, navega automáticamente fuera de TZ/GS
-  → FIN SUB-FLUJO → CONTINÚA FLUJO GENERAL
+PASO 6 — Reglas de Gestión Salvia (módulo GS, solo visibilidad y avisos locales)
+  GS_5 = Sí  → se listan los 6 equipos (GS_6)
+  equipo marcado con criterios → checkboxes de criterios (GS_9 Psicosocial, GS_10 Hombres, GS_11 Discapacidad, GS_12 Estabilización)
+    cumpleCriterioEquipo():  Psicosocial y Hombres exigen el criterio obligatorio 'ob'; Psicosocial y Estabilización suman puntos
+      (Psicosocial: conducta suicida 3, interseccionalidad 2, y 1 cada una de las otras 4; mínimo 3 · Estabilización: 1 cada una, mínimo 1);
+      Discapacidad pide al menos una opción. Se muestra "✓ Cumple criterios de remisión" o "✗ Aún no cumple los criterios mínimos" (informativo, no bloquea)
+  equipo 'Medidas de Emergencia' marcado → checkboxes de medidas (GS_7)
+  GS_14 = Sí o GS_16 = Sí → aparece GS_15 · GS_17 = Sí → habilita "+ Agregar barrera a esta entidad" · GS_18 = Sí → aparece GS_19
+  Las entidades y barreras no pasan por aquí: ver flow-E17 y flow-E18
 
-PASO 5 — Verificar duplicidad (solo si campoId === 'numero_documento')
-
-SI campoId === 'numero_documento' Y valor tiene longitud válida para el tipo de documento actual:
-  → SUB-FLUJO: Verificar duplicidad
-    S1. VictimCaseService.buscarPorDocumento({ tipoDocumento, numeroDocumento: valor })
-    S2. SI existe otro `victim_case` con ese documento Y su icode !== caso.icode actual:
-          → Mostrar alerta emergente "Ya existe un Registro con este documento"
-          → Ofrecer botón "Ir al Expediente de víctima" (deshabilitado/placeholder en esta ronda — Expediente diferido, ver registro-v3-data.md D2) o "Continuar igual" (el agente decide)
-          → TERMINAR sub-flujo, no bloquea el guardado
-    S3. SI NO existe:
-          → CONTINÚA sin alerta
-  → FIN SUB-FLUJO → CONTINÚA FLUJO GENERAL
-
-SI NO (campoId !== 'numero_documento'):
-  → CONTINÚA FLUJO GENERAL
-
-PASO 5b — Exigir motivo si se edita un campo de Perfil ya respondido (agregado del mockup)
-
-SI campoId pertenece a CI, DP o CA Y ya existe un valor previo para ese campo (no es la primera vez que se responde) Y el Registro ya está en estado Completo:
-  → Abrir modal "Editar Perfil de la víctima" — el agente elige un motivo:
-    'Solicitud de la víctima' | 'Pertinencia de actualización identificada por el agente' | 'Corrección de digitación'
-  → Sin motivo seleccionado, el cambio no se aplica — TERMINAR ejecución
-  → Con motivo seleccionado: respuestas[campoId] = valor, CONTINÚA FLUJO GENERAL, y el motivo viaja junto con el campo al PASO 6 (fan-out) y a la trazabilidad
-
-SI NO (primera respuesta a ese campo, o Registro aún Incompleto):
-  → No se exige motivo, se guarda directo (ya cubierto por PASO 1)
-  → CONTINÚA FLUJO GENERAL
-
-PASO 6 — Sincronizar Perfil con otros Casos del mismo documento (fan-out)
-
-SI campoId pertenece a los módulos CI, DP o CA:
-  → SUB-FLUJO: Sincronización fan-out del Perfil
-    S1. VictimCaseService.listarPorDocumento({ tipoDocumento, numeroDocumento })
-    S2. SI hay más de un `victim_case` con el mismo documento (existen otros Casos del mismo Registro):
-          PARA CADA otroCaso EN esosVictimCases EXCEPTO el actual:
-            [PUT] /api/v1/victim-cases/{otroCaso.icode}/sincronizar-perfil
-            // payload:
-            {
-              "campo":  campoId,                  // qué campo cambió
-              "valor":  valor,                     // nuevo valor
-              "motivo": motivoEdicion || null       // del PASO 5b, si aplicó
-            }
-          → Cada otroCaso queda con el mismo valor para ese campo de Perfil
-    S3. SI NO hay otros Casos:
-          → No hace nada
-    S4. Registrar trazabilidad (todo campo de Perfil editado, tenga o no otros Casos — formato del mockup):
-          log.push({
-            ts:      now(),
-            agente:  agentId,
-            entidad: 'Perfil',          // o 'Hecho'/'Agresor' según el módulo, fuera de Perfil
-            campo:   campoId,
-            antes:   valorAnterior,
-            despues: valor,
-            motivo:  motivoEdicion || null
-          })
-          → Visible luego en el log de Trazabilidad del Expediente de víctima (diferido, D2) y en el inspector interno si existe
-  → FIN SUB-FLUJO → CONTINÚA FLUJO GENERAL
-
-SI NO (campoId pertenece a HV, AG, TZ o GS):
-  → CONTINÚA FLUJO GENERAL (esos campos son del Caso, no del Perfil — no se sincronizan)
-
-PASO 6b — Recalcular estado del Registro (Incompleto → Completo)
-
-SI campoId pertenece a CI, DP o CA:
-  → registro.estado = (todas las obligatorias [1er contacto] y [máx. 2º contacto] de CI+DP+CA respondidas) ? 'Completo' : 'Incompleto'
-  SI registro.estado cambia de 'Incompleto' a 'Completo' en esta ejecución:
-    → Mostrar modal de confirmación "Registro de víctima Completo" (agregado del mockup): muestra el `idRegistro` generado,
-      aclara que de aquí en adelante toda modificación a estos campos exige motivo (ver PASO 5b) y queda en el log,
-      y que el Registro no se cierra — permanece disponible en el futuro Expediente de víctima (diferido, D2) agrupando todos los Casos
-  → CONTINÚA FLUJO GENERAL
-
-PASO 7 — Recalcular resultado de Tamizaje (si el módulo del campo es DP, HV o TZ — el tipo ahora depende de DP/HV, no solo de TZ)
-
-SI moduloDelCampo ∈ {'DP', 'HV', 'TZ'}:
-  → Ver SUB-FLUJO: Calcular tipo y nivel de riesgo (abajo)
-
-┌─────────────────────────────────────────┐
-│  SUB-FLUJO: Calcular tipo y nivel de riesgo  │
-└─────────────────────────────────────────┘
-
-  > Corregido tras releer `Observaciones y ajustes al MockUp de registro
-  > 2.0.pdf` (obs. #5 y #15) — este PDF tiene prioridad sobre el Guion
-  > Funcional de Drive. Ver `registro-v3-data.md` § D3/D4 para el porqué.
-
-  S1. Determinar tipo de riesgo por defecto — **directo de identidad/orientación (D3), ya no de la pregunta VPP**:
-      SI esOsigd (calculado en PASO 2, S7, a partir de identidad_genero/orientacion_sexual/sexo_asignado_nacer de DP):
-        → tipoRiesgoDefault = 'Homicidio abyecto o fútil'
-      SI NO:
-        → tipoRiesgoDefault = 'Feminicidio'
-      (la pregunta VPP de TZ ya no se consulta para este cálculo — solo suma punto en S4)
-
-  S2. Aplicar override por subtipo de violencia (D3 — ver registro-v3-data.md):
-      SI 'Tentativa Feminicidio' ∈ respuestas.subtipo_violencia Y 'Tentativa Homicidio abyecto o fútil' ∈ respuestas.subtipo_violencia:
-        → GAP G-V3-02: ambos marcados — tipoRiesgo = (tipoRiesgoDefault si coincide con alguno de los dos) o 'Feminicidio' por defecto
-        → Marcar caso.bandera_revision_tipo_riesgo = true
-      SI SOLO 'Tentativa Feminicidio' ∈ respuestas.subtipo_violencia:
-        → tipoRiesgo = 'Feminicidio'  (override, ignora tipoRiesgoDefault)
-      SI SOLO 'Tentativa Homicidio abyecto o fútil' ∈ respuestas.subtipo_violencia:
-        → tipoRiesgo = 'Homicidio abyecto o fútil'  (override)
-      SI NINGUNO:
-        → tipoRiesgo = tipoRiesgoDefault
-
-  S3. Evaluar el "gate" de las 5 preguntas iniciales (D4 — obs. #15 del cliente, propuesta GAP G-V3-08):
-      lasCinco = [pregunta 1, 2, 3, 4, 7 de las generales]  // propuesta, ver GAP G-V3-08
-      SI TODAS las lasCinco están respondidas Y TODAS === false (No):
-        → tamizajeAbierto = false
-        → Ocultar/no mostrar: preguntas 5-6 generales, pregunta VPP, rama pareja/no-pareja completa
-        → score = 0, nivelRiesgo = 'Bajo' (el más bajo de la escala de tipoRiesgo)
-        → IR A S5 (persistir) — se salta S4
-      SI alguna de lasCinco === true (Sí), o aún no están todas respondidas:
-        → tamizajeAbierto = true
-        → Se revela/mantiene visible el resto (preguntas 5-6, VPP si esOsigd, rama pareja/no-pareja)
-        → CONTINÚA a S4
-
-  S4. Calcular el score (solo si tamizajeAbierto):
-      score = cuenta de respuestas "Sí" entre: las 7 preguntas generales + la pregunta VPP (si esOsigd, ahora solo aporta puntaje) + todas las preguntas visibles de la rama activa (pareja si wasPartner, no pareja si no)
-
-  S4b. Determinar nivel de riesgo según tipoRiesgo (solo si tamizajeAbierto):
-      SEGÚN tipoRiesgo:
-        CASO 'Feminicidio' Y wasPartner:        → umbrales 0-4 Bajo / 5-8 Moderado / 9-15 Alto / 16-24 Extremo
-        CASO 'Feminicidio' Y !wasPartner:       → umbrales 0-2 Bajo / 3-5 Moderado / 6-8 Alto / 9-20 Extremo
-        CASO 'Homicidio abyecto o fútil' (pareja o no pareja, comparten escala): → umbrales 0-5 Bajo / 6-11 Moderado / 12-16 Alto / 17-28 Extremo
-      → nivelRiesgo = umbral donde cae `score`
-      ⚠️ Estos rangos siguen marcados "pendientes de ajustes finales" por el propio cliente (obs. #3) — no recalibrar sin instrucción nueva
-
-  S5. Persistir resultado (no solo en memoria):
-      victim_case_form2.tamizaje_tipo_riesgo = tipoRiesgo
-      victim_case_form2.tamizaje_nivel_riesgo = nivelRiesgo
-      → BannerResultadoTamizaje muestra "{tipoRiesgo}: nivel {nivelRiesgo}"
-
-  S6. SI nivelRiesgo ∈ {Alto, Extremo}:
-        → SUB-FLUJO: Alerta por riesgo (ver abajo) — se dispara inmediatamente, sin esperar a guardar la sección
-      SI nivelRiesgo === 'Moderado':
-        → Sugerir "activación de rutas pertinentes" en GS (no es una alerta a coordinación, es una sugerencia de acción — ver PASO 8)
-
-  S7. SI campoId === pregunta de ideación suicida (pareja ítem 24 / no pareja ítem 24) Y valor === true:
-        → SUB-FLUJO: Alerta por ideación suicida (ver abajo)
-
-  → FIN SUB-FLUJO → CONTINÚA FLUJO GENERAL
-
-┌─────────────────────────────────────────┐
-│  SUB-FLUJO: Alerta por riesgo  │
-└─────────────────────────────────────────┘
-  S1. NotificationService.alertarCoordinacion({
-        icode: caso.icode,
-        motivo: 'tamizaje_alto_extremo',
-        nivelRiesgo
-      })
-  S2. Mostrar banner inmediato al agente: "Alerta enviada a coordinación — nivel {nivelRiesgo}"
-  → No espera a que el formulario esté completo (regla explícita del Guion Funcional)
-  → FIN SUB-FLUJO
-
-┌─────────────────────────────────────────┐
-│  SUB-FLUJO: Alerta por ideación suicida  │
-└─────────────────────────────────────────┘
-  S1. Mostrar al agente un letrero: "Verifique si se trató de ideación o de intento"
-  S2. SI el agente marca "Ideación": → sugerirá Psicosocial en GS (ver PASO 8)
-      SI el agente marca "Intento": → sugerirá Medidas de Emergencia en GS Y activa de inmediato la ruta de salud mental
-      NotificationService.alertarEquipoPsicosocial({ icode: caso.icode, tipo: 'ideacion' | 'intento' })
-  → FIN SUB-FLUJO
-
-PASO 8 — Reglas de Gestión Salvia (solo si el módulo del campo es GS)
-
-> Reestructurado sobre el modelo real de Seguimiento (D9) — reemplaza la
-> versión anterior de 4 "procesos" genéricos y el campo `medio_gestion`
-> a nivel de GS (el canal de activación ahora vive por entidad, dentro del
-> repeater de Registrar Entidades — ver SUB-FLUJO más abajo).
-
-SI moduloDelCampo === 'GS':
-
-  SI campoId === 'equipos_remision' (GS pregunta 6):
-    → Revela los bloques de criterios de cada equipo marcado (medidas de emergencia, psicosocial, hombres, discapacidad, estabilización)
-    → Oculta y limpia los bloques de los equipos que se desmarcaron
-    → SI valor incluye 'medidas_emergencia' Y valor incluye 'atencion_psico':
-        → Mostrar BannerAdvertencia "No se puede remitir a estos dos equipos simultáneamente" (no bloquea, solo advierte — igual que en Seguimiento real)
-    → CONTINÚA FLUJO GENERAL
-
-  SI campoId pertenece a los criterios de Atención Psicosocial (GS pregunta 9):
-    → Recalcular puntaje: suma 3 (conducta suicida) + 2 (interseccionalidad) + 1 por cada uno de los 4 restantes marcados
-    → SI el criterio obligatorio NO está marcado O el puntaje < 3:
-        → Mostrar advertencia inline "Para que la remisión sea válida se debe marcar el criterio obligatorio y sumar mínimo 3 puntos" (informativo, igual que el banner real — no bloquea el guardado)
-    → CONTINÚA FLUJO GENERAL
-
-  SI campoId === 'requiere_remision' (GS pregunta 5) Y valor === true:
-    → Se revela "¿Cuáles equipos?"
-    → Presugerir equipo: si tamizaje_nivel_riesgo ∈ {Alto, Extremo} → sugerir 'medidas_emergencia'; si hubo ideación suicida → sugerir 'atencion_psico' (sugerencia, no obliga, el agente puede cambiarla)
-    → CONTINÚA FLUJO GENERAL
-
-┌─────────────────────────────────────────┐
-│  SUB-FLUJO: Registrar/editar una Entidad (repeater)  │
-└─────────────────────────────────────────┘
-  S1. SI campoId === 'reported_to_entity' (GS pregunta 14) Y valor === true:
-        → Revela el repeater "Entidades Acudidas"
-  S2. SI campoId === 'salvia_activates_routes' (GS pregunta 16) Y valor === true:
-        → Revela el repeater "Entidades Activación"
-  S3. SI campoId pertenece a un ítem del repeater Y es el campo "Sector de la entidad":
-        → Recalcula las opciones del campo "Entidad" (cascada dependiente del sector, catálogo `entidadesDisponibles` — mecanismo dinámico, no enum estático, ver GAP G-V3-21)
-  → FIN SUB-FLUJO → CONTINÚA FLUJO GENERAL
-
-┌─────────────────────────────────────────┐
-│  SUB-FLUJO: Registrar/editar una Barrera (repeater)  │
-└─────────────────────────────────────────┘
-  S1. SI campoId === 'identifies_barriers' (GS pregunta 17) Y valor === true:
-        → Revela el repeater de Barreras
-  S2. SI campoId pertenece a un ítem del repeater Y es el campo "Sector de la barrera":
-        → Revela el bloque de multiselect de barreras correspondiente a ese sector (Salud/Justicia/Protección) y oculta los otros 2
-  → FIN SUB-FLUJO → CONTINÚA FLUJO GENERAL
-
-SI campoId === 'wants_imminent_alert' (GS pregunta 18, botón):
-  → Ver flujo: Cuando presiona "Alerta inminente" (mismo flujo que el botón del header, origen='GS')
-
-PASO 8b — Recalcular el párrafo síntesis (si el campo pertenece a CI, DP, HV o AG)
-
-SI moduloDelCampo ∈ {'CI', 'DP', 'HV', 'AG'}:
-  → Recalcular las 4 secciones (A-D) del párrafo síntesis aplicando las reglas de
-    `registro-v3-parrafo-sintesis.md` — cada sección se omite si no tiene datos suficientes
-  → Se ve reflejado de inmediato en el módulo GS, aunque el agente no esté viéndolo en ese momento
-  → No se persiste — se recalcula on-demand, igual que el resultado de Tamizaje
-  → CONTINÚA FLUJO GENERAL
-
-PASO 9 — Re-render final
-  Vue re-evalúa todos los bindings afectados por los pasos anteriores
+PASO 7 — Párrafo síntesis
+  parrafoSintesis() = sintesisA (CI) + sintesisB (DP) + sintesisC (HV) + sintesisD (AG), cada una con sus reglas de omisión
+  Se calcula en cada render y se muestra al entrar a GS y en el Cierre; no se persiste (ver registro-v3-parrafo-sintesis.md)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️  GAPS — Información pendiente
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-| Variable / decisión                                                                     | Paso afectado |
-|-----------------------------------------------------------------------------------------------|---------------|
-| Catálogo de criterios de remisión por proceso (G-V3-04) — bloquea completar el detalle de PASO 8 | PASO 8 |
-| Confirmar los códigos EQUALS reales de `visibility_condition` contra `victim_case_form2_enums` antes de implementar (G-V3-06, mismo gap heredado de V2-real) | PASO 2, S1-S9 |
-| Control de concurrencia del fan-out (G-V3-01) si dos agentes editan Perfil de Casos distintos del mismo documento simultáneamente | PASO 6 |
-| Umbral exacto de "longitud válida" antes de disparar la verificación de duplicidad en PASO 5 (¿validar formato completo primero, o cualquier longitud mínima?) | PASO 5 |
-| G-V3-08 — cuáles son exactamente las 5 preguntas obligatorias iniciales del Tamizaje (usamos una propuesta no confirmada: generales 1,2,3,4,7) | SUB-FLUJO Calcular tipo y nivel de riesgo, S3 |
-| G-V3-02 — sin regla de prioridad si se marcan ambos subtipos de tentativa a la vez | SUB-FLUJO Calcular tipo y nivel de riesgo, S2 |
+| Variable / decisión | Paso afectado |
+|---|---|
+| **Tamizaje sin forma de guardarse si las 5 iniciales son "No":** el botón "Calcular y guardar Tamizaje" está dentro del bloque `v-show="tzRevelarResto"`, `guardarYSalir` no guarda TZ y `Finalize` exige TZ_1, 2, 3, 4 y 7 respondidas (solo se marcan al guardar el Tamizaje). Por lectura de código, un Caso con las 5 iniciales en "No" no podría finalizar. No verificado en el navegador (el QA TZ1 solo comprobó que el resto queda oculto) | PASO 4, PASO 5 |
+| Planeado y no implementado en el cliente: barra de avance por módulo; deshabilitar opciones según identidad de género (Gay/Lesbiana, sexo asignado al nacer); limpiar las preguntas de escala; regla de gestación por sexo/identidad (DP_26 siempre visible); limpiar subtipos al desmarcar un tipo; modal de motivo al editar el Perfil de un Registro Completo; modal "Registro Completo"; bitácora de trazabilidad del Perfil (`{ts, agente, campo, antes, después, motivo}`) | PASO 2, PASO 3 |
+| Planeado y no implementado: cálculo del Tamizaje en cada cambio de DP/HV/TZ, ocultar preguntas OSIGD y de ámbito laboral (las constantes `TAMIZAJE_*_OSIGD_V3` y `*_LABORAL_V3` no se usan: se muestran las 24 de la rama y TZ_8 siempre), y alertas a coordinación / equipo psicosocial (`NotificationService`): hoy solo hay avisos en pantalla | PASO 4, PASO 5 |
+| Planeado y no implementado en GS: advertencia al marcar Medidas de Emergencia y Atención Psicosocial a la vez, y presugerencia de equipo según el nivel de riesgo o la ideación | PASO 6 |
+| El fan-out del Perfil (CI/DP/CA) no ocurre en este evento sino en el backend al guardar la sección (flow-E12 paso 5) | — |
+| `esOsigd` cuenta como OSIGD cualquier orientación sexual respondida distinta de "heterosexual" (incluye "No informa" u "Otro") y compara etiquetas por texto, no por code | PASO 5 |

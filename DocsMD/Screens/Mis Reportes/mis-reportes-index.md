@@ -2,7 +2,7 @@
 
 Pantalla **nueva** — "Mis reportes" de la funcionalidad "Gestión reportes" en FigJam: *"solo op, ve/gestiona reportes asignados a él"*. Es `Listado Reportes` pre-filtrada al agente actual, sin reasignación — ver diferencias exactas en [`mis-reportes-interface.md`](mis-reportes-interface.md).
 
-> **Estado:** ✅ Implementado y probado — 2026-10-13. 155 pruebas de Playwright en verde (ver [`../Listado Reportes/QA/gestion-reportes-qa-plan.md`](../Listado%20Reportes/QA/gestion-reportes-qa-plan.md)); resumen del cambio en [`changelogOct2026.md`](changelogOct2026.md).
+> **Estado:** ✅ Implementado y probado — 2026-10-13. 155 pruebas de Playwright en verde (ver [`../Listado Reportes/QA/gestion-reportes-qa-plan.md`](../Listado%20Reportes/QA/gestion-reportes-qa-plan.md)); resumen del cambio en [`changelogOct2026.md`](changelogOct2026.md). **Re-verificado contra `develop` el 2026-10-31:** el código de las pantallas y del backend de reportes no cambió desde entonces; la única brecha es la columna "Fecha Reporte", que hoy sale en "—" (H11 del plan de QA).
 
 ## Archivos de esta pantalla
 

@@ -3,6 +3,25 @@
 > Complementa `registro-v3-secciones.md` (catálogo de preguntas). Este
 > documento resuelve **dónde cae cada cosa en BD** y las 3 decisiones de
 > alcance confirmadas con el usuario antes de planear.
+>
+> **Estado a 2026-10-31.** Nació como planeación (D1-D9, antes de construir) y D10 pivotó la arquitectura. Las secciones
+> de decisiones D1-D9 se conservan como historia y razonamiento; lo que **quedó en el código** está en las tablas
+> "Estado de las decisiones", "Columnas reales en `victim_case_form2`" y "Estado de los GAPS". Donde difieren, manda el código.
+
+## Estado de las decisiones (código real)
+
+| Decisión | Qué quedó en el código |
+|---|---|
+| D1 — `victim_case` único | Sin tabla Registro. Se creó la **sincronización del Perfil**: al guardar CI/DP/CA el backend replica el cambio en los demás Casos con el mismo tipo+número de documento (`fanOutPerfilV3`, best-effort, sin control de concurrencia). "Registro completo/incompleto" se calcula en `Search` sobre el Caso más reciente del documento (CI + DP + DP_10/DP_15 + CA_1-4). **No** existe "Nuevo Caso en Registro existente" (copia del Perfil) ni "Actualizar Caso" |
+| D2 — Expediente de víctima | Sigue diferido; el botón del Cierre se descartó |
+| D3 — Tipo de Tamizaje | Implementado en `SaveTamizaje`: tipo por `esOsigd` (el cliente lo calcula con el texto de DP_8/DP_9) y override por subtipos de tentativa de HV_10; si vienen ambos gana Feminicidio y se guarda `tie_flag`. La pregunta VPP (TZ_8) solo suma punto y se muestra siempre que se revele el resto |
+| D4 — 5 preguntas iniciales | TZ_1, 2, 3, 4 y 7; el resto se revela si **alguna** es "Sí". Brecha: con las 5 en "No" el Tamizaje no se puede guardar (ver G-V3-23) |
+| D5 — Estados y observaciones del cliente | Estados `bo`/`in`/`te` en V3 (`cd` lo pone Seguimiento); "solo letras" y correo de la víctima (DP_50) implementados; DIVIPOLA **no** (G-V3-10) |
+| D6 — Aportes del mockup | Adoptados: botón "Finalizar llamada (guardar y salir)" y pantalla de Cierre (simplificada). **No** adoptados: checkbox "otra persona", modales de motivo y de Registro Completo, trazabilidad del Perfil, letreros OSIGD/Debida diligencia, marca de gestación, "solo 1er contacto" |
+| D7 — Búsqueda sin nombre | Implementada (`/buscar`); con documento ignora el teléfono; no consulta reportes |
+| D8 — Borrador con valores dummy | Implementado (`insertDummyForm2Row`) y ampliado: "respondido" ya no se infiere del valor sino de `victim_case.victim_case_v3_answered_keys` |
+| D9 — Modelo real de Seguimiento | Los 6 equipos y sus criterios, sí. Entidades en `entity_case`/`entity_case_obligation` y Barreras en `barrier_v2`, **no** como repeaters de `dinamic-form` (G-V3-21 resuelto); las barreras cuelgan de una entidad |
+| D10 — Pivote (A1, A3, B4-B6, C7, C9, D11) | Todo implementado: sin `dinamic-form`; enums desde `victim_case_form2_enums` por `GET /victim-cases-v3/enums`; empate → Feminicidio; Alerta Inminente solo en GS (GS_18/GS_19); 5 opciones de tipo de contacto (4 con aviso); `general_user` + credenciales en texto plano en `victim_case_new_user_credentials` |
 
 ---
 
@@ -386,46 +405,33 @@ ver columnas nuevas abajo.
 
 ---
 
-## Columnas nuevas necesarias en `victim_case_form2`
+## Columnas reales en `victim_case_form2` y `victim_case` (BD, 2026-10-31)
 
-Todas las columnas existentes de V2-real (`victim_case_form_fields.go`) se
-reutilizan donde el concepto coincide — ver la tabla de categorías de enum
-más abajo para qué columnas cambian de contenido sin cambiar de esquema. Las
-siguientes son **columnas que no existen hoy** y hay que agregar:
+`victim_case_form2` tiene hoy 183 columnas. Las propias de V3 (los nombres de la planeación —`tz_v3_general_N`, `tamizaje_tipo_riesgo`…— **no** se usaron):
 
-| Columna propuesta | Kind | Pregunta que alimenta |
+| Columna(s) | Tipo | Pregunta |
 |---|---|---|
-| `victim_case_form2_vpp_prejudice_aggression` | `bool_enum` | TZ pregunta fuerte 8 (define RHAF) |
-| `victim_case_form2_tz_v3_general_1` … `_7` | `bool_enum` × 7 | TZ preguntas generales 1-7 |
-| `victim_case_form2_tz_v3_pareja_1` … `_24` | `bool_enum` × 24 | TZ rama pareja (incl. ideación suicida) |
-| `victim_case_form2_tz_v3_nopareja_1` … `_24` | `bool_enum` × 24 | TZ rama no pareja (incl. ideación suicida) |
-| `victim_case_form2_tamizaje_tipo_riesgo` | `enum1` | Resultado calculado: Feminicidio / Homicidio abyecto o fútil (persistido para alertas, KPIs y traspaso a Seguimiento) |
-| `victim_case_form2_tamizaje_nivel_riesgo` | `enum1` | Resultado calculado: Bajo / Moderado / Alto / Extremo |
-| `victim_case_form2_requires_referral` | `bool_enum` | GS pregunta 5 (¿requiere remisión a equipos SALVIA?) |
-| `victim_case_form2_referral_justification` | `text` | GS pregunta 13 (elementos que evidencian la remisión) |
-| `victim_case_form2_wants_imminent_alert` | `bool_enum` | GS pregunta 18 — marca si se activó Alerta Inminente desde GS (además del log de `flow-E13`) |
-| `victim_case_form2_identifies_barriers` | `bool_enum` | GS pregunta 17 (¿identificó barreras? — GAP G-V3-19) |
-| `victim_case_form2_reported_to_entity` | `bool_enum` | GS pregunta 14 (¿ya puso en conocimiento a alguna entidad?) |
-| `victim_case_form2_salvia_activates_routes` | `bool_enum` | GS pregunta 16 (¿Salvia debe activar rutas?) |
-| `victim_case_form2_agrees_route_activation` | `enum1` | GS pregunta 15 (¿de acuerdo con la activación?) |
+| `victim_case_form2_tzv3_g1` … `_g7` | integer (FK `yes_no`) | TZ_1 … TZ_7 |
+| `victim_case_form2_tzv3_vpp` | integer (FK `yes_no`) | TZ_8, pregunta de prejuicio |
+| `victim_case_form2_tzv3_p1` … `_p24` | integer (FK `yes_no`) | Rama pareja (TZP_1-24, la 24 es ideación suicida) |
+| `victim_case_form2_tzv3_np1` … `_np24` | integer (FK `yes_no`) | Rama no pareja (TZNP_1-24) |
+| `victim_case_form2_tzv3_risk_type` · `_risk_level` | integer (FK enum) | Resultado: tipo `fe`/`ha` y nivel `ba`/`mo`/`al`/`ex` (categorías `victim_case_form2_tzv3_risk_type` / `_risk_level`) |
+| `victim_case_form2_tzv3_risk_score` · `_risk_tie_flag` | integer | Puntaje y marca de empate de subtipos |
+| `victim_case_form2_victim_pronoun` · `_victim_identity_name` · `_victim_email` | integer FK / varchar | CI_1, CI_3, DP_50 |
+| `victim_case_form2_allows_easy_report` · `_interinstitutional_actions_note` · `_saliva_management_explanation` | bigint / varchar / text | GS_1, GS_3, GS_4 (la última reutiliza la columna de V2) |
+| `victim_case_form2_requires_referral` · `_referral_justification` | integer / varchar | GS_5, GS_13 |
+| `victim_case_form2_reported_to_entity` · `_salvia_activates_routes` · `_agrees_route_activation` | integer (FK `yes_no`) | GS_14, GS_16, GS_15 |
+| `victim_case_form2_identifies_barriers` | integer (FK `yes_no`) | GS_17 |
+| `victim_case_form2_wants_imminent_alert` · `_imminent_alert_note` | integer / varchar | GS_18, GS_19 (solo se guardan; nadie más las lee) |
+| `victim_case_form2_aggressors_occupation` | bigint NOT NULL | AG_4 (categoría propia, corrige el G-12 de V2) |
 
-> `¿Cuáles equipos?` (GS pregunta 6) y todos los bloques de criterios por
-> equipo (preguntas 7, 9, 10, 11, 12) son `multiple` — no necesitan columna
-> propia, van por la tabla de relación genérica (ver nota debajo). El
-> banner de advertencia (6b) y el de info (8) no se persisten, son
-> puramente de UI.
+Las preguntas multi-valor (`multiple`, p. ej. CI_8, DP_3, HV_9, GS_6) no tienen columna: van a `rel_victim_case_form2_enums_victim_case_form2`, acotadas por la categoría de enum de cada campo (`victimCaseV3EnumNCategories`). Las columnas V2 de Tamizaje (38) quedan intactas.
 
-> Las columnas de Tamizaje V3 **no reemplazan** las 38 columnas booleanas del
-> Tamizaje de V2-real (`aggressor_violence_physical_increase`, etc.) — se
-> dejan intactas para no afectar Casos ya cerrados con el formulario V2. Los
-> Casos nuevos creados con V3 simplemente no vuelven a escribir en esas
-> columnas viejas. Ver GAP G-V3-03 sobre cómo deben leerse Casos mixtos
-> (abiertos en V2, continuados en V3) una vez V3 esté en producción.
+En `victim_case` (campos núcleo y control): `victim_case_victim_names` / `_last_names` (de CI_2, partido en el primer espacio), `_doc_type` (code corto de CI_5), `_doc_number` (CI_6), `_town_code` (DP_28, que hoy recibe el texto digitado), `agent_id` (agente que creó el Borrador), `victim_case_new_user_credentials` (jsonb con login/clave de la víctima) y `victim_case_v3_answered_keys` (text, CSV de las keys respondidas alguna vez; base de `triadaCompleta` y de la validación de Finalizar).
 
-Las preguntas de tipo `multiple` (enumN) **no necesitan columna propia** —
-usan la tabla de relación genérica `rel_victim_case_form2_enums_victim_case_form2`
-ya existente; solo necesitan una categoría de enum nueva o ampliada (ver
-abajo).
+Entidades y barreras no usan estas tablas: `salvia.entity_case` + `entity_case_obligation` y `salvia.barrier_v2` (ver [`registro-v3-pendientes.md`](registro-v3-pendientes.md) § B).
+
+**Conteos reales de enums (BD, 2026-10-31)** donde difieren de la tabla siguiente: `adjustments_gbv` 12 (plan: 11) · `victim_doc_type` 20 (19) · `scenario_violence` 31 (36) · `scope_of_violence` 13 (14) · `relationship_with_presumed_aggressor_01` 20 + `_02` 19 (18) · `aggressors_occupation` 16 (19). Coinciden: `specially_protected_population` 17, `type_violence_experienced` 7, `recurrence_aggression` 3, `referral_team` 6, `emergency_measure` 6, `psycho_criteria` 7, `men_criteria` 1, `disability_service` 2, `stabiliz_criteria` 3, `interinst_action` 5, `sector` 4, `activation_channel` 3, y las barreras (`health` 12, `justice` 18, `protect` 13, `institutional` 5, `economic` 2, `territorial` 1, `differential` 12, `management` 6).
 
 ---
 
@@ -509,3 +515,36 @@ abajo).
 | G-V3-19 | Pregunta "¿Identificó barreras institucionales durante esta atención?" (GS pregunta 17) es una adaptación propia, sin equivalente en ninguna fuente de V3 — en Seguimiento el disparador es una pregunta de Valoración del Riesgo que V3 no tiene (D9) | Medio |
 | G-V3-20 | Catálogo exacto de opciones de barreras por sector (Salud/Justicia/Protección), categorías transversales y "Gestión de la barrera" — existen como filas reales de `option` en BD pero no se extrajeron en este análisis (D9) | Medio — bloquea implementar el repeater de Barreras tal cual |
 | G-V3-21 | Tabla real donde `dinamic-form` persiste las respuestas de un `repeater_group` (confirmado que NO es `victim_case_form2`, pero no se identificó cuál es) — bloquea implementar los repeaters de Entidades y Barreras de V3 (D9) | Alto — bloquea implementación, no planeación |
+
+---
+
+## Estado de los GAPS (2026-10-31)
+
+| GAP | Estado | Cómo quedó |
+|---|---|---|
+| G-V3-01 concurrencia del fan-out | Abierto | Sin control entre agentes |
+| G-V3-02 ambos subtipos de tentativa | ✅ Resuelto | Gana Feminicidio y se guarda `tie_flag` |
+| G-V3-03 Casos mixtos V2/V3 | Abierto | V3 no lee ni migra Casos de V2 |
+| G-V3-04 criterios de remisión | ✅ Resuelto | Catálogo en `registro-v3-campos.js` (puntajes y obligatorios) |
+| G-V3-05 parentesco "Pareja o expareja" | Abierto | Sin validación activa |
+| G-V3-06 verificar enums contra BD | ✅ Resuelto | Se leen de `victim_case_form2_enums` por `GET /victim-cases-v3/enums` |
+| G-V3-07 pueblos indígenas | ✅ Resuelto | DP_13 usa `victim_case_form2_indigenous_people` |
+| G-V3-08 5 iniciales del Tamizaje | ✅ Resuelto (propuesta) | TZ_1, 2, 3, 4, 7; sujeto a validación del equipo |
+| G-V3-09 / G-V3-13 Alerta inminente | ✅ Resuelto | Solo GS_18/GS_19; sin botón en el header |
+| G-V3-10 DIVIPOLA | Abierto | Departamentos de DP_27/HV_4 son una lista fija de nombres; DP_28/HV_5 (municipio) es texto libre y DP_28 se guarda en `victim_case_victim_town_code` |
+| G-V3-11 tipos de contacto | 🟡 Parcial | 5 opciones, pero 4 sin destino (solo aviso) |
+| G-V3-12 Rutas/Barreras/Notificaciones | Abierto | No implementado (E-16) |
+| G-V3-14 tentativa habilita TZ | Abierto | No implementado |
+| G-V3-15 búsqueda sin documento ni teléfono | Abierto | La búsqueda exige uno de los dos |
+| G-V3-16 `general_user` de la víctima | ✅ Resuelto | Se crea al crear el Borrador, con credenciales en texto plano |
+| G-V3-17 expiración de Borradores | Abierto | Sin job |
+| G-V3-18 reasignación de equipo | Abierto | No incluido |
+| G-V3-19 pregunta GS_17 | ✅ Resuelto | Radio "¿Se identificaron barreras?" que habilita "+ Agregar barrera" |
+| G-V3-20 catálogo de barreras | ✅ Resuelto | Leído de BD (categorías `victim_case_form2_barrier_*`) |
+| G-V3-21 dónde se guardan los repeaters | ✅ Resuelto | No hay repeaters: `entity_case` y `barrier_v2` |
+| **G-V3-22** eliminar una entidad no elimina sus barreras (el `confirm` dice que sí) | Abierto | Las barreras quedan en `barrier_v2` y siguen contando en el Cierre |
+| **G-V3-23** con las 5 iniciales del Tamizaje en "No" no hay forma de guardar el Tamizaje y Finalizar lo rechaza | Abierto | Por lectura de código; no verificado en navegador |
+| **G-V3-24** al guardar GS/TZ el cliente deja `triadaCompleta = false` (el backend responde false al no evaluarla) y reaparecen los 🔒 | Abierto | Por lectura de código; se corrige al reabrir el Caso |
+| **G-V3-25** `enviarSeccion` no revisa `r.ok`: un 500 muestra "Sección guardada." | Abierto | Por lectura de código |
+| **G-V3-26** el botón "Finalizar" no guarda GS antes de validar | Abierto | Hay que presionar "Guardar sección" primero |
+

@@ -1,8 +1,8 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando presiona "Enviar Reporte"
    Tipo: User Interaction
-   Estado: ✅ Implementado y probado — 2026-09-27 (ver QA/E10-cuando-envia-reporte-qa-cases.md)
-   Funciones: submitForm() (frontend) · VictimContactPOST_Public_V2() (facade)
+   Estado: ✅ Implementado y probado — 2026-09-27 (ver QA/E10-cuando-envia-reporte-qa-cases.md) · MD sincronizado con el código 2026-10-31
+   Funciones: isFormValid (computed) · submitForm() · buildPayload() (frontend) · VictimContactPOST_Public_V2() (facade)
               · SetVictimContactV2() (controller) · SetVictimContact() / SetVictimContactForm2()
               (DAO existentes de V1, sin modificar) · SetVictimContactForm2V2() (DAO nuevo)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -21,13 +21,13 @@ INPUT: {
   victimaConoce:         form.victimaConoce             → select, solo Tercero
   disposicionReportante: form.disposicionReportante     → select, solo Familiar/Hombre
   horaReportante:        form.horaReportante            → input time, si disposicionReportante.code === 'y'
-  nombreVictima:         form.nombreVictima             → input, si tipoReporte !== 'Hombre'
-  apellidoVictima:       form.apellidoVictima           → input, si tipoReporte !== 'Hombre'
-  telefonoVictima:       form.telefonoVictima           → input, solo Tercero/Victima
-  disposicionLlamada:    form.disposicionLlamada        → select, solo Tercero/Victima
+  nombreVictima:         form.nombreVictima             → input, si tipoReporte.code !== 'ho'
+  apellidoVictima:       form.apellidoVictima           → input, si tipoReporte.code !== 'ho'
+  telefonoVictima:       form.telefonoVictima           → input, solo Tercero ('r') / Víctima ('v')
+  disposicionLlamada:    form.disposicionLlamada        → select, solo Tercero ('r') / Víctima ('v')
   horaContacto:          form.horaContacto              → input time, si disposicionLlamada.code === 'y'
   descripcionHechos:     form.descripcionHechos         → textarea, todos los tipos
-  captchaID:             form.captchaID                 → obtenido en E-01
+  captchaID:             form.captchaID                 → generado por el backend en E-01 (embebido en el HTML)
   captchaSolution:       form.captchaSolution            → input, paso 'formulario' (BloqueCaptcha)
 }
 
@@ -38,49 +38,38 @@ como el OBJETO completo `{icode, code, name}` devuelto por el backend en
 E-01/E-07 (no como string) — así el payload solo necesita reenviar `{icode}`
 y las comparaciones usan `.code` (ej. `form.disposicionLlamada.code === 'y'`).
 
-PASO 1 — Validar el formulario según tipoReporte (isFormValid, cliente)
-  Validar formulario:
-    • autorizacion:        ya validado en E-02 (guard: código === 'y')
-    • tipoReporte:         required
-    • ajusteRazonable:     required
-    • descripcionHechos:   required, min_chars: 10
-    • captchaSolution:     required
+PASO 1 — Habilitar el botón según tipoReporte (isFormValid, cliente)
+  El botón "Enviar Reporte" lleva :disabled="!isFormValid"; no hay validación al hacer clic ni errores por campo.
+  isFormValid === true cuando:
+    • tipoReporte y ajusteRazonable:  respondidos
+    • descripcionHechos:   ≥ 10 caracteres (trim)
+    • captchaSolution:     no vacío
+    • SI tipoReporte.code === 'v' || 'r':
+        - nombreVictima, apellidoVictima, telefonoVictima, disposicionLlamada: respondidos
+        - SI disposicionLlamada.code === 'y': horaContacto respondida
     • SI tipoReporte.code === 'r' (Tercero):
-        - anonimato:       required
-        - SI anonimato.code === 'pr': nombreReportante y apellidoReportante required
-        - rolCuidado:      required
-        - victimaConoce:   required
-    • SI tipoReporte.code === 'fm' (Familiar):
-        - nombreReportante, apellidoReportante: required
-        - parentesco:      required
-        - rolCuidado:      required
-        - disposicionReportante: required
-        - SI disposicionReportante.code === 'y': horaReportante required
-    • SI tipoReporte.code === 'ho' (Hombre):
-        - nombreReportante, apellidoReportante: required
-        - telefonoReportante: required, formato teléfono
-        - disposicionReportante: required
-        - SI disposicionReportante.code === 'y': horaReportante required
-    • SI tipoReporte.code === 'r' || tipoReporte.code === 'v':
-        - nombreVictima, apellidoVictima: required
-        - telefonoVictima: required, formato teléfono
-        - disposicionLlamada: required
-        - SI disposicionLlamada.code === 'y': horaContacto required
+        - anonimato respondido
+        - SI anonimato.code === 'pr': nombreReportante y apellidoReportante respondidos
+        - rolCuidado y victimaConoce respondidos
+    • SI tipoReporte.code === 'fm' || 'ho':
+        - nombreReportante, apellidoReportante, telefonoReportante, disposicionReportante: respondidos
+        - SI disposicionReportante.code === 'y': horaReportante respondida
+    • SI tipoReporte.code === 'fm' (Familiar), además:
+        - nombreVictima, apellidoVictima, parentesco, rolCuidado: respondidos
+  El teléfono NO se valida por formato (solo "no vacío"); al armar el payload se limpia con replace(/\D/g,'').
 
-  SI validación con errores:
-    → Mostrar error por campo (mismo patrón visual que el resto del wizard)
-    → TERMINAR ejecución (el usuario permanece en el paso 'formulario')
-
-  SI validación ok:
+  SI isFormValid === false:
+    → El botón permanece deshabilitado (sin mensaje de qué falta)
+    → TERMINAR ejecución
+  SI isFormValid === true:
     → CONTINÚA FLUJO GENERAL
 
 PASO 2 — Armar el payload para el backend (buildPayload(), implementación final)
   victimContact: {
-    // Decisión 7A: sin víctima nombrada (Hombre), Names/LastNames van vacíos —
-    // el agente los completa tras el recontacto. Van como '' (no null): las
-    // columnas de victim_contact son VARCHAR nullable a nivel de esquema, pero
-    // el DTO Go es un string plano, así que el valor vacío es lo que se envía.
-    names:      tipoReporte.code === 'ho' ? '' : form.nombreVictima,
+    // Decisión 7A: sin víctima nombrada (Hombre, code 'ho'), Names/LastNames van vacíos —
+    // el agente los completa tras el recontacto. Van como '' (no null) y así se
+    // guardan: en BD queda la cadena vacía, no NULL (verificado en una fila real 'ho').
+    names:      tipoReporte.code === 'ho' ? '' : form.nombreVictima,   // NO se filtra por anonimato: lo digitado viaja igual
     lastNames:  tipoReporte.code === 'ho' ? '' : form.apellidoVictima,
     captchaID:       form.captchaID,
     captchaSolution: form.captchaSolution,
@@ -102,7 +91,7 @@ PASO 2 — Armar el payload para el backend (buildPayload(), implementación fin
       // NOT NULL en la tabla existente (no se puede alterar sin tocar V1) —
       // el backend los fuerza a 0 / vacío en esos casos (ver PASO 3).
       willReceiveCall:     form.disposicionLlamada,
-      bestContactTime:     form.horaContacto ? (form.horaContacto + ':00') : '00:00:00',
+      bestContactTime:     form.horaContacto ? (form.horaContacto + ':00') : '00:00:00',   // "HH:MM:SS"
       factsDescription:    form.descripcionHechos,
     },
 
@@ -118,7 +107,7 @@ PASO 2 — Armar el payload para el backend (buildPayload(), implementación fin
       reporterEmail:           form.correoReportante || '',
       // Decisión 6B: par EXCLUSIVO del reportante (Familiar/Hombre)
       reporterWillReceiveCall: form.disposicionReportante || null,
-      reporterBestContactTime: form.horaReportante ? (form.horaReportante + ':00') : null,
+      reporterBestContactTime: form.horaReportante ? (form.horaReportante + ':00') : null,   // "HH:MM:SS" — ver L1: el DTO no lo deserializa
     }
   }
 
@@ -133,31 +122,46 @@ PASO 3 — Enviar el reporte
        crudos — una para VictimContactDTO (raíz + form2), otra para el wrapper
        de form2V2. (Embeber ambos en un solo struct rompía la decodificación
        de form2V2 — bug encontrado en implementación, ver related-tables.md.)
+       utils.JSONToStruct descarta los errores de decodificación: un campo que
+       no se pueda parsear queda en su valor cero (ver L1).
     2. Verifica captcha (bypass solo si User-Agent = "flutter-client", igual
        que V1).
-    3. Resuelve y valida los enums recibidos (reportType contra la clave `_v2`,
-       adjustmentsGBV, authorizationAnswer === 'y', y según tipoReporte:
-       anonimato/parentesco/hasCareRole/victimAwareOfReport/
-       reporterWillReceiveCall) contra el caché local de enums.
-    4. SEGÚN tipoReporte:
-         'v' | 'r' → valida nombre/apellido/teléfono/disposición de la víctima
-         'fm'      → valida datos del reportante + nombre de la víctima (sin
-                     teléfono/disposición) + parentesco; fuerza victimColPhone = 0
-         'ho'      → valida solo datos del reportante; limpia names/lastNames
-                     a '' (decisión 7A); fuerza victimColPhone = 0
+    3. authorizationAnswer debe resolver a una fila de enum con code 'y'.
+    4. reportType debe resolver a una fila de la clave `_v2`; adjustmentsGBV
+       debe traer ≥ 1 opción y todas deben resolver (error de getAndVerify…).
+    5. factsDescription: len < 10 → error "Este campo es obligatorio".
+    6. SEGÚN code del tipo de reporte:
+         'v' | 'r' → names, lastNames, victimColPhone ≠ 0, willReceiveCall resuelto
+                     · 'r' además: anonimato resuelto; si es 'pr': reporterNames y
+                     reporterLastNames; hasCareRole y victimAwareOfReport resueltos
+         'fm' | 'ho' → reporterNames, reporterLastNames, reporterPhone ≠ 0,
+                     reporterWillReceiveCall resuelto (si es 'y': reporterBestContactTime
+                     no puede ser cero)
+                     · 'fm' además: names, lastNames, parentesco y hasCareRole
+                     · 'ho': names = lastNames = '' (decisión 7A)
+                     · ambos: victimColPhone se fuerza a 0
+         otro código → error en reportType
+    7. SI hay errores acumulados: collectedErrors["default"]["captchaID"] = captcha.New()
+       y responde 400 (el captchaID se regenera con CUALQUIER 400, no solo el de captcha).
 
   Sistema.responde({
     codigo:  200 | 400 | 500,
     cuerpo:  {"icode": "..."} | {"default":{...}, "form2":{...}, "form2V2":{...}}
   })
 
+En el callback de newEntity (siempre): form.captchaSolution = ""
+
 SI código === 400 (captcha inválido, enum no encontrado en la clave `_v2`,
   campo requerido faltante según tipoReporte):
-  → Mostrar los errores devueltos, mapeados a los campos del wizard por
-    data-entity/data-field
-  → SI el error es de captcha: regenerar captchaID (el backend devuelve uno
-    nuevo en errors.default.captchaID, mismo patrón que V1)
-  → TERMINAR ejecución (el usuario permanece en 'formulario')
+  → errors = respuesta  (el alert #alert muestra errors.default.global_msg si existe; el watcher de
+    errors arma un resumen "El formulario tiene N errores. <etiqueta>: <mensaje>…" en la región
+    aria-live #global-errors-live, resolviendo cada etiqueta por data-entity/data-field/data-label)
+  → SI errors.default.captchaID existe: form.captchaID = ese valor (el backend lo envía en todo 400)
+  → TERMINAR ejecución (el usuario permanece en 'formulario'; no se marcan los campos en rojo)
+
+SI código es distinto de 200 y 400:
+  → alert("Se produjo un error interno, por favor vuelva a intentarlo")
+  → TERMINAR ejecución
 
 SI código === 200:
   → Dentro de una sola transacción: SetVictimContact (a) → SetVictimContactForm2
@@ -168,10 +172,10 @@ SI código === 200:
     "número de radicado", mismo mecanismo que V1. A diferencia de V1 (que
     responde con cuerpo vacío), V2 sí devuelve {"icode": "..."} en el body
   → PASO 4 — Guardar el resultado en el cliente
-    radicado.value = respuesta.icode
-    fechaActual.value = hoy formateada
-    horaActual.value  = hora actual formateada
-    step.value = 'confirmacion'
+    this.radicado = respuesta.icode
+    this.fechaActual = new Date().toLocaleDateString('es-CO')
+    this.horaActual  = new Date().toLocaleTimeString('es-CO')
+    this.step = 'confirmacion'
     Se oculta explícitamente #successOverlay (bug #6, ver related-tables.md) —
     el popup de éxito compartido no se auto-oculta y bloqueaba el botón
     "Volver al Inicio" de la confirmación
@@ -179,3 +183,13 @@ SI código === 200:
 
 Casos de prueba, edge cases y verificación en BD real: ver
 QA/E10-cuando-envia-reporte-qa-cases.md.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️  GAPS — Información pendiente
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+| Variable / decisión | Paso afectado |
+|---|---|
+| **L1** — `reporterBestContactTime` viaja como "HH:MM:SS" pero `VictimContactForm2V2DTO` (`time.Time`, sin `UnmarshalJSON`) no lo acepta: `JSONToStruct` ignora el error, el campo queda en cero y el backend responde 400 `form2V2.reporterBestContactTime` cuando Familiar/Hombre eligen disposición "Sí". Con "No" funciona. Observado por API el 2026-10-13; no verificado por el wizard | PASO 2 y PASO 3 (validación 6) |
+| **L4** — el 400 siempre regenera el captchaID, aunque el captcha haya sido correcto | PASO 3 (validación 7) |
+| El cliente no marca en rojo los campos con error devuelto por el backend (solo alert global + región aria-live) | PASO 3 (400) |
+

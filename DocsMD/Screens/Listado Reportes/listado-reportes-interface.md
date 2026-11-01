@@ -43,7 +43,7 @@ list_reportes.html  (.salvia-main)
 │       { key: 'contact_scheme',    label: 'Esquema 3x3' },      // NUEVO col.key
 │       { key: 'report_status',     label: 'Estado' },           // NUEVO col.key
 │       { key: 'assigned_agent',    label: 'Asignado a' },        // NUEVO col.key
-│       { key: 'registration_date', label: 'Fecha Reporte' },    // ya existe en casos-component
+│       { key: 'registration_date', label: 'Fecha Reporte' },    // ya existe en casos-component · HOY SALE "—": la celda lee creationDateCO y ReportListItem no lo trae (H11)
 │   ]"
 │   :available-filters="[
 │       { key: 'estado_reporte', type: 'dropdown',    label: 'Estado del reporte', options: [...] },  // NUEVO

@@ -36,7 +36,7 @@ get_my_reportes.html  (.salvia-main)
 │       { key: 'contact_scheme',    label: 'Esquema 3x3' },
 │       { key: 'report_status',     label: 'Estado' },
 │       // sin 'assigned_agent' — siempre es el usuario actual, redundante
-│       { key: 'registration_date', label: 'Fecha Reporte' },
+│       { key: 'registration_date', label: 'Fecha Reporte' },   // HOY SALE "—": la celda lee creationDateCO y ReportListItem no lo trae (H11)
 │   ]"
 │   :available-filters="[
 │       { key: 'estado_reporte', type: 'dropdown', label: 'Estado del reporte', options: [...] },

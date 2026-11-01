@@ -80,7 +80,7 @@ PGPASSWORD='Salvia2026@' psql \
 |---|---|
 | `entity` | Entidad institucional que atiende casos VBG: sector, interoperabilidad y tiempos de respuesta. |
 | `entity_branch` | Sede o sucursal de una entidad con dirección, municipio y coordenadas geográficas. |
-| `entity_case` | Vínculo sede (`entity_branch`)–caso: objetivo y última acción (texto). |
+| `entity_case` | Vínculo sede (`entity_branch`)–caso: objetivo, radicado y última acción; también lo escribe el Registro V3. |
 | `attention_line` | Línea de atención asociada a un profesional responsable de casos. |
 | `case_owner` | Profesional responsable de casos, vinculado a una entidad y línea de atención. |
 | `directories` | Catálogo de entidades de contacto por ciudad para la app Flutter (fiscalías, comisarías, urgencias, líneas de emergencia). |
@@ -101,7 +101,7 @@ PGPASSWORD='Salvia2026@' psql \
 |---|---|
 | `sector_barrier` | Sector institucional que agrupa barreras (justicia, salud, protección, etc.). |
 | `barrier` | Catálogo maestro de barreras institucionales agrupadas por sector. |
-| `barrier_v2` | Barrera identificada en un seguimiento: sector, descripción y estado actual. |
+| `barrier_v2` | Barrera identificada en un seguimiento, una sesión psicosocial o el Registro V3: sector, descripción y estado actual. |
 | `barrier_update` | Gestión de una barrera: oficio enviado, URL Kofax y respuesta recibida. |
 | `rel_barrier_follow_up_entry` | Relación entre una barrera del catálogo y una entrada de seguimiento (legacy). |
 
