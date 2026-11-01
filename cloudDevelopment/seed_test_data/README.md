@@ -25,9 +25,12 @@ si el dato ya está en esta carpeta.
   las FK hacia usuarios se remapean a los `cloud.test.*`.
 - Trae lo mínimo que el requerimiento necesita, no la tabla completa.
 
-Hoy trae `20261101-base-mecanismos-y-duplas.sql`: el catálogo real de
-mecanismos articuladores, el mecanismo del usuario `cloud.test.mc` y la dupla
-de prueba `cloud.test.ps` + `cloud.test.ts`.
+Hoy trae:
+
+| Archivo | Qué trae | Para qué |
+|---|---|---|
+| `20261101-base-mecanismos-y-duplas.sql` | Catálogo real de mecanismos articuladores (6), el mecanismo del usuario `cloud.test.mc` y la dupla `cloud.test.ps` + `cloud.test.ts` | Que las pantallas de esos roles tengan su configuración |
+| `20261101-registro-v3-entidades-bogota.sql` | 7 sedes reales de Bogotá (2 por sector: salud, justicia, protección; 1 de otras instituciones) y las 65 obligaciones de sus entidades | El paso "Registrar entidades" de Registro V3 (Gestión Salvia § C/D), que busca sedes por municipio y sector |
 
 Procedimiento, plantilla del archivo y cómo aplicar uno nuevo en un sandbox
 que ya está corriendo: [`../actualizar-seed-con-composio.md`](../actualizar-seed-con-composio.md).

@@ -18,9 +18,10 @@
 -- que crea la app con GORM aparecen después y ya coinciden con Supabase).
 --
 -- NO se replica, a propósito:
---   * Claves foráneas. Las columnas nuevas de victim_case_form2 apuntan a
---     victim_case_form2_enums, que local está incompleta (790 de 912 filas): la FK
---     haría fallar cualquier dato de prueba que use una de las opciones faltantes.
+--   * Claves foráneas (72; casi todas, de las columnas nuevas de victim_case_form2 hacia
+--     victim_case_form2_enums). Se omiten para dejar solo el esquema que el código
+--     necesita: el sandbox funciona sin ellas. El catálogo de enums ya es el real
+--     (seed_reference_enums.sql), así que se podrían agregar si algún día hacen falta.
 --   * victim_case_barrier y victim_case_entity: existen en Supabase pero el código
 --     Go no las usa.
 --   * salvia.entity.entity_city_code (NOT NULL en Supabase): solo la usan los
