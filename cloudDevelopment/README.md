@@ -17,8 +17,9 @@ que siempre. La detección de ambiente es automática vía la variable
    sandbox), inicializa un cluster local en `/var/lib/salvia-local-pg/data`
    (configurable con `SALVIA_LOCAL_PG_DIR`), crea la BD `salvia_local`, aplica
    el esquema legacy (`src/security/scripts/db_postgres_creation.sql` +
-   `src/salvia/scripts/db_postgres_creation.sql`) y los dos seed de este
-   folder (`seed_reference_data.sql`, luego `seed_local_dev.sql`), y exporta
+   `src/salvia/scripts/db_postgres_creation.sql`) y los seeds de este
+   folder (`seed_reference_data.sql`, luego `seed_local_dev.sql`, luego cada
+   archivo de `seed_test_data/` en orden alfabético), y exporta
    `DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME`.
 4. `common/utils/EntityOperator.go` → `LoadDBCLientConfig()`: si
    `CLAUDE_CODE_REMOTE=true`, arma la config de conexión a partir de esas
@@ -34,20 +35,36 @@ que siempre. La detección de ambiente es automática vía la variable
    misma sesión cloud solo verifican que Postgres esté arriba y arrancan la
    app — rápido. Borrar ese archivo fuerza recrear esquema + seed.
 
-## Por qué no se replica la BD compartida real
+## Política de datos: Supabase es una BD de pruebas
 
-La BD de Supabase (proyecto `pwwelwfhauspznpatuqm`, 122 MB real al
-2026-10-29) tiene datos reales de casos (víctimas, riesgo de feminicidio) —
-población vulnerable. La regla no es de tamaño: sin importar cuánto pese, un
-dato sobre un caso o una persona real no sale de su entorno hacia un sandbox
-desechable. Lo que sí se trae completo es **estructura y catálogo** — eso no
-es dato de nadie. Ver `actualizar-seed-con-composio.md` para el criterio
-exacto (tabla por tabla) y el procedimiento para traer más si un feature
-nuevo lo necesita.
+La BD de Supabase (proyecto `pwwelwfhauspznpatuqm`, 122 MB al 2026-10-29)
+es la BD **de pruebas** compartida del equipo, no producción. Tiene datos
+de casos (víctimas, riesgo de feminicidio, seguimientos), y eso **no
+impide leerlos ni copiarlos** al seed cuando un requerimiento los necesita
+para probarse.
+
+**Regla de trabajo:** cuando una sesión necesite datos para probar un
+requerimiento, los lee de Supabase con el MCP de Composio (solo lectura) y
+los agrega al seed **de forma permanente**: se commitean junto con la
+funcionalidad, no solo para la sesión en curso. Así la próxima sesión —
+sobre ese requerimiento o sobre otro — ya los encuentra en su sandbox sin
+volver a pedirlos. Antes de leer de Supabase, revisar si el dato ya está
+en el seed.
+
+Límites que se mantienen:
+
+- **Solo lectura** sobre Supabase, nunca escritura.
+- **Sin credenciales**: no se copian hashes de contraseña, tokens ni
+  secretos; las FK hacia usuarios se remapean a los usuarios `cloud.test.*`.
+- **Lo mínimo que el requerimiento necesita**, no la BD completa (122 MB):
+  cada sandbox nuevo aplica todo el seed al arrancar.
+
+Qué va en qué archivo y el procedimiento paso a paso están en
+`actualizar-seed-con-composio.md`.
 
 ## Qué carga cada seed
 
-Dos archivos, aplicados en este orden (lo hace `setup-local-postgres.sh`):
+Tres fuentes, aplicadas en este orden (lo hace `setup-local-postgres.sh`):
 
 **`seed_reference_data.sql`** — generado, no editar a mano. Catálogo/
 referencia **real**, leído de Supabase vía Composio (ver
@@ -70,6 +87,15 @@ DO NOTHING` existente. Solo lo genuinamente sintético: **3 usuarios de
 prueba** — `cloud.test.ad` (Administrador), `cloud.test.te` (Equipo
 Técnico), `cloud.test.ro` (Operador de riesgo, equipo "Riesgo alto"). Clave
 para los tres: `CloudDev!Test2026`. No son personas reales.
+
+**`seed_test_data/*.sql`** — datos leídos de Supabase para probar
+requerimientos concretos: casos, víctimas, seguimientos, barreras,
+remisiones, tareas, respuestas de formularios, etc. Un archivo por
+requerimiento, `AAAAMMDD-<slug>.sql`, idempotente y autocontenido; se
+aplican en orden alfabético, cada uno en una sola transacción. Un archivo
+que falle se omite con un aviso y no detiene el arranque. Es permanente:
+lo que una sesión agrega aquí lo encuentran todas las siguientes. Ver
+`seed_test_data/README.md` y `actualizar-seed-con-composio.md`.
 
 ## Errores esperados al aplicar el esquema
 
@@ -104,12 +130,19 @@ tablas `rel_case_owner_feminicide*` con un `UNIQUE` sobre una columna
   pregunta de formulario, más geografía): seguir
   [`actualizar-seed-con-composio.md`](actualizar-seed-con-composio.md) —
   se lee de Supabase vía Composio y se agrega a `seed_reference_data.sql`.
+- Faltan **datos para probar un requerimiento** (un caso en cierto estado,
+  seguimientos, una remisión, respuestas de un formulario): se leen de
+  Supabase vía Composio y se guardan en un archivo nuevo
+  `seed_test_data/AAAAMMDD-<slug>.sql`, con el mismo procedimiento.
 - Falta un dato **sintético** (otro usuario de prueba, por ejemplo): editar
   `seed_local_dev.sql` directamente (mantener `ON CONFLICT DO NOTHING` /
   `WHERE NOT EXISTS`).
 
-En ambos casos: commitear junto con la funcionalidad que lo motivó. La
+En todos los casos: commitear junto con la funcionalidad que lo motivó. La
 próxima vez que `.schema_applied` no exista (sandbox nuevo), se aplica solo.
+En un sandbox que ya está corriendo, un archivo nuevo de `seed_test_data/`
+no se carga solo: ver "Aplicar un archivo nuevo en un sandbox que ya está
+corriendo" en `actualizar-seed-con-composio.md`.
 
 ## Utilidades que NO pasan por este setup
 

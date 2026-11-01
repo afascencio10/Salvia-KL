@@ -91,6 +91,18 @@ if [ ! -f "$SCHEMA_MARKER" ]; then
     $PSQL -d "$DB_NAME" -v ON_ERROR_STOP=1 -f "$REPO_ROOT/cloudDevelopment/seed_reference_data.sql"
     $PSQL -d "$DB_NAME" -v ON_ERROR_STOP=1 -f "$REPO_ROOT/cloudDevelopment/seed_local_dev.sql"
 
+    # Datos de Supabase traídos para probar requerimientos (casos, seguimientos,
+    # remisiones...). Un archivo por requerimiento, permanentes entre sesiones —
+    # ver cloudDevelopment/seed_test_data/README.md. Cada uno va en una sola
+    # transacción (-1): si falla, se revierte completo y se avisa, sin tumbar el
+    # arranque por el dataset de otro requerimiento. Van después de los usuarios
+    # de prueba porque sus FK a usuarios apuntan a cloud.test.*.
+    for seed_file in "$REPO_ROOT"/cloudDevelopment/seed_test_data/*.sql; do
+        [ -e "$seed_file" ] || continue
+        $PSQL -d "$DB_NAME" -1 -v ON_ERROR_STOP=1 -f "$seed_file" >/dev/null \
+            || echo "[cloudDevelopment] AVISO: falló $(basename "$seed_file") (se revirtió completo); se continúa sin ese dataset."
+    done
+
     touch "$SCHEMA_MARKER"
     echo "[cloudDevelopment] Listo. Usuarios de prueba: cloud.test.ad / cloud.test.te / cloud.test.ro (clave: CloudDev!Test2026)"
 else
