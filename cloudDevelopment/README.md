@@ -3,37 +3,136 @@
 Permite correr SOG_SALVIA (backend Go) dentro de una sesión **cloud** de Claude
 Code, donde no hay salida de red hacia la BD compartida de pruebas (Supabase,
 `src/config/db_config.json`). La solución: una BD Postgres local dentro del
-mismo sandbox, con esquema + datos de prueba sintéticos.
+mismo sandbox, con esquema + datos de prueba.
 
 En local no cambia nada — `./run_dev.sh` sigue usando `db_config.json` igual
 que siempre. La detección de ambiente es automática vía la variable
 `CLAUDE_CODE_REMOTE` que exporta el propio sandbox de Claude Code.
 
+## Inicio rápido (sandbox cloud)
+
+```bash
+./run_dev.sh
+```
+
+Levanta Postgres local, aplica esquema y seeds y arranca la app en
+`http://127.0.0.1:9090` (HTTP, sin TLS). La primera vez tarda 1–3 minutos
+(compila Go). La app corre en **primer plano**: ejecútalo en segundo plano y
+espera a que `GET /seguridad/login` devuelva 200. Los datasets de la fase 2
+(`seed_test_data/`) se aplican solos cuando la app responde; verás líneas
+`[seed_test_data]` en la misma consola.
+
+| Qué quieres | Comando |
+|---|---|
+| Comprobar que el ambiente está sano (login con los 19 roles, ~35 s) | `node cloudDevelopment/smoke-login.js` |
+| Entrar a la app con Playwright CLI como un rol | `cloudDevelopment/playwright-cli.sh login sv` |
+| Seguir con el CLI (estructura, clics, capturas) | `cloudDevelopment/playwright-cli.sh snapshot` / `click e12` / `goto <url>` / `screenshot --filename=/tmp/x.png` |
+| Detener la app (para reiniciar tras un cambio de código) | `cloudDevelopment/stop-app.sh` y luego `./run_dev.sh` |
+| Aplicar a mano un archivo nuevo de `seed_test_data/` | `cloudDevelopment/apply-test-seeds.sh` |
+
+> **Reiniciar:** el backend es un binario embebido (`go:embed`), así que
+> cualquier cambio de Go **o de frontend** exige reiniciar. Usa
+> `stop-app.sh`: si se mata solo `go run`, el binario hijo (`bitsflow`) queda
+> huérfano escuchando en el puerto y sigue sirviendo código viejo.
+> `run_dev.sh` ya lo detiene solo al arrancar.
+
+## Usuarios de prueba
+
+Un usuario por cada uno de los 19 roles: `cloud.test.<rol>`. Clave para
+todos: `CloudDev!Test2026`. No son personas reales. (`node
+cloudDevelopment/smoke-login.js` los prueba todos.)
+
+| Rol | Nombre | Aterriza en | Datos que lo hacen funcionar |
+|---|---|---|---|
+| `ad` | Administrador | `/seguridad/usuarios` | |
+| `op` | Operador | `/salvia/casos` | |
+| `sv` | Supervisor | `/salvia/casos` | |
+| `ro` | Operador de seguimiento | `/salvia/casos` | equipo "Riesgo alto" (obligatorio) |
+| `do` | Op. territorial departamental | `/salvia/casos` | |
+| `no` | Op. territorial nacional | `/salvia/casos` | |
+| `et` | Entidad | `/salvia/casos-entidad` | sede de prueba (`entity_branch`) |
+| `en` | Enlace territorial | `/salvia/mis-barreras` | departamento `3` (Bogotá, D.C.) |
+| `an` | Agente de notificaciones | `/salvia/notificaciones` | |
+| `us` | Usuario externo | `/salvia/casos` | |
+| `ps` | Psicólogo | `/salvia/mis-remisiones-psicosocial` | dupla de prueba con `ts` |
+| `ts` | Trabajador social | `/salvia/mis-remisiones-psicosocial` | dupla de prueba con `ps` |
+| `te` | Equipo Técnico | `/salvia/mis-tareas` | |
+| `mc` | Mecanismo | `/salvia/casos-mecanismo` | mecanismo municipal de Bogotá |
+| `sm` | Supervisor de Medidas | `/salvia/remisiones-medidas` | |
+| `em` | Equipo Técnico de Medidas | `/salvia/remisiones-medidas` | |
+| `sc` | Supervisión del Convenio | `/salvia/remisiones-medidas` | |
+| `cr` | Cruz Roja | `/salvia/remisiones-medidas` | |
+| `am` | Agente de Medidas | `/salvia/mis-remisiones-medidas` | |
+
+**El sandbox arranca sin casos** (0 casos, 0 seguimientos, 0 remisiones): hay
+usuarios, catálogos, formularios y configuración, pero no datos de casos. Los
+datos para probar un requerimiento se traen de Supabase (ver "Política de
+datos") y quedan en `seed_test_data/` para las sesiones siguientes.
+
+### Captcha y Playwright
+
+El login tiene un captcha de imagen (`github.com/dchest/captcha`, validado en
+el servidor). El backend lo omite cuando el `User-Agent` es `flutter-client`
+(es el mecanismo de la app móvil, `GeneralUserFacade.go`). `smoke-login.js` y
+`playwright-cli.sh login` mandan ese `User-Agent` **solo en el POST de
+`/seguridad/login`**; el resto de la navegación va con el del navegador.
+
+`playwright-cli.sh` instala `@playwright/cli` (una vez, ~2 s, en
+`/opt/playwright-cli`) y lo apunta al Chromium que ya trae el sandbox
+(`/opt/pw-browsers`). El CLI necesita un Playwright alfa distinto del
+preinstalado, por eso no se instala encima del existente. Sus capturas y
+snapshots van a `/tmp/playwright-cli`, fuera del repo.
+
+Para llamar a la API con la sesión del navegador (tras `login <rol>`):
+
+```bash
+cloudDevelopment/playwright-cli.sh run-code "async page => {
+  const r = await page.evaluate(() => fetch('/api/v1/cases/list').then(async r => r.status + ' ' + (await r.text()).slice(0, 200)));
+  return r;
+}"
+```
+
 ## Cómo funciona
 
 1. `run_dev.sh` fuentea `setup-local-postgres.sh` antes de `go run`.
 2. Ese script es un no-op si `CLAUDE_CODE_REMOTE != "true"`.
-3. En cloud: instala Postgres (una vez, vía apt — se cachea en la imagen del
-   sandbox), inicializa un cluster local en `/var/lib/salvia-local-pg/data`
-   (configurable con `SALVIA_LOCAL_PG_DIR`), crea la BD `salvia_local`, aplica
-   el esquema legacy (`src/security/scripts/db_postgres_creation.sql` +
-   `src/salvia/scripts/db_postgres_creation.sql`) y los seeds de este
-   folder (`seed_reference_data.sql`, luego `seed_local_dev.sql`, luego cada
-   archivo de `seed_test_data/` en orden alfabético), y exporta
-   `DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME`.
-4. `common/utils/EntityOperator.go` → `LoadDBCLientConfig()`: si
+3. **Postgres**: busca los binarios (`pg_ctl` no está en el PATH en
+   Debian/Ubuntu: viven en `/usr/lib/postgresql/<v>/bin`; si no hay Postgres,
+   lo instala por apt), inicializa un cluster en
+   `/var/lib/salvia-local-pg/data` (configurable con `SALVIA_LOCAL_PG_DIR`) y
+   lo arranca en `127.0.0.1:5432`. El sandbox corre como **root** y Postgres se
+   niega a correr como root, así que `initdb`/`pg_ctl` se ejecutan como el
+   usuario del SO `postgres`; `psql` sí corre como root (TCP + auth trust).
+4. **Fase 1 del seed** (solo la primera vez por sandbox, marcador
+   `.schema_applied`): crea la BD `salvia_local`; aplica el esquema legacy
+   (`src/security/scripts/db_postgres_creation.sql` +
+   `src/salvia/scripts/db_postgres_creation.sql`); aplica
+   `schema_drift_patch.sql`; pre-crea las columnas de `security.general_user`
+   que la app agregaría después; y carga `seed_reference_data.sql` y
+   `seed_local_dev.sql`. Exporta `DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME`.
+5. `common/utils/EntityOperator.go` → `LoadDBCLientConfig()`: si
    `CLAUDE_CODE_REMOTE=true`, arma la config de conexión a partir de esas
    variables en vez de leer el `db_config.json` embebido (Supabase). Es el
    único punto de la app que cambia — tanto el pool GORM como el pool legacy
    pgx pasan por esta misma función.
-5. A partir de ahí arranca la app normal: su propio `main.go` hace
-   `AutoMigrate` de los ~34 modelos GORM + columnas legacy
-   (`migrateLegacyTables`) + seeds embebidos (`internal/seed`). Eso ya
-   funcionaba igual en local — no se tocó.
-6. Marcador `.schema_applied` en `SALVIA_LOCAL_PG_DIR`: el esquema/seed solo
-   se aplican una vez por sandbox. Reinicios de `run_dev.sh` dentro de la
-   misma sesión cloud solo verifican que Postgres esté arriba y arrancan la
-   app — rápido. Borrar ese archivo fuerza recrear esquema + seed.
+6. Si había una instancia anterior de la app escuchando, `stop-app.sh` la
+   detiene, y el setup lanza en segundo plano `apply-test-seeds.sh --wait`.
+7. La app arranca normal: su propio `main.go` hace `AutoMigrate` de los ~34
+   modelos GORM + columnas legacy (`migrateLegacyTables`) + seeds embebidos
+   (`internal/seed`). Eso ya funcionaba igual en local — no se tocó.
+8. **Fase 2 del seed**: apenas la app responde (`/seguridad/login` = 200, o sea
+   que ya migró), `apply-test-seeds.sh` aplica `seed_test_data/*.sql`. Es
+   aparte porque las tablas del dominio nuevo (GORM: `case_task`,
+   `follow_up_v2`, `dupla`, `articulating_mechanism`...) las crea la app, y
+   antes del primer arranque no existen. Cada archivo se registra en
+   `public.cloud_seed_applied` (nombre + sha256): se aplican solo los nuevos o
+   modificados, en cada arranque.
+
+Reinicios de `run_dev.sh` dentro de la misma sesión solo verifican que
+Postgres esté arriba y arrancan la app — rápido. Borrar `.schema_applied`
+fuerza reaplicar la fase 1; para empezar de cero de verdad, detener Postgres
+(`runuser -u postgres -- pg_ctl -D /var/lib/salvia-local-pg/data stop`) y borrar
+`/var/lib/salvia-local-pg`.
 
 ## Política de datos: Supabase es una BD de pruebas
 
@@ -62,40 +161,76 @@ Límites que se mantienen:
 Qué va en qué archivo y el procedimiento paso a paso están en
 `actualizar-seed-con-composio.md`.
 
-## Qué carga cada seed
+## Qué carga cada fuente
 
-Tres fuentes, aplicadas en este orden (lo hace `setup-local-postgres.sh`):
+En este orden:
+
+**`schema_drift_patch.sql`** — esquema, no datos. Los dumps legacy
+(`db_postgres_creation.sql`) quedaron atrás de la BD real: allá se agregaron a
+mano tablas y columnas. Sin este parche varias pantallas responden 500
+(`column victim_case_victim_town_code does not exist`, `relation
+victim_contact_form1 does not exist`...). Agrega 4 tablas, 82 columnas, 5
+anchos de columna, 1 `UNIQUE` y 1 índice; hace nullable 4 columnas que en
+Supabase aceptan NULL (sin eso crear un caso nuevo falla: `victim_case_approved_by`
+es `NOT NULL` en los dumps) y agrega 4 defaults; y renombra
+`security.email.email_id` → `e_mail_id`. Generado el 2026-11-01 comparando el
+catálogo de Supabase con el local. Ver en el propio archivo qué **no** se
+replica y por qué (FKs, tablas sin uso). Verificado con una escritura real:
+`POST /api/v1/victim-cases-v3/draft` como `op` crea el caso (inserta en
+`general_user_profile`, `general_user`, `victim_case` y `victim_case_form2`) y
+aparece en `/api/v1/cases/list`.
 
 **`seed_reference_data.sql`** — generado, no editar a mano. Catálogo/
 referencia **real**, leído de Supabase vía Composio (ver
 `actualizar-seed-con-composio.md`):
 - Geografía DIVIPOLA **completa**: 1 país, 33 departamentos, 1121 ciudades,
   7838 municipios/corregimientos — no una muestra.
-- Catálogo completo de roles: **19** `role_code` (la lectura de código de la
-  primera versión de este setup se había quedado corta en 4: `sm`, `em`,
-  `sc`, `cr`).
+- Catálogo completo de roles: **19** `role_code`.
 - Directorio de entidades (41) y sectores de barrera (13) — catálogo de
   instituciones, no datos de un caso.
 - Motor de formularios **completo**: `form` (27), `form_section` (89),
   `question`, `option`, `visibility_condition`, `repeater_group` — el texto
-  de las preguntas/opciones de todos los formularios reales de la app
-  (antes solo existían los 2 que la app crea sola al arrancar). Son
-  definiciones, no respuestas de ningún caso.
+  de las preguntas/opciones de todos los formularios reales de la app.
+  Son definiciones, no respuestas de ningún caso.
 
 **`seed_local_dev.sql`** — hand-maintained, sigue el patrón `ON CONFLICT
-DO NOTHING` existente. Solo lo genuinamente sintético: **3 usuarios de
-prueba** — `cloud.test.ad` (Administrador), `cloud.test.te` (Equipo
-Técnico), `cloud.test.ro` (Operador de riesgo, equipo "Riesgo alto"). Clave
-para los tres: `CloudDev!Test2026`. No son personas reales.
+DO NOTHING`. Solo lo genuinamente sintético: los **19 usuarios de prueba** y
+lo que cada rol necesita antes de que arranque la app (equipo de `ro`,
+departamento de `en`, sede de prueba de `et`).
 
-**`seed_test_data/*.sql`** — datos leídos de Supabase para probar
-requerimientos concretos: casos, víctimas, seguimientos, barreras,
-remisiones, tareas, respuestas de formularios, etc. Un archivo por
-requerimiento, `AAAAMMDD-<slug>.sql`, idempotente y autocontenido; se
-aplican en orden alfabético, cada uno en una sola transacción. Un archivo
-que falle se omite con un aviso y no detiene el arranque. Es permanente:
-lo que una sesión agrega aquí lo encuentran todas las siguientes. Ver
-`seed_test_data/README.md` y `actualizar-seed-con-composio.md`.
+**`seed_test_data/*.sql`** (fase 2, después de que la app arranca) —
+datos que dependen de tablas que crea la app y datos leídos de Supabase para
+probar requerimientos concretos. Un archivo por requerimiento,
+`AAAAMMDD-<slug>.sql`, idempotente y autocontenido. Hoy trae
+`20261101-base-mecanismos-y-duplas.sql`: el catálogo real de mecanismos
+articuladores (6 filas), el mecanismo del usuario `mc` y la dupla `ps` + `ts`.
+Es permanente: lo que una sesión agrega aquí lo encuentran todas las
+siguientes. Ver `seed_test_data/README.md`.
+
+## Problemas conocidos del código (no son del sandbox)
+
+Aparecen en la consola al arrancar, también ocurren contra Supabase y **no
+impiden usar la app**. No los investigues como si fueran del setup:
+
+- `[WARN] pregunta de riesgo inminente del seguimiento V.4 ... operator does
+  not exist: uuid = character varying` (`internal/seed/seed.go`,
+  `seguimiento_v4_riesgo_inminente.sql`): compara `form_section.id` (uuid)
+  con una variable `varchar` sin cast. La pregunta de riesgo inminente de la V.4
+  nunca se agrega, ni aquí ni en Supabase (919 preguntas en ambos lados).
+  Arreglo: `WHERE id = sec_id::uuid`.
+- `[WARN] reparación de tareas de validación de remisiones ... operator does
+  not exist: character varying = uuid` (`validation_tasks.sql`): compara
+  `case_timeline_event.psychosocial_support_id` (varchar) con `ps.id` (uuid).
+  Arreglo: `e.psychosocial_support_id = ps.id::text`. Ojo: al corregirlo, esa
+  reparación **empezaría a escribir** tareas `validar_remision` en cada
+  arranque, también en producción.
+- `go test` falla en `salvia/service` (el test `followup_v2_service_test.go`
+  llama a `NewFollowUpV2Service` con 13 argumentos y pide 14, y eso impide
+  compilar todos los tests del paquete), `salvia/dao` (error de `vet` en
+  `VictimCaseDAO.go:1569`) e `internal/seed` (un test de la V.4 quedó viejo).
+  Corre los tests por paquete.
+- `go build ./...` falla en `cmd/backup` (falta `godotenv`); la app (`go build .`)
+  compila bien.
 
 ## Errores esperados al aplicar el esquema
 
@@ -124,6 +259,9 @@ que apuntaba a una tabla `case` inexistente (typo de `victim_case`), y dos
 tablas `rel_case_owner_feminicide*` con un `UNIQUE` sobre una columna
 `_i_code` que nunca se definió.
 
+Lo que esos dumps **no** traen (porque la BD real cambió a mano después) lo
+cierra `schema_drift_patch.sql`, que sí va estricto (`ON_ERROR_STOP=1`).
+
 ## Actualizar el seed
 
 - Falta un dato de **catálogo/referencia real** (un rol, una entidad, una
@@ -134,15 +272,33 @@ tablas `rel_case_owner_feminicide*` con un `UNIQUE` sobre una columna
   seguimientos, una remisión, respuestas de un formulario): se leen de
   Supabase vía Composio y se guardan en un archivo nuevo
   `seed_test_data/AAAAMMDD-<slug>.sql`, con el mismo procedimiento.
+- Una pantalla responde 500 con `column ... does not exist` o `relation ...
+  does not exist`: es drift de esquema. Ver "Esquema: cuando aparece 'column ...
+  does not exist'" en `actualizar-seed-con-composio.md`.
 - Falta un dato **sintético** (otro usuario de prueba, por ejemplo): editar
   `seed_local_dev.sql` directamente (mantener `ON CONFLICT DO NOTHING` /
   `WHERE NOT EXISTS`).
 
-En todos los casos: commitear junto con la funcionalidad que lo motivó. La
-próxima vez que `.schema_applied` no exista (sandbox nuevo), se aplica solo.
-En un sandbox que ya está corriendo, un archivo nuevo de `seed_test_data/`
-no se carga solo: ver "Aplicar un archivo nuevo en un sandbox que ya está
-corriendo" en `actualizar-seed-con-composio.md`.
+En todos los casos: commitear junto con la funcionalidad que lo motivó. Un
+sandbox nuevo aplica todo solo. En uno que ya está corriendo, la fase 1
+(esquema, referencia, usuarios) no se reaplica; los archivos nuevos de
+`seed_test_data/` sí se aplican en el próximo `./run_dev.sh`, o al momento con
+`cloudDevelopment/apply-test-seeds.sh`.
+
+## Archivos de esta carpeta
+
+| Archivo | Para qué |
+|---|---|
+| `setup-local-postgres.sh` | Lo fuentea `run_dev.sh`. Postgres + fase 1 del seed. |
+| `schema_drift_patch.sql` | Esquema: cierra el drift con la BD real. |
+| `seed_reference_data.sql` | Catálogo real (generado). |
+| `seed_local_dev.sql` | Los 19 usuarios de prueba. |
+| `seed_test_data/` | Fase 2: datos de requerimientos y base de mecanismos/duplas. |
+| `apply-test-seeds.sh` | Aplica `seed_test_data/` (lo lanza el setup; también a mano). |
+| `stop-app.sh` | Detiene la app que ocupa el puerto (sin matar por nombre). |
+| `smoke-login.js` | Login por la UI con los 19 roles (Playwright). |
+| `playwright-cli.sh` | Playwright CLI listo para usar, con `login <rol>`. |
+| `actualizar-seed-con-composio.md` | Cómo traer datos y esquema de Supabase. |
 
 ## Utilidades que NO pasan por este setup
 
