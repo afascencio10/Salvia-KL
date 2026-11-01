@@ -11,6 +11,9 @@ ContextoRequerimientosDesarrollo
 !src/internal/seed/*.sql
 # Excepción: seed sintético para la BD local del sandbox cloud (cloudDevelopment/).
 !cloudDevelopment/*.sql
+# Datos de Supabase traídos para probar requerimientos (un archivo por requerimiento).
+# Sin esta excepción `*.sql` los ignoraría y nunca llegarían a la siguiente sesión.
+!cloudDevelopment/seed_test_data/*.sql
 # Sesiones activas del servidor (contienen tokens y datos de usuario)
 src/sessions
 
