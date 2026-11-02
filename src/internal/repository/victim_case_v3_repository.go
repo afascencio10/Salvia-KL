@@ -851,6 +851,15 @@ func (r *victimCaseV3Repository) SaveTamizajeBranch(ctx context.Context, icode s
 		updates["victim_case_form2_tzv3_risk_score"] = riskScore
 		updates["victim_case_form2_update_date"] = time.Now()
 
+		// REG-34: Tamizaje por etapas. Con las cinco iniciales en «No» la pantalla solo manda esas cinco: el resto
+		// (TZ_5, TZ_6, TZ_8 y las 24 de cada rama) no se preguntó, así que queda en «No» -- sin importar lo que
+		// hubiera de un guardado anterior -- y NO se marca como respondido (markKeysAnswered solo ve lo recibido).
+		if !tamizajeTieneResto(answersByKey) {
+			for _, col := range victimCaseV3TamizajeResto {
+				updates[col] = noID
+			}
+		}
+
 		if err := tx.Table("salvia.victim_case_form2").
 			Where("victim_case_form2_victim_case = ?", victimCaseID).
 			Updates(updates).Error; err != nil {

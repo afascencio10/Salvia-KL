@@ -142,10 +142,29 @@ var victimCaseV3TamizajeNoPareja = []VictimCaseFormField{} //nolint:gochecknoglo
 // victimCaseV3FormFields en init(). SaveTamizajeBranch las guarda junto con la rama activa (REG-12).
 var victimCaseV3TamizajeGenerales = []VictimCaseFormField{} //nolint:gochecknoglobals
 
+// victimCaseV3TamizajeResto -- columnas del «resto» del Tamizaje, que solo se pregunta si alguna de las cinco
+// iniciales (TZ_1, 2, 3, 4, 7) es «Sí»: TZ_5, TZ_6, TZ_8 y las 24 de cada rama (REG-34). Se llena en init().
+var victimCaseV3TamizajeResto = []string{} //nolint:gochecknoglobals
+
+// tamizajeTieneResto -- ¿vino alguna respuesta del «resto» del Tamizaje en este guardado?
+func tamizajeTieneResto(answersByKey map[string]string) bool {
+	for k := range answersByKey {
+		if k == "TZ_5" || k == "TZ_6" || k == "TZ_8" || strings.HasPrefix(k, "TZP_") || strings.HasPrefix(k, "TZNP_") {
+			return true
+		}
+	}
+	return false
+}
+
 func init() {
 	for _, f := range victimCaseV3FormFields {
 		if strings.HasPrefix(f.Key, "TZ_") {
 			victimCaseV3TamizajeGenerales = append(victimCaseV3TamizajeGenerales, f)
+		}
+	}
+	for _, f := range victimCaseV3TamizajeGenerales {
+		if f.Key == "TZ_5" || f.Key == "TZ_6" || f.Key == "TZ_8" {
+			victimCaseV3TamizajeResto = append(victimCaseV3TamizajeResto, f.Column)
 		}
 	}
 	for i := 1; i <= 24; i++ {
@@ -159,6 +178,8 @@ func init() {
 			Column: fmt.Sprintf("victim_case_form2_tzv3_np%d", i),
 			Kind:   KindBoolEnum,
 		})
+		victimCaseV3TamizajeResto = append(victimCaseV3TamizajeResto,
+			fmt.Sprintf("victim_case_form2_tzv3_p%d", i), fmt.Sprintf("victim_case_form2_tzv3_np%d", i))
 	}
 }
 

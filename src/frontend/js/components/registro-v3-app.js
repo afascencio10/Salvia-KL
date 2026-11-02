@@ -101,6 +101,15 @@ var RegistroV3App = Vue.createApp({
     equiposSeleccionados: function () {
       return (this.answers['GS_6'] || '').split(',').filter(function (v) { return v; });
     },
+    // REG-34: ¿ya se respondieron las cinco preguntas iniciales del Tamizaje (TZ_1, 2, 3, 4, 7)? Con todas en
+    // «No» no se pregunta el resto y el Tamizaje ya se puede calcular y guardar.
+    tzInicialesRespondidas: function () {
+      var self = this;
+      return TAMIZAJE_GENERALES_V3.filter(function (c) { return c.inicial; }).every(function (c) {
+        var v = self.answers[c.id];
+        return v === 'true' || v === 'false';
+      });
+    },
   },
 
   created: function () {
@@ -266,6 +275,8 @@ var RegistroV3App = Vue.createApp({
             if (todas[k] !== undefined) filtradas[k] = todas[k];
           });
           self.answers = filtradas;
+          // REG-34: el resto del Tamizaje se muestra si alguna de las cinco iniciales quedó en «Sí».
+          self.tzRevelarResto = TAMIZAJE_GENERALES_V3.some(function (c) { return c.inicial && filtradas[c.id] === 'true'; });
           self.entidades = data.entities || [];
           self.barreras = data.barriers || [];
           // BUG encontrado en QA (2026-10-15): tzResultado solo se llenaba
@@ -724,15 +735,21 @@ var RegistroV3App = Vue.createApp({
       var subtipoFem = this.multipleIncluyeTexto('HV_10', 'tentativa feminicidio');
       var subtipoHom = this.multipleIncluyeTexto('HV_10', 'tentativa homicidio');
 
+      // REG-34: por etapas. Con las cinco iniciales en «No» (resto sin revelar) solo se envían esas cinco: el
+      // servidor deja el resto en «No» sin marcarlo como respondido. Con el resto revelado se envía todo.
       var tzAnswers = {};
-      TAMIZAJE_GENERALES_V3.forEach(function (c) { tzAnswers[c.id] = self.answers[c.id] === 'true' ? 'true' : 'false'; });
-      tzAnswers['TZ_8'] = this.answers['TZ_8'] === 'true' ? 'true' : 'false';
-      var lista = wasPartner ? TAMIZAJE_PAREJA_V3 : TAMIZAJE_NO_PAREJA_V3;
-      var prefijo = wasPartner ? 'TZP_' : 'TZNP_';
-      lista.forEach(function (_, idx) {
-        var id = prefijo + (idx + 1);
-        tzAnswers[id] = self.answers[id] === 'true' ? 'true' : 'false';
+      TAMIZAJE_GENERALES_V3.forEach(function (c) {
+        if (self.tzRevelarResto || c.inicial) tzAnswers[c.id] = self.answers[c.id] === 'true' ? 'true' : 'false';
       });
+      if (this.tzRevelarResto) {
+        tzAnswers['TZ_8'] = this.answers['TZ_8'] === 'true' ? 'true' : 'false';
+        var lista = wasPartner ? TAMIZAJE_PAREJA_V3 : TAMIZAJE_NO_PAREJA_V3;
+        var prefijo = wasPartner ? 'TZP_' : 'TZNP_';
+        lista.forEach(function (_, idx) {
+          var id = prefijo + (idx + 1);
+          tzAnswers[id] = self.answers[id] === 'true' ? 'true' : 'false';
+        });
+      }
 
       this.tzGuardando = true;
       this.errorGuardado = '';
