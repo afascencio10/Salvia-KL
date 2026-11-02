@@ -14,6 +14,7 @@ package salvia_ctrl
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	common_config "bitsflow/common/config"
@@ -74,11 +75,20 @@ func SetVictimContactV2(dataInput string, checkCaptcha bool, connData *db.ConnDa
 	var vc salvia_daos.VictimContactDTO
 	utils.JSONToStruct(string(envelope.VictimContact), &vc)
 
+	// T1 (REP-13*): json.Unmarshal en vez de utils.JSONToStruct, que descarta el
+	// error. Así una hora de recontacto ilegible se informa como error del
+	// campo en lugar de quedar en cero sin aviso. Los demás errores de esta
+	// decodificación se siguen ignorando, igual que antes.
 	var form2v2Wrapper victimContactForm2V2Wrapper
-	utils.JSONToStruct(string(envelope.VictimContact), &form2v2Wrapper)
+	form2v2DecodeErr := json.Unmarshal(envelope.VictimContact, &form2v2Wrapper)
 
 	form2 := &vc.VictimContactForm2
 	form2v2 := &form2v2Wrapper.Form2V2
+
+	bestContactTimeInvalid := errors.Is(form2v2DecodeErr, salvia_daos.ErrReporterBestContactTimeInvalid)
+	if bestContactTimeInvalid {
+		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2V2JSONName, "reporterBestContactTime", "victim_contact_form2_v2_time_invalid", "common_global_error", salvia_config.Locale)
+	}
 
 	salvia_daos.SetVictimContactDefaults(&vc, common_dao.SQL_INSERT)
 	salvia_daos.SetVictimContactForm2Defaults(form2, common_dao.SQL_INSERT)
@@ -163,7 +173,7 @@ func SetVictimContactV2(dataInput string, checkCaptcha bool, connData *db.ConnDa
 		}
 		if err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&form2v2.VictimContactForm2V2ReporterWillReceiveCall); err != nil {
 			utils.SetError(collectedErrors, salvia_daos.VictimContactForm2V2JSONName, "reporterWillReceiveCall", "victim_case_form2_enums_not_found", "common_global_error", salvia_config.Locale)
-		} else if form2v2.VictimContactForm2V2ReporterWillReceiveCall.VictimCaseForm2EnumsCode == "y" && form2v2.VictimContactForm2V2ReporterBestContactTime.IsZero() {
+		} else if form2v2.VictimContactForm2V2ReporterWillReceiveCall.VictimCaseForm2EnumsCode == "y" && form2v2.VictimContactForm2V2ReporterBestContactTime.IsZero() && !bestContactTimeInvalid {
 			utils.SetError(collectedErrors, salvia_daos.VictimContactForm2V2JSONName, "reporterBestContactTime", "common_validation_field_empty_error", "common_global_error", common_config.Locale)
 		}
 

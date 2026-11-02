@@ -773,6 +773,8 @@ var Locale = map[string]map[string]string{
 		"victim_case_form2_parentesco_fs": "Familia social",
 		"victim_case_form2_parentesco_ot": "Otra",
 
+		"victim_contact_form2_v2_time_invalid": "Hora con formato inválido",
+
 		"victim_case_form2_enums_not_found":          "Por favor escoja una opción",
 		"feminicide_form2_enums_not_found":           "Por favor escoja una opción",
 		"feminicide_risk_form1_enums_not_found":      "Por favor escoja una opción",
