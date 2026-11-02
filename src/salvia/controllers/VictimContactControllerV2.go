@@ -12,7 +12,6 @@
 package salvia_ctrl
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -222,6 +221,17 @@ func SetVictimContactV2(dataInput string, checkCaptcha bool, connData *db.ConnDa
 		return http.StatusInternalServerError, err.Error()
 	}
 
+	// T3 (REP-01): radicado corto «XXXX-XXXX», dentro de la misma transacción.
+	// Si el valor ya existe se genera otro (hasta 5 veces); cualquier otro
+	// fallo deshace el reporte completo.
+	radicado, err := assignRadicado(vc.VictimContactICode, generateRadicado, func(icode, candidate string) (bool, error) {
+		return salvia_daos.AssignVictimContactRadicado(icode, candidate, connData, &dbClientConfig, &dbServerConfig)
+	})
+	if err != nil {
+		db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
+		return http.StatusInternalServerError, err.Error()
+	}
+
 	form2.VictimContactForm2VictimContact = vc
 
 	if err = salvia_daos.SetVictimContactForm2(form2, connData, &dbClientConfig, &dbServerConfig); err != nil {
@@ -245,12 +255,16 @@ func SetVictimContactV2(dataInput string, checkCaptcha bool, connData *db.ConnDa
 		return http.StatusInternalServerError, err.Error()
 	}
 
-	// A diferencia de V1 (que responde con cuerpo vacío), V2 sí devuelve el
-	// icode: el wizard lo muestra como número de radicado en la confirmación.
-	var buf bytes.Buffer
-	buf.WriteString(`{"icode":"`)
-	buf.WriteString(vc.VictimContactICode)
-	buf.WriteString(`"}`)
+	// A diferencia de V1 (que responde con cuerpo vacío), V2 devuelve el icode
+	// (id interno; la app móvil lo sigue leyendo) y, desde T3, el radicado que
+	// el wizard muestra en la confirmación.
+	res, err := json.Marshal(struct {
+		ICode    string `json:"icode"`
+		Radicado string `json:"radicado"`
+	}{vc.VictimContactICode, radicado})
+	if err != nil {
+		return http.StatusInternalServerError, err.Error()
+	}
 
-	return http.StatusOK, buf.String()
+	return http.StatusOK, string(res)
 }

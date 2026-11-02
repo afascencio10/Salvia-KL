@@ -551,6 +551,9 @@ func migrateLegacyTables(db *gorm.DB) {
 		CloseReason      *int64     `gorm:"column:victim_contact_close_reason"`
 		CloseObservation string     `gorm:"column:victim_contact_close_observation;type:varchar(500)"`
 		ClosedDate       *time.Time `gorm:"column:victim_contact_closed_date"`
+		// Radicado público del reporte V2 (WP-1 T3/REP-01): «XXXX-XXXX». Nulable:
+		// los reportes anteriores y los de V1 no tienen. Índice único con nombre fijo.
+		Radicado *string `gorm:"column:victim_contact_radicado;type:varchar(16);uniqueIndex:uq_victim_contact_radicado"`
 	}
 	if err := db.Table("salvia.victim_contact").AutoMigrate(&VictimContactSync{}); err != nil {
 		log.Printf("[WARN] AutoMigrate salvia.victim_contact: %v", err)

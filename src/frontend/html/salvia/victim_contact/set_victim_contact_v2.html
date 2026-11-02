@@ -222,7 +222,12 @@
         <div class="border rounded p-4 d-inline-block text-left mt-3">
           <p><strong>Fecha:</strong> ${ fechaActual }</p>
           <p><strong>Hora:</strong> ${ horaActual }</p>
-          <p class="mb-0"><strong>Número de Radicado:</strong> ${ radicado }</p>
+          <p class="mb-0"><strong>Número de Radicado:</strong> <span id="radicado-valor">${ radicado }</span>
+            <button type="button" id="btn-copiar-radicado" class="btn btn-sm btn-outline-secondary ml-2" @click="copiarRadicado">
+              <i :class="copiado ? 'fas fa-check' : 'far fa-copy'"></i> ${ copiado ? 'Copiado' : 'Copiar radicado' }
+            </button>
+          </p>
+          <p v-if="copiaError" id="copiar-radicado-error" class="small text-danger mb-0 mt-2">No fue posible copiarlo automáticamente: seleccione el número y cópielo manualmente.</p>
         </div>
 
         <p class="text-muted mt-4">Un agente integral intentará comunicarse al número de contacto proporcionado para la validación y posible apertura del caso.</p>
@@ -256,6 +261,9 @@
         },
         form: this.blankForm({{.CaptchaID}}),
         radicado: '',
+        copiado: false,
+        copiaError: false,
+        copiadoTimer: null,
         fechaActual: '',
         horaActual: '',
       }
@@ -331,8 +339,44 @@
         // arma el formulario en blanco y se pide un id nuevo.
         this.form = this.blankForm(this.form.captchaID);
         this.radicado = '';
+        this.copiado = false;
+        this.copiaError = false;
         this.step = 'auth';
         this.refreshCaptcha();
+      },
+      // T3 · E13 «Cuando presiona «Copiar radicado»»: copia el radicado al
+      // portapapeles (API del navegador, con respaldo execCommand) y muestra
+      // «Copiado» unos segundos. No llama al backend.
+      copiarRadicado() {
+        const texto = this.radicado;
+        this.copiaError = false;
+        const exito = () => {
+          this.copiado = true;
+          clearTimeout(this.copiadoTimer);
+          this.copiadoTimer = setTimeout(() => { this.copiado = false; }, 3000);
+        };
+        const fallo = () => { this.copiado = false; this.copiaError = true; };
+        const respaldo = () => {
+          try {
+            const ta = document.createElement('textarea');
+            ta.value = texto;
+            ta.setAttribute('readonly', '');
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            const copiado = document.execCommand('copy');
+            document.body.removeChild(ta);
+            copiado ? exito() : fallo();
+          } catch (e) {
+            fallo();
+          }
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(texto).then(exito).catch(respaldo);
+        } else {
+          respaldo();
+        }
       },
       // Pide un captchaID nuevo a esta misma página (E-01 en modo JSON,
       // Accept: application/json). Si falla se conserva el id actual (el primer
@@ -394,7 +438,7 @@
         newEntity("{{.formPath}}", payload, (function (status, response) {
           this.form.captchaSolution = "";
           if (status === 200) {
-            this.radicado = response.icode;
+            this.radicado = response.radicado || response.icode;
             const now = new Date();
             this.fechaActual = now.toLocaleDateString('es-CO');
             this.horaActual = now.toLocaleTimeString('es-CO');
