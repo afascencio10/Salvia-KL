@@ -193,11 +193,18 @@ func (r *reportConversionRepository) ConvertReportToDraft(ctx context.Context, i
 		}
 
 		// b. Vincular el reporte y prellenar los nombres de la persona afectada (CI_2).
+		//
+		// El documento temporal del Borrador (cc / 0000000000) lo comparten TODOS los borradores sin documento, y
+		// fanOutPerfilV3 solo omite la réplica del Perfil cuando el documento está VACÍO: con el temporal, guardar
+		// CI, DP o CA antes de digitar el documento pisaría las respuestas de otros borradores (probado). Por eso los
+		// borradores creados desde un reporte quedan SIN documento (vacío) hasta que el agente complete CI_5 y CI_6.
 		if err := tx.Exec(`
 			UPDATE salvia.victim_case
 			   SET victim_case_victim_contact = ?,
 			       victim_case_victim_names = ?,
 			       victim_case_victim_last_names = ?,
+			       victim_case_victim_doc_type = '',
+			       victim_case_victim_doc_number = '',
 			       victim_case_update_date = now()
 			 WHERE victim_case_i_code = ?
 		`, src.ID, src.Names, src.LastNames, caseICode).Error; err != nil {
