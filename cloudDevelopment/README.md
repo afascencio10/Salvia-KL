@@ -9,6 +9,36 @@ En local no cambia nada — `./run_dev.sh` sigue usando `db_config.json` igual
 que siempre. La detección de ambiente es automática vía la variable
 `CLAUDE_CODE_REMOTE` que exporta el propio sandbox de Claude Code.
 
+## Alcance de esta carpeta
+
+`cloudDevelopment/` es **solo** lo necesario para que la app corra en el
+sandbox cloud de Claude Code: el **setup** (Postgres local, esquema,
+migraciones del sandbox, arranque y parada) y los **datos** con los que
+arranca (catálogos, usuarios de prueba y los datasets de `seed_test_data/`).
+
+La prueba para un archivo nuevo es una pregunta: *¿sin esto la app no arranca
+en el sandbox, o no tiene datos para probar?* Si la respuesta es no, no va aquí.
+
+**No entra, aunque sirva para probar una funcionalidad:**
+
+- Scripts de QA, E2E, de regresión o de verificación de un requerimiento
+  (Playwright, `curl`, Python…).
+- Casos de prueba, capturas y reportes de resultados.
+- Utilidades de la funcionalidad, herramientas de análisis o cualquier cosa que
+  no prepare el entorno ni sus datos.
+
+**Dónde va cada cosa:** las pruebas automatizadas del código, junto al código
+(`*_test.go`, `src/tests/`); los casos de QA y sus resultados, en
+`DocsMD/Screens/<pantalla>/QA/`; las herramientas generales del repo, en
+`scripts/`. Un script que solo sirve para probar tu cambio se queda en el
+directorio temporal de la sesión y no se commitea.
+
+> **Heredado, no replicar.** `e2e/` (los scripts de QA de WP-2) llegó antes de
+> esta regla y no la cumple: no agregues más archivos ahí; falta decidir dónde
+> viven y sacarlos de esta carpeta. `smoke-login.js` y `playwright-cli.sh` sí
+> son del propio ambiente (comprobar que el sandbox está sano y manejar su
+> navegador), no de un requerimiento.
+
 ## Inicio rápido (sandbox cloud)
 
 ```bash
@@ -66,10 +96,13 @@ cloudDevelopment/smoke-login.js` los prueba todos.)
 | `cr` | Cruz Roja | `/salvia/remisiones-medidas` | |
 | `am` | Agente de Medidas | `/salvia/mis-remisiones-medidas` | |
 
-**El sandbox arranca sin casos** (0 casos, 0 seguimientos, 0 remisiones): hay
-usuarios, catálogos, formularios y configuración, pero no datos de casos. Los
-datos para probar un requerimiento se traen de Supabase (ver "Política de
-datos") y quedan en `seed_test_data/` para las sesiones siguientes.
+**Datos de dominio con los que arranca el sandbox:** además de los usuarios,
+catálogos, formularios y configuración, trae 17 reportes de ejemplo (radicado
+`SEED-xxxx`, en todos los estados del Listado) y 2 casos de Registro V3
+enlazados a dos de ellos (`seed_test_data/20261102-reportes-wp1.sql`); 0
+seguimientos y 0 remisiones. Los datos para probar un requerimiento se traen de
+Supabase (ver "Política de datos") o se escriben sintéticos, y quedan en
+`seed_test_data/` para las sesiones siguientes.
 
 ### Captcha y Playwright
 
@@ -249,11 +282,22 @@ ampliados a `varchar(100)`. **En Supabase hay que aplicarla a mano** (el
 **`seed_test_data/*.sql`** (fase 2, después de que la app arranca) —
 datos que dependen de tablas que crea la app y datos leídos de Supabase para
 probar requerimientos concretos. Un archivo por requerimiento,
-`AAAAMMDD-<slug>.sql`, idempotente y autocontenido. Hoy trae
-`20261101-base-mecanismos-y-duplas.sql` (catálogo real de mecanismos, el mecanismo del
-usuario `mc` y la dupla `ps` + `ts`) y `20261101-entidades-bogota.sql` (7
-sedes reales de Bogotá y las obligaciones de sus entidades, para las pantallas
-que buscan sedes por municipio y sector). Es permanente: lo que una sesión agrega aquí lo encuentran todas las
+`AAAAMMDD-<slug>.sql`, idempotente y autocontenido. Hoy trae:
+
+- `20261101-base-mecanismos-y-duplas.sql`: catálogo real de mecanismos, el
+  mecanismo del usuario `mc` y la dupla `ps` + `ts`.
+- `20261101-entidades-bogota.sql`: 7 sedes reales de Bogotá y las obligaciones
+  de sus entidades, para las pantallas que buscan sedes por municipio y sector.
+- `20261102-reportes-wp1.sql` (sintético, no sale de Supabase): 17 reportes con
+  radicado `SEED-xxxx` y su historial, uno por situación —sin asignar (anónimos y
+  con sesión), asignado a `cloud.test.op`, con intento fallido, con contacto
+  logrado, borrador iniciado, cerrado válido y cerrados inválidos por cada
+  motivo— y dos casos de Registro V3 enlazados (un borrador y uno terminado, con
+  sus usuarios `cloud.seed.borrador` y `cloud.seed.terminado`, misma clave de
+  los de prueba). La cabecera del archivo dice qué radicado sirve para qué; la
+  consulta pública está en `/salvia/public-consulta`.
+
+Es permanente: lo que una sesión agrega aquí lo encuentran todas las
 siguientes. Ver `seed_test_data/README.md`.
 
 ## Problemas conocidos del código (no son del sandbox)
@@ -334,7 +378,12 @@ cierra `schema_drift_patch.sql`, que sí va estricto (`ON_ERROR_STOP=1`).
   does not exist'" en `actualizar-seed-con-composio.md`.
 - Falta un dato **sintético** (otro usuario de prueba, por ejemplo): editar
   `seed_local_dev.sql` directamente (mantener `ON CONFLICT DO NOTHING` /
-  `WHERE NOT EXISTS`).
+  `WHERE NOT EXISTS`). Si son datos de dominio sintéticos para probar un
+  requerimiento (como los reportes de ejemplo), van en un archivo de
+  `seed_test_data/`, marcados como sintéticos en la cabecera y con ids o
+  radicados reconocibles (`SEED-…`, `5eed…`).
+- Lo que **no** se agrega aquí: scripts de QA o cualquier cosa que no sea setup
+  o datos (ver "Alcance de esta carpeta").
 
 En todos los casos: commitear junto con la funcionalidad que lo motivó. Un
 sandbox nuevo aplica todo solo. En uno que ya está corriendo, la fase 1
@@ -351,12 +400,14 @@ sandbox nuevo aplica todo solo. En uno que ya está corriendo, la fase 1
 | `seed_reference_data.sql` | Catálogo real (generado). |
 | `seed_reference_enums.sql` | Catálogo de opciones real (912 filas); reemplaza el del dump. |
 | `seed_local_dev.sql` | Los 19 usuarios de prueba. |
-| `seed_test_data/` | Fase 2: datos de requerimientos y base de mecanismos/duplas. |
+| `apply-migrations.sh` | Aplica las migraciones fechadas de `src/migrations/` (lo lanza el setup en cada arranque; también a mano). |
+| `seed_test_data/` | Fase 2: datos de requerimientos, base de mecanismos/duplas y reportes de ejemplo. Solo datos. |
 | `apply-test-seeds.sh` | Aplica `seed_test_data/` (lo lanza el setup; también a mano). |
 | `stop-app.sh` | Detiene la app que ocupa el puerto (sin matar por nombre). |
-| `smoke-login.js` | Login por la UI con los 19 roles (Playwright). |
-| `playwright-cli.sh` | Playwright CLI listo para usar, con `login <rol>`. |
+| `smoke-login.js` | Del ambiente: login por la UI con los 19 roles (Playwright) para comprobar que el sandbox está sano. |
+| `playwright-cli.sh` | Del ambiente: Playwright CLI listo para usar con el Chromium del sandbox, con `login <rol>`. |
 | `actualizar-seed-con-composio.md` | Cómo traer datos y esquema de Supabase. |
+| `e2e/` | **Heredado, fuera de alcance** (QA de WP-2). No agregar más; se saca de esta carpeta. |
 
 ## Utilidades que NO pasan por este setup
 
