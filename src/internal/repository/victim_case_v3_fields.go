@@ -57,8 +57,8 @@ var victimCaseV3FormFields = []VictimCaseFormField{ //nolint:gochecknoglobals
 	{FieldKeyV3("DP", 24), "victim_case_form2_housing_stratum", KindEnum1},
 	{FieldKeyV3("DP", 25), "", KindEnumN}, // Personas a cargo
 	{FieldKeyV3("DP", 26), "victim_case_form2_currently_pregnant", KindBoolEnum},
-	{FieldKeyV3("DP", 27), "", KindText},                                // Departamento residencia -- cascada UI, no se proyecta
-	{FieldKeyV3("DP", 28), "victim_case_form2_residence_town", KindText}, // bootstrap también (ver CreateDraftV3)
+	{FieldKeyV3("DP", 27), "victim_case_form2_residence_department", KindText}, // Departamento residencia (REG-11: antes no se guardaba)
+	{FieldKeyV3("DP", 28), "victim_case_form2_residence_town", KindText},       // bootstrap también (ver CreateDraftV3)
 	{FieldKeyV3("DP", 29), "victim_case_form2_residence_address", KindText},
 	{FieldKeyV3("DP", 30), "victim_case_form2_residence_zone", KindEnum1},
 
@@ -72,7 +72,7 @@ var victimCaseV3FormFields = []VictimCaseFormField{ //nolint:gochecknoglobals
 	{FieldKeyV3("HV", 1), "victim_case_form2_facts_description", KindText},
 	{FieldKeyV3("HV", 2), "victim_case_form2_facts_date", KindDate},
 	{FieldKeyV3("HV", 3), "victim_case_form2_facts_start_time", KindTime},
-	{FieldKeyV3("HV", 4), "", KindText}, // Departamento hechos -- cascada UI
+	{FieldKeyV3("HV", 4), "victim_case_form2_facts_department", KindText}, // Departamento hechos (REG-11: antes no se guardaba)
 	{FieldKeyV3("HV", 5), "victim_case_form2_facts_town_code", KindText},
 	{FieldKeyV3("HV", 6), "victim_case_form2_facts_zone", KindEnum1},
 	{FieldKeyV3("HV", 7), "victim_case_form2_facts_address", KindText},
@@ -147,6 +147,15 @@ func init() {
 			Kind:   KindBoolEnum,
 		})
 	}
+}
+
+// victimCaseV3NullableColumns -- columnas de victim_case_form2 que admiten NULL y NO llevan valor
+// marcador al crear el borrador: "sin respuesta" = NULL. Un enum de otra categoría no sirve de
+// marcador, y un texto vacío no distingue "no respondió". insertDummyForm2Row las deja NULL y
+// resolveFieldUpdates escribe NULL cuando la respuesta llega vacía.
+var victimCaseV3NullableColumns = map[string]bool{ //nolint:gochecknoglobals
+	"victim_case_form2_facts_department":     true,
+	"victim_case_form2_residence_department": true,
 }
 
 // victimCaseV3EnumNCategories -- campos KindEnumN (sin columna propia, van a

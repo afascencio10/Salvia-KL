@@ -95,6 +95,7 @@
     </ul>
     <div v-if="mensajeModuloBloqueado" class="alert alert-warning py-2">${mensajeModuloBloqueado}</div>
 
+    <div v-if="errorGuardado" id="registro-v3-error-guardado" class="alert alert-danger py-2" role="alert">${errorGuardado}</div>
     <!-- Módulos genéricos: CI / DP / CA / HV / AG -->
     <div v-if="['CI','DP','CA','HV','AG'].indexOf(moduloActivo)>=0">
       <div v-for="campo in camposVisibles(moduloActivo)" :key="campo.id" class="mb-3">

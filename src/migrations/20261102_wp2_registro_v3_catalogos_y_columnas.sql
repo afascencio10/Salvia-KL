@@ -1,6 +1,7 @@
 -- WP-2 · Registro V3 — catálogos y columnas nuevas.
 --   REG-07  Opciones «Rural» / «Urbano» de la zona de residencia (DP_30)
---   (los bloques de REG-08 y REG-11 se agregan más abajo, uno por tarea)
+--   REG-11  Departamentos de los hechos y de residencia (HV_4, DP_27) y municipios con texto libre
+--   (el bloque de REG-08 se agrega más abajo, uno por tarea)
 --
 -- Idempotente: se puede aplicar más de una vez. Las filas del catálogo se buscan por NOMBRE
 -- (victim_case_form2_enums_name es UNIQUE), no por (categoría, código), para no chocar con
@@ -41,5 +42,21 @@ WHERE NOT EXISTS (
     SELECT 1 FROM salvia.victim_case_form2_enums e
     WHERE e.victim_case_form2_enums_name = v.name
 );
+
+-- ── REG-11 · Hechos de violencia y residencia: columnas que no alcanzaban ─────────────────────
+-- Departamento de los hechos (HV_4) y de residencia (DP_27): la pantalla los pedía pero no tenían
+-- columna, así que nunca se guardaban. NULL = sin respuesta.
+ALTER TABLE salvia.victim_case_form2
+    ADD COLUMN IF NOT EXISTS victim_case_form2_facts_department     varchar(100),
+    ADD COLUMN IF NOT EXISTS victim_case_form2_residence_department varchar(100);
+
+-- Municipio de los hechos (HV_5) y de residencia (DP_28): la pantalla lo recoge como texto libre
+-- (p. ej. «Barranquilla») pero las columnas «_town_code» medían 8 caracteres y el guardado fallaba con
+-- un 500. Ampliar un varchar no reescribe la tabla.
+ALTER TABLE salvia.victim_case_form2
+    ALTER COLUMN victim_case_form2_facts_town_code TYPE varchar(100),
+    ALTER COLUMN victim_case_form2_residence_town  TYPE varchar(100);
+ALTER TABLE salvia.victim_case
+    ALTER COLUMN victim_case_victim_town_code TYPE varchar(100);
 
 COMMIT;

@@ -36,6 +36,7 @@ var RegistroV3App = Vue.createApp({
       ],
       guardando: false,
       mensajeGuardado: '',
+      errorGuardado: '', // REG-11: aviso en rojo cuando un guardado falla (con el campo a corregir si el servidor lo indica)
       mensajeModuloBloqueado: '',
       mensajeCierre: '',
       avisoDuplicidad: '',
@@ -198,14 +199,27 @@ var RegistroV3App = Vue.createApp({
       if (this.buscar.documento) qs.set('documento', this.buscar.documento);
       if (this.buscar.telefono) qs.set('telefono', this.buscar.telefono);
       fetch('/api/v1/victim-cases-v3/buscar?' + qs.toString())
-        .then(function (r) { return r.json(); })
-        .then(function (data) { self.resultadosBusqueda = data.registros || []; })
+        .then(function (r) { return self.leerRespuesta(r); })
+        .then(function (res) {
+          if (!res.ok) { self.errorBusqueda = (res.data && res.data.error) || 'Error al buscar.'; return; }
+          self.resultadosBusqueda = res.data.registros || [];
+        })
         .catch(function () { self.errorBusqueda = 'Error al buscar.'; })
         .finally(function () { self.buscando = false; });
     },
 
+    // REG-11: lee la respuesta sin lanzar si el cuerpo no es JSON -> { ok, status, data }.
+    leerRespuesta: function (r) {
+      return r.text().then(function (t) {
+        var data = {};
+        try { data = t ? JSON.parse(t) : {}; } catch (e) { data = {}; }
+        return { ok: r.ok, status: r.status, data: data };
+      });
+    },
+
     crearNuevoRegistro: function () {
       var self = this;
+      this.errorBusqueda = '';
       fetch('/api/v1/victim-cases-v3/draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -215,18 +229,31 @@ var RegistroV3App = Vue.createApp({
           telefono: this.buscar.telefono,
         }),
       })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (data.icode) { self.abrirCaso(data.icode); }
+        .then(function (r) { return self.leerRespuesta(r); })
+        .then(function (res) {
+          if (res.ok && res.data.icode) { self.abrirCaso(res.data.icode); return; }
+          // REG-11: antes, si el borrador no se creaba, no pasaba nada y la persona no sabía por qué.
+          self.errorBusqueda = 'No se pudo crear el registro. Intenta de nuevo; si el problema continúa, avisa a soporte.';
+        })
+        .catch(function () {
+          self.errorBusqueda = 'No se pudo crear el registro: no hay conexión con el servidor. Intenta de nuevo.';
         });
     },
 
     abrirCaso: function (icode) {
       var self = this;
+      this.errorBusqueda = '';
       fetch('/api/v1/victim-cases-v3/' + icode)
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
+        .then(function (r) { return self.leerRespuesta(r); })
+        .then(function (res) {
+          // REG-11: si el Caso no carga, la pantalla avisa en vez de quedarse en el Cabezote sin decir nada.
+          if (!res.ok || !res.data.summary) {
+            self.errorBusqueda = 'No se pudo abrir el registro. Intenta de nuevo; si el problema continúa, avisa a soporte.';
+            return;
+          }
+          var data = res.data;
           self.icode = icode;
+          self.errorGuardado = '';
           self.resumenCaso = data.summary || null;
           // Solo se repueblan las keys en answeredKeys -- el resto de
           // 'answers' son valores dummy (D8) que nunca respondió el
@@ -255,6 +282,9 @@ var RegistroV3App = Vue.createApp({
           self.triadaCompleta = !!data.triadaCompleta;
           self.etapa = 'formulario';
           self.moduloActivo = 'CI';
+        })
+        .catch(function () {
+          self.errorBusqueda = 'No se pudo abrir el registro: no hay conexión con el servidor. Intenta de nuevo.';
         });
     },
 
@@ -544,11 +574,46 @@ var RegistroV3App = Vue.createApp({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers: payload }),
       })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          self.triadaCompleta = !!data.triadaCompleta;
-          return data;
+        .then(function (r) { return self.leerRespuesta(r); })
+        .then(function (res) {
+          // REG-11: antes no se miraba r.ok -- un 500 se leía como JSON sin triadaCompleta y la pantalla
+          // igual decía "Sección guardada.". Ahora un rechazo se convierte en un Error con el texto
+          // que la persona debe ver.
+          if (!res.ok) {
+            var err = new Error('guardado rechazado (' + res.status + ')');
+            err.mensaje = self.mensajeErrorGuardado(res);
+            throw err;
+          }
+          self.triadaCompleta = !!res.data.triadaCompleta;
+          return res.data;
         });
+    },
+    // REG-11: texto para la persona cuando el servidor rechazó un guardado. Un 400 trae el campo y el
+    // motivo (formato de la hora, texto demasiado largo…): se le pide corregir ESE dato. Cualquier otra
+    // falla (500, sesión vencida) se avisa tal cual, para que nadie crea que se guardó.
+    mensajeErrorGuardado: function (res) {
+      var d = res.data || {};
+      var mayuscula = function (t) { t = String(t || '').trim(); return t ? t.charAt(0).toUpperCase() + t.slice(1) : ''; };
+      var punto = function (t) { return /[.!?]$/.test(t) ? t : t + '.'; };
+      if (res.status === 400 && d.detalle) {
+        var campo = d.campo ? this.camposPorId[d.campo] : null;
+        var cual = campo ? '«' + campo.label + '»' : (d.campo ? d.campo : '');
+        return 'No se guardó la sección. ' + (cual ? 'Corrige ' + cual + ': ' : 'Corrige lo que escribiste: ') + punto(mayuscula(d.detalle)) + ' Luego vuelve a guardar.';
+      }
+      if (res.status === 401 || res.status === 403) {
+        return 'No se guardó la sección: tu sesión venció o no tienes permiso. Vuelve a iniciar sesión; lo que escribiste en esta pantalla no se guardó.';
+      }
+      return 'No se pudo guardar la sección por un error del servidor. Lo que escribiste sigue en pantalla: intenta de nuevo y, si el problema continúa, avisa a soporte.';
+    },
+    // Muestra la falla de un guardado: aviso en rojo (arriba, con scroll hasta él) y marca junto al botón.
+    mostrarErrorGuardado: function (e) {
+      var self = this;
+      this.errorGuardado = (e && e.mensaje) || 'No se pudo guardar la sección: no hay conexión con el servidor. Lo que escribiste sigue en pantalla; intenta de nuevo.';
+      this.mensajeGuardado = 'No se guardó.';
+      this.$nextTick(function () {
+        var el = self.$el && self.$el.querySelector && self.$el.querySelector('#registro-v3-error-guardado');
+        if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
     },
     guardarModulo: function (moduloId) {
       var self = this;
@@ -568,9 +633,10 @@ var RegistroV3App = Vue.createApp({
       }
       this.guardando = true;
       this.mensajeGuardado = '';
+      this.errorGuardado = '';
       this.enviarSeccion(moduloId)
         .then(function () { self.mensajeGuardado = 'Sección guardada.'; })
-        .catch(function () { self.mensajeGuardado = 'Error al guardar la sección.'; })
+        .catch(function (e) { self.mostrarErrorGuardado(e); })
         .finally(function () { self.guardando = false; });
     },
     // D11 (flow-E14, botón "Finalizar llamada (guardar y salir)"): guarda el
@@ -586,14 +652,24 @@ var RegistroV3App = Vue.createApp({
         return;
       }
       this.guardando = true;
+      this.errorGuardado = '';
       this.enviarSeccion(this.moduloActivo)
-        .catch(function () { /* best-effort -- igual se sale de la llamada aunque falle el guardado */ })
-        .finally(function () {
+        .then(function () {
           self.guardando = false;
           self.volverACabezote();
+        })
+        .catch(function (e) {
+          // REG-11: antes el error se ignoraba y se salía igual -> la persona perdía lo escrito sin enterarse.
+          // Ahora se le dice qué falló y se le deja elegir: corregir y volver a intentar, o salir sin guardar.
+          self.guardando = false;
+          self.mostrarErrorGuardado(e);
+          if (window.confirm(self.errorGuardado + '\n\n¿Salir de todos modos? Lo que escribiste en este módulo se perdería.')) {
+            self.volverACabezote();
+          }
         });
     },
     volverACabezote: function () {
+      this.errorGuardado = '';
       this.etapa = 'cabezote';
       this.icode = null;
       this.answers = {};
@@ -613,6 +689,7 @@ var RegistroV3App = Vue.createApp({
       this.mensajeModuloBloqueado = '';
       this.moduloActivo = id;
       this.mensajeGuardado = '';
+      this.errorGuardado = '';
     },
 
     // ── Tamizaje ──────────────────────────────────────────────────────────
