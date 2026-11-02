@@ -225,6 +225,7 @@ func (c *VictimCaseV3Controller) Finalize(ctx *gin.Context) {
 			ctx.JSON(http.StatusBadRequest, gin.H{
 				"error":              "No se puede finalizar — hay módulos incompletos",
 				"modulosIncompletos": incompletos.Modulos,
+				"camposFaltantes":    incompletos.Campos, // REG-37: llaves sin responder (ordenadas)
 			})
 			return
 		}

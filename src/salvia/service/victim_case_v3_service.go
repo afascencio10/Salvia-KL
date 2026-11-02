@@ -222,11 +222,11 @@ func (s *victimCaseV3Service) SaveSection(ctx context.Context, icode, modulo str
 		return false, err
 	}
 
-	// triadaCompleta / Borrador→Iniciado solo se reevalúa cuando el módulo
-	// guardado es parte de la tríada (CI/DP/CA/HV/AG) -- TZ/GS no aportan.
-	if modulo != "CI" && modulo != "DP" && modulo != "CA" && modulo != "HV" && modulo != "AG" {
-		return false, nil
-	}
+	// REG-35: triadaCompleta se evalúa con CUALQUIER módulo (también TZ y GS) y devuelve su valor real.
+	// Antes los módulos fuera de la tríada retornaban false sin evaluar, y el cliente (que asigna lo que
+	// recibe) volvía a poner los candados de TZ/GS tras guardar GS aunque la tríada estuviera completa.
+	// Lo que NO cambia: el paso Borrador→Iniciado sigue siendo solo de la tríada (CI/DP/CA/HV/AG).
+	enTriada := modulo == "CI" || modulo == "DP" || modulo == "CA" || modulo == "HV" || modulo == "AG"
 
 	// Se evalúa contra el ACUMULADO histórico (todas las secciones ya
 	// guardadas), no solo el delta de este guardado -- SaveSection es un
@@ -245,7 +245,7 @@ func (s *victimCaseV3Service) SaveSection(ctx context.Context, icode, modulo str
 		return false, err
 	}
 	complete := isTriadaCompleteV3(answered)
-	if complete {
+	if complete && enTriada {
 		// 'in' = Iniciado (código nuevo, salvia/config/Enums.go) -- solo
 		// transiciona si el Caso sigue en Borrador; no revierte un Caso que
 		// ya esté Terminado/Cerrado por una reapertura parcial.
@@ -423,6 +423,10 @@ var obligatoriasFinalizarV3 = append(append(append(append(append([]string{}, //n
 // controller la distingue de un error genérico con `errors.As`.
 type ErrModulosIncompletos struct {
 	Modulos []string
+	// Campos -- REG-37: llaves (FieldKey) de las obligatorias sin responder, ordenadas, para que la pantalla
+	// diga CUÁLES faltan y no solo en qué módulo. Es la fuente de verdad: la lista de obligatorias vive aquí
+	// (obligatoriasFinalizarV3) y el navegador no la duplica.
+	Campos []string
 }
 
 func (e *ErrModulosIncompletos) Error() string {
@@ -459,10 +463,12 @@ func (s *victimCaseV3Service) Finalize(ctx context.Context, icode string) (*Fina
 	}
 
 	faltantesPorModulo := map[string]bool{}
+	campos := []string{}
 	for _, key := range obligatoriasFinalizarV3 {
 		if !answered[key] {
 			modulo := strings.SplitN(key, "_", 2)[0]
 			faltantesPorModulo[modulo] = true
+			campos = append(campos, key)
 		}
 	}
 	if len(faltantesPorModulo) > 0 {
@@ -471,7 +477,8 @@ func (s *victimCaseV3Service) Finalize(ctx context.Context, icode string) (*Fina
 			modulos = append(modulos, m)
 		}
 		sort.Strings(modulos)
-		return nil, &ErrModulosIncompletos{Modulos: modulos}
+		sort.Strings(campos)
+		return nil, &ErrModulosIncompletos{Modulos: modulos, Campos: campos}
 	}
 
 	answers, err := s.repo.GetAnswers(ctx, icode)
