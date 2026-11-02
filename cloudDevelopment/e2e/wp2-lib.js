@@ -30,6 +30,17 @@ function sql(query) {
     ).trim();
 }
 
+/** Borra casos de prueba por icode y lo que cuelga de ellos. Solo para el sandbox. */
+function deleteCases(icodes) {
+    const list = (icodes || []).filter(Boolean).map((i) => `'${String(i).replace(/'/g, "''")}'`).join(',');
+    if (!list) return;
+    const caseIds = `SELECT victim_case_id FROM salvia.victim_case WHERE victim_case_i_code IN (${list})`;
+    const form2Ids = `SELECT victim_case_form2_id FROM salvia.victim_case_form2 WHERE victim_case_form2_victim_case IN (${caseIds})`;
+    sql(`DELETE FROM salvia.rel_victim_case_form2_enums_victim_case_form2 WHERE victim_case_form2_id IN (${form2Ids})`);
+    sql(`DELETE FROM salvia.victim_case_form2 WHERE victim_case_form2_victim_case IN (${caseIds})`);
+    sql(`DELETE FROM salvia.victim_case WHERE victim_case_i_code IN (${list})`);
+}
+
 // ── Registro de resultados ───────────────────────────────────────────────────────────────
 const results = [];
 
@@ -96,6 +107,36 @@ async function api(page, method, path, body) {
     );
 }
 
+// ── Pantalla Registro V3 ─────────────────────────────────────────────────────────────────
+/** Abre /salvia/registro-v3 y pasa la autorización y el tipo de contacto: queda en el Cabezote. */
+async function openRegistroV3(page) {
+    await page.goto(`${BASE_URL}/salvia/registro-v3`);
+    await page.getByRole('button', { name: 'Acepto y continuar' }).click();
+    await page.getByRole('button', { name: 'Víctima - Caso Nuevo' }).click();
+    await page.getByRole('button', { name: '+ Nuevo registro' }).waitFor();
+}
+
+/** Cabezote → «+ Nuevo registro». Devuelve el icode del borrador creado (queda abierto en CI). */
+async function newDraftUI(page) {
+    const [resp] = await Promise.all([
+        page.waitForResponse((r) => r.url().endsWith('/api/v1/victim-cases-v3/draft') && r.request().method() === 'POST'),
+        page.getByRole('button', { name: '+ Nuevo registro' }).click(),
+    ]);
+    const body = await resp.json();
+    await page.getByRole('link', { name: 'Datos personales' }).waitFor();
+    return body.icode;
+}
+
+/** Abre un módulo por el texto de su pestaña (p. ej. 'Datos personales'). */
+async function openModule(page, tabName) {
+    await page.getByRole('link', { name: tabName }).click();
+}
+
+/** Contenedor (div.mb-3) de una pregunta, por el texto exacto de su etiqueta. */
+function question(page, label) {
+    return page.locator(`xpath=//div[contains(@class,"mb-3")][./label[normalize-space(.)="${label}"]]`);
+}
+
 /** "YYYY-MM-DD HH:MM:SS" de AHORA en hora de Bogotá, calculado en el cliente de prueba. */
 function bogotaNow() {
     return new Intl.DateTimeFormat('sv-SE', {
@@ -111,4 +152,7 @@ function secondsBetween(a, b) {
     return Math.abs(t(a) - t(b)) / 1000;
 }
 
-module.exports = { BASE_URL, PASSWORD, DB, sql, check, finish, loginAs, api, bogotaNow, secondsBetween };
+module.exports = {
+    BASE_URL, PASSWORD, DB, sql, deleteCases, check, finish, loginAs, api, bogotaNow, secondsBetween,
+    openRegistroV3, newDraftUI, openModule, question,
+};

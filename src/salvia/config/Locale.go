@@ -709,6 +709,8 @@ var Locale = map[string]map[string]string{
 
 		"victim_case_form2_residence_zone":            "¿En qué zona se encuentra su lugar de residencia?",
 		"victim_case_form2_residence_zone_h":          "Por favor ingrese la zona de residencia",
+		"victim_case_form2_residence_zone_ru":         "Rural",
+		"victim_case_form2_residence_zone_ur":         "Urbano",
 		"get_victim_case_residence_department":        "¿En qué departamento se encuentra su lugar de residencia?",
 		"get_victim_case_residence_department_h":      "Por favor ingrese el departamento de residencia",
 		"get_victim_case_residence_city":              "¿En qué ciudad se encuentra su lugar de residencia?",
