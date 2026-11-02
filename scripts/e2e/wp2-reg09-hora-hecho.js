@@ -8,7 +8,7 @@
  * Orden (qa-process.md): 1) backend — los bordes de la hora (medianoche, 23:59, fuera de rango) ya que el
  * resto (19:30, hora con segundos, «7pm») lo cubre wp2-reg11; 2) frontend — el control y su ida y vuelta.
  *
- * Uso (con la app corriendo):  node cloudDevelopment/e2e/wp2-reg09-hora-hecho.js
+ * Uso (con la app corriendo):  node scripts/e2e/wp2-reg09-hora-hecho.js
  * Casos: DocsMD/Screens/Registro V3/QA/E12-guardar-seccion-qa-cases.md (E12-C12, C13; comprobaciones C1…C3) y E11-actualizar-respuesta-y-tamizaje-qa-cases.md (E11-C6…C9; C4…C7).
  */
 const { chromium } = require('playwright');

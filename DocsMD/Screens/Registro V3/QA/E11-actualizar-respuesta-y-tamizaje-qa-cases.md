@@ -73,14 +73,14 @@ Casos de prueba de [`flow-E11`](../Flujos/flow-E11-cuando-actualiza-una-respuest
 
 | Flujo de prueba | Casos cubiertos | Script |
 |---|---|---|
-| `wp2-reg10` — C1, C2, C3 | E11-C1 | `cloudDevelopment/e2e/wp2-reg10-subtipos-violencia.js` |
+| `wp2-reg10` — C1, C2, C3 | E11-C1 | `scripts/e2e/wp2-reg10-subtipos-violencia.js` |
 | `wp2-reg10` — C4, C5 | E11-C2, E11-C3 | ídem |
-| `wp2-reg07` — C6, C7, C8 | E11-C4, E11-C5 | `cloudDevelopment/e2e/wp2-reg07-zona-residencia.js` |
-| `wp2-reg09` — C4 … C7 | E11-C6 … E11-C9 | `cloudDevelopment/e2e/wp2-reg09-hora-hecho.js` |
-| `wp2-reg08` — U1, U2, U3 | E11-C10, E11-C11, E11-C12 | `cloudDevelopment/e2e/wp2-reg08-tipo-discapacidad.js` |
-| `wp2-reg12` — C1, C2, C3, C4, C5 | E11-C13 … E11-C17 | `cloudDevelopment/e2e/wp2-reg12-tamizaje-tablas.js` |
+| `wp2-reg07` — C6, C7, C8 | E11-C4, E11-C5 | `scripts/e2e/wp2-reg07-zona-residencia.js` |
+| `wp2-reg09` — C4 … C7 | E11-C6 … E11-C9 | `scripts/e2e/wp2-reg09-hora-hecho.js` |
+| `wp2-reg08` — U1, U2, U3 | E11-C10, E11-C11, E11-C12 | `scripts/e2e/wp2-reg08-tipo-discapacidad.js` |
+| `wp2-reg12` — C1, C2, C3, C4, C5 | E11-C13 … E11-C17 | `scripts/e2e/wp2-reg12-tamizaje-tablas.js` |
 | `wp2-reg12` — U1, U2, U3 | E11-C18, E11-C19, E11-C20 | ídem |
-| `wp2-reg34` — C1, C2, C3 | E11-C21, E11-C22, E11-C23 | `cloudDevelopment/e2e/wp2-reg34-tamizaje-por-etapas.js` |
+| `wp2-reg34` — C1, C2, C3 | E11-C21, E11-C22, E11-C23 | `scripts/e2e/wp2-reg34-tamizaje-por-etapas.js` |
 | `wp2-reg34` — U1 … U4 | E11-C24 … E11-C27 | ídem |
 | Unitarias Go — `victim_case_v3_fields_test.go` | Columnas generales y del «resto» del Tamizaje (apoyan E11-C13 y E11-C22) | `src/internal/repository/` |
 

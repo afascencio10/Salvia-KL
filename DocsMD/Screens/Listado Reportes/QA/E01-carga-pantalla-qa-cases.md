@@ -76,8 +76,8 @@ Cubre H11 y el pedido de Felipe: la columna «Fecha Reporte» debe mostrar el mi
 | `TU-LR-E01-2` — celdas y estados de las filas del pool | LR-E01-C6, C7, C8, C12 | `listado-reportes/carga.spec.ts` |
 | `TU-LR-E01-3` — enlace desde `primer_contacto` (HTML y clic) | LR-E01-C11 | `listado-reportes/carga.spec.ts` |
 | `TU-LR-E01-4` — entrada en el menú lateral | LR-E01-C13 | `listado-reportes/carga.spec.ts` |
-| `wp2-rep12-fecha-reporte.js` (fase backend: C0–C8) — bordes de día y de año, reporte real del asistente público, orden, formato y filtro de Mis Reportes | LR-E01-C14, C15, C16, C17, C18 | `cloudDevelopment/e2e/wp2-rep12-fecha-reporte.js` |
-| `wp2-rep12-fecha-reporte.js` (fase UI: C9–C10) — texto de la celda en 5 zonas horarias y en Mis Reportes | LR-E01-C19, C20 | `cloudDevelopment/e2e/wp2-rep12-fecha-reporte.js` |
+| `wp2-rep12-fecha-reporte.js` (fase backend: C0–C8) — bordes de día y de año, reporte real del asistente público, orden, formato y filtro de Mis Reportes | LR-E01-C14, C15, C16, C17, C18 | `scripts/e2e/wp2-rep12-fecha-reporte.js` |
+| `wp2-rep12-fecha-reporte.js` (fase UI: C9–C10) — texto de la celda en 5 zonas horarias y en Mis Reportes | LR-E01-C19, C20 | `scripts/e2e/wp2-rep12-fecha-reporte.js` |
 
 ## Resultados de ejecución
 
@@ -105,7 +105,7 @@ La columna *Hallazgo* indica el bug (BUG-xx) que ese caso detectó o que hoy vig
 
 ### Ejecución WP-2 · REP-12 (2026-11-02)
 
-**Build:** rama `claude/busy-edison-uk6g2a` en `http://127.0.0.1:9090` (sandbox cloud) · **BD:** Postgres local, con reportes `qa-wp2-rep12-*` sembrados y borrados por el propio script · **Herramienta:** Playwright headless + `psql` · **Comando:** `node cloudDevelopment/e2e/wp2-rep12-fecha-reporte.js`. Backend primero (C0–C8), UI después (C9–C10).
+**Build:** rama `claude/busy-edison-uk6g2a` en `http://127.0.0.1:9090` (sandbox cloud) · **BD:** Postgres local, con reportes `qa-wp2-rep12-*` sembrados y borrados por el propio script · **Herramienta:** Playwright headless + `psql` · **Comando:** `node scripts/e2e/wp2-rep12-fecha-reporte.js`. Backend primero (C0–C8), UI después (C9–C10).
 
 | Caso | Resultado | Comprobaciones del script | Hallazgo |
 |---|---|---|---|

@@ -10,7 +10,7 @@
  * Orden (qa-process.md): 1) backend — POST /tamizaje con solo las iniciales, reinicio del resto, y el portón de
  * Finalizar; 2) frontend — solo lo que el backend no cubre: cuándo aparece el botón, qué se envía y la reapertura.
  *
- * Uso (con la app corriendo):  node cloudDevelopment/e2e/wp2-reg34-tamizaje-por-etapas.js
+ * Uso (con la app corriendo):  node scripts/e2e/wp2-reg34-tamizaje-por-etapas.js
  * Casos: DocsMD/Screens/Registro V3/QA/E11-actualizar-respuesta-y-tamizaje-qa-cases.md (E11-C21…C27; comprobaciones C1…C3, U1…U4).
  */
 const { chromium } = require('playwright');

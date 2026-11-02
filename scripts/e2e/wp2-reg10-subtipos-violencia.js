@@ -9,7 +9,7 @@
  * Orden (qa-process.md): 1) backend — las etiquetas que entrega /enums son las correctas y los códigos
  * de cada categoría son únicos; 2) frontend — lo que dibuja la pantalla es exactamente eso.
  *
- * Uso (con la app corriendo):  node cloudDevelopment/e2e/wp2-reg10-subtipos-violencia.js
+ * Uso (con la app corriendo):  node scripts/e2e/wp2-reg10-subtipos-violencia.js
  * Casos: DocsMD/Screens/Registro V3/QA/E11-actualizar-respuesta-y-tamizaje-qa-cases.md (E11-C1…C3; comprobaciones C1…C5).
  */
 const { chromium } = require('playwright');

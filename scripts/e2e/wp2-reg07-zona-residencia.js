@@ -8,7 +8,7 @@
  *
  * Uso (con la app corriendo y la migración aplicada):
  *   psql ... -f src/migrations/20261102_wp2_registro_v3_catalogos_y_columnas.sql
- *   node cloudDevelopment/e2e/wp2-reg07-zona-residencia.js
+ *   node scripts/e2e/wp2-reg07-zona-residencia.js
  *
  * Casos: DocsMD/Screens/Registro V3/QA/E12-guardar-seccion-qa-cases.md (E12-C21…C24, API) y E11-actualizar-respuesta-y-tamizaje-qa-cases.md (E11-C4, C5, pantalla).
  */

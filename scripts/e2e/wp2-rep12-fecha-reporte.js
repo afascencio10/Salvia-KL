@@ -10,7 +10,7 @@
  * lo que el backend no cubre (el texto que ve la persona, con el navegador en varias zonas).
  *
  * Uso (con la app corriendo: ./run_dev.sh):
- *   node cloudDevelopment/e2e/wp2-rep12-fecha-reporte.js
+ *   node scripts/e2e/wp2-rep12-fecha-reporte.js
  *
  * Crea reportes de prueba (i_code qa-wp2-rep12-*, nombre QAREP12*) directo en la BD y los borra al
  * terminar. Casos: DocsMD/Screens/Listado Reportes/QA/E01-carga-pantalla-qa-cases.md (LR-E01-C14…C20) y Mis Reportes/QA/mis-reportes-qa-cases.md (MR-E01-C10, C11).
@@ -41,6 +41,10 @@ function cleanup() {
             WHERE c.victim_contact_names = 'QAREP12W')`);
     sql(`DELETE FROM salvia.victim_contact_form2 WHERE victim_contact_form2_victim_contact IN (
             SELECT victim_contact_id FROM salvia.victim_contact WHERE victim_contact_names = 'QAREP12W')`);
+    // El hito «Reporte recibido» del historial (case_timeline_event) que escribe el asistente público.
+    sql(`DELETE FROM salvia.case_timeline_event WHERE victim_contact_id IN (
+            SELECT victim_contact_i_code FROM salvia.victim_contact
+            WHERE victim_contact_names = 'QAREP12W' OR victim_contact_i_code LIKE '${PREFIX}%')`);
     sql(`DELETE FROM salvia.victim_contact WHERE victim_contact_names = 'QAREP12W' OR victim_contact_i_code LIKE '${PREFIX}%'`);
 }
 
@@ -96,8 +100,11 @@ const listPath = (q) => `/api/v1/victim-contacts/list?page=1&page_size=50&${q}`;
         // C7 · «Mis Reportes» (persona_asignada) trae el campo.
         const rMine = await api(sv.page, 'GET', listPath(`filter_key=persona_asignada&filter_value=${opICode}`));
         const mine = (rMine.json && rMine.json.reports) || [];
-        check('C7', mine.length === 2 && mine.every((x) => /^\d{4}-\d{2}-\d{2}$/.test(x.creationDateCO)),
-            `persona_asignada=${opICode} → ${mine.length} reportes: ${mine.map((x) => x.creationDateCO).join(', ')}`);
+        // El sandbox trae reportes de ejemplo asignados a op (seed_test_data): se cuentan solo los del script,
+        // pero TODOS los del agente deben traer el campo.
+        const ownMine = mine.filter((x) => x.i_code.startsWith(PREFIX));
+        check('C7', ownMine.length === 2 && mine.every((x) => /^\d{4}-\d{2}-\d{2}$/.test(x.creationDateCO)),
+            `persona_asignada=${opICode} → ${mine.length} reportes (${ownMine.length} del script): ${mine.map((x) => x.creationDateCO).join(', ')}`);
 
         // C5 · reporte creado AHORA por el asistente público: la BD guarda hora de Bogotá y el API da su día.
         const apiCtx = await request.newContext({ baseURL: BASE_URL, extraHTTPHeaders: { 'User-Agent': 'flutter-client' } });

@@ -26,12 +26,12 @@ Casos de prueba de [`flow-E21`](../Flujos/flow-E21-cuando-un-guardado-o-una-carg
 
 | Flujo de prueba | Casos cubiertos | Script |
 |---|---|---|
-| `wp2-reg11` — U0, U1 | E21-C1 | `cloudDevelopment/e2e/wp2-reg11-guardado-seccion.js` |
+| `wp2-reg11` — U0, U1 | E21-C1 | `scripts/e2e/wp2-reg11-guardado-seccion.js` |
 | `wp2-reg11` — U2a, U2b | E21-C2 | ídem |
 | `wp2-reg11` — U3, U4 | E21-C3, E21-C4 | ídem |
 | `wp2-reg11` — U5 | E21-C5 | ídem |
 | `wp2-reg11` — U6 | E21-C6 | ídem |
-| `wp2-reg12` — U4 | E21-C7 | `cloudDevelopment/e2e/wp2-reg12-tamizaje-tablas.js` |
+| `wp2-reg12` — U4 | E21-C7 | `scripts/e2e/wp2-reg12-tamizaje-tablas.js` |
 
 ## Resultados de ejecución
 

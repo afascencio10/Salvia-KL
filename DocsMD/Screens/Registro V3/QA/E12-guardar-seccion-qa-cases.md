@@ -60,15 +60,15 @@ Casos de prueba de [`flow-E12`](../Flujos/flow-E12-cuando-guarda-una-seccion.md)
 
 | Flujo de prueba | Casos cubiertos | Script |
 |---|---|---|
-| `wp2-reg11` — comprobaciones C1, C2 | E12-C1, E12-C2 | `cloudDevelopment/e2e/wp2-reg11-guardado-seccion.js` |
+| `wp2-reg11` — comprobaciones C1, C2 | E12-C1, E12-C2 | `scripts/e2e/wp2-reg11-guardado-seccion.js` |
 | `wp2-reg11` — C3 (8 entradas inválidas) | E12-C3 | ídem |
 | `wp2-reg11` — C4 | E12-C4 | ídem |
 | `wp2-reg11` — C5, C6a, C6b | E12-C5, E12-C6 | ídem |
 | `wp2-reg11` — C7, C8, C9 | E12-C7, E12-C8, E12-C9 | ídem |
 | `wp2-reg11` — C10, C11 | E12-C10, E12-C11 | ídem |
-| `wp2-reg09` — C1, C2, C3 | E12-C12, E12-C13 | `cloudDevelopment/e2e/wp2-reg09-hora-hecho.js` |
-| `wp2-reg08` — C1…C8 | E12-C14 … E12-C20 | `cloudDevelopment/e2e/wp2-reg08-tipo-discapacidad.js` |
-| `wp2-reg07` — C1…C5 | E12-C21 … E12-C24 | `cloudDevelopment/e2e/wp2-reg07-zona-residencia.js` |
+| `wp2-reg09` — C1, C2, C3 | E12-C12, E12-C13 | `scripts/e2e/wp2-reg09-hora-hecho.js` |
+| `wp2-reg08` — C1…C8 | E12-C14 … E12-C20 | `scripts/e2e/wp2-reg08-tipo-discapacidad.js` |
+| `wp2-reg07` — C1…C5 | E12-C21 … E12-C24 | `scripts/e2e/wp2-reg07-zona-residencia.js` |
 | Unitarias Go — `victim_case_v3_validation_test.go` | Validadores de fecha, hora y número; traducción de errores `22xxx` (apoyan E12-C3 y E12-C4) | `src/internal/repository/` (`go test ./internal/repository/`) |
 
 ## Resultados de ejecución

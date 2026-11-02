@@ -63,8 +63,8 @@ Misma columna y mismo contrato que en [Listado Reportes](../../Listado%20Reporte
 | `TU-MR-E01-4` — reasignar saca o mete reportes de la lista | MR-E01-C8 | `mis-reportes/mis-reportes.spec.ts` |
 | `TU-MR-E01-5` — entrada en el menú lateral | MR-E01-C9 | `mis-reportes/mis-reportes.spec.ts` |
 | `TU-MR-E02-1` — ver y gestionar desde Mis Reportes; la fila se actualiza | MR-E02-C1, C2, C3 | `mis-reportes/mis-reportes.spec.ts` |
-| `wp2-rep12-fecha-reporte.js` (C7) — el scope de agente trae `creationDateCO` | MR-E01-C10 | `cloudDevelopment/e2e/wp2-rep12-fecha-reporte.js` |
-| `wp2-rep12-fecha-reporte.js` (C10) — texto de la celda en Mis Reportes con el navegador en otra zona | MR-E01-C11 | `cloudDevelopment/e2e/wp2-rep12-fecha-reporte.js` |
+| `wp2-rep12-fecha-reporte.js` (C7) — el scope de agente trae `creationDateCO` | MR-E01-C10 | `scripts/e2e/wp2-rep12-fecha-reporte.js` |
+| `wp2-rep12-fecha-reporte.js` (C10) — texto de la celda en Mis Reportes con el navegador en otra zona | MR-E01-C11 | `scripts/e2e/wp2-rep12-fecha-reporte.js` |
 
 ## Resultados de ejecución
 
@@ -91,7 +91,7 @@ La columna *Hallazgo* indica el bug (BUG-xx) que ese caso detectó o que hoy vig
 
 ### Ejecución WP-2 · REP-12 (2026-11-02)
 
-**Build:** rama `claude/busy-edison-uk6g2a` en `http://127.0.0.1:9090` (sandbox cloud) · **Comando:** `node cloudDevelopment/e2e/wp2-rep12-fecha-reporte.js` (backend primero, UI después) · **Detalle de la corrida y del código anterior:** [`E01-carga-pantalla-qa-cases.md`](../../Listado%20Reportes/QA/E01-carga-pantalla-qa-cases.md#ejecución-wp-2--rep-12-2026-11-02).
+**Build:** rama `claude/busy-edison-uk6g2a` en `http://127.0.0.1:9090` (sandbox cloud) · **Comando:** `node scripts/e2e/wp2-rep12-fecha-reporte.js` (backend primero, UI después) · **Detalle de la corrida y del código anterior:** [`E01-carga-pantalla-qa-cases.md`](../../Listado%20Reportes/QA/E01-carga-pantalla-qa-cases.md#ejecución-wp-2--rep-12-2026-11-02).
 
 | Caso | Resultado | Comprobación del script |
 |---|---|---|

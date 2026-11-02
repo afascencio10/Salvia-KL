@@ -11,7 +11,7 @@
  * Orden (qa-process.md): 1) backend — POST /tamizaje, GET del Caso y verificación directa en la BD;
  * 2) frontend — solo lo que el backend no cubre: la estructura de las tablas y el ciclo guardar/reabrir.
  *
- * Uso (con la app corriendo):  node cloudDevelopment/e2e/wp2-reg12-tamizaje-tablas.js
+ * Uso (con la app corriendo):  node scripts/e2e/wp2-reg12-tamizaje-tablas.js
  * Casos: DocsMD/Screens/Registro V3/QA/E11-actualizar-respuesta-y-tamizaje-qa-cases.md (E11-C13…C20; comprobaciones C1…C5, U1…U3) y E21-guardado-o-carga-fallida-qa-cases.md (E21-C7; U4).
  */
 const { chromium } = require('playwright');

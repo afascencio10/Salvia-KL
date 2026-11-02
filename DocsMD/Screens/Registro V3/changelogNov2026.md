@@ -16,7 +16,7 @@ Siete correcciones de Registro V3. La zona de residencia ofrece Rural y Urbano (
 | `src/salvia/config/Locale.go` | Textos «Rural», «Urbano» y los 7 tipos de discapacidad. |
 | `src/migrations/20261102_wp2_registro_v3_catalogos_y_columnas.sql` | Nuevo — opciones de zona y discapacidad, columnas nuevas y municipios a `varchar(100)`. Se aplica a mano en la BD. |
 | `src/internal/repository/victim_case_v3_validation_test.go · victim_case_v3_fields_test.go` | Nuevos — pruebas unitarias de los validadores y de las columnas del Tamizaje. |
-| `cloudDevelopment/e2e/wp2-*.js` | Nuevos — un script por requerimiento: backend, BD y pantalla (93 comprobaciones en total). |
+| `scripts/e2e/wp2-*.js` | Nuevos — un script por requerimiento: backend, BD y pantalla (93 comprobaciones en total). |
 
 ## 2026-11-02 — «Registro de caso»: borrador de Registro V3 desde un reporte (WP-1 T7, REP-03)
 

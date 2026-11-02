@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Utilidades compartidas por los scripts de prueba de WP-2 (cloudDevelopment/e2e/wp2-*.js).
+ * Utilidades compartidas por los scripts de prueba de WP-2 (scripts/e2e/wp2-*.js).
  *
  * Requisitos (sandbox cloud): la app corriendo en BASE_URL (./run_dev.sh) y el Postgres local
  * (psql en el PATH). Usa el Playwright que ya trae el sandbox: require('playwright') funciona
@@ -41,15 +41,31 @@ function sqlFile(file) {
     }
 }
 
-/** Borra casos de prueba por icode y lo que cuelga de ellos. Solo para el sandbox. */
+/**
+ * Borra casos de prueba por icode y lo que cuelga de ellos, incluido el usuario 'us' (perfil, rol y
+ * usuario) que genera cada borrador. Solo para el sandbox. Nunca toca a los cloud.test.*.
+ */
 function deleteCases(icodes) {
     const list = (icodes || []).filter(Boolean).map((i) => `'${String(i).replace(/'/g, "''")}'`).join(',');
     if (!list) return;
+    // Los ids del usuario de cada caso se leen ANTES de borrar el caso: es lo que los une.
+    const users = sql(`SELECT gu.general_user_id || ',' || COALESCE(gu.general_user_general_user_profile::text, '')
+                         FROM security.general_user gu
+                        WHERE gu.general_user_i_code IN (SELECT victim_case_general_user FROM salvia.victim_case WHERE victim_case_i_code IN (${list}))
+                          AND gu.general_user_login NOT LIKE 'cloud.test.%'`)
+        .split('\n').filter(Boolean).map((r) => r.split(','));
+    const userIds = users.map((u) => u[0]);
+    const profileIds = users.map((u) => u[1]).filter(Boolean);
     const caseIds = `SELECT victim_case_id FROM salvia.victim_case WHERE victim_case_i_code IN (${list})`;
     const form2Ids = `SELECT victim_case_form2_id FROM salvia.victim_case_form2 WHERE victim_case_form2_victim_case IN (${caseIds})`;
     sql(`DELETE FROM salvia.rel_victim_case_form2_enums_victim_case_form2 WHERE victim_case_form2_id IN (${form2Ids})`);
     sql(`DELETE FROM salvia.victim_case_form2 WHERE victim_case_form2_victim_case IN (${caseIds})`);
     sql(`DELETE FROM salvia.victim_case WHERE victim_case_i_code IN (${list})`);
+    if (userIds.length) {
+        sql(`DELETE FROM security.rel_role_general_user WHERE general_user_id IN (${userIds.join(',')})`);
+        sql(`DELETE FROM security.general_user WHERE general_user_id IN (${userIds.join(',')})`);
+    }
+    if (profileIds.length) sql(`DELETE FROM security.general_user_profile WHERE general_user_profile_id IN (${profileIds.join(',')})`);
 }
 
 // ── Registro de resultados ───────────────────────────────────────────────────────────────

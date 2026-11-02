@@ -14,7 +14,7 @@
  * 2) frontend — solo lo que el backend no cubre: lo que ve la persona (aviso en rojo, reapertura).
  *
  * Uso (con la app corriendo y la migración aplicada):
- *   APP_LOG=/ruta/al/log/de/la/app node cloudDevelopment/e2e/wp2-reg11-guardado-seccion.js   (APP_LOG es opcional)
+ *   APP_LOG=/ruta/al/log/de/la/app node scripts/e2e/wp2-reg11-guardado-seccion.js   (APP_LOG es opcional)
  * Casos: DocsMD/Screens/Registro V3/QA/E12-guardar-seccion-qa-cases.md (E12-C1…C11, comprobaciones C1…C11) y E21-guardado-o-carga-fallida-qa-cases.md (E21-C1…C6, comprobaciones U0…U6).
  */
 const fs = require('fs');

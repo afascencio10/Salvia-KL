@@ -28,16 +28,14 @@ en el sandbox, o no tiene datos para probar?* Si la respuesta es no, no va aquí
   no prepare el entorno ni sus datos.
 
 **Dónde va cada cosa:** las pruebas automatizadas del código, junto al código
-(`*_test.go`, `src/tests/`); los casos de QA y sus resultados, en
-`DocsMD/Screens/<pantalla>/QA/`; las herramientas generales del repo, en
+(`*_test.go`, `src/tests/`); los scripts E2E de un requerimiento (Playwright +
+`psql` contra el sandbox), en `scripts/e2e/`; los casos de QA y sus resultados,
+en `DocsMD/Screens/<pantalla>/QA/`; las demás herramientas del repo, en
 `scripts/`. Un script que solo sirve para probar tu cambio se queda en el
 directorio temporal de la sesión y no se commitea.
 
-> **Heredado, no replicar.** `e2e/` (los scripts de QA de WP-2) llegó antes de
-> esta regla y no la cumple: no agregues más archivos ahí; falta decidir dónde
-> viven y sacarlos de esta carpeta. `smoke-login.js` y `playwright-cli.sh` sí
-> son del propio ambiente (comprobar que el sandbox está sano y manejar su
-> navegador), no de un requerimiento.
+`smoke-login.js` y `playwright-cli.sh` sí son del propio ambiente (comprobar que
+el sandbox está sano y manejar su navegador), no de un requerimiento.
 
 ## Inicio rápido (sandbox cloud)
 
@@ -60,7 +58,6 @@ espera a que `GET /seguridad/login` devuelva 200. Los datasets de la fase 2
 | Detener la app (para reiniciar tras un cambio de código) | `cloudDevelopment/stop-app.sh` y luego `./run_dev.sh` |
 | Aplicar a mano un archivo nuevo de `seed_test_data/` | `cloudDevelopment/apply-test-seeds.sh` |
 | Aplicar a mano las migraciones pendientes de `src/migrations/` (`./run_dev.sh` ya lo hace solo en cada arranque) | `cloudDevelopment/apply-migrations.sh` |
-| Probar los cambios de WP-2 (93 comprobaciones: API, BD y pantalla; ~3 min). Necesitan las migraciones aplicadas y la app corriendo | `for s in cloudDevelopment/e2e/wp2-re*.js; do node "$s"; done` |
 
 > **Reiniciar:** el backend es un binario embebido (`go:embed`), así que
 > cualquier cambio de Go **o de frontend** exige reiniciar. Usa
@@ -407,7 +404,6 @@ sandbox nuevo aplica todo solo. En uno que ya está corriendo, la fase 1
 | `smoke-login.js` | Del ambiente: login por la UI con los 19 roles (Playwright) para comprobar que el sandbox está sano. |
 | `playwright-cli.sh` | Del ambiente: Playwright CLI listo para usar con el Chromium del sandbox, con `login <rol>`. |
 | `actualizar-seed-con-composio.md` | Cómo traer datos y esquema de Supabase. |
-| `e2e/` | **Heredado, fuera de alcance** (QA de WP-2). No agregar más; se saca de esta carpeta. |
 
 ## Utilidades que NO pasan por este setup
 

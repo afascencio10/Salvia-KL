@@ -8,7 +8,7 @@
 |---|---|
 | `src/internal/models/report_list_item.go` | `ReportListItem` agrega `CreationDateCO` (`creationDateCO`) — ver changelog de Listado Reportes |
 | `src/internal/repository/victim_contacts_list_repository.go` | Selecciona `TO_CHAR(victim_contact_creation_date, 'YYYY-MM-DD')` como `creation_date_co` |
-| `cloudDevelopment/e2e/wp2-rep12-fecha-reporte.js` | Nuevo — incluye la prueba del scope de agente y de la pantalla en otra zona horaria |
+| `scripts/e2e/wp2-rep12-fecha-reporte.js` | Nuevo — incluye la prueba del scope de agente y de la pantalla en otra zona horaria |
 
 ## 2026-11-02 — Estado «Borrador iniciado» e historial del modal (WP-1 T6 · T7)
 

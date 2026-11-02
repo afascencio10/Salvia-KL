@@ -7,7 +7,7 @@
  * 2) frontend — solo lo que el backend no cubre: cuándo aparece la pregunta, sus opciones y que se limpie
  * al pasar DP_2 a «No».
  *
- * Uso (con la app corriendo y la migración aplicada):  node cloudDevelopment/e2e/wp2-reg08-tipo-discapacidad.js
+ * Uso (con la app corriendo y la migración aplicada):  node scripts/e2e/wp2-reg08-tipo-discapacidad.js
  * Casos: DocsMD/Screens/Registro V3/QA/E12-guardar-seccion-qa-cases.md (E12-C14…C20, comprobaciones C1…C8) y E11-actualizar-respuesta-y-tamizaje-qa-cases.md (E11-C10…C12, U1…U3).
  */
 const path = require('path');

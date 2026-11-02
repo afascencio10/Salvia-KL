@@ -8,7 +8,7 @@ La columna «Fecha Reporte» del Listado de Reportes salía en «—» porque el
 |---|---|
 | `src/internal/models/report_list_item.go` | `ReportListItem` agrega `CreationDateCO` (`creationDateCO`); `creationDate` se conserva |
 | `src/internal/repository/victim_contacts_list_repository.go` | Selecciona `TO_CHAR(victim_contact_creation_date, 'YYYY-MM-DD') AS creation_date_co` y lo mapea a la fila |
-| `cloudDevelopment/e2e/wp2-lib.js · wp2-rep12-fecha-reporte.js` | Nuevos — prueba backend + BD + pantalla en 5 zonas horarias (19 comprobaciones) |
+| `scripts/e2e/wp2-lib.js · wp2-rep12-fecha-reporte.js` | Nuevos — prueba backend + BD + pantalla en 5 zonas horarias (19 comprobaciones) |
 
 ## 2026-11-02 — Estado «Borrador iniciado» y hitos de asignación (WP-1 T7 · T6)
 
