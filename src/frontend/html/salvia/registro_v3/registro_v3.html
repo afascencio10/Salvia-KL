@@ -111,6 +111,8 @@
 
         <input v-else-if="campo.tipo==='date'" type="date" class="form-control" :value="getVal(campo.id)" @input="setVal(campo.id,$event.target.value)">
 
+        <input v-else-if="campo.tipo==='time'" type="time" step="60" class="form-control" :value="getVal(campo.id)" @input="setVal(campo.id,$event.target.value)">
+
         <select v-else-if="campo.tipo==='dropdown' && campo.opciones" class="form-control" :value="getVal(campo.id)" @change="setVal(campo.id,$event.target.value)">
           <option value="">Seleccione...</option>
           <option v-for="o in campo.opciones" :key="o" :value="o">${o}</option>

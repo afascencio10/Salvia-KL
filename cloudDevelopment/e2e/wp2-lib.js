@@ -108,6 +108,24 @@ async function api(page, method, path, body) {
 }
 
 // ── Pantalla Registro V3 ─────────────────────────────────────────────────────────────────
+/** Lee el catálogo de opciones de Registro V3 y devuelve utilidades para armar respuestas válidas. */
+async function loadCatalog(page) {
+    const cat = (await api(page, 'GET', '/api/v1/victim-cases-v3/enums')).json || {};
+    const first = (c) => (cat[c] && cat[c][0] && cat[c][0].icode) || '';
+    const byCode = (c, code) => ((cat[c] || []).find((o) => o.code === code) || {}).icode || '';
+    return { cat, first, byCode };
+}
+
+/** Respuestas válidas por módulo (CI/DP/HV/AG: las obligatorias de la tríada) para el documento `doc`. */
+function validAnswers({ first, byCode }, doc) {
+    return {
+        CI: { CI_1: byCode('victim_case_form2_pronoun', 'la'), CI_2: 'Ana Perez', CI_3: 'Anita', CI_4: '3001234567', CI_5: byCode('victim_case_form2_victim_doc_type', 'cc'), CI_6: doc, CI_7: 'false', CI_9: 'false' },
+        DP: { DP_1: '1990-05-20', DP_2: 'false', DP_5: first('victim_case_form2_nationality'), DP_8: first('victim_case_form2_gender_identity'), DP_9: first('victim_case_form2_sexual_orientation'), DP_11: first('victim_case_form2_specially_protected_population'), DP_12: first('victim_case_form2_ethnic_affiliation'), DP_14: 'false', DP_17: first('victim_case_form2_occupation'), DP_27: 'Atlántico', DP_28: 'Barranquilla', DP_29: 'Calle 1 # 2-3' },
+        HV: { HV_1: 'Descripción de prueba de los hechos', HV_2: '2026-10-30', HV_3: '19:30', HV_4: 'Atlántico', HV_5: 'Barranquilla', HV_6: first('victim_case_form2_facts_zone'), HV_7: 'Calle 45 # 12-34', HV_8: first('victim_case_form2_scenario_violence'), HV_9: first('victim_case_form2_type_violence_experienced'), HV_11: first('victim_case_form2_scope_of_violence'), HV_13: 'true', HV_14: first('victim_case_form2_recurrence_aggression') },
+        AG: { AG_1: first('victim_case_form2_num_agressors'), AG_2: first('victim_case_form2_proximity_principal_aggressor'), AG_3: first('victim_case_form2_relationship_with_presumed_aggressor_01') },
+    };
+}
+
 /** Abre /salvia/registro-v3 y pasa la autorización y el tipo de contacto: queda en el Cabezote. */
 async function openRegistroV3(page) {
     await page.goto(`${BASE_URL}/salvia/registro-v3`);
@@ -125,6 +143,15 @@ async function newDraftUI(page) {
     const body = await resp.json();
     await page.getByRole('link', { name: 'Datos personales' }).waitFor();
     return body.icode;
+}
+
+/** Cabezote → busca por documento y abre el Caso (queda en CI). */
+async function openCaseUI(page, doc) {
+    await openRegistroV3(page);
+    await page.locator('input[placeholder="Número de documento"]').fill(doc);
+    await page.getByRole('button', { name: 'Buscar' }).click();
+    await page.locator('tr', { hasText: `cc-${doc}` }).getByRole('button', { name: 'Abrir' }).click();
+    await page.getByRole('link', { name: 'Contacto e identificación' }).waitFor();
 }
 
 /** Abre un módulo por el texto de su pestaña (p. ej. 'Datos personales'). */
@@ -154,5 +181,5 @@ function secondsBetween(a, b) {
 
 module.exports = {
     BASE_URL, PASSWORD, DB, sql, deleteCases, check, finish, loginAs, api, bogotaNow, secondsBetween,
-    openRegistroV3, newDraftUI, openModule, question,
+    loadCatalog, validAnswers, openRegistroV3, newDraftUI, openCaseUI, openModule, question,
 };
