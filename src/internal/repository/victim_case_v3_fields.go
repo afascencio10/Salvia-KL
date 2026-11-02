@@ -1,6 +1,9 @@
 package repository
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // victimCaseV3FormFields mapea cada pregunta de Registro V3 (por FieldKey
 // "{MODULO}_{orden}", módulo = CI/DP/CA/HV/AG/TZ/GS, o TZP/TZNP para las
@@ -135,7 +138,16 @@ var victimCaseV3FormFields = []VictimCaseFormField{ //nolint:gochecknoglobals
 var victimCaseV3TamizajePareja = []VictimCaseFormField{} //nolint:gochecknoglobals
 var victimCaseV3TamizajeNoPareja = []VictimCaseFormField{} //nolint:gochecknoglobals
 
+// victimCaseV3TamizajeGenerales -- TZ_1..TZ_8 (las 7 preguntas generales y la de prejuicio, VPP): se toman de
+// victimCaseV3FormFields en init(). SaveTamizajeBranch las guarda junto con la rama activa (REG-12).
+var victimCaseV3TamizajeGenerales = []VictimCaseFormField{} //nolint:gochecknoglobals
+
 func init() {
+	for _, f := range victimCaseV3FormFields {
+		if strings.HasPrefix(f.Key, "TZ_") {
+			victimCaseV3TamizajeGenerales = append(victimCaseV3TamizajeGenerales, f)
+		}
+	}
 	for i := 1; i <= 24; i++ {
 		victimCaseV3TamizajePareja = append(victimCaseV3TamizajePareja, VictimCaseFormField{
 			Key:    FieldKeyV3("TZP", i),

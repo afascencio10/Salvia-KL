@@ -735,6 +735,7 @@ var RegistroV3App = Vue.createApp({
       });
 
       this.tzGuardando = true;
+      this.errorGuardado = '';
       fetch('/api/v1/victim-cases-v3/' + this.icode + '/tamizaje', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -743,8 +744,23 @@ var RegistroV3App = Vue.createApp({
           subtipoFeminicidio: subtipoFem, subtipoHomicidioAbyecto: subtipoHom,
         }),
       })
-        .then(function (r) { return r.json(); })
-        .then(function (data) { self.tzResultado = data; })
+        .then(function (r) { return self.leerRespuesta(r); })
+        .then(function (res) {
+          // REG-12: antes no se revisaba r.ok -- un 500 dejaba {error:…} como «resultado» del Tamizaje y la
+          // persona no sabía que no se había guardado.
+          if (!res.ok) {
+            var err = new Error('tamizaje rechazado (' + res.status + ')');
+            err.mensaje = (res.status === 401 || res.status === 403)
+              ? 'No se guardó el Tamizaje: tu sesión venció o no tienes permiso. Vuelve a iniciar sesión; lo que respondiste en esta pantalla no se guardó.'
+              : 'No se pudo guardar el Tamizaje por un error del servidor. Lo que respondiste sigue en pantalla: intenta de nuevo y, si el problema continúa, avisa a soporte.';
+            throw err;
+          }
+          self.tzResultado = res.data;
+        })
+        .catch(function (e) {
+          if (!e.mensaje) e.mensaje = 'No se pudo guardar el Tamizaje: no hay conexión con el servidor. Lo que respondiste sigue en pantalla; intenta de nuevo.';
+          self.mostrarErrorGuardado(e);
+        })
         .finally(function () { self.tzGuardando = false; });
     },
     // D10 (flow-E11, "alertas de riesgo/ideación suicida"): antes

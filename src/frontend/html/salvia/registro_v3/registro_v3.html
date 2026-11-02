@@ -150,44 +150,43 @@
     <div v-if="moduloActivo==='TZ'">
       <p class="text-muted">Se evalúan primero 7 preguntas generales. Si alguna de las marcadas como obligatorias se responde "Sí", se habilita el resto del Tamizaje.</p>
 
-      <div v-for="c in TAMIZAJE_GENERALES_V3" :key="c.id" class="mb-2" v-show="tzCampoVisible(c)">
-        <label class="form-label">${c.label} <span v-if="c.inicial" class="badge bg-secondary">inicial</span></label>
-        <div class="form-check form-check-inline">
-          <input class="form-check-input" type="radio" :name="c.id" :checked="answers[c.id]==='true'" @change="tzToggle(c.id,true)">
-          <label class="form-check-label">Sí</label>
-        </div>
-        <div class="form-check form-check-inline">
-          <input class="form-check-input" type="radio" :name="c.id" :checked="answers[c.id]==='false'" @change="tzToggle(c.id,false)">
-          <label class="form-check-label">No</label>
-        </div>
-      </div>
+      <table class="table table-sm table-bordered align-middle">
+        <caption class="visually-hidden">Preguntas generales del Tamizaje de riesgo</caption>
+        <colgroup><col style="width:70%"><col style="width:15%"><col style="width:15%"></colgroup>
+        <thead class="table-light">
+          <tr><th scope="col">Pregunta</th><th scope="col" class="text-center">Sí</th><th scope="col" class="text-center">No</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="c in TAMIZAJE_GENERALES_V3" :key="c.id" v-show="tzCampoVisible(c)">
+            <td>${c.label} <span v-if="c.inicial" class="badge bg-secondary">inicial</span></td>
+            <td class="text-center"><input class="form-check-input" type="radio" :name="c.id" :checked="answers[c.id]==='true'" :aria-label="'Sí — ' + c.label" @change="tzToggle(c.id,true)"></td>
+            <td class="text-center"><input class="form-check-input" type="radio" :name="c.id" :checked="answers[c.id]==='false'" :aria-label="'No — ' + c.label" @change="tzToggle(c.id,false)"></td>
+          </tr>
+        </tbody>
+      </table>
 
       <div v-show="tzRevelarResto">
-        <div class="mb-2">
-          <label class="form-label">${TAMIZAJE_VPP_V3.label}</label>
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="TZ_8" :checked="answers['TZ_8']==='true'" @change="setBool('TZ_8',true)">
-            <label class="form-check-label">Sí</label>
-          </div>
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="TZ_8" :checked="answers['TZ_8']==='false'" @change="setBool('TZ_8',false)">
-            <label class="form-check-label">No</label>
-          </div>
-        </div>
-
         <p class="text-muted">Rama detectada automáticamente según AG — Características del agresor: <b>${tzWasPartner() ? 'Pareja/expareja' : 'No pareja'}</b>.</p>
 
-        <div v-for="(preg, idx) in (tzWasPartner() ? tzListaPareja() : tzListaNoPareja())" :key="idx" class="mb-2">
-          <label class="form-label">${preg}</label>
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" :name="(tzWasPartner()?'TZP_':'TZNP_')+(idx+1)" :checked="answers[(tzWasPartner()?'TZP_':'TZNP_')+(idx+1)]==='true'" @change="setBool((tzWasPartner()?'TZP_':'TZNP_')+(idx+1), true)">
-            <label class="form-check-label">Sí</label>
-          </div>
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" :name="(tzWasPartner()?'TZP_':'TZNP_')+(idx+1)" :checked="answers[(tzWasPartner()?'TZP_':'TZNP_')+(idx+1)]==='false'" @change="setBool((tzWasPartner()?'TZP_':'TZNP_')+(idx+1), false)">
-            <label class="form-check-label">No</label>
-          </div>
-        </div>
+        <table class="table table-sm table-bordered align-middle">
+          <caption class="visually-hidden">Resto del Tamizaje de riesgo</caption>
+          <colgroup><col style="width:70%"><col style="width:15%"><col style="width:15%"></colgroup>
+          <thead class="table-light">
+            <tr><th scope="col">Pregunta</th><th scope="col" class="text-center">Sí</th><th scope="col" class="text-center">No</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>${TAMIZAJE_VPP_V3.label}</td>
+              <td class="text-center"><input class="form-check-input" type="radio" name="TZ_8" :checked="answers['TZ_8']==='true'" :aria-label="'Sí — ' + TAMIZAJE_VPP_V3.label" @change="setBool('TZ_8',true)"></td>
+              <td class="text-center"><input class="form-check-input" type="radio" name="TZ_8" :checked="answers['TZ_8']==='false'" :aria-label="'No — ' + TAMIZAJE_VPP_V3.label" @change="setBool('TZ_8',false)"></td>
+            </tr>
+            <tr v-for="(preg, idx) in (tzWasPartner() ? tzListaPareja() : tzListaNoPareja())" :key="idx">
+              <td>${preg}</td>
+              <td class="text-center"><input class="form-check-input" type="radio" :name="(tzWasPartner()?'TZP_':'TZNP_')+(idx+1)" :checked="answers[(tzWasPartner()?'TZP_':'TZNP_')+(idx+1)]==='true'" :aria-label="'Sí — ' + preg" @change="setBool((tzWasPartner()?'TZP_':'TZNP_')+(idx+1), true)"></td>
+              <td class="text-center"><input class="form-check-input" type="radio" :name="(tzWasPartner()?'TZP_':'TZNP_')+(idx+1)" :checked="answers[(tzWasPartner()?'TZP_':'TZNP_')+(idx+1)]==='false'" :aria-label="'No — ' + preg" @change="setBool((tzWasPartner()?'TZP_':'TZNP_')+(idx+1), false)"></td>
+            </tr>
+          </tbody>
+        </table>
 
         <button class="btn btn-primary" :disabled="tzGuardando" @click="guardarTamizaje">Calcular y guardar Tamizaje</button>
       </div>

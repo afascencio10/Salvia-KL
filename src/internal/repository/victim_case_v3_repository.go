@@ -803,53 +803,73 @@ func resolveEnumIDByICode(tx *gorm.DB, icode string) (int64, error) {
 }
 
 func (r *victimCaseV3Repository) SaveTamizajeBranch(ctx context.Context, icode string, wasPartner bool, answersByKey map[string]string, riskTypeCode, riskLevelCode string, riskScore int, tieFlag bool) error {
-	var victimCaseID int64
-	if err := r.db.WithContext(ctx).Raw(`SELECT victim_case_id FROM salvia.victim_case WHERE victim_case_i_code = ?`, icode).Scan(&victimCaseID).Error; err != nil {
-		return fmt.Errorf("saveTamizajeBranch: %w", err)
-	}
+	// REG-12: una sola transacción, igual que SaveSection (REG-11). Antes markKeysAnswered corría primero y
+	// el UPDATE después, sin transacción: si fallaba, TZ_1..TZ_8 quedaban «respondidas» (Finalizar las daba por
+	// buenas) con el Tamizaje sin guardar.
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var victimCaseID int64
+		if err := tx.Raw(`SELECT victim_case_id FROM salvia.victim_case WHERE victim_case_i_code = ?`, icode).Scan(&victimCaseID).Error; err != nil {
+			return fmt.Errorf("saveTamizajeBranch: %w", err)
+		}
+		if victimCaseID == 0 {
+			return fmt.Errorf("saveTamizajeBranch: no existe victim_case con icode=%s", icode)
+		}
 
-	// BUG encontrado en QA (2026-10-15): SaveTamizajeBranch es una ruta de
-	// guardado separada de SaveSection (POST /tamizaje, no POST /seccion/TZ)
-	// y nunca llamaba a markKeysAnswered -- TZ_1..8 y la rama pareja/no-
-	// pareja completa nunca quedaban en victim_case_v3_answered_keys, así
-	// que Finalize (que exige TZ_1/2/3/4/7 respondidas) rechazaba
-	// cualquier Caso aunque el agente sí hubiera llenado el Tamizaje.
-	// answersByKey aquí ya trae TZ_1..8 + las 24 de la rama (ver
-	// SaveTamizaje en el service), aunque resolveFieldUpdates de abajo solo
-	// use las de la rama activa para el UPDATE de columnas.
-	if err := markKeysAnswered(r.db.WithContext(ctx), icode, answersByKey); err != nil {
-		return fmt.Errorf("saveTamizajeBranch: %w", err)
-	}
+		// Solo se escriben las columnas de la rama activa (pareja / no pareja) y, desde REG-12, también las
+		// preguntas generales TZ_1..TZ_8 (g1..g7 y vpp) presentes en answersByKey: antes NO se guardaban, y al
+		// reabrir el Caso todas las generales aparecían como «No» aunque se hubieran respondido «Sí».
+		fields := victimCaseV3TamizajeNoPareja
+		if wasPartner {
+			fields = victimCaseV3TamizajePareja
+		}
+		updates, err := resolveFieldUpdates(tx, fields, answersByKey)
+		if err != nil {
+			return fmt.Errorf("saveTamizajeBranch: %w", err)
+		}
+		generales, err := resolveFieldUpdates(tx, victimCaseV3TamizajeGenerales, answersByKey)
+		if err != nil {
+			return fmt.Errorf("saveTamizajeBranch: %w", err)
+		}
+		for col, v := range generales {
+			updates[col] = v
+		}
 
-	fields := victimCaseV3TamizajeNoPareja
-	if wasPartner {
-		fields = victimCaseV3TamizajePareja
-	}
-	updates, err := resolveFieldUpdates(r.db.WithContext(ctx), fields, answersByKey)
-	if err != nil {
-		return fmt.Errorf("saveTamizajeBranch: %w", err)
-	}
+		noID, _ := resolveEnumIDByCategory(tx, "yes_no", "n")
+		yesID, _ := resolveEnumIDByCategory(tx, "yes_no", "y")
+		if tieFlag {
+			updates["victim_case_form2_tzv3_risk_tie_flag"] = yesID
+		} else {
+			updates["victim_case_form2_tzv3_risk_tie_flag"] = noID
+		}
 
-	noID, _ := resolveEnumIDByCategory(r.db.WithContext(ctx), "yes_no", "n")
-	yesID, _ := resolveEnumIDByCategory(r.db.WithContext(ctx), "yes_no", "y")
-	if tieFlag {
-		updates["victim_case_form2_tzv3_risk_tie_flag"] = yesID
-	} else {
-		updates["victim_case_form2_tzv3_risk_tie_flag"] = noID
-	}
+		if riskTypeID, err := resolveEnumIDByCategory(tx, "victim_case_form2_tzv3_risk_type", riskTypeCode); err == nil && riskTypeID != 0 {
+			updates["victim_case_form2_tzv3_risk_type"] = riskTypeID
+		}
+		if riskLevelID, err := resolveEnumIDByCategory(tx, "victim_case_form2_tzv3_risk_level", riskLevelCode); err == nil && riskLevelID != 0 {
+			updates["victim_case_form2_tzv3_risk_level"] = riskLevelID
+		}
+		updates["victim_case_form2_tzv3_risk_score"] = riskScore
+		updates["victim_case_form2_update_date"] = time.Now()
 
-	if riskTypeID, err := resolveEnumIDByCategory(r.db.WithContext(ctx), "victim_case_form2_tzv3_risk_type", riskTypeCode); err == nil && riskTypeID != 0 {
-		updates["victim_case_form2_tzv3_risk_type"] = riskTypeID
-	}
-	if riskLevelID, err := resolveEnumIDByCategory(r.db.WithContext(ctx), "victim_case_form2_tzv3_risk_level", riskLevelCode); err == nil && riskLevelID != 0 {
-		updates["victim_case_form2_tzv3_risk_level"] = riskLevelID
-	}
-	updates["victim_case_form2_tzv3_risk_score"] = riskScore
-	updates["victim_case_form2_update_date"] = time.Now()
+		if err := tx.Table("salvia.victim_case_form2").
+			Where("victim_case_form2_victim_case = ?", victimCaseID).
+			Updates(updates).Error; err != nil {
+			return fmt.Errorf("saveTamizajeBranch: actualizar form2: %w", err)
+		}
 
-	return r.db.WithContext(ctx).Table("salvia.victim_case_form2").
-		Where("victim_case_form2_victim_case = ?", victimCaseID).
-		Updates(updates).Error
+		// BUG encontrado en QA (2026-10-15): SaveTamizajeBranch es una ruta de
+		// guardado separada de SaveSection (POST /tamizaje, no POST /seccion/TZ)
+		// y nunca llamaba a markKeysAnswered -- TZ_1..8 y la rama pareja/no-
+		// pareja completa nunca quedaban en victim_case_v3_answered_keys, así
+		// que Finalize (que exige TZ_1/2/3/4/7 respondidas) rechazaba
+		// cualquier Caso aunque el agente sí hubiera llenado el Tamizaje.
+		// Se marca AL FINAL y dentro de la transacción: solo cuenta como
+		// respondido lo que de verdad quedó guardado.
+		if err := markKeysAnswered(tx, icode, answersByKey); err != nil {
+			return fmt.Errorf("saveTamizajeBranch: %w", err)
+		}
+		return nil
+	})
 }
 
 func (r *victimCaseV3Repository) GetTamizajeResult(ctx context.Context, icode string) (string, string, int, error) {
