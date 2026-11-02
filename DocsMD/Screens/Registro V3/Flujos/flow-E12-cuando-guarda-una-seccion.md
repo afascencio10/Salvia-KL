@@ -57,13 +57,21 @@ PASO 2 — Actualizar el estado del cliente
     mensajeGuardado = "No se guardó."   // nunca "Sección guardada." si no se guardó
   guardando = false
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━CAMBIOS WP-3 (2026-11-02):
+  Validar formulario (REG-05): cada falla (obligatorias, "solo letras", máscara de CI_6) deja mensajeGuardadoEsError = true: el mensaje sale en rojo
+    (clase v3-msg-error, #b02a37, contraste 6,5:1). El texto no cambia. guardarModulo devuelve una promesa true/false.
+  PASO 1 · SaveSection (REG-35): la tríada se evalúa con CUALQUIER módulo (también TZ y GS) y se devuelve el valor real; Borrador a Iniciado sigue
+    siendo solo de la tríada (CI/DP/CA/HV/AG). Cliente: triadaCompleta = triadaCompleta || !!data.triadaCompleta (nunca baja de true a false).
+  PASO 2 (REG-36, ya cubierto por REG-11/E21): una respuesta no exitosa muestra el aviso rojo de flow-E21 y no dice "Sección guardada.".
+  PASO 3 (REG-03/04): tras guardar bien se vuelve a leer el resumen del Caso (GET /victim-cases-v3/:icode): encabezado con nombre, documento y estado.
+  PASO 4 (REG-01): si se guardó y el usuario sigue en ese módulo, pasa al siguiente módulo no bloqueado (salvo en el último) con
+    mensajeAvance = "✓ Sección guardada. Pasaste de «X» a «Y».". Ver flow-E10 / flow-E22.
+  Supuesto (comentario de Felipe, 2026-11-02): por ahora un solo usuario edita el registro a la vez; no hay control de concurrencia.
+
+━━━━
 ⚠️  GAPS — Información pendiente
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 | Variable / decisión | Paso afectado |
 |---|---|
-| ~~`enviarSeccion` no revisa `r.ok`: una respuesta 500 se lee como JSON sin `triadaCompleta` y aun así muestra "Sección guardada."~~ — **resuelto 2026-11-02 (WP-2 · REG-11):** `enviarSeccion` revisa la respuesta y cualquier falla se avisa (flow-E21) | PASO 2 |
 | Vaciar una pregunta opcional de fecha/hora cuyo campo es NOT NULL (HV_3, DP_21…) y guardar **no** la borra: el valor anterior se conserva, porque la columna no admite NULL (decisión de BD pendiente) | PASO 1 (0) |
-| Al guardar GS (o TZ) `triadaCompleta` queda en false en el cliente (ver GAP en flow-E10) | PASO 2 |
 | No hay toast ni marca de error por campo: solo el texto de `mensajeGuardado` junto al botón | Validar formulario |
-| Sin control de concurrencia en el fan-out del Perfil entre agentes que editan el mismo documento (G-V3-01) | PASO 1 (5) |

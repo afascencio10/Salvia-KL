@@ -28,10 +28,19 @@ PASO 2 — Cambiar de módulo
   Vue muestra el bloque del módulo: ModuloGenerico (CI/DP/CA/HV/AG), Tamizaje (TZ) o GestionSalvia (GS)
   Las respuestas no guardadas del módulo anterior se conservan en `answers` (no hay guardado automático al cambiar)
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━CAMBIOS WP-3 (2026-11-02):
+  PASO 1 (REG-13): moduloBloqueado(id) = (id === 'TZ') && !triadaCompleta. Gestión Salvia ya no se bloquea. El aviso queda solo para el Tamizaje:
+    "Completa primero los módulos de Contacto, Datos personales, Contacto de apoyo, Hechos y Agresor para habilitar Tamizaje."
+  PASO 1 (REG-35): el cliente nunca baja triadaCompleta de true a false y el servidor devuelve la tríada real al guardar cualquier módulo:
+    guardar GS o TZ ya no vuelve a poner los candados (se cierra el GAP G-V3-24).
+  PASO 2 (REG-01): los ítems del menú vertical (uno por módulo de modulos[]) llaman a irAModulo; también lo llaman "Siguiente", "Anterior" y el avance
+    automático tras guardar. moduloSiguiente/moduloAnterior(id) recorren modulos[] y devuelven el primer módulo NO bloqueado (o null).
+    Se limpian mensajeGuardado, mensajeGuardadoEsError, mensajeAvance y errorGuardado.
+  Reactivo (REG-02): el menú muestra el porcentaje de cada módulo y el encabezado el global; se recalculan solos al cambiar las respuestas.
+
+━━━━
 ⚠️  GAPS — Información pendiente
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 | Variable / decisión | Paso afectado |
 |---|---|
-| `triadaCompleta` solo se actualiza con la respuesta de un guardado o al abrir el Caso; el cliente no la recalcula al editar. Además, el backend responde `triadaCompleta:false` al guardar TZ/GS (retorna antes de evaluar) y `enviarSeccion` la asigna sin distinguirlo: **tras "Guardar sección" en GS (o "Finalizar llamada" estando en GS) las pestañas TZ/GS vuelven a mostrar 🔒 y el aviso verde de Iniciado desaparece**, aunque el Caso siga Iniciado en BD (se corrige al reabrirlo). Por lectura de código; no verificado en el navegador | PASO 1 |
 | Planeado y no implementado: barra de progreso por módulo y regreso automático a la tríada si `triadaCompleta` pasa a false (las keys respondidas se acumulan en `victim_case_v3_answered_keys` y nunca se quitan, así que la tríada no se "des-completa") | PASO 1 |

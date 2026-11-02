@@ -2,7 +2,7 @@
 
 Scripts E2E de requerimientos concretos: cada uno prueba un requerimiento de
 punta a punta (API, base de datos y pantalla) contra la app corriendo en el
-sandbox cloud de Claude Code, con Playwright y `psql`. Hoy están los de WP-2
+sandbox cloud de Claude Code, con Playwright y `psql`. Hoy están los de WP-2 y los de WP-3 (`wp3-guardado-cierre.js`, `wp3-navegacion-encabezado.js` y `wp3-reg21-sesion.js`, con `wp3-lib.js`; REG-01/02/03/04/05/06/13/21/35/36/37)
 (REG-07, 08, 09, 10, 11, 12, 34 y REP-12): 92 comprobaciones en total, 93 si le
 pasas `APP_LOG` (el log de la app) a REG-11.
 

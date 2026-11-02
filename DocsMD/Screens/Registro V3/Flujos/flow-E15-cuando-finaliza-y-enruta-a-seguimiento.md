@@ -43,12 +43,20 @@ PASO 2 — Resultado en el cliente
 > No hay traspaso a Seguimiento que ejecutar: Registro V3 escribe directo sobre `victim_case`/`victim_case_form2`, las
 > mismas tablas que lee Seguimiento; `te` es la señal. La transición a Cerrado (`cd`) es de Seguimiento.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━CAMBIOS WP-3 (2026-11-02 · REG-37, REG-21):
+  PASO 0: si ya hay un guardado o cierre en curso (guardando/finalizando) se ignora el clic (sin doble envío).
+  PASO 1: guardarModulo('GS', sinAvanzar) — mismas validaciones de "Guardar sección" (obligatorias visibles del § A de GS) y POST /seccion/GS. Si no se
+    guarda, NO se llama a /finalizar y el recordatorio se repite junto al botón (errorFinalizar).
+  PASO 2: POST /finalizar. Backend: el 400 incluye camposFaltantes (llaves sin responder, ordenadas) además de modulosIncompletos.
+  PASO 3 (respuesta): 200 → Cierre · 400 → "<error> — falta diligenciar: <módulos>. Gestión Salvia, falta: <etiquetas>" (catálogo o mapa local para
+    GS_5, 14, 16, 17 y 18) · 401/403 → "tu sesión venció o no tienes permiso. Inicia sesión de nuevo en otra pestaña y vuelve a pulsar «Finalizar
+    registro»: lo que diligenciaste sigue en esta pantalla" (la respuesta se lee sin lanzar: un 401 puede venir sin cuerpo) · otro → aviso de error del servidor.
+
+━━━━
 ⚠️  GAPS — Información pendiente
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 | Variable / decisión | Paso afectado |
 |---|---|
-| El botón no guarda antes el módulo GS: lo que no se haya guardado con "Guardar sección" no cuenta como respondido y el backend reporta GS incompleto. La planeación pedía persistir el último módulo primero | PASO 1 |
 | No hay integración con la FGN ni un workflow de remisión: la Denuncia fácil y las remisiones solo se **confirman en pantalla** a partir de GS_1 y GS_6 (ver registro-v3-pendientes.md C2/C3). Tampoco se crean entradas en un módulo de Seguimiento, ni se notifica a los equipos | PASO 1 |
 | `POST /entidades/registrar-lote` y `/barreras/registrar-lote` de la planeación no existen: entidades y barreras se guardan una a una al agregarlas (flow-E17, flow-E18) | — |
 | ~~Con las 5 iniciales del Tamizaje en "No" el Tamizaje no llega a guardarse y el Caso no puede finalizar~~ — **resuelto 2026-11-02 (WP-2 · REG-34):** con las 5 iniciales respondidas el botón «Calcular y guardar Tamizaje» aparece, se guardan TZ_1, 2, 3, 4 y 7 (el resto queda en «No», sin marcarse) y `Finalize` ya acepta el Tamizaje (ver flow-E11) | PASO 1 |

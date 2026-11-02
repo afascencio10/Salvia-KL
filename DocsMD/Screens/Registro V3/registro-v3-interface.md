@@ -4,6 +4,8 @@
 >
 > ✅ **Sincronizado con el código el 2026-10-31** (versión implementada del 2026-10-14/15). La planeación original —con `<dinamic-form>`, sidebar con barras de progreso, componentes `habeas-data-gate`/`cabezote-busqueda` y el botón "Alerta inminente" del header— **no se construyó así**: la decisión A1 (ver [`registro-v3-data.md`](registro-v3-data.md) § D10) descartó `dinamic-form` y todo quedó en una app Vue a medida. Lo planeado y no construido está en la sección "Planeado y no implementado" al final.
 
+> 🔄 **Actualizado el 2026-11-02 (WP-3: REG-01/02/03/04/05/06/13/35/37).** La pantalla se llama «Registro de víctima»; el menú de módulos es vertical (se arma con `modulos[]`) con porcentaje de avance, hay barra «Anterior / Siguiente» y guardar avanza al siguiente módulo; solo el Tamizaje se bloquea; el encabezado muestra nombre, documento y estado legibles; los faltantes salen en rojo; «Finalizar» guarda GS primero. Detalle en [`changelogNov2026.md`](changelogNov2026.md).
+
 Pantalla de ingreso y registro de hechos de VBG/VPP para los roles `op` y `sv` (permiso `manage_registro_v3`). Recorre seis etapas dentro de una sola página: autorización de datos personales → tipo de contacto → Cabezote de búsqueda de duplicidad → Formulario de siete módulos (CI, DP, CA, HV, AG, TZ, GS) → Cierre. No hay entrada en el menú lateral: se llega por la URL. Guarda por módulo en `/api/v1/victim-cases-v3/*` y escribe directo sobre `victim_case`/`victim_case_form2`, las mismas tablas que lee Seguimiento.
 
 ## Archivos relevantes
@@ -25,7 +27,7 @@ Pantalla de ingreso y registro de hechos de VBG/VPP para los roles `op` y `sv` (
 ```
 RegistroV3Screen  (registro_v3.html)  <main.salvia-main> .container
 │
-├── Titulo  "Registro V3"  (.welcome-section)
+├── Titulo  "Registro de víctima"  (.welcome-section)
 │
 ├── [etapa === 'habeas']
 │   HabeasData
@@ -70,15 +72,17 @@ RegistroV3Screen  (registro_v3.html)  <main.salvia-main> .container
 ├── [etapa === 'formulario']
 │   Formulario
 │   ├── [v-if resumenCaso]
-│   │   Encabezado  "${tratamiento()} ${names} ${lastNames} — ${docType}-${docNumber}"  +  Badge (.bg-info) ${status}
+│   │   Encabezado  "${nombreEncabezado()} — ${documentoEncabezado()}"  +  Badge (.bg-info) ${etiquetaEstado(status)}  +  Barra de avance global (.progress) "Avance N %"   ← sin nombre: "Persona sin identificar"; documento provisional (0000000000): "Documento sin registrar"; tras cada guardado se vuelve a leer el resumen del Caso (WP-3 · REG-03/04/02)
 │   ├── [v-if triadaCompleta]
 │   │   Aviso  (.alert-success)  "La información mínima de contacto, víctima y hecho está completa — el Caso pasó a Iniciado."
 │   ├── BtnFinalizarLlamada  "Finalizar llamada (guardar y salir)"  :disabled="guardando"  → guardarYSalir()
-│   ├── Tabs  (.nav.nav-tabs)  × 7  [v-for modulos]       ← un solo módulo visible a la vez (moduloActivo)
+│   ├── Menú de módulos  (ul.nav.nav-pills.flex-column.v3-menu, columna izquierda)  × N  [v-for modulos]   ← un solo módulo visible a la vez (moduloActivo); se construye con modulos[] (sin módulos escritos a mano)  (WP-3 · REG-01)
 │   │   CI "Contacto e identificación" · DP "Datos personales" · CA "Contacto de apoyo" · HV "Hechos de violencia"
 │   │   AG "Características del agresor" · TZ "Tamizaje de riesgo" · GS "Gestión Salvia"
-│   │   └── [TZ, GS con !triadaCompleta]  texto atenuado + " 🔒" + title "Completa primero CI/DP/CA/HV/AG"  → irAModulo(id) no navega
-│   ├── [v-if mensajeModuloBloqueado]  Aviso (.alert-warning)  "Completa primero los módulos de Contacto, Datos personales, Contacto de apoyo, Hechos y Agresor para habilitar Tamizaje|Gestión Salvia."
+│   │   ├── Ítem: etiqueta + [TZ con !triadaCompleta] " 🔒" y texto atenuado + porcentaje de avance "NN %" ("—" si el módulo no tiene obligatorias de 1er contacto: CA y TZ)  → irAModulo(id) (no navega si está bloqueado)
+│   │   └── Solo TZ se bloquea (REG-13): Gestión Salvia se puede abrir desde el Borrador y sigue siendo obligatoria al finalizar
+│   ├── [v-if mensajeModuloBloqueado]  Aviso (.alert-warning)  "Completa primero los módulos de Contacto, Datos personales, Contacto de apoyo, Hechos y Agresor para habilitar Tamizaje."
+│   ├── BarraNavegacion  (.v3-nav)  BtnAnterior "← Anterior" → irAAnterior() · "Módulo i de N" · BtnSiguiente "Siguiente →" → irASiguiente() · [v-if mensajeAvance] "✓ Sección guardada. Pasaste de «X» a «Y»."   ← saltan los módulos bloqueados y NO guardan (E22/E23, WP-3 · REG-01)
 │   ├── [v-if errorGuardado]  Aviso (.alert-danger #registro-v3-error-guardado)  ${errorGuardado}   ← un guardado falló (dato inválido con la pregunta a corregir, error del servidor, sin conexión, sesión vencida); se hace scroll hasta él (flow-E21)
 │   │
 │   ├── [moduloActivo ∈ CI, DP, CA, HV, AG]
@@ -96,7 +100,7 @@ RegistroV3Screen  (registro_v3.html)  <main.salvia-main> .container
 │   │   │   ├── [tipo 'boolean']   Radio Sí / No
 │   │   │   └── [tipo 'multiple']  Checkbox × N  (con tope `max`, p. ej. HV_11 = 2)
 │   │   ├── BtnGuardar  "Guardar sección"  :disabled="guardando"  → guardarModulo(moduloActivo)
-│   │   └── Mensaje  ${mensajeGuardado}      ← "Sección guardada.", las validaciones del cliente o, si el guardado falló, "No se guardó." (el detalle sale en el aviso rojo de arriba)
+│   │   └── Mensaje  (.ms-2  :class="{'v3-msg-error': mensajeGuardadoEsError}")  ${mensajeGuardado}      ← "Sección guardada.", las validaciones del cliente o, si el guardado falló, "No se guardó." (el detalle sale en el aviso rojo de arriba)   ← los faltantes y errores salen en rojo (REG-05); si se guardó, se pasa al siguiente módulo no bloqueado (REG-01)
 │   │
 │   ├── [moduloActivo === 'TZ']
 │   │   Tamizaje
@@ -166,7 +170,7 @@ RegistroV3Screen  (registro_v3.html)  <main.salvia-main> .container
 │       │   └── [v-if GS_18 === 'true']  <textarea>  GS_19  "Justificación de la alerta"
 │       ├── BtnGuardar  "Guardar sección"  → guardarModulo('GS')   +  Mensaje ${mensajeGuardado}
 │       ├── [v-if errorFinalizar]  Aviso (.alert-danger)  ${errorFinalizar}
-│       └── BtnFinalizar  "Finalizar registro y enrutar a Seguimiento"  → finalizarRegistro()   ← siempre habilitado; el backend decide
+│       └── BtnFinalizar  "Finalizar registro y enrutar a Seguimiento"  → finalizarRegistro()   ← primero guarda GS (mismas validaciones de «Guardar sección»), luego valida en el servidor y, si falta algo, lista los campos (REG-37); un 401 se avisa sin perder lo escrito (REG-21)
 │
 └── [etapa === 'cierre']
     Cierre
@@ -190,10 +194,10 @@ RegistroV3Screen  (registro_v3.html)  <main.salvia-main> .container
 | Elemento | Valores / regla |
 |---|---|
 | `etapa` | `habeas` → `tipoContacto` → `cabezote` → `formulario` → `cierre`; ramas `formularioCerrado` (no aceptó) y `tipoContactoNoDisponible` (aviso dentro de `tipoContacto`) |
-| Estado del Caso (`status`) | `bo` Borrador (al crear) → `in` Iniciado (cuando `triadaCompleta`) → `te` Terminado (al finalizar). El Cabezote y el encabezado muestran el **código crudo**, no una etiqueta. `cd` (Cerrado) lo pone Seguimiento |
+| Estado del Caso (`status`) | `bo` Borrador (al crear) → `in` Iniciado (cuando `triadaCompleta`) → `te` Terminado (al finalizar). El Cabezote y el encabezado muestran el **nombre** (Borrador, Iniciado, Terminado, Cerrado…; 11 códigos, "Desconocido" para uno nuevo), nunca el código crudo (REG-04). `cd` (Cerrado) lo pone Seguimiento |
 | `triadaCompleta` | Las 32 obligatorias [1er contacto] de CI, DP, HV y AG (`triadaFieldsV3`: CI_1-7 y CI_9, DP_1, 2, 5, 8, 9, 11, 12, 14, 17, 27-29, HV_1, 2, 4, 6, 8, 9, 11, 13, 14, AG_1-3) ya respondidas alguna vez. CA no aporta. Lo calcula el backend (`SaveSection` y `GetCase`) y desbloquea TZ y GS |
 | Badge del Cabezote | "Completo" si el Caso más reciente con ese documento tiene respondidas las obligatorias de CI + DP (+ DP_10, DP_15) + CA_1-4; si no, "Incompleto". Se calcula, no se guarda |
-| Bloqueo del sidebar | Solo TZ y GS, con `!triadaCompleta` |
+| Bloqueo del menú | Solo TZ, con `!triadaCompleta` (REG-13). `triadaCompleta` no baja de true a false en pantalla y el servidor la devuelve real para cualquier módulo (REG-35) |
 | Obligatoriedad por pregunta | `C1` = [1er contacto] (bloquea "Guardar sección" si está visible y vacía), `C2` = [máx. 2º contacto] (se exige solo al finalizar, y solo las incondicionales), `D` = Deseable |
 
 ## Planeado y no implementado (diferencias con la planeación original)
@@ -206,7 +210,7 @@ RegistroV3Screen  (registro_v3.html)  <main.salvia-main> .container
 | Cabezote con banner, botón "Limpiar", campo de tipo de documento, y resultados agrupados en Reportes pendientes / Registros con Casos / Borradores | Dos inputs, un botón "Buscar" y una tabla plana; **no** consulta reportes (`victim_contact`); sin "Limpiar"; el filtro por tipo de documento existe en la API pero no tiene input |
 | "Proceder al formulario", "Nuevo Caso en Registro existente" (E-08), "Actualizar Caso" (E-09) y checkbox "Verifiqué las coincidencias" | No existen: el único acceso a un Caso existente es el botón "Abrir"; "+ Nuevo registro" siempre está habilitado |
 | Encabezado del Formulario con nombre identitario prevalente, badge de Registro, alertas (duplicidad, riesgo, ideación, gestación) y botón "⚠ Alerta inminente" | Una línea con tratamiento + nombres + documento + badge de estado crudo; el aviso de duplicidad sale bajo CI_6 y los de riesgo/ideación dentro de TZ; la Alerta Inminente son los campos GS_18/GS_19 (decisión C7) |
-| Sidebar con 3 grupos, barras de progreso por módulo, checkbox "solo obligatorias de 1er contacto" y grupo "Registro de gestión" (Rutas/Barreras/Notificaciones) | Pestañas horizontales sin progreso ni filtro; sin "Registro de gestión" (E-16 fuera de alcance) |
+| Sidebar con 3 grupos, barras de progreso por módulo, checkbox "solo obligatorias de 1er contacto" y grupo "Registro de gestión" (Rutas/Barreras/Notificaciones) | Menú vertical de módulos con porcentaje de avance por módulo y global (WP-3 · REG-01/02); sin grupos, sin filtro y sin "Registro de gestión" (E-16 fuera de alcance) |
 | Módulo DP con 9 preguntas de escala de dificultad, y marca de vulnerabilidad por gestación | DP_3 es un checklist de actividades; DP_26 (gestación) se muestra siempre (`__gestacionAplica` devuelve `true`) y no genera marca |
 | Tamizaje: pregunta VPP solo si `esOsigd`; preguntas OSIGD y de ámbito laboral ocultas según el caso (`TAMIZAJE_*_OSIGD_V3`, `*_LABORAL_V3`) | TZ_8 se muestra siempre tras revelar el resto y las 24 preguntas de la rama aparecen todas: las constantes de filtro existen pero ningún render las usa. `esOsigd` solo decide el tipo de riesgo |
 | Alertas de riesgo enviadas a coordinación (`NotificationService`) | Solo avisos en pantalla; no hay notificación ni log |
