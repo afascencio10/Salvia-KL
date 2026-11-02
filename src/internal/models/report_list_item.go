@@ -4,13 +4,19 @@ import "time"
 
 // ReportListItem representa un reporte en la respuesta de GET /api/v1/victim-contacts/list.
 // Ver DocsMD/Screens/Listado Reportes/listado-reportes-interface.md.
+//
+// CreationDateCO es el día calendario de creación, ya en hora Colombia: la columna es TIMESTAMP
+// sin zona y se escribe con time.Now() (time.Local = America/Bogota). La UI lo muestra por split,
+// sin new Date(), para que el día nunca cambie por la zona del navegador (mismo nombre que en
+// CaseListItem). CreationDate se conserva por compatibilidad.
 type ReportListItem struct {
 	ID                 int64     `json:"id"`
 	ICode              string    `json:"i_code"`
 	Names              string    `json:"names"`
 	LastNames          string    `json:"lastNames"`
 	CreationDate       time.Time `json:"creationDate"`
-	ReportType         string    `json:"reportType"` // Víctima | Tercero | Familiar | Hombre | ""
+	CreationDateCO     string    `json:"creationDateCO"` // "YYYY-MM-DD" en hora de Bogotá, tal cual se guardó (REP-12)
+	ReportType         string    `json:"reportType"`     // Víctima | Tercero | Familiar | Hombre | ""
 	TotalFallidos      int       `json:"totalFallidos"`
 	DiasCompletos      int       `json:"diasCompletos"`
 	ReportStatus       string    `json:"reportStatus"` // sin_asignar | asignado | cerrado_valido | cerrado_invalido
