@@ -414,7 +414,7 @@ ver columnas nuevas abajo.
 
 ## Columnas reales en `victim_case_form2` y `victim_case` (BD, 2026-10-31)
 
-`victim_case_form2` tiene hoy 186 columnas (183 + 3 de WP-2). Las propias de V3 (los nombres de la planeación —`tz_v3_general_N`, `tamizaje_tipo_riesgo`…— **no** se usaron):
+`victim_case_form2` tiene hoy 186 columnas en Supabase (183 al 2026-10-31 + 3 de WP-2; la migración se aplicó el 2026-11-02). Las propias de V3 (los nombres de la planeación —`tz_v3_general_N`, `tamizaje_tipo_riesgo`…— **no** se usaron):
 
 | Columna(s) | Tipo | Pregunta |
 |---|---|---|

@@ -14,7 +14,7 @@ Siete correcciones de Registro V3. La zona de residencia ofrece Rural y Urbano (
 | `src/frontend/js/components/registro-v3-campos.js` | HV_3 pasa a tipo `time` y se agrega la pregunta DP_51. |
 | `src/frontend/html/salvia/registro_v3/registro_v3.html` | Aviso rojo de guardado, input de hora, Tamizaje en tablas Sí/No y botón visible con las 5 iniciales respondidas. |
 | `src/salvia/config/Locale.go` | Textos «Rural», «Urbano» y los 7 tipos de discapacidad. |
-| `src/migrations/20261102_wp2_registro_v3_catalogos_y_columnas.sql` | Nuevo — opciones de zona y discapacidad, columnas nuevas y municipios a `varchar(100)`. Se aplica a mano en la BD. |
+| `src/migrations/20261102_wp2_registro_v3_catalogos_y_columnas.sql` | Nuevo — opciones de zona y discapacidad, columnas nuevas y municipios a `varchar(100)`. Aplicada en Supabase el 2026-11-02. |
 | `src/internal/repository/victim_case_v3_validation_test.go · victim_case_v3_fields_test.go` | Nuevos — pruebas unitarias de los validadores y de las columnas del Tamizaje. |
 | `scripts/e2e/wp2-*.js` | Nuevos — un script por requerimiento: backend, BD y pantalla (93 comprobaciones en total). |
 

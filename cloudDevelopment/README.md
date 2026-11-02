@@ -273,8 +273,12 @@ opciones Rural/Urbano de la zona de residencia (`residence_zone`), las 7 de
 tipo de discapacidad (`disability_type`), las columnas
 `victim_case_form2_disability_type`, `_facts_department` y
 `_residence_department`, y los municipios (`*_town_code`, `_residence_town`)
-ampliados a `varchar(100)`. **En Supabase hay que aplicarla a mano** (el
-`ALTER … TYPE varchar(100)` solo se verificó en el sandbox).
+ampliados a `varchar(100)`. **Ya está aplicada en Supabase** (2026-11-02,
+proyecto `pwwelwfhauspznpatuqm`, con `execute_sql` del MCP de Supabase: ese
+proyecto no lleva historial `supabase_migrations`, así que se usó SQL directo y
+no `apply_migration`). Verificado allá: las 9 filas de catálogo, las 3 columnas
+nuevas, los 3 anchos en 100 y que ninguna de esas columnas tiene vistas, políticas,
+índices ni llaves foráneas. En un Supabase nuevo se aplica a mano.
 
 **`seed_test_data/*.sql`** (fase 2, después de que la app arranca) —
 datos que dependen de tablas que crea la app y datos leídos de Supabase para
