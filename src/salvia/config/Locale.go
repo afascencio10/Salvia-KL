@@ -776,6 +776,11 @@ var Locale = map[string]map[string]string{
 
 		"victim_contact_form2_v2_time_invalid": "Hora con formato inválido",
 
+		// T8 — «Está reportando como …» en el reporte V2 (solo en, op y et)
+		"victim_contact_v2_reporter_role_en": "Enlace territorial",
+		"victim_contact_v2_reporter_role_op": "Agente integral",
+		"victim_contact_v2_reporter_role_et": "Entidad",
+
 		"victim_case_form2_enums_not_found":          "Por favor escoja una opción",
 		"feminicide_form2_enums_not_found":           "Por favor escoja una opción",
 		"feminicide_risk_form1_enums_not_found":      "Por favor escoja una opción",

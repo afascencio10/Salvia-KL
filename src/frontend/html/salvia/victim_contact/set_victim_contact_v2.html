@@ -10,9 +10,38 @@
       <div id="global-errors-live" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
 
       <!-- ============================================== -->
+      <!-- PASO 0 (T8): ¿TIENE USUARIO?                   -->
+      <!-- Solo para quien no tiene sesión o la tiene     -->
+      <!-- como en, op o et; otros roles arrancan en auth -->
+      <!-- ============================================== -->
+      <div v-if="step === 'usuario'">
+        <div class="tituloform">
+          <i class="fas fa-user-circle fa-2x"></i>
+          <h2>¿Tiene usuario en Salvia?</h2>
+        </div>
+
+        <template v-if="reporterName">
+          <div id="reporter-banner" class="alert alert-info" role="status">
+            Está reportando como <strong>${ reporterName }</strong> (${ reporterRoleLabel }). El reporte quedará asociado a su usuario.
+          </div>
+          <div class="row justify-content-end botones">
+            <button type="button" id="btn-usuario-continuar" class="btn btn-success" @click="goTo('auth')">Continuar</button>
+          </div>
+        </template>
+
+        <template v-else>
+          <p>Si es enlace territorial, agente integral o entidad, inicie sesión para reportar con su usuario.</p>
+          <div class="row justify-content-between botones">
+            <button type="button" id="btn-usuario-no" class="btn btn-secondary" @click="elegirUsuario('no')">No, continuar sin usuario</button>
+            <button type="button" id="btn-usuario-si" class="btn btn-success" @click="elegirUsuario('si')">Sí, iniciar sesión</button>
+          </div>
+        </template>
+      </div>
+
+      <!-- ============================================== -->
       <!-- PASO 1: AUTORIZACIÓN DE DATOS                  -->
       <!-- ============================================== -->
-      <div v-if="step === 'auth'">
+      <div v-else-if="step === 'auth'">
         <div class="tituloform">
           <i class="fas fa-list-alt fa-2x"></i>
           <h2>Autorización de datos personales</h2>
@@ -248,9 +277,15 @@
   var appV2 = Vue.createApp({
     delimiters: ['${', '}'],
     data() {
+      // T8: con sesión de otro rol (sv, ad, ro…) el wizard arranca en la autorización, sin el paso
+      // «usuario»; para todos los demás (anónimos y en, op, et) el paso inicial es «usuario».
+      const pasoInicial = {{.sinPasoUsuario}} ? 'auth' : 'usuario';
       return {
         windowTitle: {{.windowTitle}},
-        step: 'auth',
+        pasoInicial: pasoInicial,
+        step: pasoInicial,
+        reporterName: {{.reporterName}},
+        reporterRoleLabel: {{.reporterRoleLabel}},
         errors: {},
         enums: {
           yes_no: {{.yes_no}},
@@ -341,8 +376,17 @@
         this.radicado = '';
         this.copiado = false;
         this.copiaError = false;
-        this.step = 'auth';
+        this.step = this.pasoInicial;
         this.refreshCaptcha();
+      },
+      // T8 · E12 «Cuando responde «¿Tiene usuario?»»: «no» sigue como anónimo (autorización);
+      // «sí» va al login y regresa a este mismo wizard (el login solo acepta esta ruta en ?next=).
+      elegirUsuario(opcion) {
+        if (opcion === 'si') {
+          window.location.assign('/seguridad/login?next=' + encodeURIComponent('/salvia/public-v2/nuevo'));
+          return;
+        }
+        this.goTo('auth');
       },
       // T3 · E13 «Cuando presiona «Copiar radicado»»: copia el radicado al
       // portapapeles (API del navegador, con respaldo execCommand) y muestra

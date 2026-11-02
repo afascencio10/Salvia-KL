@@ -562,6 +562,8 @@ func migrateLegacyTables(db *gorm.DB) {
 		// Radicado público del reporte V2 (WP-1 T3/REP-01): «XXXX-XXXX». Nulable:
 		// los reportes anteriores y los de V1 no tienen. Índice único con nombre fijo.
 		Radicado *string `gorm:"column:victim_contact_radicado;type:varchar(16);uniqueIndex:uq_victim_contact_radicado"`
+		// Rol de sesión de quien reportó con la sesión iniciada (WP-1 T8/REP-07). Nulable: anónimo y reportes anteriores.
+		ReporterRole *string `gorm:"column:victim_contact_reporter_role;type:varchar(8)"`
 	}
 	if err := db.Table("salvia.victim_contact").AutoMigrate(&VictimContactSync{}); err != nil {
 		log.Printf("[WARN] AutoMigrate salvia.victim_contact: %v", err)

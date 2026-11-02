@@ -54,12 +54,20 @@ const (
 	reportTypeV2Hombre   string = "ho"
 )
 
+// Reporter identifica a quien reporta con la sesión iniciada (WP-1 T8/REP-07), sea cual
+// sea su rol. Siempre sale de la sesión del servidor; nada de lo que mande el cliente
+// lo reemplaza. nil = reporte anónimo.
+type Reporter struct {
+	UserICode string
+	RoleCode  string
+}
+
 // SetVictimContactV2 crea un reporte ciudadano V2: valida según el tipo de
 // reportante (Víctima/Tercero/Familiar/Hombre), inserta victim_contact +
 // victim_contact_form2 (tablas de V1, sin modificarlas) y victim_contact_form2_v2
 // (tabla de extensión, exclusiva de V2). Devuelve el icode del VictimContact
 // creado como número de radicado.
-func SetVictimContactV2(dataInput string, checkCaptcha bool, connData *db.ConnData, dbClientConfig db.DBClientConfig, dbServerConfig db.DBServerConfig) (int, string) {
+func SetVictimContactV2(dataInput string, checkCaptcha bool, reporter *Reporter, connData *db.ConnData, dbClientConfig db.DBClientConfig, dbServerConfig db.DBServerConfig) (int, string) {
 	var err error
 
 	if connData.ConnID == "" {
@@ -90,6 +98,17 @@ func SetVictimContactV2(dataInput string, checkCaptcha bool, connData *db.ConnDa
 	}
 
 	salvia_daos.SetVictimContactDefaults(&vc, common_dao.SQL_INSERT)
+
+	// T8: quién reporta sale SIEMPRE de la sesión del servidor. Lo que el cliente mande en
+	// «generalUser» se descarta (antes viajaba tal cual a victim_contact_general_user).
+	vc.VictimContactGeneralUser = ""
+	reporterRole := ""
+	reporterUserICode := ""
+	if reporter != nil {
+		vc.VictimContactGeneralUser = reporter.UserICode
+		reporterRole = reporter.RoleCode
+		reporterUserICode = reporter.UserICode
+	}
 	salvia_daos.SetVictimContactForm2Defaults(form2, common_dao.SQL_INSERT)
 	salvia_daos.SetVictimContactForm2V2Defaults(form2v2, common_dao.SQL_INSERT)
 
@@ -225,7 +244,7 @@ func SetVictimContactV2(dataInput string, checkCaptcha bool, connData *db.ConnDa
 	// Si el valor ya existe se genera otro (hasta 5 veces); cualquier otro
 	// fallo deshace el reporte completo.
 	radicado, err := assignRadicado(vc.VictimContactICode, generateRadicado, func(icode, candidate string) (bool, error) {
-		return salvia_daos.AssignVictimContactRadicado(icode, candidate, connData, &dbClientConfig, &dbServerConfig)
+		return salvia_daos.AssignVictimContactRadicado(icode, candidate, reporterRole, connData, &dbClientConfig, &dbServerConfig)
 	})
 	if err != nil {
 		db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
@@ -257,7 +276,7 @@ func SetVictimContactV2(dataInput string, checkCaptcha bool, connData *db.ConnDa
 
 	// T6: hito «Reporte recibido» en el timeline del reporte (después del commit, en
 	// segundo plano y sin afectar la respuesta si falla).
-	recordReportReceived(vc.VictimContactICode, reportTypeCode, radicado, "")
+	recordReportReceived(vc.VictimContactICode, reportTypeCode, radicado, reporterUserICode)
 
 	// A diferencia de V1 (que responde con cuerpo vacío), V2 devuelve el icode
 	// (id interno; la app móvil lo sigue leyendo) y, desde T3, el radicado que
