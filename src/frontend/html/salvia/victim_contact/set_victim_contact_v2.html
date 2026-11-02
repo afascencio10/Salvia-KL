@@ -325,9 +325,37 @@
         this.step = nextStep;
       },
       resetForm() {
+        // T2 (REP-14*): el captcha se consume al verificarlo en el servidor
+        // (captcha.VerifyString borra el id) y la respuesta 200 no trae uno
+        // nuevo; reutilizarlo hacía fallar el segundo reporte seguido. Se
+        // arma el formulario en blanco y se pide un id nuevo.
         this.form = this.blankForm(this.form.captchaID);
         this.radicado = '';
         this.step = 'auth';
+        this.refreshCaptcha();
+      },
+      // Pide un captchaID nuevo a esta misma página (E-01 en modo JSON,
+      // Accept: application/json). Si falla se conserva el id actual (el primer
+      // envío falla y el 400 trae uno nuevo, como antes) y se deja un aviso.
+      refreshCaptcha() {
+        return fetch(window.location.pathname, {
+          headers: { 'Accept': 'application/json' },
+          cache: 'no-store',
+          credentials: 'same-origin',
+        })
+          .then((r) => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+          })
+          .then((d) => {
+            if (d && d.captchaID) {
+              this.form.captchaID = d.captchaID;
+              this.form.captchaSolution = '';
+            }
+          })
+          .catch((e) => {
+            console.warn('No se pudo renovar el captcha; se conserva el anterior.', e);
+          });
       },
       buildPayload() {
         const f = this.form;
