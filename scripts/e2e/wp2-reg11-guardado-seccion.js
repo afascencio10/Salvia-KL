@@ -206,6 +206,9 @@ let rejected400 = 0; // 400 que este script provoca a propósito (se comparan co
         check('U2b', (await pg.locator(ERR).count()) === 0 && form2(a.icode, 'victim_case_form2_facts_address') === 'Calle corregida 99',
             `al corregir: aviso en rojo oculto=${(await pg.locator(ERR).count()) === 0}; BD=${form2(a.icode, 'victim_case_form2_facts_address')}`);
 
+        // REG-01 (WP-3): guardar bien ahora pasa solo al siguiente módulo; se vuelve a Hechos de violencia para las fallas.
+        await pg.getByRole('link', { name: 'Hechos de violencia' }).click();
+
         // U3 · Falla del servidor (500): avisa y NO dice «Sección guardada.».
         await pg.route('**/api/v1/victim-cases-v3/*/seccion/HV', (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"error al guardar la sección"}' }));
         await pg.getByRole('button', { name: 'Guardar sección' }).click();
