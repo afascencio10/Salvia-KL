@@ -1,9 +1,9 @@
--- Entidades para el paso "Registrar entidades" de Registro V3 (Gestión Salvia § C/D) y para
--- cualquier pantalla que busque sedes por municipio y sector.
+-- Directorio de entidades (sedes) para cualquier pantalla o formulario que busque sedes por
+-- municipio y sector.
 --
 -- Origen: Supabase (proyecto pwwelwfhauspznpatuqm), leído vía Composio el 2026-11-01.
---   * 7 sedes REALES de Bogotá (town_code 11001000), 2 por sector de los 4 que ofrece la
---     pantalla: salud (IPS) · justicia (Fiscalía) · protección (Comisaría de Familia) ·
+--   * 7 sedes REALES de Bogotá (town_code 11001000), 2 por sector de los 4 que ofrece el
+--     buscador de sedes: salud (IPS) · justicia (Fiscalía) · protección (Comisaría de Familia) ·
 --     otras instituciones (Alcaldía de Bogotá; es la única sede de ese sector en Bogotá).
 --   * 65 obligaciones de esas 4 entidades (el checklist "Acciones institucionales").
 -- Son datos de configuración del directorio institucional, no de personas ni de casos.

@@ -25,8 +25,6 @@ espera a que `GET /seguridad/login` devuelva 200. Los datasets de la fase 2
 | Qué quieres | Comando |
 |---|---|
 | Comprobar que el ambiente está sano (login con los 19 roles, ~35 s) | `node cloudDevelopment/smoke-login.js` |
-| Recorrer **Reporte V2** de inicio a fin (asistente público + ciclo del reporte, ~15 s) | `node cloudDevelopment/e2e/reporte-v2.js` |
-| Recorrer **Registro V3** de inicio a fin (Borrador → Terminado, ~15 s) | `node cloudDevelopment/e2e/registro-v3.js` |
 | Entrar a la app con Playwright CLI como un rol | `cloudDevelopment/playwright-cli.sh login sv` |
 | Seguir con el CLI (estructura, clics, capturas) | `cloudDevelopment/playwright-cli.sh snapshot` / `click e12` / `goto <url>` / `screenshot --filename=/tmp/x.png` |
 | Detener la app (para reiniciar tras un cambio de código) | `cloudDevelopment/stop-app.sh` y luego `./run_dev.sh` |
@@ -202,7 +200,7 @@ documento, tipo de reporte, ajustes razonables, sectores, barreras, criterios de
 remisión...). **Reemplaza** el del dump legacy, que tenía otra numeración y
 nombres viejos (788 de sus 790 ids significaban otra cosa) y le faltaban 27
 categorías: con él, los selects de las pantallas llegaban vacíos (el tipo de
-reporte del Reporte V2, p. ej.). Se conservan los ids reales. **La app carga este
+reporte, p. ej.). Se conservan los ids reales. **La app carga este
 catálogo a memoria una sola vez al arrancar**: si lo cambias con la app corriendo,
 reiníciala.
 
@@ -216,42 +214,10 @@ datos que dependen de tablas que crea la app y datos leídos de Supabase para
 probar requerimientos concretos. Un archivo por requerimiento,
 `AAAAMMDD-<slug>.sql`, idempotente y autocontenido. Hoy trae
 `20261101-base-mecanismos-y-duplas.sql` (catálogo real de mecanismos, el mecanismo del
-usuario `mc` y la dupla `ps` + `ts`) y `20261101-registro-v3-entidades-bogota.sql` (7
-sedes reales de Bogotá y las obligaciones de sus entidades, para el paso de
-entidades de Registro V3). Es permanente: lo que una sesión agrega aquí lo encuentran todas las
+usuario `mc` y la dupla `ps` + `ts`) y `20261101-entidades-bogota.sql` (7
+sedes reales de Bogotá y las obligaciones de sus entidades, para las pantallas
+que buscan sedes por municipio y sector). Es permanente: lo que una sesión agrega aquí lo encuentran todas las
 siguientes. Ver `seed_test_data/README.md`.
-
-## Recorridos E2E de las pantallas
-
-Dos recorridos por la UI (Playwright, sin test runner) que usan los datos del seed y
-verifican en la BD lo que queda guardado. Se pueden repetir y correr uno tras otro: cada
-corrida crea sus datos con un sufijo único (`RUN_ID`). `SCREENSHOTS=/ruta` guarda capturas;
-`E2E_VERBOSE=1` muestra la traza completa cuando un escenario falla.
-
-**`e2e/reporte-v2.js` — Registro de Contacto Víctima V2** (el reporte público,
-`/salvia/public-v2/nuevo`; 9 escenarios):
-- E-02 "No autorizo" corta el flujo · E-06/E-09 "Atrás" conserva lo diligenciado · E-11 "Volver al Inicio".
-- E-10 radicar un reporte de cada tipo de reportante (Víctima con hora de contacto, Tercero
-  anónimo, Tercero a nombre propio, Familiar y Hombre). Las listas del asistente salen del
-  seed y se verifica `victim_contact`, `victim_contact_form2` (tipo de reporte = enum del
-  seed) y `victim_contact_form2_v2`.
-- Ciclo de vida: radicación pública → el supervisor (`sv`) lo ve "Sin asignar" en Listado
-  Reportes y lo reasigna a `op` → `op` lo gestiona en Mis Reportes (esquema 3x3: intento
-  fallido, intento exitoso, "Cierre por decisión de la persona") → `sv` lo ve "Cerrado —
-  inválido" en solo lectura. Verifica el motivo de cierre (enum del seed) y los 2 intentos.
-
-**`e2e/registro-v3.js` — Registro V3** (`/salvia/registro-v3`, como `op`; 9 escenarios). El
-camino feliz E2E-1 de `DocsMD/Screens/Registro V3/QA/`: habeas data → tipo de contacto →
-Cabezote (búsqueda sin coincidencias + "Nuevo registro") → CI → DP → CA → HV → AG (la tríada
-completa pasa el Caso a Iniciado y desbloquea Tamizaje y Gestión Salvia) → Tamizaje (rama
-pareja) → Gestión Salvia (denuncia, remisión a Atención Psicosocial con criterios, entidad
-real de Bogotá, barrera, alerta inminente) → Finalizar → Cierre "Terminado". Los campos se
-llenan leyendo el catálogo de la propia pantalla (`window.CAMPOS_*_V3`) y los condicionales
-en pasadas sucesivas. Verifica en la BD `bo` → `in` → `te`, la entidad y la barrera.
-
-No cubren: E2E-2 (abandonar un Borrador y retomarlo desde el Cabezote), E2E-3 (rama
-no-pareja con OSIGD y riesgo extremo) ni la limitación L1 del Reporte V2 (Familiar/Hombre con
-disposición "Sí" y hora), ya documentada en `DocsMD`.
 
 ## Problemas conocidos del código (no son del sandbox)
 
@@ -277,12 +243,6 @@ impiden usar la app**. No los investigues como si fueran del setup:
   Corre los tests por paquete.
 - `go build ./...` falla en `cmd/backup` (falta `godotenv`); la app (`go build .`)
   compila bien.
-- Registro V3 · Cierre: "Se confirma remisión a: victim_case_form2_referral_team_ap" muestra
-  el nombre interno del enum en vez de "Atención Psicosocial" (el formulario sí usa la
-  etiqueta; el mensaje del cierre, no). Cosmético; no depende del sandbox.
-- Registro V3 · DP_30 ("¿En qué zona se encuentra su lugar de residencia?") queda sin
-  opciones: la categoría `victim_case_form2_residence_zone` tampoco existe en Supabase. Es un
-  campo "deseable", no bloquea nada.
 
 ## Errores esperados al aplicar el esquema
 
@@ -350,7 +310,6 @@ sandbox nuevo aplica todo solo. En uno que ya está corriendo, la fase 1
 | `apply-test-seeds.sh` | Aplica `seed_test_data/` (lo lanza el setup; también a mano). |
 | `stop-app.sh` | Detiene la app que ocupa el puerto (sin matar por nombre). |
 | `smoke-login.js` | Login por la UI con los 19 roles (Playwright). |
-| `e2e/` | Recorridos de pantallas de inicio a fin (`reporte-v2.js`, `registro-v3.js`) y su `lib.js`. |
 | `playwright-cli.sh` | Playwright CLI listo para usar, con `login <rol>`. |
 | `actualizar-seed-con-composio.md` | Cómo traer datos y esquema de Supabase. |
 

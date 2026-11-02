@@ -30,7 +30,7 @@ Hoy trae:
 | Archivo | Qué trae | Para qué |
 |---|---|---|
 | `20261101-base-mecanismos-y-duplas.sql` | Catálogo real de mecanismos articuladores (6), el mecanismo del usuario `cloud.test.mc` y la dupla `cloud.test.ps` + `cloud.test.ts` | Que las pantallas de esos roles tengan su configuración |
-| `20261101-registro-v3-entidades-bogota.sql` | 7 sedes reales de Bogotá (2 por sector: salud, justicia, protección; 1 de otras instituciones) y las 65 obligaciones de sus entidades | El paso "Registrar entidades" de Registro V3 (Gestión Salvia § C/D), que busca sedes por municipio y sector |
+| `20261101-entidades-bogota.sql` | 7 sedes reales de Bogotá (2 por sector: salud, justicia, protección; 1 de otras instituciones) y las 65 obligaciones de sus entidades | Que las pantallas que buscan sedes por municipio y sector tengan opciones reales |
 
 Procedimiento, plantilla del archivo y cómo aplicar uno nuevo en un sandbox
 que ya está corriendo: [`../actualizar-seed-con-composio.md`](../actualizar-seed-con-composio.md).

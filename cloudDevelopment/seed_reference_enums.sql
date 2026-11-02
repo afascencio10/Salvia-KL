@@ -8,7 +8,7 @@
 -- tienen el mismo id con otro name (la BD real renombró y renumeró), faltan 27
 -- categorías (report_type_v2, anonimato, parentesco, barrier_*, tzv3_*, sector,
 -- referral_team...) y sobran 6 obsoletas (feminicide_risk_*). Con ese catálogo, los
--- selects de las pantallas llegan vacíos (p. ej. el tipo de reporte del reporte V2) y
+-- selects de las pantallas llegan vacíos (p. ej. el tipo de reporte) y
 -- cualquier dato traído de Supabase referenciaría ids que aquí significan otra cosa.
 -- Se conservan los ids reales: los datasets de seed_test_data/ los usan tal cual.
 --
