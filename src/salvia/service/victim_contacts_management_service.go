@@ -48,7 +48,8 @@ func (s *victimContactsManagementService) GetDetail(ctx context.Context, icode s
 	detail.ReportType = reportTypeLabel(detail.ReportType)
 	detail.Parentesco = localizeEnumName(detail.Parentesco)
 	detail.AjusteRazonable = localizeEnumNames(detail.AjusteRazonable)
-	detail.CanManage = canManage && detail.CloseReasonCode == ""
+	detail.CanManage = canManage && detail.CloseReasonCode == "" && detail.DraftCaseIcode == ""
+	detail.CanConvert = detail.CanConvert && detail.CanManage
 	return detail, nil
 }
 

@@ -9,4 +9,9 @@ type ReportDetailExt struct {
 	Radicado string `json:"radicado"`
 	// Código del tipo de reporte V2: v | r | fm | ho. "" en V1 (no tiene).
 	ReportTypeCode string `json:"reportTypeCode"`
+	// Icode del borrador de caso de Registro V3 vinculado (estado bo o in); "" si no hay (T7).
+	DraftCaseIcode string `json:"draftCaseIcode"`
+	// CanConvert: el agente puede iniciar «Registro de caso» desde el modal — reporte abierto, sin
+	// caso vinculado y de tipo Víctima o Tercero, y el rol puede gestionarlo (T7).
+	CanConvert bool `json:"canConvert"`
 }

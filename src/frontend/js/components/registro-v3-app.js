@@ -131,6 +131,8 @@ var RegistroV3App = Vue.createApp({
       var blob = new Blob([JSON.stringify({ answers: payload })], { type: 'application/json' });
       navigator.sendBeacon('/api/v1/victim-cases-v3/' + self.icode + '/seccion/' + self.moduloActivo, blob);
     });
+    // WP-1 T7 (E19): si la URL trae ?caso=<icode> (borrador creado desde un reporte), abre el formulario.
+    this.abrirDesdeReporte();
   },
 
   methods: {
@@ -219,6 +221,15 @@ var RegistroV3App = Vue.createApp({
         .then(function (data) {
           if (data.icode) { self.abrirCaso(data.icode); }
         });
+    },
+
+    // WP-1 T7 (E19): abre el registro creado desde un reporte (?caso=<icode>), directo en el
+    // formulario: el consentimiento ya se tomó en el reporte V2. Sin parámetro (o si no tiene forma
+    // de UUID) no hace nada y el flujo normal arranca en la etapa 'habeas'.
+    abrirDesdeReporte: function () {
+      var icode = new URLSearchParams(window.location.search).get('caso');
+      if (!icode || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(icode)) return;
+      this.abrirCaso(icode);
     },
 
     abrirCaso: function (icode) {

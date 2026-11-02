@@ -15,6 +15,8 @@ var ErrVictimContactNotFound = errors.New("reporte no encontrado")
 var ErrVictimContactAlreadyClosed = errors.New("el reporte ya está cerrado")
 var ErrSchemeNotComplete = errors.New("el esquema 3x3 no está completo todavía")
 var ErrCloseReasonNotFound = errors.New("motivo de cierre no encontrado")
+// ErrVictimContactHasDraft: el reporte tiene un borrador de caso de Registro V3 iniciado; no admite más intentos ni cierres (T7).
+var ErrVictimContactHasDraft = errors.New("el reporte tiene un borrador de caso iniciado")
 
 // CloseReasonLegacy — "código" sintético que se devuelve para los reportes invalidados
 // por el flujo legado (no existe como fila de enum): hace que el modal abra en 'cerrado'.
@@ -71,6 +73,9 @@ type victimContactRow struct {
 	Hechos          *string `gorm:"column:descripcion_hechos"`
 	Radicado        *string `gorm:"column:radicado"`
 	ReportTypeCode  *string `gorm:"column:report_type_code"`
+	DraftCaseICode  *string `gorm:"column:draft_case_icode"`
+	LinkedStatus    *string `gorm:"column:linked_status"`
+	HasLinkedCase   bool    `gorm:"column:has_linked_case"`
 }
 
 // GetDetail carga el reporte + su origen (form1/form2/form2_v2, GAP-1) + historial de intentos +
@@ -98,6 +103,13 @@ func (r *victimContactsManagementRepository) GetDetail(ctx context.Context, icod
 			  WHERE vf.victim_contact_form2_victim_contact = vc.victim_contact_id
 			    AND e.victim_case_form2_enums_category = 'victim_case_form2_report_type_v2'
 			  ORDER BY vf.victim_contact_form2_id DESC LIMIT 1) AS report_type_code,
+			(SELECT c.victim_case_i_code FROM salvia.victim_case c
+			  WHERE c.victim_case_victim_contact = vc.victim_contact_id AND c.victim_case_status IN ('bo', 'in')
+			  ORDER BY c.victim_case_creation_date DESC, c.victim_case_id DESC LIMIT 1) AS draft_case_icode,
+			(SELECT c.victim_case_status FROM salvia.victim_case c
+			  WHERE c.victim_case_victim_contact = vc.victim_contact_id AND c.victim_case_status IN ('bo', 'in', 'te', 'cd')
+			  ORDER BY c.victim_case_creation_date DESC, c.victim_case_id DESC LIMIT 1) AS linked_status,
+			EXISTS (SELECT 1 FROM salvia.victim_case c WHERE c.victim_case_victim_contact = vc.victim_contact_id) AS has_linked_case,
 			(SELECT vf.victim_contact_form2_reporter_names FROM salvia.victim_contact_form2_v2 v2
 			   JOIN salvia.victim_contact_form2 vf ON vf.victim_contact_form2_id = v2.victim_contact_form2_v2_victim_contact_form2
 			  WHERE vf.victim_contact_form2_victim_contact = vc.victim_contact_id LIMIT 1) AS reporter_names,
@@ -211,7 +223,23 @@ func (r *victimContactsManagementRepository) GetDetail(ctx context.Context, icod
 		}
 	}
 
-	canManage := closeCode == ""
+	// Estado derivado (T7): sin motivo de cierre, un caso de Registro V3 vinculado ya terminado o cerrado
+	// (te/cd) se lee como «Cerrado — válido» (Apertura de Caso Salvia) sin que nadie lo cierre a mano; uno en
+	// bo/in es el borrador iniciado. Un caso de otro flujo no cambia el estado.
+	linkedStatus := derefStr(row.LinkedStatus)
+	if closeCode == "" && (linkedStatus == "te" || linkedStatus == "cd") {
+		closeCode = "ap"
+		closeCategory = "Válido"
+		closeLabel = closeReasonLabels["ap"]
+	}
+	draftCaseIcode := ""
+	if closeCode == "" && (linkedStatus == "bo" || linkedStatus == "in") {
+		draftCaseIcode = derefStr(row.DraftCaseICode)
+	}
+
+	reportTypeCode := derefStr(row.ReportTypeCode)
+	canManage := closeCode == "" && draftCaseIcode == ""
+	canConvert := canManage && !row.HasLinkedCase && (reportTypeCode == "v" || reportTypeCode == "r")
 
 	return &models.ReportDetailExt{
 		ReportDetail: models.ReportDetail{
@@ -235,7 +263,9 @@ func (r *victimContactsManagementRepository) GetDetail(ctx context.Context, icod
 			CanManage:         canManage,
 		},
 		Radicado:       derefStr(row.Radicado),
-		ReportTypeCode: derefStr(row.ReportTypeCode),
+		ReportTypeCode: reportTypeCode,
+		DraftCaseIcode: draftCaseIcode,
+		CanConvert:     canConvert,
 	}, nil
 }
 
@@ -266,6 +296,23 @@ func lockOpenVictimContact(tx *gorm.DB, icode string) error {
 	}
 	if vc.CloseReason != nil || vc.Status == victimContactLegacyInvalidated {
 		return ErrVictimContactAlreadyClosed
+	}
+
+	// T7: con un caso de Registro V3 vinculado el reporte ya no se gestiona desde aquí. Terminado o cerrado
+	// (te/cd): el reporte se lee como cerrado (409). Borrador o iniciado (bo/in): se retoma o se termina el
+	// borrador, sin más intentos ni cierres (409 distinto, ErrVictimContactHasDraft).
+	var linkedStatus string
+	if err := tx.Raw(`
+		SELECT c.victim_case_status FROM salvia.victim_case c
+		 WHERE c.victim_case_victim_contact = ? AND c.victim_case_status IN ('bo', 'in', 'te', 'cd')
+		 ORDER BY c.victim_case_creation_date DESC, c.victim_case_id DESC LIMIT 1`, vc.ID).Scan(&linkedStatus).Error; err != nil {
+		return err
+	}
+	switch linkedStatus {
+	case "te", "cd":
+		return ErrVictimContactAlreadyClosed
+	case "bo", "in":
+		return ErrVictimContactHasDraft
 	}
 	return nil
 }

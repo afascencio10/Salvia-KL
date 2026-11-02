@@ -70,6 +70,8 @@ type reportListRow struct {
 	AssignedAgentLast  *string `gorm:"column:assigned_agent_last_names"`
 	Team               *string `gorm:"column:team"`
 	LegacyStatus       string  `gorm:"column:legacy_status"`
+	// Estado del caso vinculado más reciente de Registro V3 (bo/in/te/cd) o nil — WP-1 T7.
+	LinkedStatus *string `gorm:"column:linked_status"`
 }
 
 // reportTypeSelect devuelve el NOMBRE del enum del tipo de reporte (V1:
@@ -108,6 +110,14 @@ const attemptsAggregateSelect = `
     ) AS dias_completos
 `
 
+// victimContactsListLinkedStatusSQL — estado del caso de Registro V3 vinculado más
+// reciente del reporte (bo, in, te o cd), o NULL si no hay: base del estado derivado
+// «Borrador iniciado» / «Cerrado — válido» (WP-1 T7, sub-flujo «Estado derivado del
+// reporte»). Un caso de otro flujo no cuenta.
+const victimContactsListLinkedStatusSQL = `(SELECT c.victim_case_status FROM salvia.victim_case c
+       WHERE c.victim_case_victim_contact = vc.victim_contact_id AND c.victim_case_status IN ('bo', 'in', 'te', 'cd')
+       ORDER BY c.victim_case_creation_date DESC, c.victim_case_id DESC LIMIT 1)`
+
 const victimContactsListBaseFrom = `
 FROM salvia.victim_contact vc
 LEFT JOIN security.general_user gu
@@ -134,7 +144,8 @@ const victimContactsListSelectCols = `
     gup.general_user_profile_names AS assigned_agent_names,
     gup.general_user_profile_last_names AS assigned_agent_last_names,
     vc.victim_contact_team AS team,
-    vc.victim_contact_status AS legacy_status
+    vc.victim_contact_status AS legacy_status,
+    ` + victimContactsListLinkedStatusSQL + ` AS linked_status
 `
 
 func (r *victimContactsListRepository) List(ctx context.Context, filters VictimContactsListFilters) (VictimContactsListResult, error) {
@@ -178,7 +189,7 @@ func (r *victimContactsListRepository) List(ctx context.Context, filters VictimC
 			ReportType:         derefStr(row.ReportType),
 			TotalFallidos:      row.TotalFallidos,
 			DiasCompletos:      row.DiasCompletos,
-			ReportStatus:       reportStatusFrom(row.AgentID, row.CloseReasonCode, row.CloseCategory, row.LegacyStatus),
+			ReportStatus:       reportStatusFrom(row.AgentID, row.CloseReasonCode, row.CloseCategory, row.LegacyStatus, row.LinkedStatus),
 			AssignedAgentICode: derefStr(row.AgentID),
 			AssignedAgentName:  strings.TrimSpace(derefStr(row.AssignedAgentNames) + " " + derefStr(row.AssignedAgentLast)),
 			Team:               derefStr(row.Team),
@@ -206,7 +217,12 @@ func derefStr(s *string) string {
 // reporte con victim_contact_status='i' (invalidado) y sin motivo de cierre
 // nuevo se lee como "Cerrado - inválido" (related-tables.md, "Nota — convivencia
 // con el botón Invalidar legado"). Son ~65% de los reportes existentes.
-func reportStatusFrom(agentID, closeReasonCode, closeCategory *string, legacyStatus string) string {
+//
+// WP-1 T7: con el caso de Registro V3 vinculado (linkedStatus) el reporte se lee
+// «Cerrado — válido» si el caso está terminado o cerrado (te/cd) y «Borrador iniciado»
+// si está en borrador o iniciado (bo/in); un motivo de cierre o el legado invalidado
+// mandan primero. Regla única: sub-flujo «Estado derivado del reporte».
+func reportStatusFrom(agentID, closeReasonCode, closeCategory *string, legacyStatus string, linkedStatus *string) string {
 	if closeReasonCode != nil && *closeReasonCode != "" {
 		if closeCategory != nil && *closeCategory == "valido" {
 			return "cerrado_valido"
@@ -215,6 +231,14 @@ func reportStatusFrom(agentID, closeReasonCode, closeCategory *string, legacySta
 	}
 	if legacyStatus == victimContactLegacyInvalidated {
 		return "cerrado_invalido"
+	}
+	if linkedStatus != nil {
+		switch *linkedStatus {
+		case "te", "cd":
+			return "cerrado_valido"
+		case "bo", "in":
+			return "borrador_iniciado"
+		}
 	}
 	if agentID != nil && *agentID != "" {
 		return "asignado"
@@ -234,16 +258,21 @@ func buildVictimContactsListWhere(filters VictimContactsListFilters) (string, []
 	// Un reporte legado invalidado (status 'i') cuenta como cerrado: no está
 	// "asignado" ni "sin asignar" (ver reportStatusFrom).
 	const abierto = "vc.victim_contact_close_reason IS NULL AND vc.victim_contact_status <> '" + victimContactLegacyInvalidated + "'"
+	// T7: «asignado» y «sin asignar» excluyen los reportes con un caso de Registro V3 vinculado
+	// (borrador iniciado o caso completo), que tienen su propio estado.
+	const sinCasoV3 = victimContactsListLinkedStatusSQL + " IS NULL"
 	switch estado {
 	case "asignado":
-		clauses = append(clauses, "vc.victim_contact_agent_id IS NOT NULL AND "+abierto)
+		clauses = append(clauses, "vc.victim_contact_agent_id IS NOT NULL AND "+abierto+" AND "+sinCasoV3)
 	case "sin_asignar":
-		clauses = append(clauses, "vc.victim_contact_agent_id IS NULL AND "+abierto)
+		clauses = append(clauses, "vc.victim_contact_agent_id IS NULL AND "+abierto+" AND "+sinCasoV3)
+	case "borrador_iniciado":
+		clauses = append(clauses, abierto+" AND "+victimContactsListLinkedStatusSQL+" IN ('bo', 'in')")
 	case "cerrado_valido":
-		clauses = append(clauses, `vc.victim_contact_close_reason IN (
+		clauses = append(clauses, `(vc.victim_contact_close_reason IN (
 			SELECT victim_case_form2_enums_id FROM salvia.victim_case_form2_enums
 			WHERE victim_case_form2_enums_category = 'victim_contact_close_reason' AND victim_case_form2_enums_code = 'ap'
-		)`)
+		) OR (`+abierto+" AND "+victimContactsListLinkedStatusSQL+` IN ('te', 'cd')))`)
 	case "cerrado_invalido":
 		clauses = append(clauses, `(vc.victim_contact_close_reason IN (
 			SELECT victim_case_form2_enums_id FROM salvia.victim_case_form2_enums

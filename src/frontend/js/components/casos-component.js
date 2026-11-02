@@ -824,6 +824,7 @@
             var map = {
                 sin_asignar: 'Sin asignar',
                 asignado: 'Asignado',
+                borrador_iniciado: 'Borrador iniciado',
                 cerrado_valido: 'Cerrado — válido',
                 cerrado_invalido: 'Cerrado — inválido',
             };
@@ -831,7 +832,7 @@
         },
 
         reportStatusBadgeClass: function(code) {
-            var known = { sin_asignar: true, asignado: true, cerrado_valido: true, cerrado_invalido: true };
+            var known = { sin_asignar: true, asignado: true, borrador_iniciado: true, cerrado_valido: true, cerrado_invalido: true };
             var slug = known[code] ? code : 'sin_asignar';
             return 'cc-report-status-badge cc-report-status-' + slug;
         },
