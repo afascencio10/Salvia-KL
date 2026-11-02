@@ -309,8 +309,11 @@ var RegistroV3App = Vue.createApp({
       var overrides = campo.enumCategory && ENUM_LABELS_OVERRIDE_V3[campo.enumCategory];
       if (overrides && overrides[opt.code]) return overrides[opt.code];
       if (campo.subtipoDe || campo.enumCategories) {
-        // busca override en cualquiera de las categorías candidatas
-        var cats = campo.enumCategories || Object.keys(ENUM_LABELS_OVERRIDE_V3);
+        // Solo se busca override en las categorías de ESTE campo (enumCategories). Los subtipos
+        // (subtipoDe) vienen de victim_case_form2_subtype_violence_experienced_*, que no tienen
+        // override: su texto es el que entrega /enums. Antes se recorrían todas las categorías y
+        // un código repetido en otra (tr, al, es, ah, ai, pr) tomaba la etiqueta ajena (REG-10).
+        var cats = campo.enumCategories || [];
         for (var i = 0; i < cats.length; i++) {
           var ov = ENUM_LABELS_OVERRIDE_V3[cats[i]];
           if (ov && ov[opt.code]) return ov[opt.code];
