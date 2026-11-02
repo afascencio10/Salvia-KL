@@ -8,7 +8,8 @@
 -- filas que la BD real ya tenga con otro código.
 -- Los textos que ve la persona están en src/salvia/config/Locale.go (clave = name).
 --
--- Aplicar a mano en la BD (Supabase SQL editor o psql). Esta carpeta no la ejecuta la app.
+-- En Supabase se aplica A MANO (SQL editor o psql): esta carpeta no la ejecuta la app. En el sandbox cloud la
+-- aplica sola cloudDevelopment/apply-migrations.sh en cada arranque (./run_dev.sh).
 
 BEGIN;
 
