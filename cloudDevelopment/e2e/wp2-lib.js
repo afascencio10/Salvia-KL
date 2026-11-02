@@ -30,6 +30,17 @@ function sql(query) {
     ).trim();
 }
 
+/** Ejecuta un archivo .sql en la BD local con psql -f. Devuelve 0 si salió bien o el código de salida si falló. */
+function sqlFile(file) {
+    try {
+        execFileSync('psql', ['-h', DB.host, '-p', DB.port, '-U', DB.user, '-d', DB.name, '-X', '-q', '-v', 'ON_ERROR_STOP=1', '-f', file],
+            { env: { ...process.env, PGPASSWORD: DB.password }, stdio: 'ignore' });
+        return 0;
+    } catch (e) {
+        return e.status || 1;
+    }
+}
+
 /** Borra casos de prueba por icode y lo que cuelga de ellos. Solo para el sandbox. */
 function deleteCases(icodes) {
     const list = (icodes || []).filter(Boolean).map((i) => `'${String(i).replace(/'/g, "''")}'`).join(',');
@@ -180,6 +191,6 @@ function secondsBetween(a, b) {
 }
 
 module.exports = {
-    BASE_URL, PASSWORD, DB, sql, deleteCases, check, finish, loginAs, api, bogotaNow, secondsBetween,
+    BASE_URL, PASSWORD, DB, sql, sqlFile, deleteCases, check, finish, loginAs, api, bogotaNow, secondsBetween,
     loadCatalog, validAnswers, openRegistroV3, newDraftUI, openCaseUI, openModule, question,
 };

@@ -14,7 +14,7 @@
  */
 const path = require('path');
 const { chromium } = require('playwright');
-const { sql, deleteCases, check, finish, loginAs, api, openRegistroV3, newDraftUI, openModule, question } = require('./wp2-lib');
+const { sql, sqlFile, deleteCases, check, finish, loginAs, api, openRegistroV3, newDraftUI, openModule, question } = require('./wp2-lib');
 
 const MIGRATION = path.join(__dirname, '..', '..', 'src', 'migrations', '20261102_wp2_registro_v3_catalogos_y_columnas.sql');
 const ZONE = 'victim_case_form2_residence_zone';
@@ -47,8 +47,7 @@ const storedZone = (icode) => sql(`SELECT f.victim_case_form2_residence_zone FRO
 
         // C3 · la migración es idempotente: aplicarla de nuevo no duplica ni falla.
         const before = sql(`SELECT count(*) FROM salvia.victim_case_form2_enums WHERE victim_case_form2_enums_category = '${ZONE}'`);
-        let rc = 0;
-        try { require('child_process').execFileSync('psql', ['-h', '127.0.0.1', '-U', 'postgres', '-d', 'salvia_local', '-X', '-q', '-v', 'ON_ERROR_STOP=1', '-f', MIGRATION], { env: { ...process.env, PGPASSWORD: 'postgres' } }); } catch (e) { rc = e.status || 1; }
+        const rc = sqlFile(MIGRATION);
         const after = sql(`SELECT count(*) FROM salvia.victim_case_form2_enums WHERE victim_case_form2_enums_category = '${ZONE}'`);
         check('C3', rc === 0 && before === '2' && after === '2', `reaplicar la migración: salida=${rc}, filas antes=${before} después=${after}`);
 

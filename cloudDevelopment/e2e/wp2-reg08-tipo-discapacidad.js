@@ -11,9 +11,8 @@
  * Casos: DocsMD/Screens/Registro V3/QA/E12-guardar-seccion-qa-cases.md (E12-C14…C20, comprobaciones C1…C8) y E11-actualizar-respuesta-y-tamizaje-qa-cases.md (E11-C10…C12, U1…U3).
  */
 const path = require('path');
-const { execFileSync } = require('child_process');
 const { chromium } = require('playwright');
-const { sql, deleteCases, check, finish, loginAs, api, loadCatalog, validAnswers, openCaseUI, openModule, question } = require('./wp2-lib');
+const { sql, sqlFile, deleteCases, check, finish, loginAs, api, loadCatalog, validAnswers, openCaseUI, openModule, question } = require('./wp2-lib');
 
 const MIGRATION = path.join(__dirname, '..', '..', 'src', 'migrations', '20261102_wp2_registro_v3_catalogos_y_columnas.sql');
 const CAT = 'victim_case_form2_disability_type';
@@ -47,8 +46,7 @@ const rnd = () => String(900000000 + Math.floor(Math.random() * 99999999));
             `GET /enums → ${opts.length} opciones: ${opts.map((o) => o.code + '=' + o.label).join(' | ')}`);
 
         const cntBefore = sql(`SELECT count(*) FROM salvia.victim_case_form2_enums WHERE victim_case_form2_enums_category = '${CAT}'`);
-        let rc = 0;
-        try { execFileSync('psql', ['-h', '127.0.0.1', '-U', 'postgres', '-d', 'salvia_local', '-X', '-q', '-v', 'ON_ERROR_STOP=1', '-f', MIGRATION], { env: { ...process.env, PGPASSWORD: 'postgres' }, stdio: 'ignore' }); } catch (e) { rc = e.status || 1; }
+        const rc = sqlFile(MIGRATION);
         const cntAfter = sql(`SELECT count(*) FROM salvia.victim_case_form2_enums WHERE victim_case_form2_enums_category = '${CAT}'`);
         const colN = sql(`SELECT count(*) FROM information_schema.columns WHERE table_schema='salvia' AND table_name='victim_case_form2' AND column_name='victim_case_form2_disability_type'`);
         check('C2', rc === 0 && cntBefore === '7' && cntAfter === '7' && colN === '1', `reaplicar la migración: salida=${rc}; filas ${cntBefore}→${cntAfter}; columna presente ${colN} vez`);
