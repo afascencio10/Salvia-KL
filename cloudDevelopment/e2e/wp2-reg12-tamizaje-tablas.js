@@ -12,7 +12,7 @@
  * 2) frontend — solo lo que el backend no cubre: la estructura de las tablas y el ciclo guardar/reabrir.
  *
  * Uso (con la app corriendo):  node cloudDevelopment/e2e/wp2-reg12-tamizaje-tablas.js
- * Casos: ver DocsMD/Screens/Registro V3/QA/E11-guardar-tamizaje-qa-cases.md.
+ * Casos: DocsMD/Screens/Registro V3/QA/E11-actualizar-respuesta-y-tamizaje-qa-cases.md (E11-C13…C20; comprobaciones C1…C5, U1…U3) y E21-guardado-o-carga-fallida-qa-cases.md (E21-C7; U4).
  */
 const { chromium } = require('playwright');
 const { sql, deleteCases, check, finish, loginAs, api, loadCatalog, validAnswers, openCaseUI, openModule } = require('./wp2-lib');

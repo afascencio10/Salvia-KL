@@ -14,10 +14,16 @@ INPUT: {
 }
 
 PASO 1 — Cargar el Caso completo
+  errorBusqueda = ''
   [GET] /api/v1/victim-cases-v3/{icode}
+  SI la petición falla (HTTP ≠ 200, respuesta sin `summary`, o sin conexión):                    // REG-11 / flow-E21
+    → errorBusqueda = "No se pudo abrir el registro. Intenta de nuevo; si el problema continúa, avisa a soporte."
+      (sin conexión: "No se pudo abrir el registro: no hay conexión con el servidor. Intenta de nuevo.")
+    → la pantalla se queda en el Cabezote y TERMINA
   Respuesta (CaseStateV3): {
     summary:        { icode, names, lastNames, docType, docNumber, status },
-    answers:        todas las respuestas guardadas, por FieldKey (CI_1, DP_5, …), con valores dummy incluidos,
+    answers:        todas las respuestas guardadas, por FieldKey (CI_1, DP_5, …), con valores dummy incluidos; fechas "AAAA-MM-DD"
+                    y horas "HH:MM" (el formato de <input type="date"/"time">); la fecha marcador 1900-01-01 no se devuelve,
     answeredKeys:   las keys que el agente respondió alguna vez,
     triadaCompleta: ¿todas las obligatorias de la tríada ya respondidas?,
     entities:       entidades del Caso (entity_case con sede, sector y ubicación),
@@ -29,6 +35,8 @@ PASO 2 — Poblar el estado
   icode = icode; resumenCaso = data.summary
   answers = SOLO las keys que están en answeredKeys   // las demás son valores dummy que el agente nunca respondió
   entidades = data.entities; barreras = data.barriers; tzResultado = data.tzResultado; triadaCompleta = data.triadaCompleta
+  tzRevelarResto = alguna de las 5 iniciales del Tamizaje (TZ_1, 2, 3, 4, 7) respondida está en 'true'   // REG-34: el resto del Tamizaje se muestra al abrir
+  errorGuardado = ''
 
 PASO 3 — Abrir el Formulario
   etapa = 'formulario'; moduloActivo = 'CI'    // siempre entra por CI, no por "el último módulo con progreso"
@@ -40,4 +48,4 @@ PASO 3 — Abrir el Formulario
 | Variable / decisión | Paso afectado |
 |---|---|
 | Planeado y no implementado: trazabilidad del retome (`POST …/retome`) y entrada en el módulo con menor progreso | PASO 1 · PASO 3 |
-| Si la petición falla, la pantalla no muestra ningún error y se queda en el Cabezote | PASO 1 |
+| ~~Si la petición falla, la pantalla no muestra ningún error y se queda en el Cabezote~~ — **resuelto 2026-11-02 (WP-2 · REG-11):** muestra el aviso del PASO 1 en el Cabezote (flow-E21) | PASO 1 |

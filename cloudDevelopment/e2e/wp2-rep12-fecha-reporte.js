@@ -13,7 +13,7 @@
  *   node cloudDevelopment/e2e/wp2-rep12-fecha-reporte.js
  *
  * Crea reportes de prueba (i_code qa-wp2-rep12-*, nombre QAREP12*) directo en la BD y los borra al
- * terminar. Casos C1…C10: ver DocsMD/Screens/Listado Reportes/QA/E01-cargar-listado-qa-cases.md.
+ * terminar. Casos: DocsMD/Screens/Listado Reportes/QA/E01-carga-pantalla-qa-cases.md (LR-E01-C14…C20) y Mis Reportes/QA/mis-reportes-qa-cases.md (MR-E01-C10, C11).
  */
 const { chromium, request } = require('playwright');
 const { BASE_URL, sql, check, finish, loginAs, api, bogotaNow, secondsBetween } = require('./wp2-lib');

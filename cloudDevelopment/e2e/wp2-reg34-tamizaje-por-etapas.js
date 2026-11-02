@@ -11,7 +11,7 @@
  * Finalizar; 2) frontend — solo lo que el backend no cubre: cuándo aparece el botón, qué se envía y la reapertura.
  *
  * Uso (con la app corriendo):  node cloudDevelopment/e2e/wp2-reg34-tamizaje-por-etapas.js
- * Casos: ver DocsMD/Screens/Registro V3/QA/E11-guardar-tamizaje-qa-cases.md (sección REG-34).
+ * Casos: DocsMD/Screens/Registro V3/QA/E11-actualizar-respuesta-y-tamizaje-qa-cases.md (E11-C21…C27; comprobaciones C1…C3, U1…U4).
  */
 const { chromium } = require('playwright');
 const { sql, deleteCases, check, finish, loginAs, api, loadCatalog, validAnswers, openCaseUI, openModule } = require('./wp2-lib');

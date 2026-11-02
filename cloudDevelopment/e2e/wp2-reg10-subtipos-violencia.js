@@ -10,7 +10,7 @@
  * de cada categoría son únicos; 2) frontend — lo que dibuja la pantalla es exactamente eso.
  *
  * Uso (con la app corriendo):  node cloudDevelopment/e2e/wp2-reg10-subtipos-violencia.js
- * Casos C1…C5: ver DocsMD/Screens/Registro V3/QA/E11-guardar-seccion-qa-cases.md (sección REG-10).
+ * Casos: DocsMD/Screens/Registro V3/QA/E11-actualizar-respuesta-y-tamizaje-qa-cases.md (E11-C1…C3; comprobaciones C1…C5).
  */
 const { chromium } = require('playwright');
 const { deleteCases, check, finish, loginAs, api, openRegistroV3, newDraftUI, openModule, question } = require('./wp2-lib');

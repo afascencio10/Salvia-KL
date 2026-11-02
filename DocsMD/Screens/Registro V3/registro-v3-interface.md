@@ -1,5 +1,7 @@
 # `/salvia/registro-v3` — Interfaz de la Pantalla
 
+> 🔄 **Actualizado el 2026-11-02 (WP-2: REG-07/08/09/10/11/12/34, ver [`changelogNov2026.md`](changelogNov2026.md))** — hora del hecho como selector (HV_3), pregunta «Tipo de discapacidad» (DP_51), zona de residencia con opciones, Tamizaje en tablas y por etapas, y avisos visibles cuando un guardado o una carga fallan.
+>
 > ✅ **Sincronizado con el código el 2026-10-31** (versión implementada del 2026-10-14/15). La planeación original —con `<dinamic-form>`, sidebar con barras de progreso, componentes `habeas-data-gate`/`cabezote-busqueda` y el botón "Alerta inminente" del header— **no se construyó así**: la decisión A1 (ver [`registro-v3-data.md`](registro-v3-data.md) § D10) descartó `dinamic-form` y todo quedó en una app Vue a medida. Lo planeado y no construido está en la sección "Planeado y no implementado" al final.
 
 Pantalla de ingreso y registro de hechos de VBG/VPP para los roles `op` y `sv` (permiso `manage_registro_v3`). Recorre seis etapas dentro de una sola página: autorización de datos personales → tipo de contacto → Cabezote de búsqueda de duplicidad → Formulario de siete módulos (CI, DP, CA, HV, AG, TZ, GS) → Cierre. No hay entrada en el menú lateral: se llega por la URL. Guarda por módulo en `/api/v1/victim-cases-v3/*` y escribe directo sobre `victim_case`/`victim_case_form2`, las mismas tablas que lee Seguimiento.
@@ -52,7 +54,7 @@ RegistroV3Screen  (registro_v3.html)  <main.salvia-main> .container
 │   ├── <input>  buscar.documento  "Documento"
 │   ├── <input>  buscar.telefono   "Teléfono"
 │   ├── BtnBuscar  "Buscar"  :disabled="buscando"  → ejecutarBusqueda()
-│   ├── [v-if errorBusqueda]  Aviso (.alert-danger)  ${errorBusqueda}
+│   ├── [v-if errorBusqueda]  Aviso (.alert-danger)  ${errorBusqueda}      ← falla al buscar, al crear el borrador o al abrir un registro ("No se pudo abrir el registro…", flow-E21)
 │   ├── [v-if resultadosBusqueda.length]
 │   │   Tabla  (.table)  columnas: Nombre · Documento · Teléfono · Estado · Registro · (acción)
 │   │   └── Fila × N  [v-for resultadosBusqueda]
@@ -77,6 +79,7 @@ RegistroV3Screen  (registro_v3.html)  <main.salvia-main> .container
 │   │   AG "Características del agresor" · TZ "Tamizaje de riesgo" · GS "Gestión Salvia"
 │   │   └── [TZ, GS con !triadaCompleta]  texto atenuado + " 🔒" + title "Completa primero CI/DP/CA/HV/AG"  → irAModulo(id) no navega
 │   ├── [v-if mensajeModuloBloqueado]  Aviso (.alert-warning)  "Completa primero los módulos de Contacto, Datos personales, Contacto de apoyo, Hechos y Agresor para habilitar Tamizaje|Gestión Salvia."
+│   ├── [v-if errorGuardado]  Aviso (.alert-danger #registro-v3-error-guardado)  ${errorGuardado}   ← un guardado falló (dato inválido con la pregunta a corregir, error del servidor, sin conexión, sesión vencida); se hace scroll hasta él (flow-E21)
 │   │
 │   ├── [moduloActivo ∈ CI, DP, CA, HV, AG]
 │   │   ModuloGenerico
@@ -88,22 +91,26 @@ RegistroV3Screen  (registro_v3.html)  <main.salvia-main> .container
 │   │   │   │   └── [CI_6 y avisoDuplicidad]  Aviso (.alert-warning)  "Ya existe un Registro con este documento: …"
 │   │   │   ├── [tipo 'textarea']  <textarea>
 │   │   │   ├── [tipo 'date']      <input type="date">
-│   │   │   ├── [tipo 'dropdown']  <select>  (opciones fijas, p. ej. departamentos, o enum del catálogo)
+│   │   │   ├── [tipo 'time']      <input type="time" step="60">   ← HV_3 «¿A qué hora ocurrió el hecho?» (REG-09)
+│   │   │   ├── [tipo 'dropdown']  <select>  (opciones fijas, p. ej. departamentos, o enum del catálogo; DP_30 zona de residencia = Rural | Urbano; DP_51 «Tipo de discapacidad» = 7 opciones, solo si DP_2 = Sí)
 │   │   │   ├── [tipo 'boolean']   Radio Sí / No
 │   │   │   └── [tipo 'multiple']  Checkbox × N  (con tope `max`, p. ej. HV_11 = 2)
 │   │   ├── BtnGuardar  "Guardar sección"  :disabled="guardando"  → guardarModulo(moduloActivo)
-│   │   └── Mensaje  ${mensajeGuardado}
+│   │   └── Mensaje  ${mensajeGuardado}      ← "Sección guardada.", las validaciones del cliente o, si el guardado falló, "No se guardó." (el detalle sale en el aviso rojo de arriba)
 │   │
 │   ├── [moduloActivo === 'TZ']
 │   │   Tamizaje
-│   │   ├── Nota  "Se evalúan primero 7 preguntas generales. Si alguna de las marcadas como obligatorias se responde "Sí", se habilita el resto del Tamizaje."
-│   │   ├── PreguntaGeneral × 7  [v-for TAMIZAJE_GENERALES_V3]  Radio Sí/No  (badge "inicial" en TZ_1, 2, 3, 4, 7)  → tzToggle()
-│   │   │   └── TZ_5 y TZ_6 solo visibles con tzRevelarResto
+│   │   ├── Nota  "Primero se responden las 5 preguntas iniciales (marcadas «inicial»). Si alguna se responde "Sí", se habilita el resto del Tamizaje; si todas son "No", ya se puede calcular y guardar."
+│   │   ├── TablaGenerales  (<table> Pregunta | Sí | No · colgroup 70/15/15 · <caption> oculto)   (REG-12)
+│   │   │   └── Fila × 7  [v-for TAMIZAJE_GENERALES_V3]  Pregunta + badge "inicial" en TZ_1, 2, 3, 4, 7  ·  2 radios (mismo name, aria-label "Sí — …" / "No — …")  → tzToggle()
+│   │   │       └── TZ_5 y TZ_6 solo visibles con tzRevelarResto
 │   │   ├── [v-show tzRevelarResto]
-│   │   │   ├── PreguntaVPP  TZ_8  Radio Sí/No            ← se muestra siempre que se revele el resto (no depende de esOsigd)
 │   │   │   ├── Nota  "Rama detectada automáticamente según AG — Características del agresor: Pareja/expareja | No pareja"
-│   │   │   ├── Pregunta × 24  [v-for rama pareja (TZP_1..24) o no pareja (TZNP_1..24)]  Radio Sí/No   ← las 24, sin ocultar condicionales
-│   │   │   └── BtnCalcular  "Calcular y guardar Tamizaje"  :disabled="tzGuardando"  → guardarTamizaje()
+│   │   │   └── TablaResto  (<table> Pregunta | Sí | No · colgroup 70/15/15)
+│   │   │       ├── Fila  TZ_8 (VPP, prejuicio)       ← se muestra siempre que se revele el resto (no depende de esOsigd)
+│   │   │       └── Fila × 24  [v-for rama pareja (TZP_1..24) o no pareja (TZNP_1..24)]   ← las 24, sin ocultar condicionales
+│   │   ├── [v-if tzInicialesRespondidas && !tzRevelarResto]  Nota  "Las cinco preguntas iniciales están en «No»: no se pregunta el resto del Tamizaje. Ya puedes calcular y guardar el resultado."   (REG-34)
+│   │   ├── BtnCalcular  "Calcular y guardar Tamizaje"  [v-show tzRevelarResto || tzInicialesRespondidas]  :disabled="tzGuardando"  → guardarTamizaje()
 │   │   ├── [v-if tzResultado]
 │   │   │   Resultado  (.alert-danger si riesgo alto/extremo, si no .alert-info)
 │   │   │   "Tipo de riesgo: {feminicidio|homicidio_abyecto} — Nivel: {bajo|moderado|alto|extremo} — Puntaje: N"  [+ nota de empate]

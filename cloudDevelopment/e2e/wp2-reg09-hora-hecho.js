@@ -9,7 +9,7 @@
  * resto (19:30, hora con segundos, «7pm») lo cubre wp2-reg11; 2) frontend — el control y su ida y vuelta.
  *
  * Uso (con la app corriendo):  node cloudDevelopment/e2e/wp2-reg09-hora-hecho.js
- * Casos C1…C6: ver DocsMD/Screens/Registro V3/QA/E12-guardar-seccion-qa-cases.md (sección REG-09).
+ * Casos: DocsMD/Screens/Registro V3/QA/E12-guardar-seccion-qa-cases.md (E12-C12, C13; comprobaciones C1…C3) y E11-actualizar-respuesta-y-tamizaje-qa-cases.md (E11-C6…C9; C4…C7).
  */
 const { chromium } = require('playwright');
 const { sql, deleteCases, check, finish, loginAs, api, loadCatalog, validAnswers, openCaseUI, openModule, question } = require('./wp2-lib');

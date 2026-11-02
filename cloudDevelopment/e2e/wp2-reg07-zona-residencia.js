@@ -10,7 +10,7 @@
  *   psql ... -f src/migrations/20261102_wp2_registro_v3_catalogos_y_columnas.sql
  *   node cloudDevelopment/e2e/wp2-reg07-zona-residencia.js
  *
- * Casos C1…C8: ver DocsMD/Screens/Registro V3/QA/E11-guardar-seccion-qa-cases.md (sección REG-07).
+ * Casos: DocsMD/Screens/Registro V3/QA/E12-guardar-seccion-qa-cases.md (E12-C21…C24, API) y E11-actualizar-respuesta-y-tamizaje-qa-cases.md (E11-C4, C5, pantalla).
  */
 const path = require('path');
 const { chromium } = require('playwright');
