@@ -1,0 +1,152 @@
+<!-- T4 (REP-02) — Consulta pública del estado de un reporte por radicado.
+     Pantalla sin sesión, Vue 3 standalone (igual que el wizard V2). Muestra solo
+     radicado, fecha de radicación y estado en lenguaje simple; nunca datos
+     personales. La consulta es POST /api/v1/public/consulta-reporte. -->
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+
+      <div class="tituloform">
+        <i class="fas fa-search fa-2x"></i>
+        <h2>Consulte el estado de su reporte</h2>
+      </div>
+      <p>Escriba el número de radicado que recibió al enviar su reporte.</p>
+
+      <!-- Vista: consulta -->
+      <form v-if="vista === 'consulta'" @submit.prevent="consultar" novalidate>
+        <div class="form-group">
+          <label for="radicado" class="fw-bold">Número de radicado *</label>
+          <input id="radicado" ref="radicadoInput" type="text" class="form-control" v-model="radicado" maxlength="9" autocomplete="off" placeholder="XXXX-XXXX" aria-describedby="radicado-ayuda" @input="onRadicadoInput">
+          <small id="radicado-ayuda" class="form-text text-muted">Ejemplo: K7QM-4R2X. Los radicados no usan las letras I ni O ni los números 0 y 1.</small>
+        </div>
+
+        <div v-if="mensajeError" id="consulta-error" class="alert alert-danger" role="alert" aria-live="assertive">${ mensajeError }</div>
+
+        <div class="row justify-content-end botones">
+          <button type="submit" id="btn-consultar" class="btn btn-success" :disabled="!radicadoValido || consultando || bloqueado">
+            <span v-if="consultando">Consultando...</span>
+            <span v-else>Consultar</span>
+          </button>
+        </div>
+      </form>
+
+      <!-- Vista: resultado -->
+      <div v-else-if="vista === 'resultado' && resultado" id="consulta-resultado" class="border rounded p-4">
+        <p><strong>Número de radicado:</strong> <span id="res-radicado">${ resultado.radicado }</span></p>
+        <p><strong>Fecha de radicación:</strong> <span id="res-fecha">${ fechaFormateada }</span></p>
+        <p><strong>Estado:</strong>
+          <span id="res-estado" class="badge ms-2" :class="badgeClase">${ resultado.estadoTexto }</span>
+        </p>
+        <p id="res-descripcion" class="text-muted mb-4">${ resultado.descripcion }</p>
+        <button type="button" id="btn-otra-consulta" class="btn btn-link" @click="nuevaConsulta">Hacer otra consulta</button>
+      </div>
+
+      <p class="text-muted mt-4">¿Aún no ha hecho su reporte? <a :href="newReportPath">Hágalo aquí</a></p>
+
+    </div>
+  </div>
+</div>
+
+{{ template "standard_scripts.html" .}}
+<script>
+  var appConsulta = Vue.createApp({
+    delimiters: ['${', '}'],
+    data() {
+      return {
+        windowTitle: {{.windowTitle}},
+        apiPath: {{.apiPath}},
+        newReportPath: {{.newReportPath}},
+        vista: 'consulta',
+        radicado: '',
+        consultando: false,
+        bloqueado: false,
+        bloqueoTimer: null,
+        mensajeError: '',
+        resultado: null,
+      };
+    },
+    computed: {
+      radicadoValido() {
+        return /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/.test(this.radicado);
+      },
+      fechaFormateada() {
+        if (!this.resultado || !this.resultado.fechaRadicacion) return '';
+        // YYYY-MM-DD sin zona: se arma como fecha local para que no "retroceda" un día.
+        const p = this.resultado.fechaRadicacion.split('-').map(Number);
+        return new Date(p[0], p[1] - 1, p[2]).toLocaleDateString('es-CO');
+      },
+      badgeClase() {
+        const e = this.resultado ? this.resultado.estado : '';
+        // Bootstrap 5.3: text-bg-* (los badge-* de BS4 no existen en este CSS).
+        return e === 'cerrado' ? 'text-bg-success' : (e === 'en_gestion' ? 'text-bg-warning' : 'text-bg-info');
+      },
+    },
+    mounted() {
+      document.title = this.windowTitle;
+      document.getElementById('app').style.display = 'block';
+      this.enfocarCampo();
+    },
+    methods: {
+      enfocarCampo() {
+        this.$nextTick(() => { if (this.$refs.radicadoInput) this.$refs.radicadoInput.focus(); });
+      },
+      // CR-E02 · Cuando escribe el radicado: máscara XXXX-XXXX (mayúsculas, sin
+      // símbolos, guion tras el 4.º) y limpia el error anterior. Sin backend.
+      onRadicadoInput() {
+        let limpio = (this.radicado || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (limpio.length > 8) limpio = limpio.slice(0, 8);
+        if (limpio.length > 4) limpio = limpio.slice(0, 4) + '-' + limpio.slice(4);
+        this.radicado = limpio;
+        if (this.mensajeError) this.mensajeError = '';
+      },
+      // CR-E03 · Cuando presiona «Consultar».
+      consultar() {
+        if (!this.radicadoValido || this.consultando || this.bloqueado) return;
+        this.consultando = true;
+        this.mensajeError = '';
+        fetch(this.apiPath, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ radicado: this.radicado }),
+          cache: 'no-store',
+          credentials: 'same-origin',
+        })
+          .then((r) => r.json().catch(() => ({})).then((body) => ({ status: r.status, body })))
+          .then(({ status, body }) => {
+            this.consultando = false;
+            if (status === 200) {
+              this.resultado = body;
+              this.vista = 'resultado';
+            } else if (status === 404) {
+              this.mensajeError = body.mensaje;
+            } else if (status === 429) {
+              this.mensajeError = body.mensaje;
+              this.bloquearPor(body.reintentarEnSegundos);
+            } else {
+              this.mensajeError = 'No fue posible consultar en este momento. Intente de nuevo.';
+            }
+          })
+          .catch(() => {
+            this.consultando = false;
+            this.mensajeError = 'No fue posible consultar en este momento. Intente de nuevo.';
+          });
+      },
+      bloquearPor(segundos) {
+        this.bloqueado = true;
+        clearTimeout(this.bloqueoTimer);
+        this.bloqueoTimer = setTimeout(() => { this.bloqueado = false; }, Math.max(1, Number(segundos) || 1) * 1000);
+      },
+      // CR-E04 · Cuando presiona «Hacer otra consulta». Sin backend; si la IP
+      // está bloqueada, «Consultar» sigue deshabilitado hasta que pase la espera.
+      nuevaConsulta() {
+        this.resultado = null;
+        this.radicado = '';
+        this.mensajeError = '';
+        this.vista = 'consulta';
+        this.enfocarCampo();
+      },
+    },
+  });
+
+  appConsulta.mount("#app");
+</script>

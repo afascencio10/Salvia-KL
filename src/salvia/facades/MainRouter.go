@@ -63,6 +63,10 @@ func StartRouter(router *gin.Engine) {
 		secRouter.POST("/public-v2", VictimContactPOST_Public_V2)
 		secRouter.GET("/public-v2/"+translatedNew, VictimContactPOST_GET_Public_V2)
 
+		// Consulta pública del estado de un reporte por radicado (T4/REP-02).
+		// La URI contiene /public: AuthMiddleware la deja pasar sin sesión.
+		secRouter.GET("/public-consulta", ReportStatusGET_Public)
+
 		secRouter.POST("/"+translatedEntity, VictimContactPOST)
 		secRouter.PUT("/"+translatedEntity+"/:id/"+translatedInvalidate, VictimContactPUT) // Invalidar
 		secRouter.GET("/"+translatedEntity, VictimContactGET)

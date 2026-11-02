@@ -61,6 +61,7 @@ var Locale = map[string]map[string]string{
 		"set_victim_case_window_title":    "Crear caso",
 		"get_victim_contact_window_title": "Reportar caso",
 		"set_victim_contact_window_title": "Reportar caso",
+		"report_status_window_title":      "Consultar mi reporte",
 
 		//Sector
 		"sector_os": "Otros sectores",

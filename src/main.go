@@ -244,6 +244,7 @@ func main() {
 	// Gestión de reportes (FigJam l25jrzyf)
 	victimContactsListRepo := repository.NewVictimContactsListRepository(gormDB)
 	victimContactsManagementRepo := repository.NewVictimContactsManagementRepository(gormDB)
+	reportStatusRepo := repository.NewReportStatusRepository(gormDB)
 	victimContactsReassignRepo := repository.NewVictimContactsReassignRepository(gormDB)
 
 	// Registro V3 (DocsMD/Screens/Registro V3) — sin dinamic-form, decisión A1
@@ -323,6 +324,7 @@ func main() {
 	// Gestión de reportes (FigJam l25jrzyf)
 	victimContactsListSvc := service.NewVictimContactsListService(victimContactsListRepo)
 	victimContactsManagementSvc := service.NewVictimContactsManagementService(victimContactsManagementRepo)
+	reportStatusSvc := service.NewReportStatusService(reportStatusRepo)
 	victimContactsReassignSvc := service.NewVictimContactsReassignService(victimContactsReassignRepo, appLogRepo)
 
 	// Inyectar el servicio en el controller legacy para generación automática del calendario
@@ -404,6 +406,7 @@ func main() {
 	// Gestión de reportes (FigJam l25jrzyf)
 	victimContactsListCtrl := salvia_ctrl.NewVictimContactsListController(victimContactsListSvc)
 	victimContactsManagementCtrl := salvia_ctrl.NewVictimContactsManagementController(victimContactsManagementSvc)
+	reportStatusCtrl := salvia_ctrl.NewReportStatusController(reportStatusSvc)
 	victimContactsReassignCtrl := salvia_ctrl.NewVictimContactsReassignController(victimContactsReassignSvc)
 
 	// Routes
@@ -449,6 +452,7 @@ func main() {
 	victimCaseV3Ctrl.RegisterRoutes(api)
 	victimContactsListCtrl.RegisterRoutes(api)
 	victimContactsManagementCtrl.RegisterRoutes(api)
+	reportStatusCtrl.RegisterRoutes(api) // T4/REP-02: consulta pública por radicado (sin sesión)
 	victimContactsReassignCtrl.RegisterRoutes(api)
 
 	// Admin: endpoints de migración (protegidos por X-Security-Key)
