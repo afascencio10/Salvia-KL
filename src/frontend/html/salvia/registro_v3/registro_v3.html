@@ -2,7 +2,7 @@
 <div class="container">
 
   <div class="welcome-section">
-    <h2><b>Registro V3</b></h2>
+    <h2><b>Registro de víctima</b></h2>
   </div>
 
   <!-- ───────────────────────── Habeas Data ───────────────────────── -->
@@ -33,7 +33,7 @@
       <button class="list-group-item list-group-item-action" @click="seleccionarTipoContacto('hombres')">Hombres</button>
     </div>
     <div v-if="tipoContactoNoDisponible" class="alert alert-info">
-      Este tipo de contacto se gestiona en otra pantalla del sistema, fuera de Registro V3. Cierra este formulario y continúa desde el menú principal.
+      Este tipo de contacto se gestiona en otra pantalla del sistema, fuera de Registro de víctima. Cierra este formulario y continúa desde el menú principal.
     </div>
   </div>
 
@@ -63,7 +63,7 @@
           <td>${r.names} ${r.lastNames}</td>
           <td>${r.docType}-${r.docNumber}</td>
           <td>${r.phone}</td>
-          <td>${r.status}</td>
+          <td>${etiquetaEstado(r.status)}</td>
           <td>
             <span class="badge" :class="r.registroCompleto ? 'bg-success' : 'bg-secondary'">${r.registroCompleto ? 'Completo' : 'Incompleto'}</span>
           </td>
@@ -78,22 +78,32 @@
   </div>
 
   <!-- ───────────────────────── Formulario ────────────────────────── -->
-  <div v-if="etapa==='formulario'">
+  <div v-if="etapa==='formulario'" class="v3-form" :class="{'v3-con-error': mensajeGuardadoEsError}">
     <div class="mb-2" v-if="resumenCaso">
-      <b>${tratamiento()} ${resumenCaso.names} ${resumenCaso.lastNames}</b> — ${resumenCaso.docType}-${resumenCaso.docNumber}
-      <span class="badge bg-info">${resumenCaso.status}</span>
+      <b>${nombreEncabezado()}</b> — ${documentoEncabezado()}
+      <span class="badge bg-info">${etiquetaEstado(resumenCaso.status)}</span>
+      <div v-if="porcentajeGlobal() !== null" class="d-flex align-items-center gap-2 mt-1" style="max-width:320px">
+        <div class="progress flex-grow-1" role="progressbar" aria-label="Avance del diligenciamiento" :aria-valuenow="porcentajeGlobal()" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar" :style="{width: porcentajeGlobal() + '%'}"></div></div>
+        <small class="text-muted">Avance ${porcentajeGlobal()} %</small>
+      </div>
     </div>
     <div v-if="triadaCompleta" class="alert alert-success">La información mínima de contacto, víctima y hecho está completa — el Caso pasó a <b>Iniciado</b>.</div>
     <button class="btn btn-sm btn-outline-dark float-end" :disabled="guardando" @click="guardarYSalir">Finalizar llamada (guardar y salir)</button>
 
-    <ul class="nav nav-tabs mb-1">
+    <ul class="nav nav-pills flex-column v3-menu" aria-label="Módulos del formulario">
       <li class="nav-item" v-for="m in modulos" :key="m.id">
-        <a class="nav-link" href="#" :class="{active: moduloActivo===m.id, 'text-muted': moduloBloqueado(m.id)}"
+        <a class="nav-link" href="#" :class="{active: moduloActivo===m.id, 'v3-bloqueado': moduloBloqueado(m.id)}"
           :title="moduloBloqueado(m.id) ? 'Completa primero CI/DP/CA/HV/AG' : ''"
-          @click.prevent="irAModulo(m.id)">${m.label}<span v-if="moduloBloqueado(m.id)"> 🔒</span></a>
+          @click.prevent="irAModulo(m.id)"><span>${m.label}<span v-if="moduloBloqueado(m.id)"> 🔒</span></span><small class="v3-avance">${etiquetaPorcentaje(m.id)}</small></a>
       </li>
     </ul>
     <div v-if="mensajeModuloBloqueado" class="alert alert-warning py-2">${mensajeModuloBloqueado}</div>
+    <div class="d-flex align-items-center gap-2 mb-2 v3-nav">
+      <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="!moduloAnterior(moduloActivo)" @click="irAAnterior">← Anterior</button>
+      <span class="small text-muted">Módulo ${posicionModulo()} de ${modulos.length}</span>
+      <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="!moduloSiguiente(moduloActivo)" @click="irASiguiente">Siguiente →</button>
+      <span v-if="mensajeAvance" class="small text-success ms-2">${mensajeAvance}</span>
+    </div>
 
     <div v-if="errorGuardado" id="registro-v3-error-guardado" class="alert alert-danger py-2" role="alert">${errorGuardado}</div>
     <!-- Módulos genéricos: CI / DP / CA / HV / AG -->
@@ -143,7 +153,7 @@
       </div>
 
       <button class="btn btn-primary" :disabled="guardando" @click="guardarModulo(moduloActivo)">Guardar sección</button>
-      <span class="ms-2">${mensajeGuardado}</span>
+      <span class="ms-2" :class="{'v3-msg-error': mensajeGuardadoEsError}">${mensajeGuardado}</span>
     </div>
 
     <!-- Tamizaje -->

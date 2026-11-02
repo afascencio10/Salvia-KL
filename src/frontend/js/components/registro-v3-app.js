@@ -3,6 +3,49 @@
 // módulos CI/DP/CA/HV/AG/TZ/GS) -> Cierre. Usa registro-v3-campos.js como
 // catálogo de preguntas y GET /victim-cases-v3/enums como catálogo de
 // opciones (icode real de victim_case_form2_enums).
+// REG-04 (partes a y b): nombre legible del estado del Caso (victim_case_status). El Cabezote devuelve Casos de
+// cualquier estado (no solo los de Registro V3), por eso van los 11 códigos del listado de casos
+// (casos-component.js caseStatusLabel). Mapa local: cada parte de REG-04 lleva el suyo (no se comparte helper).
+var ESTADOS_CASO_V3 = {
+  bo: 'Borrador', in: 'Iniciado', te: 'Terminado', cd: 'Cerrado', ra: 'Activo', is: 'Con novedad',
+  ex: 'Vencido', r: 'Por aprobar', fc: 'Recontacto', c: 'Completado', iv: 'Inválido',
+};
+
+// REG-37: etiquetas de las obligatorias de GS que se dibujan directo en el HTML (no están en el catálogo
+// CAMPOS_GS_*), para decir CUÁLES faltan cuando el servidor rechaza «Finalizar».
+var GS_ETIQUETAS_FINALIZAR_V3 = {
+  GS_5: '¿Requiere remisión a otros equipos de Salvia?',
+  GS_14: '¿Ya se reportó a alguna entidad?',
+  GS_16: '¿Salvia debe activar rutas en el marco de la debida diligencia?',
+  GS_17: '¿Se identificaron barreras?',
+  GS_18: '¿Activar alerta inminente?',
+};
+
+// Estilos de la pantalla (REG-05 y REG-01). Se inyectan desde aquí y no desde un <style> del HTML porque Vue ignora
+// los <style> que están dentro de un template en el DOM (la página se monta sobre <body>).
+(function () {
+  if (document.getElementById('registro-v3-estilos')) return;
+  var css = [
+    // REG-05: mensaje de error / faltantes junto a «Guardar sección» (contraste ≈ 6,5:1 sobre blanco, AA).
+    // Los nombres v3-msg-error y mensajeGuardadoEsError son el contrato con WP-4 (cola del bloque GS).
+    '.v3-msg-error { color: #b02a37; font-weight: 600; }',
+    // Respaldo: el mensaje que sigue al botón «Guardar sección» (también en la cola del bloque GS, que es de WP-4 y
+    // aquí no se edita) sale en rojo cuando la bandera está activa. Se puede quitar cuando WP-4 vincule la clase.
+    '.v3-con-error button.btn-primary + .ms-2 { color: #b02a37; font-weight: 600; }',
+    // REG-01: menú de módulos a la izquierda y contenido a la derecha, sin envolver ni reindentar bloques existentes.
+    '.v3-form { display: grid; grid-template-columns: 260px 1fr; column-gap: 1rem; align-items: start; }',
+    '.v3-form > * { grid-column: 2; }',
+    '.v3-form > .v3-menu { grid-column: 1; grid-row: 1 / span 40; margin-bottom: 1rem; }',
+    '.v3-menu .nav-link { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }',
+    '.v3-menu .nav-link.v3-bloqueado { color: #6c757d; }',
+    '@media (max-width: 767px) { .v3-form { display: block; } }',
+  ].join('\n');
+  var el = document.createElement('style');
+  el.id = 'registro-v3-estilos';
+  el.textContent = css;
+  document.head.appendChild(el);
+})();
+
 var RegistroV3App = Vue.createApp({
   delimiters: ['${', '}'],
   data: function () {
@@ -37,6 +80,11 @@ var RegistroV3App = Vue.createApp({
       guardando: false,
       mensajeGuardado: '',
       errorGuardado: '', // REG-11: aviso en rojo cuando un guardado falla (con el campo a corregir si el servidor lo indica)
+      // REG-05: true cuando el texto de `mensajeGuardado` es un error o un recordatorio de faltantes -> se pinta con
+      // la clase v3-msg-error (contrato con WP-4: nombres exactos; la cola del bloque GS conserva ese vínculo).
+      mensajeGuardadoEsError: false,
+      finalizando: false, // REG-37: evita el doble envío de «Finalizar registro»
+      mensajeAvance: '', // REG-01: aviso breve al pasar solo al siguiente módulo tras guardar
       mensajeModuloBloqueado: '',
       mensajeCierre: '',
       avisoDuplicidad: '',
@@ -611,7 +659,11 @@ var RegistroV3App = Vue.createApp({
             err.mensaje = self.mensajeErrorGuardado(res);
             throw err;
           }
-          self.triadaCompleta = !!res.data.triadaCompleta;
+          // REG-35: la tríada no se "des-completa" (las llaves respondidas se acumulan en el servidor): el cliente
+          // nunca baja triadaCompleta de true a false con la respuesta de un guardado.
+          self.triadaCompleta = self.triadaCompleta || !!res.data.triadaCompleta;
+          // REG-03 / REG-04b: el encabezado (nombre, documento, estado) se lee del servidor tras guardar.
+          self.refrescarResumenCaso();
           return res.data;
         });
     },
@@ -628,7 +680,8 @@ var RegistroV3App = Vue.createApp({
         return 'No se guardó la sección. ' + (cual ? 'Corrige ' + cual + ': ' : 'Corrige lo que escribiste: ') + punto(mayuscula(d.detalle)) + ' Luego vuelve a guardar.';
       }
       if (res.status === 401 || res.status === 403) {
-        return 'No se guardó la sección: tu sesión venció o no tienes permiso. Vuelve a iniciar sesión; lo que escribiste en esta pantalla no se guardó.';
+        // REG-21: se dice qué hacer y que lo escrito NO se pierde (la pantalla no se recarga ni redirige).
+        return 'No se guardó la sección: tu sesión venció o no tienes permiso. Inicia sesión de nuevo en otra pestaña y vuelve a pulsar «Guardar sección»: lo que escribiste sigue en esta pantalla.';
       }
       return 'No se pudo guardar la sección por un error del servidor. Lo que escribiste sigue en pantalla: intenta de nuevo y, si el problema continúa, avisa a soporte.';
     },
@@ -637,34 +690,59 @@ var RegistroV3App = Vue.createApp({
       var self = this;
       this.errorGuardado = (e && e.mensaje) || 'No se pudo guardar la sección: no hay conexión con el servidor. Lo que escribiste sigue en pantalla; intenta de nuevo.';
       this.mensajeGuardado = 'No se guardó.';
+      this.mensajeGuardadoEsError = true; // REG-05
       this.$nextTick(function () {
         var el = self.$el && self.$el.querySelector && self.$el.querySelector('#registro-v3-error-guardado');
         if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       });
     },
-    guardarModulo: function (moduloId) {
+    // Devuelve una promesa que resuelve true si se guardó y false si no (validación o error): así
+    // finalizarRegistro (REG-37) sabe si puede seguir. `sinAvanzar` evita pasar al siguiente módulo (REG-01).
+    guardarModulo: function (moduloId, sinAvanzar) {
       var self = this;
+      this.mensajeAvance = '';
       var faltantes = this.obligatoriasFaltantesModulo(moduloId);
       if (faltantes.length) {
         this.mensajeGuardado = 'Faltan obligatorias de 1er contacto: ' + faltantes.map(function (c) { return c.label; }).join('; ');
-        return;
+        this.mensajeGuardadoEsError = true; // REG-05: el recordatorio sale en rojo
+        return Promise.resolve(false);
       }
       var invalidos = this.camposSoloLetrasInvalidosModulo(moduloId);
       if (invalidos.length) {
         this.mensajeGuardado = 'Estos campos no pueden ser solo números: ' + invalidos.map(function (c) { return c.label; }).join('; ');
-        return;
+        this.mensajeGuardadoEsError = true;
+        return Promise.resolve(false);
       }
       if (moduloId === 'CI' && this.ci6Invalido()) {
         this.mensajeGuardado = 'Número de documento inválido para el tipo seleccionado: ' + this.ci6Mascara().hint;
-        return;
+        this.mensajeGuardadoEsError = true;
+        return Promise.resolve(false);
       }
       this.guardando = true;
       this.mensajeGuardado = '';
+      this.mensajeGuardadoEsError = false;
       this.errorGuardado = '';
-      this.enviarSeccion(moduloId)
-        .then(function () { self.mensajeGuardado = 'Sección guardada.'; })
-        .catch(function (e) { self.mostrarErrorGuardado(e); })
+      return this.enviarSeccion(moduloId)
+        .then(function () {
+          self.mensajeGuardado = 'Sección guardada.';
+          self.mensajeGuardadoEsError = false;
+          if (!sinAvanzar) self.avanzarTrasGuardar(moduloId); // REG-01
+          return true;
+        })
+        .catch(function (e) { self.mostrarErrorGuardado(e); return false; })
         .finally(function () { self.guardando = false; });
+    },
+    // REG-01: tras guardar bien, pasa al siguiente módulo NO bloqueado (salvo en el último). Si la persona ya
+    // se movió a otro módulo mientras llegaba la respuesta, no se la mueve.
+    avanzarTrasGuardar: function (moduloId) {
+      if (this.moduloActivo !== moduloId) return;
+      var destino = this.moduloSiguiente(moduloId);
+      if (!destino) return;
+      var etiqueta = function (modulos, id) { var m = modulos.filter(function (x) { return x.id === id; })[0]; return m ? m.label : id; };
+      var de = etiqueta(this.modulos, moduloId), a = etiqueta(this.modulos, destino);
+      this.irAModulo(destino);
+      // Conserva el texto «Sección guardada.» (lo buscan las pruebas de REG-11) y dice de dónde a dónde se pasó.
+      this.mensajeAvance = '✓ Sección guardada. Pasaste de «' + de + '» a «' + a + '».';
     },
     // D11 (flow-E14, botón "Finalizar llamada (guardar y salir)"): guarda el
     // módulo actual SIN exigir las obligatorias -- es un cierre de llamada
@@ -705,18 +783,105 @@ var RegistroV3App = Vue.createApp({
 
     // A1 (flow-E10): TZ/GS deben quedar bloqueados hasta que la tríada
     // (CI/DP/CA/HV/AG) esté completa -- antes no había ningún guard acá.
+    // REG-13: solo el Tamizaje queda bloqueado hasta completar la tríada. Gestión Salvia se puede diligenciar
+    // siempre (y sigue siendo obligatoria para finalizar: gsObligatoriasFinalizarV3 en el servidor).
     moduloBloqueado: function (id) {
-      return (id === 'TZ' || id === 'GS') && !this.triadaCompleta;
+      return id === 'TZ' && !this.triadaCompleta;
     },
     irAModulo: function (id) {
       if (this.moduloBloqueado(id)) {
-        this.mensajeModuloBloqueado = 'Completa primero los módulos de Contacto, Datos personales, Contacto de apoyo, Hechos y Agresor para habilitar ' + (id === 'TZ' ? 'Tamizaje' : 'Gestión Salvia') + '.';
+        this.mensajeModuloBloqueado = 'Completa primero los módulos de Contacto, Datos personales, Contacto de apoyo, Hechos y Agresor para habilitar Tamizaje.';
         return;
       }
       this.mensajeModuloBloqueado = '';
       this.moduloActivo = id;
       this.mensajeGuardado = '';
+      this.mensajeGuardadoEsError = false;
+      this.mensajeAvance = '';
       this.errorGuardado = '';
+    },
+    // REG-01: primer módulo NO bloqueado después (o antes) de `id`, según el orden de modulos[]; null si no hay.
+    // Se recorre modulos[] (no hay módulos escritos a mano: el de WP-4 entra solo).
+    moduloSiguiente: function (id) {
+      var ids = this.modulos.map(function (m) { return m.id; });
+      var idx = ids.indexOf(id);
+      if (idx < 0) return null;
+      for (var i = idx + 1; i < ids.length; i++) { if (!this.moduloBloqueado(ids[i])) return ids[i]; }
+      return null;
+    },
+    moduloAnterior: function (id) {
+      var ids = this.modulos.map(function (m) { return m.id; });
+      var idx = ids.indexOf(id);
+      if (idx < 0) return null;
+      for (var i = idx - 1; i >= 0; i--) { if (!this.moduloBloqueado(ids[i])) return ids[i]; }
+      return null;
+    },
+    // Flechas «Siguiente» / «Anterior» (E22 / E23): solo navegan, no guardan.
+    irASiguiente: function () { var d = this.moduloSiguiente(this.moduloActivo); if (d) this.irAModulo(d); },
+    irAAnterior: function () { var d = this.moduloAnterior(this.moduloActivo); if (d) this.irAModulo(d); },
+    posicionModulo: function () {
+      var self = this;
+      return this.modulos.map(function (m) { return m.id; }).indexOf(self.moduloActivo) + 1;
+    },
+
+    // REG-02: porcentaje de avance = obligatorias de 1er contacto VISIBLES respondidas / visibles (la misma regla
+    // del recordatorio «Faltan obligatorias…»). null si el módulo está bloqueado o no tiene de esas (se muestra
+    // «—» y no pesa). Se calcula en vivo sobre `answers` (decisión aprobada: «Vamos con En vivo»).
+    porcentajeModulo: function (id) {
+      if (this.moduloBloqueado(id)) return null;
+      var total = this.camposVisibles(id).filter(function (c) { return c.req === 'C1'; }).length;
+      if (!total) return null;
+      var respondidas = total - this.obligatoriasFaltantesModulo(id).length;
+      return { respondidas: respondidas, total: total, pct: Math.round(100 * respondidas / total) };
+    },
+    porcentajeGlobal: function () {
+      var self = this, respondidas = 0, total = 0;
+      this.modulos.forEach(function (m) {
+        var r = self.porcentajeModulo(m.id);
+        if (r) { respondidas += r.respondidas; total += r.total; }
+      });
+      return total ? Math.round(100 * respondidas / total) : null;
+    },
+    etiquetaPorcentaje: function (id) {
+      var r = this.porcentajeModulo(id);
+      return r ? r.pct + ' %' : '—';
+    },
+
+    // REG-04: nombre legible del estado del Caso (nunca el código crudo; un código nuevo sale «Desconocido»).
+    etiquetaEstado: function (code) {
+      if (!code) return '';
+      return ESTADOS_CASO_V3[code] || 'Desconocido';
+    },
+    // REG-03: nombre y documento del encabezado. Un Borrador nuevo nace con valores provisionales
+    // («Pendiente Pendiente», documento 0000000000): se muestran como «Persona sin identificar» y
+    // «Documento sin registrar» hasta que se guarde CI.
+    nombreEncabezado: function () {
+      var r = this.resumenCaso || {};
+      var n = ((r.names || '') + ' ' + (r.lastNames || '')).replace(/\s+/g, ' ').trim();
+      if (!n || n === 'Pendiente Pendiente') return 'Persona sin identificar';
+      var t = this.tratamiento();
+      var ident = String(this.answers['CI_3'] || '').trim();
+      return (t ? t + ' ' : '') + n + (ident && ident !== n ? ' (' + ident + ')' : '');
+    },
+    documentoEncabezado: function () {
+      var r = this.resumenCaso || {};
+      if (!r.docNumber || r.docNumber === '0000000000') return 'Documento sin registrar';
+      return (r.docType ? r.docType + '-' : '') + r.docNumber;
+    },
+    // Tras un guardado exitoso se vuelve a leer el resumen del Caso (nombre, documento y estado). Si falla no se
+    // avisa: el guardado ya se confirmó. Tampoco baja triadaCompleta (nunca pasa de true a false).
+    refrescarResumenCaso: function () {
+      var self = this;
+      var icode = this.icode;
+      if (!icode) return Promise.resolve();
+      return fetch('/api/v1/victim-cases-v3/' + icode)
+        .then(function (r) { return self.leerRespuesta(r); })
+        .then(function (res) {
+          if (!res.ok || !res.data.summary || self.icode !== icode) return;
+          self.resumenCaso = res.data.summary;
+          self.triadaCompleta = self.triadaCompleta || !!res.data.triadaCompleta;
+        })
+        .catch(function () { /* sin aviso */ });
     },
 
     // ── Tamizaje ──────────────────────────────────────────────────────────
@@ -1236,24 +1401,62 @@ var RegistroV3App = Vue.createApp({
       }
       return partes.join(' ');
     },
+    // REG-37: primero se guarda Gestión Salvia (con las mismas validaciones de «Guardar sección»); si no se guarda,
+    // no se finaliza. REG-21: se lee la respuesta sin lanzar (un 401 puede venir sin cuerpo) y un 401 se avisa
+    // con un mensaje claro, sin recargar ni perder lo diligenciado.
     finalizarRegistro: function () {
       var self = this;
-      self.errorFinalizar = '';
-      fetch('/api/v1/victim-cases-v3/' + this.icode + '/finalizar', { method: 'POST' })
-        .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
-        .then(function (res) {
-          if (res.ok) {
-            self.mensajeCierre = self.confirmacionFinalizar(res.data);
-            self.etapa = 'cierre';
+      if (this.guardando || this.finalizando) return Promise.resolve();
+      this.errorFinalizar = '';
+      this.finalizando = true;
+      return this.guardarModulo('GS', true)
+        .then(function (guardado) {
+          if (!guardado) {
+            // El recordatorio de faltantes de GS (si lo hubo) se repite junto al botón de finalizar.
+            if (!self.errorGuardado && self.mensajeGuardado) self.errorFinalizar = self.mensajeGuardado;
             return;
           }
-          var faltan = res.data.modulosIncompletos || [];
-          var nombres = faltan.map(function (id) {
-            var m = self.modulos.filter(function (x) { return x.id === id; })[0];
-            return m ? m.label : id;
-          });
-          self.errorFinalizar = (res.data.error || 'No se pudo finalizar') + (nombres.length ? ' — falta diligenciar: ' + nombres.join(', ') : '');
+          return fetch('/api/v1/victim-cases-v3/' + self.icode + '/finalizar', { method: 'POST' })
+            .then(function (r) { return self.leerRespuesta(r); })
+            .then(function (res) {
+              if (res.ok) {
+                self.mensajeCierre = self.confirmacionFinalizar(res.data);
+                self.etapa = 'cierre';
+                return;
+              }
+              self.errorFinalizar = self.mensajeErrorFinalizar(res);
+            })
+            .catch(function () {
+              self.errorFinalizar = 'No se pudo finalizar: no hay conexión con el servidor. Lo que diligenciaste sigue en pantalla; intenta de nuevo.';
+            });
+        })
+        .finally(function () { self.finalizando = false; });
+    },
+    // Texto para la persona cuando el servidor rechazó el cierre (REG-37 / REG-21).
+    mensajeErrorFinalizar: function (res) {
+      var self = this;
+      var d = res.data || {};
+      if (res.status === 401 || res.status === 403) {
+        return 'No se pudo finalizar: tu sesión venció o no tienes permiso. Inicia sesión de nuevo en otra pestaña y vuelve a pulsar «Finalizar registro»: lo que diligenciaste sigue en esta pantalla.';
+      }
+      var faltan = d.modulosIncompletos || [];
+      if (res.status === 400 && faltan.length) {
+        var nombres = faltan.map(function (id) {
+          var m = self.modulos.filter(function (x) { return x.id === id; })[0];
+          return m ? m.label : id;
         });
+        var texto = (d.error || 'No se puede finalizar') + ' — falta diligenciar: ' + nombres.join(', ');
+        var gs = (d.camposFaltantes || []).filter(function (k) { return k.indexOf('GS_') === 0; });
+        if (gs.length) {
+          texto += '. Gestión Salvia, falta: ' + gs.map(function (k) {
+            var c = self.camposPorId[k];
+            return (c && c.label) || GS_ETIQUETAS_FINALIZAR_V3[k] || k;
+          }).join('; ');
+        }
+        return texto;
+      }
+      if (res.status === 400 && d.error) return d.error;
+      return 'No se pudo finalizar por un error del servidor. Lo que diligenciaste sigue en pantalla: intenta de nuevo y, si el problema continúa, avisa a soporte.';
     },
   },
 });
