@@ -188,6 +188,7 @@ var CAMPOS_CI_V3 = [
 var CAMPOS_DP_V3 = [
   { id: "DP_1", tipo: "date", label: "¿Cuál es su fecha de nacimiento?", req: "C1" },
   { id: "DP_2", tipo: "boolean", label: "¿Tiene dificultades físicas, mentales y/o sensoriales en su vida diaria?", req: "C1" },
+  { id: "DP_51", tipo: "dropdown", label: "Tipo de discapacidad", req: "D", condicional: { campo: "DP_2", valor: true }, enumCategory: "victim_case_form2_disability_type" },
   { id: "DP_3", tipo: "multiple", label: "¿Qué actividades no puede o presenta dificultades para realizarlas?", req: "C2", condicional: { campo: "DP_2", valor: true }, enumCategory: "victim_case_form2_activities_unable_to_perform" },
   { id: "DP_4", tipo: "multiple", label: "Según la Ley 1996 de 2019 cuenta usted con", req: "D", condicional: { campo: "CI_7", valor: true }, enumCategory: "victim_case_form2_law_1996" },
   { id: "DP_5", tipo: "dropdown", label: "¿Cuál es su nacionalidad?", req: "C1", enumCategory: "victim_case_form2_nationality" },

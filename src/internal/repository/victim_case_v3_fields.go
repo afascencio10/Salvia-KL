@@ -61,6 +61,7 @@ var victimCaseV3FormFields = []VictimCaseFormField{ //nolint:gochecknoglobals
 	{FieldKeyV3("DP", 28), "victim_case_form2_residence_town", KindText},       // bootstrap también (ver CreateDraftV3)
 	{FieldKeyV3("DP", 29), "victim_case_form2_residence_address", KindText},
 	{FieldKeyV3("DP", 30), "victim_case_form2_residence_zone", KindEnum1},
+	{FieldKeyV3("DP", 51), "victim_case_form2_disability_type", KindEnum1}, // Tipo de discapacidad (REG-08), solo si DP_2 = Sí
 
 	// ── CA — Contacto de apoyo ───────────────────────────────────────────────
 	{FieldKeyV3("CA", 1), "victim_case_form2_support_contact_names", KindText},
@@ -155,6 +156,7 @@ func init() {
 // resolveFieldUpdates escribe NULL cuando la respuesta llega vacía.
 var victimCaseV3NullableColumns = map[string]bool{ //nolint:gochecknoglobals
 	"victim_case_form2_facts_department":     true,
+	"victim_case_form2_disability_type":      true,
 	"victim_case_form2_residence_department": true,
 }
 
@@ -202,7 +204,7 @@ var victimCaseV3EnumCategories = []string{ //nolint:gochecknoglobals
 	"victim_case_form2_ethnic_affiliation", "victim_case_form2_indigenous_people", "victim_case_form2_marital_status",
 	"victim_case_form2_last_education_level", "victim_case_form2_occupation", "victim_case_form2_income_generation_method",
 	"victim_case_form2_employment_relationship", "victim_case_form2_housing_tenancy_form", "victim_case_form2_housing_stratum",
-	"victim_case_form2_residence_zone", "victim_case_form2_facts_zone", "victim_case_form2_scenario_violence",
+	"victim_case_form2_residence_zone", "victim_case_form2_disability_type", "victim_case_form2_facts_zone", "victim_case_form2_scenario_violence",
 	"victim_case_form2_workplace_sector_occurrence", "victim_case_form2_recurrence_aggression", "victim_case_form2_num_agressors",
 	"victim_case_form2_proximity_principal_aggressor", "victim_case_form2_relationship_with_presumed_aggressor_01",
 	"victim_case_form2_relationship_with_presumed_aggressor_02", "victim_case_form2_aggressors_occupation",

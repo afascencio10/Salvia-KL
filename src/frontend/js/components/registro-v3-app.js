@@ -435,7 +435,12 @@ var RegistroV3App = Vue.createApp({
       return { la: 'Sra.', el: 'Sr.', le: 'Sre.' }[code] || '';
     },
     getBool: function (id) { return this.answers[id] === 'true'; },
-    setBool: function (id, v) { this.answers[id] = v ? 'true' : 'false'; },
+    setBool: function (id, v) {
+      this.answers[id] = v ? 'true' : 'false';
+      // REG-08: DP_51 (tipo de discapacidad) solo aplica si DP_2 = Sí; al pasar a «No» se limpia para no
+      // guardar una respuesta que quedó oculta (el backend la deja en NULL).
+      if (id === 'DP_2' && !v) this.answers['DP_51'] = '';
+    },
 
     estaMarcado: function (id, icode) {
       return (this.answers[id] || '').split(',').indexOf(icode) >= 0;

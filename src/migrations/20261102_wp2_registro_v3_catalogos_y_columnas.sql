@@ -1,7 +1,7 @@
 -- WP-2 · Registro V3 — catálogos y columnas nuevas.
 --   REG-07  Opciones «Rural» / «Urbano» de la zona de residencia (DP_30)
 --   REG-11  Departamentos de los hechos y de residencia (HV_4, DP_27) y municipios con texto libre
---   (el bloque de REG-08 se agrega más abajo, uno por tarea)
+--   REG-08  Tipo de discapacidad (DP_51): catálogo de 7 opciones y su columna
 --
 -- Idempotente: se puede aplicar más de una vez. Las filas del catálogo se buscan por NOMBRE
 -- (victim_case_form2_enums_name es UNIQUE), no por (categoría, código), para no chocar con
@@ -58,5 +58,30 @@ ALTER TABLE salvia.victim_case_form2
     ALTER COLUMN victim_case_form2_residence_town  TYPE varchar(100);
 ALTER TABLE salvia.victim_case
     ALTER COLUMN victim_case_victim_town_code TYPE varchar(100);
+
+-- ── REG-08 · Tipo de discapacidad (DP_51) ─────────────────────────────────────────────────────
+-- Catálogo nuevo (categoría victim_case_form2_disability_type, 7 opciones). Los textos están en Locale.go.
+INSERT INTO salvia.victim_case_form2_enums
+    (victim_case_form2_enums_i_code, victim_case_form2_enums_name,
+     victim_case_form2_enums_code,   victim_case_form2_enums_category)
+SELECT gen_random_uuid()::text, v.name, v.code, 'victim_case_form2_disability_type'
+FROM (VALUES
+        ('victim_case_form2_disability_type_01', '01'),   -- Discapacidad física
+        ('victim_case_form2_disability_type_02', '02'),   -- Discapacidad auditiva
+        ('victim_case_form2_disability_type_03', '03'),   -- Discapacidad visual
+        ('victim_case_form2_disability_type_04', '04'),   -- Sordoceguera
+        ('victim_case_form2_disability_type_05', '05'),   -- Discapacidad intelectual
+        ('victim_case_form2_disability_type_06', '06'),   -- Discapacidad psicosocial (mental)
+        ('victim_case_form2_disability_type_07', '07')    -- Discapacidad múltiple
+     ) AS v(name, code)
+WHERE NOT EXISTS (
+    SELECT 1 FROM salvia.victim_case_form2_enums e
+    WHERE e.victim_case_form2_enums_name = v.name
+);
+
+-- Columna nueva, NULL = sin respuesta (solo se pregunta si la persona tiene dificultades, DP_2 = Sí).
+ALTER TABLE salvia.victim_case_form2
+    ADD COLUMN IF NOT EXISTS victim_case_form2_disability_type bigint
+        REFERENCES salvia.victim_case_form2_enums (victim_case_form2_enums_id);
 
 COMMIT;
