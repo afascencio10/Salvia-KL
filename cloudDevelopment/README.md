@@ -29,6 +29,8 @@ espera a que `GET /seguridad/login` devuelva 200. Los datasets de la fase 2
 | Seguir con el CLI (estructura, clics, capturas) | `cloudDevelopment/playwright-cli.sh snapshot` / `click e12` / `goto <url>` / `screenshot --filename=/tmp/x.png` |
 | Detener la app (para reiniciar tras un cambio de código) | `cloudDevelopment/stop-app.sh` y luego `./run_dev.sh` |
 | Aplicar a mano un archivo nuevo de `seed_test_data/` | `cloudDevelopment/apply-test-seeds.sh` |
+| Aplicar a mano las migraciones pendientes de `src/migrations/` (`./run_dev.sh` ya lo hace solo en cada arranque) | `cloudDevelopment/apply-migrations.sh` |
+| Probar los cambios de WP-2 (93 comprobaciones: API, BD y pantalla; ~3 min). Necesitan las migraciones aplicadas y la app corriendo | `for s in cloudDevelopment/e2e/wp2-re*.js; do node "$s"; done` |
 
 > **Reiniciar:** el backend es un binario embebido (`go:embed`), así que
 > cualquier cambio de Go **o de frontend** exige reiniciar. Usa
@@ -110,7 +112,9 @@ cloudDevelopment/playwright-cli.sh run-code "async page => {
    `schema_drift_patch.sql`; pre-crea las columnas de `security.general_user`
    que la app agregaría después; y carga `seed_reference_data.sql`,
    `seed_reference_enums.sql` y `seed_local_dev.sql`. Exporta
-   `DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME`.
+   `DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME`. **En cada arranque** (no solo
+   la primera vez) y antes de iniciar la app, `apply-migrations.sh` aplica las
+   migraciones fechadas de `src/migrations/` que falten.
 5. `common/utils/EntityOperator.go` → `LoadDBCLientConfig()`: si
    `CLAUDE_CODE_REMOTE=true`, arma la config de conexión a partir de esas
    variables en vez de leer el `db_config.json` embebido (Supabase). Es el
@@ -209,6 +213,39 @@ DO NOTHING`. Solo lo genuinamente sintético: los **19 usuarios de prueba** y
 lo que cada rol necesita antes de que arranque la app (equipo de `ro`,
 departamento de `en`, sede de prueba de `et`).
 
+**`src/migrations/AAAAMMDD_<tema>.sql`** (en cada arranque, antes de la app) —
+cambios de catálogo y de esquema que **todavía no están en Supabase**: allá se
+aplican a mano (SQL editor) y el sandbox los aplica solo, para que cada sesión
+nueva arranque con ellos (sin esto las listas salían vacías o la pantalla
+respondía 500 por columnas que no existen). `apply-migrations.sh` aplica solo
+los archivos cuyo nombre empieza con fecha de 8 dígitos y guion bajo (los
+`add_*.sql` / `alter_*.sql` anteriores no se tocan), en orden, y lleva la
+cuenta en `public.cloud_migration_applied` (nombre + sha256): se aplican solo
+los nuevos o modificados, y si se recrea la BD el registro se reinicia solo.
+Reglas de una migración nueva:
+
+- **Idempotente** (`IF NOT EXISTS`, `WHERE NOT EXISTS`): se vuelve a aplicar
+  cada vez que el archivo cambia. Las filas de `victim_case_form2_enums` se
+  buscan por `name` (es `UNIQUE`), no por id.
+- Solo puede asumir lo que existe **antes** de que la app arranque (esquema
+  legacy + `schema_drift_patch.sql` + seeds de referencia). Si necesita una
+  tabla que crea la app, falla en este arranque y se reintenta en el
+  siguiente; los datos que dependen de tablas de la app van en `seed_test_data/`.
+- Puede traer su propio `BEGIN; … COMMIT;`; si no, se aplica en una sola
+  transacción. Si falla, se revierte completa, se muestra el error de Postgres
+  y la app arranca igual.
+- `.gitignore` ignora `*.sql`: agrégala con `git add -f src/migrations/<archivo>`.
+- Cuando la migración ya esté aplicada en Supabase y el seed de enums se
+  regenere desde allá, el archivo sigue siendo inofensivo (es idempotente).
+
+Hoy trae `20261102_wp2_registro_v3_catalogos_y_columnas.sql` (WP-2): las
+opciones Rural/Urbano de la zona de residencia (`residence_zone`), las 7 de
+tipo de discapacidad (`disability_type`), las columnas
+`victim_case_form2_disability_type`, `_facts_department` y
+`_residence_department`, y los municipios (`*_town_code`, `_residence_town`)
+ampliados a `varchar(100)`. **En Supabase hay que aplicarla a mano** (el
+`ALTER … TYPE varchar(100)` solo se verificó en el sandbox).
+
 **`seed_test_data/*.sql`** (fase 2, después de que la app arranca) —
 datos que dependen de tablas que crea la app y datos leídos de Supabase para
 probar requerimientos concretos. Un archivo por requerimiento,
@@ -241,6 +278,9 @@ impiden usar la app**. No los investigues como si fueran del setup:
   compilar todos los tests del paquete), `salvia/dao` (error de `vet` en
   `VictimCaseDAO.go:1569`) e `internal/seed` (un test de la V.4 quedó viejo).
   Corre los tests por paquete.
+- `go test` / `go vet` de `salvia/controller` no compilan los tests
+  (`form_controller_test.go:116`: `MockFormService` no implementa
+  `ProcessManualRemision`).
 - `go build ./...` falla en `cmd/backup` (falta `godotenv`); la app (`go build .`)
   compila bien.
 
@@ -284,6 +324,11 @@ cierra `schema_drift_patch.sql`, que sí va estricto (`ON_ERROR_STOP=1`).
   seguimientos, una remisión, respuestas de un formulario): se leen de
   Supabase vía Composio y se guardan en un archivo nuevo
   `seed_test_data/AAAAMMDD-<slug>.sql`, con el mismo procedimiento.
+- Hace falta un cambio de **catálogo o de esquema que aún no está en Supabase**
+  (opciones nuevas en `victim_case_form2_enums`, una columna nueva): va como
+  migración fechada `src/migrations/AAAAMMDD_<tema>.sql` (ver "Qué carga cada
+  fuente"); el sandbox la aplica solo en cada arranque y en Supabase se aplica
+  a mano.
 - Una pantalla responde 500 con `column ... does not exist` o `relation ...
   does not exist`: es drift de esquema. Ver "Esquema: cuando aparece 'column ...
   does not exist'" en `actualizar-seed-con-composio.md`.

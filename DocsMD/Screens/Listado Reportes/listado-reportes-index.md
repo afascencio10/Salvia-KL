@@ -2,7 +2,7 @@
 
 Pantalla **nueva** — implementa la funcionalidad "Listado reportes" descrita en FigJam (canal `l25jrzyf`, sección "Gestion reportes"): ve todos los reportes, con filtros y reasignación por el supervisor. Reemplaza en este documento la planeación anterior (que proponía adaptar `get_victim_cases_sv.html`) — se descartó a favor de reutilizar `casos-component`, ya probado en producción. Ver veredicto completo en el chat de la sesión 2026-10-10.
 
-> **Estado:** ✅ Implementado y probado — 2026-10-13. 155 pruebas de Playwright en verde más un E2E repetible de un reporte nuevo (ver [`QA/gestion-reportes-qa-plan.md`](QA/gestion-reportes-qa-plan.md)); resumen del cambio en [`changelogOct2026.md`](changelogOct2026.md). **Re-verificado contra `develop` el 2026-10-31:** el código de las pantallas y del backend de reportes no cambió desde entonces; la única brecha es la columna "Fecha Reporte", que hoy sale en "—" (H11 del plan de QA).
+> **Estado:** ✅ Implementado y probado — 2026-10-13. 155 pruebas de Playwright en verde más un E2E repetible de un reporte nuevo (ver [`QA/gestion-reportes-qa-plan.md`](QA/gestion-reportes-qa-plan.md)); resumen del cambio en [`changelogOct2026.md`](changelogOct2026.md). **Re-verificado contra `develop` el 2026-10-31:** el código de las pantallas y del backend de reportes no cambió desde entonces; la única brecha era la columna "Fecha Reporte", que salía en "—" (H11 del plan de QA). **Corregida el 2026-11-02 (WP-2 · REP-12):** el listado trae `creationDateCO` y la columna muestra el día de creación en hora de Bogotá, igual en cualquier zona horaria del navegador; ver [`changelogNov2026.md`](changelogNov2026.md).
 
 ## Archivos de esta pantalla
 
@@ -17,7 +17,7 @@ Pantalla **nueva** — implementa la funcionalidad "Listado reportes" descrita e
 | [`QA/E04-E05-E06-ver-y-reasignar-qa-cases.md`](QA/E04-E05-E06-ver-y-reasignar-qa-cases.md) | Casos de E-04, E-05 y E-06 |
 | [`QA/gestion-reportes-e2e-qa-cases.md`](QA/gestion-reportes-e2e-qa-cases.md) | E2E de un reporte nuevo: formulario público → Listado → Mis Reportes → modal, repetible |
 | [`changelogOct2026.md`](changelogOct2026.md) | Registro del cambio de octubre 2026 |
-| [`changelogNov2026.md`](changelogNov2026.md) | WP-1 (2026-11-02): estado «Borrador iniciado» y hitos de asignación en el timeline |
+| [`changelogNov2026.md`](changelogNov2026.md) | Registro de los cambios de noviembre 2026: REP-12 (fecha del reporte) y WP-1 (estado «Borrador iniciado» y hitos de asignación en el timeline) |
 | [`QA/estado-borrador-iniciado-qa-cases.md`](QA/estado-borrador-iniciado-qa-cases.md) | Casos del estado derivado «Borrador iniciado» / «Cerrado — válido» y de los hitos de asignación |
 
 ## Resumen de eventos

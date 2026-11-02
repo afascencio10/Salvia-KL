@@ -31,7 +31,9 @@ Este MD es la **fuente de contenido** (preguntas, opciones, reglas del cliente);
 | Obligatoriedad de DP_26 (gestación) | "1er contacto · condicional" | `C2`, y la condición devuelve siempre `true` (se muestra a todas las personas) |
 | [máx. 2º contacto] al finalizar | "Todas las [máx. 2º contacto] de los 7 módulos" | Solo DP_10, DP_15 y CA_1-4; el resto de C2 y todas las condicionales no se exigen (`obligatoriasFinalizarV3`) |
 | DP_3 (actividades con dificultad) | 9 actividades, cada una en escala 1-4 | Checklist `multiple` de la categoría `victim_case_form2_activities_unable_to_perform`; sin escala |
-| Departamento / municipio (DP_27-28, HV_4-5) | Desplegables DIVIPOLA encadenados | DP_27/HV_4: lista fija de nombres de departamento; DP_28/HV_5: **texto libre** (DP_28 se guarda en `victim_case_victim_town_code`) |
+| Departamento / municipio (DP_27-28, HV_4-5) | Desplegables DIVIPOLA encadenados | DP_27/HV_4: lista fija de nombres de departamento (desde WP-2 se guardan en `victim_case_form2_residence_department` / `_facts_department`; antes no tenían columna); DP_28/HV_5: **texto libre**, columnas `*_town_code` ampliadas a `varchar(100)` (DP_28 se guarda también en `victim_case_victim_town_code`) |
+| DP_51 «Tipo de discapacidad» | No existe en el Excel | Pregunta nueva de WP-2 (REG-08), condicional a DP_2, con 7 opciones |
+| Tamizaje — presentación y guardado | Preguntas sueltas; si las 5 iniciales son «No» el Tamizaje termina en nivel Bajo | Dos tablas «Pregunta · Sí · No» (REG-12). Las generales TZ_1-TZ_8 se guardan. Con las 5 iniciales en «No» el botón «Calcular y guardar» aparece, se guardan solo esas 5 y el resto queda en «No» (REG-34, antes ese caso no podía guardarse) |
 | HV_5 | "dropdown · condicional (depende de Q4)" | `text` sin condición |
 | Tamizaje — preguntas condicionales | Preguntas OSIGD y de ámbito laboral ocultas según el caso; VPP solo si OSIGD | Se muestran las 24 preguntas de la rama y TZ_8 siempre que se revele el resto; el código declara los índices condicionales pero no los usa |
 | Tamizaje — rama pareja | Encabezado dice "23 preguntas" | Son 24 (la 24 es ideación suicida, igual que en la rama no pareja) |
@@ -97,6 +99,7 @@ Coinciden con el MD: CI completo (incluida la máscara de CI_6 y la regla de CI_
 |---|---|---|:---:|---|
 | 1 | ¿Cuál es su fecha de nacimiento? | date | 1er contacto | |
 | 2 | "Dada su condición física, mental y/o sensorial... tiene dificultades para: ¿oír, hablar, ver, mover su cuerpo, agarrar objetos, entender, comer o vestirse, interactuar?" | boolean | 1er contacto | Gate — habilita Q3 |
+| 51 | Tipo de discapacidad *(pregunta nueva, REG-08, 2026-11-02; no está en el Excel original — FieldKey `DP_51`)* | dropdown | Deseable · condicional (Q2=Sí) | 7 opciones: Discapacidad física · Discapacidad auditiva · Discapacidad visual · Sordoceguera · Discapacidad intelectual · Discapacidad psicosocial (mental) · Discapacidad múltiple (categoría `victim_case_form2_disability_type`, códigos 01-07). Se limpia si Q2 pasa a No. Columna `victim_case_form2_disability_type` (NULL = sin respuesta) |
 | 3 | ¿Qué actividades no puede o presenta dificultades para realizarlas? | multiple + escala | máx. 2º contacto · condicional (Q2=Sí) | 9 actividades, cada una en escala 1-4: Oír la voz/sonidos · Hablar/conversar · Ver de cerca/lejos/alrededor · Mover el cuerpo/caminar/subir-bajar escaleras · Agarrar/mover objetos con las manos · Entender/aprender/recordar/decidir · Comer/vestirse/bañarse · Relacionarse/interactuar · Actividades diarias sin problemas cardiacos/respiratorios |
 | 4 | Según la Ley 1996 de 2019 cuenta usted con | multiple | máx. 2º contacto · **condicional** | Valoración de apoyos · Acuerdos de apoyo · Directivas anticipadas · Ninguna de las anteriores — **visible solo si CI.Q7 "¿Se reconoce como persona con discapacidad?" = Sí** (corregido por obs. #7 del cliente; el Excel de Drive no marcaba esta condicionalidad explícitamente) |
 | 5 | ¿Cuál es su nacionalidad? | dropdown | 1er contacto · condicional | Colombiana(o) *(prediligenciado si tipo doc. es colombiano)* · Extranjero(a) *(prediligenciado si no)* · **Apátrida** (persona sin nacionalidad) |
@@ -125,7 +128,7 @@ Coinciden con el MD: CI completo (incluida la máscara de CI_6 y la regla de CI_
 | 27 | ¿En qué departamento reside actualmente? | dropdown | 1er contacto | Lista departamentos |
 | 28 | ¿En qué municipio reside actualmente? | dropdown | 1er contacto · condicional (depende de Q27) | Lista municipios/área no municipalizada según departamento |
 | 29 | ¿Cuál es la dirección de su lugar de residencia? | text | 1er contacto | |
-| 30 | ¿En qué zona se encuentra su lugar de residencia? | dropdown | máx. 2º contacto | Cabecera municipal · Parte rural (vereda/campo) · Centro poblado (corregimiento/inspección/caserío) |
+| 30 | ¿En qué zona se encuentra su lugar de residencia? | dropdown | máx. 2º contacto | **Rural · Urbano** (REG-07, 2026-11-02; la categoría `victim_case_form2_residence_zone` no tenía opciones y la lista salía vacía. «Cabecera municipal · Parte rural · Centro poblado» son las opciones de la zona del **hecho**, HV_6) |
 
 ### Lista completa — Ocupación (Q17)
 
@@ -160,7 +163,7 @@ Servicios generales y aseo · Cocina y alimentos · Belleza y cuidado personal �
 |---|---|---|:---:|---|
 | 1 | ¿Podría describir brevemente los hechos ocurridos? | text | 1er contacto | |
 | 2 | ¿En qué fecha ocurrió el hecho? | date | 1er contacto | Admite fecha aproximada |
-| 3 | ¿A qué hora ocurrió el hecho? | time | máx. 2º contacto | Admite hora aproximada |
+| 3 | ¿A qué hora ocurrió el hecho? | time | máx. 2º contacto | Selector de hora `HH:MM` (REG-09, 2026-11-02; antes era un campo de texto). Admite hora aproximada. Opcional: la columna es NOT NULL, así que vaciarla y guardar no borra la hora ya guardada |
 | 4 | ¿En qué departamento ocurrieron los hechos? | dropdown | 1er contacto | |
 | 5 | ¿En qué municipio ocurrieron los hechos? | dropdown | 1er contacto · condicional (depende de Q4) | |
 | 6 | ¿En qué zona ocurrió el hecho? | dropdown | 1er contacto | Cabecera municipal · Parte rural · Centro poblado |

@@ -60,6 +60,7 @@ type reportListRow struct {
 	Names              string    `gorm:"column:victim_contact_names"`
 	LastNames          string    `gorm:"column:victim_contact_last_names"`
 	CreationDate       time.Time `gorm:"column:victim_contact_creation_date"`
+	CreationDateCO     string    `gorm:"column:creation_date_co"`
 	ReportType         *string `gorm:"column:report_type"`
 	TotalFallidos      int     `gorm:"column:total_fallidos"`
 	DiasCompletos      int     `gorm:"column:dias_completos"`
@@ -128,12 +129,17 @@ LEFT JOIN salvia.victim_case_form2_enums closeEnum
        ON closeEnum.victim_case_form2_enums_id = vc.victim_contact_close_reason
 `
 
+// creation_date_co (REP-12): victim_contact_creation_date es TIMESTAMP sin zona y ya guarda
+// la hora de Bogotá (se escribe con time.Now(), time.Local = America/Bogota). El día se toma
+// de ese valor tal cual, SIN AT TIME ZONE: así no depende de la zona de la sesión de Postgres
+// ni del navegador, y el día que ve el usuario es el día en que se creó el reporte en Bogotá.
 const victimContactsListSelectCols = `
     vc.victim_contact_id,
     vc.victim_contact_i_code,
     vc.victim_contact_names,
     vc.victim_contact_last_names,
     vc.victim_contact_creation_date,
+    TO_CHAR(vc.victim_contact_creation_date, 'YYYY-MM-DD') AS creation_date_co,
     (` + reportTypeSelect + `) AS report_type,
     ` + attemptsAggregateSelect + `,
     vc.victim_contact_agent_id AS agent_id,
@@ -186,6 +192,7 @@ func (r *victimContactsListRepository) List(ctx context.Context, filters VictimC
 			Names:              row.Names,
 			LastNames:          row.LastNames,
 			CreationDate:       row.CreationDate,
+			CreationDateCO:     row.CreationDateCO,
 			ReportType:         derefStr(row.ReportType),
 			TotalFallidos:      row.TotalFallidos,
 			DiasCompletos:      row.DiasCompletos,

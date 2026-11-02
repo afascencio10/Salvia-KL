@@ -51,5 +51,5 @@ PASO 2 — Resultado en el cliente
 | El botón no guarda antes el módulo GS: lo que no se haya guardado con "Guardar sección" no cuenta como respondido y el backend reporta GS incompleto. La planeación pedía persistir el último módulo primero | PASO 1 |
 | No hay integración con la FGN ni un workflow de remisión: la Denuncia fácil y las remisiones solo se **confirman en pantalla** a partir de GS_1 y GS_6 (ver registro-v3-pendientes.md C2/C3). Tampoco se crean entradas en un módulo de Seguimiento, ni se notifica a los equipos | PASO 1 |
 | `POST /entidades/registrar-lote` y `/barreras/registrar-lote` de la planeación no existen: entidades y barreras se guardan una a una al agregarlas (flow-E17, flow-E18) | — |
-| Con las 5 iniciales del Tamizaje en "No" el Tamizaje no llega a guardarse y el Caso no puede finalizar (ver flow-E11) | PASO 1 |
+| ~~Con las 5 iniciales del Tamizaje en "No" el Tamizaje no llega a guardarse y el Caso no puede finalizar~~ — **resuelto 2026-11-02 (WP-2 · REG-34):** con las 5 iniciales respondidas el botón «Calcular y guardar Tamizaje» aparece, se guardan TZ_1, 2, 3, 4 y 7 (el resto queda en «No», sin marcarse) y `Finalize` ya acepta el Tamizaje (ver flow-E11) | PASO 1 |
 | Solo se exige `Terminado` desde `in`: si el Caso estuviera en `bo` (nunca ocurre con la tríada completa) respondería ok sin cambiar el estado | PASO 1 |

@@ -107,6 +107,8 @@ CREATE TABLE salvia.victim_contact_attempt (
 
 > **Convención de zona horaria (verificada en la implementación, 2026-10-13):** `victim_contact_attempt_date` es `timestamp without time zone` y guarda **UTC** (`time.Now().UTC()`; con `time.Now()` a secas Postgres ignora el offset y la hora quedaba en la zona del servidor). Para agrupar por día de Bogotá: `(col AT TIME ZONE 'UTC' AT TIME ZONE 'America/Bogota')::date` — `col AT TIME ZONE 'America/Bogota'` a secas interpreta la hora como ya-Bogotá y desplaza el día. El log del modal también formatea con `timeZone: 'America/Bogota'`.
 
+> **`victim_contact_creation_date` guarda hora de Bogotá, no UTC (REP-12, 2026-11-02):** es un `timestamp without time zone` que se escribe con `time.Now()` mientras el backend corre con `time.Local = America/Bogota` (verificado creando un reporte por el asistente público: la BD guardó la hora local de Bogotá, 5 h menos que UTC). El listado toma el día con `TO_CHAR(victim_contact_creation_date, 'YYYY-MM-DD')` **sin** `AT TIME ZONE` y lo entrega como `creationDateCO`; no aplicar a esta columna la convención UTC de `victim_contact_attempt_date`.
+
 ---
 
 ## Migración — ejecutada (2026-10-12)

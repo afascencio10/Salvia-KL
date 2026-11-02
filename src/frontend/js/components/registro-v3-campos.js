@@ -188,6 +188,7 @@ var CAMPOS_CI_V3 = [
 var CAMPOS_DP_V3 = [
   { id: "DP_1", tipo: "date", label: "¿Cuál es su fecha de nacimiento?", req: "C1" },
   { id: "DP_2", tipo: "boolean", label: "¿Tiene dificultades físicas, mentales y/o sensoriales en su vida diaria?", req: "C1" },
+  { id: "DP_51", tipo: "dropdown", label: "Tipo de discapacidad", req: "D", condicional: { campo: "DP_2", valor: true }, enumCategory: "victim_case_form2_disability_type" },
   { id: "DP_3", tipo: "multiple", label: "¿Qué actividades no puede o presenta dificultades para realizarlas?", req: "C2", condicional: { campo: "DP_2", valor: true }, enumCategory: "victim_case_form2_activities_unable_to_perform" },
   { id: "DP_4", tipo: "multiple", label: "Según la Ley 1996 de 2019 cuenta usted con", req: "D", condicional: { campo: "CI_7", valor: true }, enumCategory: "victim_case_form2_law_1996" },
   { id: "DP_5", tipo: "dropdown", label: "¿Cuál es su nacionalidad?", req: "C1", enumCategory: "victim_case_form2_nationality" },
@@ -254,7 +255,7 @@ var TIPO_A_SUFIJO_SUBTIPO_V3 = { fi: "fi", pl: "pl", po: "po", ps: "ps", re: "re
 var CAMPOS_HV_V3 = [
   { id: "HV_1", tipo: "textarea", label: "¿Podría describir brevemente los hechos ocurridos?", req: "C1" },
   { id: "HV_2", tipo: "date", label: "¿En qué fecha ocurrió el hecho?", req: "C1" },
-  { id: "HV_3", tipo: "text", label: "¿A qué hora ocurrió el hecho?", req: "D", placeholder: "Ej: 19:30" },
+  { id: "HV_3", tipo: "time", label: "¿A qué hora ocurrió el hecho?", req: "D" },
   { id: "HV_4", tipo: "dropdown", label: "¿En qué departamento ocurrieron los hechos?", opciones: DEPARTAMENTOS_V3, req: "C1" },
   { id: "HV_5", tipo: "text", label: "¿En qué municipio ocurrieron los hechos?", req: "C1" },
   { id: "HV_6", tipo: "dropdown", label: "¿En qué zona ocurrió el hecho?", req: "C1", enumCategory: "victim_case_form2_facts_zone" },

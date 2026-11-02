@@ -11,6 +11,8 @@
 > eliminar una entidad no elimina sus barreras, el Tamizaje no se puede guardar si las 5 iniciales son "No",
 > `triadaCompleta` se pone en false al guardar GS/TZ, `enviarSeccion` no revisa `r.ok` y Finalizar no guarda GS antes de validar.
 > Los eventos no construidos (E-05, E-08, E-09, E-16) están marcados ⛔ en [`registro-v3-index.md`](registro-v3-index.md).
+>
+> **Nota 2026-11-02 (WP-2):** de las cinco brechas de arriba quedaron resueltas **G-V3-23** (Tamizaje con las 5 iniciales en «No», REG-34) y **G-V3-25** (`enviarSeccion` sin `r.ok`, REG-11); se abrieron G-V3-27 (campos opcionales NOT NULL que no se pueden vaciar) y G-V3-28 (clave sin traducir en CI_5). Resumen de WP-2 en [`changelogNov2026.md`](changelogNov2026.md).
 
 ---
 

@@ -1,7 +1,7 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando abandona la pantalla sin finalizar
    Tipo: User Interaction (primario) + Lifecycle (respaldo)
-   Estado: ✅ Implementado — sincronizado con el código 2026-10-31
+   Estado: ✅ Implementado — sincronizado con el código 2026-10-31 · actualizado 2026-11-02 (WP-2 · REG-11)
    Funciones: guardarYSalir() · volverACabezote() · listener 'beforeunload' de mounted() → registro-v3-app.js
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -19,10 +19,14 @@ CAMINO PRIMARIO — botón "Finalizar llamada (guardar y salir)" (solo visible e
     PASO 1 — Guardar el módulo activo sin exigir obligatorias
       guardando = true
       enviarSeccion(moduloActivo)   → [POST] /api/v1/victim-cases-v3/{icode}/seccion/{moduloActivo}  (ver flow-E12; sin validaciones)
-      SI la petición falla: se ignora el error (best-effort)
+      SI la petición falla (dato inválido 400, error del servidor o sin conexión):          // REG-11: antes se ignoraba y se salía igual, perdiendo lo escrito sin avisar
+        guardando = false; mostrarErrorGuardado()  (aviso rojo con el motivo, flow-E21)
+        window.confirm("<motivo>\n\n¿Salir de todos modos? Lo que escribiste en este módulo se perdería.")
+          Cancelar → se queda en el Formulario para corregir y volver a intentar → TERMINAR ejecución
+          Aceptar  → sigue al PASO 2 (sale sin guardar este módulo)
     PASO 2 — Salir
       guardando = false
-      volverACabezote():  etapa = 'cabezote'; icode = null; answers = {}; entidades = []; barreras = []
+      volverACabezote():  etapa = 'cabezote'; icode = null; answers = {}; entidades = []; barreras = []; errorGuardado = ''
       (el Caso conserva su estado: Borrador o Iniciado; las entidades y barreras ya se guardaron al agregarlas)
 
 CAMINO DE RESPALDO — cierre o recarga de la pestaña (window 'beforeunload')

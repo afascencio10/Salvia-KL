@@ -161,6 +161,15 @@ else
     echo "[cloudDevelopment] BD local ya inicializada (borrar $SCHEMA_MARKER para forzar recreación de esquema/seed)."
 fi
 
+# ─── 3b. Migraciones fechadas de src/migrations/ (en CADA arranque) ───────
+# Cambios de catálogo y esquema que todavía no están en Supabase (allá se aplican a mano), p. ej.
+# 20261102_wp2_registro_v3_catalogos_y_columnas.sql. Van fuera del bloque de arriba a propósito: un
+# sandbox ya inicializado también tiene que recoger las migraciones que lleguen después. Antes de
+# iniciar la app, porque ella carga el catálogo de enums a memoria al arrancar. Si alguna falla, avisa
+# y sigue. Ver cloudDevelopment/apply-migrations.sh.
+bash "$REPO_ROOT/cloudDevelopment/apply-migrations.sh" \
+    || echo "[cloudDevelopment] AVISO: alguna migración de src/migrations/ falló (la app arranca igual). Corrige el error de arriba y corre cloudDevelopment/apply-migrations.sh" >&2
+
 # ─── 4. Preparar el arranque de la app + fase 2 del seed ──────────────────
 # Si quedó una instancia anterior de la app escuchando (el binario hijo de
 # `go run` sobrevive si se mata solo `go run`), se detiene: ocuparía el puerto

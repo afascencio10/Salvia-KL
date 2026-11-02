@@ -61,6 +61,11 @@ PASO 3 — Montar casos-component con configuración de reportes
   // Dispara el E-01 propio de casos-component (ya documentado) contra el
   // endpoint nuevo. Esta pantalla no repite esa lógica.
 
+  // Columna «Fecha Reporte» (REP-12): cada fila trae creationDate (instante) y creationDateCO ("AAAA-MM-DD",
+  // el día de creación en hora de Bogotá, TO_CHAR sobre victim_contact_creation_date). La celda muestra
+  // formatFechaCO(creationDateCO) = DD/MM/AAAA por split, SIN new Date(): el día no cambia por la zona
+  // horaria del navegador ni de la sesión de Postgres.
+
   → FIN EJECUCIÓN ✓
 
 
@@ -72,6 +77,7 @@ PASO 3 — Montar casos-component con configuración de reportes
 |-----------------------------------------------------------------------|------------|
 | Backend de GET /api/v1/victim-contacts/list (filtros, columnas)       | Implementado — ver flow-E02, E03, E07, E08 y related-tables.md |
 | ¿`op` ve el botón "Reasignar Reportes" oculto o el prop reasignacion directamente en false? | `reasignacion` va en false por rol (`canReasignarReportes`): para `op` no existen ni las casillas ni el botón, y `reasignar-casos-modal` ni se monta |
+| La columna «Fecha Reporte» salía «—» (H11 del plan de QA): la celda lee `creationDateCO` y `ReportListItem` solo traía `creationDate`. Felipe pidió además que se vea el mismo día en que la persona creó el reporte en Bogotá, sin cambio de día por la zona horaria | Resuelto 2026-11-02 (WP-2 · REP-12): `GET /api/v1/victim-contacts/list` devuelve `creationDateCO`; probado en 5 zonas horarias del navegador y en los bordes 23:59:59, 00:00:00, 03:30, fin y principio de año (QA `LR-E01-C14…C20`) |
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🆕 CAMBIOS DE WP-1 T7 (2026-11-02) — aplica también a Mis Reportes

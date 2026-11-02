@@ -2,7 +2,7 @@
 
 Pantalla **nueva** — "Mis reportes" de la funcionalidad "Gestión reportes" en FigJam: *"solo op, ve/gestiona reportes asignados a él"*. Es `Listado Reportes` pre-filtrada al agente actual, sin reasignación — ver diferencias exactas en [`mis-reportes-interface.md`](mis-reportes-interface.md).
 
-> **Estado:** ✅ Implementado y probado — 2026-10-13. 155 pruebas de Playwright en verde (ver [`../Listado Reportes/QA/gestion-reportes-qa-plan.md`](../Listado%20Reportes/QA/gestion-reportes-qa-plan.md)); resumen del cambio en [`changelogOct2026.md`](changelogOct2026.md). **Re-verificado contra `develop` el 2026-10-31:** el código de las pantallas y del backend de reportes no cambió desde entonces; la única brecha es la columna "Fecha Reporte", que hoy sale en "—" (H11 del plan de QA).
+> **Estado:** ✅ Implementado y probado — 2026-10-13. 155 pruebas de Playwright en verde (ver [`../Listado Reportes/QA/gestion-reportes-qa-plan.md`](../Listado%20Reportes/QA/gestion-reportes-qa-plan.md)); resumen del cambio en [`changelogOct2026.md`](changelogOct2026.md). **Re-verificado contra `develop` el 2026-10-31:** el código de las pantallas y del backend de reportes no cambió desde entonces; la única brecha era la columna "Fecha Reporte", que salía en "—" (H11 del plan de QA). **Corregida el 2026-11-02 (WP-2 · REP-12):** el listado trae `creationDateCO` y la columna muestra el día de creación en hora de Bogotá, igual en cualquier zona horaria del navegador; ver [`changelogNov2026.md`](changelogNov2026.md).
 
 ## Archivos de esta pantalla
 
@@ -13,7 +13,7 @@ Pantalla **nueva** — "Mis reportes" de la funcionalidad "Gestión reportes" en
 | [`related-tables.md`](related-tables.md) | Puntero — mismas tablas que `Listado Reportes` |
 | [`QA/mis-reportes-qa-cases.md`](QA/mis-reportes-qa-cases.md) | Casos de prueba, cobertura y resultados de esta pantalla |
 | [`changelogOct2026.md`](changelogOct2026.md) | Registro del cambio de octubre 2026 |
-| [`changelogNov2026.md`](changelogNov2026.md) | WP-1 (2026-11-02): estado «Borrador iniciado» y `case-timeline.js` para el historial del modal |
+| [`changelogNov2026.md`](changelogNov2026.md) | Registro de los cambios de noviembre 2026: REP-12 (fecha del reporte) y WP-1 (estado «Borrador iniciado» y `case-timeline.js` para el historial del modal) |
 
 ## Resumen de eventos
 

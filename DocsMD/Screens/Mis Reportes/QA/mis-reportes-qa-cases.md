@@ -41,6 +41,15 @@ Casos de prueba de [`flow-E01`](../Flujos/flow-E01-cuando-carga-pantalla.md) y [
 | MR-E02-C2 | Un intento se refleja en la fila | Reporte propio sin intentos ("Sin intentos"): "Procede recontacto" → "Intento Fallido" → cerrar el modal | La fila pasa a "1/9 intentos · 0/3 días" sin recargar la página a mano (el modal avisa `updated` y la pantalla recarga) | UI |
 | MR-E02-C3 | Cerrar un reporte no lo saca de la lista | Reporte propio abierto; cerrarlo por "No información mínima" y cerrar el modal | La fila sigue en la lista con el estado "Cerrado - inválido" (el scope es por asignación, no por estado) | UI |
 
+### REP-12 (WP-2, 2026-11-02) — la fecha del reporte es el día de Bogotá
+
+Misma columna y mismo contrato que en [Listado Reportes](../../Listado%20Reportes/QA/E01-carga-pantalla-qa-cases.md) (`LR-E01-C14…C20`); aquí solo se cubre lo propio del scope de agente.
+
+| Caso | Descripción | Condición inicial | Resultado esperado | Método de verificación |
+|---|---|---|---|---|
+| MR-E01-C10 | El listado con scope de agente trae `creationDateCO` | `GET …/list?filter_key=persona_asignada&filter_value=<op>` con 2 reportes asignados | Exactamente 2 filas, ambas con `creationDateCO` `AAAA-MM-DD` | API |
+| MR-E01-C11 | La fecha no cambia con la zona del navegador | `op` en `/salvia/mis-reportes` con el navegador en Pacific/Auckland y 2 reportes asignados guardados a las 2027-01-01 00:00:01 y 2026-11-01 03:30:00 | Solo esas 2 filas, con `01/01/2027` y `01/11/2026` (nunca «—», sin adelantar ni atrasar el día) | DOM (Playwright) |
+
 ---
 
 ## Cobertura
@@ -54,6 +63,8 @@ Casos de prueba de [`flow-E01`](../Flujos/flow-E01-cuando-carga-pantalla.md) y [
 | `TU-MR-E01-4` — reasignar saca o mete reportes de la lista | MR-E01-C8 | `mis-reportes/mis-reportes.spec.ts` |
 | `TU-MR-E01-5` — entrada en el menú lateral | MR-E01-C9 | `mis-reportes/mis-reportes.spec.ts` |
 | `TU-MR-E02-1` — ver y gestionar desde Mis Reportes; la fila se actualiza | MR-E02-C1, C2, C3 | `mis-reportes/mis-reportes.spec.ts` |
+| `wp2-rep12-fecha-reporte.js` (C7) — el scope de agente trae `creationDateCO` | MR-E01-C10 | `cloudDevelopment/e2e/wp2-rep12-fecha-reporte.js` |
+| `wp2-rep12-fecha-reporte.js` (C10) — texto de la celda en Mis Reportes con el navegador en otra zona | MR-E01-C11 | `cloudDevelopment/e2e/wp2-rep12-fecha-reporte.js` |
 
 ## Resultados de ejecución
 
@@ -77,3 +88,14 @@ Casos de prueba de [`flow-E01`](../Flujos/flow-E01-cuando-carga-pantalla.md) y [
 **Resumen:** 12 de 12 casos ✅.
 
 La columna *Hallazgo* indica el bug (BUG-xx) que ese caso detectó o que hoy vigila; causa raíz y corrección de cada uno están en [`gestion-reportes-qa-plan.md`](../../Listado%20Reportes/QA/gestion-reportes-qa-plan.md#bugs-encontrados-y-corregidos).
+
+### Ejecución WP-2 · REP-12 (2026-11-02)
+
+**Build:** rama `claude/busy-edison-uk6g2a` en `http://127.0.0.1:9090` (sandbox cloud) · **Comando:** `node cloudDevelopment/e2e/wp2-rep12-fecha-reporte.js` (backend primero, UI después) · **Detalle de la corrida y del código anterior:** [`E01-carga-pantalla-qa-cases.md`](../../Listado%20Reportes/QA/E01-carga-pantalla-qa-cases.md#ejecución-wp-2--rep-12-2026-11-02).
+
+| Caso | Resultado | Comprobación del script |
+|---|---|---|
+| MR-E01-C10 | ✅ | C7 |
+| MR-E01-C11 | ✅ | C10 |
+
+**Resumen:** 2 de 2 casos ✅. Contra el código anterior las 2 filas salían «—» (C10 ❌) y el scope devolvía filas sin `creationDateCO` (C7 ❌).

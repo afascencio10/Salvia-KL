@@ -10,6 +10,7 @@ import (
 	salvia_config "bitsflow/salvia/config"
 	"bitsflow/salvia/service"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 
@@ -166,6 +167,15 @@ func (c *VictimCaseV3Controller) SaveSection(ctx *gin.Context) {
 
 	triadaCompleta, err := c.svc.SaveSection(ctx.Request.Context(), icode, modulo, body.Answers)
 	if err != nil {
+		// REG-11: un dato con formato, tamaño u opción inválidos NO es una falla del servidor: se responde
+		// 400 con el campo y el motivo para que la pantalla le pida a la persona que lo corrija.
+		var inv *repository.ErrInvalidAnswerV3
+		if errors.As(err, &inv) {
+			log.Printf("[RegistroV3] SaveSection rechazado icode=%s módulo=%s campo=%s: %s", icode, modulo, inv.Key, inv.Reason)
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "valor no válido", "campo": inv.Key, "detalle": inv.Reason})
+			return
+		}
+		log.Printf("[RegistroV3] SaveSection falló icode=%s módulo=%s: %v", icode, modulo, err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error al guardar la sección"})
 		return
 	}
