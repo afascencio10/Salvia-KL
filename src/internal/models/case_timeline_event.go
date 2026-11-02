@@ -20,6 +20,8 @@ const (
 	TimelineCategoryEstabilizacion = "Estabilización"
 	TimelineCategoryMecanismos     = "Mecanismos"
 	TimelineCategoryEquipoTecnico  = "Equipo Técnico"
+	// Hitos de un reporte (victim_contact) antes de ser caso: WP-1 T5/T6.
+	TimelineCategoryReportes = "Reportes"
 )
 
 // ─── Tipos de evento (Type) ──────────────────────────────────────────────────
@@ -86,6 +88,15 @@ const (
 	TimelineDescCierreNoContacto        = "Se cerró la remisión por no contacto tras 3 intentos fallidos."
 
 	TimelineTypeMesaTecnicaAbierta = "Mesa técnica abierta"
+
+	// Hitos del reporte (categoría Reportes). El intento fallido reutiliza
+	// TimelineTypeIntentoFallido y la reasignación el ícono TimelineIconReasignacion.
+	TimelineTypeReporteRecibido        = "Reporte recibido"
+	TimelineTypeReporteAsignado        = "Reporte asignado"
+	TimelineTypeReporteReasignado      = "Reporte reasignado"
+	TimelineTypeContactoLogrado        = "Contacto logrado"
+	TimelineTypeReporteCerradoInvalido = "Reporte cerrado como inválido"
+	TimelineTypeBorradorCasoIniciado   = "Borrador de caso iniciado"
 )
 
 // ─── Iconos ──────────────────────────────────────────────────────────────────
@@ -115,6 +126,13 @@ const (
 	TimelineIconMecanismo        = "scale-balanced"
 	TimelineIconComentario       = "comment-dots"
 	TimelineIconRiesgoInminente  = "fire"
+
+	// Hitos del reporte
+	TimelineIconReporteRecibido = "inbox"
+	TimelineIconReporteAsignado = "user-check"
+	TimelineIconIntentoFallido  = "phone-slash"
+	TimelineIconContactoLogrado = "handshake"
+	TimelineIconBorradorCaso    = "folder-open"
 )
 
 // ─── Colores ─────────────────────────────────────────────────────────────────
@@ -165,17 +183,29 @@ const (
 	TimelineEventContactoVictima         = "CONTACTO_VICTIMA"
 	TimelineEventIntentoFallido          = "INTENTO_FALLIDO"
 	TimelineEventCierreNoContacto        = "CIERRE_NO_CONTACTO"
+
+	// Hitos del reporte (el intento fallido reutiliza TimelineEventIntentoFallido)
+	TimelineEventReporteRecibido        = "REPORTE_RECIBIDO"
+	TimelineEventReporteAsignado        = "REPORTE_ASIGNADO"
+	TimelineEventReporteReasignado      = "REPORTE_REASIGNADO"
+	TimelineEventContactoLogrado        = "CONTACTO_LOGRADO"
+	TimelineEventReporteCerradoInvalido = "REPORTE_CERRADO_INVALIDO"
+	TimelineEventBorradorCasoIniciado   = "BORRADOR_CASO_INICIADO"
 )
 
 // CaseTimelineEvent registra un evento en la vida de un caso.
 // Es append-only — los eventos no se modifican ni eliminan.
 type CaseTimelineEvent struct {
 	ID          string `gorm:"type:varchar(36);primaryKey;default:gen_random_uuid()" json:"id"`
-	CaseID      string `gorm:"type:varchar(36);index;not null"                       json:"case_id"`
+	CaseID      string `gorm:"type:varchar(36);index;default:null"                   json:"case_id"`    // opcional desde WP-1 T5 (antes not null): un evento de reporte guarda NULL
 	EventType   string `gorm:"type:varchar(30)"                                      json:"event_type"` // Legacy — se mantiene para compatibilidad
 	Description string `gorm:"type:text"                                             json:"description"`
 	ActorID     string `gorm:"type:varchar(36)"                                      json:"actor_id"`
 	ActorName   string `gorm:"type:varchar(128)"                                     json:"actor_name"`
+
+	// Reporte (icode de salvia.victim_contact) del que cuelga el evento — WP-1 T5.
+	// Vacío en los eventos de caso; el «Borrador de caso iniciado» lleva ambos ids.
+	VictimContactID string `gorm:"type:varchar(36);index;default:null" json:"victim_contact_id"`
 
 	// Campos del esquema nuevo
 	Category    string    `gorm:"type:varchar(50)"                                      json:"category"`

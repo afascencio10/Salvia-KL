@@ -38,6 +38,9 @@ type CaseTimelineEventRepository interface {
 	// Si barrierID no es vacío filtra además por ese barrier_id.
 	// Si psychosocialID no es vacío filtra además por ese psychosocial_support_id.
 	GetByCaseID(ctx context.Context, caseID string, barrierID string, psychosocialID ...string) ([]TimelineEventRow, error)
+	// GetByVictimContactID retorna los eventos de un reporte (icode de
+	// victim_contact), el más reciente primero. WP-1 T5.
+	GetByVictimContactID(ctx context.Context, reportICode string) ([]TimelineEventRow, error)
 }
 
 type caseTimelineEventRepository struct {
@@ -52,11 +55,13 @@ func (r *caseTimelineEventRepository) Create(ctx context.Context, event *models.
 	return r.db.WithContext(ctx).Create(event).Error
 }
 
-func (r *caseTimelineEventRepository) GetByCaseID(ctx context.Context, caseID string, barrierID string, psychosocialID ...string) ([]TimelineEventRow, error) {
-	q := `
+// timelineEventSelectFrom es el SELECT común del timeline (caso o reporte): resuelve
+// el nombre del actor por JOIN con general_user y general_user_profile. case_id
+// puede ser NULL en los eventos de reporte, por eso el COALESCE.
+const timelineEventSelectFrom = `
 		SELECT
 			cte.id,
-			cte.case_id,
+			COALESCE(cte.case_id, '')                 AS case_id,
 			COALESCE(cte.category, '')                AS category,
 			COALESCE(cte.type, cte.event_type, '')    AS type,
 			COALESCE(cte.icon, '')                    AS icon,
@@ -81,6 +86,10 @@ func (r *caseTimelineEventRepository) GetByCaseID(ctx context.Context, caseID st
 			ON gu.general_user_i_code = cte.event_user_id
 		LEFT JOIN security.general_user_profile gup
 			ON gup.general_user_profile_id = gu.general_user_general_user_profile
+`
+
+func (r *caseTimelineEventRepository) GetByCaseID(ctx context.Context, caseID string, barrierID string, psychosocialID ...string) ([]TimelineEventRow, error) {
+	q := timelineEventSelectFrom + `
 		WHERE cte.case_id = ?
 		  AND cte.deleted_at IS NULL
 	`
@@ -105,6 +114,23 @@ func (r *caseTimelineEventRepository) GetByCaseID(ctx context.Context, caseID st
 	for _, r := range rows {
 		log.Printf("[timeline] id=%s type=%q event_user_id=%q actor_name=%q actor_full_name=%q",
 			r.ID, r.Type, r.EventUserID, r.ActorName, r.ActorFullName)
+	}
+	return rows, nil
+}
+
+// GetByVictimContactID retorna el timeline de un reporte, el más reciente primero.
+func (r *caseTimelineEventRepository) GetByVictimContactID(ctx context.Context, reportICode string) ([]TimelineEventRow, error) {
+	q := timelineEventSelectFrom + `
+		WHERE cte.victim_contact_id = ?
+		  AND cte.deleted_at IS NULL
+		ORDER BY COALESCE(cte.date, cte.created_at) DESC
+	`
+	var rows []TimelineEventRow
+	if err := r.db.WithContext(ctx).Raw(q, reportICode).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	if rows == nil {
+		rows = []TimelineEventRow{}
 	}
 	return rows, nil
 }

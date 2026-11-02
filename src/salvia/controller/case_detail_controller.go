@@ -94,6 +94,7 @@ func NewCaseDetailController(svc service.CaseDetailService, timelineRepo reposit
 //
 //	GET /api/v1/casos/:id/detalle
 //	GET /api/v1/operadores
+//	GET /api/v1/reportes/:icode/timeline-events   (historial de un reporte — WP-1 T5)
 func (c *CaseDetailController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/casos/:id/detalle", c.GetByID)
 	rg.GET("/operadores", c.GetOperadores)
@@ -102,6 +103,7 @@ func (c *CaseDetailController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.POST("/casos/:id/seguimiento", c.CrearSeguimiento)
 	rg.POST("/casos/:id/timeline", c.AddTimelineEvent)
 	rg.GET("/casos/:id/timeline-events", c.GetTimelineEvents)
+	rg.GET("/reportes/:icode/timeline-events", c.GetReportTimelineEvents)
 	rg.GET("/casos/:id/enlaces", c.GetEnlacesDepartamento)
 	rg.POST("/casos/:id/reasignar", c.ReasignarCaso)
 	rg.POST("/casos/:id/reabrir", c.ReabrirCaso)
@@ -350,6 +352,22 @@ func (c *CaseDetailController) GetTimelineEvents(ctx *gin.Context) {
 	events, err := c.timelineRepo.GetByCaseID(ctx.Request.Context(), caseID, barrierID, psychosocialID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error al cargar eventos del timeline"})
+		return
+	}
+	ctx.JSON(http.StatusOK, events)
+}
+
+// GetReportTimelineEvents retorna el historial (timeline) de un reporte, el más
+// reciente primero, con el nombre del actor resuelto. Solo op y sv, igual que el
+// modal de gestión del reporte (permiso manage_victim_contacts).
+// GET /api/v1/reportes/:icode/timeline-events
+func (c *CaseDetailController) GetReportTimelineEvents(ctx *gin.Context) {
+	if requireVictimContactsAccess(ctx) == nil {
+		return // requireVictimContactsAccess ya escribió el 401
+	}
+	events, err := c.timelineRepo.GetByVictimContactID(ctx.Request.Context(), ctx.Param("icode"))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error al cargar el historial del reporte"})
 		return
 	}
 	ctx.JSON(http.StatusOK, events)

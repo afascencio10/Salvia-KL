@@ -126,6 +126,9 @@ func (f *v4TimelineFake) Create(_ context.Context, event *models.CaseTimelineEve
 func (f *v4TimelineFake) GetByCaseID(context.Context, string, string, ...string) ([]repository.TimelineEventRow, error) {
 	return nil, nil
 }
+func (f *v4TimelineFake) GetByVictimContactID(context.Context, string) ([]repository.TimelineEventRow, error) {
+	return nil, nil
+}
 
 type v4AttemptFake struct{ n int }
 
