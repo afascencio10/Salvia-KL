@@ -13,6 +13,7 @@ Pantalla **nueva** — "Mis reportes" de la funcionalidad "Gestión reportes" en
 | [`related-tables.md`](related-tables.md) | Puntero — mismas tablas que `Listado Reportes` |
 | [`QA/mis-reportes-qa-cases.md`](QA/mis-reportes-qa-cases.md) | Casos de prueba, cobertura y resultados de esta pantalla |
 | [`changelogOct2026.md`](changelogOct2026.md) | Registro del cambio de octubre 2026 |
+| [`changelogNov2026.md`](changelogNov2026.md) | WP-1 (2026-11-02): estado «Borrador iniciado» y `case-timeline.js` para el historial del modal |
 
 ## Resumen de eventos
 

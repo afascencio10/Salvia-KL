@@ -36,3 +36,8 @@ competencia:"), pero es un detalle puramente visual sin efecto en el flujo.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Mismos que M-08 (ver flow-M08).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🆕 CAMBIOS DE WP-1 T6 (2026-11-02) — cierre por decisión de la persona
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Igual que M-02, con el motivo de decisión de la persona y su observación.

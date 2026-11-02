@@ -164,3 +164,26 @@ Ver GAP-1 abajo sobre cómo el detalle debe funcionar para reportes de cualquier
 | GAP-1 | FigJam dice que el componente debe procesar reportes "de todas las funcionalidades donde hoy entren reportes (creo que son 2 o 3)". ¿Cuáles son exactamente esas 2-3 fuentes además de V1/V2 público? | El popup "Ver Reporte" podría quedar vacío para reportes de un origen no contemplado — el endpoint de detalle debe leer `form1`, `form2` o `form2_v2` según cuál exista, sin asumir una sola fuente. **Estado 2026-10-13:** cubierto por la implementación (2 951 de 3 503 reportes son solo-`form1`; 552 tienen `form2`); falta confirmar con negocio si existe un 4.º origen |
 | GAP-6 | ¿"Remitir a Atención Especializada" (reportes Hombre/Familiar, step post-contacto) es un requisito real? El propio mockup lo marca como no confirmado con el cliente. | Ver `gestion-reporte-modal-interface.md` |
 | GAP-7 | ¿Qué debe pasar si se abre caso desde un reporte Familiar/Hombre, dado que ese formulario destino no existe hoy en la aplicación real (ni en el mockup)? | Ver `gestion-reporte-modal/Flujos/flow-M10` |
+
+
+## Estado derivado del reporte — «Borrador iniciado» y «Cerrado — válido» (WP-1 T7, 2026-11-02)
+
+El estado del reporte sigue siendo 100 % **derivado**: no hay columna nueva. Ahora el listado, el modal y la consulta pública usan una regla única que mira también el **caso de Registro V3 vinculado más reciente** (`victim_case.victim_case_victim_contact = victim_contact_id`, solo en estado `bo`, `in`, `te` o `cd`). Se aplica en este orden:
+
+| # | Condición | Estado |
+|---|---|---|
+| 1 | tiene motivo de cierre | `cerrado_valido` si es `ap`; si no `cerrado_invalido` |
+| 2 | `victim_contact_status = 'i'` (legado invalidado) | `cerrado_invalido` |
+| 3 | 🆕 caso vinculado en `te` o `cd` | `cerrado_valido` («Válido - Apertura de Caso Salvia») |
+| 4 | 🆕 caso vinculado en `bo` o `in` | `borrador_iniciado` |
+| 5 | tiene agente | `asignado` |
+| 6 | el resto | `sin_asignar` |
+
+- **Ningún código escribe `ap`**: el estado final nace de que el caso se complete. `ap` sigue bloqueado en `POST /victim-contacts/:icode/cerrar` (`deferredCloseReasonCodes`). Si se prefiriera guardar el cierre al completarse el caso, WP-3 tendría que avisar desde `Finalize` (decisión D8).
+- Un caso vinculado de otro flujo (estados distintos de `bo`, `in`, `te`, `cd`) **no** cambia el estado.
+- En el listado: `reportStatusFrom(...)` recibe `linkedStatus` (columna `linked_status` del SELECT) y el filtro `estado_reporte` gana `borrador_iniciado`; `cerrado_valido` incluye el caso completo; `asignado` y `sin_asignar` excluyen los reportes con caso de Registro V3.
+- Con un borrador vinculado (bo/in) el reporte **no admite más intentos ni cierres** (409); no hay forma de descartar el borrador desde el reporte.
+
+## Hitos en el timeline del reporte (WP-1 T6)
+
+Cada hito deja un evento en `case_timeline_event` (categoría `Reportes`, `victim_contact_id` = icode del reporte): recibido, asignado/reasignado, intento fallido, contacto logrado, cierre como inválido y borrador de caso iniciado. Ver `Componentes/Timeline component/usage` y `Componentes/Gestion Reporte Modal/`.

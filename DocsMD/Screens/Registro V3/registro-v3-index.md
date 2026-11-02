@@ -22,6 +22,7 @@
 ### Changelogs
 
 - [changelogOct2026.md](changelogOct2026.md)
+- [changelogNov2026.md](changelogNov2026.md) — WP-1 T7: abrir un borrador creado desde un reporte (`?caso=`)
 
 ---
 
@@ -47,6 +48,7 @@
 | Cuando presiona un acceso de Rutas/Barreras/Notificaciones | User Interaction | ⛔ (fuera de alcance) | 📄 [Ver flujo](Flujos/flow-E16-cuando-presiona-rutas-barreras-notificaciones.md) |
 | Cuando agrega o elimina una Entidad | User Interaction | 🟡 | 📄 [Ver flujo](Flujos/flow-E17-cuando-agrega-o-elimina-una-entidad.md) |
 | Cuando agrega o elimina una Barrera | User Interaction | 🟡 | 📄 [Ver flujo](Flujos/flow-E18-cuando-agrega-o-elimina-una-barrera.md) |
+| Cuando carga la pantalla con un registro de origen (`?caso=`) | Lifecycle | ✅ (WP-1 T7) | 📄 [Ver flujo](Flujos/flow-E19-cuando-carga-con-registro-de-origen.md) |
 
 ## API que usa la pantalla
 
@@ -63,6 +65,7 @@ Todas bajo `/api/v1`, con sesión y permiso `manage_registro_v3` (sin sesión 40
 | `POST /victim-cases-v3/:icode/finalizar` | E-15 | Valida obligatorias y pasa `in`→`te` → `{ok, denunciaFacilSolicitada, equiposRemisionCSV}`; 400 `{error, modulosIncompletos}` |
 | `POST /victim-cases-v3/:icode/entidades` · `DELETE /victim-cases-v3/entidades/:entityIcode` | E-17 | Alta (409 si la sede ya está en el Caso) y baja lógica en `entity_case` |
 | `POST /victim-cases-v3/:icode/barreras` · `DELETE /victim-cases-v3/barreras/:barrierIcode` | E-18 | Alta y baja en `barrier_v2` |
+| `POST /victim-cases-v3/desde-reporte/:icode` *(WP-1 T7)* | Modal de gestión de reportes (M-10) · E-19 | Crea el Borrador de caso a partir de un reporte Víctima o Tercero con contacto exitoso: `agent_id` vacío, vínculo `victim_case_victim_contact`, nombres (CI_2), teléfono (CI_4), hechos (HV_1) y ajuste razonable (CI_8) prellenados y marcados como respondidos, y el hito «Borrador de caso iniciado». → `{caseIcode, redirect: "/salvia/registro-v3?caso=<icode>"}`; 409 si el reporte está cerrado, ya tiene borrador (con `caseIcode`), no es Víctima/Tercero o no tiene contacto exitoso. Permisos `manage_victim_contacts` y `manage_registro_v3` (op y sv). Corte vertical nuevo: no modifica `POST /draft` |
 | `GET /locations/departments`, `/locations/cities?department_id`, `/locations/towns?city_id` · `GET /entity-branches?town_code&sector` · `GET /entity-branches/:id/obligations` · `GET /competences?sector` | E-17, E-18 | Catálogos compartidos con Gestión institucional y Seguimiento |
 
 ---

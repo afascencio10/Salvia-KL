@@ -2,6 +2,8 @@
 
 Pantalla de autenticación de SOG Salvia. Permite a los usuarios ingresar con usuario, contraseña y CAPTCHA. Incluye un flujo de recuperación de contraseña por correo y un flujo de restablecimiento de contraseña mediante token (cuando el usuario llega desde un enlace de email). Al autenticarse correctamente, muestra un overlay de bienvenida y redirige al usuario a su ruta principal según su rol.
 
+**Parámetro `next` (WP-1 T8, 2026-11-02):** `/seguridad/login?next=/salvia/public-v2/nuevo` hace que, tras un login exitoso, la persona regrese al reporte V2 en vez de ir a su pantalla por rol. Solo se acepta ese valor exacto; cualquier otro se ignora. No hay cambios visuales.
+
 La pantalla tiene cuatro estados distintos visibles mediante overlays: formulario de login (default), recuperar contraseña, restablecer contraseña y confirmación de correo enviado.
 
 ---

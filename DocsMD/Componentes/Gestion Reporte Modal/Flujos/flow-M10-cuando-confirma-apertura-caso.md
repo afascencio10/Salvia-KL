@@ -1,100 +1,58 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🟢 EVENTO: Cuando confirma apertura de caso
-   Tipo: User Interaction / Backend write
+🟢 EVENTO: Cuando confirma «Registro de caso»
+   Tipo: User Interaction / Backend write           (antes M-10 «Apertura de caso», diferido; REESCRITO en WP-1 T7, 2026-11-02)
+   Estado: ✅ Implementado y probado (ver QA/M10-M12-registro-de-caso-qa-cases.md)
+   Funciones: seleccionarPendingClose('registro') · convertirEnRegistro()   (gestion-reporte-modal.js)
+              · ReportConversionController.Convert → ReportConversionService.ConvertToDraft
+              · ReportConversionRepository.CheckConvertible / ConvertReportToDraft
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⏸️ DIFERIDO — no implementado. Desde 2026-10-13 el backend RECHAZA close_reason='ap'
-con HTTP 400 (deferredCloseReasonCodes en el servicio de gestión), para que tampoco se
-llegue por API a "Cerrado - válido" sin abrir un caso. Al construir este evento hay que
-quitar 'ap' de ese mapa. El diseño de abajo se conserva tal cual.
+INPUT: { icode ← reporte abierto en el modal ; sesión ← cookie (UserICode, CurrentRole) }
 
-Disparado por: clic en "Confirmar apertura de caso", step 'postContacto',
-               con pendingClose === 'apertura'
+FRONTEND
+PASO 1 — Visibilidad: el botón «Registro de caso» solo existe en step 'postContacto' con canManage y canConvert (Víctima y Tercero).
+         SI el tipo es Familiar u Hombre: aviso «Por ahora no hay procesos de atención para este tipo de reportes» (M-01 PASO 7) → TERMINAR ejecución
+PASO 2 — Clic en «Registro de caso» → pendingClose = 'registro' → ConfirmBox:
+         «Se creará un registro de caso en borrador con los datos del reporte (nombres, apellidos, teléfono, hechos y ajuste razonable).
+          El reporte quedará en "Borrador iniciado" hasta que el caso se complete.»   [Cancelar] [Crear registro de caso]
+PASO 3 — «Crear registro de caso»: saving = true ; actionError = null
+         POST /api/v1/victim-cases-v3/desde-reporte/:icode        // sin body
 
-INPUT: {
-  icode:                 reporte abierto en el modal
-  atencionEspecializada: 'No' | 'Si'   // solo relevante si report.tipo en (Hombre, Familiar) — GAP-6
-}
+BACKEND
+PASO 4 — Controller: sesión → 401 ; permisos manage_victim_contacts y manage_registro_v3 (op y sv) → 401
+PASO 5 — Service.ConvertToDraft → repo.CheckConvertible (falla rápido, sin generar credenciales):
+         SI no existe → 404
+         SI el caso de Registro V3 vinculado más reciente está en te/cd, o el reporte ya tiene motivo de cierre o está invalidado → 409 «el reporte ya está cerrado»
+         SI hay un borrador vinculado (bo/in) → 409 { error: «el reporte ya tiene un borrador de caso», caseIcode }
+         SI hay un caso vinculado de otro flujo → 409 «el reporte ya tiene un caso vinculado»
+         SI el tipo no es Víctima ni Tercero (o es de V1, sin tipo V2) → 409 «Por ahora no hay procesos de atención para este tipo de reportes»
+         SI no tiene al menos un intento exitoso → 409 «aún no hay contacto exitoso»
+PASO 6 — Repository.ConvertReportToDraft: UNA transacción (db.Transaction) con el reporte bloqueado `FOR UPDATE` (un doble clic no crea dos
+         borradores: la segunda llamada espera, vuelve a validar y recibe el 409 con el caseIcode) :
+   a. Crear el borrador con los mismos pasos de CreateDraft (se invoca `CreateDraft` dentro de un SAVEPOINT de la transacción, sin modificarlo):
+        general_user_profile y general_user (login y clave aleatorios, rol 'us') · victim_case en 'bo' con agent_id VACÍO
+        (el agente del equipo de seguimiento se asigna después) · victim_case_form2 con valores temporales · teléfono (CI_4) si el reporte lo trae
+   b. Vincular: UPDATE victim_case SET victim_case_victim_contact = victim_contact_id del reporte, nombres y apellidos de la persona afectada (CI_2);
+      el documento queda VACÍO (no el temporal cc/0000000000: ver el GAP de Registro V3 flow-E19)
+   c. Prellenar y marcar como respondidas (markKeysAnswered): CI_2 nombres y apellidos · CI_4 teléfono · HV_1 hechos · CI_8 ajuste razonable (copia de las opciones del reporte)
+   d. Hito «Borrador de caso iniciado» en el timeline (VictimContactID y CaseID = el caso nuevo; actor = quien convierte)
+   e. Commit. El reporte NO se cierra: queda «Borrador iniciado» (estado derivado del caso vinculado) hasta que el caso se complete.
+        SI cualquier paso falla → Rollback → 500 «error al crear el registro» (no queda caso, usuario, vínculo ni evento)
+PASO 7 — Después del commit: StoreCredentials(caso, login, clave) como hace CreateDraft. SI falla: WARN en el log ; el caso queda creado
+PASO 8 — Responder 200 { "caseIcode": "<uuid>", "redirect": "/salvia/registro-v3?caso=<uuid>" }
 
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  FRONTEND — gestion-reporte-modal.js
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-
-PASO 1 — Llamar a cerrar (categoría Válido)
-
-  saving = true
-  POST /api/v1/victim-contacts/{icode}/cerrar
-  body: { close_reason: 'ap', atencion_especializada: atencionEspecializada === 'Si' }
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  BACKEND — POST /api/v1/victim-contacts/:icode/cerrar
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-
-PASO 2 — Validar precondiciones
-
-  Igual a M-02 PASO 2 (existe, no cerrado, canManage).
-
-
-PASO 3 — Resolver enum y actualizar
-
-  reasonRow = enum categoría 'victim_contact_close_reason', code 'ap'
-
-  UPDATE victim_contact SET
-    victim_contact_close_reason = reasonRow.id,
-    victim_contact_closed_date  = NOW()
-  WHERE victim_contact_i_code = :icode
-
-  // atencion_especializada (GAP-6): no tiene columna propia todavía — no se
-  // persiste hasta que se confirme que el requisito es real. Si se
-  // confirma, se agrega como columna nullable adicional en victim_contact
-  // o como parte del payload que recibe el formulario de caso.
-
-
-PASO 4 — Responder
-
-  { ok: true, closeReason: 'ap', category: 'Válido', reportType: vc.report_type }
-
-  → FIN EJECUCIÓN BACKEND ✓
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  FRONTEND — redirección según tipo (GAP-7)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-
-PASO 5 — Decidir destino
-
-  saving = false
-
-  SI report.tipo IN ('Victima', 'Tercero'):
-    → window.location = "/salvia/casos/" + icode + "/nuevo"
-    // Ruta YA EXISTENTE (VictimCasePOST_GET), ya pre-llena el formulario de
-    // caso a partir del VictimContactDTO. No se construye nada nuevo aquí.
-
-  SI NO (tipo IN ('Familiar', 'Hombre')):
-    // El mockup señala literalmente que estos formularios "no hacen parte
-    // de este mockup" (línea 662) — y la lectura de código confirma que
-    // tampoco existen hoy en la aplicación real.
-    → mostrar mensaje: "Este reporte quedó cerrado como válido. La apertura
-      de caso para reportes de tipo {tipo} aún no tiene una pantalla
-      destino — contacte al equipo de producto."
-    → step = 'cerrado'   // el reporte ya quedó cerrado en BD (PASO 3),
-                          // independientemente de que la navegación no
-                          // tenga a dónde ir todavía
-
-  → FIN EJECUCIÓN ✓
-
+FRONTEND (continuación)
+PASO 9 — SI 200: window.location.assign(redirect)  → Registro V3 E19
+         SI 409 con caseIcode: draftCaseIcode = caseIcode ; step = 'borradorIniciado'  → M-12
+         SI otro 409 o 500: actionError con el mensaje ; saving = false ; el modal conserva el paso
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️  GAPS — Información pendiente
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-| Variable / decisión                                                              | Paso afectado |
-|------------------------------------------------------------------------------------|---------------|
-| GAP-6 — ¿"Remitir a Atención Especializada" es un requisito real? ¿Dónde se guarda si sí? | PASO 1, PASO 3 |
-| GAP-7 — ¿Qué debe pasar hoy si se intenta abrir caso desde un reporte Familiar/Hombre, dado que el formulario destino no existe? ¿Se bloquea el botón "Apertura de caso" directamente para esos tipos en vez de dejar cerrar el reporte sin destino? | PASO 5 — alternativa a evaluar con el usuario: ocultar la opción 'apertura' completa para tipo Familiar/Hombre hasta que exista destino |
-| ¿Cerrar el reporte como "Válido" sin poder navegar a ningún lado (rama Familiar/Hombre) es aceptable, o se prefiere NO cerrar el reporte hasta que exista la pantalla destino? | PASO 3 vs. PASO 5 — depende de la respuesta a GAP-7 |
+| Variable / decisión | Paso afectado |
+|---|---|
+| **GAP-6 en simple:** antes se pensó preguntar «¿Remitir a Atención Especializada? Sí/No» al abrir el caso, solo para Hombre o Familiar. Nadie confirmó que esa pregunta se necesite ni dónde se guardaría. Como hoy esos tipos no se convierten en caso, no se hace | PASO 2 |
+| CI_8 depende de CI_7: no se marca CI_7 (decisión D4) | PASO 6.c |
+| El tipo y número de documento quedan vacíos hasta que el agente complete CI_5 y CI_6 | PASO 6.a |
+| El estado final del reporte es DERIVADO del caso (ningún código escribe `ap`); si se prefiere guardar el cierre al completarse el caso, WP-3 tendría que avisar desde `Finalize` (decisión D8) | PASO 6.e |
+| No hay forma de descartar el borrador desde el reporte (fuera de alcance); mientras exista, el reporte no admite más intentos ni cierres (409) | PASO 6.e |

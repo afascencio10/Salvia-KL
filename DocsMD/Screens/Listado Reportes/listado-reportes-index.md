@@ -17,6 +17,8 @@ Pantalla **nueva** — implementa la funcionalidad "Listado reportes" descrita e
 | [`QA/E04-E05-E06-ver-y-reasignar-qa-cases.md`](QA/E04-E05-E06-ver-y-reasignar-qa-cases.md) | Casos de E-04, E-05 y E-06 |
 | [`QA/gestion-reportes-e2e-qa-cases.md`](QA/gestion-reportes-e2e-qa-cases.md) | E2E de un reporte nuevo: formulario público → Listado → Mis Reportes → modal, repetible |
 | [`changelogOct2026.md`](changelogOct2026.md) | Registro del cambio de octubre 2026 |
+| [`changelogNov2026.md`](changelogNov2026.md) | WP-1 (2026-11-02): estado «Borrador iniciado» y hitos de asignación en el timeline |
+| [`QA/estado-borrador-iniciado-qa-cases.md`](QA/estado-borrador-iniciado-qa-cases.md) | Casos del estado derivado «Borrador iniciado» / «Cerrado — válido» y de los hitos de asignación |
 
 ## Resumen de eventos
 

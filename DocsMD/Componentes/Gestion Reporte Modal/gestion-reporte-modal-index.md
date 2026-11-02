@@ -10,7 +10,7 @@ Componente **nuevo** — concentra toda la máquina de estados de "Gestión repo
 |---|---|
 | [`gestion-reporte-modal-interface.md`](gestion-reporte-modal-interface.md) | Árbol de interfaz — 4 pasos (validación previa, esquema 3x3, post-contacto, cerrado) |
 | [`gestion-reporte-modal-usage.md`](gestion-reporte-modal-usage.md) | Método `open()`, evento `updated`, ejemplo de uso |
-| [`gestion-reporte-modal-events.md`](gestion-reporte-modal-events.md) | Inventario de eventos (M-01 a M-11, M-10 diferido) |
+| [`gestion-reporte-modal-events.md`](gestion-reporte-modal-events.md) | Inventario de eventos (M-01 a M-12; M-10 «Registro de caso» y M-12 desde WP-1 T7) |
 | [`related-tables.md`](related-tables.md) | Puntero — mismas tablas que `Listado Reportes` |
 | [`QA/M01-abre-modal-qa-cases.md`](QA/M01-abre-modal-qa-cases.md) | Casos de M-01 (detalle, contadores, paso inicial) |
 | [`QA/M02-M04-validacion-previa-qa-cases.md`](QA/M02-M04-validacion-previa-qa-cases.md) | Casos de M-02 y M-04 |
@@ -18,7 +18,10 @@ Componente **nuevo** — concentra toda la máquina de estados de "Gestión repo
 | [`QA/M08-M09-cierre-post-contacto-qa-cases.md`](QA/M08-M09-cierre-post-contacto-qa-cases.md) | Casos de M-08 y M-09 |
 | [`QA/M11-cierra-modal-qa-cases.md`](QA/M11-cierra-modal-qa-cases.md) | Casos de M-11 |
 | [`QA/gestion-reportes-qa-plan.md`](../../Screens/Listado%20Reportes/QA/gestion-reportes-qa-plan.md) | Plan de QA compartido: resultados, bugs encontrados y decisiones |
+| [`QA/M10-M12-registro-de-caso-qa-cases.md`](QA/M10-M12-registro-de-caso-qa-cases.md) | Casos de M-10 y M-12 (WP-1 T7) |
+| [`QA/M13-historial-del-reporte-qa-cases.md`](QA/M13-historial-del-reporte-qa-cases.md) | Casos del historial, el encabezado y «Hechos del reporte» (WP-1 T6) |
 | [`changelogOct2026.md`](changelogOct2026.md) | Registro del cambio de octubre 2026 |
+| [`changelogNov2026.md`](changelogNov2026.md) | WP-1 (2026-11-02): historial, hitos de timeline y «Registro de caso» |
 
 ## Resumen de eventos
 
@@ -33,8 +36,9 @@ Componente **nuevo** — concentra toda la máquina de estados de "Gestión repo
 | M-07 | Cuando presiona "Cerrar por no contacto" | [flow-M07](./Flujos/flow-M07-cuando-cierra-por-no-contacto.md) |
 | M-08 | Cuando confirma cierre por no competencia | [flow-M08](./Flujos/flow-M08-cuando-confirma-cierre-no-competencia.md) |
 | M-09 | Cuando confirma cierre por decisión de la persona | [flow-M09](./Flujos/flow-M09-cuando-confirma-cierre-decision-persona.md) |
-| ~~M-10~~ | ~~Cuando confirma apertura de caso~~ — ⏸️ diferido | [flow-M10](./Flujos/flow-M10-cuando-confirma-apertura-caso.md) (diseño conservado) |
+| M-10 | Cuando confirma «Registro de caso» — ✅ WP-1 T7 (antes «Apertura de caso», diferido) | [flow-M10](./Flujos/flow-M10-cuando-confirma-apertura-caso.md) (reescrito) |
 | M-11 | Cuando cierra el modal | [flow-M11](./Flujos/flow-M11-cuando-cierra-modal.md) |
+| M-12 | Cuando presiona «Ir al borrador del caso» — ✅ WP-1 T7 | [flow-M12](./Flujos/flow-M12-cuando-va-al-borrador.md) |
 
 ## Checklist de completitud
 

@@ -72,3 +72,8 @@ PASO 3 — Montar casos-component con configuración de reportes
 |-----------------------------------------------------------------------|------------|
 | Backend de GET /api/v1/victim-contacts/list (filtros, columnas)       | Implementado — ver flow-E02, E03, E07, E08 y related-tables.md |
 | ¿`op` ve el botón "Reasignar Reportes" oculto o el prop reasignacion directamente en false? | `reasignacion` va en false por rol (`canReasignarReportes`): para `op` no existen ni las casillas ni el botón, y `reasignar-casos-modal` ni se monta |
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🆕 CAMBIOS DE WP-1 T7 (2026-11-02) — aplica también a Mis Reportes
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+El estado del reporte (`reportStatus`) incluye `borrador_iniciado` y lee `cerrado_valido` también cuando el caso de Registro V3 vinculado está en te/cd (regla única en `related-tables.md`, «Estado derivado del reporte»); el SELECT agrega `linked_status`. `casos-component.js` suma la etiqueta «Borrador iniciado» y el badge ámbar.

@@ -13,6 +13,7 @@ INPUT: {
   data.user.pass:            contraseña ingresada       → input del formulario
   data.user.captchaSolution: solución del CAPTCHA       → input del formulario
   data.user.captchaID:       ID del CAPTCHA activo      → inyectado por Go / renovado en error
+  next:                      new URLSearchParams(location.search).get('next')   → 🆕 [WP-1 T8] URL de la página de login (opcional)
 }
 
 PASO 1 — Enviar credenciales al API
@@ -43,6 +44,12 @@ SI status === 200:
 ┌─────────────────────────────────────────────────────┐
 │  SUB-FLUJO: Determinar ruta de redirección          │
 └─────────────────────────────────────────────────────┘
+
+  🆕 [WP-1 T8] SI next === '/salvia/public-v2/nuevo' (lista blanca EXACTA):
+    → location.assign(next)            // regreso al reporte V2 tras «Sí, iniciar sesión» (Registro de Contacto V2, E-12)
+    → FIN SUB-FLUJO → TERMINAR ejecución
+  Cualquier otro valor de next (vacío, //host, https://…, /seguridad/logout, rutas relativas con ..) se IGNORA y
+  se sigue con la pantalla por rol (redirección solo del cliente: el backend de login no cambia).
 
   SI nav_rules["default"] existe:
     → location.assign(nav_rules["default"])
@@ -81,4 +88,5 @@ SI otro status:
 | ¿Qué estructura exacta tiene nav_rules en la respuesta 200? | PASO 2        |
 | ¿Existe validación de campos vacíos en el frontend          | PASO 1        |
 | antes de hacer el POST, o la hace solo el backend?          |               |
+| ¿Ampliar la lista blanca de `next` a otras rutas internas?  | SUB-FLUJO     |
 ```

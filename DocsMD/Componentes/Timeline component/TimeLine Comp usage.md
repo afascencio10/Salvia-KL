@@ -1,6 +1,6 @@
 # Componente `case-timeline`
 
-Componente Vue reutilizable que renderiza el timeline de eventos de un caso. Sigue el mismo patrón de `dinamic-form`: es autónomo, inyecta sus propios estilos y hace su propio fetch al backend.
+Componente Vue reutilizable que renderiza el timeline de eventos de un caso **o de un reporte** (WP-1 T5, 2026-11-02). Sigue el mismo patrón de `dinamic-form`: es autónomo, inyecta sus propios estilos y hace su propio fetch al backend.
 
 ---
 
@@ -9,9 +9,10 @@ Componente Vue reutilizable que renderiza el timeline de eventos de un caso. Sig
 | Archivo | Descripción |
 |---|---|
 | `src/frontend/js/components/case-timeline.js` | Definición del componente (estilos + lógica + template) |
-| `src/internal/repository/case_timeline_event_repository.go` | Repositorio — método `GetByCaseID` con JOIN al nombre del actor |
-| `src/internal/models/case_timeline_event.go` | Modelo `CaseTimelineEvent`, tabla `salvia.case_timeline_event` |
-| `src/salvia/controller/case_detail_controller.go` | Endpoint `GET /api/v1/casos/:id/timeline-events` |
+| `src/internal/repository/case_timeline_event_repository.go` | Repositorio — métodos `GetByCaseID` y `GetByVictimContactID` (WP-1), con JOIN al nombre del actor |
+| `src/internal/repository/report_timeline.go` | `NewReportMilestoneEvent` y los hitos del reporte (WP-1 T6) |
+| `src/internal/models/case_timeline_event.go` | Modelo `CaseTimelineEvent`, tabla `salvia.case_timeline_event`; `case_id` nulable y `victim_contact_id` nuevos (WP-1 T5), constantes de la categoría «Reportes» |
+| `src/salvia/controller/case_detail_controller.go` | Endpoints `GET /api/v1/casos/:id/timeline-events` y `GET /api/v1/reportes/:icode/timeline-events` (solo op y sv) |
 
 ---
 
@@ -19,8 +20,22 @@ Componente Vue reutilizable que renderiza el timeline de eventos de un caso. Sig
 
 | Prop | Tipo | Requerido | Descripción |
 |---|---|---|---|
-| `case-id` | `String` | ✅ Sí | `icode` del caso (`VictimCase.VictimCaseICode`) |
+| `case-id` | `String` | ❌ No (debe venir `case-id` o `report-id`) | `icode` del caso (`VictimCase.VictimCaseICode`) |
+| `report-id` | `String` | ❌ No | `icode` del reporte (`victim_contact`). Si viene, **manda sobre `case-id`** e ignora `barrier-id` y `psychosocial-id`; lee `GET /api/v1/reportes/:icode/timeline-events` (solo op y sv). Sin ningún id el componente muestra «Falta el identificador del caso o del reporte» |
 | `barrier-id` | `String` | ❌ No | UUID de una barrera. Si se pasa, el componente solo muestra los eventos vinculados a esa barrera |
+
+---
+
+## Timeline de un reporte (WP-1 T5 · T6)
+
+```html
+<case-timeline :key="icode + '-' + historyVersion" :report-id="icode" :show-filters="false"></case-timeline>
+```
+
+- Lo usa el modal de gestión del reporte ([`Gestion Reporte Modal`](../Gestion%20Reporte%20Modal/gestion-reporte-modal-usage.md)): la **página anfitriona debe cargar `case-timeline.js` antes del componente** que lo usa (`list_reportes.html` y `get_my_reportes.html` ya lo hacen).
+- Cambiar el `:key` (p. ej. `historyVersion++`) recarga el historial tras un intento o un cierre.
+- Un evento de reporte guarda `victim_contact_id` y `case_id` NULL. El hito **«Borrador de caso iniciado»** lleva ambos ids: aparece en el timeline del reporte y en el del caso; el resto de los hitos de «Reportes» solo en el del reporte. Los timelines de casos no cambian.
+- Hitos (categoría `Reportes`): Reporte recibido · Reporte asignado / reasignado · Intento de contacto fallido · Contacto logrado · Reporte cerrado como inválido · Borrador de caso iniciado.
 
 ---
 

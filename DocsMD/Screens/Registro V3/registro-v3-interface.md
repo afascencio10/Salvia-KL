@@ -174,6 +174,10 @@ RegistroV3Screen  (registro_v3.html)  <main.salvia-main> .container
 
 ---
 
+## Entrada desde un reporte (WP-1 T7)
+
+`GET /salvia/registro-v3?caso=<icode>` abre **directo el formulario** (etapa `formulario`, módulo CI) del borrador creado desde un reporte: se omiten Habeas data, tipo de contacto y Cabezote porque el consentimiento ya se tomó en el reporte V2. Solo se repueblan las claves en `answeredKeys` (CI_2 nombres y apellidos, CI_4 teléfono, HV_1 hechos y, si el reporte tenía ajuste razonable, CI_8). Tipo y número de documento quedan **vacíos** (los borradores normales llevan el temporal `cc` / `0000000000`) hasta que el agente complete CI_5 y CI_6 — así `fanOutPerfilV3` no replica el Perfil entre borradores sin documento; CI_8 depende de CI_7 (no se marca CI_7). Sin `?caso=` (o con un valor que no tenga forma de UUID) el flujo normal arranca en la autorización. Ver [`Flujos/flow-E19-cuando-carga-con-registro-de-origen.md`](Flujos/flow-E19-cuando-carga-con-registro-de-origen.md).
+
 ## Estados y reglas
 
 | Elemento | Valores / regla |

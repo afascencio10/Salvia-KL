@@ -111,3 +111,8 @@ PASO 6 — Refrescar contadores y log
 | Variable / decisión                                                              | Resolución |
 |------------------------------------------------------------------------------------|------------|
 | ¿Debe existir algún límite duro (p. ej. no más de N intentos fallidos en total) además del aviso de cuota diaria? | No: sin límite duro, solo el aviso informativo (confirmado: un 4.º y 5.º fallido del mismo día se aceptan, caso `M05-C3`) |
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🆕 CAMBIOS DE WP-1 T6 (2026-11-02) — intento fallido
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PASO 5 (repositorio.InsertAttempt) corre en UNA transacción con `SELECT … FOR UPDATE` del reporte (404 / 409 cerrado o con borrador): INSERT del intento, contadores y el hito «Intento de contacto fallido» («Intento fallido registrado (N hoy).»; actor = el agente). Si el evento falla se revierte el intento y se responde 500. Frontend: historyVersion++ (recarga el historial).

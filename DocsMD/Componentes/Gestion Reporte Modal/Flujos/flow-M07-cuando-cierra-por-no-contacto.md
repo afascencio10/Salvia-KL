@@ -104,3 +104,8 @@ PASO 5 — Mostrar confirmación
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Ninguno.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🆕 CAMBIOS DE WP-1 T6 (2026-11-02) — cerrar por no contacto
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Igual que M-02 (cierre + hito «Reporte cerrado como inválido» en una transacción; el servicio recibe quién cierra), con el motivo de no contacto: valida los 3 días completos dentro de la misma transacción.

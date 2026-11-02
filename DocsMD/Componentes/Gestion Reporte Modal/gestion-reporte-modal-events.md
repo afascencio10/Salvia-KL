@@ -146,7 +146,11 @@ Requerido:    Sí
 
 ---
 
-### M-10 — Cuando confirma apertura de caso ⏸️ DIFERIDO — no se implementa en esta fase
+### M-10 — Cuando confirma «Registro de caso» ✅ IMPLEMENTADO en WP-1 T7 (2026-11-02; antes «Apertura de caso», diferido)
+
+> **Reescrito.** Ya no llama a `/cerrar` con `ap`: `POST /api/v1/victim-cases-v3/desde-reporte/:icode` crea un borrador de Registro V3 prellenado, lo vincula y deja el reporte en «Borrador iniciado» (estado derivado; no se cierra). Solo Víctima y Tercero con contacto exitoso. Flujo vigente en [flow-M10](./Flujos/flow-M10-cuando-confirma-apertura-caso.md); QA en [`QA/M10-M12-registro-de-caso-qa-cases.md`](QA/M10-M12-registro-de-caso-qa-cases.md). El texto de abajo es el registro histórico del diseño diferido.
+
+#### (Histórico) Cuando confirma apertura de caso ⏸️ DIFERIDO
 
 > **Desde 2026-10-13** el backend **rechaza `close_reason='ap'` con 400** (`deferredCloseReasonCodes`): tampoco se llega a este cierre por API. Quitar `ap` de ese mapa al construir el evento.
 >
@@ -208,7 +212,26 @@ Requerido:    Sí
 | M-07 | Cuando presiona "Cerrar por no contacto" | User Interaction / Backend write | Sí |
 | M-08 | Cuando confirma cierre por no competencia | User Interaction / Backend write | Sí |
 | M-09 | Cuando confirma cierre por decisión de la persona | User Interaction / Backend write | Sí |
-| ~~M-10~~ | ~~Cuando confirma apertura de caso~~ | — | ⏸️ Diferido, no se implementa en esta fase |
+| M-10 | Cuando confirma «Registro de caso» | User Interaction / Backend write | ✅ WP-1 T7 — crea el borrador de Registro V3 y deja el reporte en «Borrador iniciado» |
+| M-12 | Cuando presiona «Ir al borrador del caso» | User Interaction | ✅ WP-1 T7 — abre el borrador en Registro V3 (sin backend) |
 | M-11 | Cuando cierra el modal | User Interaction | No (emite hacia el padre) |
 
 **Total a implementar en esta fase: 9 eventos — 1 Lifecycle, 8 User Interaction (6 de ellos con escritura en backend). M-03 removido, M-10 diseñado pero fuera de alcance.**
+
+---
+
+### M-12 — Cuando presiona «Ir al borrador del caso» (WP-1 T7)
+
+📄 [Ver flujo → flow-M12-cuando-va-al-borrador.md](./Flujos/flow-M12-cuando-va-al-borrador.md)
+
+```
+Evento:       Cuando presiona «Ir al borrador del caso»
+Tipo:         User Interaction
+Descripción:  Paso 'borradorIniciado': abre /salvia/registro-v3?caso=<icode> con el
+              borrador vinculado (draftCaseIcode del detalle). Sin llamada a backend.
+Requerido:    Sí
+```
+
+### Cambios de WP-1 T6 sobre eventos existentes
+
+M-01 (detalle extendido con radicado, tipo y borrador; encabezado con nombre, teléfono y radicado; «Hechos del reporte» e «Historial del reporte» en todos los pasos), M-02, M-07, M-08 y M-09 (el cierre y el hito «Reporte cerrado como inválido» van en una transacción; el servicio recibe quién cierra), M-05 y M-06 (el intento y su hito —«Intento de contacto fallido» o «Contacto logrado»— van en una transacción; `historyVersion++` recarga el historial). Ver los flujos y [`QA/M13-historial-del-reporte-qa-cases.md`](QA/M13-historial-del-reporte-qa-cases.md).

@@ -139,3 +139,31 @@ PASO 7 — Elegir vista
 |------------------------------------------------------------------------------------|------------|
 | Origen exacto del reporte (V1 / V2 / agente) y cómo leer su form correspondiente   | El detalle lee `form2`, `form2_v2` y `form1` según existan (ver PASO 3). Confirmar con negocio si hay un 4.º origen |
 | ¿Qué pasa si un intento ya se registró "hoy" según el reloj del servidor pero el agente cruzó medianoche durante la sesión abierta? | Se recalcula siempre en el backend al abrir; el cliente no cachea contadores entre aperturas (caso `M01-C24`) |
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🆕 CAMBIOS DE WP-1 (2026-11-02 · T6 y T7)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PASO 1 — historyVersion = 0 (se reinicia al abrir) ; reportTypeCode, canConvert y draftCaseIcode se limpian.
+
+PASO 2 — GET /api/v1/victim-contacts/:icode devuelve un detalle EXTENDIDO (modelo `ReportDetailExt`, que embebe `ReportDetail`):
+  + radicado         victim_contact_radicado ("" en reportes sin radicado: V1 o anteriores)
+  + reportTypeCode   'v' | 'r' | 'fm' | 'ho' (solo V2; "" en V1)
+  + draftCaseIcode   icode del caso de Registro V3 vinculado en estado bo o in ("" si no hay)
+  + canConvert       canManage Y sin caso vinculado de ningún estado Y reportTypeCode ∈ {v, r}
+  ✏️ closeReasonCode / closeCategory / closeReasonLabel: SI no hay motivo de cierre y el caso vinculado más reciente de Registro V3 está en te o cd
+     → 'ap' / 'Válido' / «Válido - Apertura de Caso Salvia» (DERIVADO; ver Listado Reportes/related-tables.md)
+  ✏️ canManage = rol (op/sv) Y sin motivo de cierre Y sin borrador vinculado (bo/in)
+
+PASO 3 — applyDetail elige el paso inicial:
+  closeReasonCode ≠ '' → 'cerrado' ; si no, draftCaseIcode ≠ '' → 'borradorIniciado' (🆕 T7) ; si no, hubo intento exitoso → 'postContacto' ;
+  si no, hay intentos → 'esquema3x3' ; si no → 'validacionPrevia'.
+
+PASO 4 — 🆕 Encabezado: nombre, tipo, teléfono y radicado (sin el icode/UUID). Un reporte sin radicado no muestra esa etiqueta.
+PASO 5 — 🆕 «Hechos del reporte» visible en todos los pasos (quién reporta, teléfono, correo, ajuste razonable y descripción).
+PASO 6 — 🆕 «Historial del reporte»: <case-timeline :key="icode + '-' + historyVersion" :report-id="icode" :show-filters="false"> en todos los pasos, incluido 'cerrado'.
+PASO 7 — 🆕 [T7] Botón o aviso del paso: en 'postContacto', «Registro de caso» si canConvert, o el aviso «Por ahora no hay procesos de atención para este tipo de reportes» para Familiar y Hombre; en 'borradorIniciado', «Ir al borrador del caso» (M-12).
+
+| GAP | Paso |
+|---|---|
+| Un reporte de V1 no trae reportTypeCode: queda sin conversión | PASO 2 |
+| Un caso vinculado de otro flujo (estados distintos de bo, in, te y cd) no cambia el estado del reporte; solo bloquea `canConvert` | PASO 2 |
