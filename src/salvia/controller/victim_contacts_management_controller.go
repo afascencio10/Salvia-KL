@@ -140,7 +140,7 @@ func (c *VictimContactsManagementController) Close(ctx *gin.Context) {
 		return
 	}
 
-	category, err := c.svc.Close(ctx.Request.Context(), icode, body.CloseReason, body.CloseObservation)
+	category, err := c.svc.Close(ctx.Request.Context(), icode, body.CloseReason, body.CloseObservation, s.UserICode)
 	if err != nil {
 		switch {
 		case errors.Is(err, repository.ErrVictimContactNotFound):

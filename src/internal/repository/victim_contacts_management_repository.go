@@ -4,6 +4,7 @@ import (
 	"bitsflow/internal/models"
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -33,9 +34,11 @@ var closeReasonLabels = map[string]string{
 // intentos y cierre de un reporte (gestion-reporte-modal). Ver
 // DocsMD/Componentes/Gestion Reporte Modal/related-tables.md.
 type VictimContactsManagementRepository interface {
-	GetDetail(ctx context.Context, icode string) (*models.ReportDetail, error)
+	GetDetail(ctx context.Context, icode string) (*models.ReportDetailExt, error)
+	// InsertAttempt registra el intento y su hito del timeline en una transacción (WP-1 T6).
 	InsertAttempt(ctx context.Context, icode, result, agentICode string) (intentosHoy int, diasCompletos int, err error)
-	Close(ctx context.Context, icode, closeReasonCode, observation string) (categoryLabel string, err error)
+	// Close cierra el reporte y escribe el hito de cierre en una transacción; agentICode es quien cierra (WP-1 T6).
+	Close(ctx context.Context, icode, closeReasonCode, observation, agentICode string) (categoryLabel string, err error)
 }
 
 type victimContactsManagementRepository struct {
@@ -66,12 +69,14 @@ type victimContactRow struct {
 	Telefono        *string `gorm:"column:telefono"`
 	AjusteRazonable *string `gorm:"column:ajuste_razonable"`
 	Hechos          *string `gorm:"column:descripcion_hechos"`
+	Radicado        *string `gorm:"column:radicado"`
+	ReportTypeCode  *string `gorm:"column:report_type_code"`
 }
 
 // GetDetail carga el reporte + su origen (form1/form2/form2_v2, GAP-1) + historial de intentos +
 // contadores del esquema 3x3. Parentesco y ajustes razonables se devuelven como clave de traducción
 // `categoría_código` (la misma que usa el wizard); el servicio las convierte a texto con Locale.
-func (r *victimContactsManagementRepository) GetDetail(ctx context.Context, icode string) (*models.ReportDetail, error) {
+func (r *victimContactsManagementRepository) GetDetail(ctx context.Context, icode string) (*models.ReportDetailExt, error) {
 	const query = `
 		SELECT
 			vc.victim_contact_id,
@@ -85,7 +90,14 @@ func (r *victimContactsManagementRepository) GetDetail(ctx context.Context, icod
 			vc.victim_contact_close_observation,
 			vc.victim_contact_status,
 			vc.victim_contact_status_description,
+			vc.victim_contact_radicado AS radicado,
 			(` + reportTypeSelect + `) AS report_type,
+			(SELECT e.victim_case_form2_enums_code
+			   FROM salvia.victim_contact_form2 vf
+			   JOIN salvia.victim_case_form2_enums e ON e.victim_case_form2_enums_id = vf.victim_contact_form2_report_type
+			  WHERE vf.victim_contact_form2_victim_contact = vc.victim_contact_id
+			    AND e.victim_case_form2_enums_category = 'victim_case_form2_report_type_v2'
+			  ORDER BY vf.victim_contact_form2_id DESC LIMIT 1) AS report_type_code,
 			(SELECT vf.victim_contact_form2_reporter_names FROM salvia.victim_contact_form2_v2 v2
 			   JOIN salvia.victim_contact_form2 vf ON vf.victim_contact_form2_id = v2.victim_contact_form2_v2_victim_contact_form2
 			  WHERE vf.victim_contact_form2_victim_contact = vc.victim_contact_id LIMIT 1) AS reporter_names,
@@ -201,25 +213,29 @@ func (r *victimContactsManagementRepository) GetDetail(ctx context.Context, icod
 
 	canManage := closeCode == ""
 
-	return &models.ReportDetail{
-		ICode:             row.ICode,
-		NombreMostrado:    nombreMostrado,
-		ReportType:        derefStr(row.ReportType),
-		ReporterNames:     derefStr(row.ReporterNames),
-		ReporterLastNames: derefStr(row.ReporterLast),
-		Parentesco:        derefStr(row.Parentesco),
-		Telefono:          derefStr(row.Telefono),
-		ReporterEmail:     derefStr(row.ReporterEmail),
-		AjusteRazonable:   derefStr(row.AjusteRazonable),
-		DescripcionHechos: derefStr(row.Hechos),
-		Attempts:          items,
-		IntentosHoy:       intentosHoy,
-		DiasCompletos:     diasCompletos,
-		CloseReasonCode:   closeCode,
-		CloseReasonLabel:  closeLabel,
-		CloseCategory:     closeCategory,
-		CloseObservation:  derefStr(row.CloseObservation),
-		CanManage:         canManage,
+	return &models.ReportDetailExt{
+		ReportDetail: models.ReportDetail{
+			ICode:             row.ICode,
+			NombreMostrado:    nombreMostrado,
+			ReportType:        derefStr(row.ReportType),
+			ReporterNames:     derefStr(row.ReporterNames),
+			ReporterLastNames: derefStr(row.ReporterLast),
+			Parentesco:        derefStr(row.Parentesco),
+			Telefono:          derefStr(row.Telefono),
+			ReporterEmail:     derefStr(row.ReporterEmail),
+			AjusteRazonable:   derefStr(row.AjusteRazonable),
+			DescripcionHechos: derefStr(row.Hechos),
+			Attempts:          items,
+			IntentosHoy:       intentosHoy,
+			DiasCompletos:     diasCompletos,
+			CloseReasonCode:   closeCode,
+			CloseReasonLabel:  closeLabel,
+			CloseCategory:     closeCategory,
+			CloseObservation:  derefStr(row.CloseObservation),
+			CanManage:         canManage,
+		},
+		Radicado:       derefStr(row.Radicado),
+		ReportTypeCode: derefStr(row.ReportTypeCode),
 	}, nil
 }
 
@@ -231,46 +247,80 @@ func bogotaLocation() *time.Location {
 	return loc
 }
 
-// InsertAttempt registra un intento y recalcula los contadores del esquema
-// 3x3. "Día completo" = día con >= 3 intentos fallidos — ver corrección
-// 2026-10-12 en related-tables.md.
-func (r *victimContactsManagementRepository) InsertAttempt(ctx context.Context, icode, result, agentICode string) (int, int, error) {
+// lockOpenVictimContact lee el reporte con FOR UPDATE dentro de la transacción tx
+// (serializa intentos y cierres concurrentes del mismo reporte) y devuelve
+// ErrVictimContactNotFound si no existe o ErrVictimContactAlreadyClosed si ya tiene
+// motivo de cierre o fue invalidado en el flujo legado.
+func lockOpenVictimContact(tx *gorm.DB, icode string) error {
 	var vc struct {
 		ID          int64  `gorm:"column:victim_contact_id"`
 		ICode       string `gorm:"column:victim_contact_i_code"`
 		CloseReason *int64 `gorm:"column:victim_contact_close_reason"`
 		Status      string `gorm:"column:victim_contact_status"`
 	}
-	if err := r.db.WithContext(ctx).Raw(`SELECT victim_contact_id, victim_contact_i_code, victim_contact_close_reason, victim_contact_status FROM salvia.victim_contact WHERE victim_contact_i_code = ?`, icode).Scan(&vc).Error; err != nil {
-		return 0, 0, err
+	if err := tx.Raw(`SELECT victim_contact_id, victim_contact_i_code, victim_contact_close_reason, victim_contact_status FROM salvia.victim_contact WHERE victim_contact_i_code = ? FOR UPDATE`, icode).Scan(&vc).Error; err != nil {
+		return err
 	}
 	if vc.ICode == "" {
-		return 0, 0, ErrVictimContactNotFound
+		return ErrVictimContactNotFound
 	}
 	if vc.CloseReason != nil || vc.Status == victimContactLegacyInvalidated {
-		return 0, 0, ErrVictimContactAlreadyClosed
+		return ErrVictimContactAlreadyClosed
 	}
-
-	// Se guarda en UTC explícito: la columna es `timestamp without time zone` y todo el pipeline de
-	// lectura asume UTC; con time.Now() quedaba la hora local del servidor (distinta en dev y en Docker).
-	now := time.Now().UTC()
-	if err := r.db.WithContext(ctx).Exec(`
-		INSERT INTO salvia.victim_contact_attempt (
-			victim_contact_attempt_i_code, victim_contact_attempt_victim_contact,
-			victim_contact_attempt_result, victim_contact_attempt_date,
-			victim_contact_attempt_agent, victim_contact_attempt_creation_date
-		) VALUES (gen_random_uuid(), ?, ?, ?, ?, ?)
-	`, icode, result, now, agentICode, now).Error; err != nil {
-		return 0, 0, err
-	}
-
-	intentosHoy, diasCompletos, err := r.computeCounters(ctx, icode)
-	return intentosHoy, diasCompletos, err
+	return nil
 }
 
-func (r *victimContactsManagementRepository) computeCounters(ctx context.Context, icode string) (int, int, error) {
+// InsertAttempt registra un intento y recalcula los contadores del esquema
+// 3x3. "Día completo" = día con >= 3 intentos fallidos — ver corrección
+// 2026-10-12 en related-tables.md.
+//
+// WP-1 T6: todo ocurre en UNA transacción junto con el hito del reporte en el
+// timeline («Intento de contacto fallido» o «Contacto logrado»); si el evento
+// falla se revierte el intento, para mantener «un evento por hito».
+func (r *victimContactsManagementRepository) InsertAttempt(ctx context.Context, icode, result, agentICode string) (int, int, error) {
+	var intentosHoy, diasCompletos int
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := lockOpenVictimContact(tx, icode); err != nil {
+			return err
+		}
+
+		// Se guarda en UTC explícito: la columna es `timestamp without time zone` y todo el pipeline de
+		// lectura asume UTC; con time.Now() quedaba la hora local del servidor (distinta en dev y en Docker).
+		now := time.Now().UTC()
+		if err := tx.Exec(`
+			INSERT INTO salvia.victim_contact_attempt (
+				victim_contact_attempt_i_code, victim_contact_attempt_victim_contact,
+				victim_contact_attempt_result, victim_contact_attempt_date,
+				victim_contact_attempt_agent, victim_contact_attempt_creation_date
+			) VALUES (gen_random_uuid(), ?, ?, ?, ?, ?)
+		`, icode, result, now, agentICode, now).Error; err != nil {
+			return err
+		}
+
+		var err error
+		if intentosHoy, diasCompletos, err = computeAttemptCounters(tx, icode); err != nil {
+			return err
+		}
+
+		milestone := ReportMilestoneAttemptFailed
+		description := fmt.Sprintf("Intento fallido registrado (%d hoy).", intentosHoy)
+		if result == "exitoso" {
+			milestone = ReportMilestoneContactMade
+			description = "Contacto logrado el " + now.In(bogotaLocation()).Format("02/01/2006 15:04") + "."
+		}
+		return NewCaseTimelineEventRepository(tx).Create(ctx, NewReportMilestoneEvent(icode, milestone, description, agentICode, "", now))
+	})
+	if err != nil {
+		return 0, 0, err
+	}
+	return intentosHoy, diasCompletos, nil
+}
+
+// computeAttemptCounters calcula los intentos fallidos de hoy y los «días completos»
+// del reporte con la conexión db (la transacción del llamador o la base).
+func computeAttemptCounters(db *gorm.DB, icode string) (int, int, error) {
 	var intentosHoy int
-	if err := r.db.WithContext(ctx).Raw(`
+	if err := db.Raw(`
 		SELECT COUNT(*) FROM salvia.victim_contact_attempt
 		WHERE victim_contact_attempt_victim_contact = ?
 		  AND victim_contact_attempt_result = 'fallido'
@@ -281,7 +331,7 @@ func (r *victimContactsManagementRepository) computeCounters(ctx context.Context
 	}
 
 	var diasCompletos int
-	if err := r.db.WithContext(ctx).Raw(`
+	if err := db.Raw(`
 		SELECT COUNT(*) FROM (
 			SELECT (victim_contact_attempt_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Bogota')::date AS dia, COUNT(*) AS n
 			FROM salvia.victim_contact_attempt
@@ -299,65 +349,76 @@ func (r *victimContactsManagementRepository) computeCounters(ctx context.Context
 // Close resuelve el enum de close_reason y actualiza victim_contact. Para
 // code='nc' (cierre por no contacto) valida server-side que el esquema 3x3
 // esté realmente completo — ver flow-M07.
-func (r *victimContactsManagementRepository) Close(ctx context.Context, icode, closeReasonCode, observation string) (string, error) {
-	var vc struct {
-		ID          int64  `gorm:"column:victim_contact_id"`
-		ICode       string `gorm:"column:victim_contact_i_code"`
-		CloseReason *int64 `gorm:"column:victim_contact_close_reason"`
-		Status      string `gorm:"column:victim_contact_status"`
-	}
-	if err := r.db.WithContext(ctx).Raw(`SELECT victim_contact_id, victim_contact_i_code, victim_contact_close_reason, victim_contact_status FROM salvia.victim_contact WHERE victim_contact_i_code = ?`, icode).Scan(&vc).Error; err != nil {
-		return "", err
-	}
-	if vc.ICode == "" {
-		return "", ErrVictimContactNotFound
-	}
-	if vc.CloseReason != nil || vc.Status == victimContactLegacyInvalidated {
-		return "", ErrVictimContactAlreadyClosed
-	}
-
-	if closeReasonCode == "nc" {
-		_, diasCompletos, err := r.computeCounters(ctx, icode)
-		if err != nil {
-			return "", err
+//
+// WP-1 T6: el cierre y el hito «Reporte cerrado como inválido» (con el motivo, la
+// observación y el agente que cierra) van en UNA transacción; si el evento falla
+// se revierte el cierre.
+func (r *victimContactsManagementRepository) Close(ctx context.Context, icode, closeReasonCode, observation, agentICode string) (string, error) {
+	category := "Inválido"
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := lockOpenVictimContact(tx, icode); err != nil {
+			return err
 		}
-		if diasCompletos < 3 {
-			return "", ErrSchemeNotComplete
+
+		if closeReasonCode == "nc" {
+			_, diasCompletos, err := computeAttemptCounters(tx, icode)
+			if err != nil {
+				return err
+			}
+			if diasCompletos < 3 {
+				return ErrSchemeNotComplete
+			}
 		}
-	}
 
-	var enumRow struct {
-		ID       int64  `gorm:"column:victim_case_form2_enums_id"`
-		Code     string `gorm:"column:victim_case_form2_enums_code"`
-	}
-	if err := r.db.WithContext(ctx).Raw(`
-		SELECT victim_case_form2_enums_id, victim_case_form2_enums_code
-		FROM salvia.victim_case_form2_enums
-		WHERE victim_case_form2_enums_category = 'victim_contact_close_reason' AND victim_case_form2_enums_code = ?
-	`, closeReasonCode).Scan(&enumRow).Error; err != nil {
+		var enumRow struct {
+			ID   int64  `gorm:"column:victim_case_form2_enums_id"`
+			Code string `gorm:"column:victim_case_form2_enums_code"`
+		}
+		if err := tx.Raw(`
+			SELECT victim_case_form2_enums_id, victim_case_form2_enums_code
+			FROM salvia.victim_case_form2_enums
+			WHERE victim_case_form2_enums_category = 'victim_contact_close_reason' AND victim_case_form2_enums_code = ?
+		`, closeReasonCode).Scan(&enumRow).Error; err != nil {
+			return err
+		}
+		if enumRow.ID == 0 {
+			return ErrCloseReasonNotFound
+		}
+
+		var observationArg interface{}
+		trimmedObservation := strings.TrimSpace(observation)
+		if trimmedObservation != "" {
+			observationArg = trimmedObservation
+		}
+
+		now := time.Now().UTC()
+		if err := tx.Exec(`
+			UPDATE salvia.victim_contact SET
+				victim_contact_close_reason = ?,
+				victim_contact_close_observation = ?,
+				victim_contact_closed_date = ?
+			WHERE victim_contact_i_code = ?
+		`, enumRow.ID, observationArg, now, icode).Error; err != nil {
+			return err
+		}
+
+		if enumRow.Code == "ap" {
+			// El cierre válido no lo escribe este flujo (la conversión lo deriva del caso): sin hito de «inválido».
+			category = "Válido"
+			return nil
+		}
+		label := closeReasonLabels[enumRow.Code]
+		if label == "" {
+			label = enumRow.Code
+		}
+		description := "Motivo: " + label + "."
+		if trimmedObservation != "" {
+			description += " " + trimmedObservation
+		}
+		return NewCaseTimelineEventRepository(tx).Create(ctx, NewReportMilestoneEvent(icode, ReportMilestoneClosedInvalid, description, agentICode, "", now))
+	})
+	if err != nil {
 		return "", err
 	}
-	if enumRow.ID == 0 {
-		return "", ErrCloseReasonNotFound
-	}
-
-	var observationArg interface{}
-	if strings.TrimSpace(observation) != "" {
-		observationArg = strings.TrimSpace(observation)
-	}
-
-	if err := r.db.WithContext(ctx).Exec(`
-		UPDATE salvia.victim_contact SET
-			victim_contact_close_reason = ?,
-			victim_contact_close_observation = ?,
-			victim_contact_closed_date = ?
-		WHERE victim_contact_i_code = ?
-	`, enumRow.ID, observationArg, time.Now().UTC(), icode).Error; err != nil {
-		return "", err
-	}
-
-	if enumRow.Code == "ap" {
-		return "Válido", nil
-	}
-	return "Inválido", nil
+	return category, nil
 }

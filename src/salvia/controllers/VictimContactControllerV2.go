@@ -255,6 +255,10 @@ func SetVictimContactV2(dataInput string, checkCaptcha bool, connData *db.ConnDa
 		return http.StatusInternalServerError, err.Error()
 	}
 
+	// T6: hito «Reporte recibido» en el timeline del reporte (después del commit, en
+	// segundo plano y sin afectar la respuesta si falla).
+	recordReportReceived(vc.VictimContactICode, reportTypeCode, radicado, "")
+
 	// A diferencia de V1 (que responde con cuerpo vacío), V2 devuelve el icode
 	// (id interno; la app móvil lo sigue leyendo) y, desde T3, el radicado que
 	// el wizard muestra en la confirmación.

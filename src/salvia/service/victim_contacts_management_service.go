@@ -22,9 +22,10 @@ const maxObservationLength = 500
 // VictimContactsManagementService lógica de negocio del modal gestion-reporte-modal
 // (M-01 detalle, M-05/M-06 intentos, M-02/M-07/M-08/M-09 cierre).
 type VictimContactsManagementService interface {
-	GetDetail(ctx context.Context, icode string, canManage bool) (*models.ReportDetail, error)
+	GetDetail(ctx context.Context, icode string, canManage bool) (*models.ReportDetailExt, error)
 	RegisterAttempt(ctx context.Context, icode, result, agentICode string) (intentosHoy int, diasCompletos int, err error)
-	Close(ctx context.Context, icode, closeReasonCode, observation string) (category string, err error)
+	// Close cierra el reporte; agentICode es quien cierra (queda en el hito del timeline, WP-1 T6).
+	Close(ctx context.Context, icode, closeReasonCode, observation, agentICode string) (category string, err error)
 }
 
 type victimContactsManagementService struct {
@@ -38,7 +39,7 @@ func NewVictimContactsManagementService(repo repository.VictimContactsManagement
 // GetDetail delega al repositorio y sobreescribe canManage con el valor
 // resuelto por el controller a partir del rol de sesión (GAP-2: op y sv
 // pueden gestionar cualquier reporte, confirmado 2026-10-11).
-func (s *victimContactsManagementService) GetDetail(ctx context.Context, icode string, canManage bool) (*models.ReportDetail, error) {
+func (s *victimContactsManagementService) GetDetail(ctx context.Context, icode string, canManage bool) (*models.ReportDetailExt, error) {
 	detail, err := s.repo.GetDetail(ctx, icode)
 	if err != nil {
 		return nil, err
@@ -71,7 +72,7 @@ func (s *victimContactsManagementService) RegisterAttempt(ctx context.Context, i
 	return s.repo.InsertAttempt(ctx, icode, result, agentICode)
 }
 
-func (s *victimContactsManagementService) Close(ctx context.Context, icode, closeReasonCode, observation string) (string, error) {
+func (s *victimContactsManagementService) Close(ctx context.Context, icode, closeReasonCode, observation, agentICode string) (string, error) {
 	code := strings.TrimSpace(strings.ToLower(closeReasonCode))
 	if !validCloseReasonCodes[code] {
 		return "", ErrInvalidCloseReason
@@ -85,5 +86,5 @@ func (s *victimContactsManagementService) Close(ctx context.Context, icode, clos
 	if utf8.RuneCountInString(strings.TrimSpace(observation)) > maxObservationLength {
 		return "", ErrObservationTooLong
 	}
-	return s.repo.Close(ctx, icode, code, observation)
+	return s.repo.Close(ctx, icode, code, observation, agentICode)
 }

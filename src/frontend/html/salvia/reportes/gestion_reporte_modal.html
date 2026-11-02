@@ -7,8 +7,11 @@
 
         <div class="grm-header">
             <div>
-                <div class="grm-icode">${ icode }</div>
                 <h3 id="grm-title" class="grm-title">${ nombreMostrado || 'Reporte' }</h3>
+                <div v-if="report" class="grm-meta">
+                    <span class="grm-phone"><i class="fas fa-phone"></i> ${ report.telefono || 'Sin teléfono' }</span>
+                    <span v-if="report.radicado" class="grm-radicado">Radicado ${ report.radicado }</span>
+                </div>
             </div>
             <span v-if="reportTypeLabel" class="grm-type-badge">${ reportTypeLabel }</span>
             <button type="button" class="grm-close" aria-label="Cerrar" @click="close">
@@ -35,6 +38,19 @@
                     <span>${ actionError }</span>
                 </div>
 
+                <!-- Hechos del reporte: visibles en TODOS los pasos (antes solo en validacionPrevia) -->
+                <div class="grm-info">
+                    <h4 class="grm-info-title">Hechos del reporte</h4>
+                    <p v-if="report.reporterNames"><strong>Quien reporta:</strong> ${ report.reporterNames } ${ report.reporterLastNames }
+                        <span v-if="report.parentesco">(${ report.parentesco })</span>
+                    </p>
+                    <p><strong>Teléfono de contacto:</strong> ${ report.telefono || 'No suministrado' }</p>
+                    <p v-if="report.reporterEmail"><strong>Correo:</strong> ${ report.reporterEmail }</p>
+                    <p v-if="report.ajusteRazonable"><strong>Ajuste razonable solicitado:</strong> ${ report.ajusteRazonable }</p>
+                    <p><strong>Descripción de los hechos:</strong></p>
+                    <p class="grm-hechos-box">${ report.descripcionHechos || '—' }</p>
+                </div>
+
                 <!-- Solo-lectura: el permiso de gestión se evalúa en el backend
                      (GAP-2: op y sv pueden gestionar cualquier reporte visible
                      para ellos — en la práctica canManage siempre es true aquí) -->
@@ -44,17 +60,6 @@
 
                 <!-- ═══════════════ STEP: validacionPrevia ═══════════════ -->
                 <div v-if="step === 'validacionPrevia'">
-                    <div class="grm-info">
-                        <p v-if="report.reporterNames"><strong>Quien reporta:</strong> ${ report.reporterNames } ${ report.reporterLastNames }
-                            <span v-if="report.parentesco">(${ report.parentesco })</span>
-                        </p>
-                        <p><strong>Teléfono de contacto:</strong> ${ report.telefono || 'No suministrado' }</p>
-                        <p v-if="report.reporterEmail"><strong>Correo:</strong> ${ report.reporterEmail }</p>
-                        <p v-if="report.ajusteRazonable"><strong>Ajuste razonable solicitado:</strong> ${ report.ajusteRazonable }</p>
-                        <p><strong>Descripción de los hechos:</strong></p>
-                        <p class="grm-hechos-box">${ report.descripcionHechos || '—' }</p>
-                    </div>
-
                     <p class="grm-help-text">
                         Según su criterio técnico, verifique si en la Base de Datos SALVIA
                         existe información asociada antes de intentar el recontacto.
@@ -150,10 +155,17 @@
                     <div class="grm-closed-icon" :class="closeCategory === 'Válido' ? 'grm-closed-icon--valid' : 'grm-closed-icon--invalid'">
                         <i class="fas fa-check"></i>
                     </div>
-                    <h3>Reporte ${ icode } cerrado</h3>
+                    <h3>Reporte ${ report && report.radicado ? report.radicado + ' ' : '' }cerrado</h3>
                     <p>Categoría: <strong>${ closeCategory }</strong></p>
                     <p>Motivo: <strong>${ closeReasonLabel }</strong></p>
                     <button type="button" class="grm-btn grm-btn--primary" @click="close">Cerrar</button>
+                </div>
+
+                <!-- Historial del reporte: en todos los pasos, también en 'cerrado'. historyVersion
+                     recarga el componente después de cada intento o cierre. -->
+                <div v-if="report" class="grm-history">
+                    <h4 class="grm-history-title">Historial del reporte</h4>
+                    <case-timeline :key="icode + '-' + historyVersion" :report-id="icode" :show-filters="false"></case-timeline>
                 </div>
 
             </template>

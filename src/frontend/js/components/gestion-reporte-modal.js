@@ -14,6 +14,11 @@
  * (coincide con la nota de FigJam). El paso 'postContacto' solo ofrece
  * "no competencia" y "decisión de la persona".
  *
+ * WP-1 T6: el encabezado muestra nombre, tipo, teléfono y radicado (sin el icode);
+ * «Hechos del reporte» se ve en todos los pasos; el «Historial del reporte»
+ * (<case-timeline :report-id>) también, y se recarga con historyVersion.
+ * La página anfitriona debe cargar case-timeline.js antes de este componente.
+ *
  * Método público:
  *   open(report)  — abre el modal (M-01)
  *
@@ -62,6 +67,9 @@
 
                 saving: false,
                 actionError: null,
+
+                // Recarga del historial (case-timeline): se incrementa tras cada intento o cierre (T6).
+                historyVersion: 0,
             };
         },
 
@@ -130,6 +138,7 @@
                 this.motivoTexto = '';
                 this.actionError = null;
                 this.saving = false;
+                this.historyVersion = 0;
 
                 this.fetchDetail();
             },
@@ -243,6 +252,7 @@
                         self.intentosHoy = result.data.intentosHoy || 0;
                         self.diasCompletos = result.data.diasCompletos || 0;
                         self.saving = false;
+                        self.historyVersion++; // el intento escribió un hito: recarga el historial
 
                         if (resultado === 'exitoso') {
                             // Mismo retardo visual que el mockup (setTimeout 400ms) —
@@ -331,6 +341,7 @@
                         self.pendingClose = '';
                         self.motivoTexto = '';
                         self.step = 'cerrado';
+                        self.historyVersion++; // el cierre escribió un hito: recarga el historial
                     })
                     .catch(function() {
                         self.saving = false;
