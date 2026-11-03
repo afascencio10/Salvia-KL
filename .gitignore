@@ -14,6 +14,10 @@ ContextoRequerimientosDesarrollo
 # Datos de Supabase traídos para probar requerimientos (un archivo por requerimiento).
 # Sin esta excepción `*.sql` los ignoraría y nunca llegarían a la siguiente sesión.
 !cloudDevelopment/seed_test_data/*.sql
+# Migraciones que hay que correr a mano en producción (migrationsProd/): copia de las de
+# src/migrations/ que ya se aplicaron en Supabase (develop). Sin esta excepción `*.sql`
+# las ignoraría y nunca llegarían a quien las corre.
+!migrationsProd/*.sql
 # Sesiones activas del servidor (contienen tokens y datos de usuario)
 src/sessions
 
