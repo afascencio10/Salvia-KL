@@ -32,7 +32,7 @@ func TestGetFollowUpByID(t *testing.T) {
 
 		repoMock.On("FindByID", ctx, "uuid-123").Return(expected, nil)
 
-		svc := service.NewFollowUpV2Service(repoMock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := service.NewFollowUpV2Service(repoMock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		result, err := svc.GetFollowUpByID(ctx, "uuid-123")
 
 		assert.NoError(t, err)
@@ -45,7 +45,7 @@ func TestGetFollowUpByID(t *testing.T) {
 
 		repoMock.On("FindByID", ctx, "no-existe").Return(nil, gorm.ErrRecordNotFound)
 
-		svc := service.NewFollowUpV2Service(repoMock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := service.NewFollowUpV2Service(repoMock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		result, err := svc.GetFollowUpByID(ctx, "no-existe")
 
 		assert.Nil(t, result)
@@ -59,7 +59,7 @@ func TestGetFollowUpByID(t *testing.T) {
 
 		repoMock.On("FindByID", ctx, "uuid-err").Return(nil, dbErr)
 
-		svc := service.NewFollowUpV2Service(repoMock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := service.NewFollowUpV2Service(repoMock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		result, err := svc.GetFollowUpByID(ctx, "uuid-err")
 
 		assert.Nil(t, result)
@@ -86,7 +86,7 @@ func TestGetPaginatedFollowUps(t *testing.T) {
 
 		repoMock.On("FindWithPagination", ctx, 0, 20).Return(expected, nil)
 
-		svc := service.NewFollowUpV2Service(repoMock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := service.NewFollowUpV2Service(repoMock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		result, err := svc.GetPaginatedFollowUps(ctx, 0, 20)
 
 		assert.NoError(t, err)
@@ -101,7 +101,7 @@ func TestGetPaginatedFollowUps(t *testing.T) {
 
 		repoMock.On("FindWithPagination", ctx, 0, 20).Return(empty, dbErr)
 
-		svc := service.NewFollowUpV2Service(repoMock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := service.NewFollowUpV2Service(repoMock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		_, err := svc.GetPaginatedFollowUps(ctx, 0, 20)
 
 		assert.ErrorIs(t, err, dbErr)

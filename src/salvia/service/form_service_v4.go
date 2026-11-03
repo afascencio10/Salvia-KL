@@ -306,10 +306,18 @@ func (s *formService) v4ProcessIdent(ctx context.Context, fu *models.FollowUpV2,
 			}
 			entityCaseID = s.v4EnsureEntityCase(ctx, fu.CaseID, branch, objetivo, radicado, actorID)
 			if entityCaseID != "" {
+				canales := entry.answers[v4Key("q:ident.canales")]
+				deferirPendientes := v4BothYes(entry.answers, acuerdo, debida) && canalIncluye(canales, "misalvia")
 				s.v4AddCatalogObligations(ctx, entityCaseID, fu.ID, actorID, entry.answers[v4Key("q:ident.completadas")], models.EntityCaseObligationStatusCompletada)
-				s.v4AddCatalogObligations(ctx, entityCaseID, fu.ID, actorID, entry.answers[v4Key("q:ident.pendientes")], models.EntityCaseObligationStatusPendiente)
+				if !deferirPendientes {
+					s.v4AddCatalogObligations(ctx, entityCaseID, fu.ID, actorID, entry.answers[v4Key("q:ident.pendientes")], models.EntityCaseObligationStatusPendiente)
+				}
 				if v4BothYes(entry.answers, acuerdo, debida) {
-					s.v4ProcesarCanales(ctx, fu.CaseID, &fu.ID, actorID, entityCaseID, branch, entry.answers[v4Key("q:ident.canales")])
+					var checklist []solicitudChecklistItem
+					if deferirPendientes {
+						checklist = s.solicitudChecklist(ctx, branch, entry.answers[v4Key("q:ident.pendientes")], "")
+					}
+					s.v4ProcesarCanales(ctx, fu.CaseID, &fu.ID, actorID, entityCaseID, branch, canales, checklist)
 				}
 			}
 		}
@@ -401,7 +409,8 @@ func (s *formService) v4SeguimientoEntidad(ctx context.Context, fu *models.Follo
 			}
 		}
 	}
-	if v4Has(answers[v4Key("q:seg.pendientes")], "otra") {
+	deferirPendientes := activa && canalIncluye(canales, "misalvia")
+	if v4Has(answers[v4Key("q:seg.pendientes")], "otra") && !deferirPendientes {
 		label := strings.TrimSpace(answers[v4Key("q:seg.otraPendiente")])
 		if label == "" {
 			label = "Otra"
@@ -409,7 +418,11 @@ func (s *formService) v4SeguimientoEntidad(ctx context.Context, fu *models.Follo
 		s.v4AddCustomObligation(ctx, entityCaseID, fu.ID, actorID, label, models.EntityCaseObligationStatusPendiente)
 	}
 	if activa {
-		s.v4ProcesarCanales(ctx, fu.CaseID, &fu.ID, actorID, entityCaseID, branch, canales)
+		var checklist []solicitudChecklistItem
+		if deferirPendientes {
+			checklist = s.solicitudChecklist(ctx, branch, answers[v4Key("q:seg.pendientes")], answers[v4Key("q:seg.otraPendiente")])
+		}
+		s.v4ProcesarCanales(ctx, fu.CaseID, &fu.ID, actorID, entityCaseID, branch, canales, checklist)
 	}
 }
 
@@ -483,7 +496,7 @@ func (s *formService) v4AddCustomObligation(ctx context.Context, entityCaseID, f
 	}
 }
 
-func (s *formService) v4ProcesarCanales(ctx context.Context, caseID string, followUpID *string, actorID, entityCaseID string, branch int64, canalRaw string) {
+func (s *formService) v4ProcesarCanales(ctx context.Context, caseID string, followUpID *string, actorID, entityCaseID string, branch int64, canalRaw string, checklist []solicitudChecklistItem) {
 	if entityCaseID == "" || branch <= 0 {
 		return
 	}
@@ -514,12 +527,21 @@ func (s *formService) v4ProcesarCanales(ctx context.Context, caseID string, foll
 				EntityCaseID: &entityCaseID, EntityLetterID: letterID,
 			})
 		case "misalvia":
-			s.v4Task(ctx, &models.CaseTask{
+			task := &models.CaseTask{
 				Category: "Entidades", Type: "solicitud_entidad",
 				Description:    "Hacer solicitudes a la entidad sobre obligaciones pendientes",
 				AssignedUserID: actorID, Status: models.CaseTaskStatusToDo,
 				CaseID: caseID, FollowUpID: followUpID, EntityCaseID: &entityCaseID,
-			})
+			}
+			if checklist != nil {
+				fd, err := solicitudChecklistFormData(checklist)
+				if err != nil {
+					v4Warn("no se pudo serializar el checklist de %s: %v", entityCaseID, err)
+				} else {
+					task.FormData = fd
+				}
+			}
+			s.v4Task(ctx, task)
 		case "articulacion":
 			s.v4GestionLlamada(ctx, caseID, followUpID, actorID, entityCaseID, "Articulación institucional telefónica o por mensajería")
 		case "denuncia":
@@ -865,7 +887,12 @@ func (s *formService) v4ProcessConclusion(ctx context.Context, fu *models.Follow
 		return
 	}
 	entityCaseID := s.v4EnsureEntityCase(ctx, fu.CaseID, branch, nil, nil, actorID)
-	s.v4ProcesarCanales(ctx, fu.CaseID, &fu.ID, actorID, entityCaseID, branch, direct[v4Key("q:con.canales")])
+	canales := direct[v4Key("q:con.canales")]
+	var checklist []solicitudChecklistItem
+	if canalIncluye(canales, "misalvia") {
+		checklist = []solicitudChecklistItem{}
+	}
+	s.v4ProcesarCanales(ctx, fu.CaseID, &fu.ID, actorID, entityCaseID, branch, canales, checklist)
 }
 
 func (s *formService) applyV4Reasignacion(ctx context.Context, fu *models.FollowUpV2, actorID string, dest v4Reasignacion) {

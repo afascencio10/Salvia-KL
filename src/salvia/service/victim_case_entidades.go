@@ -150,7 +150,7 @@ func (s *formService) ProcessVictimCaseEntidadEntries(ctx context.Context, caseI
 
 			// Canal de activación (solo aplica en el repeater de activación)
 			if grp.conCanal {
-				s.procesarCanalActivacion(ctx, caseID, nil, actorID, entityCaseID, entityBranchID, strings.Join(entry.CanalActivacion, ","), nil)
+				s.procesarCanalActivacion(ctx, caseID, nil, actorID, entityCaseID, entityBranchID, strings.Join(entry.CanalActivacion, ","), nil, nil)
 			}
 		}
 	}

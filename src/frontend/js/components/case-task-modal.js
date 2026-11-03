@@ -876,6 +876,22 @@ app.component('case-task-modal', {
         },
 
         async _cargarObligacionesPendientes() {
+            const guardado = this.tareaFormData;
+            if (guardado && Array.isArray(guardado.checklist)) {
+                const items = guardado.checklist.map(function(item) {
+                    return {
+                        id: item.obligationId,
+                        label: item.label || item.obligationId || '',
+                    };
+                });
+                const seleccion = {};
+                items.forEach(function(item) {
+                    seleccion[item.id] = { selected: false, descripcion: '' };
+                });
+                this.entityName = (this.tarea && this.tarea.entityName) || '';
+                this.form = { items: items, seleccion: seleccion };
+                return;
+            }
             const entityCaseId = this.tarea && this.tarea.entityCaseId;
             if (!entityCaseId) {
                 this.errorObligaciones = 'Esta tarea no está vinculada a una entidad del caso.';

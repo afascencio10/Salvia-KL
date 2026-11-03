@@ -5,6 +5,7 @@ import (
 	"bitsflow/internal/models"
 	"bitsflow/internal/repository"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -3658,7 +3660,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 				}
 
 				if requiereActivacion {
-					s.procesarCanalActivacion(ctx, fu.CaseID, &fu.ID, actorID, entityCaseID, entityBranchID, canal, nil)
+					s.procesarCanalActivacion(ctx, fu.CaseID, &fu.ID, actorID, entityCaseID, entityBranchID, canal, nil, nil)
 				}
 			}
 		}
@@ -3781,8 +3783,23 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 					status: models.EntityCaseObligationStatusPendiente,
 				})
 
+				canalRaw := ""
+				if cfg.qCanalActivacion != "" {
+					canalRaw = idMap[cfg.qCanalActivacion]
+				}
+				// Mi Salvia no asigna las pendientes a la entidad al guardar: quedan
+				// en el checklist de la tarea y se crean cuando el agente la confirma.
+				deferirPendientes := canalIncluye(canalRaw, "mi_salvia")
+				var checklist []solicitudChecklistItem
+				if deferirPendientes {
+					checklist = s.solicitudChecklist(ctx, entityBranchID, idMap[cfg.qPendientes], idMap[cfg.qPendientesOtra])
+				}
+
 				if s.entityCaseObligationRepo != nil {
 					for _, g := range groups {
+						if deferirPendientes && g.status == models.EntityCaseObligationStatusPendiente {
+							continue
+						}
 						for _, val := range splitValues(g.raw) {
 							eco := &models.EntityCaseObligation{
 								EntityCaseID: entityCaseID,
@@ -3806,7 +3823,7 @@ func (s *formService) processFollowUpSubmission(ctx context.Context, submissionI
 
 				// Canal de activación (solo aplica en el repeater de activación)
 				if cfg.qCanalActivacion != "" {
-					s.procesarCanalActivacion(ctx, fu.CaseID, &fu.ID, actorID, entityCaseID, entityBranchID, idMap[cfg.qCanalActivacion], nil)
+					s.procesarCanalActivacion(ctx, fu.CaseID, &fu.ID, actorID, entityCaseID, entityBranchID, canalRaw, nil, checklist)
 				}
 			}
 		}
@@ -4738,6 +4755,66 @@ func (s *formService) createEntityCaseObligationIfNotExists(ctx context.Context,
 	return s.entityCaseObligationRepo.Create(ctx, eco)
 }
 
+// solicitudChecklistItem es una acción pendiente que el agente marcó en el
+// formulario y que todavía no se asigna a la entidad. Viaja en form_data de
+// la tarea solicitud_entidad hasta que el agente confirma la solicitud.
+type solicitudChecklistItem struct {
+	ObligationID string `json:"obligationId"`
+	Label        string `json:"label"`
+}
+
+func canalIncluye(raw, code string) bool {
+	for _, canal := range splitCSVValues(raw) {
+		if canal == code {
+			return true
+		}
+	}
+	return false
+}
+
+// solicitudChecklist arma el checklist de la tarea a partir de las pendientes
+// del formulario. El resultado nunca es nil: un formulario sin pendientes
+// deja la tarea con checklist vacío para que el modal no cargue obligaciones
+// que ya están asignadas al caso.
+func (s *formService) solicitudChecklist(ctx context.Context, branchID int64, raw, otraText string) []solicitudChecklistItem {
+	labels := map[string]string{}
+	if s.entityObligationRepo != nil && branchID > 0 {
+		items, err := s.entityObligationRepo.FindByEntityBranchID(ctx, branchID)
+		if err != nil {
+			log.Printf("[solicitudChecklist] WARN: no se pudo leer el catálogo de la sede %d: %v", branchID, err)
+		} else {
+			for _, item := range items {
+				labels[item.ID] = item.Label
+			}
+		}
+	}
+	out := make([]solicitudChecklistItem, 0)
+	for _, val := range splitCSVValues(raw) {
+		if val == "otra" {
+			label := strings.TrimSpace(otraText)
+			if label == "" {
+				label = "Otra"
+			}
+			out = append(out, solicitudChecklistItem{ObligationID: "otra", Label: label})
+			continue
+		}
+		label := labels[val]
+		if label == "" {
+			label = val
+		}
+		out = append(out, solicitudChecklistItem{ObligationID: val, Label: label})
+	}
+	return out
+}
+
+func solicitudChecklistFormData(items []solicitudChecklistItem) (datatypes.JSON, error) {
+	raw, err := json.Marshal(map[string]any{"checklist": items})
+	if err != nil {
+		return nil, err
+	}
+	return datatypes.JSON(raw), nil
+}
+
 // procesarCanalActivacion genera tareas (y oficio si aplica) según el/los
 // canal(es) seleccionados para una entidad — reutilizado por Hacer Seguimiento
 // (processFollowUpSubmission, Secciones "Seguimiento a Entidades" e
@@ -4746,7 +4823,10 @@ func (s *formService) createEntityCaseObligationIfNotExists(ctx context.Context,
 // formulario). psychosocialSupportID es nil cuando se llama desde Hacer
 // Seguimiento; se fija en el case_task cuando se llama desde Psicosocial,
 // igual que ya hace processPsicosocialBarrierEntries con sus tareas.
-func (s *formService) procesarCanalActivacion(ctx context.Context, caseID string, followUpID *string, actorID, entityCaseID string, entityBranchID int64, canalRaw string, psychosocialSupportID *string) {
+// checklist nil no escribe form_data (psicosocial, registro y seguimiento
+// viejo, que no difieren pendientes). Un slice vacío sí escribe checklist
+// vacío, para que la tarea de Mi Salvia no caiga al listado ya asignado.
+func (s *formService) procesarCanalActivacion(ctx context.Context, caseID string, followUpID *string, actorID, entityCaseID string, entityBranchID int64, canalRaw string, psychosocialSupportID *string, checklist []solicitudChecklistItem) {
 	canalRaw = strings.TrimSpace(canalRaw)
 	if canalRaw == "" {
 		return
@@ -4804,6 +4884,14 @@ func (s *formService) procesarCanalActivacion(ctx context.Context, caseID string
 				CaseID: caseID, FollowUpID: followUpID,
 				EntityCaseID:          &ecID,
 				PsychosocialSupportID: psychosocialSupportID,
+			}
+			if checklist != nil {
+				fd, err := solicitudChecklistFormData(checklist)
+				if err != nil {
+					log.Printf("[procesarCanalActivacion] WARN: no se pudo serializar el checklist de entity_case %s: %v", entityCaseID, err)
+				} else {
+					task.FormData = fd
+				}
 			}
 			if s.caseTaskRepo != nil {
 				if err := s.caseTaskRepo.Create(ctx, task); err != nil {

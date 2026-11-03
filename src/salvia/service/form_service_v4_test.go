@@ -4,6 +4,7 @@ import (
 	"bitsflow/internal/models"
 	"bitsflow/internal/repository"
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -205,6 +206,26 @@ func (f *v4ObligationFake) FindByEntityCaseIDWithLabels(context.Context, string,
 }
 func (f *v4ObligationFake) ExistsForObligation(context.Context, string, string) (bool, error) {
 	return false, nil
+}
+
+type v4CatalogFake struct {
+	items []models.EntityObligation
+}
+
+func (f *v4CatalogFake) Create(context.Context, *models.EntityObligation) error { return nil }
+func (f *v4CatalogFake) Update(context.Context, *models.EntityObligation) error { return nil }
+func (f *v4CatalogFake) UpdateFields(context.Context, string, map[string]interface{}) error {
+	return nil
+}
+func (f *v4CatalogFake) Delete(context.Context, string) error { return nil }
+func (f *v4CatalogFake) FindByID(context.Context, string) (*models.EntityObligation, error) {
+	return nil, nil
+}
+func (f *v4CatalogFake) FindWithPagination(context.Context, int, int) (repository.PageResult[models.EntityObligation], error) {
+	return repository.PageResult[models.EntityObligation]{}, nil
+}
+func (f *v4CatalogFake) FindByEntityBranchID(context.Context, int64) ([]models.EntityObligation, error) {
+	return f.items, nil
 }
 
 type v4EntityFollowFake struct{ rows []models.EntityCaseFollowUp }
@@ -413,6 +434,7 @@ func TestCompleteFollowUpV4ChannelsAndOtra(t *testing.T) {
 	assert.Equal(t, []string{"proyectar_oficio", "gestion_llamada", "gestion_llamada", "solicitud_entidad"}, taskTypes(w.tasks.rows))
 	assert.Equal(t, "Articulación institucional telefónica o por mensajería", w.tasks.rows[1].Description)
 	assert.Equal(t, "Denuncia fácil", w.tasks.rows[2].Description)
+	assert.Empty(t, decodeChecklist(t, solicitudTask(t, w.tasks.rows).FormData))
 	assert.Equal(t, 1, w.attempts.n)
 
 	otra := newV4World(1)
@@ -635,6 +657,102 @@ func TestCompleteFollowUpV4AlertaDeBarreraActiva(t *testing.T) {
 	assert.Equal(t, []string{"comite_caso"}, taskTypes(w.tasks.rows))
 	assert.Empty(t, w.tasks.rows[0].AssignedUserID)
 	assert.Equal(t, "b-active", *w.tasks.rows[0].BarrierID)
+}
+
+func solicitudTask(t *testing.T, tasks []models.CaseTask) models.CaseTask {
+	t.Helper()
+	for _, task := range tasks {
+		if task.Type == "solicitud_entidad" {
+			return task
+		}
+	}
+	t.Fatal("no se creó la tarea solicitud_entidad")
+	return models.CaseTask{}
+}
+
+func decodeChecklist(t *testing.T, raw []byte) []solicitudChecklistItem {
+	t.Helper()
+	var payload struct {
+		Checklist []solicitudChecklistItem `json:"checklist"`
+	}
+	assert.NoError(t, json.Unmarshal(raw, &payload))
+	return payload.Checklist
+}
+
+func TestCompleteFollowUpV4MiSalviaDifierePendientes(t *testing.T) {
+	conCatalogo := newV4World(1)
+	conCatalogo.svc.entityObligationRepo = &v4CatalogFake{items: []models.EntityObligation{
+		{ID: "pend-1", Label: "Visita domiciliaria"},
+	}}
+	conCatalogo.direct("q:ident.conocimiento", "true")
+	conCatalogo.entry("repeater:identEntidades", "ident-1", 1, "",
+		"q:ident.entidad", "42",
+		"q:ident.acuerdo", "true",
+		"q:ident.debida", "true",
+		"q:ident.canales", "notificacion,misalvia",
+		"q:ident.completadas", "comp-1",
+		"q:ident.pendientes", "pend-1,otra",
+	)
+	conCatalogo.run(t)
+
+	var pendientes int
+	for _, row := range conCatalogo.obligations.created {
+		if row.Status == models.EntityCaseObligationStatusPendiente {
+			pendientes++
+		}
+		if row.EntityObligationID != nil {
+			assert.Equal(t, "comp-1", *row.EntityObligationID)
+			assert.Equal(t, models.EntityCaseObligationStatusCompletada, row.Status)
+		}
+	}
+	assert.Equal(t, 0, pendientes)
+	checklist := decodeChecklist(t, solicitudTask(t, conCatalogo.tasks.rows).FormData)
+	assert.Equal(t, []solicitudChecklistItem{
+		{ObligationID: "pend-1", Label: "Visita domiciliaria"},
+		{ObligationID: "otra", Label: "Otra"},
+	}, checklist)
+
+	sinMiSalvia := newV4World(1)
+	sinMiSalvia.direct("q:ident.conocimiento", "true")
+	sinMiSalvia.entry("repeater:identEntidades", "ident-1", 1, "",
+		"q:ident.entidad", "42",
+		"q:ident.acuerdo", "true",
+		"q:ident.debida", "true",
+		"q:ident.canales", "notificacion",
+		"q:ident.pendientes", "pend-1",
+	)
+	sinMiSalvia.run(t)
+	assert.NotContains(t, taskTypes(sinMiSalvia.tasks.rows), "solicitud_entidad")
+	if assert.Len(t, sinMiSalvia.obligations.created, 1) {
+		assert.Equal(t, models.EntityCaseObligationStatusPendiente, sinMiSalvia.obligations.created[0].Status)
+		assert.Equal(t, "pend-1", *sinMiSalvia.obligations.created[0].EntityObligationID)
+	}
+
+	seguimiento := newV4World(1)
+	seguimiento.entry("repeater:segEntidades", "seg-1", 1, "",
+		"q:seg.acuerdo", "true",
+		"q:seg.debida", "true",
+		"q:seg.canales", "misalvia",
+		"q:seg.pendientes", "obl-9,otra",
+		"q:seg.otraPendiente", "Visita",
+		"q:seg.actualizacion", "sin cambios de ruta nuevos",
+	)
+	seguimiento.run(t)
+	assert.Empty(t, seguimiento.obligations.created)
+	assert.Equal(t, []solicitudChecklistItem{
+		{ObligationID: "obl-9", Label: "obl-9"},
+		{ObligationID: "otra", Label: "Visita"},
+	}, decodeChecklist(t, solicitudTask(t, seguimiento.tasks.rows).FormData))
+
+	conclusion := newV4World(1)
+	conclusion.direct(
+		"q:con.accion", "true",
+		"q:con.entidad", "15",
+		"q:con.canales", "misalvia",
+	)
+	conclusion.run(t)
+	assert.Empty(t, conclusion.obligations.created)
+	assert.Empty(t, decodeChecklist(t, solicitudTask(t, conclusion.tasks.rows).FormData))
 }
 
 func TestCompleteFollowUpV4SecondSaveDoesNotRepeat(t *testing.T) {

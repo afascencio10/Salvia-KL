@@ -256,7 +256,7 @@ func (s *formService) processPsicosocialEntidadEntries(ctx context.Context, form
 
 			if requiereActivacion {
 				psID := ps.ID
-				s.procesarCanalActivacion(ctx, ps.CaseID, ps.FollowUpID, actorID, entityCaseID, entityBranchID, canal, &psID)
+				s.procesarCanalActivacion(ctx, ps.CaseID, ps.FollowUpID, actorID, entityCaseID, entityBranchID, canal, &psID, nil)
 			}
 		}
 	}
@@ -400,7 +400,7 @@ func (s *formService) processPsicosocialEntidadEntries(ctx context.Context, form
 			// Canal de activación (solo aplica en el repeater de activación)
 			if rcfg.qCanalActivacion != "" {
 				psID := ps.ID
-				s.procesarCanalActivacion(ctx, ps.CaseID, ps.FollowUpID, actorID, entityCaseID, entityBranchID, idMap[rcfg.qCanalActivacion], &psID)
+				s.procesarCanalActivacion(ctx, ps.CaseID, ps.FollowUpID, actorID, entityCaseID, entityBranchID, idMap[rcfg.qCanalActivacion], &psID, nil)
 			}
 		}
 	}

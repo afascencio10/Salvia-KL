@@ -1736,6 +1736,59 @@ func parseSolicitudes(fd map[string]interface{}) ([]solicitudItem, error) {
 	return out, nil
 }
 
+// taskHasSolicitudChecklist distingue una tarea de Mi Salvia (trae la clave
+// checklist, aunque esté vacía) de una tarea vieja sin ese campo.
+func taskHasSolicitudChecklist(raw datatypes.JSON) bool {
+	if len(raw) == 0 {
+		return false
+	}
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return false
+	}
+	checklist, ok := payload["checklist"]
+	return ok && string(checklist) != "null"
+}
+
+// obligacionesParaSolicitud arma las filas que se asignan a la entidad al
+// confirmar la solicitud. Una obligación de catálogo que ya existe no se
+// duplica. "otra" siempre crea una fila con texto libre.
+func obligacionesParaSolicitud(entityCaseID, actorID string, followUpID *string, solicitudes []solicitudItem, yaExisten map[string]bool) []models.EntityCaseObligation {
+	if yaExisten == nil {
+		yaExisten = map[string]bool{}
+	}
+	out := make([]models.EntityCaseObligation, 0)
+	for _, sol := range solicitudes {
+		if sol.ObligationID == "otra" {
+			label := strings.TrimSpace(sol.Label)
+			if label == "" {
+				label = "Otra"
+			}
+			out = append(out, models.EntityCaseObligation{
+				EntityCaseID: entityCaseID,
+				Status:       models.EntityCaseObligationStatusPendiente,
+				FollowUpID:   followUpID,
+				CreatedByID:  actorID,
+				CustomLabel:  &label,
+			})
+			continue
+		}
+		if yaExisten[sol.ObligationID] {
+			continue
+		}
+		id := sol.ObligationID
+		out = append(out, models.EntityCaseObligation{
+			EntityCaseID:       entityCaseID,
+			EntityObligationID: &id,
+			Status:             models.EntityCaseObligationStatusPendiente,
+			FollowUpID:         followUpID,
+			CreatedByID:        actorID,
+		})
+		yaExisten[id] = true
+	}
+	return out
+}
+
 func (s *caseTaskService) findUsersByEntityBranchID(ctx context.Context, branchID int64) ([]string, error) {
 	var ids []string
 	err := s.db.WithContext(ctx).Raw(`
@@ -1789,6 +1842,28 @@ func (s *caseTaskService) completeSolicitudEntidad(ctx context.Context, task *mo
 			"completed_at": now,
 		}).Error; err != nil {
 			return fmt.Errorf("CompleteWithFormData: marcar Done: %w", err)
+		}
+
+		// Checklist presente: las pendientes venían del formulario y todavía
+		// no están asignadas. Se crean aquí, antes de las tareas de respuesta.
+		// Sin checklist (psicosocial, registro o tareas viejas) no se insertan.
+		if taskHasSolicitudChecklist(task.FormData) {
+			var ids []string
+			if err := tx.Model(&models.EntityCaseObligation{}).
+				Where("entity_case_id = ? AND entity_obligation_id IS NOT NULL", *task.EntityCaseID).
+				Pluck("entity_obligation_id", &ids).Error; err != nil {
+				return fmt.Errorf("CompleteWithFormData: leer obligaciones existentes: %w", err)
+			}
+			ya := make(map[string]bool, len(ids))
+			for _, id := range ids {
+				ya[id] = true
+			}
+			for _, eco := range obligacionesParaSolicitud(*task.EntityCaseID, userId, task.FollowUpID, solicitudes, ya) {
+				row := eco
+				if err := tx.Create(&row).Error; err != nil {
+					return fmt.Errorf("CompleteWithFormData: crear obligación institucional: %w", err)
+				}
+			}
 		}
 
 		for _, sol := range solicitudes {
