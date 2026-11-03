@@ -267,6 +267,10 @@ Reglas de una migración nueva:
 - `.gitignore` ignora `*.sql`: agrégala con `git add -f src/migrations/<archivo>`.
 - Cuando la migración ya esté aplicada en Supabase y el seed de enums se
   regenere desde allá, el archivo sigue siendo inofensivo (es idempotente).
+- Al aplicarla en Supabase (develop), cópiala **idéntica** a `migrationsProd/`
+  (carpeta en la raíz del repo, fuera de esta) y agrégala a la tabla de estado de
+  su README: ahí se lleva lo que falta correr **en producción**. Esa carpeta es
+  para quien despliega, no para el sandbox: no cambia lo que carga este directorio.
 
 Hoy trae `20261102_wp2_registro_v3_catalogos_y_columnas.sql` (WP-2): las
 opciones Rural/Urbano de la zona de residencia (`residence_zone`), las 7 de
@@ -278,7 +282,8 @@ proyecto `pwwelwfhauspznpatuqm`, con `execute_sql` del MCP de Supabase: ese
 proyecto no lleva historial `supabase_migrations`, así que se usó SQL directo y
 no `apply_migration`). Verificado allá: las 9 filas de catálogo, las 3 columnas
 nuevas, los 3 anchos en 100 y que ninguna de esas columnas tiene vistas, políticas,
-índices ni llaves foráneas. En un Supabase nuevo se aplica a mano.
+índices ni llaves foráneas. En un Supabase nuevo se aplica a mano. **En
+producción sigue pendiente**: está en `migrationsProd/` (ver su README).
 
 **`seed_test_data/*.sql`** (fase 2, después de que la app arranca) —
 datos que dependen de tablas que crea la app y datos leídos de Supabase para
