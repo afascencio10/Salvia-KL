@@ -65,4 +65,22 @@ async function abrir({ role = 'op', triada = true, hook } = {}) {
   return { browser, ctx, page, icode, api, sql, errores, doc };
 }
 
-module.exports = { abrir, sql, BASE };
+// Elige una entidad por la UI (cascada Bogotá D.C. + sector + «Buscar entidad»); `nueva` es el locator de la tarjeta.
+async function elegirEntidad(page, nueva, { sector = 'justicia', texto = 'usaqu' } = {}) {
+  const sel = (label) => nueva.locator(`label.form-label:has-text("${label}") + select`);
+  await sel('Departamento').selectOption({ label: 'BOGOTÁ, D.C.' });
+  await page.waitForTimeout(400);
+  await sel('Ciudad').selectOption({ index: 1 });
+  await page.waitForTimeout(400);
+  await sel('Municipio').selectOption({ index: 1 });
+  await sel('Sector').selectOption(sector);
+  const buscar = nueva.locator('input[placeholder="Escribe el nombre de la entidad"]');
+  await buscar.waitFor();
+  await buscar.focus();
+  await buscar.pressSequentially(texto, { delay: 20 });
+  await page.waitForTimeout(450);
+  await nueva.locator('.list-group button').first().dispatchEvent('mousedown');
+  await page.waitForTimeout(600);
+}
+
+module.exports = { abrir, sql, BASE, elegirEntidad };

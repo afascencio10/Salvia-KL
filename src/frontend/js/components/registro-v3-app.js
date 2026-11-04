@@ -103,6 +103,9 @@ var RegistroV3App = Vue.createApp({
       entidadCiudades: [], entidadMunicipios: [], entidadesDisponibles: [],
       entidadBuscando: false, obligacionesEntidad: [], obligacionesCargando: false,
       errorEntidad: '',
+      // REG-19: «Buscar entidad». entidadTexto es lo que se ve en el campo (inmediato); textoEntidad
+      // es la copia con debounce (250 ms) con la que se filtra la lista ya cargada.
+      entidadTexto: '', textoEntidad: '', entidadEnfocada: false,
       // GS § D -- barreraParaEntidad es el entityBranchId de la entidad cuyo
       // formulario de "+ Agregar barrera" está abierto (null = ninguno).
       barreraParaEntidad: null,
@@ -148,6 +151,14 @@ var RegistroV3App = Vue.createApp({
     moduloActualObj: function () {
       var self = this;
       return this.modulos.filter(function (m) { return m.id === self.moduloActivo; })[0];
+    },
+    // REG-19: sedes del municipio y sector ya cargadas, filtradas en el navegador (sin tildes ni
+    // mayúsculas, desde la primera letra). Escribir NUNCA llama al servidor.
+    entidadesFiltradas: function () {
+      var q = this.sinTildes(this.textoEntidad).trim();
+      var self = this;
+      if (!q) return this.entidadesDisponibles;
+      return this.entidadesDisponibles.filter(function (o) { return self.sinTildes(o.name).indexOf(q) >= 0; });
     },
     equiposRemision: function () { return EQUIPOS_REMISION_V3; },
     equiposSeleccionados: function () {
@@ -1054,6 +1065,7 @@ var RegistroV3App = Vue.createApp({
     onCambiaDeptoEntidad: function () {
       this.nuevaEntidad.ciudad = ''; this.nuevaEntidad.municipio = ''; this.nuevaEntidad.EntityBranchID = '';
       this.entidadCiudades = []; this.entidadMunicipios = []; this.entidadesDisponibles = []; this.obligacionesEntidad = [];
+      this.reiniciarBuscadorEntidad();
       if (!this.nuevaEntidad.depto) return;
       var self = this;
       fetch('/api/v1/locations/cities?department_id=' + encodeURIComponent(this.nuevaEntidad.depto))
@@ -1064,6 +1076,7 @@ var RegistroV3App = Vue.createApp({
     onCambiaCiudadEntidad: function () {
       this.nuevaEntidad.municipio = ''; this.nuevaEntidad.EntityBranchID = '';
       this.entidadMunicipios = []; this.entidadesDisponibles = []; this.obligacionesEntidad = [];
+      this.reiniciarBuscadorEntidad();
       if (!this.nuevaEntidad.ciudad) return;
       var self = this;
       fetch('/api/v1/locations/towns?city_id=' + encodeURIComponent(this.nuevaEntidad.ciudad))
@@ -1073,31 +1086,86 @@ var RegistroV3App = Vue.createApp({
     },
     onCambiaMunicipioEntidad: function () { this.buscarEntidadesEntidad(); },
     onCambiaSectorEntidad: function () { this.buscarEntidadesEntidad(); },
+    // REG-19: la lista de sedes del municipio y sector se pide UNA sola vez (al elegir el último de
+    // los dos). Cada petición lleva un número: si el usuario cambia el municipio o el sector mientras
+    // llega la respuesta anterior, esa respuesta se descarta.
     buscarEntidadesEntidad: function () {
       this.nuevaEntidad.EntityBranchID = ''; this.entidadesDisponibles = [];
       this.obligacionesEntidad = []; this.nuevaEntidad.CompletedActions = []; this.nuevaEntidad.PendingActions = [];
+      this.reiniciarBuscadorEntidad();
       if (!this.nuevaEntidad.municipio || !this.nuevaEntidad.sector) return;
       var self = this;
+      var token = this._reqSedes;
       self.entidadBuscando = true;
       fetch('/api/v1/entity-branches?town_code=' + encodeURIComponent(this.nuevaEntidad.municipio) + '&sector=' + encodeURIComponent(this.nuevaEntidad.sector))
         .then(function (r) { return r.json(); })
-        .then(function (data) { self.entidadesDisponibles = Array.isArray(data) ? data : []; self.entidadBuscando = false; })
-        .catch(function () { self.entidadesDisponibles = []; self.entidadBuscando = false; });
+        .then(function (data) {
+          if (token !== self._reqSedes) return;
+          self.entidadesDisponibles = Array.isArray(data) ? data : []; self.entidadBuscando = false;
+        })
+        .catch(function () {
+          if (token !== self._reqSedes) return;
+          self.entidadesDisponibles = []; self.entidadBuscando = false;
+        });
     },
+    sinTildes: function (t) {
+      return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    },
+    // Limpia el texto del buscador, cancela el debounce pendiente e invalida las respuestas en vuelo.
+    reiniciarBuscadorEntidad: function () {
+      clearTimeout(this._entidadDebounce);
+      this.entidadTexto = ''; this.textoEntidad = ''; this.entidadEnfocada = false;
+      this._reqSedes = (this._reqSedes || 0) + 1;
+      this._reqObligaciones = (this._reqObligaciones || 0) + 1;
+      this.entidadBuscando = false; this.obligacionesCargando = false;
+    },
+    // @input del campo «Buscar entidad»: el texto visible cambia al instante y el filtro se aplica
+    // tras 250 ms sin teclear. Escribir después de elegir una sugerencia limpia la selección.
+    onInputBuscarEntidad: function (valor) {
+      var self = this;
+      this.entidadTexto = valor;
+      if (this.nuevaEntidad.EntityBranchID) this.limpiarSeleccionEntidad();
+      clearTimeout(this._entidadDebounce);
+      this._entidadDebounce = setTimeout(function () { self.textoEntidad = self.entidadTexto; }, 250);
+    },
+    limpiarSeleccionEntidad: function () {
+      this.nuevaEntidad.EntityBranchID = '';
+      this.obligacionesEntidad = []; this.nuevaEntidad.CompletedActions = []; this.nuevaEntidad.PendingActions = [];
+      this._reqObligaciones = (this._reqObligaciones || 0) + 1;
+      this.obligacionesCargando = false;
+    },
+    seleccionarEntidadSugerida: function (opt) {
+      clearTimeout(this._entidadDebounce);
+      this.nuevaEntidad.EntityBranchID = opt.id;
+      this.entidadTexto = opt.name; this.textoEntidad = opt.name;
+      this.onCambiaEntidadSeleccionada();
+    },
+    // Al elegir la entidad se piden sus acciones institucionales (única otra petición del buscador).
     onCambiaEntidadSeleccionada: function () {
       this.obligacionesEntidad = []; this.nuevaEntidad.CompletedActions = []; this.nuevaEntidad.PendingActions = [];
       if (!this.nuevaEntidad.EntityBranchID) return;
       var self = this;
+      var token = this._reqObligaciones = (this._reqObligaciones || 0) + 1;
       self.obligacionesCargando = true;
       fetch('/api/v1/entity-branches/' + encodeURIComponent(this.nuevaEntidad.EntityBranchID) + '/obligations')
         .then(function (r) { return r.ok ? r.json() : []; })
         .then(function (data) {
+          if (token !== self._reqObligaciones) return;
           // "Otra" no tiene captura de texto libre en V3 todavía -- se excluye
           // del checklist, igual que case-entities.js.
           self.obligacionesEntidad = (Array.isArray(data) ? data : []).filter(function (o) { return o.value !== 'otra'; });
           self.obligacionesCargando = false;
         })
-        .catch(function () { self.obligacionesEntidad = []; self.obligacionesCargando = false; });
+        .catch(function () {
+          if (token !== self._reqObligaciones) return;
+          self.obligacionesEntidad = []; self.obligacionesCargando = false;
+        });
+    },
+    // Acciones institucionales como chips (mismo estilo que el modal de Gestión institucional).
+    estiloChip: function (seleccionado) {
+      return seleccionado
+        ? 'border:1px solid #5106A7;background:#5106A7;color:#fff;border-radius:20px;padding:6px 14px;font-size:.8rem;font-weight:600;cursor:pointer'
+        : 'border:1px solid #c4b5fd;background:#fff;color:#5106A7;border-radius:20px;padding:6px 14px;font-size:.8rem;font-weight:500;cursor:pointer';
     },
     agregarEntidad: function () {
       var self = this;
@@ -1129,6 +1197,7 @@ var RegistroV3App = Vue.createApp({
           if (!res.ok) { self.errorEntidad = res.data.error || 'No se pudo agregar la entidad'; return; }
           self.nuevaEntidad = self.entidadVacia();
           self.entidadCiudades = []; self.entidadMunicipios = []; self.entidadesDisponibles = []; self.obligacionesEntidad = [];
+          self.reiniciarBuscadorEntidad();
           self.recargarEntidadesBarreras();
         });
     },
