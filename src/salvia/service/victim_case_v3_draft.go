@@ -104,6 +104,10 @@ type EntityMetaV3 struct {
 	ActivationChannels []string `json:"activationChannels"`
 	ReportDate         string   `json:"reportDate"`
 	ManagementNotes    string   `json:"managementNotes"`
+	// Ids de entity_obligation marcados al registrar la entidad (REG-15: la tarjeta lista las
+	// acciones con su estado, también cuando todavía son solo borrador).
+	Pending   []string `json:"pending"`
+	Completed []string `json:"completed"`
 }
 
 type BarrierMetaV3 struct {
@@ -656,7 +660,8 @@ func (s *victimCaseV3Service) draftMetaV3(ctx context.Context, icode string) (ma
 
 func entityMetaFromDraftV3(e DraftEntityV3) EntityMetaV3 {
 	return EntityMetaV3{Kind: e.Kind, Agreement: e.Agreement, DueDiligence: e.DueDiligence,
-		ActivationChannels: e.ActivationChannels, ReportDate: e.ReportDate, ManagementNotes: e.ManagementNotes}
+		ActivationChannels: e.ActivationChannels, ReportDate: e.ReportDate, ManagementNotes: e.ManagementNotes,
+		Pending: e.Pending, Completed: e.Completed}
 }
 
 // ── Vaciado («flush») ───────────────────────────────────────────────────────

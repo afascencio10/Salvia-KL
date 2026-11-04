@@ -213,7 +213,9 @@
       </div>
     </div>
 
-    <!-- Gestión Salvia -->
+    <!-- Plan de acción Salvia (REG-15). Orden definido por el cliente: a) párrafo síntesis · b) GS_1 · c) GS_15 ·
+         d) GS_16 y activaciones · e) GS_3 · f) remisión a otros equipos · g) GS_13 · h) GS_20 · i) GS_4, y luego
+         la alerta inminente. GS_14, GS_17 y las entidades acudidas están en «Ruta de atención integral». -->
     <div v-if="moduloActivo==='GS'">
       <!-- Encontrado en vivo con Playwright (2026-10-15): secciones.md dice
            "Al entrar a este módulo se muestra primero el párrafo síntesis"
@@ -222,153 +224,66 @@
       <div class="alert alert-secondary" v-if="parrafoSintesis()">
         <strong>Párrafo síntesis:</strong> ${parrafoSintesis()}
       </div>
-      <h5>A. Denuncia y gestión general</h5>
-      <div v-for="campo in camposVisibles('GS')" :key="campo.id" class="mb-3">
-        <label class="form-label">${campo.label}</label>
-        <div v-if="campo.tipo==='boolean'">
+      {{ template "rv3_aviso_borrador" }}
+
+      <!-- b) -->
+      {{ template "rv3_gs_campos" "GS_1" }}
+
+      <!-- c) GS_15: siempre visible (D5) -->
+      <div class="mb-3">
+        <label class="form-label">¿Está de acuerdo con que SALVIA realice la activación de la Ruta de Atención?</label>
+        <div>
           <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" :name="campo.id" :checked="answers[campo.id]==='true'" @change="setBool(campo.id,true)"><label class="form-check-label">Sí</label>
+            <input class="form-check-input" type="radio" name="GS_15" :checked="answers['GS_15']==='true'" @change="setBool('GS_15',true)"><label class="form-check-label">Sí</label>
           </div>
           <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" :name="campo.id" :checked="answers[campo.id]==='false'" @change="setBool(campo.id,false)"><label class="form-check-label">No</label>
-          </div>
-        </div>
-        <textarea v-else-if="campo.tipo==='textarea'" class="form-control" rows="2" :value="getVal(campo.id)" @input="setVal(campo.id,$event.target.value)"></textarea>
-        <div v-else-if="campo.tipo==='multiple'">
-          <div class="form-check" v-for="o in opcionesPara(campo)" :key="o.icode">
-            <input class="form-check-input" type="checkbox" :checked="estaMarcado(campo.id,o.icode)" @change="toggleMarcado(campo.id,o.icode)">
-            <label class="form-check-label">${etiqueta(campo,o)}</label>
+            <input class="form-check-input" type="radio" name="GS_15" :checked="answers['GS_15']==='false'" @change="setBool('GS_15',false)"><label class="form-check-label">No</label>
           </div>
         </div>
       </div>
 
-      <hr>
-      <h5>B. Remisión a otros equipos de Salvia</h5>
-      <div class="form-check form-check-inline mb-2">
-        <input class="form-check-input" type="radio" name="GS_5" :checked="answers['GS_5']==='true'" @change="setBool('GS_5',true)"><label class="form-check-label">Requiere remisión: Sí</label>
-      </div>
-      <div class="form-check form-check-inline mb-2">
-        <input class="form-check-input" type="radio" name="GS_5" :checked="answers['GS_5']==='false'" @change="setBool('GS_5',false)"><label class="form-check-label">No</label>
-      </div>
-
-      <div v-if="answers['GS_5']==='true'">
-        <div v-for="o in opcionesPara(campoPorId('GS_6'))" :key="o.icode" class="mb-2">
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" :checked="estaMarcado('GS_6',o.icode)" @change="toggleMarcado('GS_6',o.icode)">
-            <label class="form-check-label"><b>${etiqueta(campoPorId('GS_6'),o)}</b></label>
+      <!-- d) GS_16: «Sí» despliega el formulario de activación; las activaciones ya guardadas se ven siempre -->
+      <div class="mb-3">
+        <label class="form-label">¿Salvia debe activar rutas en el marco de la debida diligencia?</label>
+        <div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="GS_16" :checked="answers['GS_16']==='true'" @change="setBool('GS_16',true)"><label class="form-check-label">Sí</label>
           </div>
-          <div v-if="estaMarcado('GS_6',o.icode) && equipoMeta(o.code) && equipoMeta(o.code).criterioFieldId" class="ms-4 ps-3 border-start">
-            <div class="form-check" v-for="co in opcionesPara(campoPorId(equipoMeta(o.code).criterioFieldId))" :key="co.icode">
-              <input class="form-check-input" type="checkbox" :checked="estaMarcado(equipoMeta(o.code).criterioFieldId, co.icode)" @change="toggleMarcado(equipoMeta(o.code).criterioFieldId, co.icode)">
-              <label class="form-check-label small">${etiqueta(campoPorId(equipoMeta(o.code).criterioFieldId), co)}</label>
-            </div>
-            <div class="small" :class="cumpleCriterioEquipo(equipoMeta(o.code)) ? 'text-success' : 'text-danger'">
-              ${cumpleCriterioEquipo(equipoMeta(o.code)) ? '✓ Cumple criterios de remisión' : '✗ Aún no cumple los criterios mínimos'}
-            </div>
-          </div>
-          <div v-if="estaMarcado('GS_6',o.icode) && o.code==='me'" class="ms-4 ps-3 border-start">
-            <div class="form-check" v-for="mo in opcionesPara(campoPorId('GS_7'))" :key="mo.icode">
-              <input class="form-check-input" type="checkbox" :checked="estaMarcado('GS_7',mo.icode)" @change="toggleMarcado('GS_7',mo.icode)">
-              <label class="form-check-label small">${etiqueta(campoPorId('GS_7'),mo)}</label>
-            </div>
-          </div>
-        </div>
-
-        <label class="form-label mt-2">Justificación de la remisión</label>
-        <textarea class="form-control" rows="2" :value="getVal('GS_13')" @input="setVal('GS_13',$event.target.value)"></textarea>
-      </div>
-
-      <hr>
-      <h5>C. Registrar entidades (acudidas / activación de ruta)</h5>
-      <div class="form-check form-check-inline mb-2">
-        <input class="form-check-input" type="radio" name="GS_14" :checked="answers['GS_14']==='true'" @change="setBool('GS_14',true)"><label class="form-check-label">¿Ya se reportó a alguna entidad? Sí</label>
-      </div>
-      <div class="form-check form-check-inline mb-2">
-        <input class="form-check-input" type="radio" name="GS_14" :checked="answers['GS_14']==='false'" @change="setBool('GS_14',false)"><label class="form-check-label">No</label>
-      </div>
-      <div class="form-check form-check-inline mb-2">
-        <input class="form-check-input" type="radio" name="GS_16" :checked="answers['GS_16']==='true'" @change="setBool('GS_16',true)"><label class="form-check-label">¿Salvia debe activar rutas en el marco de la debida diligencia? Sí</label>
-      </div>
-      <div class="form-check form-check-inline mb-2">
-        <input class="form-check-input" type="radio" name="GS_16" :checked="answers['GS_16']==='false'" @change="setBool('GS_16',false)"><label class="form-check-label">No</label>
-      </div>
-      <div v-if="answers['GS_14']==='true' || answers['GS_16']==='true'">
-        <div class="form-check form-check-inline mb-2">
-          <input class="form-check-input" type="radio" name="GS_15" :checked="answers['GS_15']==='true'" @change="setBool('GS_15',true)"><label class="form-check-label">¿Está de acuerdo con que SALVIA realice la activación de la Ruta de Atención? Sí</label>
-        </div>
-        <div class="form-check form-check-inline mb-2">
-          <input class="form-check-input" type="radio" name="GS_15" :checked="answers['GS_15']==='false'" @change="setBool('GS_15',false)"><label class="form-check-label">No</label>
-        </div>
-      </div>
-
-      <!-- Entidades ya agregadas, cada una con sus Barreras anidadas como
-           sub-repeater (0, 1 o más por entidad) -- ver
-           registro-v3-pendientes.md § B. La asociación barrera->entidad es
-           la MISMA que ya usa "Gestión institucional" para contar
-           "barreras activas" por entidad (case_id + entity_branch_id, ver
-           entity_case_repository.go) -- no hace falta columna nueva. -->
-      <div v-if="entidades.length" class="mb-3">
-        <div class="card card-body mb-2" v-for="e in entidades" :key="e.relId">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <span class="badge bg-secondary">${sectorLabelEntidadBarrera(e.sector)}</span>
-              <strong>${e.entityBranchName}</strong>
-              <div class="small text-muted">${ubicacionEntidad(e)}</div>
-              <div class="small" v-if="canalDeEntidad(e).length"><b>Canales de activación:</b> ${canalDeEntidad(e).join(', ')}</div>
-            </div>
-            <button class="btn btn-sm btn-outline-danger" @click="eliminarEntidad(e.relId)">Eliminar entidad</button>
-          </div>
-
-          <table class="table table-sm mt-2 mb-1" v-if="barrerasDeEntidad(e).length">
-            <thead><tr><th>Descripción</th><th>Gestión</th><th></th></tr></thead>
-            <tbody>
-              <tr v-for="b in barrerasDeEntidad(e)" :key="b.id">
-                <td>${b.description}</td><td>${etiquetaGestionBarrera(b.managementActions)}</td>
-                <td><button class="btn btn-sm btn-outline-danger" @click="eliminarBarrera(b.id)">Eliminar</button></td>
-              </tr>
-            </tbody>
-          </table>
-
-          <button class="btn btn-sm btn-outline-secondary mt-1" v-if="answers['GS_17']==='true' && barreraParaEntidad!==e.entityBranchId" @click="abrirBarreraParaEntidad(e)">+ Agregar barrera a esta entidad</button>
-
-          <!-- REG-18: formulario de barrera de Seguimiento v4 (fragmento compartido, ver el final del archivo). -->
-          <div class="border rounded p-2 mt-2" v-if="barreraParaEntidad===e.entityBranchId">
-            {{ template "rv3_form_barrera" }}
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="GS_16" :checked="answers['GS_16']==='false'" @change="setBool('GS_16',false)"><label class="form-check-label">No</label>
           </div>
         </div>
       </div>
 
-      <!-- Buscador real: Departamento/Ciudad/Municipio + Sector -> entity_branch,
-           misma lógica que la pestaña "Gestión institucional" y el form de
-           Seguimiento (case-entities.js) -- ver registro-v3-pendientes.md § B. -->
-      <div class="card card-body mb-3">
-        <div class="row g-2">
-          <div class="col-md-3">
-            <label class="form-label">Tipo</label>
-            <select class="form-control" v-model="nuevaEntidad.Kind">
-              <option value="acudida">Entidad acudida</option>
-              <option value="activacion">Activación de ruta</option>
-            </select>
-          </div>
+      <div v-if="entidadesActivacion.length" class="mb-3">
+        <div class="card card-body mb-2" v-for="e in entidadesActivacion" :key="e.relId">
+          {{ template "rv3_tarjeta_entidad" }}
         </div>
+      </div>
 
+      <div class="card card-body mb-3" v-if="answers['GS_16']==='true' && !entitiesReadOnly">
+        <h6 class="mb-2">Activación de ruta</h6>
         <!-- REG-19: cascada obligatoria + «Buscar entidad» + acciones institucionales (fragmento compartido). -->
         {{ template "rv3_entidad_buscador" }}
 
         <div class="row g-2 mt-1" v-if="nuevaEntidad.EntityBranchID">
-          <div class="col-md-3">
-            <label class="form-label">N° radicado</label>
-            <input class="form-control" v-model="nuevaEntidad.FileNumber">
+          <div class="col-md-6">
+            <label class="form-label">Solicitud a la entidad</label>
+            <textarea class="form-control" rows="2" placeholder="¿Qué acciones institucionales se requieren?" v-model="nuevaEntidad.Solicitud"></textarea>
           </div>
           <div class="col-md-6">
-            <label class="form-label">${nuevaEntidad.Kind==='acudida' ? 'Objetivo con la entidad' : 'Información adicional'}</label>
-            <input class="form-control" v-model="nuevaEntidad.OtherInfo">
+            <label class="form-label">¿Cuenta con un N° de radicado, NUNC, MP, etc.?</label>
+            <input class="form-control" placeholder="N° de radicado, NUNC, MP, etc." v-model="nuevaEntidad.FileNumber">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Objetivo con la entidad <span class="text-danger">*</span></label>
+            <textarea class="form-control" rows="2" placeholder="¿Qué debe gestionar la víctima en esta entidad?" v-model="nuevaEntidad.OtherInfo"></textarea>
           </div>
         </div>
 
         <!-- REG-20: canal de activación como Seguimiento v4 (selección múltiple + gestiones). Se pide
              cuando GS_15 y GS_16 son «Sí»; sin ambas no se crea ninguna tarea. -->
-        <div class="mt-2" v-if="nuevaEntidad.EntityBranchID && nuevaEntidad.Kind==='activacion'">
+        <div class="mt-2" v-if="nuevaEntidad.EntityBranchID">
           <div v-if="activacionAplica()">
             <label class="form-label">${ENTIDAD_V4_V3.canales.label} <span class="text-danger">*</span></label>
             <div class="form-check" v-for="c in CANAL_ACTIVACION_V3" :key="c.value">
@@ -385,15 +300,49 @@
         <button class="btn btn-secondary mt-2" @click="agregarEntidad" :disabled="!nuevaEntidad.EntityBranchID || entidadFaltantes().length>0">+ Siguiente entidad</button>
       </div>
 
+      <!-- e) -->
+      {{ template "rv3_gs_campos" "GS_3" }}
+
+      <!-- f) y g) Remisión a otros equipos de Salvia (con los criterios) y justificación -->
       <hr>
-      <h5>D. Barreras institucionales</h5>
       <div class="form-check form-check-inline mb-2">
-        <input class="form-check-input" type="radio" name="GS_17" :checked="answers['GS_17']==='true'" @change="setBool('GS_17',true)"><label class="form-check-label">¿Se identificaron barreras? Sí</label>
+        <input class="form-check-input" type="radio" name="GS_5" :disabled="entitiesReadOnly" :checked="answers['GS_5']==='true'" @change="setBool('GS_5',true)"><label class="form-check-label">Requiere remisión: Sí</label>
       </div>
       <div class="form-check form-check-inline mb-2">
-        <input class="form-check-input" type="radio" name="GS_17" :checked="answers['GS_17']==='false'" @change="setBool('GS_17',false)"><label class="form-check-label">No</label>
+        <input class="form-check-input" type="radio" name="GS_5" :disabled="entitiesReadOnly" :checked="answers['GS_5']==='false'" @change="setBool('GS_5',false)"><label class="form-check-label">No</label>
       </div>
-      <p class="small text-muted" v-if="answers['GS_17']==='true' && !entidades.length">Primero agrega la entidad relacionada en la sección C -- las barreras se registran dentro de cada entidad.</p>
+
+      <div v-if="answers['GS_5']==='true'">
+        <div v-for="o in opcionesPara(campoPorId('GS_6'))" :key="o.icode" class="mb-2">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" :disabled="entitiesReadOnly" :checked="estaMarcado('GS_6',o.icode)" @change="toggleMarcado('GS_6',o.icode)">
+            <label class="form-check-label"><b>${etiqueta(campoPorId('GS_6'),o)}</b></label>
+          </div>
+          <div v-if="estaMarcado('GS_6',o.icode) && equipoMeta(o.code) && equipoMeta(o.code).criterioFieldId" class="ms-4 ps-3 border-start">
+            <div class="form-check" v-for="co in opcionesPara(campoPorId(equipoMeta(o.code).criterioFieldId))" :key="co.icode">
+              <input class="form-check-input" type="checkbox" :disabled="entitiesReadOnly" :checked="estaMarcado(equipoMeta(o.code).criterioFieldId, co.icode)" @change="toggleMarcado(equipoMeta(o.code).criterioFieldId, co.icode)">
+              <label class="form-check-label small">${etiqueta(campoPorId(equipoMeta(o.code).criterioFieldId), co)}</label>
+            </div>
+            <div class="small" :class="cumpleCriterioEquipo(equipoMeta(o.code)) ? 'text-success' : 'text-danger'">
+              ${cumpleCriterioEquipo(equipoMeta(o.code)) ? '✓ Cumple criterios de remisión' : '✗ Aún no cumple los criterios mínimos'}
+            </div>
+          </div>
+          <div v-if="estaMarcado('GS_6',o.icode) && o.code==='me'" class="ms-4 ps-3 border-start">
+            <div class="form-check" v-for="mo in opcionesPara(campoPorId('GS_7'))" :key="mo.icode">
+              <input class="form-check-input" type="checkbox" :disabled="entitiesReadOnly" :checked="estaMarcado('GS_7',mo.icode)" @change="toggleMarcado('GS_7',mo.icode)">
+              <label class="form-check-label small">${etiqueta(campoPorId('GS_7'),mo)}</label>
+            </div>
+          </div>
+        </div>
+
+        <label class="form-label mt-2">Justificación de la remisión</label>
+        <textarea class="form-control" rows="2" :disabled="entitiesReadOnly" :value="getVal('GS_13')" @input="setVal('GS_13',$event.target.value)"></textarea>
+      </div>
+
+
+      <hr>
+      <!-- h) elementos psicosociales (REG-16) e i) acompañamiento -->
+      {{ template "rv3_gs_campos" "GS_20,GS_4" }}
 
       <hr>
       <h5>E. Alerta Inminente</h5>
@@ -565,11 +514,79 @@
           @click="toggleEnArray(nuevaEntidad.CompletedActions, o.value)"><span v-if="nuevaEntidad.CompletedActions.indexOf(o.value)>=0">✓ </span>${o.label}</button>
       </div>
     </div>
-    <label class="form-label small mb-1">Pendientes</label>
+    <label class="form-label small mb-1" v-if="nuevaEntidad.Kind==='acudida'">Pendientes</label>
     <div class="d-flex flex-wrap gap-2">
       <button type="button" v-for="o in obligacionesEntidad" :key="'p-'+o.value" :style="estiloChip(nuevaEntidad.PendingActions.indexOf(o.value)>=0)"
         @click="toggleEnArray(nuevaEntidad.PendingActions, o.value)"><span v-if="nuevaEntidad.PendingActions.indexOf(o.value)>=0">✓ </span>${o.label}</button>
     </div>
   </template>
+</div>
+{{ end }}
+
+{{ define "rv3_aviso_borrador" }}
+<!-- REG-15/D20 · Mientras el Caso es borrador las entidades, barreras y remisiones se guardan aparte y se crean al
+     pasar a Iniciado; después son un registro de solo lectura. -->
+<div v-if="!entitiesReadOnly" class="alert alert-warning py-2 small">
+  <b>Borrador:</b> las entidades, las barreras y la remisión a otros equipos se crean cuando el Caso pase a <b>Iniciado</b> (al completar Contacto e identificación, Datos personales, Contacto de apoyo, Hechos de violencia y Características del agresor). Después quedan como un registro de solo lectura: deja todo registrado y guardado antes de completar esa información.
+</div>
+<div v-else class="alert alert-info py-2 small">
+  El Caso ya dejó de ser borrador: las entidades, las barreras y la remisión a otros equipos quedaron como un registro de solo lectura. Los cambios posteriores se hacen en las pestañas del detalle del caso.
+</div>
+{{ end }}
+
+{{ define "rv3_gs_campos" }}
+<!-- Campos genéricos de GS (booleana, texto largo o selección múltiple) filtrados por ids en el orden dado. -->
+<div v-for="campo in camposGs('{{ . }}')" :key="campo.id" class="mb-3">
+  <label class="form-label">${campo.label}</label>
+  <div v-if="campo.tipo==='boolean'">
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="radio" :name="campo.id" :checked="answers[campo.id]==='true'" @change="setBool(campo.id,true)"><label class="form-check-label">Sí</label>
+    </div>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="radio" :name="campo.id" :checked="answers[campo.id]==='false'" @change="setBool(campo.id,false)"><label class="form-check-label">No</label>
+    </div>
+  </div>
+  <textarea v-else-if="campo.tipo==='textarea'" class="form-control" rows="2" :value="getVal(campo.id)" @input="setVal(campo.id,$event.target.value)"></textarea>
+  <div v-else-if="campo.tipo==='multiple'">
+    <div class="form-check" v-for="o in opcionesPara(campo)" :key="o.icode">
+      <input class="form-check-input" type="checkbox" :checked="estaMarcado(campo.id,o.icode)" @change="toggleMarcado(campo.id,o.icode)">
+      <label class="form-check-label">${etiqueta(campo,o)}</label>
+    </div>
+  </div>
+</div>
+{{ end }}
+
+{{ define "rv3_tarjeta_entidad" }}
+<!-- Tarjeta de una entidad (variable `e` del v-for externo): datos, canales, acciones institucionales con su
+     estado y las barreras de esa sede. Sin botones cuando el Caso ya dejó de ser borrador (D20). -->
+<div class="d-flex justify-content-between align-items-start">
+  <div>
+    <span class="badge bg-secondary">${sectorLabelEntidadBarrera(e.sector)}</span>
+    <strong>${e.entityBranchName}</strong>
+    <div class="small text-muted">${ubicacionEntidad(e)}</div>
+    <div class="small" v-if="canalDeEntidad(e).length"><b>Canales de activación:</b> ${canalDeEntidad(e).join(', ')}</div>
+    <div class="small mt-1" v-if="accionesDeEntidad(e).length">
+      <b>Acciones institucionales:</b>
+      <span class="badge rounded-pill me-1" v-for="a in accionesDeEntidad(e)" :key="a.id" :class="a.estado==='completada' ? 'bg-success' : 'bg-warning text-dark'">${a.estado==='completada' ? '✓ Completada' : 'Pendiente'}: ${a.label}</span>
+    </div>
+  </div>
+  <button class="btn btn-sm btn-outline-danger" v-if="!entitiesReadOnly" @click="eliminarEntidad(e.relId)">Eliminar entidad</button>
+</div>
+
+<table class="table table-sm mt-2 mb-1" v-if="barrerasDeEntidad(e).length">
+  <thead><tr><th>Descripción</th><th>Gestión</th><th></th></tr></thead>
+  <tbody>
+    <tr v-for="b in barrerasDeEntidad(e)" :key="b.id">
+      <td>${b.description}</td><td>${etiquetaGestionBarrera(b.managementActions)}</td>
+      <td><button class="btn btn-sm btn-outline-danger" v-if="!entitiesReadOnly" @click="eliminarBarrera(b.id)">Eliminar</button></td>
+    </tr>
+  </tbody>
+</table>
+
+<button class="btn btn-sm btn-outline-secondary mt-1" v-if="answers['GS_17']==='true' && !entitiesReadOnly && barreraParaEntidad!==e.entityBranchId" @click="abrirBarreraParaEntidad(e)">+ Agregar barrera a esta entidad</button>
+
+<!-- REG-18: formulario de barrera de Seguimiento v4 (fragmento compartido). -->
+<div class="border rounded p-2 mt-2" v-if="barreraParaEntidad===e.entityBranchId && !entitiesReadOnly">
+  {{ template "rv3_form_barrera" }}
 </div>
 {{ end }}

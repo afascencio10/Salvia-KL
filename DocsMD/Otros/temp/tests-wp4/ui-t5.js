@@ -26,7 +26,7 @@ const ETIQUETAS = [
 (async () => {
   const t = await abrir();
   const { page } = t;
-  await page.getByRole('link', { name: /Gestión Salvia/ }).click();
+  await page.getByRole('link', { name: /Plan de acción Salvia/ }).click();
   const bloque = page.locator('div.mb-3', { has: page.locator('label.form-label', { hasText: 'elementos psicosociales integrados' }) });
   const opcion = (txt) => bloque.locator('.form-check', { hasText: txt }).locator('input[type=checkbox]');
 
@@ -65,7 +65,7 @@ const ETIQUETAS = [
   await page.getByRole('button', { name: 'Buscar' }).click();
   await page.locator('table button', { hasText: 'Abrir' }).first().click();
   await page.waitForSelector('ul.nav-tabs');
-  await page.getByRole('link', { name: /Gestión Salvia/ }).click();
+  await page.getByRole('link', { name: /Plan de acción Salvia/ }).click();
   const bloque2 = page.locator('div.mb-3', { has: page.locator('label.form-label', { hasText: 'elementos psicosociales integrados' }) });
   const marcadas = await bloque2.locator('.form-check', { has: page.locator('input:checked') }).locator('label').allInnerTexts();
   check('al reabrir el Caso siguen marcadas las 2', marcadas.map((x) => x.trim()).sort(), ['Comprensión del ciclo de la violencia', 'Sensibilización y orientación sobre servicios de salud mental para acompañar los impactos de la violencia'].sort());

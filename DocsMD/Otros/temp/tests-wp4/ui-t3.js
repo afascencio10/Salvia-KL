@@ -15,7 +15,7 @@ const check = (d, a, e) => { if (JSON.stringify(a) === JSON.stringify(e)) { ok++
     },
   });
   const { page, icode, api } = t;
-  await page.getByRole('link', { name: /Gestión Salvia/ }).click();
+  await page.getByRole('link', { name: /Plan de acción Salvia/ }).click();
 
   console.log('== 1. Tarjetas: canal en formato anterior y dato histórico');
   const tarjetas = await page.locator('.card.card-body.mb-2').allInnerTexts();
@@ -23,15 +23,15 @@ const check = (d, a, e) => { if (JSON.stringify(a) === JSON.stringify(e)) { ok++
   check('el dato histórico «Canal de activación: ll» se sigue viendo', tarjetas.some((x) => x.includes('Canales de activación: Llamada (tarea)')), true);
 
   console.log('== 2. Formulario: sin GS_15 y GS_16 en «Sí» no se piden canales');
+  await page.locator('input[name="GS_16"]').first().check();          // despliega el formulario de activación
   const nueva = page.locator('.card.card-body.mb-3').filter({ hasText: 'Siguiente entidad' });
-  await nueva.locator('label:has-text("Tipo") + select').selectOption('activacion');
   await elegirEntidad(page, nueva, { sector: 'justicia', texto: 'usaqu' });
   check('aparece la nota explicativa', (await nueva.innerText()).includes('Los canales de activación se piden cuando la persona está de acuerdo'), true);
   check('no hay casillas de canal', await nueva.locator('.form-check-input[type=checkbox]').filter({ hasNot: page.locator('x') }).count() >= 0, true);
-  check('«+ Siguiente entidad» habilitado (sin canales no hay nada obligatorio)', await nueva.getByRole('button', { name: '+ Siguiente entidad' }).isEnabled(), true);
+  await nueva.locator('textarea[placeholder="¿Qué debe gestionar la víctima en esta entidad?"]').fill('Objetivo de prueba');
+  check('«+ Siguiente entidad» habilitado con el objetivo (sin canales no hay nada más obligatorio)', await nueva.getByRole('button', { name: '+ Siguiente entidad' }).isEnabled(), true);
 
   console.log('== 3. Con GS_15 y GS_16 en «Sí» aparecen las 5 opciones y las gestiones');
-  await page.locator('input[name="GS_16"]').first().check();
   await page.locator('input[name="GS_15"]').first().check();
   await page.waitForTimeout(300);
   const etiquetasCanal = await nueva.locator('label.form-label:has-text("Seleccione los canales") + .form-check, label.form-label:has-text("Seleccione los canales") ~ .form-check').locator('label').allInnerTexts();
@@ -71,15 +71,16 @@ const check = (d, a, e) => { if (JSON.stringify(a) === JSON.stringify(e)) { ok++
   const tarjetas2 = await page.locator('.card.card-body.mb-2').allInnerTexts();
   check('la tarjeta nueva muestra «Notificación SALVIA, Denuncia fácil»', tarjetas2.some((x) => x.includes('Canales de activación: Notificación SALVIA, Denuncia fácil')), true);
 
-  console.log('== 7. Con GS_16 = No no se envían canales');
-  await page.locator('input[name="GS_16"]').nth(1).check();
+  console.log('== 7. Con GS_15 = No no se envían canales');
+  await page.locator('input[name="GS_15"]').nth(1).check();
   await elegirEntidad(page, nueva, { sector: 'proteccion', texto: 'comisar' });
+  await nueva.locator('textarea[placeholder="¿Qué debe gestionar la víctima en esta entidad?"]').fill('Otro objetivo');
   await nueva.getByRole('button', { name: '+ Siguiente entidad' }).click();
   await page.waitForTimeout(800);
   const g2 = (await api('GET', icode)).json;
   const sinCanal = g2.entities.find((e) => ![102, 9217, nuevaEnt.entityBranchId].includes(e.entityBranchId));
   const meta2 = g2.entityMeta[String(sinCanal.entityBranchId)];
-  check('sin canales, con DueDiligence = false', [meta2.activationChannels, meta2.dueDiligence], [[], false]);
+  check('sin canales; Agreement = false (GS_15) y DueDiligence = true (GS_16)', [meta2.activationChannels, meta2.agreement, meta2.dueDiligence], [[], false, true]);
 
   console.log('== 8. Errores de consola');
   check('sin errores de JS', t.errores, []);

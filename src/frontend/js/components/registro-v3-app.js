@@ -70,6 +70,9 @@ var RegistroV3App = Vue.createApp({
       entityMeta: {},
       barrierMeta: {},
       entitiesReadOnly: false,
+      // REG-15: etiquetas de las acciones institucionales de cada sede ({ sede: { idObligación: texto } }),
+      // para listar en la tarjeta lo que se marcó al registrar la entidad.
+      obligacionesPorBranch: {},
       enumCatalog: {},
       triadaCompleta: false,
 
@@ -81,7 +84,7 @@ var RegistroV3App = Vue.createApp({
         { id: 'HV', label: 'Hechos de violencia', campos: CAMPOS_HV_V3 },
         { id: 'AG', label: 'Características del agresor', campos: CAMPOS_AG_V3 },
         { id: 'TZ', label: 'Tamizaje de riesgo', campos: [] },
-        { id: 'GS', label: 'Gestión Salvia', campos: CAMPOS_GS_A_V3 },
+        { id: 'GS', label: 'Plan de acción Salvia', campos: CAMPOS_GS_A_V3 },
       ],
       guardando: false,
       mensajeGuardado: '',
@@ -141,13 +144,37 @@ var RegistroV3App = Vue.createApp({
       gsJustificacionRemision: '',
 
       // GS § C entidades
-      nuevaEntidad: this.entidadVacia(),
+      nuevaEntidad: this.entidadVacia('activacion'),
       // GS § D barreras
       nuevaBarrera: this.barreraVacia(),
     };
   },
 
+  watch: {
+    // El formulario de entidad es de un solo tipo por módulo; al cambiar de pestaña se reinicia.
+    moduloActivo: function (id) {
+      if (id !== 'GS' && id !== 'RA') return;
+      var kind = id === 'RA' ? 'acudida' : 'activacion';
+      if (this.nuevaEntidad.Kind === kind) return;
+      this.nuevaEntidad = this.entidadVacia(kind);
+      this.entidadCiudades = []; this.entidadMunicipios = []; this.entidadesDisponibles = []; this.obligacionesEntidad = [];
+      this.reiniciarBuscadorEntidad();
+      this.errorEntidad = '';
+      this.barreraParaEntidad = null;
+    },
+  },
+
   computed: {
+    // REG-15/17: cada entidad se muestra solo en el módulo de su tipo (acudida en la Ruta de atención
+    // integral, activación en el Plan de acción).
+    entidadesActivacion: function () {
+      var self = this;
+      return this.entidades.filter(function (e) { return self.kindDeEntidad(e) === 'activacion'; });
+    },
+    entidadesAcudidas: function () {
+      var self = this;
+      return this.entidades.filter(function (e) { return self.kindDeEntidad(e) === 'acudida'; });
+    },
     moduloActualObj: function () {
       var self = this;
       return this.modulos.filter(function (m) { return m.id === self.moduloActivo; })[0];
@@ -213,10 +240,11 @@ var RegistroV3App = Vue.createApp({
     // mandan al backend, solo resuelven EntityBranchID (ver
     // buscarEntidadesEntidad). El resto sí se manda, en PascalCase idéntico
     // al campo Go correspondiente (repository.VictimCaseEntityInput).
-    entidadVacia: function () {
+    // El tipo lo fija el módulo: Plan de acción = 'activacion'; Ruta de atención integral = 'acudida'.
+    entidadVacia: function (kind) {
       return {
-        Kind: 'acudida', depto: '', ciudad: '', municipio: '', sector: '',
-        EntityBranchID: '', FileNumber: '', ActivationChannels: [], ManagementNotes: '',
+        Kind: kind || 'activacion', depto: '', ciudad: '', municipio: '', sector: '',
+        EntityBranchID: '', FileNumber: '', Solicitud: '', ReportDate: '', ActivationChannels: [], ManagementNotes: '',
         CompletedActions: [], PendingActions: [], OtherInfo: '',
       };
     },
@@ -355,6 +383,8 @@ var RegistroV3App = Vue.createApp({
           self.entityMeta = data.entityMeta || {};
           self.barrierMeta = data.barrierMeta || {};
           self.entitiesReadOnly = !!data.entitiesReadOnly;
+          self.obligacionesPorBranch = {};
+          self.cargarEtiquetasAcciones();
           // BUG encontrado en QA (2026-10-15): tzResultado solo se llenaba
           // con la respuesta directa de guardarTamizaje() -- en memoria,
           // nunca releído del backend. Cualquier reapertura del Caso (o
@@ -626,6 +656,13 @@ var RegistroV3App = Vue.createApp({
       return true;
     },
 
+    // REG-15: campos genéricos de GS filtrados por ids (CSV), en el orden pedido; el bloque genérico del
+    // HTML se reutiliza en tres posiciones del Plan de acción (GS_1 · GS_3 · GS_20 y GS_4).
+    camposGs: function (csv) {
+      var self = this;
+      return String(csv).split(',').map(function (id) { return self.camposPorId[id.trim()]; })
+        .filter(function (c) { return c && self.mostrarCampo(c); });
+    },
     camposVisibles: function (moduloId) {
       var self = this;
       var mod = this.modulos.filter(function (m) { return m.id === moduloId; })[0];
@@ -686,7 +723,11 @@ var RegistroV3App = Vue.createApp({
           }
           // REG-35: la tríada no se "des-completa" (las llaves respondidas se acumulan en el servidor): el cliente
           // nunca baja triadaCompleta de true a false con la respuesta de un guardado.
+          var antes = self.triadaCompleta;
           self.triadaCompleta = self.triadaCompleta || !!res.data.triadaCompleta;
+          // REG-38*: al completarse la tríada el Caso pasa a Iniciado y el borrador de entidades, barreras y
+          // remisiones se materializa; se recarga para que la pantalla quede en solo lectura.
+          if (!antes && self.triadaCompleta) self.recargarEntidadesBarreras();
           // REG-03 / REG-04b: el encabezado (nombre, documento, estado) se lee del servidor tras guardar.
           self.refrescarResumenCaso();
           return res.data;
@@ -1050,7 +1091,36 @@ var RegistroV3App = Vue.createApp({
           self.entityMeta = data.entityMeta || {};
           self.barrierMeta = data.barrierMeta || {};
           self.entitiesReadOnly = !!data.entitiesReadOnly;
+          self.cargarEtiquetasAcciones();
         });
+    },
+    // REG-15: la tarjeta lista las acciones institucionales de la entidad con su estado. El borrador
+    // (y el snapshot) guardan solo los ids; las etiquetas salen del catálogo de la sede, una sola vez.
+    cargarEtiquetasAcciones: function () {
+      var self = this;
+      this.entidades.forEach(function (e) {
+        var m = self.metaDeEntidad(e);
+        var branch = e.entityBranchId;
+        if (!m || ((m.pending || []).length + (m.completed || []).length) === 0 || self.obligacionesPorBranch[branch]) return;
+        self.obligacionesPorBranch[branch] = {};
+        fetch('/api/v1/entity-branches/' + encodeURIComponent(branch) + '/obligations')
+          .then(function (r) { return r.ok ? r.json() : []; })
+          .then(function (data) {
+            var mapa = {};
+            (Array.isArray(data) ? data : []).forEach(function (o) { mapa[o.value] = o.label; });
+            self.obligacionesPorBranch[branch] = mapa;
+          })
+          .catch(function () { /* sin etiquetas: la tarjeta no lista las acciones */ });
+      });
+    },
+    accionesDeEntidad: function (e) {
+      var m = this.metaDeEntidad(e);
+      var mapa = this.obligacionesPorBranch[e.entityBranchId] || {};
+      if (!m) return [];
+      var out = [];
+      (m.completed || []).forEach(function (id) { if (mapa[id]) out.push({ id: id, estado: 'completada', label: mapa[id] }); });
+      (m.pending || []).forEach(function (id) { if (mapa[id]) out.push({ id: id, estado: 'pendiente', label: mapa[id] }); });
+      return out;
     },
     ubicacionEntidad: function (e) {
       return [e.departmentName, e.cityName, e.townName].filter(function (v) { return v; }).join(' · ');
@@ -1188,6 +1258,8 @@ var RegistroV3App = Vue.createApp({
         Kind: this.nuevaEntidad.Kind,
         EntityBranchID: branchId,
         FileNumber: this.nuevaEntidad.FileNumber,
+        Solicitud: this.nuevaEntidad.Solicitud,
+        ReportDate: this.nuevaEntidad.ReportDate,
         ActivationChannels: activa ? this.nuevaEntidad.ActivationChannels.slice() : [],
         Agreement: this.answers['GS_15'] === 'true',
         DueDiligence: this.answers['GS_16'] === 'true',
@@ -1202,8 +1274,8 @@ var RegistroV3App = Vue.createApp({
       })
         .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
         .then(function (res) {
-          if (!res.ok) { self.errorEntidad = res.data.error || 'No se pudo agregar la entidad'; return; }
-          self.nuevaEntidad = self.entidadVacia();
+          if (!res.ok) { self.errorEntidad = res.data.error || 'No se pudo agregar la entidad'; self.marcarSoloLectura(res); return; }
+          self.nuevaEntidad = self.entidadVacia(self.nuevaEntidad.Kind);
           self.entidadCiudades = []; self.entidadMunicipios = []; self.entidadesDisponibles = []; self.obligacionesEntidad = [];
           self.reiniciarBuscadorEntidad();
           self.recargarEntidadesBarreras();
@@ -1239,6 +1311,7 @@ var RegistroV3App = Vue.createApp({
     // Etiquetas de lo obligatorio que falta para agregar la entidad (vacío = se puede agregar).
     entidadFaltantes: function () {
       var f = [];
+      if (this.nuevaEntidad.Kind === 'activacion' && !String(this.nuevaEntidad.OtherInfo || '').trim()) f.push('Objetivo con la entidad');
       if (this.nuevaEntidad.Kind === 'activacion' && this.activacionAplica()) {
         if (!this.nuevaEntidad.ActivationChannels.length) f.push(ENTIDAD_V4_V3.canales.label);
         if (!String(this.nuevaEntidad.ManagementNotes || '').trim()) f.push(ENTIDAD_V4_V3.gestiones.label);
@@ -1269,11 +1342,21 @@ var RegistroV3App = Vue.createApp({
       var self = this;
       return codes.map(function (c) { return self.etiquetaCanal(c); });
     },
+    // REG-38*/D20: si el backend responde 409 con readOnly, el Caso ya dejó de ser borrador (el vaciado
+    // corrió en otra pestaña o en otro guardado): la sección pasa a solo lectura.
+    marcarSoloLectura: function (res) {
+      if (res && res.data && res.data.readOnly) {
+        this.entitiesReadOnly = true;
+        this.barreraParaEntidad = null;
+        this.recargarEntidadesBarreras();
+      }
+    },
     eliminarEntidad: function (relId) {
       if (!window.confirm('¿Eliminar esta entidad del registro? También se eliminarán sus barreras asociadas.')) return;
       var self = this;
       fetch('/api/v1/victim-cases-v3/entidades/' + relId, { method: 'DELETE' })
-        .then(function () { self.recargarEntidadesBarreras(); });
+        .then(function (r) { return r.json().catch(function () { return {}; }).then(function (data) { return { ok: r.ok, data: data }; }); })
+        .then(function (res) { if (!res.ok) self.marcarSoloLectura(res); self.recargarEntidadesBarreras(); });
     },
 
     // ── GS § D Barreras -- sub-repeater de Entidades (instrucción 2026-10-15) ──
@@ -1406,7 +1489,7 @@ var RegistroV3App = Vue.createApp({
       })
         .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
         .then(function (res) {
-          if (!res.ok) { self.errorBarrera = res.data.error || 'No se pudo agregar la barrera'; return; }
+          if (!res.ok) { self.errorBarrera = res.data.error || 'No se pudo agregar la barrera'; self.marcarSoloLectura(res); return; }
           self.cerrarBarreraParaEntidad();
           self.recargarEntidadesBarreras();
         });
@@ -1415,7 +1498,8 @@ var RegistroV3App = Vue.createApp({
       if (!window.confirm('¿Eliminar esta barrera del registro?')) return;
       var self = this;
       fetch('/api/v1/victim-cases-v3/barreras/' + id, { method: 'DELETE' })
-        .then(function () { self.recargarEntidadesBarreras(); });
+        .then(function (r) { return r.json().catch(function () { return {}; }).then(function (data) { return { ok: r.ok, data: data }; }); })
+        .then(function (res) { if (!res.ok) self.marcarSoloLectura(res); self.recargarEntidadesBarreras(); });
     },
 
     // ── Cierre ────────────────────────────────────────────────────────────
