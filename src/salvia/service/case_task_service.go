@@ -114,6 +114,11 @@ type CaseTaskService interface {
 	// los roles 'sv' y 'te' pueden invocarla (verificado en el controller).
 	AbrirMesaTecnica(ctx context.Context, userID, caseID, justificacion string) (*models.CaseTask, error)
 
+	// InitCaracterizacion crea (o reutiliza) el submission del formulario
+	// dinámico de la entrevista de caracterización, precargado y editable desde
+	// el Registro de Caso, y lo enlaza a la tarea (form_data.submissionId).
+	// role es el rol de sesión (am o sv); el am debe ser el asignado.
+	InitCaracterizacion(ctx context.Context, taskID, userID, role string) (*CaracterizacionInit, error)
 }
 
 // ErrBarrierDepartmentMismatch indica que la barrera no pertenece al
@@ -1515,6 +1520,37 @@ func (s *caseTaskService) completeEntrevistaCaracterizacion(ctx context.Context,
 		FollowUpID:                 task.FollowUpID,
 		EmergencyMeasureReferralID: &refID,
 	}
+
+	// FASE 2b-2: el form_data final conserva el submissionId del formulario
+	// dinámico (para que el modal de revisar lo pueda leer) y se calculan, antes
+	// de abrir la transacción, las medidas solicitadas (chips + repeater RG-3).
+	submissionID := s.submissionIDCaracterizacion(ctx, task, fd)
+	finalFD := make(map[string]interface{}, len(fd)+1)
+	for k, v := range fd {
+		finalFD[k] = v
+	}
+	if submissionID != "" {
+		finalFD["submissionId"] = submissionID
+	} else {
+		delete(finalFD, "submissionId")
+	}
+	finalFormData := formData
+	if b, mErr := json.Marshal(finalFD); mErr == nil {
+		finalFormData = datatypes.JSON(b)
+	} else {
+		log.Printf("[completeEntrevistaCaracterizacion] WARN: no se pudo reserializar form_data: %v", mErr)
+	}
+	var fromForm []medidaSolicitadaCaracterizacion
+	if submissionID != "" {
+		var rErr error
+		fromForm, rErr = leerMedidasSolicitadasCaracterizacion(ctx, s.db, submissionID)
+		if rErr != nil {
+			return fmt.Errorf("CompleteWithFormData: %w", rErr)
+		}
+	}
+	tiposMedidas, notasMedidas := unirTiposMedidas(tiposMedidasDeChips(fd), fromForm)
+	var resumenMedidas resumenMedidasCaracterizacion
+
 	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		res := tx.Exec(`
 			UPDATE salvia.emergency_measure_referral
@@ -1530,13 +1566,19 @@ func (s *caseTaskService) completeEntrevistaCaracterizacion(ctx context.Context,
 		if res.RowsAffected != 1 {
 			return fmt.Errorf("CompleteWithFormData: la remisión ya no está asignada")
 		}
+		// Medidas: reutiliza, asocia o crea por tipo (misma transacción).
+		rm, mErr := asociarMedidasCaracterizacion(tx, task, refID, tiposMedidas, notasMedidas)
+		if mErr != nil {
+			return fmt.Errorf("CompleteWithFormData: medidas: %w", mErr)
+		}
+		resumenMedidas = rm
 		if err := tx.Create(next).Error; err != nil {
 			return fmt.Errorf("CompleteWithFormData: crear la revisión de caracterización: %w", err)
 		}
 		res = tx.Model(&models.CaseTask{}).
 			Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
 			Updates(map[string]interface{}{
-				"form_data":    formData,
+				"form_data":    finalFormData,
 				"status":       models.CaseTaskStatusDone,
 				"completed_at": now,
 			})
@@ -1550,7 +1592,7 @@ func (s *caseTaskService) completeEntrevistaCaracterizacion(ctx context.Context,
 	}); err != nil {
 		return err
 	}
-	s.registrarTimelineMedidas(ctx, task, userID, now, "registrarTimelineCaracterizacion", models.TimelineEventContactoVictima, models.TimelineTypeContactoVictima, "Se completó la entrevista de caracterización. La remisión pasa a revisión de caracterización.")
+	s.registrarTimelineMedidas(ctx, task, userID, now, "registrarTimelineCaracterizacion", models.TimelineEventContactoVictima, models.TimelineTypeContactoVictima, "Se completó la entrevista de caracterización. La remisión pasa a revisión de caracterización."+descripcionMedidasCaracterizacion(resumenMedidas))
 	return nil
 }
 

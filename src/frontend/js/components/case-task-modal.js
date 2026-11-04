@@ -567,6 +567,15 @@ app.component('case-task-modal', {
                 geo: { residencia: { cities: [], towns: [] } },
             },
             caracterizacionFormStateCargado: false,
+            // FASE 2b-2: submission precargado y enlazado a la tarea. El <dinamic-form>
+            // solo se monta con submissionId y con el formState ya cargado.
+            caracterizacionFormStateListo: false,
+            caracterizacionSubmissionId: '',
+            caracterizacionInitEstado: '',   // '' | 'cargando' | 'listo' | 'error'
+            caracterizacionInitError: '',
+            // true cuando el <dinamic-form> emitió form-completed (todas las secciones
+            // visibles respondidas) o, si el submission se reutilizó, cuando /load lo confirma.
+            caracterizacionFormCompleto: false,
 
             // Datos del entity_letter vinculado (para Corregir oficio)
             oficioVinculado: null,
@@ -735,19 +744,20 @@ app.component('case-task-modal', {
         },
 
         // resumenRevisarCaracterizacion: filas del panel de resumen (solo lectura)
-        // del modal de revisar caracterización. "Medidas requeridas" es dato real;
-        // el resto son placeholders por ahora (la caracterización del agente se hará
-        // después). "Hallazgos" se toma del form_data de la tarea si viene.
+        // del modal de revisar caracterización. Los datos reales los expone el backend
+        // en tarea.caracterizacionResumen (form_data de la última entrevista Done:
+        // hallazgos, planAccion, enlaceCruzRoja, enlaceDeclaracion). Si falta algo
+        // se muestra "—". "Medidas requeridas" sale de las medidas reales de la remisión.
         resumenRevisarCaracterizacion() {
-            var fd = this.tareaFormData || {};
-            var hallazgos = String(fd.hallazgos || '').trim();
+            var r = (this.tarea && this.tarea.caracterizacionResumen) || {};
+            var v = function(x) { var t = String(x || '').trim(); return t || '—'; };
             var medidas = this.medidasRequeridasTexto;
             return [
-                { label: 'Hallazgos', valor: hallazgos || 'Pendiente (se cargará desde la caracterización del agente).' },
+                { label: 'Hallazgos', valor: v(r.hallazgos) },
                 { label: 'Medidas requeridas', valor: medidas || 'Sin medidas registradas en la remisión.' },
-                { label: 'Plan de acción', valor: 'Pendiente de la caracterización del agente.' },
-                { label: 'Remisión Cruz Roja', valor: 'Pendiente de la caracterización del agente.' },
-                { label: 'Declaración jurada', valor: 'Pendiente de la caracterización del agente.' },
+                { label: 'Plan de acción', valor: v(r.planAccion) },
+                { label: 'Remisión Cruz Roja', valor: v(r.enlaceCruzRoja) },
+                { label: 'Declaración jurada', valor: v(r.enlaceDeclaracion) },
             ];
         },
 
@@ -830,7 +840,10 @@ app.component('case-task-modal', {
                 'Transporte',
                 'Alimentación',
                 'Vestuario',
+                'Aseo',
                 'Apoyo psicosocial',
+                'Apoyo exequial',
+                'Acción simbólica',
                 'Otras ME',
                 'Otras medidas de emergencia',
             ];
@@ -972,9 +985,11 @@ app.component('case-task-modal', {
                     }
                     if (f.continua === 'consentimiento' && f.consentimiento === 'otorga') {
                         // Rama caracterizado: obligatorios = hallazgos + plan de acción
-                        // (medidas y enlaces son opcionales en fase 1).
+                        // (medidas y enlaces son opcionales) Y el formulario dinámico
+                        // completo (form-completed). Decisión de diseño FASE 2b-2.
                         return !!(f.hallazgos && String(f.hallazgos).trim()) &&
-                               !!(f.planAccion && String(f.planAccion).trim());
+                               !!(f.planAccion && String(f.planAccion).trim()) &&
+                               this.caracterizacionFormCompleto === true;
                     }
                     // En pasos intermedios no hay submit habilitado.
                     return false;
@@ -1226,19 +1241,70 @@ app.component('case-task-modal', {
                 console.warn('[case-task-modal] Error cargando catálogos de caracterización:', e);
                 // Se permite re-intento en una próxima apertura del modal.
                 this.caracterizacionFormStateCargado = false;
+            } finally {
+                // El <dinamic-form> lee el formState al montarse: solo se monta cuando
+                // los catálogos ya se intentaron cargar (con o sin éxito).
+                this.caracterizacionFormStateListo = true;
             }
         },
 
-        // El <dinamic-form> emite estos eventos al navegar/guardar sus secciones.
-        // En FASE 2b-1 solo se registran en consola: el formulario guarda sus
-        // propias secciones vía POST /forms/saveSection (submission independiente)
-        // y NO se enlaza a la tarea/caso (eso es FASE 2b-2). El botón "Guardar
-        // entrevista" sigue haciendo su PUT /case-tasks/:id/complete aparte.
+        // FASE 2b-2: pide al backend el submission precargado (editable) y enlazado
+        // a la tarea. Idempotente: el backend reutiliza el submission si ya existe.
+        // Mientras no haya submissionId el <dinamic-form> no se monta.
+        async iniciarCaracterizacionForm() {
+            if (!this.tarea || !this.tarea.id) return;
+            if (this.caracterizacionInitEstado === 'cargando') return;
+            this.caracterizacionInitEstado = 'cargando';
+            this.caracterizacionInitError = '';
+            try {
+                const res = await fetch('/api/v1/case-tasks/' + this.tarea.id + '/init-caracterizacion', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                let body = {};
+                try { body = await res.json(); } catch (e) { body = {}; }
+                if (!res.ok || !body.submissionId) {
+                    throw new Error(body.error || ('Error ' + res.status));
+                }
+                this.caracterizacionSubmissionId = body.submissionId;
+                this.caracterizacionInitEstado = 'listo';
+                if (body.reused) {
+                    this.verificarCaracterizacionCompleta(body.submissionId);
+                }
+            } catch (e) {
+                console.warn('[CTM] init-caracterizacion falló:', e);
+                this.caracterizacionInitError = (e && e.message) || 'No se pudo preparar el formulario.';
+                this.caracterizacionInitEstado = 'error';
+            }
+        },
+
+        // Si el submission se reutilizó, el evento form-completed no se re-emite:
+        // se consulta /forms/{id}/load y se marca completo si todas las secciones
+        // visibles tienen isAnswered. Best-effort: si falla, el agente puede guardar
+        // la última sección para que el formulario emita form-completed.
+        async verificarCaracterizacionCompleta(submissionId) {
+            try {
+                const res = await fetch('/api/v1/forms/' + this.caracterizacionFormId + '/load?submissionId=' + encodeURIComponent(submissionId));
+                if (!res.ok) return;
+                const data = await res.json();
+                const secciones = (data && data.formStructure && data.formStructure.sections) || [];
+                const visibles = secciones.filter(function(s) { return s.isVisible; });
+                if (visibles.length > 0 && visibles.every(function(s) { return s.isAnswered; })) {
+                    this.caracterizacionFormCompleto = true;
+                }
+            } catch (e) {
+                console.warn('[CTM] no se pudo verificar el estado del formulario reutilizado:', e);
+            }
+        },
+
+        // El <dinamic-form> emite form-completed solo tras guardar una sección con
+        // todas las secciones visibles respondidas. Habilita "Guardar entrevista"
+        // (junto con hallazgos y plan de acción).
         onCaracterizacionFormCompleted() {
-            console.log('[CTM] entrevista_caracterizacion — dinamic-form completado (submission propio, no enlazado a la tarea en 2b-1)');
+            this.caracterizacionFormCompleto = true;
         },
         onCaracterizacionAnswersUpdated() {
-            // No-op en 2b-1. La precarga y el enlace del submission son 2b-2.
+            // Sin efecto: el formulario guarda sus secciones por su cuenta.
         },
 
         /* ── Init formulario por tipo ────────────────────────────────────── */
@@ -1285,6 +1351,12 @@ app.component('case-task-modal', {
                     // Carga los catálogos del formulario dinámico (enums + ubicación)
                     // una sola vez; el <dinamic-form> del paso 3 los consume vía
                     // state_options_path. No bloquea el render del modal.
+                    // Cada apertura reinicia el estado del submission (el backend lo
+                    // reutiliza si la tarea ya lo tiene enlazado).
+                    this.caracterizacionSubmissionId = '';
+                    this.caracterizacionInitEstado = '';
+                    this.caracterizacionInitError = '';
+                    this.caracterizacionFormCompleto = false;
                     this.cargarCaracterizacionFormState();
                     break;
                 }
@@ -1690,7 +1762,10 @@ app.component('case-task-modal', {
                 transporte: 'Transporte',
                 alimentacion: 'Alimentación',
                 vestuario: 'Vestuario',
+                aseo: 'Aseo',
                 apoyo_psico: 'Apoyo psicosocial',
+                exequial: 'Apoyo exequial',
+                accion_simbolica: 'Acción simbólica',
                 otras_me: 'Otras ME',
                 otras: 'Otras medidas de emergencia',
             };
@@ -1790,6 +1865,10 @@ app.component('case-task-modal', {
         },
         caracterizacionElegirConsentimiento(valor) {
             this.form.consentimiento = valor;
+            // Al otorgar consentimiento (paso 3) se prepara el submission precargado.
+            if (valor === 'otorga' && !this.caracterizacionSubmissionId) {
+                this.iniciarCaracterizacionForm();
+            }
         },
 
         // formatCOP: formatea un número como moneda COP con separador de miles y
@@ -1842,6 +1921,7 @@ app.component('case-task-modal', {
                     return {
                         resultado: 'caracterizado',
                         consentimiento: 'otorgado',
+                        submissionId: this.caracterizacionSubmissionId || '',
                         hallazgos: String(f.hallazgos || '').trim(),
                         medidasRequeridas: (f.medidasRequeridas || []).slice(),
                         planAccion: String(f.planAccion || '').trim(),
@@ -2932,22 +3012,31 @@ app.component('case-task-modal', {
                 <template v-else-if="form.consentimiento === 'otorga'">
                     <p class="ctm-section-title" style="margin-top:18px">Entrevista de caracterización (consentimiento informado otorgado)</p>
 
-                    <!-- Formulario dinámico de caracterización (FASE 2b-1). Guarda
-                         sus secciones vía POST /forms/saveSection en su propio
-                         submission; en esta fase NO se enlaza a la tarea/caso ni se
-                         precargan answers (eso es FASE 2b-2). Convive con los campos
-                         de resultado de abajo (Hallazgos/Medidas/Plan/enlaces), que
-                         siguen guardándose con el PUT /complete del botón. Sin
-                         submission-id: cada apertura inicia un llenado nuevo. -->
+                    <!-- Formulario dinámico de caracterización (FASE 2b-2). El backend
+                         crea (o reutiliza) un submission PRECARGADO y EDITABLE desde el
+                         Registro de Caso y lo enlaza a la tarea; el componente solo se
+                         monta con ese submissionId y con los catálogos ya cargados.
+                         Convive con los campos de resultado de abajo. -->
                     <div class="ctm-car-placeholder" style="background:#eff6ff;border-style:solid">
                         <p class="ph-title"><i class="fas fa-clipboard-list"></i> Entrevista de caracterización</p>
-                        <p class="ph-body">Diligencia las 8 secciones de la entrevista. Este formulario guarda sus secciones de forma independiente. Los campos de resultado de abajo (hallazgos, medidas, plan y enlaces) se guardan al presionar "Guardar entrevista".</p>
+                        <p class="ph-body">Diligencia las secciones de la entrevista. Los datos que ya están en SALVIA vienen precargados y puedes editarlos. Guarda cada sección; "Guardar entrevista" se habilita al completar el formulario y los campos de resultado.</p>
                     </div>
-                    <dinamic-form
+                    <div v-if="caracterizacionInitEstado === 'error'" class="ctm-car-placeholder" style="background:#fef2f2;border-style:solid">
+                        <p class="ph-title"><i class="fas fa-exclamation-triangle"></i> No se pudo preparar el formulario</p>
+                        <p class="ph-body">\${ caracterizacionInitError }</p>
+                        <button type="button" class="ctm-btn ctm-btn-cancel" @click="iniciarCaracterizacionForm">Reintentar</button>
+                    </div>
+                    <div v-else-if="!caracterizacionSubmissionId || !caracterizacionFormStateListo" class="ctm-hint" style="padding:12px 0">
+                        <i class="fas fa-circle-notch fa-spin"></i> Preparando el formulario con los datos del caso…
+                    </div>
+                    <dinamic-form v-else
+                        :key="caracterizacionSubmissionId"
                         :form-id="caracterizacionFormId"
+                        :submission-id="caracterizacionSubmissionId"
                         :form-state="caracterizacionFormState"
                         @form-completed="onCaracterizacionFormCompleted"
                         @answers-updated="onCaracterizacionAnswersUpdated"></dinamic-form>
+                    <p v-if="!caracterizacionFormCompleto" class="ctm-hint">Completa y guarda todas las secciones del formulario para habilitar "Guardar entrevista".</p>
 
                     <!-- Campos de RESULTADO (sí se implementan en fase 1) -->
                     <div class="ctm-field">

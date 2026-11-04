@@ -15,12 +15,30 @@
 DO $$
 DECLARE
   n_envios integer;
+  -- i_code de las opciones "Otra/Otro" (uuid_generate_v4 por entorno, no fijo).
+  ot_sexual_orientation text;
+  ot_occupation text;
 BEGIN
 
 SELECT COUNT(*) INTO n_envios FROM salvia.form_submission
   WHERE form_id = 'f1a2c3d4-5e6f-4a1b-8c2d-3e4f5a6b7c8d';
 IF n_envios > 0 THEN
   RAISE EXCEPTION 'el formulario de entrevista de caracterización ya tiene envíos y no se reemplaza';
+END IF;
+
+-- El motor guarda y compara el i_code de la opción (no el código corto 'ot') para
+-- los dropdown con state_options_path = enums.*. Ese i_code es un UUID generado por
+-- entorno, así que se resuelve aquí contra el catálogo de la BD actual.
+SELECT victim_case_form2_enums_i_code::text INTO ot_sexual_orientation
+  FROM salvia.victim_case_form2_enums
+  WHERE victim_case_form2_enums_category = 'victim_case_form2_sexual_orientation'
+    AND victim_case_form2_enums_code = 'ot' LIMIT 1;
+SELECT victim_case_form2_enums_i_code::text INTO ot_occupation
+  FROM salvia.victim_case_form2_enums
+  WHERE victim_case_form2_enums_category = 'victim_case_form2_occupation'
+    AND victim_case_form2_enums_code = 'ot' LIMIT 1;
+IF ot_sexual_orientation IS NULL OR ot_occupation IS NULL THEN
+  RAISE EXCEPTION 'no se encontró la opción ot en victim_case_form2_enums (sexual_orientation / occupation)';
 END IF;
 
 -- Limpieza previa (mismo patrón que el seed de Seguimiento V.4).
@@ -49,7 +67,7 @@ DELETE FROM salvia.form_section WHERE form_id = 'f1a2c3d4-5e6f-4a1b-8c2d-3e4f5a6
 INSERT INTO salvia.form (id, name, description, status) VALUES (
   'f1a2c3d4-5e6f-4a1b-8c2d-3e4f5a6b7c8d',
   'Entrevista de Caracterización',
-  'Entrevista de Caracterización de Medidas de Emergencia. FASE 2b-1 v2 del 2026: siembra la definición del formulario (8 secciones + resultado). No precarga answers, no enlaza el submission a la tarea ni crea medidas al completar.',
+  'Entrevista de Caracterización de Medidas de Emergencia. FASE 2b-1 v3 del 2026: siembra la definición del formulario (8 secciones + resultado). No precarga answers, no enlaza el submission a la tarea ni crea medidas al completar.',
   'active'
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -242,7 +260,7 @@ INSERT INTO salvia.option (id, question_id, label, value, "order") VALUES
   ('d0000001-0000-4000-8000-00000000081e', 'c0000001-0000-4000-8000-000000000108', 'Otra', 'otra', 30),
   -- I.20b / I.29b condición de "Otra": las preguntas gatillo (I.20 orientación
   -- sexual, I.29 ocupación) usan enums cuyo catálogo SÍ tiene opción "Otra"
-  -- (código 'ot'); la condición se arma por state (ver visibility_condition).
+  -- (código 'ot'); la condición compara contra su i_code (ver visibility_condition).
   -- I.19 (identidad de género) e I.22b (pueblo indígena) NO tienen opción "Otra"
   -- en su enum: sus campos de texto libre se eliminaron (decisión usuario, Opción A).
   -- II.1 Conformación familiar (SEMBRAR)
@@ -334,21 +352,22 @@ ON CONFLICT (id) DO NOTHING;
 -- IV.1b/IV.3b, V.1b, VI.3b) NO llevan condición: se muestran siempre.
 -- NOTA: solo dos dropdowns con catálogo por enum tienen opción "Otra" con código
 -- 'ot' confirmado en Locale.go: I.20 orientación sexual (sexual_orientation_ot='Otro')
--- e I.29 ocupación (occupation_ot='Otra'); por eso I.20b e I.29b usan trigger_value='ot'.
+-- e I.29 ocupación (occupation_ot='Otra'). OJO: el valor que guarda el motor es el
+-- i_code de la opción, no 'ot'; por eso I.20b e I.29b usan el i_code resuelto arriba.
 -- I.19 identidad de género (gender_identity) e I.22b pueblo indígena (indigenous_people)
 -- NO tienen opción "Otra/Otro" en su catálogo, así que sus ramas de texto libre
 -- (I.19b / I.22c) se eliminaron por decisión del usuario (Opción A). Si el negocio
 -- requiere la captura "Otra" luego, se agregará la opción al enum en Locale.go
 -- (fuente única), no aquí.
 INSERT INTO salvia.visibility_condition (id, target_type, target_id, trigger_question_id, trigger_state_path, trigger_value, operator) VALUES
-  -- I.20b "Otra orientación sexual" ← I.20 = 'ot'
-  ('e0000001-0000-4000-8000-000000000002', 'QUESTION', 'c0000001-0000-4000-8000-00000000012a', 'c0000001-0000-4000-8000-000000000120', NULL, 'ot', 'EQUALS'),
+  -- I.20b "Otra orientación sexual" ← I.20 = i_code de la opción 'ot'
+  ('e0000001-0000-4000-8000-000000000002', 'QUESTION', 'c0000001-0000-4000-8000-00000000012a', 'c0000001-0000-4000-8000-000000000120', NULL, ot_sexual_orientation, 'EQUALS'),
   -- I.22b "¿Cuál pueblo indígena?" ← I.22 = true
   ('e0000001-0000-4000-8000-000000000003', 'QUESTION', 'c0000001-0000-4000-8000-00000000012b', 'c0000001-0000-4000-8000-000000000122', NULL, 'true', 'EQUALS'),
   -- I.24 "Situación migratoria" ← I.23 = true
   ('e0000001-0000-4000-8000-000000000005', 'QUESTION', 'c0000001-0000-4000-8000-000000000124', 'c0000001-0000-4000-8000-000000000123', NULL, 'true', 'EQUALS'),
-  -- I.29b "Otra ocupación" ← I.29 = 'ot'
-  ('e0000001-0000-4000-8000-000000000006', 'QUESTION', 'c0000001-0000-4000-8000-00000000012d', 'c0000001-0000-4000-8000-000000000129', NULL, 'ot', 'EQUALS'),
+  -- I.29b "Otra ocupación" ← I.29 = i_code de la opción 'ot'
+  ('e0000001-0000-4000-8000-000000000006', 'QUESTION', 'c0000001-0000-4000-8000-00000000012d', 'c0000001-0000-4000-8000-000000000129', NULL, ot_occupation, 'EQUALS'),
   -- I.33a-txt ← I.33a = true
   ('e0000001-0000-4000-8000-000000000007', 'QUESTION', 'c0000001-0000-4000-8000-000000000134', 'c0000001-0000-4000-8000-000000000133', NULL, 'true', 'EQUALS'),
   -- I.33b-txt ← I.33b = true
@@ -367,7 +386,7 @@ ON CONFLICT (id) DO NOTHING;
 
 UPDATE salvia.form SET deleted_at = NULL, status = 'active',
   name = 'Entrevista de Caracterización',
-  description = 'Entrevista de Caracterización de Medidas de Emergencia. FASE 2b-1 v2 del 2026: siembra la definición del formulario (8 secciones + resultado). No precarga answers, no enlaza el submission a la tarea ni crea medidas al completar.'
+  description = 'Entrevista de Caracterización de Medidas de Emergencia. FASE 2b-1 v3 del 2026: siembra la definición del formulario (8 secciones + resultado). No precarga answers, no enlaza el submission a la tarea ni crea medidas al completar.'
   WHERE id = 'f1a2c3d4-5e6f-4a1b-8c2d-3e4f5a6b7c8d';
 
 END $$;

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -40,9 +41,53 @@ const (
 	EmergencyMeasureStatusClosed    = "CLOSED"
 )
 
+// Tipos de medida creados desde la entrevista de caracterización (G-9).
+const (
+	EmergencyMeasureTypeAseo            = "aseo"
+	EmergencyMeasureTypeExequial        = "exequial"
+	EmergencyMeasureTypeAccionSimbolica = "accion_simbolica"
+)
+
+// EmergencyMeasureTypeCodes lista, en orden estable, los tipos de medida que
+// la caracterización puede solicitar (chips del modal y mapeo del formulario).
+var EmergencyMeasureTypeCodes = []string{
+	"alojamiento",
+	"transporte",
+	"alimentacion",
+	"vestuario",
+	EmergencyMeasureTypeAseo,
+	"apoyo_psico",
+	EmergencyMeasureTypeExequial,
+	EmergencyMeasureTypeAccionSimbolica,
+}
+
+// EmergencyMeasureTypeFromLabel devuelve el código del tipo cuyo label
+// (EmergencyMeasureTypeLabel) coincide con el texto dado, o "" si no hay
+// coincidencia. Se usa con los chips "Medidas requeridas" del modal.
+func EmergencyMeasureTypeFromLabel(label string) string {
+	label = strings.TrimSpace(label)
+	if label == "" {
+		return ""
+	}
+	// Los chips del modal también ofrecen "Otras ME" y "Otras medidas de
+	// emergencia"; se reconocen para no perder esa selección.
+	for _, code := range append(append([]string{}, EmergencyMeasureTypeCodes...), "otras_me", "otras") {
+		if strings.EqualFold(EmergencyMeasureTypeLabel(code), label) {
+			return code
+		}
+	}
+	return ""
+}
+
 // EmergencyMeasureTypeLabel es el nombre que ve Cruz Roja y el timeline.
 func EmergencyMeasureTypeLabel(code string) string {
 	switch code {
+	case EmergencyMeasureTypeAseo:
+		return "Aseo"
+	case EmergencyMeasureTypeExequial:
+		return "Apoyo exequial"
+	case EmergencyMeasureTypeAccionSimbolica:
+		return "Acción simbólica"
 	case "alojamiento":
 		return "Alojamiento"
 	case "transporte":

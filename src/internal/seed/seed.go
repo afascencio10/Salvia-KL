@@ -144,7 +144,7 @@ const CaracterizacionFormID = "f1a2c3d4-5e6f-4a1b-8c2d-3e4f5a6b7c8d"
 
 // CaracterizacionFormDescription identifica esta versión del formulario. Si la
 // fila ya existe con otro texto, el arranque vuelve a sembrar la definición.
-const CaracterizacionFormDescription = "Entrevista de Caracterización de Medidas de Emergencia. FASE 2b-1 v2 del 2026: siembra la definición del formulario (8 secciones + resultado). No precarga answers, no enlaza el submission a la tarea ni crea medidas al completar."
+const CaracterizacionFormDescription = "Entrevista de Caracterización de Medidas de Emergencia. FASE 2b-1 v3 del 2026: siembra la definición del formulario (8 secciones + resultado). No precarga answers, no enlaza el submission a la tarea ni crea medidas al completar."
 
 // EnsureCaracterizacionForm crea el formulario "Entrevista de Caracterización" si
 // no está en la base, o reemplaza su definición cuando la descripción no es la de

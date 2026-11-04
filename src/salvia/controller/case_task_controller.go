@@ -137,6 +137,7 @@ func (c *CaseTaskController) RegisterRoutes(rg *gin.RouterGroup) {
 	group.POST("/:id/complete", c.Complete)
 	group.PUT("/:id/complete", c.CompleteWithFormData)
 	group.POST("/:id/reassign", c.Reassign)
+	group.POST("/:id/init-caracterizacion", c.InitCaracterizacion)
 	group.POST("/gestion-propia", c.CreateGestionPropia)
 	group.POST("/articulacion-territorial", c.SaveArticulacionTerritorial)
 	group.POST("/gestion-mecanismo", c.SaveGestionMecanismo)
@@ -507,6 +508,38 @@ func (c *CaseTaskController) CompleteWithFormData(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, task)
 }
 
+// caracterizacionInitRoles — roles que pueden abrir la entrevista de
+// caracterización: el Agente de Medidas (solo su tarea) y el Supervisor.
+var caracterizacionInitRoles = map[string]bool{"am": true, "sv": true}
+
+// InitCaracterizacion crea (o reutiliza) el submission precargado del formulario
+// de la entrevista de caracterización y lo enlaza a la tarea. Idempotente.
+//
+//	POST /api/v1/case-tasks/:id/init-caracterizacion
+//	Respuesta: { "submissionId": "...", "formId": "...", "reused": false, "prefilled": 24, "omitted": [...] }
+func (c *CaseTaskController) InitCaracterizacion(ctx *gin.Context) {
+	s := requireSessionRole(ctx, caracterizacionInitRoles)
+	if s == nil {
+		return
+	}
+	out, err := c.svc.InitCaracterizacion(ctx.Request.Context(), ctx.Param("id"), s.UserICode, s.CurrentRole)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrCaseTaskNotFound):
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "tarea no encontrada"})
+		case errors.Is(err, service.ErrCaracterizacionForbidden):
+			ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		case errors.Is(err, service.ErrCaracterizacionTaskInvalid),
+			errors.Is(err, service.ErrCaracterizacionFormMissing):
+			ctx.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+	ctx.JSON(http.StatusOK, out)
+}
+
 // Reassign reasigna una CaseTask a otro usuario.
 // POST /api/v1/case-tasks/:id/reassign
 // Body: { "assignedUserId": "<icode>" }
@@ -803,6 +836,46 @@ func (c *CaseTaskController) lookupCotizacionesCargadas(referralID string) map[s
 	return cot
 }
 
+// lookupCaracterizacionResumen devuelve los datos reales de la ÚLTIMA
+// entrevista_caracterizacion Done con resultado 'caracterizado' de la remisión
+// (hallazgos, planAccion, enlaceCruzRoja, enlaceDeclaracion y submissionId), para
+// el panel de resumen del modal de revisar caracterización (rol sm). Devuelve nil
+// si no hay ninguna o si el form_data no es legible (el modal degrada con "—").
+func (c *CaseTaskController) lookupCaracterizacionResumen(referralID string) gin.H {
+	if strings.TrimSpace(referralID) == "" {
+		return nil
+	}
+	var raw string
+	c.svc.GetDB().Raw(`
+		SELECT COALESCE(form_data::text, '')
+		FROM salvia.case_task
+		WHERE emergency_measure_referral_id::text = ?
+		  AND type = ?
+		  AND status = ?
+		  AND COALESCE(form_data->>'resultado', 'caracterizado') = 'caracterizado'
+		  AND deleted_at IS NULL
+		ORDER BY completed_at DESC NULLS LAST, created_at DESC
+		LIMIT 1
+	`, referralID, models.CaseTaskTypeEntrevistaCaracterizacion, models.CaseTaskStatusDone).Scan(&raw)
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	var fd map[string]interface{}
+	if err := json.Unmarshal([]byte(raw), &fd); err != nil {
+		return nil
+	}
+	out := gin.H{}
+	for _, k := range []string{"hallazgos", "planAccion", "enlaceCruzRoja", "enlaceDeclaracion", "submissionId"} {
+		if v, ok := fd[k].(string); ok && strings.TrimSpace(v) != "" {
+			out[k] = strings.TrimSpace(v)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 // lookupCaracterizacionHeader resuelve los datos de cabecera que el modal de la
 // entrevista de caracterización (rol am) muestra en el PASO 1: nombre de la
 // víctima, código del caso (victim_case_i_code, el "SAL-xxx") y la fecha del
@@ -907,6 +980,14 @@ func (c *CaseTaskController) taskToJSON(t models.CaseTask, assignedUserName, ent
 		if t.Type == models.CaseTaskTypeAprobarCotizaciones {
 			if cot := c.lookupCotizacionesCargadas(*t.EmergencyMeasureReferralID); cot != nil {
 				result["cotizacionesCargadas"] = cot
+			}
+		}
+		// Para la tarea revisar_caracterizacion (rol sm): exponer lo que el agente
+		// guardó en la última entrevista (hallazgos, plan, enlaces). Análogo a
+		// cotizacionesCargadas.
+		if t.Type == models.CaseTaskTypeRevisarCaracterizacion {
+			if res := c.lookupCaracterizacionResumen(*t.EmergencyMeasureReferralID); res != nil {
+				result["caracterizacionResumen"] = res
 			}
 		}
 		// Para la tarea entrevista_caracterizacion (rol am): exponer los datos de
