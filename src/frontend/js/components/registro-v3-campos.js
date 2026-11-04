@@ -406,6 +406,18 @@ var ENTIDAD_V4_V3 = {
 // Canales de activación (REG-20): las opciones de la pregunta de canales de Seguimiento v4 (4 canales y «Ninguna»).
 var CANAL_ACTIVACION_V3 = ENTIDAD_V4_V3.canales.opciones;
 // <<< ENTIDAD_V4_V3
+// REG-04 (c) · Etiquetas de «Gestión de la barrera». Los dos valores vigentes (activacion, alerta) salen
+// del formulario de Seguimiento v4 (BARRERA_V4_V3, pregunta «gestion»); estos 6 slugs son los que
+// guardaba el formulario anterior (AddBarrier traducía los códigos 01–06) y se conservan solo para
+// mostrar datos históricos: ninguna pantalla de Registro V3 debe dejar un código a la vista.
+var GESTION_BARRERA_LEGADO_V3 = {
+  orientacion_llamada: "Orientación y enrutamiento - Llamada",
+  gestion_llamada: "Gestión administrativa - Llamada",
+  activacion_ruta_interinstitucional: "Activación de ruta interinstitucional",
+  articulacion_institucional: "Articulación institucional",
+  escalamiento_organismo_control: "Escalamiento a organismo de control",
+  alerta_barreras: "Alerta por barreras",
+};
 // Códigos del desplegable anterior de «Canal de activación» (datos históricos: solo se usan para mostrarlos).
 var CANAL_ACTIVACION_LEGADO_V3 = {
   no: "Notificación (tarea)", ll: "Llamada (tarea)", ms: "Mi Salvia (Gestión institucional externa) (tarea)",
