@@ -539,6 +539,14 @@ var RegistroV3App = Vue.createApp({
         actuales.splice(idx, 1);
       } else {
         if (max && actuales.length >= max) return;
+        // REG-16: un campo con `excluyente` (código de la opción «Ninguno») no admite esa opción junto
+        // a otras: marcarla desmarca las demás y marcar otra la quita. Los demás campos no cambian.
+        var campo = this.camposPorId[id];
+        if (campo && campo.excluyente) {
+          var excl = this.icodeForCode(campo.enumCategory, campo.excluyente);
+          if (excl && icode === excl) actuales = [];
+          else if (excl && actuales.indexOf(excl) >= 0) actuales.splice(actuales.indexOf(excl), 1);
+        }
         actuales.push(icode);
       }
       this.answers[id] = actuales.join(',');

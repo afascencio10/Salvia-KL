@@ -359,8 +359,30 @@ var TAMIZAJE_NOPAREJA_LABORAL_V3 = [21, 22]; // índices 1-based condicionales a
 var CAMPOS_GS_A_V3 = [
   { id: "GS_1", tipo: "boolean", label: "¿Usted permitiría que el Sistema SALVIA realice el proceso de denuncia fácil ante la FGN?", req: "C1" },
   { id: "GS_3", tipo: "textarea", label: "En caso afirmativo, describa las acciones previstas, las entidades involucradas y su propósito", req: "D" },
+  // REG-16: «Ninguno» (código 99) es excluyente; es deseable (req "D"), no obligatoria.
+  { id: "GS_20", tipo: "multiple", label: "Seleccione los elementos psicosociales integrados en este acompañamiento", req: "D", enumCategory: "victim_case_form2_psychosocial_elements", excluyente: "99" },
   { id: "GS_4", tipo: "textarea", label: "Describa el acompañamiento realizado y las acciones que se desarrollarán para la gestión del caso", req: "C1" },
 ];
+
+// REG-16: etiquetas de la categoría de GS_20 (texto exacto del cliente). Se asigna aparte para no editar el
+// literal compartido ENUM_LABELS_OVERRIDE_V3; el `name` técnico en BD solo es un respaldo legible.
+ENUM_LABELS_OVERRIDE_V3["victim_case_form2_psychosocial_elements"] = {
+  "01": "Contención emocional en crisis",
+  "02": "Comprensión del ciclo de la violencia",
+  "03": "Identificación y fortalecimiento de recursos personales",
+  "04": "Despatologización de experiencias y reacciones asociadas a la violencia",
+  "05": "Co-construcción del Plan de Seguridad",
+  "06": "Identificación de señales tempranas de riesgo y estrategias de respuesta",
+  "07": "Orientación para acceso a servicios, programas o apoyos institucionales que fortalecen autonomía",
+  "08": "Fortalecimiento de la autonomía económica y vinculación a proyecto de vida",
+  "09": "Cuestionamiento de mandatos culturales que sostienen la violencia",
+  "10": "Identificación de redes seguras y afirmativas (familiares, comunitarias, institucionales)",
+  "11": "Reconocimiento y comprensión de los derechos de las personas víctimas de VBG y VpP",
+  "12": "Orientación sobre acciones disponibles para la garantía de derechos y la responsabilidad del Estado",
+  "13": "Fortalecimiento de la corresponsabilidad de la persona en la gestión de su seguridad",
+  "14": "Sensibilización y orientación sobre servicios de salud mental para acompañar los impactos de la violencia",
+  "99": "Ninguno",
+};
 
 // GS § B — Remisión a otros equipos. GS_6/GS_7 se renderizan en una
 // sección propia del Formulario (con criterios de cada equipo), no en el
