@@ -376,13 +376,15 @@ var tamizajeInicialesFinalizarV3 = []string{ //nolint:gochecknoglobals
 // gsObligatoriasFinalizarV3 -- preguntas de GS que SIEMPRE están visibles
 // (no dependen de otra respuesta). GS_16 se agregó en esta ronda (C1,
 // 2026-10-15) -- existía en registro-v3-secciones.md como [1er contacto]
-// pero no tenía ninguna UI todavía. Deliberadamente sigue excluyendo: GS_3
-// (solo si GS_2 tiene selección), GS_6/7/9-12 (solo si GS_5="Sí", y varían
-// según equipo elegido), GS_13 (solo si GS_5="Sí"), GS_15 (definida en el
-// catálogo de campos pero sin UI todavía -- exigirla haría imposible
-// finalizar cualquier Caso), GS_19 (solo si GS_18="Sí").
+// pero no tenía ninguna UI todavía. REG-14 (WP-4 T1): GS_2 («¿Es necesario
+// realizar gestiones interinstitucionales…?») se retiró del formulario, por
+// eso ya no se exige; la columna y el catálogo se conservan para los datos
+// históricos. Deliberadamente sigue excluyendo: GS_3 (descripción opcional de
+// las acciones previstas), GS_6/7/9-12 (solo si GS_5="Sí", y varían según
+// equipo elegido), GS_13 (solo si GS_5="Sí"), GS_15 (acuerdo con la activación,
+// condicional), GS_19 (solo si GS_18="Sí").
 var gsObligatoriasFinalizarV3 = []string{ //nolint:gochecknoglobals
-	"GS_1", "GS_2", "GS_4", "GS_5", "GS_14", "GS_16", "GS_17", "GS_18",
+	"GS_1", "GS_4", "GS_5", "GS_14", "GS_16", "GS_17", "GS_18",
 }
 
 // caObligatoriasFinalizarV3 -- CA_1..CA_4 (máx. 2º contacto). C1 (2026-10-15):

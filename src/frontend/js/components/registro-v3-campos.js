@@ -357,7 +357,6 @@ var TAMIZAJE_NOPAREJA_LABORAL_V3 = [21, 22]; // índices 1-based condicionales a
 // ── GS — Gestión Salvia ───────────────────────────────────────────────────
 var CAMPOS_GS_A_V3 = [
   { id: "GS_1", tipo: "boolean", label: "¿Usted permitiría que el Sistema SALVIA realice el proceso de denuncia fácil ante la FGN?", req: "C1" },
-  { id: "GS_2", tipo: "multiple", label: "¿Es necesario realizar gestiones interinstitucionales a partir de los hallazgos de esta atención?", req: "C1", enumCategory: "victim_case_form2_interinst_action" },
   { id: "GS_3", tipo: "textarea", label: "En caso afirmativo, describa las acciones previstas, las entidades involucradas y su propósito", req: "D" },
   { id: "GS_4", tipo: "textarea", label: "Describa el acompañamiento realizado y las acciones que se desarrollarán para la gestión del caso", req: "C1" },
 ];
