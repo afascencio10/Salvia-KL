@@ -838,6 +838,17 @@ var RegistroV3App = Vue.createApp({
           self.recargarEntidadesBarreras();
         });
     },
+    // ── REG-04 (c) · «Gestión» de la barrera con etiqueta, no con código ───────
+    // Recibe el CSV de barrier_v2.management_actions: traduce cada valor (los 2 vigentes de
+    // Seguimiento v4 y los 6 históricos), deja tal cual el que no conoce y muestra «—» si no hay.
+    etiquetaGestionBarrera: function (csv) {
+      var vigentes = {};
+      BARRERA_V4_V3.filter(function (q) { return q.key === 'gestion'; })[0].opciones.forEach(function (o) { vigentes[o.value] = o.label; });
+      var valores = String(csv || '').split(',').map(function (v) { return v.trim(); }).filter(function (v) { return v; });
+      if (!valores.length) return '—';
+      return valores.map(function (v) { return vigentes[v] || GESTION_BARRERA_LEGADO_V3[v] || v; }).join(', ');
+    },
+
     // ── REG-20 · Canal de activación como Seguimiento v4 ─────────────────────
     // Los canales se piden cuando la persona está de acuerdo con la activación de la Ruta
     // (GS_15) y Salvia debe activar rutas en el marco de la debida diligencia (GS_16): igual

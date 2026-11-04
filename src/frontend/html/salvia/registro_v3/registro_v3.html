@@ -310,7 +310,7 @@
             <thead><tr><th>Descripción</th><th>Gestión</th><th></th></tr></thead>
             <tbody>
               <tr v-for="b in barrerasDeEntidad(e)" :key="b.id">
-                <td>${b.description}</td><td>${b.managementActions}</td>
+                <td>${b.description}</td><td>${etiquetaGestionBarrera(b.managementActions)}</td>
                 <td><button class="btn btn-sm btn-outline-danger" @click="eliminarBarrera(b.id)">Eliminar</button></td>
               </tr>
             </tbody>
