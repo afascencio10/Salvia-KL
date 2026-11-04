@@ -1,5 +1,5 @@
 // Pantalla · T3 (REG-20): canal de activación como Seguimiento v4 en el formulario de entidad.
-const { abrir } = require('./ui-lib');
+const { abrir, elegirEntidad } = require('./ui-lib');
 const OUT = process.env.SHOTS || '/tmp/wp4-shots';
 require('fs').mkdirSync(OUT, { recursive: true });
 let ok = 0, fail = 0;
@@ -11,7 +11,7 @@ const check = (d, a, e) => { if (JSON.stringify(a) === JSON.stringify(e)) { ok++
       // Entidad con el canal en el formato anterior del cliente (códigos no/ll): debe verse con las etiquetas nuevas.
       await api('POST', `${icode}/entidades`, { kind: 'activacion', entityBranchId: 102, activationChannel: 'no,ll', agreement: true, dueDiligence: true, managementNotes: 'x' });
       // Dato histórico ya materializado: solo «Canal de activación: ll» en solicitud, sin meta.
-      sql(`insert into salvia.entity_case (id, case_id, entity_branch_id, solicitud, created_by_id, created_at, updated_at) values ('99999999-0000-4000-8000-000000000001', '${icode}', 9217, 'Canal de activación: ll', 'test', now(), now())`);
+      sql(`insert into salvia.entity_case (id, case_id, entity_branch_id, solicitud, created_by_id, created_at, updated_at) values (gen_random_uuid(), '${icode}', 9217, 'Canal de activación: ll', 'test', now(), now())`);
     },
   });
   const { page, icode, api } = t;
@@ -25,15 +25,7 @@ const check = (d, a, e) => { if (JSON.stringify(a) === JSON.stringify(e)) { ok++
   console.log('== 2. Formulario: sin GS_15 y GS_16 en «Sí» no se piden canales');
   const nueva = page.locator('.card.card-body.mb-3').filter({ hasText: 'Siguiente entidad' });
   await nueva.locator('label:has-text("Tipo") + select').selectOption('activacion');
-  await nueva.locator('label:has-text("Departamento") + select').selectOption({ label: 'BOGOTÁ, D.C.' });
-  await page.waitForTimeout(500);
-  await nueva.locator('label:has-text("Ciudad") + select').selectOption({ index: 1 });
-  await page.waitForTimeout(500);
-  await nueva.locator('label:has-text("Municipio") + select').selectOption({ index: 1 });
-  await nueva.locator('label:has-text("Sector") + select').selectOption('justicia');
-  await page.waitForTimeout(800);
-  await nueva.locator('label:has-text("Entidad") + select').selectOption({ index: 1 });
-  await page.waitForTimeout(500);
+  await elegirEntidad(page, nueva, { sector: 'justicia', texto: 'usaqu' });
   check('aparece la nota explicativa', (await nueva.innerText()).includes('Los canales de activación se piden cuando la persona está de acuerdo'), true);
   check('no hay casillas de canal', await nueva.locator('.form-check-input[type=checkbox]').filter({ hasNot: page.locator('x') }).count() >= 0, true);
   check('«+ Siguiente entidad» habilitado (sin canales no hay nada obligatorio)', await nueva.getByRole('button', { name: '+ Siguiente entidad' }).isEnabled(), true);
@@ -81,14 +73,7 @@ const check = (d, a, e) => { if (JSON.stringify(a) === JSON.stringify(e)) { ok++
 
   console.log('== 7. Con GS_16 = No no se envían canales');
   await page.locator('input[name="GS_16"]').nth(1).check();
-  await nueva.locator('label:has-text("Departamento") + select').selectOption({ label: 'BOGOTÁ, D.C.' });
-  await page.waitForTimeout(500);
-  await nueva.locator('label:has-text("Ciudad") + select').selectOption({ index: 1 });
-  await page.waitForTimeout(500);
-  await nueva.locator('label:has-text("Municipio") + select').selectOption({ index: 1 });
-  await nueva.locator('label:has-text("Sector") + select').selectOption('proteccion');
-  await page.waitForTimeout(800);
-  await nueva.locator('label:has-text("Entidad") + select').selectOption({ index: 1 });
+  await elegirEntidad(page, nueva, { sector: 'proteccion', texto: 'comisar' });
   await nueva.getByRole('button', { name: '+ Siguiente entidad' }).click();
   await page.waitForTimeout(800);
   const g2 = (await api('GET', icode)).json;

@@ -337,71 +337,20 @@
               <option value="activacion">Activación de ruta</option>
             </select>
           </div>
+        </div>
+
+        <!-- REG-19: cascada obligatoria + «Buscar entidad» + acciones institucionales (fragmento compartido). -->
+        {{ template "rv3_entidad_buscador" }}
+
+        <div class="row g-2 mt-1" v-if="nuevaEntidad.EntityBranchID">
           <div class="col-md-3">
-            <label class="form-label">Departamento</label>
-            <select class="form-control" v-model="nuevaEntidad.depto" @change="onCambiaDeptoEntidad">
-              <option value="">Seleccione...</option>
-              <option v-for="d in geoDepartamentos" :key="d.value" :value="d.value">${d.label}</option>
-            </select>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">Ciudad</label>
-            <select class="form-control" v-model="nuevaEntidad.ciudad" @change="onCambiaCiudadEntidad" :disabled="!nuevaEntidad.depto">
-              <option value="">Seleccione...</option>
-              <option v-for="c in entidadCiudades" :key="c.value" :value="c.value">${c.label}</option>
-            </select>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">Municipio</label>
-            <select class="form-control" v-model="nuevaEntidad.municipio" @change="onCambiaMunicipioEntidad" :disabled="!nuevaEntidad.ciudad">
-              <option value="">Seleccione...</option>
-              <option v-for="m in entidadMunicipios" :key="m.value" :value="m.value">${m.label}</option>
-            </select>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">Sector</label>
-            <select class="form-control" v-model="nuevaEntidad.sector" @change="onCambiaSectorEntidad" :disabled="!nuevaEntidad.municipio">
-              <option value="">Seleccione...</option>
-              <option v-for="s in SECTORES_ENTIDAD_BARRERA_V3" :key="s.value" :value="s.value">${s.label}</option>
-            </select>
-          </div>
-          <div class="col-md-9 small text-muted align-self-center" v-if="entidadBuscando">Buscando sedes disponibles...</div>
-          <div class="col-md-9 small text-muted align-self-center" v-else-if="nuevaEntidad.sector && entidadesDisponibles.length===0">No hay sedes registradas en este municipio y sector.</div>
-          <div class="col-md-6" v-if="entidadesDisponibles.length">
-            <label class="form-label">Entidad</label>
-            <select class="form-control" v-model="nuevaEntidad.EntityBranchID" @change="onCambiaEntidadSeleccionada">
-              <option value="">Seleccione...</option>
-              <option v-for="opt in entidadesDisponibles" :key="opt.id" :value="opt.id">${opt.name}</option>
-            </select>
-          </div>
-          <div class="col-md-3" v-if="nuevaEntidad.EntityBranchID">
             <label class="form-label">N° radicado</label>
             <input class="form-control" v-model="nuevaEntidad.FileNumber">
           </div>
-          <div class="col-md-6" v-if="nuevaEntidad.EntityBranchID">
+          <div class="col-md-6">
             <label class="form-label">${nuevaEntidad.Kind==='acudida' ? 'Objetivo con la entidad' : 'Información adicional'}</label>
             <input class="form-control" v-model="nuevaEntidad.OtherInfo">
           </div>
-        </div>
-
-        <div class="mt-2" v-if="nuevaEntidad.EntityBranchID">
-          <label class="form-label">Acciones institucionales</label>
-          <div v-if="obligacionesCargando" class="small text-muted">Cargando tareas...</div>
-          <div v-else-if="obligacionesEntidad.length===0" class="small text-muted">Esta entidad no tiene tareas configuradas en el catálogo.</div>
-          <template v-else>
-            <div v-if="nuevaEntidad.Kind==='acudida'">
-              <label class="form-label small">Completadas</label>
-              <div class="form-check" v-for="o in obligacionesEntidad" :key="'c-'+o.value">
-                <input class="form-check-input" type="checkbox" :checked="nuevaEntidad.CompletedActions.indexOf(o.value)>=0" @change="toggleEnArray(nuevaEntidad.CompletedActions, o.value)">
-                <label class="form-check-label small">${o.label}</label>
-              </div>
-            </div>
-            <label class="form-label small">Pendientes</label>
-            <div class="form-check" v-for="o in obligacionesEntidad" :key="'p-'+o.value">
-              <input class="form-check-input" type="checkbox" :checked="nuevaEntidad.PendingActions.indexOf(o.value)>=0" @change="toggleEnArray(nuevaEntidad.PendingActions, o.value)">
-              <label class="form-check-label small">${o.label}</label>
-            </div>
-          </template>
         </div>
 
         <!-- REG-20: canal de activación como Seguimiento v4 (selección múltiple + gestiones). Se pide
@@ -539,4 +488,75 @@
 <div v-if="errorBarrera" class="text-danger small mt-2">${errorBarrera}</div>
 <button class="btn btn-sm btn-outline-dark mt-2" @click="cerrarBarreraParaEntidad">Cancelar</button>
 <button class="btn btn-secondary mt-2" :disabled="barreraFaltantes().length>0" @click="agregarBarrera">+ Agregar barrera</button>
+{{ end }}
+
+{{ define "rv3_entidad_buscador" }}
+<!-- REG-19 · Agregar entidad = «Agregar entidad al caso» de Gestión institucional (case-entities.js):
+     Departamento*, Ciudad*, Municipio* y Sector* en cascada (cada uno deshabilitado hasta elegir el
+     anterior); con municipio y sector se pide UNA vez la lista de sedes y «Buscar entidad» la filtra
+     en el navegador con debounce de 250 ms; al elegir la sede se cargan sus acciones institucionales
+     como chips (sin «otra»). Fragmento compartido por el Plan de acción y el módulo Ruta de atención. -->
+<div class="row g-2">
+  <div class="col-md-3">
+    <label class="form-label">Departamento <span class="text-danger">*</span></label>
+    <select class="form-control" v-model="nuevaEntidad.depto" @change="onCambiaDeptoEntidad">
+      <option value="">Seleccione el departamento</option>
+      <option v-for="d in geoDepartamentos" :key="d.value" :value="d.value">${d.label}</option>
+    </select>
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">Ciudad <span class="text-danger">*</span></label>
+    <select class="form-control" v-model="nuevaEntidad.ciudad" @change="onCambiaCiudadEntidad" :disabled="!nuevaEntidad.depto">
+      <option value="">Seleccione la ciudad</option>
+      <option v-for="c in entidadCiudades" :key="c.value" :value="c.value">${c.label}</option>
+    </select>
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">Municipio <span class="text-danger">*</span></label>
+    <select class="form-control" v-model="nuevaEntidad.municipio" @change="onCambiaMunicipioEntidad" :disabled="!nuevaEntidad.ciudad">
+      <option value="">Seleccione el municipio</option>
+      <option v-for="m in entidadMunicipios" :key="m.value" :value="m.value">${m.label}</option>
+    </select>
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">Sector <span class="text-danger">*</span></label>
+    <select class="form-control" v-model="nuevaEntidad.sector" @change="onCambiaSectorEntidad" :disabled="!nuevaEntidad.municipio">
+      <option value="">Seleccione el sector</option>
+      <option v-for="s in SECTORES_ENTIDAD_BARRERA_V3" :key="s.value" :value="s.value">${s.label}</option>
+    </select>
+  </div>
+  <div class="col-12 small text-muted" v-if="entidadBuscando">Buscando sedes disponibles...</div>
+  <div class="col-12 small text-muted" v-else-if="nuevaEntidad.sector && nuevaEntidad.municipio && entidadesDisponibles.length===0">No hay sedes registradas en este municipio y sector.</div>
+  <div class="col-md-6 position-relative" v-if="entidadesDisponibles.length">
+    <label class="form-label">Buscar entidad <span class="text-danger">*</span></label>
+    <input class="form-control" type="text" autocomplete="off" placeholder="Escribe el nombre de la entidad"
+      :value="entidadTexto" @input="onInputBuscarEntidad($event.target.value)" @focus="entidadEnfocada=true" @blur="entidadEnfocada=false">
+    <div class="list-group position-absolute shadow-sm w-100" style="z-index:20;max-height:220px;overflow:auto"
+      v-if="entidadesFiltradas.length && !nuevaEntidad.EntityBranchID && (entidadEnfocada || textoEntidad)">
+      <button type="button" class="list-group-item list-group-item-action py-1 small" v-for="opt in entidadesFiltradas" :key="opt.id"
+        @mousedown.prevent="seleccionarEntidadSugerida(opt)">${opt.name}</button>
+    </div>
+    <div class="small text-muted mt-1" v-else-if="textoEntidad && !nuevaEntidad.EntityBranchID && !entidadesFiltradas.length">Ninguna entidad coincide con lo escrito.</div>
+  </div>
+</div>
+
+<div class="mt-2" v-if="nuevaEntidad.EntityBranchID">
+  <label class="form-label">Acciones institucionales</label>
+  <div v-if="obligacionesCargando" class="small text-muted">Cargando tareas...</div>
+  <div v-else-if="obligacionesEntidad.length===0" class="small text-muted">Esta entidad no tiene tareas configuradas en el catálogo.</div>
+  <template v-else>
+    <div v-if="nuevaEntidad.Kind==='acudida'" class="mb-2">
+      <label class="form-label small mb-1">Completadas</label>
+      <div class="d-flex flex-wrap gap-2">
+        <button type="button" v-for="o in obligacionesEntidad" :key="'c-'+o.value" :style="estiloChip(nuevaEntidad.CompletedActions.indexOf(o.value)>=0)"
+          @click="toggleEnArray(nuevaEntidad.CompletedActions, o.value)"><span v-if="nuevaEntidad.CompletedActions.indexOf(o.value)>=0">✓ </span>${o.label}</button>
+      </div>
+    </div>
+    <label class="form-label small mb-1">Pendientes</label>
+    <div class="d-flex flex-wrap gap-2">
+      <button type="button" v-for="o in obligacionesEntidad" :key="'p-'+o.value" :style="estiloChip(nuevaEntidad.PendingActions.indexOf(o.value)>=0)"
+        @click="toggleEnArray(nuevaEntidad.PendingActions, o.value)"><span v-if="nuevaEntidad.PendingActions.indexOf(o.value)>=0">✓ </span>${o.label}</button>
+    </div>
+  </template>
+</div>
 {{ end }}
