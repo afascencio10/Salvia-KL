@@ -126,6 +126,20 @@ complete_triada "$IC" >/dev/null
 check "«Ninguna» no crea tareas ni oficios" "$(cnt case_task "$IC")/$(cnt entity_letter "$IC")" "0/0"
 check "el Caso pasó a Iniciado" "$(SQL "select victim_case_status from salvia.victim_case where victim_case_i_code='$IC'")" "in"
 
+echo "== J. Reintento al leer: un Caso que ya salió de borrador con JSON pendiente se materializa solo"
+DOC=$((RANDOM + 920000000)); IC=$(new_case "$DOC"); echo "   caso $IC"
+api POST "$IC/entidades" '{"kind":"activacion","entityBranchId":102,"agreement":true,"dueDiligence":true,"activationChannels":["denuncia"],"managementNotes":"x"}' >/dev/null
+api POST "$IC/barreras" '{"sectorCode":"salud","entityBranchId":102,"description":"b","management":["alerta"],"date":"2026-10-21"}' >/dev/null
+SQL "update salvia.victim_case set victim_case_status='in' where victim_case_i_code='$IC'" >/dev/null     # simula un vaciado que falló antes del cambio de estado
+check "antes de leer: nada en las tablas" "$(cnt entity_case "$IC")/$(cnt barrier_v2 "$IC")" "0/0"
+G=$(body_of "$(api GET "$IC")")
+check "la lectura materializa lo pendiente (1 entidad y 1 barrera)" "$(cnt entity_case "$IC")/$(cnt barrier_v2 "$IC")" "1/1"
+check "GetCase ya devuelve las filas de las tablas y la bandera de solo lectura" "$(jq -r '(.entities|length|tostring)+"/"+(.barriers|length|tostring)+"/"+(.entitiesReadOnly|tostring)' <<<"$G")" "1/1/true"
+check "se crearon las tareas (canal «denuncia» + alerta de la barrera)" "$(cnt case_task "$IC")" "2"
+check "el JSON quedó vacío" "$(SQL "select jsonb_array_length(victim_case_v3_draft_data->'entities')||'/'||jsonb_array_length(victim_case_v3_draft_data->'barriers') from salvia.victim_case where victim_case_i_code='$IC'")" "0/0"
+api GET "$IC" >/dev/null
+check "leer otra vez no duplica nada" "$(cnt entity_case "$IC")/$(cnt barrier_v2 "$IC")/$(cnt case_task "$IC")" "1/1/2"
+
 echo
 echo "RESULTADO: $PASS ok / $FAIL fallos"
 exit $FAIL

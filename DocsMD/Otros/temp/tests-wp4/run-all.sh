@@ -16,7 +16,8 @@ run() { # run <nombre> <comando...>
 run "API T9 borrador"        bash "$DIR/t9-api-test.sh"
 run "API T9b remisiones"     bash "$DIR/t9b-api-test.sh"
 run "API T5 GS_20"           bash "$DIR/t5-api-test.sh"
-for t in t2 t3 t4 t5 t6 t7 t8 solo-lectura; do run "UI $t" node "$DIR/ui-$t.js"; done
+run "API T1 finalizar"        bash "$DIR/t1-finalize-test.sh"
+for t in t2 t3 t4 t5 t6 t7 t8 solo-lectura cierre; do run "UI $t" node "$DIR/ui-$t.js"; done
 echo "----------------------------------------"
 echo "TOTAL: $TOTAL_OK ok / $TOTAL_FAIL fallos"
 exit $TOTAL_FAIL
