@@ -97,15 +97,12 @@ var RegistroV3App = Vue.createApp({
       entidadCiudades: [], entidadMunicipios: [], entidadesDisponibles: [],
       entidadBuscando: false, obligacionesEntidad: [], obligacionesCargando: false,
       errorEntidad: '',
-      // entidadGeoPorBranch cachea depto/ciudad/municipio/sector usados al
-      // buscar cada entidad agregada (por entityBranchId) -- GS § D (Barreras)
-      // los reusa para no repetir la búsqueda: la barrera es un sub-repeater
-      // de la entidad, no un buscador independiente (instrucción 2026-10-15).
-      entidadGeoPorBranch: {},
       // GS § D -- barreraParaEntidad es el entityBranchId de la entidad cuyo
       // formulario de "+ Agregar barrera" está abierto (null = ninguno).
       barreraParaEntidad: null,
-      competenciasBarrera: [], competenciasCargando: false,
+      // REG-18: municipios del Departamento elegido en el formulario de barrera
+      // (lista propia: el buscador de entidades tiene la suya).
+      barreraMunicipios: [],
       errorBarrera: '',
 
       // Catálogos globales (registro-v3-campos.js) que el TEMPLATE referencia
@@ -205,19 +202,18 @@ var RegistroV3App = Vue.createApp({
         CompletedActions: [], PendingActions: [], OtherInfo: '',
       };
     },
-    // Acá Department/City/Town SÍ se mandan -- son la ubicación donde se
-    // identificó la barrera (BarrierV2.DepartmentID/CityID/TownID), no solo
-    // un filtro. SectorCode también se manda tal cual (BarrierV2.Sector).
-    // Department/City/Town/SectorCode/EntityBranchID se heredan de la
-    // entidad padre (abrirBarreraParaEntidad) -- ya no los edita el agente
-    // acá directamente.
+    // REG-18: la barrera es el formulario de Seguimiento v4 (BARRERA_V4_V3,
+    // generado desde el seed). `v` guarda las respuestas por clave de pregunta
+    // (arreglo si la pregunta es de selección múltiple, texto en los demás
+    // casos); armarPayloadBarrera() las traduce a los campos de
+    // repository.VictimCaseBarrierInput. EntityBranchID se hereda de la entidad
+    // padre (abrirBarreraParaEntidad).
     barreraVacia: function () {
-      return {
-        Department: '', City: '', Town: '', SectorCode: '', EntityBranchID: '',
-        Specific: [], OtherDetail: '',
-        Institutional: [], Economic: [], Territorial: [], Differential: [],
-        Date: '', Official: '', Description: '', Management: [], Competences: [],
-      };
+      var v = {};
+      BARRERA_V4_V3.forEach(function (q) {
+        if (q.tipo !== 'info') v[q.key] = q.tipo === 'multiple' ? [] : '';
+      });
+      return { EntityBranchID: '', v: v };
     },
 
     // ── Habeas data / Cabezote ──────────────────────────────────────────
@@ -1102,10 +1098,6 @@ var RegistroV3App = Vue.createApp({
         PendingActions: this.nuevaEntidad.PendingActions,
         OtherInfo: this.nuevaEntidad.OtherInfo,
       };
-      // Depto/ciudad/municipio/sector usados para encontrarla -- GS § D
-      // (Barreras) los reusa en vez de repetir la búsqueda (instrucción
-      // 2026-10-15, ver abrirBarreraParaEntidad).
-      var geo = { depto: this.nuevaEntidad.depto, ciudad: this.nuevaEntidad.ciudad, municipio: this.nuevaEntidad.municipio, sector: this.nuevaEntidad.sector };
       self.errorEntidad = '';
       fetch('/api/v1/victim-cases-v3/' + this.icode + '/entidades', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -1113,7 +1105,6 @@ var RegistroV3App = Vue.createApp({
         .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
         .then(function (res) {
           if (!res.ok) { self.errorEntidad = res.data.error || 'No se pudo agregar la entidad'; return; }
-          self.entidadGeoPorBranch[branchId] = geo;
           self.nuevaEntidad = self.entidadVacia();
           self.entidadCiudades = []; self.entidadMunicipios = []; self.entidadesDisponibles = []; self.obligacionesEntidad = [];
           self.recargarEntidadesBarreras();
@@ -1143,77 +1134,116 @@ var RegistroV3App = Vue.createApp({
     barrerasDeEntidad: function (e) {
       return this.barreras.filter(function (b) { return b.entityBranchId === e.entityBranchId; });
     },
-    barreraCategoriaSector: function () {
-      return SECTOR_A_CATEGORIA_BARRERA_V3[this.nuevaBarrera.SectorCode] || null;
-    },
-    opcionesBarreraSector: function () {
-      var cat = this.barreraCategoriaSector();
-      if (!cat) return [];
-      var self = this;
-      return (this.enumCatalog[cat] || []).map(function (o) {
-        return { code: o.code, icode: o.icode, label: (ENUM_LABELS_OVERRIDE_V3[cat] && ENUM_LABELS_OVERRIDE_V3[cat][o.code]) || o.label };
-      });
-    },
-    opcionesTransversal: function (enumCategory) {
-      var self = this;
-      return (this.enumCatalog[enumCategory] || []).map(function (o) {
-        return { code: o.code, icode: o.icode, label: (ENUM_LABELS_OVERRIDE_V3[enumCategory] && ENUM_LABELS_OVERRIDE_V3[enumCategory][o.code]) || o.label };
-      });
-    },
     toggleEnArray: function (arr, value) {
       var idx = arr.indexOf(value);
       if (idx >= 0) arr.splice(idx, 1); else arr.push(value);
     },
-    categoriasTransversales: function () { return CATEGORIAS_BARRERA_TRANSVERSAL_V3; },
-    opcionesGestionBarrera: function () { return this.opcionesTransversal(GESTION_BARRERA_ENUM_CATEGORY_V3); },
-    // Traduce el sector interno de entity (he/js/pt/os, lo que trae `e.sector`
-    // de EntityCaseWithRelations) al vocabulario real que espera BarrierV2 --
-    // inverso del sectorMap de entity_branch_api_controller.go.
-    sectorInternoAPalabra: function (code) {
-      var map = { he: 'salud', js: 'justicia', pt: 'proteccion', os: 'otras_instituciones' };
-      return map[code] || '';
+
+    // ── Formulario de barrera de Seguimiento v4 (REG-18) ─────────────────────
+    // Se renderiza recorriendo BARRERA_V4_V3 (textos, opciones y condiciones
+    // salen del seed de Seguimiento; ver scripts/gen_registro_v3_barrera_catalog.py).
+    barreraCumpleCuando: function (q) {
+      var c = q.cuando;
+      if (!c) return true;
+      var val = this.nuevaBarrera.v[c.pregunta];
+      if (c.op === 'INCLUDES') return Array.isArray(val) && val.indexOf(c.valor) >= 0;
+      return val === c.valor;
+    },
+    barreraPreguntasVisibles: function () {
+      var self = this;
+      return BARRERA_V4_V3.filter(function (q) { return self.barreraCumpleCuando(q); });
+    },
+    barreraOpciones: function (q) {
+      if (q.fuente === 'departamentos') return this.geoDepartamentos;
+      if (q.fuente === 'municipios') return this.barreraMunicipios;
+      return q.opciones || [];
+    },
+    barreraTextoLargo: function (q) {
+      return ['descripcion', 'perspectiva', 'gestionTexto'].indexOf(q.key) >= 0;
+    },
+    // Al cambiar una respuesta se limpia lo que dejó de aplicar (igual que el
+    // formulario de Seguimiento al ocultar las preguntas dependientes).
+    setBarrera: function (q, valor) {
+      var v = this.nuevaBarrera.v;
+      v[q.key] = valor;
+      var self = this;
+      if (q.key === 'sector') {
+        BARRERA_V4_V3.forEach(function (p) {
+          if (p.cuando && p.cuando.pregunta === 'sector' && p.tipo !== 'info') v[p.key] = p.tipo === 'multiple' ? [] : '';
+        });
+      }
+      if (q.key === 'depto') {
+        v.municipio = '';
+        this.barreraMunicipios = [];
+        if (valor) {
+          fetch('/api/v1/locations/cities?department_id=' + encodeURIComponent(valor))
+            .then(function (r) { return r.json(); })
+            .then(function (data) { self.barreraMunicipios = Array.isArray(data) ? data : []; })
+            .catch(function () { self.barreraMunicipios = []; });
+        }
+      }
+    },
+    toggleBarreraOpcion: function (q, valor) {
+      var v = this.nuevaBarrera.v;
+      this.toggleEnArray(v[q.key], valor);
+      // La perspectiva profesional solo aplica con la gestión «alerta».
+      if (q.key === 'gestion' && v.gestion.indexOf('alerta') === -1) v.perspectiva = '';
+    },
+    barreraVacio: function (q) {
+      var val = this.nuevaBarrera.v[q.key];
+      return Array.isArray(val) ? val.length === 0 : !String(val || '').trim();
+    },
+    // Preguntas obligatorias y visibles que siguen sin respuesta.
+    barreraFaltantes: function () {
+      var self = this;
+      return this.barreraPreguntasVisibles().filter(function (q) { return q.required && q.tipo !== 'info' && self.barreraVacio(q); });
+    },
+    // Respuestas del formulario -> campos de repository.VictimCaseBarrierInput.
+    // Las preguntas por sector (tipos, institución, «otra») se mapean según el
+    // sector elegido; las cuatro transversales solo existen con «transversales».
+    armarPayloadBarrera: function () {
+      var v = this.nuevaBarrera.v;
+      var porSector = {
+        salud: { Specific: v.tiposSalud, Institution: v.instSalud, OtherDetail: v.otraSalud },
+        justicia: { Specific: v.tiposJusticia, Institution: v.instJusticia, OtherDetail: v.otraJusticia },
+        proteccion: { Specific: v.tiposProteccion, Institution: v.instProteccion, OtherDetail: v.otraProteccion },
+      }[v.sector] || { Specific: [], Institution: '', OtherDetail: '' };
+      var transversal = v.sector === 'transversales';
+      return {
+        EntityBranchID: Number(this.nuevaBarrera.EntityBranchID),
+        SectorCode: v.sector,
+        Specific: porSector.Specific.slice(), Institution: porSector.Institution, OtherDetail: porSector.OtherDetail,
+        Institutional: transversal ? v.talento.slice() : [], Economic: transversal ? v.eco.slice() : [],
+        Territorial: transversal ? v.terr.slice() : [], Differential: transversal ? v.diferencial.slice() : [],
+        Date: v.fecha, Official: v.funcionario, Department: v.depto, City: v.municipio, Zone: v.vereda,
+        Description: v.descripcion, Management: v.gestion.slice(),
+        ProfessionalPerspective: v.gestion.indexOf('alerta') >= 0 ? v.perspectiva : '',
+        ManagementDescription: v.gestionTexto,
+      };
     },
     abrirBarreraParaEntidad: function (e) {
       this.nuevaBarrera = this.barreraVacia();
       this.nuevaBarrera.EntityBranchID = e.entityBranchId;
-      var geo = this.entidadGeoPorBranch[e.entityBranchId];
-      if (geo) {
-        this.nuevaBarrera.Department = geo.depto; this.nuevaBarrera.City = geo.ciudad; this.nuevaBarrera.Town = geo.municipio;
-        this.nuevaBarrera.SectorCode = geo.sector;
-      } else {
-        // Entidad agregada en una sesión anterior (recargada del backend) --
-        // no se cacheó la búsqueda que la encontró. Department/City/Town
-        // quedan vacíos (son solo "dónde se identificó", redundante con la
-        // ubicación propia de la sede -- ver BarrierV2.EntityBranchID); el
-        // sector se traduce del código interno igual, para que el checklist
-        // de "barreras específicas" y competencias cargue bien.
-        this.nuevaBarrera.SectorCode = this.sectorInternoAPalabra(e.sector);
-      }
+      this.barreraMunicipios = [];
       this.barreraParaEntidad = e.entityBranchId;
       this.errorBarrera = '';
-      this.buscarCompetencias();
     },
     cerrarBarreraParaEntidad: function () {
       this.barreraParaEntidad = null;
       this.nuevaBarrera = this.barreraVacia();
-    },
-    buscarCompetencias: function () {
-      this.competenciasBarrera = [];
-      if (!this.nuevaBarrera.SectorCode) return;
-      var self = this;
-      self.competenciasCargando = true;
-      fetch('/api/v1/competences?sector=' + encodeURIComponent(this.nuevaBarrera.SectorCode))
-        .then(function (r) { return r.ok ? r.json() : []; })
-        .then(function (data) { self.competenciasBarrera = Array.isArray(data) ? data : []; self.competenciasCargando = false; })
-        .catch(function () { self.competenciasBarrera = []; self.competenciasCargando = false; });
+      this.barreraMunicipios = [];
     },
     agregarBarrera: function () {
       var self = this;
       if (!this.nuevaBarrera.EntityBranchID) return;
-      var body = Object.assign({}, this.nuevaBarrera, { EntityBranchID: Number(this.nuevaBarrera.EntityBranchID) });
+      var faltantes = this.barreraFaltantes();
+      if (faltantes.length) {
+        self.errorBarrera = 'Faltan campos obligatorios: ' + faltantes.map(function (q) { return q.label; }).join('; ');
+        return;
+      }
       self.errorBarrera = '';
       fetch('/api/v1/victim-cases-v3/' + this.icode + '/barreras', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.armarPayloadBarrera()),
       })
         .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
         .then(function (res) {

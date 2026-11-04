@@ -169,7 +169,7 @@ type VictimCaseBarrierInput struct {
 	// v4 que barrier_v2 no tiene como columna (barrierMeta del borrador JSON) o
 	// que el formulario anterior de V3 no capturaba.
 	Institution             string // ¿A qué institución acudió? -> barrier_v2.specific_institutions
-	Zone                    string // Vereda o zona (cabecera | vereda | no precisa)
+	Zone                    string // Vereda o zona (cabecera | rural | no), como Seguimiento v4
 	ProfessionalPerspective string // perspectiva profesional (solo con la gestión «alerta»)
 	ManagementDescription   string // Descripción de la gestión
 }
