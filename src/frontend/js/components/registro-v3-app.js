@@ -64,6 +64,12 @@ var RegistroV3App = Vue.createApp({
       answers: {},
       entidades: [],
       barreras: [],
+      // REG-38*: datos de Seguimiento v4 que no tienen columna (GetCase): entityMeta se indexa por
+      // entityBranchId y barrierMeta por el id de la barrera; entitiesReadOnly = el Caso ya dejó de
+      // ser borrador y la sección de entidades, barreras y remisiones es un snapshot de solo lectura.
+      entityMeta: {},
+      barrierMeta: {},
+      entitiesReadOnly: false,
       enumCatalog: {},
       triadaCompleta: false,
 
@@ -120,6 +126,7 @@ var RegistroV3App = Vue.createApp({
       TAMIZAJE_VPP_V3: TAMIZAJE_VPP_V3,
       SECTORES_ENTIDAD_BARRERA_V3: SECTORES_ENTIDAD_BARRERA_V3,
       CANAL_ACTIVACION_V3: CANAL_ACTIVACION_V3,
+      ENTIDAD_V4_V3: ENTIDAD_V4_V3,
 
       // Tamizaje
       tzRevelarResto: false,
@@ -198,7 +205,7 @@ var RegistroV3App = Vue.createApp({
     entidadVacia: function () {
       return {
         Kind: 'acudida', depto: '', ciudad: '', municipio: '', sector: '',
-        EntityBranchID: '', FileNumber: '', ActivationChannel: '',
+        EntityBranchID: '', FileNumber: '', ActivationChannels: [], ManagementNotes: '',
         CompletedActions: [], PendingActions: [], OtherInfo: '',
       };
     },
@@ -334,6 +341,9 @@ var RegistroV3App = Vue.createApp({
           self.tzRevelarResto = TAMIZAJE_GENERALES_V3.some(function (c) { return c.inicial && filtradas[c.id] === 'true'; });
           self.entidades = data.entities || [];
           self.barreras = data.barriers || [];
+          self.entityMeta = data.entityMeta || {};
+          self.barrierMeta = data.barrierMeta || {};
+          self.entitiesReadOnly = !!data.entitiesReadOnly;
           // BUG encontrado en QA (2026-10-15): tzResultado solo se llenaba
           // con la respuesta directa de guardarTamizaje() -- en memoria,
           // nunca releído del backend. Cualquier reapertura del Caso (o
@@ -775,6 +785,7 @@ var RegistroV3App = Vue.createApp({
       this.icode = null;
       this.answers = {};
       this.entidades = []; this.barreras = [];
+      this.entityMeta = {}; this.barrierMeta = {}; this.entitiesReadOnly = false;
     },
 
     // A1 (flow-E10): TZ/GS deben quedar bloqueados hasta que la tríada
@@ -1017,6 +1028,9 @@ var RegistroV3App = Vue.createApp({
         .then(function (data) {
           self.entidades = data.entities || [];
           self.barreras = data.barriers || [];
+          self.entityMeta = data.entityMeta || {};
+          self.barrierMeta = data.barrierMeta || {};
+          self.entitiesReadOnly = !!data.entitiesReadOnly;
         });
     },
     ubicacionEntidad: function (e) {
@@ -1089,11 +1103,19 @@ var RegistroV3App = Vue.createApp({
       var self = this;
       if (!this.nuevaEntidad.EntityBranchID) return;
       var branchId = Number(this.nuevaEntidad.EntityBranchID);
+      var faltantes = this.entidadFaltantes();
+      if (faltantes.length) { self.errorEntidad = 'Faltan campos obligatorios: ' + faltantes.join('; '); return; }
+      // REG-20: Agreement y DueDiligence son copias de GS_15 y GS_16 en este momento (esas
+      // respuestas pueden no estar guardadas todavía); los canales solo operan si ambas son «Sí».
+      var activa = this.nuevaEntidad.Kind === 'activacion' && this.activacionAplica();
       var body = {
         Kind: this.nuevaEntidad.Kind,
         EntityBranchID: branchId,
         FileNumber: this.nuevaEntidad.FileNumber,
-        ActivationChannel: this.nuevaEntidad.Kind === 'activacion' ? this.nuevaEntidad.ActivationChannel : '',
+        ActivationChannels: activa ? this.nuevaEntidad.ActivationChannels.slice() : [],
+        Agreement: this.answers['GS_15'] === 'true',
+        DueDiligence: this.answers['GS_16'] === 'true',
+        ManagementNotes: activa ? this.nuevaEntidad.ManagementNotes : '',
         CompletedActions: this.nuevaEntidad.Kind === 'acudida' ? this.nuevaEntidad.CompletedActions : [],
         PendingActions: this.nuevaEntidad.PendingActions,
         OtherInfo: this.nuevaEntidad.OtherInfo,
@@ -1109,6 +1131,55 @@ var RegistroV3App = Vue.createApp({
           self.entidadCiudades = []; self.entidadMunicipios = []; self.entidadesDisponibles = []; self.obligacionesEntidad = [];
           self.recargarEntidadesBarreras();
         });
+    },
+    // ── REG-20 · Canal de activación como Seguimiento v4 ─────────────────────
+    // Los canales se piden cuando la persona está de acuerdo con la activación de la Ruta
+    // (GS_15) y Salvia debe activar rutas en el marco de la debida diligencia (GS_16): igual
+    // que v4BothYes en Seguimiento. Sin ambas respuestas en «Sí» no se crea ninguna tarea.
+    activacionAplica: function () {
+      return this.answers['GS_15'] === 'true' && this.answers['GS_16'] === 'true';
+    },
+    // «Ninguna» es excluyente con los demás canales (no crea tarea en Seguimiento).
+    toggleCanal: function (valor) {
+      var arr = this.nuevaEntidad.ActivationChannels;
+      var idx = arr.indexOf(valor);
+      if (idx >= 0) { arr.splice(idx, 1); return; }
+      if (valor === 'ninguna') arr.splice(0, arr.length);
+      else if (arr.indexOf('ninguna') >= 0) arr.splice(arr.indexOf('ninguna'), 1);
+      arr.push(valor);
+    },
+    // Etiquetas de lo obligatorio que falta para agregar la entidad (vacío = se puede agregar).
+    entidadFaltantes: function () {
+      var f = [];
+      if (this.nuevaEntidad.Kind === 'activacion' && this.activacionAplica()) {
+        if (!this.nuevaEntidad.ActivationChannels.length) f.push(ENTIDAD_V4_V3.canales.label);
+        if (!String(this.nuevaEntidad.ManagementNotes || '').trim()) f.push(ENTIDAD_V4_V3.gestiones.label);
+      }
+      return f;
+    },
+    metaDeEntidad: function (e) { return this.entityMeta[String(e.entityBranchId)] || null; },
+    // Tipo de la entidad: sale de entityMeta (REG-38*, D1); los datos anteriores se reconocen
+    // porque guardaban «Canal de activación: …» en solicitud.
+    kindDeEntidad: function (e) {
+      var m = this.metaDeEntidad(e);
+      if (m && m.kind) return m.kind;
+      return (e.solicitud || '').indexOf('Canal de activación:') === 0 ? 'activacion' : 'acudida';
+    },
+    etiquetaCanal: function (code) {
+      var o = CANAL_ACTIVACION_V3.filter(function (c) { return c.value === code; })[0];
+      return o ? o.label : (CANAL_ACTIVACION_LEGADO_V3[code] || code);
+    },
+    // Etiquetas de los canales de la entidad, para la tarjeta y el Cierre.
+    canalDeEntidad: function (e) {
+      var m = this.metaDeEntidad(e);
+      var codes = [];
+      if (m && m.activationChannels && m.activationChannels.length) {
+        codes = m.activationChannels;
+      } else if ((e.solicitud || '').indexOf('Canal de activación:') === 0) {
+        codes = e.solicitud.replace('Canal de activación:', '').split(',').map(function (c) { return c.trim(); }).filter(function (c) { return c; });
+      }
+      var self = this;
+      return codes.map(function (c) { return self.etiquetaCanal(c); });
     },
     eliminarEntidad: function (relId) {
       if (!window.confirm('¿Eliminar esta entidad del registro? También se eliminarán sus barreras asociadas.')) return;
