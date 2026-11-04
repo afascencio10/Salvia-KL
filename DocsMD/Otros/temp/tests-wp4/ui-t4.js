@@ -21,13 +21,14 @@ const casos = [
 (async () => {
   const t = await abrir({
     hook: async ({ api, icode }) => {
-      await api('POST', `${icode}/entidades`, { kind: 'acudida', entityBranchId: 101 });
+      await api('POST', `${icode}/entidades`, { kind: 'activacion', entityBranchId: 101, otherInfo: 'obj' });
+      await api('POST', `${icode}/seccion/GS`, { answers: { GS_17: 'true' } });
       for (const [desc, management] of casos) {
         await api('POST', `${icode}/barreras`, { sectorCode: 'justicia', entityBranchId: 101, description: desc, management, date: '2026-10-21' });
       }
     },
   });
-  await t.page.getByRole('link', { name: /Gestión Salvia/ }).click();
+  await t.page.getByRole('link', { name: /Plan de acción Salvia/ }).click();
   const filas = await t.page.locator('table.table-sm tbody tr').evaluateAll((trs) => trs.map((tr) => Array.from(tr.querySelectorAll('td')).slice(0, 2).map((td) => td.innerText.trim())));
   check('hay una fila por barrera', filas.length, casos.length);
   for (const [desc, , esperado] of casos) {

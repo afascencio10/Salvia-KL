@@ -8,13 +8,13 @@ const check = (d, a, e) => { if (JSON.stringify(a) === JSON.stringify(e)) { ok++
 (async () => {
   const t = await abrir({
     hook: async ({ api, icode }) => {
-      await api('POST', `${icode}/entidades`, { kind: 'acudida', entityBranchId: 101, fileNumber: 'RAD-1', pendingActions: ['4cd330bd-bb75-44a2-9bc1-d2a50da9d63b'], otherInfo: 'obj' });
+      await api('POST', `${icode}/entidades`, { kind: 'activacion', entityBranchId: 101, fileNumber: 'RAD-1', pendingActions: ['4cd330bd-bb75-44a2-9bc1-d2a50da9d63b'], otherInfo: 'obj' });
+      await api('POST', `${icode}/seccion/GS`, { answers: { GS_17: 'true' } });
     },
   });
   const { page, icode, api } = t;
-  await page.getByRole('link', { name: /Gestión Salvia/ }).click();
-  // «¿Se identificaron barreras? Sí» (GS_17) habilita el botón de la tarjeta.
-  await page.locator('input[name="GS_17"]').first().check();
+  await page.getByRole('link', { name: /Plan de acción Salvia/ }).click();
+  // GS_17 = Sí (guardado por la API: la pregunta vive en la Ruta de atención integral) habilita el botón de la tarjeta.
   await page.getByRole('button', { name: '+ Agregar barrera a esta entidad' }).click();
 
   const etiquetasVisibles = async () => (await page.locator('.border.rounded.p-2.mt-2 label.form-label').allInnerTexts()).map((s) => s.replace(/\s*\*$/, '').trim());

@@ -6,9 +6,9 @@ let ok = 0, fail = 0;
 const check = (d, a, e) => { if (JSON.stringify(a) === JSON.stringify(e)) { ok++; console.log('  ✅', d); } else { fail++; console.log('  ❌', d, '\n      esperado:', JSON.stringify(e), '\n      obtenido:', JSON.stringify(a)); } };
 
 (async () => {
-  const t = await abrir();
+  const t = await abrir({ hook: async ({ api, icode }) => { await api('POST', `${icode}/seccion/GS`, { answers: { GS_16: 'true' } }); } });
   const { page, icode, sql } = t;
-  await page.getByRole('link', { name: /Gestión Salvia/ }).click();
+  await page.getByRole('link', { name: /Plan de acción Salvia/ }).click();
   const peticiones = [];
   page.on('request', (r) => { if (/\/api\/v1\/(entity-branches|locations)/.test(r.url())) peticiones.push(r.url().replace(/^https?:\/\/[^/]+/, '')); });
 
@@ -69,16 +69,16 @@ const check = (d, a, e) => { if (JSON.stringify(a) === JSON.stringify(e)) { ok++
   await page.screenshot({ path: `${OUT}/t6-2-chips.png` });
 
   console.log('== 5. Marcar chips y agregar');
-  await nueva.locator('label:has-text("Pendientes")').first().scrollIntoViewIfNeeded();
-  const pendientes = nueva.locator('label:has-text("Pendientes") + div button');
+  await nueva.locator('label.form-label:has-text("Acciones institucionales")').first().scrollIntoViewIfNeeded();
+  const pendientes = nueva.locator('label.form-label:has-text("Acciones institucionales") ~ div.d-flex button');
   await pendientes.nth(0).click();
   await pendientes.nth(2).click();
   check('el chip marcado muestra ✓', (await pendientes.nth(0).innerText()).startsWith('✓'), true);
-  await nueva.locator('label:has-text("Completadas") + div button').nth(1).click();
+  await nueva.locator('textarea[placeholder="¿Qué debe gestionar la víctima en esta entidad?"]').fill('Objetivo de prueba');
   await nueva.getByRole('button', { name: '+ Siguiente entidad' }).click();
   await page.waitForTimeout(800);
   const json = sql(`select jsonb_array_length(victim_case_v3_draft_data->'entities')||'/'||jsonb_array_length(victim_case_v3_draft_data->'entities'->0->'pending')||'/'||jsonb_array_length(victim_case_v3_draft_data->'entities'->0->'completed') from salvia.victim_case where victim_case_i_code='${icode}'`);
-  check('en el borrador: 1 entidad, 2 pendientes y 1 completada', json, '1/2/1');
+  check('en el borrador: 1 entidad, 2 pendientes y 0 completadas (la activación solo tiene pendientes)', json, '1/2/0');
   check('el formulario se reinició (sin texto de búsqueda)', await nueva.locator('input[placeholder="Escribe el nombre de la entidad"]').count(), 0);
 
   console.log('== 6. Editar el texto limpia la selección; cambiar el sector limpia la entidad');
