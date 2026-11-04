@@ -1,9 +1,16 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando presiona "Finalizar registro y enrutar a Seguimiento"
    Tipo: User Interaction
-   Estado: 🟡 Implementado con cambios — sincronizado con el código 2026-10-31
+   Estado: 🟡 Implementado con cambios — sincronizado con el código 2026-10-31 · actualizado 2026-11-04 (WP-4)
    Funciones: finalizarRegistro() · confirmacionFinalizar() → registro-v3-app.js · Finalize() → victim_case_v3_controller.go / service
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+> 🔄 **WP-4 (2026-11-04):** `GS_2` ya no es obligatoria (REG-14): `gsObligatoriasFinalizarV3` = `GS_1`, `GS_4`, `GS_5`, `GS_14`, `GS_16`,
+> `GS_17`, `GS_18`. `GS_14` y `GS_17` se contestan en «Ruta de atención integral» pero siguen exigidas y, si faltan, se informan como
+> módulo GS («Plan de acción Salvia»). `GS_20` es deseable: no se exige. En solo lectura (el Caso ya salió de Borrador) `GS_14`, `GS_15`,
+> `GS_16`, `GS_17` y `GS_5` (si no estaba respondida) siguen respondibles para poder finalizar. La tabla de actuaciones del Cierre muestra
+> los canales de activación de cada entidad.
+
 
 INPUT: {
   icode:  identificador del Caso   → estado local
@@ -20,7 +27,7 @@ PASO 1 — Finalizar en el backend
       • Tríada [1er contacto]: CI_1-7, CI_9 · DP_1, 2, 5, 8, 9, 11, 12, 14, 17, 27, 28, 29 · HV_1, 2, 4, 6, 8, 9, 11, 13, 14 · AG_1, 2, 3
       • [máx. 2º contacto] incondicionales: DP_10, DP_15 · CA_1, CA_2, CA_3, CA_4
       • Tamizaje: TZ_1, TZ_2, TZ_3, TZ_4, TZ_7 (las 5 iniciales)
-      • Gestión Salvia siempre visibles: GS_1, GS_2, GS_4, GS_5, GS_14, GS_16, GS_17, GS_18
+      • Gestión Salvia siempre visibles: GS_1, GS_4, GS_5, GS_14, GS_16, GS_17, GS_18  (GS_2 ya no se exige: WP-4 · REG-14)
       Las condicionales (DP_3, DP_6, DP_13, DP_19-22, GS_3, GS_6-13, GS_15, GS_19, HV_12, AG_5…) y las [Deseable] no se exigen.
     SI falta alguna:
       → 400 { "error": "No se puede finalizar — hay módulos incompletos", "modulosIncompletos": ["DP", "TZ", …] }   // prefijos de las keys faltantes, ordenados

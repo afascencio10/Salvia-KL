@@ -1,9 +1,15 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando cambia de módulo en el sidebar
    Tipo: User Interaction
-   Estado: 🟡 Implementado con cambios — sincronizado con el código 2026-10-31
+   Estado: 🟡 Implementado con cambios — sincronizado con el código 2026-10-31 · actualizado 2026-11-04 (WP-4 · módulo RA)
    Funciones: irAModulo(id) · moduloBloqueado(id) → registro-v3-app.js
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+> 🔄 **WP-4 (2026-11-04):** los módulos ahora son **8**: entre TZ y GS se agrega **RA «Ruta de atención integral»** (REG-17) y
+> GS pasa a llamarse **«Plan de acción Salvia»** (REG-15). `modulos[]` trae la entrada nueva; `moduloBloqueado('RA')` es siempre
+> `false` (solo el Tamizaje se bloquea, REG-13), así que RA y el Plan de acción se abren con el Caso en Borrador. Al cambiar a RA o a GS
+> el formulario de entidad se reinicia con el tipo del módulo (`acudida` en RA, `activacion` en GS; `watch` de `moduloActivo`).
+
 
 > El "sidebar" planeado es hoy una fila de pestañas (`.nav-tabs`) con los 7 módulos, sin barras de progreso.
 

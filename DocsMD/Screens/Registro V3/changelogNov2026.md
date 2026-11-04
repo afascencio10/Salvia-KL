@@ -49,3 +49,25 @@ La pantalla pasa a llamarse «Registro de víctima». Los módulos se eligen en 
 | `src/frontend/html/salvia/registro_v3/registro_v3.html` | Título y avisos; columna Estado; encabezado con avance; menú vertical y barra de navegación; clase del mensaje de guardado. |
 | `scripts/e2e/wp3-*.js` | Pruebas E2E de WP-3 (guardado y cierre, navegación y encabezado, sesión). |
 
+## 2026-11-04 — WP-4: Plan de acción, Ruta de atención integral, entidades y barreras de Registro V3 (REG-14/15/16/17/18/19/20/38\*, REG-04 c)
+
+«Gestión Salvia» pasa a **«Plan de acción Salvia»** con el orden a–i del cliente y sin los títulos A–D (REG-15); nace el módulo **«Ruta de atención integral»** (REG-17); la barrera es el formulario de Seguimiento v4, sin competencias (REG-18); el canal de activación es de selección múltiple y crea las mismas tareas que Seguimiento (REG-20); agregar entidad funciona como en Gestión institucional, con cascada obligatoria y búsqueda con debounce (REG-19); nueva pregunta `GS_20` de elementos psicosociales (REG-16); se retira `GS_2` (REG-14); la «Gestión» de la barrera muestra etiqueta (REG-04 c). Entidades y barreras se guardan en un **borrador JSON** mientras el Caso es Borrador y se materializan al iniciarse, con sus tareas, oficios y remisiones; después son de solo lectura (REG-38\*). Cierra G-V3-22. Plan completo en Notion («Ajustes REgistro»).
+
+### Archivos modificados
+
+| Archivo | Cambio |
+|---|---|
+| `src/salvia/service/victim_case_v3_draft.go` | Nuevo — borrador JSON, modos por estado, unión con las tablas, vaciado (`flushDraft`) y decorador de `UpdateStatusIfCurrent`. |
+| `src/salvia/service/victim_case_v3_tasks.go` | Nuevo — tareas y oficios por canal y por gestión de barrera, y remisiones a otros equipos (replican Seguimiento v4). |
+| `src/salvia/service/victim_case_v3_service.go` | Opciones variádicas del constructor, `AddEntity`/`RemoveEntity`/`AddBarrier`/`RemoveBarrier`/`List*` por modo, `GetCase` con `entityMeta`/`barrierMeta`/`entitiesReadOnly`, `GS_2` fuera de las obligatorias de Finalizar. |
+| `src/salvia/controller/victim_case_v3_controller.go` | 409 `{error, readOnly: true}` en solo lectura y 404 al eliminar algo inexistente. |
+| `src/internal/repository/victim_case_v3_repository.go` · `victim_case_v3_fields.go` | Campos nuevos de `VictimCaseEntityInput`/`VictimCaseBarrierInput`; `GS_20`. |
+| `src/main.go` | Dependencias del borrador. |
+| `src/migrations/20261103_wp4_borrador_json.sql` | Nuevo — columna `victim_case.victim_case_v3_draft_data jsonb`. |
+| `src/migrations/20261102_wp4_elementos_psicosociales.sql` | Nuevo — 15 filas de `victim_case_form2_psychosocial_elements`. |
+| `src/frontend/html/salvia/registro_v3/registro_v3.html` | Plan de acción, módulo «Ruta de atención integral» y fragmentos compartidos de la plantilla. |
+| `src/frontend/js/components/registro-v3-app.js` · `registro-v3-campos.js` | Módulo RA, formularios de entidad y barrera, canales, solo lectura, `GS_20` y catálogos generados. |
+| `scripts/gen_registro_v3_barrera_catalog.py` | Nuevo — genera `BARRERA_V4_V3`, `ENTIDAD_V4_V3` y `CANAL_ACTIVACION_V3` desde el seed de Seguimiento v4. |
+
+**Migraciones:** las dos están aplicadas solo en el sandbox; falta aplicarlas en Supabase (develop) y copiarlas a `migrationsProd/`.
+**Pruebas:** 318 comprobaciones (API + BD y Playwright) en verde sobre el código rebasado en `develop`; casos y resultados en [`QA/wp4-plan-de-accion-y-ruta-qa-cases.md`](QA/wp4-plan-de-accion-y-ruta-qa-cases.md).

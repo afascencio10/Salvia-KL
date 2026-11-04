@@ -39,7 +39,11 @@ Este MD es la **fuente de contenido** (preguntas, opciones, reglas del cliente);
 | Tamizaje — rama pareja | Encabezado dice "23 preguntas" | Son 24 (la 24 es ideación suicida, igual que en la rama no pareja) |
 | GS_5-GS_8, GS_13-GS_17 | Preguntas numeradas del catálogo | No están en `registro-v3-campos.js`: se dibujan directamente en `registro_v3.html` (por eso `guardarModulo('GS')` no las valida) |
 | GS_18 | "Botón Activar Alerta Inminente" | Radio "¿Activar alerta inminente?" (GS_18) + textarea de justificación (GS_19, opcional) |
-| GS § C/D | Repeaters con 11 y 15 campos por entrada | Entidad: tipo, ubicación en cascada, sector, sede, radicado, canal, objetivo y acciones; Barrera anidada en la entidad: barreras específicas, categorías transversales, competencias, fecha, funcionario, descripción y gestión |
+| GS_2 «gestiones interinstitucionales» | Pregunta 2 del módulo GS | **Retirada (WP-4 · REG-14):** ya no está en el formulario ni en las obligatorias de Finalizar; la columna y el catálogo `victim_case_form2_interinst_action` se conservan para los datos históricos |
+| GS_20 «elementos psicosociales» | No existe | **Nueva (WP-4 · REG-16):** selección múltiple, 14 opciones del cliente + «Ninguno» (excluyente); deseable, no obligatoria (ver § F) |
+| GS_14 y GS_17 | Preguntas del módulo GS | Se contestan en el módulo nuevo **«Ruta de atención integral»** (WP-4 · REG-17) pero se guardan con la sección GS (misma llave `GS_`); Finalizar las sigue exigiendo y las informa como módulo GS |
+| GS § C/D (WP-4) | Repeaters con 11 y 15 campos por entrada | El **Plan de acción** (antes Gestión Salvia) conserva las **activaciones**; las **entidades acudidas** y las barreras de esas entidades se registran en la **Ruta de atención integral**. La barrera es el formulario de Seguimiento v4 (REG-18, sin competencias) y el canal de activación es de selección múltiple (REG-20) |
+| GS § C/D (versión anterior) | Repeaters con 11 y 15 campos por entrada | Entidad: tipo, ubicación en cascada, sector, sede, radicado, canal, objetivo y acciones; Barrera anidada en la entidad: barreras específicas, categorías transversales, competencias, fecha, funcionario, descripción y gestión |
 | Opciones | Conteos de la planeación | Ver "Conteos reales de enums" en [`registro-v3-data.md`](registro-v3-data.md) |
 
 Coinciden con el MD: CI completo (incluida la máscara de CI_6 y la regla de CI_5 = "Persona sin identificación"), DP_17 como 1er contacto, DP_19-22 con sus condicionales, CA_1-4 como [máx. 2º contacto], HV_11 con máximo 2 y los 6 equipos de remisión con sus criterios y puntajes.
@@ -318,7 +322,9 @@ Delincuencia común · Persona desmovilizada · Miembro de grupos alzados al mar
 
 ---
 
-## Módulo GS — Gestión Salvia (bloque Caso: Denuncia virtual + Remisión + Entidades + Barreras + Alerta)
+## Módulo GS — Plan de acción Salvia (bloque Caso: Denuncia virtual + Remisión + Activaciones + Alerta)
+
+> 🔄 **Actualizado el 2026-11-04 (WP-4: REG-14/15/16/17/18/19/20/38\*).** La pestaña se llama **«Plan de acción Salvia»** y su orden es: a) párrafo síntesis · b) `GS_1` · c) `GS_15` (siempre visible) · d) `GS_16` y las activaciones · e) `GS_3` · f) remisión a equipos (`GS_5`–`GS_12`) · g) `GS_13` · h) `GS_20` · i) `GS_4`, y luego la alerta inminente (`GS_18`, `GS_19`); sin los títulos A–D. `GS_2` se retira. `GS_14`, `GS_17`, las entidades acudidas y sus barreras pasan al módulo **«Ruta de atención integral»** (carpeta [`../Ruta de atención integral/`](../Ruta%20de%20atenci%C3%B3n%20integral/ruta-atencion-integral-index.md)). Las subsecciones A–E de abajo se conservan como catálogo de preguntas; el **orden en pantalla** es el de este aviso.
 
 > Al entrar a este módulo se muestra primero el **párrafo síntesis** —
 > narrativa auto-generada de la víctima y el caso. Ver
@@ -347,7 +353,7 @@ Delincuencia común · Persona desmovilizada · Miembro de grupos alzados al mar
 | # | Pregunta | Tipo | Requerida | Opciones / Notas |
 |---|---|---|:---:|---|
 | 1 | ¿Usted permitiría que el Sistema SALVIA realice el proceso de denuncia fácil ante la FGN? | boolean | 1er contacto | |
-| 2 | ¿Es necesario realizar gestiones interinstitucionales a partir de los hallazgos de esta atención? | multiple | 1er contacto | Orientación y enrutamiento · Gestión administrativa mediante llamada · Activación de ruta interinstitucional · Articulación interinstitucional · Escalamiento a organismos de control *(alineado con la pregunta real de Seguimiento — reemplaza el set de opciones anterior "Orientación/Activación de ruta/Articulación/Gestión de barreras", que mezclaba esta pregunta-resumen con el repeater C de abajo)* |
+| ~~2~~ | ~~¿Es necesario realizar gestiones interinstitucionales a partir de los hallazgos de esta atención?~~ **Retirada (WP-4 · REG-14)** | multiple | ~~1er contacto~~ — ya no se pide ni se exige | Orientación y enrutamiento · Gestión administrativa mediante llamada · Activación de ruta interinstitucional · Articulación interinstitucional · Escalamiento a organismos de control *(alineado con la pregunta real de Seguimiento — reemplaza el set de opciones anterior "Orientación/Activación de ruta/Articulación/Gestión de barreras", que mezclaba esta pregunta-resumen con el repeater C de abajo)* |
 | 3 | En caso afirmativo, describa las acciones previstas, las entidades involucradas y su propósito | text | condicional (Q2 no vacío) | |
 | 4 | Describa el acompañamiento realizado y las acciones que se desarrollarán para la gestión del caso | text | 1er contacto | Se guarda como la **primera entrada de la bitácora** del Caso en Seguimiento |
 
@@ -400,7 +406,7 @@ Delincuencia común · Persona desmovilizada · Miembro de grupos alzados al mar
 | Entidad | dropdown | Sí | Catálogo dinámico por sector (`entidadesDisponibles`, igual que Seguimiento) |
 | N° de radicado, NUNC, MP, etc. | text | No | |
 | Fecha de reporte | date | Sí | |
-| Canal de activación | multiple | Sí (solo repeater Activación) | Notificación (tarea) · Llamada (tarea) · Mi Salvia — Gestión institucional externa (tarea) |
+| Canal de activación *(WP-4 · REG-20)* | multiple | Sí, cuando `GS_15` y `GS_16` (o el acuerdo y la debida diligencia de la entidad acudida con acciones pendientes) son «Sí» | **Como Seguimiento v4:** Notificación SALVIA · Articulación institucional telefónica o por mensajería · Denuncia fácil · Mi Salvia · Ninguna (excluyente; sin tarea). Cada canal crea al materializar la tarea (y a veces el oficio) que crea Seguimiento: `proyectar_oficio` + oficio, `gestion_llamada` ×2, `solicitud_entidad`. Va con «¿Qué gestiones se realizaron desde Salvia para la activación de ruta?» (obligatoria) |
 | Acciones institucionales completadas | multiple | No | Catálogo `obligacionesCatalogo` + "Otra" (condicional: texto libre) |
 | Acciones institucionales pendientes | multiple | No | Mismo catálogo + "Otra" (condicional: texto libre) |
 | Otra información asociada a la Ruta | text | Sí (solo repeater Activación) | |
@@ -416,7 +422,9 @@ Delincuencia común · Persona desmovilizada · Miembro de grupos alzados al mar
 |---|---|---|:---:|---|
 | 17 | ¿Identificó barreras institucionales durante esta atención? | boolean | 1er contacto | **Nueva, sin equivalente en Excel/Guion Funcional/Observaciones — adaptada de Seguimiento, ver GAP G-V3-19.** Habilita el repeater de barreras |
 
-**Por cada barrera agregada:**
+> 🔄 **WP-4 · REG-18:** la barrera es **el formulario de Seguimiento v4** (el catálogo `BARRERA_V4_V3` se genera del seed `seguimiento_v4_form.sql`): *Sector* (Salud · Justicia · Protección · **Transversales**), por sector «Barreras en …» + «¿A qué institución acudió?» + «Otra barrera…», las 4 listas transversales (solo con Transversales), *Fecha*, *Funcionario/a o dependencia*, *Departamento* → *Municipio*, **«Vereda o zona»** (Cabecera · Vereda o zona rural · No precisa), *Descripción (tiempo, modo y lugar)*, **«Gestión de la barrera»** (Activación de ruta interinstitucional (Generar oficio) · Alerta por barreras), **«¿Cuál es su perspectiva profesional frente a la barrera?»** (solo con Alerta, obligatoria) y **«Descripción de la gestión realizada con relación a las barreras»**. Ya **no** se capturan competencias ni «Entidad a la que se asignará la barrera» (la barrera cuelga de la tarjeta de la entidad). Gestión → tareas al materializar: *activación* = oficio + tarea «Activación de ruta interinstitucional (Generar oficio)»; *alerta* = tarea «Alerta por barreras» (comité). La tabla de abajo es la versión anterior.
+
+**Por cada barrera agregada (versión anterior):**
 
 | Campo | Tipo | Requerida | Opciones / Notas |
 |---|---|:---:|---|
@@ -455,6 +463,16 @@ Delincuencia común · Persona desmovilizada · Miembro de grupos alzados al mar
 |---|---|---|:---:|---|
 | 18 | Botón "Activar Alerta Inminente" | acción (no es pregunta de formulario) | — | Abre el mismo flujo que el botón del header (`flow-E13`) — aquí queda registrado dentro de la bitácora de gestión de este módulo, con campo de justificación |
 
+### F — Elementos psicosociales (WP-4 · REG-16)
+
+| # | Pregunta | Tipo | Requerida | Opciones / Notas |
+|---|---|---|:---:|---|
+| 20 | Seleccione los elementos psicosociales integrados en este acompañamiento | multiple | Deseable | 14 opciones del cliente (códigos 01–14) + **Ninguno** (código 99, excluyente en ambos sentidos). Categoría `victim_case_form2_psychosocial_elements`; se guarda con la sección GS (relación de enums). Aparece en el Plan de acción entre la justificación de la remisión y `GS_4` |
+
+Opciones: 01 Contención emocional en crisis · 02 Comprensión del ciclo de la violencia · 03 Identificación y fortalecimiento de recursos personales · 04 Despatologización de experiencias y reacciones asociadas a la violencia · 05 Co-construcción del Plan de Seguridad · 06 Identificación de señales tempranas de riesgo y estrategias de respuesta · 07 Orientación para acceso a servicios, programas o apoyos institucionales que fortalecen autonomía · 08 Fortalecimiento de la autonomía económica y vinculación a proyecto de vida · 09 Cuestionamiento de mandatos culturales que sostienen la violencia · 10 Identificación de redes seguras y afirmativas (familiares, comunitarias, institucionales) · 11 Reconocimiento y comprensión de los derechos de las personas víctimas de VBG y VpP · 12 Orientación sobre acciones disponibles para la garantía de derechos y la responsabilidad del Estado · 13 Fortalecimiento de la corresponsabilidad de la persona en la gestión de su seguridad · 14 Sensibilización y orientación sobre servicios de salud mental para acompañar los impactos de la violencia · 99 Ninguno.
+
+Las 20 opciones de «elementos psicosociales» de Seguimiento v4 incluyen 6 que el cliente no pidió (apoyo en identificación de necesidades y riesgo, seguimiento a la ruta y revisión de barreras, acompañamiento en la toma de decisiones, autocuidado y protección digital y física, reflexión crítica sobre creencias que justifican control, narrativas alternativas); el catálogo no se comparte físicamente con Seguimiento (ahí vive en el formulario dinámico con UUID).
+
 ---
 
 ## Totales
@@ -467,6 +485,6 @@ Delincuencia común · Persona desmovilizada · Miembro de grupos alzados al mar
 | HV — Hechos de violencia | 14 | "Número de documento" eliminado (va a Barreras) |
 | AG — Características del agresor | 11 | |
 | TZ — Tamizaje | 7 generales + 1 VPP condicional + 23 (pareja) **o** 24 (no pareja) | Ramas excluyentes |
-| GS — Gestión Salvia | 18 campos propios + 2 repeaters (Entidades: 11 campos por entrada; Barreras: 15 campos por entrada) | Reestructurado sobre el Seguimiento real — remisión a 6 equipos con criterios, registro de entidades y de barreras, Alerta Inminente formal |
+| GS — Plan de acción Salvia *(WP-4: sin GS_2, con GS_20; GS_14 y GS_17 en «Ruta de atención integral»)* | 18 campos propios + 2 repeaters (Entidades: 11 campos por entrada; Barreras: 15 campos por entrada) | Reestructurado sobre el Seguimiento real — remisión a 6 equipos con criterios, registro de entidades y de barreras, Alerta Inminente formal |
 | **Total (rama pareja)** | **~106** | |
 | **Total (rama no pareja)** | **~107** | |

@@ -16,7 +16,7 @@ Casos de [`flow-E12`](../Flujos/flow-E12-cuando-guarda-una-seccion.md), [`flow-E
 | G2 | 35 | Guardar GS con la tríada completa | Caso `in` | `triadaCompleta:true`; el estado sigue `in` | API + BD |
 | G3 | 35 | `/seccion/TZ` con la tríada completa | Caso `in` | `triadaCompleta:true` | API |
 | N4 | 13 | Finalizar sin haber guardado GS | Todo lo demás completo | 400 con `modulosIncompletos = [GS]` (GS sigue siendo obligatorio) | API |
-| C6 | 37 | Contenido de `camposFaltantes` | Mismo caso | Ordenado y coherente con los módulos: GS_1, GS_14, GS_16, GS_17, GS_18, GS_2, GS_4, GS_5 | API |
+| C6 | 37 | Contenido de `camposFaltantes` | Mismo caso | Ordenado y coherente con los módulos: GS_1, GS_14, GS_16, GS_17, GS_18, GS_2, GS_4, GS_5 (desde WP-4 · REG-14 la lista ya no incluye GS_2) | API |
 | C0 | 37 | Con GS guardado, finalizar | GS guardado | 200 y estado `te` | API + BD |
 | G6 | 21 | Guardar sin cookie de sesión | Sin login | 401 `{"error":"no autenticado"}` | API |
 | G7 | 21 | Rol sin permiso (`ro`) | Sesión de `ro` | 401 **sin cuerpo** | API |

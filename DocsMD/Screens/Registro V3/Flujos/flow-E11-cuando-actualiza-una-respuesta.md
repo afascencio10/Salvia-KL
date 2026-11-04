@@ -1,9 +1,19 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando actualiza una respuesta del formulario
    Tipo: User Interaction
-   Estado: 🟡 Implementado con cambios (subconjunto de lo planeado) — sincronizado con el código 2026-10-31 · actualizado 2026-11-02 (WP-2 · REG-08/09/10/12/34)
+   Estado: 🟡 Implementado con cambios (subconjunto de lo planeado) — sincronizado con el código 2026-10-31 · actualizado 2026-11-02 (WP-2 · REG-08/09/10/12/34) · actualizado 2026-11-04 (WP-4)
    Funciones: setVal() · setBool() · toggleMarcado() · tzToggle() · guardarTamizaje() · etiqueta() → registro-v3-app.js
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+> 🔄 **WP-4 (2026-11-04):** (1) **GS_20** «elementos psicosociales» usa `toggleMarcado`; si el campo declara `excluyente` (código 99,
+> «Ninguno») marcarlo desmarca las demás y marcar otra lo quita; los demás campos múltiples no cambian (REG-16). (2) **Formulario de
+> barrera** (flow-E18): cada respuesta pasa por `setBarrera`; cambiar el sector limpia lo que dejó de aplicar, elegir un departamento
+> carga sus municipios, y la perspectiva profesional solo existe con la gestión «alerta». (3) **Formulario de entidad** (flow-E17): la
+> cascada Departamento → Ciudad → Municipio → Sector es obligatoria y limpia los niveles inferiores; «Buscar entidad» filtra en el
+> navegador con debounce de 250 ms (sin una petición por tecla); marcar una acción como completada la quita de pendientes y viceversa;
+> «Ninguna» es excluyente entre los canales. (4) `GS_15` ya no depende de `GS_14`/`GS_16` (siempre visible) y `GS_16` = Sí despliega el
+> formulario de activación; con `GS_15` y `GS_16` en «Sí» se piden canales y gestiones.
+
 
 > Sin `dinamic-form`: cada control escribe en `answers[campoId]` y Vue re-evalúa los bindings. **No hay guardado ni
 > llamada al backend por cada cambio** (se guarda por sección, flow-E12, y el Tamizaje con su propio botón). Todo lo que

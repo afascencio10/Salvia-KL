@@ -21,6 +21,7 @@
 | D7 — Búsqueda sin nombre | Implementada (`/buscar`); con documento ignora el teléfono; no consulta reportes |
 | D8 — Borrador con valores dummy | Implementado (`insertDummyForm2Row`) y ampliado: "respondido" ya no se infiere del valor sino de `victim_case.victim_case_v3_answered_keys` |
 | D9 — Modelo real de Seguimiento | Los 6 equipos y sus criterios, sí. Entidades en `entity_case`/`entity_case_obligation` y Barreras en `barrier_v2`, **no** como repeaters de `dinamic-form` (G-V3-21 resuelto); las barreras cuelgan de una entidad |
+| **WP-4 · REG-38\* — borrador JSON de entidades y barreras** | Mientras el Caso es Borrador (`bo`) las entidades, las barreras y los datos de Seguimiento v4 sin columna viven en `victim_case.victim_case_v3_draft_data` (jsonb, ver § «Borrador JSON»); al pasar a Iniciado (`in`) se materializan en `entity_case`, `entity_case_obligation` y `barrier_v2` y se crean tareas, oficios y remisiones. Después son de solo lectura (409). Sustituye la escritura directa en esas tablas del D9 |
 | D10 — Pivote (A1, A3, B4-B6, C7, C9, D11) | Todo implementado: sin `dinamic-form`; enums desde `victim_case_form2_enums` por `GET /victim-cases-v3/enums`; empate → Feminicidio; Alerta Inminente solo en GS (GS_18/GS_19); 5 opciones de tipo de contacto (4 con aviso); `general_user` + credenciales en texto plano en `victim_case_new_user_credentials` |
 
 ---
@@ -445,6 +446,47 @@ Entidades y barreras no usan estas tablas: `salvia.entity_case` + `entity_case_o
 
 ---
 
+## Borrador JSON de entidades y barreras (WP-4 · REG-38\*)
+
+Columna nueva (migración `src/migrations/20261103_wp4_borrador_json.sql`): `salvia.victim_case.victim_case_v3_draft_data jsonb`, **nula** si nunca se usó y **sin modelo GORM** (se lee y escribe con SQL directo). Forma:
+
+```json
+{ "v": 1,
+  "entities": [ { "id": "d~<icode>~<uuid>", "kind": "acudida|activacion", "entityBranchId": 123,
+      "branch": { "icode": "", "name": "", "sector": "he|js|pt|os", "address": "", "department": "", "city": "", "town": "" },
+      "fileNumber": "", "reportDate": "YYYY-MM-DD", "objetivo": "", "solicitud": "",
+      "pending": ["<entity_obligation.id>"], "completed": [],
+      "agreement": true, "dueDiligence": true, "activationChannels": ["notificacion","articulacion","denuncia","misalvia","ninguna"],
+      "managementNotes": "", "createdAt": "", "by": "<user icode>" } ],
+  "barriers": [ { "id": "d~<icode>~<uuid>", "entityBranchId": 123, "sector": "salud|justicia|proteccion|transversales",
+      "specific": [], "institution": "", "otherDetail": "", "institutional": [], "economic": [], "territorial": [], "differential": [],
+      "date": "", "official": "", "department": "", "city": "", "town": "", "zone": "cabecera|rural|no", "description": "",
+      "management": ["activacion","alerta"], "professionalPerspective": "", "managementDescription": "", "createdAt": "", "by": "" } ],
+  "entityMeta":  { "<entityBranchId>": { "kind": "", "agreement": false, "dueDiligence": false, "activationChannels": [], "reportDate": "", "managementNotes": "", "pending": [], "completed": [] } },
+  "barrierMeta": { "<barrier_v2.id>":  { "zone": "", "professionalPerspective": "", "managementDescription": "" } },
+  "materializedAt": null }
+```
+
+**Modos (lo decide `victim_case_status`):** en `bo` las altas y bajas de entidades y barreras escriben en el JSON (409 si la sede ya está en el JSON o en `entity_case`; borrar una entidad borra también sus barreras **solo en el JSON**); en cualquier otro estado responden **409** `{error, readOnly: true}` (D20). `GetCase`/`ListEntities`/`ListBarriers` unen el JSON con las tablas (filas anteriores o ya materializadas) con los mismos campos de siempre; los ids del borrador llevan el prefijo `d~`.
+
+**Materialización** (`flushDraft`, enganchada como decorador de `UpdateStatusIfCurrent("bo","in")` para no editar `SaveSection`): ver [`Flujos/flow-subflujo-materializar-borrador.md`](Flujos/flow-subflujo-materializar-borrador.md). En una transacción con `SELECT … FOR UPDATE` crea `entity_case` (o reutiliza la sede ya existente), `entity_case_obligation` (`pendiente`/`completada`, sin «otra») y `barrier_v2` (estado `OPEN`, `management_actions` = CSV, `specific_institutions` = institución); vacía `entities` y `barriers`, conserva `entityMeta` y `barrierMeta` y marca `materializedAt`. Si algo falla, el Caso sigue en `bo` y el JSON queda intacto. Después del COMMIT (mejor esfuerzo, solo log si falla) crea las tareas y oficios de los canales y de la gestión de cada barrera y, **una sola vez por Caso**, las remisiones a otros equipos con las respuestas `GS_5`–`GS_12` guardadas.
+
+| Origen en el JSON | Tablas que se crean |
+|---|---|
+| Entidad con `agreement` y `dueDiligence` y canal `notificacion` | `entity_letter` (`por_proyectar`, agente = quien registró, sede) + `case_task` Entidades · `proyectar_oficio` |
+| Canal `articulacion` / `denuncia` | `case_task` Entidades · `gestion_llamada` («Articulación institucional telefónica o por mensajería» / «Denuncia fácil») |
+| Canal `misalvia` | `case_task` Entidades · `solicitud_entidad` («Hacer solicitudes a la entidad sobre obligaciones pendientes») |
+| Canal `ninguna` | nada |
+| Barrera con gestión `activacion` | `entity_letter` (con `barrier_id`) + `case_task` Barreras · `proyectar_oficio` |
+| Barrera con gestión `alerta` | `case_task` Barreras · `comite_caso` («Alerta por barreras», sin responsable: pool del comité) |
+| `GS_5` = Sí y `GS_6` | `psychosocial_support` + `case_task` Psicosocial · `validar_remision` (`ap`, criterio obligatorio + 3 puntos; se omite si también se pidió `me`) · `men_team_remision` (`ah`) · `discapacidad_remision` por servicio (`di`) · `economic_stabilization` (`es`, mínimo 1 criterio) · `emergency_measure_referral` + `emergency_measure` por tipo (`me`; `al`→alojamiento, `tr`→transporte, `am`→alimentacion, `ve`→vestuario, `ps`→apoyo_psico, `ot`→otras_me). `sd` no crea registro |
+
+Las tareas y oficios replican los de Seguimiento v4 (`form_service_v4.go`, `processEquiposYMedidas`) sin editar ese código: `victim_case_v3_tasks.go`. Cada tarea queda `ToDo` y asignada a quien registró la entidad o la barrera (la alerta, sin responsable).
+
+**GS_20:** categoría nueva `victim_case_form2_psychosocial_elements` en `victim_case_form2_enums` (15 filas: códigos 01–14 y 99; migración `src/migrations/20261102_wp4_elementos_psicosociales.sql`); `GS_20` es `KindEnumN` y se guarda en la relación `rel_victim_case_form2_enums_victim_case_form2`.
+
+---
+
 ## Categorías de enum (`victim_case_form2_enums_category`) — nuevas o a ampliar
 
 > ⚠️ Esta tabla asume qué opciones existen hoy según los MDs de V2-real
@@ -552,7 +594,7 @@ Entidades y barreras no usan estas tablas: `salvia.entity_case` + `entity_case_o
 | G-V3-19 pregunta GS_17 | ✅ Resuelto | Radio "¿Se identificaron barreras?" que habilita "+ Agregar barrera" |
 | G-V3-20 catálogo de barreras | ✅ Resuelto | Leído de BD (categorías `victim_case_form2_barrier_*`) |
 | G-V3-21 dónde se guardan los repeaters | ✅ Resuelto | No hay repeaters: `entity_case` y `barrier_v2` |
-| **G-V3-22** eliminar una entidad no elimina sus barreras (el `confirm` dice que sí) | Abierto | Las barreras quedan en `barrier_v2` y siguen contando en el Cierre |
+| **G-V3-22** eliminar una entidad no elimina sus barreras (el `confirm` dice que sí) | ✅ Resuelto 2026-11-04 (WP-4 · REG-38\*) | Con el Caso en Borrador, eliminar la entidad quita también sus barreras del JSON (aún no existen filas ni tareas); después de materializar la sección es de solo lectura (409), así que ya no se elimina en las tablas |
 | **G-V3-23** con las 5 iniciales del Tamizaje en "No" no hay forma de guardar el Tamizaje y Finalizar lo rechaza | ✅ Resuelto 2026-11-02 (WP-2 · REG-34) | El botón aparece con las 5 iniciales respondidas, se guardan solo esas y Finalizar las acepta; verificado en el API y en el navegador |
 | **G-V3-24** al guardar GS/TZ el cliente deja `triadaCompleta = false` (el backend responde false al no evaluarla) y reaparecen los 🔒 | Abierto | Por lectura de código; se corrige al reabrir el Caso |
 | **G-V3-25** `enviarSeccion` no revisa `r.ok`: un 500 muestra "Sección guardada." | ✅ Resuelto 2026-11-02 (WP-2 · REG-11) | Toda falla se avisa en pantalla (flow-E21) |

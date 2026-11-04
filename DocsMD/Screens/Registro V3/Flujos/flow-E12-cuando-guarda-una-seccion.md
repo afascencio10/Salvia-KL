@@ -1,9 +1,17 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando guarda una sección/módulo
    Tipo: User Interaction
-   Estado: 🟡 Implementado con cambios — sincronizado con el código 2026-10-31 · actualizado 2026-11-02 (WP-2 · REG-11)
+   Estado: 🟡 Implementado con cambios — sincronizado con el código 2026-10-31 · actualizado 2026-11-02 (WP-2 · REG-11) · actualizado 2026-11-04 (WP-4)
    Funciones: guardarModulo(moduloId) · enviarSeccion(moduloId) · mensajeErrorGuardado(res) · mostrarErrorGuardado(e) → registro-v3-app.js · SaveSection() → victim_case_v3_controller.go / service / repository (validación: victim_case_v3_validation.go)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+> 🔄 **WP-4 (2026-11-04):** (1) El módulo nuevo **RA** tiene su propio «Guardar sección» (`guardarRutaAtencion`): valida `GS_14` y
+> `GS_17` y envía el módulo **GS** con `enviarSeccion('GS')` (esas llaves se guardan con GS); no avanza solo (la barra «Siguiente» sí
+> funciona). (2) Si el guardado completa la tríada, el servidor pasa el Caso de `bo` a `in` y **materializa el borrador** de entidades y
+> barreras antes del cambio de estado ([sub-flujo](flow-subflujo-materializar-borrador.md)); el cliente, al ver `triadaCompleta` por primera
+> vez, recarga entidades, barreras y `entitiesReadOnly` y la sección queda de solo lectura. (3) `GS_20` se guarda con la sección GS (relación
+> de enums). (4) Si el vaciado falla, el guardado responde 500 y el Caso sigue en Borrador.
+
 
 INPUT: {
   moduloId:  módulo visible (CI, DP, CA, HV, AG o GS)   → botón "Guardar sección"
@@ -16,7 +24,7 @@ Validar formulario (cliente, en este orden; cada falla muestra `mensajeGuardado`
   • Obligatorias: preguntas VISIBLES del módulo con req 'C1' ([1er contacto]) sin respuesta
       → "Faltan obligatorias de 1er contacto: <etiquetas separadas por ;>"
       (una respuesta "false" cuenta como respondida; solo '' y sin definir cuentan como vacías)
-      En GS solo se revisan las de § A (GS_1, GS_2, GS_4); las preguntas dibujadas directamente en el HTML (GS_5…GS_19) no se validan aquí
+      En GS solo se revisan las de § A (GS_1 y GS_4; `GS_2` se retiró en WP-4 · REG-14); las preguntas dibujadas directamente en el HTML (GS_5…GS_19) no se validan aquí
   • "Solo letras" (CI_2, CI_3, CA_1, AG_7): valor compuesto solo por dígitos
       → "Estos campos no pueden ser solo números: …"
   • CI_6 fuera de la máscara del tipo de documento (solo al guardar CI)
