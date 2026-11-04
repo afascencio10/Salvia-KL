@@ -318,7 +318,22 @@ func main() {
 	// Registro V3 -- Entidades/Barreras reusan las mismas instancias de
 	// entityCaseRepo/entityCaseObligationRepo/barrierV2Repo que ya usan
 	// "Gestión institucional" y Seguimiento (ver registro-v3-pendientes.md § B).
-	victimCaseV3Svc := service.NewVictimCaseV3Service(victimCaseV3Repo, entityCaseRepo, entityCaseObligationRepo, barrierV2Repo)
+	//
+	// WP-4 (REG-38*): WithVictimCaseV3Draft activa el borrador JSON de entidades y
+	// barreras; al pasar el Caso de Borrador a Iniciado se materializan con las
+	// mismas tareas, oficios y remisiones que crea Seguimiento v4.
+	victimCaseV3Svc := service.NewVictimCaseV3Service(victimCaseV3Repo, entityCaseRepo, entityCaseObligationRepo, barrierV2Repo,
+		service.WithVictimCaseV3Draft(service.V3DraftDeps{
+			DB:                           gormDB,
+			CaseTaskRepo:                 caseTaskRepo,
+			EntityLetterRepo:             entityLetterRepo,
+			PsychosocialSupportRepo:      psRepo,
+			EconomicStabilizationRepo:    esRepo,
+			MenTeamRemisionRepo:          menTeamRemisionRepo,
+			DiscapacidadRemisionRepo:     discapacidadRemisionRepo,
+			EmergencyMeasureReferralRepo: referralRepo,
+			AgentLightRepo:               agentLightRepo,
+		}))
 
 	// Gestión de reportes (FigJam l25jrzyf)
 	victimContactsListSvc := service.NewVictimContactsListService(victimContactsListRepo)
