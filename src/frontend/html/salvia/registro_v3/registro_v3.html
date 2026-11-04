@@ -317,54 +317,9 @@
 
           <button class="btn btn-sm btn-outline-secondary mt-1" v-if="answers['GS_17']==='true' && barreraParaEntidad!==e.entityBranchId" @click="abrirBarreraParaEntidad(e)">+ Agregar barrera a esta entidad</button>
 
+          <!-- REG-18: formulario de barrera de Seguimiento v4 (fragmento compartido, ver el final del archivo). -->
           <div class="border rounded p-2 mt-2" v-if="barreraParaEntidad===e.entityBranchId">
-            <div v-if="barreraCategoriaSector()">
-              <label class="form-label">Barreras específicas del sector</label>
-              <div class="form-check" v-for="o in opcionesBarreraSector()" :key="o.code">
-                <input class="form-check-input" type="checkbox" :checked="nuevaBarrera.Specific.indexOf(o.code)>=0" @change="toggleEnArray(nuevaBarrera.Specific, o.code)">
-                <label class="form-check-label small">${o.label}</label>
-              </div>
-            </div>
-            <div v-if="nuevaBarrera.SectorCode==='otras_instituciones'">
-              <label class="form-label">¿Cuál otra barrera?</label>
-              <input class="form-control" v-model="nuevaBarrera.OtherDetail">
-            </div>
-
-            <div class="mt-2" v-for="cat in categoriasTransversales()" :key="cat.campo">
-              <label class="form-label">${cat.label}</label>
-              <div class="form-check" v-for="o in opcionesTransversal(cat.enumCategory)" :key="o.code">
-                <input class="form-check-input" type="checkbox" :checked="nuevaBarrera[cat.campo==='institutional'?'Institutional':cat.campo==='economic'?'Economic':cat.campo==='territorial'?'Territorial':'Differential'].indexOf(o.code)>=0"
-                  @change="toggleEnArray(nuevaBarrera[cat.campo==='institutional'?'Institutional':cat.campo==='economic'?'Economic':cat.campo==='territorial'?'Territorial':'Differential'], o.code)">
-                <label class="form-check-label small">${o.label}</label>
-              </div>
-            </div>
-
-            <div class="mt-2">
-              <label class="form-label">Competencias institucionales de la entidad</label>
-              <div v-if="competenciasCargando" class="small text-muted">Cargando competencias...</div>
-              <div v-else-if="competenciasBarrera.length===0" class="small text-muted">Sin competencias catalogadas para este sector.</div>
-              <div class="form-check" v-for="o in competenciasBarrera" :key="o.value">
-                <input class="form-check-input" type="checkbox" :checked="nuevaBarrera.Competences.indexOf(o.value)>=0" @change="toggleEnArray(nuevaBarrera.Competences, o.value)">
-                <label class="form-check-label small">${o.label}</label>
-              </div>
-            </div>
-
-            <label class="form-label mt-2">Fecha en la que se presentó la barrera</label>
-            <input type="date" class="form-control" v-model="nuevaBarrera.Date">
-            <label class="form-label mt-2">Funcionario(a) o dependencia donde se presentó</label>
-            <input class="form-control" v-model="nuevaBarrera.Official">
-            <label class="form-label mt-2">Descripción de la barrera</label>
-            <textarea class="form-control" rows="2" v-model="nuevaBarrera.Description"></textarea>
-
-            <label class="form-label mt-2">Gestión realizada</label>
-            <div class="form-check" v-for="o in opcionesGestionBarrera()" :key="o.code">
-              <input class="form-check-input" type="checkbox" :checked="nuevaBarrera.Management.indexOf(o.code)>=0" @change="toggleEnArray(nuevaBarrera.Management, o.code)">
-              <label class="form-check-label small">${o.label}</label>
-            </div>
-
-            <div v-if="errorBarrera" class="text-danger small mt-2">${errorBarrera}</div>
-            <button class="btn btn-sm btn-outline-dark mt-2" @click="cerrarBarreraParaEntidad">Cancelar</button>
-            <button class="btn btn-secondary mt-2" @click="agregarBarrera" :disabled="!nuevaBarrera.Description || !nuevaBarrera.Date || !nuevaBarrera.Official">+ Agregar barrera</button>
+            {{ template "rv3_form_barrera" }}
           </div>
         </div>
       </div>
@@ -547,3 +502,32 @@
     document.title = {{.windowTitle}};
     document.getElementById('app').style.display = 'block';
 </script>
+
+{{ define "rv3_form_barrera" }}
+<!-- REG-18 · Formulario de barrera = Seguimiento v4. Se recorre BARRERA_V4_V3
+     (registro-v3-campos.js, generado desde el seed): textos, opciones y
+     condiciones salen de ahí. Fragmento compartido: lo usan el Plan de acción
+     y, en T8, el módulo Ruta de atención integral. -->
+<div v-for="q in barreraPreguntasVisibles()" :key="q.key" class="mb-2">
+  <div v-if="q.tipo==='info'" class="alert alert-info py-1 px-2 small mb-1">${q.label}</div>
+  <template v-else>
+    <label class="form-label mb-1">${q.label}<span v-if="q.required" class="text-danger"> *</span></label>
+    <div v-if="q.tipo==='multiple'">
+      <div class="form-check" v-for="o in barreraOpciones(q)" :key="o.value">
+        <input class="form-check-input" type="checkbox" :checked="nuevaBarrera.v[q.key].indexOf(o.value)>=0" @change="toggleBarreraOpcion(q, o.value)">
+        <label class="form-check-label small">${o.label}</label>
+      </div>
+    </div>
+    <select v-else-if="q.tipo==='single' || q.tipo==='dropdown'" class="form-control" :value="nuevaBarrera.v[q.key]" :disabled="q.key==='municipio' && !nuevaBarrera.v.depto" @change="setBarrera(q, $event.target.value)">
+      <option value="">Seleccione...</option>
+      <option v-for="o in barreraOpciones(q)" :key="o.value" :value="o.value">${o.label}</option>
+    </select>
+    <input v-else-if="q.tipo==='date'" type="date" class="form-control" :value="nuevaBarrera.v[q.key]" @input="setBarrera(q, $event.target.value)">
+    <textarea v-else-if="barreraTextoLargo(q)" class="form-control" rows="2" :value="nuevaBarrera.v[q.key]" @input="setBarrera(q, $event.target.value)"></textarea>
+    <input v-else class="form-control" :value="nuevaBarrera.v[q.key]" @input="setBarrera(q, $event.target.value)">
+  </template>
+</div>
+<div v-if="errorBarrera" class="text-danger small mt-2">${errorBarrera}</div>
+<button class="btn btn-sm btn-outline-dark mt-2" @click="cerrarBarreraParaEntidad">Cancelar</button>
+<button class="btn btn-secondary mt-2" :disabled="barreraFaltantes().length>0" @click="agregarBarrera">+ Agregar barrera</button>
+{{ end }}
