@@ -119,11 +119,21 @@ type VictimCaseEntityInput struct {
 	Kind              string // 'acudida' | 'activacion'
 	EntityBranchID    int64
 	FileNumber        string   // -> entity_case.Radicado
-	ActivationChannel string   // code(s) CSV, solo informativo si Kind='activacion' -- ver GAP B-canal en registro-v3-pendientes.md
+	ActivationChannel string   // LEGADO: código(s) CSV del desplegable anterior (no/ll/ms); un cliente viejo todavía puede enviarlo
 	CompletedActions  []string // ids de entity_obligation -- solo aplica a Kind='acudida'
 	PendingActions    []string // ids de entity_obligation (o "otra")
 	OtherInfo         string   // -> entity_case.Objetivo, solo si Kind='acudida'
 	Agent             string
+
+	// WP-4 (REG-38*/REG-20/REG-17) -- campos del formulario de Seguimiento v4 que
+	// entity_case no tiene como columna: viven en el borrador JSON del Caso
+	// (entityMeta) y se materializan al pasar de Borrador a Iniciado.
+	ActivationChannels []string // notificacion | articulacion | denuncia | misalvia (multi-selección)
+	Agreement          bool     // ¿La víctima está de acuerdo con la activación de ruta?
+	DueDiligence       bool     // ¿Se hizo la debida diligencia?
+	ReportDate         string   // fecha de reporte (YYYY-MM-DD)
+	Solicitud          string   // -> entity_case.Solicitud
+	ManagementNotes    string   // ¿Qué gestiones se realizaron...?
 }
 
 // VictimCaseBarrierInput -- "Agregar barrera" (GS § D). Reconstruido sobre el
@@ -152,8 +162,16 @@ type VictimCaseBarrierInput struct {
 	Official        string
 	Description     string
 	Management      []string
-	Competences     []string // códigos del catálogo salvia_config.CompetenceOptions
+	Competences     []string // LEGADO: códigos del catálogo salvia_config.CompetenceOptions; el formulario nuevo ya no lo envía (REG-18)
 	Agent           string
+
+	// WP-4 (REG-18/REG-38*) -- preguntas del formulario de barreras de Seguimiento
+	// v4 que barrier_v2 no tiene como columna (barrierMeta del borrador JSON) o
+	// que el formulario anterior de V3 no capturaba.
+	Institution             string // ¿A qué institución acudió? -> barrier_v2.specific_institutions
+	Zone                    string // Vereda o zona (cabecera | vereda | no precisa)
+	ProfessionalPerspective string // perspectiva profesional (solo con la gestión «alerta»)
+	ManagementDescription   string // Descripción de la gestión
 }
 
 type victimCaseV3Repository struct {
