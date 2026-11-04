@@ -103,6 +103,8 @@ func (c *VictimContactsManagementController) RegisterAttempt(ctx *gin.Context) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "reporte no encontrado"})
 		case errors.Is(err, repository.ErrVictimContactAlreadyClosed):
 			ctx.JSON(http.StatusConflict, gin.H{"error": "el reporte ya está cerrado"})
+		case errors.Is(err, repository.ErrVictimContactHasDraft):
+			ctx.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		case errors.Is(err, service.ErrInvalidAttemptResult):
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		default:
@@ -140,13 +142,15 @@ func (c *VictimContactsManagementController) Close(ctx *gin.Context) {
 		return
 	}
 
-	category, err := c.svc.Close(ctx.Request.Context(), icode, body.CloseReason, body.CloseObservation)
+	category, err := c.svc.Close(ctx.Request.Context(), icode, body.CloseReason, body.CloseObservation, s.UserICode)
 	if err != nil {
 		switch {
 		case errors.Is(err, repository.ErrVictimContactNotFound):
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "reporte no encontrado"})
 		case errors.Is(err, repository.ErrVictimContactAlreadyClosed):
 			ctx.JSON(http.StatusConflict, gin.H{"error": "el reporte ya está cerrado"})
+		case errors.Is(err, repository.ErrVictimContactHasDraft):
+			ctx.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		case errors.Is(err, repository.ErrSchemeNotComplete):
 			ctx.JSON(http.StatusConflict, gin.H{"error": "el esquema 3x3 no está completo todavía"})
 		case errors.Is(err, repository.ErrCloseReasonNotFound):

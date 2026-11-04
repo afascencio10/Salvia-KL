@@ -91,3 +91,8 @@ PASO 5 — onReasignarCompletado()
 | ¿Se registra un evento de timeline/log para reportes, análogo a case_timeline_event? | Sí, sin timeline visual: una fila de `salvia.app_log` por reporte reasignado (`AppLogRepository`, ver PASO 3) |
 | ¿Reasignar un reporte YA asignado a otro agente requiere confirmación extra? | No: el supervisor puede reasignar libremente (igual que casos). El modal ya pide una confirmación general ("¿Confirmar reasignación?") |
 | ¿Atomicidad de la reasignación masiva? | No es atómica (igual que la de casos): ver el comentario del PASO 3. Anotado como hallazgo en el plan de QA |
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🆕 CAMBIOS DE WP-1 T6 (2026-11-02)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PASO por cada reporte: `FindVictimContactForReassign` devuelve también el agente actual; el cambio de agente y equipo (siempre pisa el equipo, GAP-3) y el hito del timeline van en UNA transacción (`AssignWithTimeline`): «Reporte asignado» si no tenía agente, «Reporte reasignado» si ya tenía (aunque sea el mismo); descripción «Asignado a {agente} (equipo {equipo}) por {supervisor}.» (sin el paréntesis si el agente no tiene equipo); actor = el supervisor. Si el evento falla se revierte la asignación y se devuelve el error (los anteriores ya quedaron reasignados, igual que antes). El `app_log` (best-effort) no cambia.

@@ -44,8 +44,10 @@ gestion-reporte-modal
     └── ModalDialog  (.grm-dialog)  role="dialog" aria-modal="true"
         │
         ├── ModalHeader  (.grm-header)
-        │   ├── ICode  (.grm-icode)        report.icode
         │   ├── Title  (.grm-title)        nombreMostrado || "Reporte"
+        │   ├── 🆕 Meta  (.grm-meta)  [v-if report]   // WP-1 T6: reemplaza al icode (el UUID no le dice nada a quien atiende)
+        │   │   ├── Telefono  (.grm-phone)      report.telefono || "Sin teléfono"
+        │   │   └── Radicado  (.grm-radicado)   [v-if report.radicado]  "Radicado XXXX-XXXX"   // reportes sin radicado (V1 o anteriores) no lo muestran
         │   ├── TypeBadge  (.grm-type-badge)  [v-if reportType]  reportType  (uppercase por CSS)
         │   │   // Mientras llega el detalle, Title y TypeBadge salen de la FILA de la tabla (names + lastNames
         │   │   // y reportType); al llegar usan nombreMostrado/reportType del backend. Un reporte sin nombre
@@ -58,6 +60,14 @@ gestion-reporte-modal
             │                         // sin pasos ni datos vacíos; el modal sigue siendo cerrable
             │  [v-if actionError]     ActionError  (.grm-action-error)  texto de la acción fallida (intento/cierre)
             │                         // no cambia de paso, reactiva los botones
+            │
+            ├── 🆕 InfoReporte  (.grm-info)  «Hechos del reporte»      // WP-1 T6: visible en TODOS los pasos (antes solo en validacionPrevia)
+            │   ├── p  [v-if reporterNames]  "Quien reporta: {nombre} {apellido} ({parentesco})"
+            │   ├── p  "Teléfono de contacto: {telefono || 'No suministrado'}"
+            │   ├── p  [v-if reporterEmail]  "Correo: {correo}"
+            │   ├── p  [v-if ajusteRazonable]  "Ajuste razonable solicitado: {texto}"
+            │   └── p  "Descripción de los hechos:" + Box (.grm-hechos-box)
+            │   [v-if !canManage && step !== 'cerrado' && step !== 'borradorIniciado']  ReadonlyNotice
             │  [v-if !canManage && step !== 'cerrado']
             │                         ReadonlyNotice  (.grm-readonly-notice)  "Solo un agente integral o supervisor puede gestionar este reporte."
             │                         // no se muestra en el paso 'cerrado': en un reporte cerrado canManage es false por definición
@@ -126,8 +136,13 @@ gestion-reporte-modal
             │   ├── HelpText  "Según lo conversado, seleccione el resultado..."
             │   ├── [v-if !pendingClose]  ChoiceGrid
             │   │   ├── Btn "Cierre por no competencia"       + Tooltip → pendingClose='competencia'
-            │   │   └── Btn "Cierre por decisión de la persona" + Tooltip → pendingClose='decision'
-            │   │   // NO incluye "Apertura de caso" en esta fase — ver nota abajo
+            │   │   ├── Btn "Cierre por decisión de la persona" + Tooltip → pendingClose='decision'
+            │   │   └── 🆕 [v-if canConvert]  Btn "Registro de caso" (primario) → pendingClose='registro'   // WP-1 T7 (M-10)
+            │   ├── 🆕 [v-if !pendingClose && reportTypeCode es fm u ho]  Aviso (.grm-notice-info)  "Por ahora no hay procesos de atención para este tipo de reportes"
+            │   ├── 🆕 [v-if pendingClose === 'registro']  ConfirmBox
+            │   │   ├── Texto  "Se creará un registro de caso en borrador con los datos del reporte (nombres, apellidos, teléfono, hechos y ajuste razonable). El reporte quedará en «Borrador iniciado» hasta que el caso se complete."
+            │   │   ├── Btn "Cancelar" → cancelarPendingClose()
+            │   │   └── Btn "Crear registro de caso" :disabled="saving" → convertirEnRegistro()   // M-10
             │   └── [v-if pendingClose in ('competencia','decision')]
             │       ConfirmBox
             │       ├── Label  "Registre el motivo de no competencia:" | "Registre la manifestación de la persona:"
@@ -135,15 +150,18 @@ gestion-reporte-modal
             │       ├── Btn "Cancelar"           → pendingClose=''
             │       └── Btn "Confirmar cierre"  :disabled="!motivoTexto.trim()" → confirmarCierrePostContacto()  // M-08 / M-09
             │
-            │   // ── Diferido, no se implementa en esta fase (instrucción del usuario,
-            │   //    2026-10-11 — coincide con la nota de FigJam: "aún no vamos a
-            │   //    trabajar el registro de un nuevo caso formal a partir de un
-            │   //    reporte") ──
-            │   // [v-if pendingClose === 'apertura']  OpenCaseBox — botón "Apertura de
-            │   // caso" + pregunta de Atención Especializada + confirmarApertura().
-            │   // Diseño completo conservado en flow-M10 por si se retoma más adelante.
-            │   // Mientras tanto, abrir un caso desde un reporte exitoso sigue el
-            │   // camino YA EXISTENTE: /salvia/primer_contacto → botón "Crear caso".
+            │   // WP-1 T7 (2026-11-02): la «Apertura de caso» diferida se reemplazó por «Registro de caso» (M-10): crea un
+            │   // borrador de Registro V3 prellenado y deja el reporte en «Borrador iniciado» (no lo cierra).
+            │
+            │  ┌─────────────────────────────────────────────────┐
+            │  │ 🆕 STEP 'borradorIniciado'  (WP-1 T7)            │
+            │  │ Visible cuando el reporte tiene un caso vinculado│
+            │  │ en bo/in (draftCaseIcode ≠ '') y sin cierre      │
+            │  └─────────────────────────────────────────────────┘
+            ├── [step === 'borradorIniciado']   (.grm-draft)
+            │   ├── Title  "Borrador de caso iniciado"
+            │   ├── HelpText  "Este reporte ya tiene un borrador de caso. Cuando el caso se complete, el reporte quedará cerrado como Válido - Apertura de Caso Salvia."
+            │   └── Btn "Ir al borrador del caso" (primario) → irAlBorrador()   // M-12 → /salvia/registro-v3?caso=<icode>
             │
             │  ┌─────────────────────────────────────────────────┐
             │  │ STEP 'cerrado'  (solo lectura)                   │
@@ -151,12 +169,16 @@ gestion-reporte-modal
             │  │ (o es un legado invalidado, status 'i') al       │
             │  │ abrir (M-01), o inmediatamente tras M-02/07/08/09│
             │  └─────────────────────────────────────────────────┘
-            └── [step === 'cerrado']
+            ├── [step === 'cerrado']
                 ├── Icon  ✓  (verde si categoria==='Válido', gris si 'Inválido')
-                ├── Title  "Reporte {icode} cerrado"
+                ├── Title  "Reporte {radicado} cerrado"   // sin el icode (UUID); sin radicado, solo «Reporte cerrado»
                 ├── p  "Categoría: {categoria}"
                 ├── p  "Motivo: {motivoCierreLabel}"   // etiqueta + " — " + observación (co/dp); en un legado, su descripción
                 └── Btn "Cerrar"  → close()   // M-11, siempre emite 'updated'
+            │
+            └── 🆕 Historial  (.grm-history)  [v-if report]   // WP-1 T6: en todos los pasos, también en 'cerrado'
+                ├── Title  "Historial del reporte"
+                └── case-timeline  :key="icode + '-' + historyVersion"  :report-id="icode"  :show-filters="false"   // historyVersion++ tras cada intento o cierre
 ```
 
 ---
@@ -173,7 +195,11 @@ El detalle devuelve `canManage = (rol op/sv) AND (el reporte no está cerrado)`:
 
 ---
 
-## Diferido — "Apertura de caso" (M-10)
+## ✅ Reemplazado en WP-1 T7 — «Registro de caso» (M-10) y «Ir al borrador del caso» (M-12)
+
+Desde 2026-11-02 el evento diferido se implementó con otro diseño: ya **no cierra el reporte** ni usa `close_reason='ap'` (sigue bloqueado en `/cerrar`). Ver [`Flujos/flow-M10-cuando-confirma-apertura-caso.md`](Flujos/flow-M10-cuando-confirma-apertura-caso.md) y [`Flujos/flow-M12-cuando-va-al-borrador.md`](Flujos/flow-M12-cuando-va-al-borrador.md). El texto siguiente es el registro histórico de la decisión de octubre.
+
+## (Histórico) Diferido — "Apertura de caso" (M-10)
 
 > Desde 2026-10-13 el backend **rechaza `close_reason='ap'` con 400** (`deferredCloseReasonCodes`, decisión del usuario): no se puede cerrar como "Cerrado - válido" por API mientras este evento no exista.
 

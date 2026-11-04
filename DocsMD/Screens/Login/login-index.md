@@ -8,6 +8,8 @@
 
 ---
 
+> **WP-1 (2026-11-02):** el evento E02 ahora respeta `?next=/salvia/public-v2/nuevo` (lista blanca exacta) para volver al reporte V2 tras iniciar sesión. Ver [`changelogNov2026.md`](changelogNov2026.md) y [`QA/E02-retorno-qa-cases.md`](QA/E02-retorno-qa-cases.md).
+
 ## Resumen de eventos
 
 | # | Evento | Tipo | Flujo |

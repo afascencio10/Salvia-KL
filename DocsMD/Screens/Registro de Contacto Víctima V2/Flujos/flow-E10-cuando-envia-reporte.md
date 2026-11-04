@@ -5,6 +5,8 @@
    Funciones: isFormValid (computed) · submitForm() · buildPayload() (frontend) · VictimContactPOST_Public_V2() (facade)
               · SetVictimContactV2() (controller) · SetVictimContact() / SetVictimContactForm2()
               (DAO existentes de V1, sin modificar) · SetVictimContactForm2V2() (DAO nuevo)
+              · 🆕 AssignVictimContactRadicado() (DAO nuevo, T3/T8) · recordReportReceived() (T6)
+   WP-1 (2026-11-02): T1 hora HH:MM:SS · T3 radicado · T6 hito «Reporte recibido» · T8 reportante con sesión
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 INPUT: {
@@ -122,8 +124,15 @@ PASO 3 — Enviar el reporte
        crudos — una para VictimContactDTO (raíz + form2), otra para el wrapper
        de form2V2. (Embeber ambos en un solo struct rompía la decodificación
        de form2V2 — bug encontrado en implementación, ver related-tables.md.)
-       utils.JSONToStruct descarta los errores de decodificación: un campo que
-       no se pueda parsear queda en su valor cero (ver L1).
+       La pasada de VictimContactDTO usa utils.JSONToStruct, que descarta los errores.
+       ✏️ [T1] La pasada de form2V2 usa json.Unmarshal: `VictimContactForm2V2DTO.UnmarshalJSON`
+       acepta la hora como HH:MM:SS, HH:MM o RFC 3339 y, si no se puede leer, devuelve
+       ErrReporterBestContactTimeInvalid → el controller registra el error de campo
+       form2V2.reporterBestContactTime = «Hora con formato inválido» (no lo descarta).
+       Los demás errores de esa pasada se siguen ignorando.
+    1b. 🆕 [T8] El reportante sale de la SESIÓN del servidor (el facade pasa `reporter` o nil):
+       vc.VictimContactGeneralUser se limpia y solo se asigna con reporter.UserICode — lo que el
+       cliente mande en «generalUser» se ignora.
     2. Verifica captcha (bypass solo si User-Agent = "flutter-client", igual
        que V1).
     3. authorizationAnswer debe resolver a una fila de enum con code 'y'.
@@ -141,12 +150,13 @@ PASO 3 — Enviar el reporte
                      · 'ho': names = lastNames = '' (decisión 7A)
                      · ambos: victimColPhone se fuerza a 0
          otro código → error en reportType
+       ✏️ [T1] Con disposición «Sí», una hora ilegible informa «Hora con formato inválido»; una hora ausente, «Este campo es obligatorio».
     7. SI hay errores acumulados: collectedErrors["default"]["captchaID"] = captcha.New()
        y responde 400 (el captchaID se regenera con CUALQUIER 400, no solo el de captcha).
 
   Sistema.responde({
     codigo:  200 | 400 | 500,
-    cuerpo:  {"icode": "..."} | {"default":{...}, "form2":{...}, "form2V2":{...}}
+    cuerpo:  {"icode": "...", "radicado": "XXXX-XXXX"} | {"default":{...}, "form2":{...}, "form2V2":{...}}   // ✏️ [T3] agrega radicado
   })
 
 En el callback de newEntity (siempre): form.captchaSolution = ""
@@ -168,11 +178,24 @@ SI código === 200:
     (b, con FK a (a)) → setVictimContactEnumsMultiple (adjustmentsGBV) →
     SetVictimContactForm2V2 (c, con FK a (b)) — las 3 funciones DAO existentes
     de V1 se invocan sin modificarlas
-  → VictimContactICode = utils.GetUUID() generado al insertar (a) — es el
-    "número de radicado", mismo mecanismo que V1. A diferencia de V1 (que
-    responde con cuerpo vacío), V2 sí devuelve {"icode": "..."} en el body
+  → VictimContactICode = utils.GetUUID() generado al insertar (a): es el id interno. A
+    diferencia de V1 (que responde con cuerpo vacío), V2 devuelve {"icode", "radicado"}
+  → 🆕 [T3] Sub-flujo «Generar y guardar el radicado», dentro de la MISMA transacción, justo después de (a):
+      assignRadicado(): hasta 5 intentos de generateRadicado() — alfabeto de 32 símbolos sin I, O, 0 ni 1;
+      2 símbolos de la fecha de Colombia mezclada con (día desde 2026-01-01 × 619 + 331) mod 1024
+      y 6 aleatorios (crypto/rand) — y por cada uno:
+        UPDATE salvia.victim_contact SET victim_contact_radicado = $1, victim_contact_reporter_role = $3
+         WHERE victim_contact_i_code = $2 AND victim_contact_radicado IS NULL
+           AND NOT EXISTS (SELECT 1 FROM salvia.victim_contact WHERE victim_contact_radicado = $1)
+      Filas afectadas = 1 → listo; 0 → otro radicado. Agotados los 5 o cualquier error (incluida
+      una clave duplicada por carrera: índice uq_victim_contact_radicado) → Rollback y 500.
+      victim_contact_reporter_role ($3) lleva el rol de la sesión (🆕 [T8]); NULL si es anónimo.
+  → Commit
+  → 🆕 [T6] recordReportReceived(): hito «Reporte recibido» en el timeline del reporte
+    («Reporte de {tipo} recibido. Radicado {radicado}.»; actor = quien reporta con sesión, si hay).
+    Después del commit y en segundo plano: si falla solo deja un WARN y la respuesta no cambia.
   → PASO 4 — Guardar el resultado en el cliente
-    this.radicado = respuesta.icode
+    this.radicado = respuesta.radicado || respuesta.icode   // ✏️ [T3]
     this.fechaActual = new Date().toLocaleDateString('es-CO')
     this.horaActual  = new Date().toLocaleTimeString('es-CO')
     this.step = 'confirmacion'
@@ -189,7 +212,9 @@ QA/E10-cuando-envia-reporte-qa-cases.md.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 | Variable / decisión | Paso afectado |
 |---|---|
-| **L1** — `reporterBestContactTime` viaja como "HH:MM:SS" pero `VictimContactForm2V2DTO` (`time.Time`, sin `UnmarshalJSON`) no lo acepta: `JSONToStruct` ignora el error, el campo queda en cero y el backend responde 400 `form2V2.reporterBestContactTime` cuando Familiar/Hombre eligen disposición "Sí". Con "No" funciona. Observado por API el 2026-10-13; no verificado por el wizard | PASO 2 y PASO 3 (validación 6) |
+| ✅ **L1 resuelta (WP-1 T1)** — el DTO acepta HH:MM:SS, HH:MM y RFC 3339 | PASO 2 y PASO 3 (validaciones 1 y 6) |
+| Ante una colisión concurrente del radicado (dos transacciones con el mismo valor) se responde 500; podría reintentarse la transacción completa | PASO 3 (radicado) |
+| Sesión opcional: la sesión NUNCA se exige; con cualquier rol el reporte queda asociado al usuario (el mensaje inicial solo se muestra a en, op y et) | PASO 3 (1b) |
 | **L4** — el 400 siempre regenera el captchaID, aunque el captcha haya sido correcto | PASO 3 (validación 7) |
 | El cliente no marca en rojo los campos con error devuelto por el backend (solo alert global + región aria-live) | PASO 3 (400) |
 

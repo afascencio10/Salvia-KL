@@ -250,6 +250,8 @@ func main() {
 	// Gestión de reportes (FigJam l25jrzyf)
 	victimContactsListRepo := repository.NewVictimContactsListRepository(gormDB)
 	victimContactsManagementRepo := repository.NewVictimContactsManagementRepository(gormDB)
+	reportStatusRepo := repository.NewReportStatusRepository(gormDB)
+	reportConversionRepo := repository.NewReportConversionRepository(gormDB)
 	victimContactsReassignRepo := repository.NewVictimContactsReassignRepository(gormDB)
 
 	// Registro V3 (DocsMD/Screens/Registro V3) — sin dinamic-form, decisión A1
@@ -324,11 +326,28 @@ func main() {
 	// Registro V3 -- Entidades/Barreras reusan las mismas instancias de
 	// entityCaseRepo/entityCaseObligationRepo/barrierV2Repo que ya usan
 	// "Gestión institucional" y Seguimiento (ver registro-v3-pendientes.md § B).
-	victimCaseV3Svc := service.NewVictimCaseV3Service(victimCaseV3Repo, entityCaseRepo, entityCaseObligationRepo, barrierV2Repo)
+	//
+	// WP-4 (REG-38*): WithVictimCaseV3Draft activa el borrador JSON de entidades y
+	// barreras; al pasar el Caso de Borrador a Iniciado se materializan con las
+	// mismas tareas, oficios y remisiones que crea Seguimiento v4.
+	victimCaseV3Svc := service.NewVictimCaseV3Service(victimCaseV3Repo, entityCaseRepo, entityCaseObligationRepo, barrierV2Repo,
+		service.WithVictimCaseV3Draft(service.V3DraftDeps{
+			DB:                           gormDB,
+			CaseTaskRepo:                 caseTaskRepo,
+			EntityLetterRepo:             entityLetterRepo,
+			PsychosocialSupportRepo:      psRepo,
+			EconomicStabilizationRepo:    esRepo,
+			MenTeamRemisionRepo:          menTeamRemisionRepo,
+			DiscapacidadRemisionRepo:     discapacidadRemisionRepo,
+			EmergencyMeasureReferralRepo: referralRepo,
+			AgentLightRepo:               agentLightRepo,
+		}))
 
 	// Gestión de reportes (FigJam l25jrzyf)
 	victimContactsListSvc := service.NewVictimContactsListService(victimContactsListRepo)
 	victimContactsManagementSvc := service.NewVictimContactsManagementService(victimContactsManagementRepo)
+	reportStatusSvc := service.NewReportStatusService(reportStatusRepo)
+	reportConversionSvc := service.NewReportConversionService(reportConversionRepo, victimCaseV3Repo)
 	victimContactsReassignSvc := service.NewVictimContactsReassignService(victimContactsReassignRepo, appLogRepo)
 
 	// Inyectar el servicio en el controller legacy para generación automática del calendario
@@ -410,6 +429,8 @@ func main() {
 	// Gestión de reportes (FigJam l25jrzyf)
 	victimContactsListCtrl := salvia_ctrl.NewVictimContactsListController(victimContactsListSvc)
 	victimContactsManagementCtrl := salvia_ctrl.NewVictimContactsManagementController(victimContactsManagementSvc)
+	reportStatusCtrl := salvia_ctrl.NewReportStatusController(reportStatusSvc)
+	reportConversionCtrl := salvia_ctrl.NewReportConversionController(reportConversionSvc)
 	victimContactsReassignCtrl := salvia_ctrl.NewVictimContactsReassignController(victimContactsReassignSvc)
 
 	// Routes
@@ -455,6 +476,8 @@ func main() {
 	victimCaseV3Ctrl.RegisterRoutes(api)
 	victimContactsListCtrl.RegisterRoutes(api)
 	victimContactsManagementCtrl.RegisterRoutes(api)
+	reportStatusCtrl.RegisterRoutes(api)     // T4/REP-02: consulta pública por radicado (sin sesión)
+	reportConversionCtrl.RegisterRoutes(api) // T7/REP-03: «Registro de caso» (borrador V3 desde un reporte)
 	victimContactsReassignCtrl.RegisterRoutes(api)
 
 	// Admin: endpoints de migración (protegidos por X-Security-Key)
@@ -557,6 +580,11 @@ func migrateLegacyTables(db *gorm.DB) {
 		CloseReason      *int64     `gorm:"column:victim_contact_close_reason"`
 		CloseObservation string     `gorm:"column:victim_contact_close_observation;type:varchar(500)"`
 		ClosedDate       *time.Time `gorm:"column:victim_contact_closed_date"`
+		// Radicado público del reporte V2 (WP-1 T3/REP-01): «XXXX-XXXX». Nulable:
+		// los reportes anteriores y los de V1 no tienen. Índice único con nombre fijo.
+		Radicado *string `gorm:"column:victim_contact_radicado;type:varchar(16);uniqueIndex:uq_victim_contact_radicado"`
+		// Rol de sesión de quien reportó con la sesión iniciada (WP-1 T8/REP-07). Nulable: anónimo y reportes anteriores.
+		ReporterRole *string `gorm:"column:victim_contact_reporter_role;type:varchar(8)"`
 	}
 	if err := db.Table("salvia.victim_contact").AutoMigrate(&VictimContactSync{}); err != nil {
 		log.Printf("[WARN] AutoMigrate salvia.victim_contact: %v", err)

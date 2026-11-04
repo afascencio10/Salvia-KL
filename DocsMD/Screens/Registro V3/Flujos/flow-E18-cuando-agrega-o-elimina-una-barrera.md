@@ -1,53 +1,53 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🟢 EVENTO: Cuando agrega o elimina una Barrera
    Tipo: User Interaction
-   Estado: 🟡 Implementado con cambios — sincronizado con el código 2026-10-31
-   Funciones: abrirBarreraParaEntidad(e) · cerrarBarreraParaEntidad() · agregarBarrera() · eliminarBarrera(id) · buscarCompetencias() → registro-v3-app.js · AddBarrier() / RemoveBarrier() → victim_case_v3_service.go
+   Estado: 🟡 Implementado con cambios — actualizado 2026-11-04 (WP-4: REG-18, REG-04 c, REG-38*)
+   Funciones: abrirBarreraParaEntidad(e) · cerrarBarreraParaEntidad() · setBarrera() · toggleBarreraOpcion() · barreraPreguntasVisibles() · barreraFaltantes() · armarPayloadBarrera() · agregarBarrera() · eliminarBarrera(id) · etiquetaGestionBarrera(csv) → registro-v3-app.js · AddBarrier() / RemoveBarrier() → victim_case_v3_service.go · addBarrierDraft() / removeBarrierDraft() → victim_case_v3_draft.go
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-> Las barreras se guardan en el modelo real (`salvia.barrier_v2`, el mismo de Seguimiento y la sesión psicosocial) y
-> **cuelgan de una entidad ya agregada** (sub-repeater, decisión del 2026-10-15): no repiten la búsqueda geográfica;
-> heredan sede, sector y ubicación. No hay una barrera sin entidad.
+> **WP-4.** El formulario es **el de Seguimiento v4** (REG-18): se pinta recorriendo `BARRERA_V4_V3`, un catálogo
+> generado del seed de Seguimiento (`scripts/gen_registro_v3_barrera_catalog.py`); ya **no** se capturan competencias.
+> Las barreras **cuelgan de una entidad** (tarjeta de ambas listas, D8: mientras REG-29 no se defina) y, mientras el Caso
+> es Borrador, se guardan en el **borrador JSON**; al iniciarse el Caso se materializan en `barrier_v2` con las tareas y
+> oficios de su gestión ([sub-flujo](flow-subflujo-materializar-borrador.md)). Después son **solo lectura**.
 
 INPUT (agregar): {
-  e:  entidad de la tarjeta   → entidades[i] (entityBranchId, sector interno he/js/pt/os)
-  Specific[]:      barreras específicas del sector (códigos 01…)      → checklist (solo salud/justicia/protección)
-  OtherDetail:     "¿Cuál otra barrera?"                              → <input>, solo sector otras_instituciones
-  Institutional[] · Economic[] · Territorial[] · Differential[]       → 4 checklists transversales
-  Competences[]:   competencias de la entidad                         → checklist (GET /api/v1/competences?sector=)
-  Date · Official · Description:  fecha, funcionario/dependencia y descripción   → date, input, textarea (los tres obligatorios)
-  Management[]:    "Gestión realizada" (códigos 01…06)                → checklist
+  e:  entidad de la tarjeta   → EntityBranchID = e.entityBranchId
+  Sector*:                      Salud | Justicia | Protección | Transversales
+  por sector:                   «Barreras en …» (multiple) · «¿A qué institución acudió?» · «Otra barrera en sector …»   → Specific[] · Institution · OtherDetail
+  Transversales:                4 listas (institucionales y de talento humano · económicas y socioeconómicas · territoriales y geográficas · por ausencia de enfoque diferencial) → Institutional[] · Economic[] · Territorial[] · Differential[]
+  Fecha aproximada* · Funcionario/a o dependencia* · Departamento* → Municipio* · Vereda o zona* (cabecera | rural | no) · Descripción (tiempo, modo y lugar)*   → Date · Official · Department · City · Zone · Description
+  Gestión de la barrera*:       activacion («Activación de ruta interinstitucional (Generar oficio)») | alerta («Alerta por barreras»), múltiple   → Management[]
+  Perspectiva profesional*:     solo si la gestión incluye alerta (+ aviso «Alerta por barreras notificaría al equipo técnico…»)   → ProfessionalPerspective
+  Descripción de la gestión*:   → ManagementDescription
 }
 
-PASO 1 — Abrir el formulario de una barrera ("+ Agregar barrera a esta entidad")
-  Solo se ofrece si GS_17 = Sí y no hay otro formulario abierto.
-  nuevaBarrera = barreraVacia(); EntityBranchID = e.entityBranchId
-  SI la entidad se agregó en esta sesión (hay geo en entidadGeoPorBranch): Department/City/Town y SectorCode salen de esa búsqueda
-  SI NO (entidad cargada del backend): SectorCode = traducción de e.sector (he→salud, js→justicia, pt→proteccion, os→otras_instituciones); Department/City/Town quedan vacíos
-  barreraParaEntidad = e.entityBranchId
-  buscarCompetencias(): [GET] /api/v1/competences?sector=<SectorCode> → competenciasBarrera
+PASO 1 — Abrir el formulario ("+ Agregar barrera a esta entidad")
+  Solo se ofrece si GS_17 = Sí, el Caso sigue en Borrador (!entitiesReadOnly) y no hay otro formulario abierto.
+  nuevaBarrera = barreraVacia(); EntityBranchID = e.entityBranchId; barreraParaEntidad = e.entityBranchId
+  Visibilidad por condiciones del catálogo (`cuando`): las preguntas de cada sector, las 4 transversales y la perspectiva aparecen según lo elegido; cambiar el sector limpia lo que dejó de aplicar; elegir un Departamento carga sus municipios ([GET] /api/v1/locations/cities?department_id=)
 
-  Según el sector el formulario muestra: salud / justicia / protección → "Barreras específicas del sector" (12 / 18 / 13 opciones); otras_instituciones → "¿Cuál otra barrera?". Las 4 categorías transversales y la gestión salen siempre.
-
-PASO 2 — Agregar ("+ Agregar barrera", habilitado solo con Descripción, Fecha y Funcionario)
+PASO 2 — Agregar ("+ Agregar barrera", deshabilitado mientras `barreraFaltantes()` liste obligatorias visibles sin responder)
   [POST] /api/v1/victim-cases-v3/{icode}/barreras
-  // payload: nuevaBarrera completa con EntityBranchID numérico
-  { "Department", "City", "Town", "SectorCode", "EntityBranchID", "Specific", "OtherDetail", "Institutional", "Economic", "Territorial", "Differential", "Date", "Official", "Description", "Management", "Competences" }
+  // payload: { EntityBranchID, SectorCode, Specific, Institution, OtherDetail, Institutional, Economic, Territorial, Differential, Date, Official, Department, City, Zone, Description, Management, ProfessionalPerspective, ManagementDescription }
+  // (Competences y los códigos de gestión 01–06 de clientes anteriores se siguen aceptando)
 
-  Backend (AddBarrier) → barrier_v2:
-    case_id = icode · status = OPEN (BarrierV2StatusOpen) · sector = SectorCode · entity_branch_id (si ≠ 0)
-    listas → texto separado por comas (specific_barriers, structural_*, competences)
-    management_actions: códigos 01…06 traducidos a slugs (orientacion_llamada, gestion_llamada, activacion_ruta_interinstitucional, articulacion_institucional, escalamiento_organismo_control, alerta_barreras)
-    Respuesta: { "icode": <id de barrier_v2> }   (error de servicio: 500 "error al registrar la barrera")
-    NOTA: no se crean `case_task` ni `entity_letter` por la gestión elegida (decisión de alcance 2026-10-15)
+  Backend (AddBarrier) — estado leído de victim_case_status:
+    SI el Caso NO está en Borrador: 409 { "error": "La sección de entidades y remisiones ya no es editable…", "readOnly": true }
+    SI NO: la barrera se agrega al JSON (id "d~<icode>~<uuid>")
+    Respuesta: { "icode": <id del borrador> }
+    Al materializar → barrier_v2: status OPEN · sector · specific_barriers · specific_institutions = Institution · other_barrier_desc · structural_* · barrier_date · official_dependency · department_id · city_id · description · management_actions (CSV) · entity_branch_id; Zone, ProfessionalPerspective y ManagementDescription van a `barrierMeta[id]`
+    Tareas y oficios: gestión `activacion` → oficio (por proyectar) + tarea Barreras · proyectar_oficio «Activación de ruta interinstitucional (Generar oficio)»; gestión `alerta` → tarea Barreras · comite_caso «Alerta por barreras» (sin responsable)
 
-  Cliente: SI error → errorBarrera = <error>; SI ok → cerrarBarreraParaEntidad() y recargarEntidadesBarreras()
+  Cliente: SI error → errorBarrera = <error> (y, si es 409 readOnly, entitiesReadOnly = true); SI ok → cerrarBarreraParaEntidad() y recargarEntidadesBarreras()
 
 PASO 3 — Cancelar ("Cancelar"): cerrarBarreraParaEntidad() descarta el formulario sin llamar al backend
 
-PASO 4 — Eliminar una barrera (botón "Eliminar" de la tabla de la entidad)
+PASO 4 — Eliminar una barrera (botón "Eliminar" de la tabla, solo si !entitiesReadOnly)
   window.confirm("¿Eliminar esta barrera del registro?")
-  SI confirma: [DELETE] /api/v1/victim-cases-v3/barreras/{id} → recargarEntidadesBarreras()
+  SI confirma: [DELETE] /api/v1/victim-cases-v3/barreras/{id} → id "d~…": se quita del JSON; UUID de tabla: 409 readOnly; inexistente: 404 → recargarEntidadesBarreras()
+
+PASO 5 — La columna «Gestión» de la tabla muestra etiquetas (REG-04 c): `etiquetaGestionBarrera(managementActions)` traduce los 2 valores de Seguimiento v4 y los 6 slugs históricos, deja tal cual un valor desconocido y muestra «—» si no hay
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️  GAPS — Información pendiente
@@ -55,5 +55,6 @@ PASO 4 — Eliminar una barrera (botón "Eliminar" de la tabla de la entidad)
 | Variable / decisión | Paso afectado |
 |---|---|
 | Sin mínimo de barreras: GS_17 = Sí no obliga a registrar ninguna | PASO 1 |
-| Las barreras de una entidad eliminada quedan huérfanas (G-V3-22, ver flow-E17) | PASO 4 |
-| La tabla de barreras de la tarjeta solo muestra descripción y la gestión en crudo (slugs) | PASO 2 |
+| REG-29 (dónde se gestionan las barreras) y REG-31 (textos finales) siguen pendientes del cliente: el botón aparece en las tarjetas de ambas listas (D8) y los textos son los de Seguimiento v4 | PASO 1 |
+| Los valores `activacion` y `alerta` no tienen etiqueta en `barrera_detalle.html`, `barrier-follow-up-timeline.js`, `psicosocial_barreras.go`, `followup_v2_service.go` ni `form_service.go` («Para integración») | PASO 5 |
+| «Alerta por barreras» solo crea la tarea del comité: la notificación al equipo técnico todavía no se envía (igual que Seguimiento v4) | PASO 2 |

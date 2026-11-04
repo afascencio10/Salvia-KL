@@ -188,6 +188,7 @@ var CAMPOS_CI_V3 = [
 var CAMPOS_DP_V3 = [
   { id: "DP_1", tipo: "date", label: "¿Cuál es su fecha de nacimiento?", req: "C1" },
   { id: "DP_2", tipo: "boolean", label: "¿Tiene dificultades físicas, mentales y/o sensoriales en su vida diaria?", req: "C1" },
+  { id: "DP_51", tipo: "dropdown", label: "Tipo de discapacidad", req: "D", condicional: { campo: "DP_2", valor: true }, enumCategory: "victim_case_form2_disability_type" },
   { id: "DP_3", tipo: "multiple", label: "¿Qué actividades no puede o presenta dificultades para realizarlas?", req: "C2", condicional: { campo: "DP_2", valor: true }, enumCategory: "victim_case_form2_activities_unable_to_perform" },
   { id: "DP_4", tipo: "multiple", label: "Según la Ley 1996 de 2019 cuenta usted con", req: "D", condicional: { campo: "CI_7", valor: true }, enumCategory: "victim_case_form2_law_1996" },
   { id: "DP_5", tipo: "dropdown", label: "¿Cuál es su nacionalidad?", req: "C1", enumCategory: "victim_case_form2_nationality" },
@@ -254,7 +255,7 @@ var TIPO_A_SUFIJO_SUBTIPO_V3 = { fi: "fi", pl: "pl", po: "po", ps: "ps", re: "re
 var CAMPOS_HV_V3 = [
   { id: "HV_1", tipo: "textarea", label: "¿Podría describir brevemente los hechos ocurridos?", req: "C1" },
   { id: "HV_2", tipo: "date", label: "¿En qué fecha ocurrió el hecho?", req: "C1" },
-  { id: "HV_3", tipo: "text", label: "¿A qué hora ocurrió el hecho?", req: "D", placeholder: "Ej: 19:30" },
+  { id: "HV_3", tipo: "time", label: "¿A qué hora ocurrió el hecho?", req: "D" },
   { id: "HV_4", tipo: "dropdown", label: "¿En qué departamento ocurrieron los hechos?", opciones: DEPARTAMENTOS_V3, req: "C1" },
   { id: "HV_5", tipo: "text", label: "¿En qué municipio ocurrieron los hechos?", req: "C1" },
   { id: "HV_6", tipo: "dropdown", label: "¿En qué zona ocurrió el hecho?", req: "C1", enumCategory: "victim_case_form2_facts_zone" },
@@ -357,10 +358,31 @@ var TAMIZAJE_NOPAREJA_LABORAL_V3 = [21, 22]; // índices 1-based condicionales a
 // ── GS — Gestión Salvia ───────────────────────────────────────────────────
 var CAMPOS_GS_A_V3 = [
   { id: "GS_1", tipo: "boolean", label: "¿Usted permitiría que el Sistema SALVIA realice el proceso de denuncia fácil ante la FGN?", req: "C1" },
-  { id: "GS_2", tipo: "multiple", label: "¿Es necesario realizar gestiones interinstitucionales a partir de los hallazgos de esta atención?", req: "C1", enumCategory: "victim_case_form2_interinst_action" },
   { id: "GS_3", tipo: "textarea", label: "En caso afirmativo, describa las acciones previstas, las entidades involucradas y su propósito", req: "D" },
+  // REG-16: «Ninguno» (código 99) es excluyente; es deseable (req "D"), no obligatoria.
+  { id: "GS_20", tipo: "multiple", label: "Seleccione los elementos psicosociales integrados en este acompañamiento", req: "D", enumCategory: "victim_case_form2_psychosocial_elements", excluyente: "99" },
   { id: "GS_4", tipo: "textarea", label: "Describa el acompañamiento realizado y las acciones que se desarrollarán para la gestión del caso", req: "C1" },
 ];
+
+// REG-16: etiquetas de la categoría de GS_20 (texto exacto del cliente). Se asigna aparte para no editar el
+// literal compartido ENUM_LABELS_OVERRIDE_V3; el `name` técnico en BD solo es un respaldo legible.
+ENUM_LABELS_OVERRIDE_V3["victim_case_form2_psychosocial_elements"] = {
+  "01": "Contención emocional en crisis",
+  "02": "Comprensión del ciclo de la violencia",
+  "03": "Identificación y fortalecimiento de recursos personales",
+  "04": "Despatologización de experiencias y reacciones asociadas a la violencia",
+  "05": "Co-construcción del Plan de Seguridad",
+  "06": "Identificación de señales tempranas de riesgo y estrategias de respuesta",
+  "07": "Orientación para acceso a servicios, programas o apoyos institucionales que fortalecen autonomía",
+  "08": "Fortalecimiento de la autonomía económica y vinculación a proyecto de vida",
+  "09": "Cuestionamiento de mandatos culturales que sostienen la violencia",
+  "10": "Identificación de redes seguras y afirmativas (familiares, comunitarias, institucionales)",
+  "11": "Reconocimiento y comprensión de los derechos de las personas víctimas de VBG y VpP",
+  "12": "Orientación sobre acciones disponibles para la garantía de derechos y la responsabilidad del Estado",
+  "13": "Fortalecimiento de la corresponsabilidad de la persona en la gestión de su seguridad",
+  "14": "Sensibilización y orientación sobre servicios de salud mental para acompañar los impactos de la violencia",
+  "99": "Ninguno",
+};
 
 // GS § B — Remisión a otros equipos. GS_6/GS_7 se renderizan en una
 // sección propia del Formulario (con criterios de cada equipo), no en el
@@ -381,22 +403,86 @@ var SECTORES_ENTIDAD_BARRERA_V3 = [
   { value: "salud", label: "Salud" }, { value: "justicia", label: "Justicia" },
   { value: "proteccion", label: "Protección" }, { value: "otras_instituciones", label: "Otras instituciones" },
 ];
-var CANAL_ACTIVACION_V3 = [
-  { value: "no", label: "Notificación (tarea)" }, { value: "ll", label: "Llamada (tarea)" },
-  { value: "ms", label: "Mi Salvia (Gestión institucional externa) (tarea)" },
-];
-
-// Sector (vocabulario real, ver SECTORES_ENTIDAD_BARRERA_V3) -> categoría de
-// barreras específicas. Solo salud/justicia/protección tienen catálogo
-// propio; "otras instituciones" usa directamente las transversales
-// (institutional/economic/territorial/differential), sin lista "specific".
-var SECTOR_A_CATEGORIA_BARRERA_V3 = {
-  salud: "victim_case_form2_barrier_health", justicia: "victim_case_form2_barrier_justice", proteccion: "victim_case_form2_barrier_protect",
+// >>> ENTIDAD_V4_V3 (generado por scripts/gen_registro_v3_barrera_catalog.py a partir de
+// src/internal/seed/seguimiento_v4_form.sql; NO editar a mano: vuelve a ejecutar el script)
+// Textos de «Identificación de entidades» de Seguimiento v4 (REG-17/19/20).
+var ENTIDAD_V4_V3 = {
+  "conocimiento": {"label": "¿Ha puesto en conocimiento de alguna entidad o institución los hechos de violencia reportados?", "required": true},
+  "sector": {"label": "Sector de la entidad", "required": true, "opciones": [{"value": "salud", "label": "Salud"}, {"value": "justicia", "label": "Justicia"}, {"value": "proteccion", "label": "Protección"}, {"value": "educacion", "label": "Educación"}, {"value": "ministerio", "label": "Ministerio Público"}, {"value": "territorial", "label": "Entidad territorial"}, {"value": "osc", "label": "Organización de la sociedad civil, comunitaria o internacional de Naciones Unidas"}, {"value": "clave", "label": "Entidades clave con acciones complementarias y/o especializadas frente a VBG/VPP"}, {"value": "otra", "label": "Otra"}]},
+  "depto": {"label": "Departamento", "required": true},
+  "municipio": {"label": "Municipio", "required": true},
+  "ciudad": {"label": "Ciudad", "required": true},
+  "entidad": {"label": "Entidad", "required": true},
+  "otraEntidad": {"label": "Otra ¿cuál?", "required": true},
+  "radicado": {"label": "Número de radicado (NUNC, medida de protección). Escriba tipo y número", "required": true},
+  "fecha": {"label": "Fecha en la que reportó a la entidad", "required": true},
+  "completadas": {"label": "Acciones institucionales completadas", "required": true},
+  "pendientes": {"label": "Acciones institucionales pendientes", "required": true},
+  "otraRuta": {"label": "Otra información asociada a la Ruta", "required": true},
+  "nuevaBarrera": {"label": "¿Se identifica alguna nueva barrera con relación a esta entidad?", "required": true},
+  "acuerdo": {"label": "¿La persona está de acuerdo con que SALVIA active la Ruta de Atención y las gestiones institucionales correspondientes?", "required": true},
+  "debida": {"label": "¿Salvia debe activar rutas en el marco de la debida diligencia?", "required": true},
+  "canales": {"label": "Seleccione los canales utilizados para la activación o gestión de la Ruta de Atención", "required": true, "opciones": [{"value": "notificacion", "label": "Notificación SALVIA"}, {"value": "articulacion", "label": "Articulación institucional telefónica o por mensajería"}, {"value": "denuncia", "label": "Denuncia fácil"}, {"value": "misalvia", "label": "Mi Salvia"}, {"value": "ninguna", "label": "Ninguna"}]},
+  "gestiones": {"label": "¿Qué gestiones se realizaron desde Salvia para la activación de ruta?", "required": true},
 };
-var CATEGORIAS_BARRERA_TRANSVERSAL_V3 = [
-  { campo: "institutional", enumCategory: "victim_case_form2_barrier_institutional", label: "Barreras institucionales y de talento humano" },
-  { campo: "economic", enumCategory: "victim_case_form2_barrier_economic", label: "Barreras económicas" },
-  { campo: "territorial", enumCategory: "victim_case_form2_barrier_territorial", label: "Barreras territoriales" },
-  { campo: "differential", enumCategory: "victim_case_form2_barrier_differential", label: "Barreras por ausencia de enfoque diferencial" },
+// Canales de activación (REG-20): las opciones de la pregunta de canales de Seguimiento v4 (4 canales y «Ninguna»).
+var CANAL_ACTIVACION_V3 = ENTIDAD_V4_V3.canales.opciones;
+// <<< ENTIDAD_V4_V3
+// REG-04 (c) · Etiquetas de «Gestión de la barrera». Los dos valores vigentes (activacion, alerta) salen
+// del formulario de Seguimiento v4 (BARRERA_V4_V3, pregunta «gestion»); estos 6 slugs son los que
+// guardaba el formulario anterior (AddBarrier traducía los códigos 01–06) y se conservan solo para
+// mostrar datos históricos: ninguna pantalla de Registro V3 debe dejar un código a la vista.
+var GESTION_BARRERA_LEGADO_V3 = {
+  orientacion_llamada: "Orientación y enrutamiento - Llamada",
+  gestion_llamada: "Gestión administrativa - Llamada",
+  activacion_ruta_interinstitucional: "Activación de ruta interinstitucional",
+  articulacion_institucional: "Articulación institucional",
+  escalamiento_organismo_control: "Escalamiento a organismo de control",
+  alerta_barreras: "Alerta por barreras",
+};
+// REG-17 · Ruta de atención integral: GS_14 y GS_17 se muestran en ese módulo pero se guardan con la sección GS
+// (misma llave `GS_`). Se declaran aquí para que otras partes (por ejemplo las etiquetas de «faltantes»
+// al finalizar) resuelvan sus textos. GS_14 es la pregunta de Seguimiento v4; GS_17 es la de V3.
+var CAMPOS_RA_V3 = [
+  { id: "GS_14", tipo: "boolean", label: ENTIDAD_V4_V3.conocimiento.label, req: "C1" },
+  { id: "GS_17", tipo: "boolean", label: "¿Se identificaron barreras?", req: "C1" },
 ];
-var GESTION_BARRERA_ENUM_CATEGORY_V3 = "victim_case_form2_barrier_management";
+// Códigos del desplegable anterior de «Canal de activación» (datos históricos: solo se usan para mostrarlos).
+var CANAL_ACTIVACION_LEGADO_V3 = {
+  no: "Notificación (tarea)", ll: "Llamada (tarea)", ms: "Mi Salvia (Gestión institucional externa) (tarea)",
+};
+
+// >>> BARRERA_V4_V3 (generado por scripts/gen_registro_v3_barrera_catalog.py a partir de
+// src/internal/seed/seguimiento_v4_form.sql; NO editar a mano: vuelve a ejecutar el script)
+// Formulario de barrera de Seguimiento v4 (REG-18). `cuando` = condición de visibilidad
+// ({pregunta, op: EQUALS|INCLUDES, valor}); `fuente` = opciones que vienen de la geografía.
+var BARRERA_V4_V3 = [
+  {"key": "sector", "tipo": "single", "label": "Sector en el que se presentó la barrera", "required": true, "opciones": [{"value": "salud", "label": "Salud"}, {"value": "justicia", "label": "Justicia"}, {"value": "proteccion", "label": "Protección"}, {"value": "transversales", "label": "Transversales"}]},
+  {"key": "infoSalud", "tipo": "info", "label": "Salud: hospitales, IPS, EPS y puestos de salud.", "required": false, "cuando": {"pregunta": "sector", "op": "EQUALS", "valor": "salud"}},
+  {"key": "tiposSalud", "tipo": "multiple", "label": "Barreras en salud", "required": false, "opciones": [{"value": "aseguramiento", "label": "Dificultades de aseguramiento o afiliación en salud"}, {"value": "urgencias", "label": "Negaciones en los servicios de urgencias"}, {"value": "calidad", "label": "Fallas en la calidad del servicio de urgencias"}, {"value": "citas", "label": "Demoras en la asignación de citas y continuidad de tratamientos"}, {"value": "protocolo_sexual", "label": "Faltas de activación de protocolos para violencia sexual"}, {"value": "quimicos", "label": "Faltas de activación de protocolos para ataques con agentes químicos"}, {"value": "medicolegal", "label": "Demoras y dificultades en la valoración medicolegal"}, {"value": "ive", "label": "Negaciones en el acceso a la Interrupción Voluntaria del Embarazo (IVE)"}, {"value": "discapacidad", "label": "Exigencias indebidas de autorización para procedimientos en personas con discapacidad cognitiva y/o psicosocial"}, {"value": "cosmovision", "label": "Atenciones en salud no centradas en cosmovisiones y prácticas culturales propias"}, {"value": "osigd", "label": "Negaciones o imposiciones de procedimientos a personas con diversidad sexual o identidad de género diversa"}, {"value": "diferenciales", "label": "Negación, restricción o condicionamiento de servicios por falta de adecuación a las necesidades diferenciales de la persona"}], "cuando": {"pregunta": "sector", "op": "EQUALS", "valor": "salud"}},
+  {"key": "instSalud", "tipo": "dropdown", "label": "¿A qué institución acudió?", "required": false, "opciones": [{"value": "hospital_publico", "label": "Hospital Público"}, {"value": "hospital_privado", "label": "Hospital Privado"}, {"value": "ips", "label": "IPS"}, {"value": "eps", "label": "EPS"}, {"value": "puesto_de_salud", "label": "Puesto de Salud"}, {"value": "consultorio_medico", "label": "Consultorio médico"}, {"value": "no_sabe_no_responde", "label": "No sabe / No responde"}], "cuando": {"pregunta": "sector", "op": "EQUALS", "valor": "salud"}},
+  {"key": "otraSalud", "tipo": "text", "label": "Otra barrera en sector Salud", "required": false, "cuando": {"pregunta": "sector", "op": "EQUALS", "valor": "salud"}},
+  {"key": "infoJusticia", "tipo": "info", "label": "Justicia: fiscalía, policía, comisarías, jueces y medicina legal.", "required": false, "cuando": {"pregunta": "sector", "op": "EQUALS", "valor": "justicia"}},
+  {"key": "tiposJusticia", "tipo": "multiple", "label": "Barreras en justicia", "required": false, "opciones": [{"value": "negativa", "label": "Negativa institucional para recibir la denuncia"}, {"value": "no_confrontacion", "label": "Denegación al derecho a la no confrontación"}, {"value": "notificacion", "label": "Deficiencias en la notificación y recolección de datos del agresor"}, {"value": "documentacion", "label": "Falta de entrega de información y documentación procesal"}, {"value": "cargas", "label": "Imposición de cargas probatorias injustificadas"}, {"value": "celeridad", "label": "Falta de celeridad en la investigación judicial"}, {"value": "tipificacion", "label": "Tipificación errónea del delito"}, {"value": "traslado", "label": "Traslado inadecuado o incompleto del caso / expediente judicial"}, {"value": "representacion", "label": "Ausencia o dificultad de acceso a representación judicial"}, {"value": "terminos", "label": "Riesgo de vencimiento de términos"}, {"value": "libertad", "label": "Medidas preventivas de libertad que ponen en riesgo la vida de la mujer y su núcleo familiar"}, {"value": "confidencial", "label": "Divulgación de información confidencial del proceso"}, {"value": "prejuicio", "label": "Omisión o minimización del posible móvil de prejuicio en la investigación"}], "cuando": {"pregunta": "sector", "op": "EQUALS", "valor": "justicia"}},
+  {"key": "instJusticia", "tipo": "dropdown", "label": "¿A qué institución acudió?", "required": false, "opciones": [{"value": "cai_policia", "label": "CAI — Policía"}, {"value": "caivas", "label": "CAIVAS"}, {"value": "casas_de_justicia", "label": "Casas de Justicia"}, {"value": "caviv", "label": "CAVIV"}, {"value": "comisaria_de_familia", "label": "Comisaría de Familia"}, {"value": "estacion_de_policia", "label": "Estación de Policía"}, {"value": "fiscalia_general_de_la_nacion", "label": "Fiscalía General de la Nación"}, {"value": "inspeccion_de_policia", "label": "Inspección de Policía"}, {"value": "instituto_nacional_de_medicina_legal", "label": "Instituto Nacional de Medicina Legal"}, {"value": "jueces_civiles_o_promiscuos_municipales", "label": "Jueces Civiles o Promiscuos Municipales"}, {"value": "jueces_de_control_de_garantias_o_jueces_penales", "label": "Jueces de Control de Garantías o Jueces Penales"}, {"value": "policia_judicial", "label": "Policía Judicial"}, {"value": "unidad_de_reaccion_inmediata", "label": "Unidad de reacción inmediata"}, {"value": "no_sabe_no_responde", "label": "No sabe / No responde"}], "cuando": {"pregunta": "sector", "op": "EQUALS", "valor": "justicia"}},
+  {"key": "otraJusticia", "tipo": "text", "label": "Otra barrera en sector Justicia", "required": false, "cuando": {"pregunta": "sector", "op": "EQUALS", "valor": "justicia"}},
+  {"key": "infoProteccion", "tipo": "info", "label": "Protección: comisarías, ICBF, UNP, defensoría de familia e inspección.", "required": false, "cuando": {"pregunta": "sector", "op": "EQUALS", "valor": "proteccion"}},
+  {"key": "tiposProteccion", "tipo": "multiple", "label": "Barreras en protección", "required": false, "opciones": [{"value": "demora_mp", "label": "Ausencia o demoras en la adopción de medidas de protección urgentes o definitivas en Comisaría de Familia"}, {"value": "fisicas", "label": "Ausencia o dilación en adopción de medidas de protección físicas"}, {"value": "integral", "label": "Demora o ausencia en la activación de medidas de atención integral"}, {"value": "incumplimiento", "label": "Incumplimiento de medidas de protección sin respuesta institucional"}, {"value": "ineficaces", "label": "Medidas de protección ineficaces o mal implementadas"}, {"value": "valoracion", "label": "Fallas en la valoración y actualización del riesgo"}, {"value": "visitas", "label": "Omisión de restricción de visitas ante riesgo de feminicidio"}, {"value": "policial", "label": "Omisión de apoyo policial en residencia o lugar de trabajo"}], "cuando": {"pregunta": "sector", "op": "EQUALS", "valor": "proteccion"}},
+  {"key": "instProteccion", "tipo": "dropdown", "label": "¿A qué institución acudió?", "required": false, "opciones": [{"value": "comisarias_de_familia", "label": "Comisarías de familia"}, {"value": "fiscalia_funciones_de_proteccion", "label": "Fiscalía (funciones de protección)"}, {"value": "icbf", "label": "ICBF"}, {"value": "unidad_nacional_de_proteccion", "label": "Unidad Nacional de Protección"}, {"value": "jueces_civiles_o_promiscuos_municipales", "label": "Jueces Civiles o Promiscuos Municipales"}, {"value": "inspeccion_de_policia", "label": "Inspección de Policía"}, {"value": "defensoria_de_familia", "label": "Defensoría de Familia"}, {"value": "ejercito_nacional", "label": "Ejército Nacional"}, {"value": "armada_colombiana", "label": "Armada Colombiana"}, {"value": "no_sabe_no_responde", "label": "No sabe / No responde"}], "cuando": {"pregunta": "sector", "op": "EQUALS", "valor": "proteccion"}},
+  {"key": "otraProteccion", "tipo": "text", "label": "Otra barrera en el marco del sector Protección", "required": false, "cuando": {"pregunta": "sector", "op": "EQUALS", "valor": "proteccion"}},
+  {"key": "talento", "tipo": "multiple", "label": "Barreras institucionales y de talento humano", "required": false, "opciones": [{"value": "enfoque", "label": "Falta de aplicación del enfoque o perspectiva de género / revictimización o violencia institucional"}, {"value": "protocolos", "label": "Falta de aplicación o desactualización de protocolos de atención en VBG"}, {"value": "capacidad", "label": "Capacidad institucional limitada"}, {"value": "desarticulacion", "label": "Desarticulación institucional y ausencia de gestión integral de casos"}, {"value": "orientacion", "label": "Insuficiencia en la orientación en derechos a las víctimas"}], "cuando": {"pregunta": "sector", "op": "EQUALS", "valor": "transversales"}},
+  {"key": "eco", "tipo": "multiple", "label": "Barreras económicas y socioeconómicas", "required": false, "opciones": [{"value": "autonomia", "label": "Falta de autonomía económica"}, {"value": "pobreza", "label": "Pobreza y desigualdad estructural"}], "cuando": {"pregunta": "sector", "op": "EQUALS", "valor": "transversales"}},
+  {"key": "terr", "tipo": "multiple", "label": "Barreras territoriales y geográficas", "required": false, "opciones": [{"value": "ausencia", "label": "Ausencia institucional, infraestructura y conectividad insuficiente o instalaciones distantes"}], "cuando": {"pregunta": "sector", "op": "EQUALS", "valor": "transversales"}},
+  {"key": "diferencial", "tipo": "multiple", "label": "Barreras por ausencia de enfoque diferencial", "required": false, "opciones": [{"value": "osigd", "label": "OSIGD"}, {"value": "salud_mental", "label": "Salud mental"}, {"value": "etnico", "label": "Origen étnico (indígena, afrodescendiente, raizal, palenquera)"}, {"value": "ciclo", "label": "Ciclo de vida (niñez, adolescencia, adultez mayor)"}, {"value": "discapacidad", "label": "Discapacidad física o cognitiva"}, {"value": "migrantes", "label": "Personas migrantes y refugiadas"}, {"value": "libertad", "label": "Personas privadas de la libertad"}, {"value": "calle", "label": "Situación de calle"}, {"value": "trata", "label": "Víctimas de trata"}, {"value": "sexuales", "label": "Actividades sexuales pagas"}, {"value": "lideresas", "label": "Lideresas y defensoras de derechos humanos"}, {"value": "conflicto", "label": "Víctimas del conflicto armado"}], "cuando": {"pregunta": "sector", "op": "EQUALS", "valor": "transversales"}},
+  {"key": "fecha", "tipo": "date", "label": "Fecha en la que se presentó la barrera (aproximada)", "required": true},
+  {"key": "funcionario", "tipo": "text", "label": "Funcionario/a o dependencia donde se presentó la barrera", "required": true},
+  {"key": "depto", "tipo": "dropdown", "label": "Departamento", "required": true, "fuente": "departamentos"},
+  {"key": "municipio", "tipo": "dropdown", "label": "Municipio", "required": true, "fuente": "municipios"},
+  {"key": "vereda", "tipo": "dropdown", "label": "Vereda o zona", "required": true, "opciones": [{"value": "cabecera", "label": "Cabecera"}, {"value": "rural", "label": "Vereda o zona rural"}, {"value": "no", "label": "No precisa"}]},
+  {"key": "descripcion", "tipo": "text", "label": "Descripción de la barrera (tiempo, modo y lugar)", "required": true},
+  {"key": "gestion", "tipo": "multiple", "label": "Gestión de la barrera", "required": true, "opciones": [{"value": "activacion", "label": "Activación de ruta interinstitucional (Generar oficio)"}, {"value": "alerta", "label": "Alerta por barreras"}]},
+  {"key": "perspectiva", "tipo": "text", "label": "¿Cuál es su perspectiva profesional frente a la barrera?", "required": true, "cuando": {"pregunta": "gestion", "op": "INCLUDES", "valor": "alerta"}},
+  {"key": "infoAlerta", "tipo": "info", "label": "Alerta por barreras notificaría al equipo técnico. Esta versión todavía no envía la notificación.", "required": false, "cuando": {"pregunta": "gestion", "op": "INCLUDES", "valor": "alerta"}},
+  {"key": "gestionTexto", "tipo": "text", "label": "Descripción de la gestión realizada con relación a las barreras", "required": true},
+];
+// <<< BARRERA_V4_V3

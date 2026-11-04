@@ -119,11 +119,21 @@ type VictimCaseEntityInput struct {
 	Kind              string // 'acudida' | 'activacion'
 	EntityBranchID    int64
 	FileNumber        string   // -> entity_case.Radicado
-	ActivationChannel string   // code(s) CSV, solo informativo si Kind='activacion' -- ver GAP B-canal en registro-v3-pendientes.md
+	ActivationChannel string   // LEGADO: código(s) CSV del desplegable anterior (no/ll/ms); un cliente viejo todavía puede enviarlo
 	CompletedActions  []string // ids de entity_obligation -- solo aplica a Kind='acudida'
 	PendingActions    []string // ids de entity_obligation (o "otra")
 	OtherInfo         string   // -> entity_case.Objetivo, solo si Kind='acudida'
 	Agent             string
+
+	// WP-4 (REG-38*/REG-20/REG-17) -- campos del formulario de Seguimiento v4 que
+	// entity_case no tiene como columna: viven en el borrador JSON del Caso
+	// (entityMeta) y se materializan al pasar de Borrador a Iniciado.
+	ActivationChannels []string // notificacion | articulacion | denuncia | misalvia (multi-selección)
+	Agreement          bool     // ¿La víctima está de acuerdo con la activación de ruta?
+	DueDiligence       bool     // ¿Se hizo la debida diligencia?
+	ReportDate         string   // fecha de reporte (YYYY-MM-DD)
+	Solicitud          string   // -> entity_case.Solicitud
+	ManagementNotes    string   // ¿Qué gestiones se realizaron...?
 }
 
 // VictimCaseBarrierInput -- "Agregar barrera" (GS § D). Reconstruido sobre el
@@ -152,8 +162,16 @@ type VictimCaseBarrierInput struct {
 	Official        string
 	Description     string
 	Management      []string
-	Competences     []string // códigos del catálogo salvia_config.CompetenceOptions
+	Competences     []string // LEGADO: códigos del catálogo salvia_config.CompetenceOptions; el formulario nuevo ya no lo envía (REG-18)
 	Agent           string
+
+	// WP-4 (REG-18/REG-38*) -- preguntas del formulario de barreras de Seguimiento
+	// v4 que barrier_v2 no tiene como columna (barrierMeta del borrador JSON) o
+	// que el formulario anterior de V3 no capturaba.
+	Institution             string // ¿A qué institución acudió? -> barrier_v2.specific_institutions
+	Zone                    string // Vereda o zona (cabecera | rural | no), como Seguimiento v4
+	ProfessionalPerspective string // perspectiva profesional (solo con la gestión «alerta»)
+	ManagementDescription   string // Descripción de la gestión
 }
 
 type victimCaseV3Repository struct {
@@ -346,6 +364,9 @@ func insertDummyForm2Row(tx *gorm.DB, victimCaseID int64) error {
 		if f.Column == "" {
 			return // KindEnumN -- sin columna propia, va a rel_* aparte
 		}
+		if victimCaseV3NullableColumns[f.Column] {
+			return // "sin respuesta" = NULL, sin valor marcador (REG-11)
+		}
 		if _, already := cols[f.Column]; already {
 			return
 		}
@@ -411,73 +432,101 @@ func insertDummyForm2Row(tx *gorm.DB, victimCaseID int64) error {
 }
 
 func (r *victimCaseV3Repository) SaveSection(ctx context.Context, icode, modulo string, answersByKey map[string]string) error {
-	var victimCaseID int64
-	if err := r.db.WithContext(ctx).Raw(`SELECT victim_case_id FROM salvia.victim_case WHERE victim_case_i_code = ?`, icode).Scan(&victimCaseID).Error; err != nil {
-		return fmt.Errorf("saveSection: resolver victim_case_id: %w", err)
-	}
-	if victimCaseID == 0 {
-		return fmt.Errorf("saveSection: no existe victim_case con icode=%s", icode)
-	}
-
-	if err := markKeysAnswered(r.db.WithContext(ctx), icode, answersByKey); err != nil {
-		return fmt.Errorf("saveSection[%s]: %w", modulo, err)
-	}
-
-	updates, err := resolveFieldUpdates(r.db.WithContext(ctx), victimCaseV3FormFields, answersByKey)
-	if err != nil {
-		return fmt.Errorf("saveSection[%s]: %w", modulo, err)
-	}
-	if len(updates) > 0 {
-		updates["victim_case_form2_update_date"] = time.Now()
-		if err := r.db.WithContext(ctx).Table("salvia.victim_case_form2").
-			Where("victim_case_form2_victim_case = ?", victimCaseID).
-			Updates(updates).Error; err != nil {
-			return fmt.Errorf("saveSection[%s]: actualizar form2: %w", modulo, err)
+	// REG-11: el guardado del módulo va en UNA transacción -- o se guarda todo o no se guarda nada
+	// (ni valores, ni las marcas de "respondida", ni el paso de Borrador a Iniciado que decide el
+	// servicio después de un guardado exitoso). Antes cada paso era una sentencia suelta y
+	// markKeysAnswered corría primero: si el UPDATE fallaba (500), el módulo quedaba marcado como
+	// respondido con sus datos sin guardar y el Caso podía pasar a Iniciado con los hechos en blanco.
+	// Los datos se validan antes de escribir nada (resolveFieldUpdates / validación del núcleo).
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var victimCaseID int64
+		if err := tx.Raw(`SELECT victim_case_id FROM salvia.victim_case WHERE victim_case_i_code = ?`, icode).Scan(&victimCaseID).Error; err != nil {
+			return fmt.Errorf("saveSection: resolver victim_case_id: %w", err)
 		}
-	}
+		if victimCaseID == 0 {
+			return fmt.Errorf("saveSection: no existe victim_case con icode=%s", icode)
+		}
 
-	var form2ID int64
-	if err := r.db.WithContext(ctx).Raw(`SELECT victim_case_form2_id FROM salvia.victim_case_form2 WHERE victim_case_form2_victim_case = ?`, victimCaseID).Scan(&form2ID).Error; err != nil {
-		return fmt.Errorf("saveSection[%s]: resolver form2_id: %w", modulo, err)
-	}
-	if err := saveEnumNFields(r.db.WithContext(ctx), form2ID, answersByKey); err != nil {
-		return fmt.Errorf("saveSection[%s]: %w", modulo, err)
-	}
-
-	// Sincroniza los campos núcleo de victim_case si vinieron en este módulo
-	// (CI trae nombres/documento; DP trae municipio de residencia).
-	coreUpdates := map[string]interface{}{}
-	if v, ok := answersByKey[FieldKeyV3("CI", 2)]; ok {
-		parts := splitNames(v)
-		coreUpdates["victim_case_victim_names"] = parts[0]
-		coreUpdates["victim_case_victim_last_names"] = parts[1]
-	}
-	if v, ok := answersByKey[FieldKeyV3("CI", 5)]; ok && v != "" {
-		// BUG encontrado en QA (2026-10-14): CI_5 es KindEnum1 -- el frontend
-		// manda el icode (uuid), pero victim_case_victim_doc_type es
-		// varchar(2) y espera el code corto (ej. "cc"). Resolver antes de
-		// escribir (antes reventaba con "value too long for type character
-		// varying(2)").
-		code, err := resolveEnumCodeByICode(r.db.WithContext(ctx), v)
+		updates, err := resolveFieldUpdates(tx, victimCaseV3FormFields, answersByKey)
 		if err != nil {
-			return fmt.Errorf("saveSection[%s]: resolver code de CI_5: %w", modulo, err)
+			return fmt.Errorf("saveSection[%s]: %w", modulo, err)
 		}
-		if code != "" {
-			coreUpdates["victim_case_victim_doc_type"] = code
+
+		// Campos núcleo de victim_case si vinieron en este módulo (CI trae nombres/documento; DP trae
+		// el municipio de residencia). Se resuelven y validan ANTES de escribir.
+		coreUpdates := map[string]interface{}{}
+		if v, ok := answersByKey[FieldKeyV3("CI", 2)]; ok {
+			parts := splitNames(v)
+			if err := checkTextLengthV3(tx, "victim_case", "victim_case_victim_names", FieldKeyV3("CI", 2), "El primer nombre", parts[0]); err != nil {
+				return fmt.Errorf("saveSection[%s]: %w", modulo, err)
+			}
+			if err := checkTextLengthV3(tx, "victim_case", "victim_case_victim_last_names", FieldKeyV3("CI", 2), "Lo que sigue al primer nombre", parts[1]); err != nil {
+				return fmt.Errorf("saveSection[%s]: %w", modulo, err)
+			}
+			coreUpdates["victim_case_victim_names"] = parts[0]
+			coreUpdates["victim_case_victim_last_names"] = parts[1]
 		}
-	}
-	if v, ok := answersByKey[FieldKeyV3("CI", 6)]; ok {
-		coreUpdates["victim_case_victim_doc_number"] = v
-	}
-	if v, ok := answersByKey[FieldKeyV3("DP", 28)]; ok {
-		coreUpdates["victim_case_victim_town_code"] = v
-	}
-	if len(coreUpdates) > 0 {
-		coreUpdates["victim_case_update_date"] = time.Now()
-		if err := r.db.WithContext(ctx).Table("salvia.victim_case").
-			Where("victim_case_i_code = ?", icode).Updates(coreUpdates).Error; err != nil {
-			return fmt.Errorf("saveSection[%s]: sincronizar victim_case: %w", modulo, err)
+		if v, ok := answersByKey[FieldKeyV3("CI", 5)]; ok && v != "" {
+			// BUG encontrado en QA (2026-10-14): CI_5 es KindEnum1 -- el frontend
+			// manda el icode (uuid), pero victim_case_victim_doc_type es
+			// varchar(2) y espera el code corto (ej. "cc"). Resolver antes de
+			// escribir (antes reventaba con "value too long for type character
+			// varying(2)").
+			code, err := resolveEnumCodeByICode(tx, v)
+			if err != nil {
+				return fmt.Errorf("saveSection[%s]: resolver code de CI_5: %w", modulo, err)
+			}
+			if code != "" {
+				coreUpdates["victim_case_victim_doc_type"] = code
+			}
 		}
+		if v, ok := answersByKey[FieldKeyV3("CI", 6)]; ok {
+			if err := checkTextLengthV3(tx, "victim_case", "victim_case_victim_doc_number", FieldKeyV3("CI", 6), "El número de documento", v); err != nil {
+				return fmt.Errorf("saveSection[%s]: %w", modulo, err)
+			}
+			coreUpdates["victim_case_victim_doc_number"] = v
+		}
+		if v, ok := answersByKey[FieldKeyV3("DP", 28)]; ok {
+			if err := checkTextLengthV3(tx, "victim_case", "victim_case_victim_town_code", FieldKeyV3("DP", 28), "El municipio", v); err != nil {
+				return fmt.Errorf("saveSection[%s]: %w", modulo, err)
+			}
+			coreUpdates["victim_case_victim_town_code"] = v
+		}
+
+		if len(updates) > 0 {
+			updates["victim_case_form2_update_date"] = time.Now()
+			if err := tx.Table("salvia.victim_case_form2").
+				Where("victim_case_form2_victim_case = ?", victimCaseID).
+				Updates(updates).Error; err != nil {
+				return fmt.Errorf("saveSection[%s]: actualizar form2: %w", modulo, err)
+			}
+		}
+
+		var form2ID int64
+		if err := tx.Raw(`SELECT victim_case_form2_id FROM salvia.victim_case_form2 WHERE victim_case_form2_victim_case = ?`, victimCaseID).Scan(&form2ID).Error; err != nil {
+			return fmt.Errorf("saveSection[%s]: resolver form2_id: %w", modulo, err)
+		}
+		if err := saveEnumNFields(tx, form2ID, answersByKey); err != nil {
+			return fmt.Errorf("saveSection[%s]: %w", modulo, err)
+		}
+
+		if len(coreUpdates) > 0 {
+			coreUpdates["victim_case_update_date"] = time.Now()
+			if err := tx.Table("salvia.victim_case").
+				Where("victim_case_i_code = ?", icode).Updates(coreUpdates).Error; err != nil {
+				return fmt.Errorf("saveSection[%s]: sincronizar victim_case: %w", modulo, err)
+			}
+		}
+
+		// Al final y dentro de la misma transacción: una key solo cuenta como respondida si TODO el
+		// módulo quedó guardado.
+		if err := markKeysAnswered(tx, icode, answersByKey); err != nil {
+			return fmt.Errorf("saveSection[%s]: %w", modulo, err)
+		}
+		return nil
+	})
+	if err != nil {
+		return asInvalidAnswerV3(err)
 	}
 
 	// D8 (flow-E11, "fan-out al editar el Perfil"): si el módulo editado es
@@ -623,19 +672,52 @@ func resolveFieldUpdates(tx *gorm.DB, fields []VictimCaseFormField, answersByKey
 		if !ok || f.Column == "" {
 			continue // enumN (sin columna propia) se maneja aparte por el llamador vía rel_* -- ver GAP si se requiere
 		}
+		// REG-11: una respuesta vacía de fecha/hora/opción NO se escribe (la columna conserva su valor
+		// marcador) o, si la columna admite NULL, queda NULL. Antes un "" reventaba el guardado con
+		// un 500. Un dato con formato o tamaño inválido devuelve *ErrInvalidAnswerV3 (400, con el
+		// campo) en vez de llegar a la BD.
+		empty := strings.TrimSpace(raw) == ""
+		nullable := victimCaseV3NullableColumns[f.Column]
 		switch f.Kind {
 		case KindText:
-			updates[f.Column] = raw
+			if err := checkTextLengthV3(tx, "victim_case_form2", f.Column, f.Key, "Este dato", raw); err != nil {
+				return nil, err
+			}
+			if empty && nullable {
+				updates[f.Column] = nil
+			} else {
+				updates[f.Column] = raw
+			}
 		case KindInt:
-			var n int64
-			fmt.Sscanf(raw, "%d", &n)
+			n, err := parseIntV3(f.Key, raw)
+			if err != nil {
+				return nil, err
+			}
 			updates[f.Column] = n
-		case KindDate:
-			updates[f.Column] = raw
+		case KindDate, KindTimestamp:
+			if empty {
+				if nullable {
+					updates[f.Column] = nil
+				}
+				continue
+			}
+			d, err := normalizeDateV3(f.Key, raw)
+			if err != nil {
+				return nil, err
+			}
+			updates[f.Column] = d
 		case KindTime:
-			updates[f.Column] = raw
-		case KindTimestamp:
-			updates[f.Column] = raw
+			if empty {
+				if nullable {
+					updates[f.Column] = nil
+				}
+				continue
+			}
+			t, err := normalizeTimeV3(f.Key, raw)
+			if err != nil {
+				return nil, err
+			}
+			updates[f.Column] = t
 		case KindBoolEnum:
 			code := "n"
 			if raw == "true" {
@@ -647,9 +729,18 @@ func resolveFieldUpdates(tx *gorm.DB, fields []VictimCaseFormField, answersByKey
 			}
 			updates[f.Column] = id
 		case KindEnum1:
+			if empty {
+				if nullable {
+					updates[f.Column] = nil
+				}
+				continue
+			}
 			id, err := resolveEnumIDByICode(tx, raw)
 			if err != nil {
 				return nil, err
+			}
+			if id == 0 {
+				return nil, invalidAnswerV3(f.Key, "la opción elegida ya no existe en la lista; vuelve a elegirla")
 			}
 			updates[f.Column] = id
 		case KindScale:
@@ -730,53 +821,82 @@ func resolveEnumIDByICode(tx *gorm.DB, icode string) (int64, error) {
 }
 
 func (r *victimCaseV3Repository) SaveTamizajeBranch(ctx context.Context, icode string, wasPartner bool, answersByKey map[string]string, riskTypeCode, riskLevelCode string, riskScore int, tieFlag bool) error {
-	var victimCaseID int64
-	if err := r.db.WithContext(ctx).Raw(`SELECT victim_case_id FROM salvia.victim_case WHERE victim_case_i_code = ?`, icode).Scan(&victimCaseID).Error; err != nil {
-		return fmt.Errorf("saveTamizajeBranch: %w", err)
-	}
+	// REG-12: una sola transacción, igual que SaveSection (REG-11). Antes markKeysAnswered corría primero y
+	// el UPDATE después, sin transacción: si fallaba, TZ_1..TZ_8 quedaban «respondidas» (Finalizar las daba por
+	// buenas) con el Tamizaje sin guardar.
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var victimCaseID int64
+		if err := tx.Raw(`SELECT victim_case_id FROM salvia.victim_case WHERE victim_case_i_code = ?`, icode).Scan(&victimCaseID).Error; err != nil {
+			return fmt.Errorf("saveTamizajeBranch: %w", err)
+		}
+		if victimCaseID == 0 {
+			return fmt.Errorf("saveTamizajeBranch: no existe victim_case con icode=%s", icode)
+		}
 
-	// BUG encontrado en QA (2026-10-15): SaveTamizajeBranch es una ruta de
-	// guardado separada de SaveSection (POST /tamizaje, no POST /seccion/TZ)
-	// y nunca llamaba a markKeysAnswered -- TZ_1..8 y la rama pareja/no-
-	// pareja completa nunca quedaban en victim_case_v3_answered_keys, así
-	// que Finalize (que exige TZ_1/2/3/4/7 respondidas) rechazaba
-	// cualquier Caso aunque el agente sí hubiera llenado el Tamizaje.
-	// answersByKey aquí ya trae TZ_1..8 + las 24 de la rama (ver
-	// SaveTamizaje en el service), aunque resolveFieldUpdates de abajo solo
-	// use las de la rama activa para el UPDATE de columnas.
-	if err := markKeysAnswered(r.db.WithContext(ctx), icode, answersByKey); err != nil {
-		return fmt.Errorf("saveTamizajeBranch: %w", err)
-	}
+		// Solo se escriben las columnas de la rama activa (pareja / no pareja) y, desde REG-12, también las
+		// preguntas generales TZ_1..TZ_8 (g1..g7 y vpp) presentes en answersByKey: antes NO se guardaban, y al
+		// reabrir el Caso todas las generales aparecían como «No» aunque se hubieran respondido «Sí».
+		fields := victimCaseV3TamizajeNoPareja
+		if wasPartner {
+			fields = victimCaseV3TamizajePareja
+		}
+		updates, err := resolveFieldUpdates(tx, fields, answersByKey)
+		if err != nil {
+			return fmt.Errorf("saveTamizajeBranch: %w", err)
+		}
+		generales, err := resolveFieldUpdates(tx, victimCaseV3TamizajeGenerales, answersByKey)
+		if err != nil {
+			return fmt.Errorf("saveTamizajeBranch: %w", err)
+		}
+		for col, v := range generales {
+			updates[col] = v
+		}
 
-	fields := victimCaseV3TamizajeNoPareja
-	if wasPartner {
-		fields = victimCaseV3TamizajePareja
-	}
-	updates, err := resolveFieldUpdates(r.db.WithContext(ctx), fields, answersByKey)
-	if err != nil {
-		return fmt.Errorf("saveTamizajeBranch: %w", err)
-	}
+		noID, _ := resolveEnumIDByCategory(tx, "yes_no", "n")
+		yesID, _ := resolveEnumIDByCategory(tx, "yes_no", "y")
+		if tieFlag {
+			updates["victim_case_form2_tzv3_risk_tie_flag"] = yesID
+		} else {
+			updates["victim_case_form2_tzv3_risk_tie_flag"] = noID
+		}
 
-	noID, _ := resolveEnumIDByCategory(r.db.WithContext(ctx), "yes_no", "n")
-	yesID, _ := resolveEnumIDByCategory(r.db.WithContext(ctx), "yes_no", "y")
-	if tieFlag {
-		updates["victim_case_form2_tzv3_risk_tie_flag"] = yesID
-	} else {
-		updates["victim_case_form2_tzv3_risk_tie_flag"] = noID
-	}
+		if riskTypeID, err := resolveEnumIDByCategory(tx, "victim_case_form2_tzv3_risk_type", riskTypeCode); err == nil && riskTypeID != 0 {
+			updates["victim_case_form2_tzv3_risk_type"] = riskTypeID
+		}
+		if riskLevelID, err := resolveEnumIDByCategory(tx, "victim_case_form2_tzv3_risk_level", riskLevelCode); err == nil && riskLevelID != 0 {
+			updates["victim_case_form2_tzv3_risk_level"] = riskLevelID
+		}
+		updates["victim_case_form2_tzv3_risk_score"] = riskScore
+		updates["victim_case_form2_update_date"] = time.Now()
 
-	if riskTypeID, err := resolveEnumIDByCategory(r.db.WithContext(ctx), "victim_case_form2_tzv3_risk_type", riskTypeCode); err == nil && riskTypeID != 0 {
-		updates["victim_case_form2_tzv3_risk_type"] = riskTypeID
-	}
-	if riskLevelID, err := resolveEnumIDByCategory(r.db.WithContext(ctx), "victim_case_form2_tzv3_risk_level", riskLevelCode); err == nil && riskLevelID != 0 {
-		updates["victim_case_form2_tzv3_risk_level"] = riskLevelID
-	}
-	updates["victim_case_form2_tzv3_risk_score"] = riskScore
-	updates["victim_case_form2_update_date"] = time.Now()
+		// REG-34: Tamizaje por etapas. Con las cinco iniciales en «No» la pantalla solo manda esas cinco: el resto
+		// (TZ_5, TZ_6, TZ_8 y las 24 de cada rama) no se preguntó, así que queda en «No» -- sin importar lo que
+		// hubiera de un guardado anterior -- y NO se marca como respondido (markKeysAnswered solo ve lo recibido).
+		if !tamizajeTieneResto(answersByKey) {
+			for _, col := range victimCaseV3TamizajeResto {
+				updates[col] = noID
+			}
+		}
 
-	return r.db.WithContext(ctx).Table("salvia.victim_case_form2").
-		Where("victim_case_form2_victim_case = ?", victimCaseID).
-		Updates(updates).Error
+		if err := tx.Table("salvia.victim_case_form2").
+			Where("victim_case_form2_victim_case = ?", victimCaseID).
+			Updates(updates).Error; err != nil {
+			return fmt.Errorf("saveTamizajeBranch: actualizar form2: %w", err)
+		}
+
+		// BUG encontrado en QA (2026-10-15): SaveTamizajeBranch es una ruta de
+		// guardado separada de SaveSection (POST /tamizaje, no POST /seccion/TZ)
+		// y nunca llamaba a markKeysAnswered -- TZ_1..8 y la rama pareja/no-
+		// pareja completa nunca quedaban en victim_case_v3_answered_keys, así
+		// que Finalize (que exige TZ_1/2/3/4/7 respondidas) rechazaba
+		// cualquier Caso aunque el agente sí hubiera llenado el Tamizaje.
+		// Se marca AL FINAL y dentro de la transacción: solo cuenta como
+		// respondido lo que de verdad quedó guardado.
+		if err := markKeysAnswered(tx, icode, answersByKey); err != nil {
+			return fmt.Errorf("saveTamizajeBranch: %w", err)
+		}
+		return nil
+	})
 }
 
 func (r *victimCaseV3Repository) GetTamizajeResult(ctx context.Context, icode string) (string, string, int, error) {
@@ -852,6 +972,26 @@ func (r *victimCaseV3Repository) GetAnswers(ctx context.Context, icode string) (
 			if err == nil && ic != "" {
 				answers[f.Key] = ic
 			}
+		case KindDate, KindTimestamp:
+			// REG-11: "YYYY-MM-DD", el formato que lee <input type="date"> y que acepta SaveSection.
+			// Antes salía el crudo de Go ("2026-10-30 00:00:00 +0000 UTC"): el campo quedaba en blanco
+			// al reabrir el Caso y reenviarlo era rechazado por Postgres.
+			var day string
+			if t, isTime := v.(time.Time); isTime {
+				day = t.Format("2006-01-02")
+			} else if day = fmt.Sprintf("%v", v); len(day) > 10 {
+				day = day[:10]
+			}
+			if day != dummyDateV3 { // la fecha marcador de insertDummyForm2Row no es una respuesta
+				answers[f.Key] = day
+			}
+		case KindTime:
+			// "HH:MM", lo que lee <input type="time">.
+			hhmm := fmt.Sprintf("%v", v)
+			if len(hhmm) > 5 {
+				hhmm = hhmm[:5]
+			}
+			answers[f.Key] = hhmm
 		default:
 			answers[f.Key] = fmt.Sprintf("%v", v)
 		}

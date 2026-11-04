@@ -59,6 +59,9 @@ PASO 3 — Montar casos-component con scope fijo
   // Dispara el E-01 de casos-component contra
   // /api/v1/victim-contacts/list?filter_key=persona_asignada&filter_value={icode}
 
+  // Columna «Fecha Reporte» (REP-12): cada fila trae creationDateCO ("AAAA-MM-DD", día de creación en hora de
+  // Bogotá) y la celda lo muestra como DD/MM/AAAA sin new Date(): no cambia de día por la zona del navegador.
+
   → FIN EJECUCIÓN ✓
 
 
@@ -70,3 +73,4 @@ PASO 3 — Montar casos-component con scope fijo
 |-----------------------------------------------------------------------|------------|
 | ¿`persona_asignada` en el backend de reportes se compara contra `victim_contact_agent_id`? | Sí: `WHERE victim_contact_agent_id = filter_value` (caso `MR-E01-C7`) |
 | ¿El scope se puede quitar desde la UI o la URL? | No: sale de la sesión (`MR-E01-C4`) y sobrevive a filtros, búsqueda y orden (`MR-E01-C5`, `MR-E01-C6`) |
+| La columna «Fecha Reporte» salía «—» (H11) porque el listado no traía `creationDateCO`, y debía verse el mismo día de creación en Bogotá | Resuelto 2026-11-02 (WP-2 · REP-12): el endpoint trae `creationDateCO`; casos `MR-E01-C10` y `MR-E01-C11` |

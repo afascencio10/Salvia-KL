@@ -15,8 +15,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"bitsflow/common/db"
@@ -99,6 +101,73 @@ func (vcd VictimContactForm2V2DTO) MarshalJSON() ([]byte, error) {
 			return vcd.VictimContactForm2V2ReporterBestContactTime.Format(common_config.DateTime.TIME_FORMAT)
 		}(),
 	})
+}
+
+// ErrReporterBestContactTimeInvalid indica que reporterBestContactTime llegó con
+// un texto que no es una hora legible (ni HH:MM:SS, ni HH:MM, ni RFC 3339).
+var ErrReporterBestContactTimeInvalid = errors.New("reporterBestContactTime: formato de hora inválido")
+
+// parseReporterBestContactTime convierte la hora de recontacto del reportante.
+// El wizard V2 la envía como "HH:MM:SS" sin zona (p. ej. "14:30:00"); también
+// se aceptan "HH:MM" y RFC 3339 (lo que decodificaba antes el time.Time
+// estándar). Vacío = hora no diligenciada → time.Time{}; un texto no vacío que
+// no se pueda leer devuelve ErrReporterBestContactTimeInvalid.
+func parseReporterBestContactTime(raw string) (time.Time, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return time.Time{}, nil
+	}
+	for _, layout := range []string{
+		common_config.DateTime.TIME_WITH_SECONDS_FORMAT,
+		common_config.DateTime.TIME_FORMAT,
+		time.RFC3339,
+	} {
+		if t, err := time.Parse(layout, raw); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, ErrReporterBestContactTimeInvalid
+}
+
+// UnmarshalJSON lee la hora de recontacto con parseReporterBestContactTime
+// (T1/REP-13*). Sin este método, encoding/json exige RFC 3339 para un
+// time.Time y "14:30:00" fallaba. El resto de campos se decodifica igual que
+// antes; si la hora es inválida el DTO queda completo y se devuelve el error,
+// para que el controller lo reporte como error del campo. Las fechas de
+// creación/actualización no se leen del cliente: SetVictimContactForm2V2Defaults
+// las fija al insertar.
+func (vcd *VictimContactForm2V2DTO) UnmarshalJSON(data []byte) error {
+	type Alias VictimContactForm2V2DTO
+
+	aux := &struct {
+		*Alias
+		VictimContactForm2V2CreationDate            json.RawMessage `json:"creationDate"`
+		VictimContactForm2V2UpdateDate              json.RawMessage `json:"updateDate"`
+		VictimContactForm2V2ReporterBestContactTime json.RawMessage `json:"reporterBestContactTime"`
+	}{
+		Alias: (*Alias)(vcd),
+	}
+
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+
+	vcd.VictimContactForm2V2ReporterBestContactTime = time.Time{}
+	if len(aux.VictimContactForm2V2ReporterBestContactTime) == 0 || string(aux.VictimContactForm2V2ReporterBestContactTime) == "null" {
+		return nil
+	}
+
+	var raw string
+	if err := json.Unmarshal(aux.VictimContactForm2V2ReporterBestContactTime, &raw); err != nil {
+		return ErrReporterBestContactTimeInvalid
+	}
+
+	t, err := parseReporterBestContactTime(raw)
+	if err != nil {
+		return err
+	}
+	vcd.VictimContactForm2V2ReporterBestContactTime = t
+	return nil
 }
 
 // SetVictimContactForm2Defaults ya existe para VictimContactForm2 — este es

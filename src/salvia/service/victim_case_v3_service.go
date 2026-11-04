@@ -61,6 +61,14 @@ type CaseStateV3 struct {
 	TriadaCompleta bool                             `json:"triadaCompleta"`
 	Entities       []models.EntityCaseWithRelations `json:"entities"`
 	Barriers       []models.BarrierV2               `json:"barriers"`
+	// WP-4 (REG-38*): datos del formulario de Seguimiento v4 que no tienen
+	// columna. EntityMeta se indexa por entity_branch_id; BarrierMeta, por el id
+	// de la barrera (con prefijo «d~» mientras sigue en el borrador JSON).
+	// EntitiesReadOnly es true cuando el Caso ya dejó de ser borrador: las
+	// entidades, barreras y remisiones quedan como snapshot de solo lectura.
+	EntityMeta       map[string]EntityMetaV3  `json:"entityMeta,omitempty"`
+	BarrierMeta      map[string]BarrierMetaV3 `json:"barrierMeta,omitempty"`
+	EntitiesReadOnly bool                     `json:"entitiesReadOnly"`
 	// TzResultado -- BUG encontrado en QA (2026-10-15): antes nil siempre;
 	// el Cierre mostraba "Nivel de riesgo: —" en cualquier Caso cuyo
 	// Tamizaje no se hubiera guardado en la MISMA sesión de navegador que
@@ -87,20 +95,32 @@ type victimCaseV3Service struct {
 	entityCaseRepo           repository.EntityCaseRepository
 	entityCaseObligationRepo repository.EntityCaseObligationRepository
 	barrierV2Repo            repository.BarrierV2Repository
+
+	// draft -- borrador en JSON de entidades y barreras (WP-4, REG-38*; ver
+	// victim_case_v3_draft.go). nil = comportamiento anterior (escribe directo
+	// en entity_case/barrier_v2).
+	draft *victimCaseV3Draft
 }
 
+// NewVictimCaseV3Service -- las opciones (WithVictimCaseV3Draft) son variádicas
+// para no cambiar la firma que usan main.go y los tests de otras sesiones.
 func NewVictimCaseV3Service(
 	repo repository.VictimCaseV3Repository,
 	entityCaseRepo repository.EntityCaseRepository,
 	entityCaseObligationRepo repository.EntityCaseObligationRepository,
 	barrierV2Repo repository.BarrierV2Repository,
+	opts ...VictimCaseV3Option,
 ) VictimCaseV3Service {
-	return &victimCaseV3Service{
+	s := &victimCaseV3Service{
 		repo:                     repo,
 		entityCaseRepo:           entityCaseRepo,
 		entityCaseObligationRepo: entityCaseObligationRepo,
 		barrierV2Repo:            barrierV2Repo,
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // perfilObligatoriasV3 -- D1/D9: "Registro completo" se evalúa solo contra
@@ -222,11 +242,11 @@ func (s *victimCaseV3Service) SaveSection(ctx context.Context, icode, modulo str
 		return false, err
 	}
 
-	// triadaCompleta / Borrador→Iniciado solo se reevalúa cuando el módulo
-	// guardado es parte de la tríada (CI/DP/CA/HV/AG) -- TZ/GS no aportan.
-	if modulo != "CI" && modulo != "DP" && modulo != "CA" && modulo != "HV" && modulo != "AG" {
-		return false, nil
-	}
+	// REG-35: triadaCompleta se evalúa con CUALQUIER módulo (también TZ y GS) y devuelve su valor real.
+	// Antes los módulos fuera de la tríada retornaban false sin evaluar, y el cliente (que asigna lo que
+	// recibe) volvía a poner los candados de TZ/GS tras guardar GS aunque la tríada estuviera completa.
+	// Lo que NO cambia: el paso Borrador→Iniciado sigue siendo solo de la tríada (CI/DP/CA/HV/AG).
+	enTriada := modulo == "CI" || modulo == "DP" || modulo == "CA" || modulo == "HV" || modulo == "AG"
 
 	// Se evalúa contra el ACUMULADO histórico (todas las secciones ya
 	// guardadas), no solo el delta de este guardado -- SaveSection es un
@@ -245,7 +265,7 @@ func (s *victimCaseV3Service) SaveSection(ctx context.Context, icode, modulo str
 		return false, err
 	}
 	complete := isTriadaCompleteV3(answered)
-	if complete {
+	if complete && enTriada {
 		// 'in' = Iniciado (código nuevo, salvia/config/Enums.go) -- solo
 		// transiciona si el Caso sigue en Borrador; no revierte un Caso que
 		// ya esté Terminado/Cerrado por una reapertura parcial.
@@ -376,13 +396,15 @@ var tamizajeInicialesFinalizarV3 = []string{ //nolint:gochecknoglobals
 // gsObligatoriasFinalizarV3 -- preguntas de GS que SIEMPRE están visibles
 // (no dependen de otra respuesta). GS_16 se agregó en esta ronda (C1,
 // 2026-10-15) -- existía en registro-v3-secciones.md como [1er contacto]
-// pero no tenía ninguna UI todavía. Deliberadamente sigue excluyendo: GS_3
-// (solo si GS_2 tiene selección), GS_6/7/9-12 (solo si GS_5="Sí", y varían
-// según equipo elegido), GS_13 (solo si GS_5="Sí"), GS_15 (definida en el
-// catálogo de campos pero sin UI todavía -- exigirla haría imposible
-// finalizar cualquier Caso), GS_19 (solo si GS_18="Sí").
+// pero no tenía ninguna UI todavía. REG-14 (WP-4 T1): GS_2 («¿Es necesario
+// realizar gestiones interinstitucionales…?») se retiró del formulario, por
+// eso ya no se exige; la columna y el catálogo se conservan para los datos
+// históricos. Deliberadamente sigue excluyendo: GS_3 (descripción opcional de
+// las acciones previstas), GS_6/7/9-12 (solo si GS_5="Sí", y varían según
+// equipo elegido), GS_13 (solo si GS_5="Sí"), GS_15 (acuerdo con la activación,
+// condicional), GS_19 (solo si GS_18="Sí").
 var gsObligatoriasFinalizarV3 = []string{ //nolint:gochecknoglobals
-	"GS_1", "GS_2", "GS_4", "GS_5", "GS_14", "GS_16", "GS_17", "GS_18",
+	"GS_1", "GS_4", "GS_5", "GS_14", "GS_16", "GS_17", "GS_18",
 }
 
 // caObligatoriasFinalizarV3 -- CA_1..CA_4 (máx. 2º contacto). C1 (2026-10-15):
@@ -423,6 +445,10 @@ var obligatoriasFinalizarV3 = append(append(append(append(append([]string{}, //n
 // controller la distingue de un error genérico con `errors.As`.
 type ErrModulosIncompletos struct {
 	Modulos []string
+	// Campos -- REG-37: llaves (FieldKey) de las obligatorias sin responder, ordenadas, para que la pantalla
+	// diga CUÁLES faltan y no solo en qué módulo. Es la fuente de verdad: la lista de obligatorias vive aquí
+	// (obligatoriasFinalizarV3) y el navegador no la duplica.
+	Campos []string
 }
 
 func (e *ErrModulosIncompletos) Error() string {
@@ -459,10 +485,12 @@ func (s *victimCaseV3Service) Finalize(ctx context.Context, icode string) (*Fina
 	}
 
 	faltantesPorModulo := map[string]bool{}
+	campos := []string{}
 	for _, key := range obligatoriasFinalizarV3 {
 		if !answered[key] {
 			modulo := strings.SplitN(key, "_", 2)[0]
 			faltantesPorModulo[modulo] = true
+			campos = append(campos, key)
 		}
 	}
 	if len(faltantesPorModulo) > 0 {
@@ -471,7 +499,8 @@ func (s *victimCaseV3Service) Finalize(ctx context.Context, icode string) (*Fina
 			modulos = append(modulos, m)
 		}
 		sort.Strings(modulos)
-		return nil, &ErrModulosIncompletos{Modulos: modulos}
+		sort.Strings(campos)
+		return nil, &ErrModulosIncompletos{Modulos: modulos, Campos: campos}
 	}
 
 	answers, err := s.repo.GetAnswers(ctx, icode)
@@ -503,6 +532,11 @@ func (s *victimCaseV3Service) Finalize(ctx context.Context, icode string) (*Fina
 // resuelto por la búsqueda Departamento/Ciudad/Municipio + Sector del
 // frontend (idéntica a case-entities.js / Seguimiento), no por texto libre.
 func (s *victimCaseV3Service) AddEntity(ctx context.Context, e repository.VictimCaseEntityInput) (string, error) {
+	if s.draft != nil {
+		// WP-4 (REG-38*): mientras el Caso es borrador la entidad vive en el JSON;
+		// después de materializarse es solo lectura (ErrSnapshotReadOnly).
+		return s.addEntityDraft(ctx, e)
+	}
 	exists, err := s.entityCaseRepo.ExistsActive(ctx, e.VictimCaseICode, e.EntityBranchID)
 	if err != nil {
 		return "", fmt.Errorf("addEntity: verificar duplicado: %w", err)
@@ -581,11 +615,33 @@ func (s *victimCaseV3Service) registrarObligacionesEntidad(ctx context.Context, 
 }
 
 func (s *victimCaseV3Service) RemoveEntity(ctx context.Context, entityCaseID string) error {
+	if s.draft != nil {
+		if esIDBorradorV3(entityCaseID) {
+			return s.removeEntityDraft(ctx, entityCaseID)
+		}
+		// Un id de tabla (UUID) ya está materializado: snapshot de solo lectura.
+		return ErrSnapshotReadOnly
+	}
 	return s.entityCaseRepo.Delete(ctx, entityCaseID)
 }
 
+// ListEntities -- con el borrador activo une lo que sigue en el JSON con las
+// filas de entity_case (filas anteriores a este cambio o ya materializadas).
 func (s *victimCaseV3Service) ListEntities(ctx context.Context, icode string) ([]models.EntityCaseWithRelations, error) {
-	return s.entityCaseRepo.FindByCaseIDWithRelations(ctx, icode)
+	if s.draft == nil {
+		return s.entityCaseRepo.FindByCaseIDWithRelations(ctx, icode)
+	}
+	// El borrador se lee primero: si hay JSON pendiente de un Caso que ya salió
+	// de borrador, se materializa antes de listar las tablas.
+	draftRows, err := s.draftEntitiesAsRows(ctx, icode)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.entityCaseRepo.FindByCaseIDWithRelations(ctx, icode)
+	if err != nil {
+		return nil, err
+	}
+	return append(rows, draftRows...), nil
 }
 
 // gestionBarreraV3CodeToSlug -- V3 muestra el catálogo seeded en
@@ -614,6 +670,9 @@ var gestionBarreraV3CodeToSlug = map[string]string{
 // registro-v3-pendientes.md § B4 (fuera de alcance de esta ronda: no existe
 // Seguimiento todavía sobre un Caso que recién se está registrando).
 func (s *victimCaseV3Service) AddBarrier(ctx context.Context, b repository.VictimCaseBarrierInput) (string, error) {
+	if s.draft != nil {
+		return s.addBarrierDraft(ctx, b) // WP-4 (REG-38*): JSON mientras el Caso es borrador
+	}
 	var entityBranchID *int64
 	if b.EntityBranchID != 0 {
 		id := b.EntityBranchID
@@ -656,11 +715,29 @@ func (s *victimCaseV3Service) AddBarrier(ctx context.Context, b repository.Victi
 }
 
 func (s *victimCaseV3Service) RemoveBarrier(ctx context.Context, barrierID string) error {
+	if s.draft != nil {
+		if esIDBorradorV3(barrierID) {
+			return s.removeBarrierDraft(ctx, barrierID)
+		}
+		return ErrSnapshotReadOnly
+	}
 	return s.barrierV2Repo.Delete(ctx, barrierID)
 }
 
+// ListBarriers -- igual que ListEntities: JSON pendiente + filas de barrier_v2.
 func (s *victimCaseV3Service) ListBarriers(ctx context.Context, icode string) ([]models.BarrierV2, error) {
-	return s.barrierV2Repo.FindByCaseID(ctx, icode)
+	if s.draft == nil {
+		return s.barrierV2Repo.FindByCaseID(ctx, icode)
+	}
+	draftRows, err := s.draftBarriersAsRows(ctx, icode)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.barrierV2Repo.FindByCaseID(ctx, icode)
+	if err != nil {
+		return nil, err
+	}
+	return append(rows, draftRows...), nil
 }
 
 // GetCase -- estado completo del Caso (header + respuestas + entidades +
@@ -702,12 +779,20 @@ func (s *victimCaseV3Service) GetCase(ctx context.Context, icode string) (*CaseS
 			Score:     riskScore,
 		}
 	}
-	return &CaseStateV3{
+	state := &CaseStateV3{
 		Summary: summary, Answers: answers, AnsweredKeys: answeredKeys,
 		TriadaCompleta: isTriadaCompleteV3(answeredSet),
 		Entities:       entities, Barriers: barriers,
 		TzResultado: tzResultado,
-	}, nil
+	}
+	if s.draft != nil {
+		entityMeta, barrierMeta, readOnly, err := s.draftMetaV3(ctx, icode)
+		if err != nil {
+			return nil, fmt.Errorf("getCase: %w", err)
+		}
+		state.EntityMeta, state.BarrierMeta, state.EntitiesReadOnly = entityMeta, barrierMeta, readOnly
+	}
+	return state, nil
 }
 
 // EnumCatalog -- ver ListEnumCategories. Cacheado en memoria del lado del

@@ -212,6 +212,13 @@
                     
                     setTimeout(() => {
                       //document.getElementById('successOverlay').style.display = 'none';
+                      // WP-1 T8: regreso al reporte V2 tras iniciar sesión desde «¿Tiene usuario?».
+                      // Lista blanca EXACTA: cualquier otro valor de ?next= se ignora (evita redirecciones abiertas).
+                      var next = new URLSearchParams(window.location.search).get('next');
+                      if (next === '/salvia/public-v2/nuevo') {
+                        location.assign(next);
+                        return;
+                      }
                       if(home.config.globalProperties.enums.nav_rules["default"]){
                         location.assign(home.config.globalProperties.enums.nav_rules["default"]);
                       }else if(home.config.globalProperties.enums.nav_rules[action]){

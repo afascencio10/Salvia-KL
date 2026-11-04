@@ -12,8 +12,8 @@
 package salvia_ctrl
 
 import (
-	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	common_config "bitsflow/common/config"
@@ -54,12 +54,20 @@ const (
 	reportTypeV2Hombre   string = "ho"
 )
 
+// Reporter identifica a quien reporta con la sesión iniciada (WP-1 T8/REP-07), sea cual
+// sea su rol. Siempre sale de la sesión del servidor; nada de lo que mande el cliente
+// lo reemplaza. nil = reporte anónimo.
+type Reporter struct {
+	UserICode string
+	RoleCode  string
+}
+
 // SetVictimContactV2 crea un reporte ciudadano V2: valida según el tipo de
 // reportante (Víctima/Tercero/Familiar/Hombre), inserta victim_contact +
 // victim_contact_form2 (tablas de V1, sin modificarlas) y victim_contact_form2_v2
 // (tabla de extensión, exclusiva de V2). Devuelve el icode del VictimContact
 // creado como número de radicado.
-func SetVictimContactV2(dataInput string, checkCaptcha bool, connData *db.ConnData, dbClientConfig db.DBClientConfig, dbServerConfig db.DBServerConfig) (int, string) {
+func SetVictimContactV2(dataInput string, checkCaptcha bool, reporter *Reporter, connData *db.ConnData, dbClientConfig db.DBClientConfig, dbServerConfig db.DBServerConfig) (int, string) {
 	var err error
 
 	if connData.ConnID == "" {
@@ -74,13 +82,33 @@ func SetVictimContactV2(dataInput string, checkCaptcha bool, connData *db.ConnDa
 	var vc salvia_daos.VictimContactDTO
 	utils.JSONToStruct(string(envelope.VictimContact), &vc)
 
+	// T1 (REP-13*): json.Unmarshal en vez de utils.JSONToStruct, que descarta el
+	// error. Así una hora de recontacto ilegible se informa como error del
+	// campo en lugar de quedar en cero sin aviso. Los demás errores de esta
+	// decodificación se siguen ignorando, igual que antes.
 	var form2v2Wrapper victimContactForm2V2Wrapper
-	utils.JSONToStruct(string(envelope.VictimContact), &form2v2Wrapper)
+	form2v2DecodeErr := json.Unmarshal(envelope.VictimContact, &form2v2Wrapper)
 
 	form2 := &vc.VictimContactForm2
 	form2v2 := &form2v2Wrapper.Form2V2
 
+	bestContactTimeInvalid := errors.Is(form2v2DecodeErr, salvia_daos.ErrReporterBestContactTimeInvalid)
+	if bestContactTimeInvalid {
+		utils.SetError(collectedErrors, salvia_daos.VictimContactForm2V2JSONName, "reporterBestContactTime", "victim_contact_form2_v2_time_invalid", "common_global_error", salvia_config.Locale)
+	}
+
 	salvia_daos.SetVictimContactDefaults(&vc, common_dao.SQL_INSERT)
+
+	// T8: quién reporta sale SIEMPRE de la sesión del servidor. Lo que el cliente mande en
+	// «generalUser» se descarta (antes viajaba tal cual a victim_contact_general_user).
+	vc.VictimContactGeneralUser = ""
+	reporterRole := ""
+	reporterUserICode := ""
+	if reporter != nil {
+		vc.VictimContactGeneralUser = reporter.UserICode
+		reporterRole = reporter.RoleCode
+		reporterUserICode = reporter.UserICode
+	}
 	salvia_daos.SetVictimContactForm2Defaults(form2, common_dao.SQL_INSERT)
 	salvia_daos.SetVictimContactForm2V2Defaults(form2v2, common_dao.SQL_INSERT)
 
@@ -163,7 +191,7 @@ func SetVictimContactV2(dataInput string, checkCaptcha bool, connData *db.ConnDa
 		}
 		if err = salvia_daos.GetLocalVictimCaseForm2EnumsByICode(&form2v2.VictimContactForm2V2ReporterWillReceiveCall); err != nil {
 			utils.SetError(collectedErrors, salvia_daos.VictimContactForm2V2JSONName, "reporterWillReceiveCall", "victim_case_form2_enums_not_found", "common_global_error", salvia_config.Locale)
-		} else if form2v2.VictimContactForm2V2ReporterWillReceiveCall.VictimCaseForm2EnumsCode == "y" && form2v2.VictimContactForm2V2ReporterBestContactTime.IsZero() {
+		} else if form2v2.VictimContactForm2V2ReporterWillReceiveCall.VictimCaseForm2EnumsCode == "y" && form2v2.VictimContactForm2V2ReporterBestContactTime.IsZero() && !bestContactTimeInvalid {
 			utils.SetError(collectedErrors, salvia_daos.VictimContactForm2V2JSONName, "reporterBestContactTime", "common_validation_field_empty_error", "common_global_error", common_config.Locale)
 		}
 
@@ -212,6 +240,17 @@ func SetVictimContactV2(dataInput string, checkCaptcha bool, connData *db.ConnDa
 		return http.StatusInternalServerError, err.Error()
 	}
 
+	// T3 (REP-01): radicado corto «XXXX-XXXX», dentro de la misma transacción.
+	// Si el valor ya existe se genera otro (hasta 5 veces); cualquier otro
+	// fallo deshace el reporte completo.
+	radicado, err := assignRadicado(vc.VictimContactICode, generateRadicado, func(icode, candidate string) (bool, error) {
+		return salvia_daos.AssignVictimContactRadicado(icode, candidate, reporterRole, connData, &dbClientConfig, &dbServerConfig)
+	})
+	if err != nil {
+		db.RollbackTransaction(connData, &dbClientConfig, &dbServerConfig)
+		return http.StatusInternalServerError, err.Error()
+	}
+
 	form2.VictimContactForm2VictimContact = vc
 
 	if err = salvia_daos.SetVictimContactForm2(form2, connData, &dbClientConfig, &dbServerConfig); err != nil {
@@ -235,12 +274,20 @@ func SetVictimContactV2(dataInput string, checkCaptcha bool, connData *db.ConnDa
 		return http.StatusInternalServerError, err.Error()
 	}
 
-	// A diferencia de V1 (que responde con cuerpo vacío), V2 sí devuelve el
-	// icode: el wizard lo muestra como número de radicado en la confirmación.
-	var buf bytes.Buffer
-	buf.WriteString(`{"icode":"`)
-	buf.WriteString(vc.VictimContactICode)
-	buf.WriteString(`"}`)
+	// T6: hito «Reporte recibido» en el timeline del reporte (después del commit, en
+	// segundo plano y sin afectar la respuesta si falla).
+	recordReportReceived(vc.VictimContactICode, reportTypeCode, radicado, reporterUserICode)
 
-	return http.StatusOK, buf.String()
+	// A diferencia de V1 (que responde con cuerpo vacío), V2 devuelve el icode
+	// (id interno; la app móvil lo sigue leyendo) y, desde T3, el radicado que
+	// el wizard muestra en la confirmación.
+	res, err := json.Marshal(struct {
+		ICode    string `json:"icode"`
+		Radicado string `json:"radicado"`
+	}{vc.VictimContactICode, radicado})
+	if err != nil {
+		return http.StatusInternalServerError, err.Error()
+	}
+
+	return http.StatusOK, string(res)
 }

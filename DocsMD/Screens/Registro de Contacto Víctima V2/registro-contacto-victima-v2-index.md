@@ -6,16 +6,19 @@
 
 | Archivo | Descripción |
 |---|---|
-| [`registro-contacto-victima-v2-interface.md`](registro-contacto-victima-v2-interface.md) | Árbol de interfaz — wizard de 4 pasos y condiciones de render |
+| [`registro-contacto-victima-v2-interface.md`](registro-contacto-victima-v2-interface.md) | Árbol de interfaz — wizard de 5 pasos y condiciones de render |
 | [`related-tables.md`](related-tables.md) | Mapeo campo↔BD, columnas/enums nuevos, migración ejecutada y bugs encontrados |
 
 ### Changelogs
 
 - [`changelogSep2026.md`](changelogSep2026.md)
+- [`changelogNov2026.md`](changelogNov2026.md) — WP-1: hora HH:MM:SS, captcha nuevo, radicado, paso «¿Tiene usuario?»
 
 ### Otros MDs
 
 - [`QA/E10-cuando-envia-reporte-qa-cases.md`](QA/E10-cuando-envia-reporte-qa-cases.md) — casos de prueba y cobertura del único evento que persiste en backend
+- [`QA/E11-vuelve-al-inicio-qa-cases.md`](QA/E11-vuelve-al-inicio-qa-cases.md) — captcha nuevo al volver al inicio (T2)
+- [`QA/E12-tiene-usuario-qa-cases.md`](QA/E12-tiene-usuario-qa-cases.md) — paso «¿Tiene usuario?», reporter con sesión y botón «Copiar radicado» (T3, T8)
 
 ### Resumen de eventos
 
@@ -32,6 +35,8 @@
 | E-09 | [Cuando presiona "Atrás" en el Formulario](Flujos/flow-E09-cuando-presiona-atras-formulario.md) | User Interaction | No |
 | E-10 | [Cuando presiona "Enviar Reporte"](Flujos/flow-E10-cuando-envia-reporte.md) | User Interaction | **Sí** (crea `victim_contact` + `victim_contact_form2`) |
 | E-11 | [Cuando presiona "Volver al Inicio"](Flujos/flow-E11-cuando-vuelve-al-inicio.md) | User Interaction | No |
+| E-12 | [Cuando responde "¿Tiene usuario?"](Flujos/flow-E12-cuando-responde-tiene-usuario.md) | User Interaction | No |
+| E-13 | [Cuando presiona "Copiar radicado"](Flujos/flow-E13-cuando-presiona-copiar-radicado.md) | User Interaction | No |
 
 > **Nota de alcance:** este inventario cubre únicamente el **Flujo A** del prototipo (`Mockup_Reportes_Registro.html`, pasos `auth → perfil → formulario → confirmacion`). El Flujo B (bandeja de agente, recontacto 3x3, cierre del reporte) ya existe como pantallas aparte: [Listado Reportes](../Listado%20Reportes/listado-reportes-index.md) (asignación por el supervisor), [Mis Reportes](../Mis%20Reportes/mis-reportes-index.md) y el modal [`gestion-reporte-modal`](../../Componentes/Gestion%20Reporte%20Modal/gestion-reporte-modal-index.md). La apertura de caso (M-10) sigue diferida.
 
@@ -55,8 +60,11 @@ Descripción:  Se ejecuta al abrir GET /salvia/public-v2/nuevo. El backend gener
               tipo de reporte V2, ajustes razonables, anonimato, parentesco);
               si la petición trae `Accept: application/json` devuelve esos
               catálogos y el captchaID en JSON (lo usan la app móvil y los
-              helpers de QA). El app Vue arranca en step='auth' con un form en
-              blanco (data()) y mounted() fija el título y muestra #app. El
+              helpers de QA). Lee la sesión de forma opcional (T8): con en, op o et
+              la plantilla trae el nombre y el rol de quien reporta. El app Vue
+              arranca en step='usuario' (o 'auth' con una sesión de otro rol)
+              con un form en blanco (data()) y mounted() fija el título y
+              muestra #app. El
               captcha se muestra recién en el paso 'formulario'.
 Requerido:    Sí
 ```
@@ -198,15 +206,18 @@ Descripción:  Único evento que persiste en backend. El botón solo se habilita
               victim_contact/victim_contact_form2 (columnas existentes, vía
               las funciones DAO de V1 sin modificarlas) y en la tabla de
               extensión nueva victim_contact_form2_v2 (campos exclusivos de
-              V2). Si es exitoso, guarda el número de radicado devuelto y
-              navega a step='confirmacion'. Es el evento con más ramas
+              V2). Dentro de la misma transacción genera el radicado «XXXX-XXXX»
+              (T3) y asocia el usuario y el rol de la sesión, si la hay (T8);
+              después del commit escribe el hito «Reporte recibido» en el
+              timeline (T6, best-effort). Si es exitoso, guarda el radicado
+              devuelto y navega a step='confirmacion'. Es el evento con más ramas
               condicionales de todo el inventario — ver flujo detallado en
               Flujos/flow-E10-cuando-envia-reporte.md.
               Implementado y probado end-to-end (Playwright + curl contra
               backend real, ver QA/) — 7 bugs encontrados y corregidos en esta
-              implementación, ver related-tables.md. Limitación vigente (L1):
-              Familiar/Hombre con disposición "Sí" y hora digitada reciben 400
-              (reporterBestContactTime no se deserializa).
+              implementación, ver related-tables.md. L1 resuelta (WP-1 T1):
+              Familiar/Hombre con disposición "Sí" y hora digitada se radican
+              (el DTO acepta HH:MM:SS).
 Requerido:    Sí
 ```
 
@@ -219,11 +230,43 @@ Requerido:    Sí
 ```
 Evento:       Cuando presiona "Volver al Inicio" en la Confirmación
 Tipo:         User Interaction
-Descripción:  Resetea form a su estado en blanco (conservando el mismo captchaID) y
-              step = 'auth'. Permite iniciar un segundo reporte sin recargar la
-              página, pero ese captchaID ya fue consumido por el envío anterior
-              (L2): el segundo envío recibe 400 de captcha y un id nuevo.
+Descripción:  Resetea form a su estado en blanco y vuelve al paso inicial ('usuario'
+              o 'auth'). Pide un captchaID nuevo a la propia página con
+              Accept: application/json (T2, L2 resuelta): el anterior ya fue
+              consumido por el envío. Permite iniciar un segundo reporte sin
+              recargar la página.
 Requerido:    Sí
+```
+
+---
+
+### E-12 — Cuando responde "¿Tiene usuario?"
+
+📄 [Ver flujo → flow-E12-cuando-responde-tiene-usuario.md](Flujos/flow-E12-cuando-responde-tiene-usuario.md)
+
+```
+Evento:       Cuando responde "¿Tiene usuario?"
+Tipo:         User Interaction
+Descripción:  Paso inicial del wizard (T8). Sin sesión: «Sí, iniciar sesión» va a
+              /seguridad/login?next=/salvia/public-v2/nuevo y «No, continuar sin
+              usuario» sigue al paso de autorización como anónimo. Con sesión de
+              en, op o et: aviso «Está reportando como …» y «Continuar».
+Requerido:    Sí
+```
+
+---
+
+### E-13 — Cuando presiona "Copiar radicado"
+
+📄 [Ver flujo → flow-E13-cuando-presiona-copiar-radicado.md](Flujos/flow-E13-cuando-presiona-copiar-radicado.md)
+
+```
+Evento:       Cuando presiona "Copiar radicado" en la Confirmación
+Tipo:         User Interaction
+Descripción:  Copia el radicado al portapapeles (API del navegador, con respaldo
+              execCommand) y muestra «Copiado» 3 s; si el navegador lo impide
+              muestra un aviso para copiarlo a mano (T3). Sin llamada a backend.
+Requerido:    No
 ```
 
 ---
@@ -231,10 +274,10 @@ Requerido:    Sí
 ## Checklist de completitud
 
 - [x] ¿El ciclo de vida inicial (carga de datos) está cubierto? → E-01
-- [x] ¿Toda acción del usuario sobre la UI propia de la pantalla está cubierta? → E-02 a E-11
+- [x] ¿Toda acción del usuario sobre la UI propia de la pantalla está cubierta? → E-02 a E-13
 - [x] ¿Hay lógica de backend desacoplada de la respuesta HTTP? → No (E-10 es síncrono: valida, escribe, responde)
 - [x] ¿Hay scheduled tasks o webhooks? → No
 - [x] ¿Hay sockets o notificaciones en tiempo real? → No
 
-**Total: 11 eventos — 1 Lifecycle, 10 User Interaction (de los cuales solo E-10 escribe en el backend).**
+**Total: 13 eventos — 1 Lifecycle, 12 User Interaction (de los cuales solo E-10 escribe en el backend).**
 **Todos los eventos tienen flujo documentado (módulo nuevo → modo Metódico, sin excepciones).**

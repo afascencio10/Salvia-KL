@@ -84,3 +84,8 @@ PASO 3 — Traducir filter_estado_reporte a una condición SQL (se une con AND a
 | Variable / decisión                                                  | Resolución |
 |-----------------------------------------------------------------------|------------|
 | Etiquetas exactas del <select> (texto visible) | "Sin asignar", "Asignado", "Cerrado — válido", "Cerrado — inválido" (en ese orden, con raya larga) + la opción "Todos / Todas" que agrega el componente |
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🆕 CAMBIOS DE WP-1 T7 (2026-11-02) — aplica también a Mis Reportes
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Opción nueva «Borrador iniciado» (`borrador_iniciado`) en el dropdown (`list_reportes.html` y `get_my_reportes.html`). Condiciones SQL: `borrador_iniciado` = reporte abierto con el caso de Registro V3 vinculado más reciente en `bo`/`in`; `cerrado_valido` = motivo `ap` **o** reporte abierto con ese caso en `te`/`cd`; `asignado` y `sin_asignar` agregan «sin caso de Registro V3 vinculado».

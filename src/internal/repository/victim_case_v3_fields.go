@@ -1,6 +1,9 @@
 package repository
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // victimCaseV3FormFields mapea cada pregunta de Registro V3 (por FieldKey
 // "{MODULO}_{orden}", módulo = CI/DP/CA/HV/AG/TZ/GS, o TZP/TZNP para las
@@ -57,10 +60,11 @@ var victimCaseV3FormFields = []VictimCaseFormField{ //nolint:gochecknoglobals
 	{FieldKeyV3("DP", 24), "victim_case_form2_housing_stratum", KindEnum1},
 	{FieldKeyV3("DP", 25), "", KindEnumN}, // Personas a cargo
 	{FieldKeyV3("DP", 26), "victim_case_form2_currently_pregnant", KindBoolEnum},
-	{FieldKeyV3("DP", 27), "", KindText},                                // Departamento residencia -- cascada UI, no se proyecta
-	{FieldKeyV3("DP", 28), "victim_case_form2_residence_town", KindText}, // bootstrap también (ver CreateDraftV3)
+	{FieldKeyV3("DP", 27), "victim_case_form2_residence_department", KindText}, // Departamento residencia (REG-11: antes no se guardaba)
+	{FieldKeyV3("DP", 28), "victim_case_form2_residence_town", KindText},       // bootstrap también (ver CreateDraftV3)
 	{FieldKeyV3("DP", 29), "victim_case_form2_residence_address", KindText},
 	{FieldKeyV3("DP", 30), "victim_case_form2_residence_zone", KindEnum1},
+	{FieldKeyV3("DP", 51), "victim_case_form2_disability_type", KindEnum1}, // Tipo de discapacidad (REG-08), solo si DP_2 = Sí
 
 	// ── CA — Contacto de apoyo ───────────────────────────────────────────────
 	{FieldKeyV3("CA", 1), "victim_case_form2_support_contact_names", KindText},
@@ -72,7 +76,7 @@ var victimCaseV3FormFields = []VictimCaseFormField{ //nolint:gochecknoglobals
 	{FieldKeyV3("HV", 1), "victim_case_form2_facts_description", KindText},
 	{FieldKeyV3("HV", 2), "victim_case_form2_facts_date", KindDate},
 	{FieldKeyV3("HV", 3), "victim_case_form2_facts_start_time", KindTime},
-	{FieldKeyV3("HV", 4), "", KindText}, // Departamento hechos -- cascada UI
+	{FieldKeyV3("HV", 4), "victim_case_form2_facts_department", KindText}, // Departamento hechos (REG-11: antes no se guardaba)
 	{FieldKeyV3("HV", 5), "victim_case_form2_facts_town_code", KindText},
 	{FieldKeyV3("HV", 6), "victim_case_form2_facts_zone", KindEnum1},
 	{FieldKeyV3("HV", 7), "victim_case_form2_facts_address", KindText},
@@ -126,6 +130,7 @@ var victimCaseV3FormFields = []VictimCaseFormField{ //nolint:gochecknoglobals
 	{FieldKeyV3("GS", 17), "victim_case_form2_identifies_barriers", KindBoolEnum},
 	{FieldKeyV3("GS", 18), "victim_case_form2_wants_imminent_alert", KindBoolEnum},
 	{FieldKeyV3("GS", 19), "victim_case_form2_imminent_alert_note", KindText}, // justificación, solo si Q18=true
+	{FieldKeyV3("GS", 20), "", KindEnumN},                                     // REG-16: elementos psicosociales integrados en el acompañamiento (14 + «Ninguno»)
 }
 
 // victimCaseV3TamizajeBranchFields -- ramas pareja/no-pareja del Tamizaje
@@ -134,7 +139,35 @@ var victimCaseV3FormFields = []VictimCaseFormField{ //nolint:gochecknoglobals
 var victimCaseV3TamizajePareja = []VictimCaseFormField{} //nolint:gochecknoglobals
 var victimCaseV3TamizajeNoPareja = []VictimCaseFormField{} //nolint:gochecknoglobals
 
+// victimCaseV3TamizajeGenerales -- TZ_1..TZ_8 (las 7 preguntas generales y la de prejuicio, VPP): se toman de
+// victimCaseV3FormFields en init(). SaveTamizajeBranch las guarda junto con la rama activa (REG-12).
+var victimCaseV3TamizajeGenerales = []VictimCaseFormField{} //nolint:gochecknoglobals
+
+// victimCaseV3TamizajeResto -- columnas del «resto» del Tamizaje, que solo se pregunta si alguna de las cinco
+// iniciales (TZ_1, 2, 3, 4, 7) es «Sí»: TZ_5, TZ_6, TZ_8 y las 24 de cada rama (REG-34). Se llena en init().
+var victimCaseV3TamizajeResto = []string{} //nolint:gochecknoglobals
+
+// tamizajeTieneResto -- ¿vino alguna respuesta del «resto» del Tamizaje en este guardado?
+func tamizajeTieneResto(answersByKey map[string]string) bool {
+	for k := range answersByKey {
+		if k == "TZ_5" || k == "TZ_6" || k == "TZ_8" || strings.HasPrefix(k, "TZP_") || strings.HasPrefix(k, "TZNP_") {
+			return true
+		}
+	}
+	return false
+}
+
 func init() {
+	for _, f := range victimCaseV3FormFields {
+		if strings.HasPrefix(f.Key, "TZ_") {
+			victimCaseV3TamizajeGenerales = append(victimCaseV3TamizajeGenerales, f)
+		}
+	}
+	for _, f := range victimCaseV3TamizajeGenerales {
+		if f.Key == "TZ_5" || f.Key == "TZ_6" || f.Key == "TZ_8" {
+			victimCaseV3TamizajeResto = append(victimCaseV3TamizajeResto, f.Column)
+		}
+	}
 	for i := 1; i <= 24; i++ {
 		victimCaseV3TamizajePareja = append(victimCaseV3TamizajePareja, VictimCaseFormField{
 			Key:    FieldKeyV3("TZP", i),
@@ -146,7 +179,19 @@ func init() {
 			Column: fmt.Sprintf("victim_case_form2_tzv3_np%d", i),
 			Kind:   KindBoolEnum,
 		})
+		victimCaseV3TamizajeResto = append(victimCaseV3TamizajeResto,
+			fmt.Sprintf("victim_case_form2_tzv3_p%d", i), fmt.Sprintf("victim_case_form2_tzv3_np%d", i))
 	}
+}
+
+// victimCaseV3NullableColumns -- columnas de victim_case_form2 que admiten NULL y NO llevan valor
+// marcador al crear el borrador: "sin respuesta" = NULL. Un enum de otra categoría no sirve de
+// marcador, y un texto vacío no distingue "no respondió". insertDummyForm2Row las deja NULL y
+// resolveFieldUpdates escribe NULL cuando la respuesta llega vacía.
+var victimCaseV3NullableColumns = map[string]bool{ //nolint:gochecknoglobals
+	"victim_case_form2_facts_department":     true,
+	"victim_case_form2_disability_type":      true,
+	"victim_case_form2_residence_department": true,
 }
 
 // victimCaseV3EnumNCategories -- campos KindEnumN (sin columna propia, van a
@@ -179,6 +224,7 @@ var victimCaseV3EnumNCategories = map[string][]string{ //nolint:gochecknoglobals
 	FieldKeyV3("GS", 10): {"victim_case_form2_men_criteria"},
 	FieldKeyV3("GS", 11): {"victim_case_form2_disability_service"},
 	FieldKeyV3("GS", 12): {"victim_case_form2_stabiliz_criteria"},
+	FieldKeyV3("GS", 20): {"victim_case_form2_psychosocial_elements"}, // REG-16
 }
 
 // victimCaseV3EnumCategories -- catálogo completo de categorías que expone
@@ -193,7 +239,7 @@ var victimCaseV3EnumCategories = []string{ //nolint:gochecknoglobals
 	"victim_case_form2_ethnic_affiliation", "victim_case_form2_indigenous_people", "victim_case_form2_marital_status",
 	"victim_case_form2_last_education_level", "victim_case_form2_occupation", "victim_case_form2_income_generation_method",
 	"victim_case_form2_employment_relationship", "victim_case_form2_housing_tenancy_form", "victim_case_form2_housing_stratum",
-	"victim_case_form2_residence_zone", "victim_case_form2_facts_zone", "victim_case_form2_scenario_violence",
+	"victim_case_form2_residence_zone", "victim_case_form2_disability_type", "victim_case_form2_facts_zone", "victim_case_form2_scenario_violence",
 	"victim_case_form2_workplace_sector_occurrence", "victim_case_form2_recurrence_aggression", "victim_case_form2_num_agressors",
 	"victim_case_form2_proximity_principal_aggressor", "victim_case_form2_relationship_with_presumed_aggressor_01",
 	"victim_case_form2_relationship_with_presumed_aggressor_02", "victim_case_form2_aggressors_occupation",
@@ -213,4 +259,5 @@ var victimCaseV3EnumCategories = []string{ //nolint:gochecknoglobals
 	"victim_case_form2_barrier_institutional", "victim_case_form2_barrier_economic", "victim_case_form2_barrier_territorial",
 	"victim_case_form2_barrier_differential", "victim_case_form2_barrier_management", "victim_case_form2_barrier_response",
 	"victim_case_form2_barrier_close_reason",
+	"victim_case_form2_psychosocial_elements", // REG-16 (GS_20)
 }

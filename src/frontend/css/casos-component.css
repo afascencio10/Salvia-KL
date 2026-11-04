@@ -1024,6 +1024,13 @@
     border-color: #93c5fd;
 }
 
+/* borrador_iniciado */
+.cc-report-status-borrador_iniciado {
+    background: #fef3c7;
+    color: #b45309;
+    border-color: #fcd34d;
+}
+
 /* cerrado_valido */
 .cc-report-status-cerrado_valido {
     background: #d1fae5;

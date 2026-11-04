@@ -47,7 +47,12 @@ PASO 2 — Mostrar resultados
   SI la petición falla: errorBusqueda = "Error al buscar."
   → CONTINÚA FLUJO GENERAL
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━CAMBIO WP-3 (2026-11-02 · REG-04a) — PASO 2:
+  Columna "Estado" de la tabla = etiquetaEstado(status): bo Borrador · in Iniciado · te Terminado · cd Cerrado · ra Activo · is Con novedad ·
+  ex Vencido · r Por aprobar · fc Recontacto · c Completado · iv Inválido · otro "Desconocido". Nunca se muestra el código crudo.
+  (El Cabezote devuelve Casos de cualquier estado, por eso el diccionario cubre los 11 códigos del listado de casos.)
+
+━━━━
 ⚠️  GAPS — Información pendiente
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 | Variable / decisión | Paso afectado |

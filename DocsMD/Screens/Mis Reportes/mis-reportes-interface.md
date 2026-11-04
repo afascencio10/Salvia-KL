@@ -36,7 +36,7 @@ get_my_reportes.html  (.salvia-main)
 │       { key: 'contact_scheme',    label: 'Esquema 3x3' },
 │       { key: 'report_status',     label: 'Estado' },
 │       // sin 'assigned_agent' — siempre es el usuario actual, redundante
-│       { key: 'registration_date', label: 'Fecha Reporte' },   // HOY SALE "—": la celda lee creationDateCO y ReportListItem no lo trae (H11)
+│       { key: 'registration_date', label: 'Fecha Reporte' },   // la celda lee creationDateCO ("AAAA-MM-DD" en hora de Bogotá, lo trae ReportListItem desde WP-2/REP-12) y lo muestra DD/MM/AAAA sin new Date()
 │   ]"
 │   :available-filters="[
 │       { key: 'estado_reporte', type: 'dropdown', label: 'Estado del reporte', options: [...] },

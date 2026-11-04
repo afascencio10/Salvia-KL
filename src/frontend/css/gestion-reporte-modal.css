@@ -116,6 +116,19 @@
     color: #6b7280;
 }
 
+.grm-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    margin-top: 4px;
+    font-size: 0.78rem;
+    color: #6b7280;
+}
+.grm-phone i { font-size: 0.7rem; margin-right: 3px; }
+.grm-radicado { font-family: monospace; font-weight: 700; color: #5106a7; }
+
+.grm-info { margin-bottom: 14px; }
+.grm-info-title { margin: 0 0 8px; font-size: 0.95rem; font-weight: 800; color: #5106A7; }
 .grm-info p { margin: 0 0 8px; font-size: 0.88rem; color: #333; line-height: 1.5; }
 .grm-hechos-box {
     background: #f9fafb;
@@ -231,6 +244,27 @@
 .grm-closed h3 { margin: 0 0 8px; font-size: 1.05rem; color: #1a1a1a; }
 .grm-closed p { margin: 0 0 6px; font-size: 0.88rem; color: #4b5563; }
 .grm-closed .grm-btn { margin-top: 14px; }
+
+/* ── Registro de caso (T7) ── */
+
+.grm-btn--wide { grid-column: 1 / -1; }
+.grm-confirm-text { margin: 0 0 12px; font-size: 0.85rem; color: #374151; line-height: 1.5; }
+.grm-notice-info {
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1e40af;
+    font-size: 0.85rem;
+}
+.grm-draft { padding: 6px 0 4px; }
+.grm-draft h4 { margin: 0 0 6px; font-size: 1rem; color: #1a1a1a; }
+
+/* ── Historial del reporte ── */
+
+.grm-history { margin-top: 22px; padding-top: 16px; border-top: 1px solid #eee; }
+.grm-history-title { margin: 0 0 12px; font-size: 0.95rem; font-weight: 800; color: #5106A7; }
 
 @media (max-width: 480px) {
     .grm-button-grid--2,

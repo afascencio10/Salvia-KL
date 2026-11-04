@@ -1,5 +1,9 @@
 # `Registro V3` — Índice
 
+> 🔄 **Actualizado el 2026-11-02 (WP-2: REG-07/08/09/10/11/12/34).** Hora del hecho como selector, pregunta «Tipo de discapacidad» (DP_51), opciones Rural/Urbano, etiquetas correctas de subtipos, guardado atómico y validado con avisos visibles (flow-E21), Tamizaje en tablas y por etapas. Detalle en [`changelogNov2026.md`](changelogNov2026.md).
+>
+> 🔄 **Actualizado el 2026-11-04 (WP-4: REG-14/15/16/17/18/19/20/38\*, REG-04 c).** «Gestión Salvia» es ahora **«Plan de acción Salvia»** y existe un módulo nuevo, **«Ruta de atención integral»** (eventos propios en [`../Ruta de atención integral/`](../Ruta%20de%20atenci%C3%B3n%20integral/ruta-atencion-integral-index.md)). Eventos modificados: E10, E11, E12, E15, E17 y E18; flujo nuevo [«Materializar el borrador»](Flujos/flow-subflujo-materializar-borrador.md) (no es un evento de usuario: corre al pasar el Caso de Borrador a Iniciado). Entidades y barreras se guardan en un borrador JSON mientras el Caso es Borrador y quedan de solo lectura después. El contrato de la API no cambia: solo se agregan campos opcionales y el 409 de solo lectura.
+>
 > ✅ **Implementado el 2026-10-14/15 y sincronizado con el código el 2026-10-31.** Ruta `GET /salvia/registro-v3`, roles `op` y `sv` (permiso `manage_registro_v3`), sin entrada en el menú lateral. Cada evento lleva su estado: ✅ implementado · 🟡 implementado con cambios respecto a la planeación · ⛔ no implementado. Resumen del cambio en [`changelogOct2026.md`](changelogOct2026.md).
 
 ## Navegación
@@ -8,6 +12,7 @@
 |---|---|
 | [registro-v3-interface.md](registro-v3-interface.md) | Árbol de interfaz real y tabla "planeado y no implementado" |
 | [registro-v3-data.md](registro-v3-data.md) | Decisiones de arquitectura, mapeo a base de datos real y estado de los GAPS |
+| [../Ruta de atención integral/](../Ruta%20de%20atenci%C3%B3n%20integral/ruta-atencion-integral-index.md) | Módulo nuevo «Ruta de atención integral» (WP-4 · REG-17): interfaz, eventos RA-E01…E08, tablas y QA |
 
 ### Otros MDs
 
@@ -17,11 +22,12 @@
 | [registro-v3-parrafo-sintesis.md](registro-v3-parrafo-sintesis.md) | Reglas del párrafo síntesis (módulo GS y pantalla de Cierre) |
 | [registro-v3-pendientes.md](registro-v3-pendientes.md) | Reconciliación planeación↔código del 2026-10-15: qué se corrigió y cómo se probó |
 | [QA/registro-v3-qa-plan.md](QA/registro-v3-qa-plan.md) | Plan de QA con Playwright, hallazgos y bugs corregidos |
-| [QA/](QA/) | Casos de prueba por tema: [cabezote](QA/E04-E06-cabezote-qa-cases.md) · [condicionales](QA/condicionales-formulario-qa-cases.md) · [entidades y barreras](QA/entidades-barreras-qa-cases.md) · [finalizar y alerta](QA/finalizar-y-alerta-qa-cases.md) · [gestión Salvia y remisión](QA/gestion-salvia-remision-qa-cases.md) · [tríada y guardado](QA/triada-y-guardado-qa-cases.md) · [tamizaje](QA/tamizaje-qa-cases.md) · [E2E](QA/registro-v3-e2e-qa-cases.md) · [implementación completa](QA/implementacion-completa-2026-10-15-qa-cases.md) |
+| [QA/](QA/) | Casos de prueba por tema: [cabezote](QA/E04-E06-cabezote-qa-cases.md) · [condicionales](QA/condicionales-formulario-qa-cases.md) · [entidades y barreras](QA/entidades-barreras-qa-cases.md) · [finalizar y alerta](QA/finalizar-y-alerta-qa-cases.md) · [gestión Salvia y remisión](QA/gestion-salvia-remision-qa-cases.md) · [tríada y guardado](QA/triada-y-guardado-qa-cases.md) · [tamizaje](QA/tamizaje-qa-cases.md) · [E2E](QA/registro-v3-e2e-qa-cases.md) · [implementación completa](QA/implementacion-completa-2026-10-15-qa-cases.md) · WP-2 (2026-11-02): [E11 respuestas y Tamizaje](QA/E11-actualizar-respuesta-y-tamizaje-qa-cases.md) · [E12 guardar sección](QA/E12-guardar-seccion-qa-cases.md) · [E21 guardado o carga fallida](QA/E21-guardado-o-carga-fallida-qa-cases.md) · WP-3: [tríada, guardado y cierre](QA/E12-E15-triada-guardado-y-cierre-wp3-qa-cases.md) · [menú, flechas y avance](QA/E10-E22-E23-navegacion-wp3-qa-cases.md) · [encabezado y estados](QA/E04-encabezado-estados-wp3-qa-cases.md) · [sesión perdida](QA/sesion-perdida-wp3-qa-cases.md) |
 
 ### Changelogs
 
 - [changelogOct2026.md](changelogOct2026.md)
+- [changelogNov2026.md](changelogNov2026.md) — WP-2: datos, catálogos y Tamizaje (REG-07/08/09/10/11/12/34); WP-1 T7: abrir un borrador creado desde un reporte (`?caso=`); WP-3: navegación, guardado y cierre; WP-4: Plan de acción, Ruta de atención integral, entidades y barreras (REG-14/15/16/17/18/19/20/38\*)
 
 ---
 
@@ -32,21 +38,26 @@
 | Cuando carga la pantalla de Registro | Lifecycle | 🟡 | 📄 [Ver flujo](Flujos/flow-E01-cuando-carga-la-pantalla.md) |
 | Cuando responde la autorización de datos personales | User Interaction | ✅ | 📄 [Ver flujo](Flujos/flow-E02-cuando-responde-habeas-data.md) |
 | Cuando selecciona el tipo de contacto | User Interaction | 🟡 | 📄 [Ver flujo](Flujos/flow-E03-cuando-selecciona-tipo-contacto.md) |
-| Cuando busca en el Cabezote | User Interaction | 🟡 | 📄 [Ver flujo](Flujos/flow-E04-cuando-busca-en-cabezote.md) |
+| Cuando busca en el Cabezote | User Interaction | 🟡 (Estado con nombre, WP-3) | 📄 [Ver flujo](Flujos/flow-E04-cuando-busca-en-cabezote.md) |
 | Cuando presiona "Limpiar" en el Cabezote | User Interaction | ⛔ | 📄 [Ver flujo](Flujos/flow-E05-cuando-limpia-busqueda.md) |
 | Cuando presiona "Nuevo Registro" | User Interaction | 🟡 | 📄 [Ver flujo](Flujos/flow-E06-cuando-presiona-nuevo-registro.md) |
 | Cuando presiona "Proceder al formulario" (hoy: "Abrir") | User Interaction | 🟡 | 📄 [Ver flujo](Flujos/flow-E07-cuando-procede-al-formulario.md) |
 | Cuando presiona "Nuevo Caso en Registro existente" | User Interaction | ⛔ | 📄 [Ver flujo](Flujos/flow-E08-cuando-presiona-nuevo-caso-en-registro.md) |
 | Cuando presiona "Actualizar Caso" | User Interaction | ⛔ | 📄 [Ver flujo](Flujos/flow-E09-cuando-presiona-actualizar-caso.md) |
-| Cuando cambia de módulo | User Interaction | 🟡 | 📄 [Ver flujo](Flujos/flow-E10-cuando-cambia-de-modulo.md) |
-| Cuando actualiza una respuesta del formulario | User Interaction | 🟡 | 📄 [Ver flujo](Flujos/flow-E11-cuando-actualiza-una-respuesta.md) |
-| Cuando guarda una sección/módulo | User Interaction | 🟡 | 📄 [Ver flujo](Flujos/flow-E12-cuando-guarda-una-seccion.md) |
+| Cuando cambia de módulo | User Interaction | 🟡 (menú vertical de 8 módulos; solo TZ bloqueado, WP-3; módulo nuevo RA, WP-4) | 📄 [Ver flujo](Flujos/flow-E10-cuando-cambia-de-modulo.md) |
+| Cuando actualiza una respuesta del formulario | User Interaction | 🟡 (WP-4: GS_20 con «Ninguno» excluyente; formulario de barrera y de entidad con visibilidad propia) | 📄 [Ver flujo](Flujos/flow-E11-cuando-actualiza-una-respuesta.md) |
+| Cuando guarda una sección/módulo | User Interaction | 🟡 (tríada real, faltantes en rojo, avanza, WP-3; WP-4: «Guardar sección» de la Ruta, y al completar la tríada se materializa el borrador) | 📄 [Ver flujo](Flujos/flow-E12-cuando-guarda-una-seccion.md) |
 | Cuando presiona "Alerta inminente" | User Interaction | 🟡 (campos GS_18/GS_19, sin botón) | 📄 [Ver flujo](Flujos/flow-E13-cuando-presiona-alerta-inminente.md) |
 | Cuando abandona la pantalla sin finalizar | User Interaction + Lifecycle | ✅ | 📄 [Ver flujo](Flujos/flow-E14-cuando-abandona-sin-finalizar.md) |
-| Cuando presiona "Finalizar registro y enrutar a Seguimiento" | User Interaction | 🟡 | 📄 [Ver flujo](Flujos/flow-E15-cuando-finaliza-y-enruta-a-seguimiento.md) |
+| Cuando presiona "Finalizar registro y enrutar a Seguimiento" | User Interaction | 🟡 (guarda GS antes de validar, WP-3; WP-4: GS_2 ya no es obligatoria, GS_14 y GS_17 se contestan en la Ruta) | 📄 [Ver flujo](Flujos/flow-E15-cuando-finaliza-y-enruta-a-seguimiento.md) |
 | Cuando presiona un acceso de Rutas/Barreras/Notificaciones | User Interaction | ⛔ (fuera de alcance) | 📄 [Ver flujo](Flujos/flow-E16-cuando-presiona-rutas-barreras-notificaciones.md) |
-| Cuando agrega o elimina una Entidad | User Interaction | 🟡 | 📄 [Ver flujo](Flujos/flow-E17-cuando-agrega-o-elimina-una-entidad.md) |
-| Cuando agrega o elimina una Barrera | User Interaction | 🟡 | 📄 [Ver flujo](Flujos/flow-E18-cuando-agrega-o-elimina-una-barrera.md) |
+| Cuando agrega o elimina una Entidad | User Interaction | 🟡 (WP-4: borrador JSON, tipo por módulo, canales, solo lectura) | 📄 [Ver flujo](Flujos/flow-E17-cuando-agrega-o-elimina-una-entidad.md) |
+| Cuando agrega o elimina una Barrera | User Interaction | 🟡 (WP-4: formulario de Seguimiento v4, borrador JSON, solo lectura) | 📄 [Ver flujo](Flujos/flow-E18-cuando-agrega-o-elimina-una-barrera.md) |
+| Cuando carga la pantalla con un registro de origen (`?caso=`) | Lifecycle | ✅ (WP-1 T7) | 📄 [Ver flujo](Flujos/flow-E19-cuando-carga-con-registro-de-origen.md) |
+| Cuando un guardado o una carga falla | User Interaction (manejo de errores) | ✅ | 📄 [Ver flujo](Flujos/flow-E21-cuando-un-guardado-o-una-carga-falla.md) |
+| Cuando presiona «Siguiente» entre módulos | User Interaction | ✅ (WP-3 · REG-01) | 📄 [Ver flujo](Flujos/flow-E22-cuando-presiona-siguiente.md) |
+| Cuando presiona «Anterior» entre módulos | User Interaction | ✅ (WP-3 · REG-01) | 📄 [Ver flujo](Flujos/flow-E23-cuando-presiona-anterior.md) |
+| *(Sub-flujo, sin número E)* Materializar el borrador al pasar el Caso de Borrador a Iniciado | Backend (dentro de E12) | ✅ (WP-4 · REG-38\*) | 📄 [Ver flujo](Flujos/flow-subflujo-materializar-borrador.md) |
 
 ## API que usa la pantalla
 
@@ -57,13 +68,14 @@ Todas bajo `/api/v1`, con sesión y permiso `manage_registro_v3` (sin sesión 40
 | `GET /victim-cases-v3/enums` | E-01 | Catálogo de opciones `{code, icode, label}` por categoría de `victim_case_form2_enums` (el frontend resuelve todos los dropdowns y checkboxes contra él) |
 | `GET /victim-cases-v3/buscar?tipo_documento&documento&telefono` | E-04, E-11 | Casos que coinciden → `{registros: [{icode, names, lastNames, docType, docNumber, phone, status, registroCompleto}]}`. 400 si no hay documento ni teléfono. Si viene documento busca **solo por documento** (más el tipo si se envía) e ignora el teléfono; sin documento, busca por teléfono |
 | `POST /victim-cases-v3/draft` `{tipo_documento, documento, telefono, municipio_residencia, canal}` | E-06 | Crea el Borrador (`general_user` + `victim_case` `bo` + `victim_case_form2` con valores dummy) → `{icode}`. El frontend solo manda tipo, documento y teléfono |
-| `GET /victim-cases-v3/:icode` | E-07, E-17, E-18 | Estado completo: `summary`, `answers`, `answeredKeys`, `triadaCompleta`, `entities`, `barriers`, `tzResultado` |
-| `POST /victim-cases-v3/:icode/seccion/:modulo` `{answers}` | E-12, E-14 | Guarda CI/DP/CA/HV/AG/GS → `{ok, triadaCompleta}`; pasa `bo`→`in` cuando la tríada queda completa |
-| `POST /victim-cases-v3/:icode/tamizaje` `{answers, wasPartner, esOsigd, subtipoFeminicidio, subtipoHomicidioAbyecto}` | E-11 | Calcula tipo, nivel y puntaje → `{riskType, riskLevel, score, tieFlag}` |
-| `POST /victim-cases-v3/:icode/finalizar` | E-15 | Valida obligatorias y pasa `in`→`te` → `{ok, denunciaFacilSolicitada, equiposRemisionCSV}`; 400 `{error, modulosIncompletos}` |
-| `POST /victim-cases-v3/:icode/entidades` · `DELETE /victim-cases-v3/entidades/:entityIcode` | E-17 | Alta (409 si la sede ya está en el Caso) y baja lógica en `entity_case` |
-| `POST /victim-cases-v3/:icode/barreras` · `DELETE /victim-cases-v3/barreras/:barrierIcode` | E-18 | Alta y baja en `barrier_v2` |
-| `GET /locations/departments`, `/locations/cities?department_id`, `/locations/towns?city_id` · `GET /entity-branches?town_code&sector` · `GET /entity-branches/:id/obligations` · `GET /competences?sector` | E-17, E-18 | Catálogos compartidos con Gestión institucional y Seguimiento |
+| `GET /victim-cases-v3/:icode` | E-07, E-17, E-18 | Estado completo: `summary`, `answers` (fechas `AAAA-MM-DD`, horas `HH:MM`; la fecha marcador 1900-01-01 no se devuelve), `answeredKeys`, `triadaCompleta`, `entities`, `barriers` (en `bo` unen el borrador JSON con las tablas), `tzResultado` y, desde WP-4, `entityMeta` (por `entityBranchId`: tipo, acuerdo, debida diligencia, canales, fecha de reporte, gestiones, acciones), `barrierMeta` (por id de barrera: vereda o zona, perspectiva profesional, descripción de la gestión) y `entitiesReadOnly` |
+| `POST /victim-cases-v3/:icode/seccion/:modulo` `{answers}` | E-12, E-14, E-21 | Guarda CI/DP/CA/HV/AG/GS **en una sola transacción** → `{ok, triadaCompleta}`; pasa `bo`→`in` cuando la tríada queda completa. Un dato con formato, tamaño u opción inválidos responde **400** `{error:"valor no válido", campo, detalle}` y no guarda nada (ni marca claves como respondidas); cualquier otra falla, 500 | **`triadaCompleta` es el valor real para cualquier módulo** (también TZ y GS; WP-3 · REG-35).
+| `POST /victim-cases-v3/:icode/tamizaje` `{answers, wasPartner, esOsigd, subtipoFeminicidio, subtipoHomicidioAbyecto}` | E-11 | Calcula tipo, nivel y puntaje → `{riskType, riskLevel, score, tieFlag}` y guarda (en una transacción) las preguntas generales TZ_1..TZ_8 y la rama activa. Con solo las 5 iniciales el resto queda en «No» sin marcarse como respondido. Un Caso inexistente responde error, no 200 |
+| `POST /victim-cases-v3/:icode/finalizar` | E-15 | Valida obligatorias y pasa `in`→`te` → `{ok, denunciaFacilSolicitada, equiposRemisionCSV}`; 400 `{error, modulosIncompletos}` | El 400 incluye `camposFaltantes` (llaves sin responder, ordenadas; WP-3 · REG-37).
+| `POST /victim-cases-v3/:icode/entidades` · `DELETE /victim-cases-v3/entidades/:entityIcode` | E-17 | **Con el Caso en Borrador** el alta va al borrador JSON (id `d~<icode>~<uuid>`; 409 si la sede ya está en el borrador o en `entity_case`) y la baja del borrador quita también sus barreras (404 si el id no existe). **Con el Caso ya Iniciado** responde **409** `{error, readOnly: true}` (solo lectura, WP-4 · D20). Campos nuevos del alta: `Solicitud`, `ReportDate`, `ActivationChannels[]`, `Agreement`, `DueDiligence`, `ManagementNotes` (`ActivationChannel` en texto se sigue aceptando) |
+| `POST /victim-cases-v3/:icode/barreras` · `DELETE /victim-cases-v3/barreras/:barrierIcode` | E-18 | Igual que entidades: borrador JSON en `bo`, 409 `readOnly` después. Campos nuevos del alta: `Institution`, `Zone`, `ProfessionalPerspective`, `ManagementDescription`; `Management` es `activacion` y/o `alerta` (los códigos 01–06 y `Competences` de clientes anteriores se siguen aceptando) |
+| `POST /victim-cases-v3/desde-reporte/:icode` *(WP-1 T7)* | Modal de gestión de reportes (M-10) · E-19 | Crea el Borrador de caso a partir de un reporte Víctima o Tercero con contacto exitoso: `agent_id` vacío, vínculo `victim_case_victim_contact`, nombres (CI_2), teléfono (CI_4), hechos (HV_1) y ajuste razonable (CI_8) prellenados y marcados como respondidos, y el hito «Borrador de caso iniciado». → `{caseIcode, redirect: "/salvia/registro-v3?caso=<icode>"}`; 409 si el reporte está cerrado, ya tiene borrador (con `caseIcode`), no es Víctima/Tercero o no tiene contacto exitoso. Permisos `manage_victim_contacts` y `manage_registro_v3` (op y sv). Corte vertical nuevo: no modifica `POST /draft` |
+| `GET /locations/departments`, `/locations/cities?department_id`, `/locations/towns?city_id` · `GET /entity-branches?town_code&sector` · `GET /entity-branches/:id/obligations` *(`/competences` ya no lo usa: REG-18 quitó las competencias)* | E-17, E-18 | Catálogos compartidos con Gestión institucional y Seguimiento |
 
 ---
 
@@ -92,7 +104,7 @@ Todas bajo `/api/v1`, con sesión y permiso `manage_registro_v3` (sin sesión 40
 
 **Evento:** Cuando busca en el Cabezote
 **Tipo:** User Interaction · **Estado:** 🟡
-**Descripción:** Busca por documento y/o teléfono (nunca por nombre) en `GET /victim-cases-v3/buscar`. Muestra una tabla única con el estado crudo del Caso y un badge Completo/Incompleto del Registro. No clasifica en reportes/registros/borradores ni consulta reportes pendientes.
+**Descripción:** Busca por documento y/o teléfono (nunca por nombre) en `GET /victim-cases-v3/buscar`. Muestra una tabla única con el **nombre del estado** del Caso (Borrador, Iniciado, Terminado, Cerrado…; nunca el código crudo) y un badge Completo/Incompleto del Registro. No clasifica en reportes/registros/borradores ni consulta reportes pendientes.
 **Requerido:** Sí
 
 ---
@@ -106,14 +118,14 @@ Todas bajo `/api/v1`, con sesión y permiso `manage_registro_v3` (sin sesión 40
 
 **Evento:** Cuando presiona "Nuevo Registro"
 **Tipo:** User Interaction · **Estado:** 🟡
-**Descripción:** "+ Nuevo registro" (siempre habilitado) crea un Borrador `bo` con el documento y teléfono buscados y abre el Formulario en CI. No exige confirmar que se trata de otra persona.
+**Descripción:** "+ Nuevo registro" (siempre habilitado) crea un Borrador `bo` con el documento y teléfono buscados y abre el Formulario en CI. No exige confirmar que se trata de otra persona. Si el borrador no se puede crear, el Cabezote lo avisa (flow-E21).
 **Requerido:** Sí
 
 ---
 
 **Evento:** Cuando presiona "Proceder al formulario"
 **Tipo:** User Interaction · **Estado:** 🟡
-**Descripción:** Hoy es el botón "Abrir" de cada fila del Cabezote (`abrirCaso`): carga el Caso con sus respuestas y abre el Formulario en CI. No registra trazabilidad de quién lo retoma.
+**Descripción:** Hoy es el botón "Abrir" de cada fila del Cabezote (`abrirCaso`): carga el Caso con sus respuestas y abre el Formulario en CI (si el Caso no carga, el Cabezote muestra «No se pudo abrir el registro…», flow-E21). No registra trazabilidad de quién lo retoma.
 **Requerido:** Sí
 
 ---
@@ -134,21 +146,35 @@ Todas bajo `/api/v1`, con sesión y permiso `manage_registro_v3` (sin sesión 40
 
 **Evento:** Cuando cambia de módulo
 **Tipo:** User Interaction · **Estado:** 🟡
-**Descripción:** Las pestañas CI…GS cambian `moduloActivo`. TZ y GS están bloqueadas (🔒) mientras `!triadaCompleta` y muestran un aviso en vez de navegar. No hay barras de progreso.
+**Descripción:** Los ítems del **menú vertical** (uno por módulo de `modulos[]`, con su porcentaje de avance) cambian `moduloActivo`. Solo el Tamizaje se bloquea (🔒) mientras `!triadaCompleta` y muestra un aviso en vez de navegar; Gestión Salvia se abre siempre. También lo disparan «Siguiente», «Anterior» y el avance automático tras guardar.
 **Requerido:** Sí
 
 ---
 
 **Evento:** Cuando actualiza una respuesta del formulario
 **Tipo:** User Interaction · **Estado:** 🟡
-**Descripción:** Guarda el valor en `answers` y, en la misma ejecución, re-evalúa los condicionales del catálogo, sugiere la nacionalidad según el tipo de documento (nunca pisa una respuesta manual), valida "solo letras" y la máscara de CI_6, avisa de duplicidad de documento (debounce 500 ms), recalcula el tratamiento (Sra./Sr./Sre.) y el criterio de remisión de GS, y en TZ revela el resto de preguntas si alguna inicial es "Sí". El Tamizaje se calcula al presionar "Calcular y guardar Tamizaje", no en cada cambio.
+**Descripción:** Guarda el valor en `answers` y, en la misma ejecución, re-evalúa los condicionales del catálogo, sugiere la nacionalidad según el tipo de documento (nunca pisa una respuesta manual), valida "solo letras" y la máscara de CI_6, avisa de duplicidad de documento (debounce 500 ms), recalcula el tratamiento (Sra./Sr./Sre.) y el criterio de remisión de GS, y en TZ revela el resto de preguntas si alguna inicial es "Sí". Al pasar DP_2 a "No" se limpia DP_51 (tipo de discapacidad). El Tamizaje se presenta en tablas Pregunta/Sí/No y se calcula al presionar "Calcular y guardar Tamizaje", no en cada cambio; el botón aparece con el resto revelado o cuando las 5 iniciales ya están respondidas (con todas en "No" no se pregunta el resto).
 **Requerido:** Sí
 
 ---
 
 **Evento:** Cuando guarda una sección/módulo
 **Tipo:** User Interaction · **Estado:** 🟡
-**Descripción:** "Guardar sección" valida las obligatorias [1er contacto] visibles, "solo letras" y la máscara de CI_6; envía solo las respuestas del módulo a `POST /victim-cases-v3/:icode/seccion/:modulo`. Si la tríada queda completa, el Caso pasa de Borrador a Iniciado.
+**Descripción:** "Guardar sección" valida las obligatorias [1er contacto] visibles (el recordatorio sale en **rojo**), "solo letras" y la máscara de CI_6; envía solo las respuestas del módulo a `POST /victim-cases-v3/:icode/seccion/:modulo`. La tríada que devuelve el servidor es la real para cualquier módulo y en pantalla nunca baja de true a false. Si se guardó, vuelve a leer el encabezado (nombre, documento, estado) y pasa al siguiente módulo no bloqueado (salvo en el último). Si la tríada queda completa, el Caso pasa de Borrador a Iniciado.
+**Requerido:** Sí
+
+---
+
+**Evento:** Cuando presiona «Siguiente» entre módulos
+**Tipo:** User Interaction · **Estado:** ✅ (WP-3 · REG-01)
+**Descripción:** Pasa al siguiente módulo **no bloqueado** de `modulos[]` (salta el Tamizaje mientras la tríada esté incompleta). No guarda: las respuestas sin guardar siguen en pantalla. Deshabilitado en el último módulo.
+**Requerido:** Sí
+
+---
+
+**Evento:** Cuando presiona «Anterior» entre módulos
+**Tipo:** User Interaction · **Estado:** ✅ (WP-3 · REG-01)
+**Descripción:** Vuelve al módulo previo no bloqueado. No guarda. Deshabilitado en el primer módulo.
 **Requerido:** Sí
 
 ---
@@ -162,14 +188,14 @@ Todas bajo `/api/v1`, con sesión y permiso `manage_registro_v3` (sin sesión 40
 
 **Evento:** Cuando abandona la pantalla sin finalizar
 **Tipo:** User Interaction + Lifecycle · **Estado:** ✅
-**Descripción:** "Finalizar llamada (guardar y salir)" guarda el módulo activo sin exigir obligatorias y vuelve al Cabezote. Como respaldo, `beforeunload` envía el módulo activo con `navigator.sendBeacon`.
+**Descripción:** "Finalizar llamada (guardar y salir)" guarda el módulo activo sin exigir obligatorias y vuelve al Cabezote; si el guardado falla avisa y deja elegir entre seguir editando o salir sin guardar. Como respaldo, `beforeunload` envía el módulo activo con `navigator.sendBeacon`.
 **Requerido:** Sí
 
 ---
 
 **Evento:** Cuando presiona "Finalizar registro y enrutar a Seguimiento"
 **Tipo:** User Interaction · **Estado:** 🟡
-**Descripción:** El backend valida las obligatorias incondicionales de los 7 módulos y pasa el Caso a Terminado (`te`). No genera Denuncia fácil ni remisiones: devuelve si se solicitó la denuncia (GS_1) y los equipos de GS_6 para mostrarlos como confirmación en el Cierre. No hay un traspaso aparte: Seguimiento lee las mismas tablas.
+**Descripción:** El backend valida las obligatorias incondicionales de los 7 módulos (del Tamizaje basta con las 5 iniciales, que ya se pueden guardar en «No») y pasa el Caso a Terminado (`te`). No genera Denuncia fácil ni remisiones: devuelve si se solicitó la denuncia (GS_1) y los equipos de GS_6 para mostrarlos como confirmación en el Cierre. No hay un traspaso aparte: Seguimiento lee las mismas tablas. **WP-3:** antes de validar guarda Gestión Salvia (mismas validaciones de «Guardar sección»; si no se guarda, no finaliza); si el servidor rechaza, el aviso lista los módulos y, para GS, los campos que faltan (`camposFaltantes`); un 401 se avisa sin perder lo escrito (REG-37, REG-21).
 **Requerido:** Sí
 
 ---
@@ -183,15 +209,22 @@ Todas bajo `/api/v1`, con sesión y permiso `manage_registro_v3` (sin sesión 40
 
 **Evento:** Cuando agrega o elimina una Entidad
 **Tipo:** User Interaction · **Estado:** 🟡
-**Descripción:** En GS § C se elige sede por Departamento → Ciudad → Municipio + Sector y se agrega a `entity_case` con sus obligaciones (completadas/pendientes). Eliminar pide confirmación (el texto promete borrar también sus barreras, pero el backend solo da de baja la entidad: G-V3-22).
+**Descripción:** Se elige la sede con la cascada obligatoria Departamento → Ciudad → Municipio → Sector y «Buscar entidad» (REG-19) y se agrega con sus acciones institucionales (chips). El tipo lo fija el módulo: **acudida** en «Ruta de atención integral» y **activación** en «Plan de acción Salvia». Con el Caso en Borrador la entidad queda en el borrador JSON (REG-38\*) y, al iniciar el Caso, se materializa en `entity_case` y `entity_case_obligation` con las tareas y oficios de sus canales (REG-20). Eliminar quita también las barreras de esa sede **en el borrador** (G-V3-22 resuelto); después de materializar la sección es de solo lectura (409).
 **Requerido:** No
 
 ---
 
 **Evento:** Cuando agrega o elimina una Barrera
 **Tipo:** User Interaction · **Estado:** 🟡
-**Descripción:** Las barreras cuelgan de una entidad ya agregada (sub-repeater) y se guardan en `barrier_v2` heredando sede, sector y ubicación. Solo se ofrece "+ Agregar barrera" si GS_17 = Sí.
+**Descripción:** Las barreras cuelgan de una entidad ya agregada (sub-repeater, en la tarjeta de ambas listas: D8) con el formulario de Seguimiento v4 (REG-18; sin competencias). Con el Caso en Borrador se guardan en el borrador JSON y, al iniciar el Caso, en `barrier_v2` con las tareas y oficios de su gestión (activación de ruta, alerta por barreras). Solo se ofrece "+ Agregar barrera" si GS_17 = Sí y el Caso sigue en Borrador; después es de solo lectura (409).
 **Requerido:** No
+
+---
+
+**Evento:** Cuando un guardado o una carga falla
+**Tipo:** User Interaction (manejo de errores) · **Estado:** ✅
+**Descripción:** Cuando falla guardar una sección o el Tamizaje, abrir o crear un registro, o buscar, la pantalla lo dice. Un dato inválido (400) nombra la pregunta y el motivo y pide corregirlo; un 500, la falta de conexión o una sesión vencida se avisan con un mensaje propio y lo escrito sigue en pantalla. «Finalizar llamada» pregunta antes de salir sin guardar. Nunca se muestra «Sección guardada.» si no se guardó.
+**Requerido:** Sí
 
 ---
 

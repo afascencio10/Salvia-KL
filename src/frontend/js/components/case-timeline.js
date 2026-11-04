@@ -2,8 +2,11 @@
  * case-timeline
  * Componente reutilizable para renderizar el timeline de eventos de un caso.
  * Props:
- *   - caseId    (String, required): icode del caso
+ *   - caseId    (String, optional): icode del caso
+ *   - reportId  (String, optional): icode del reporte (victim_contact). Si viene,
+ *               manda sobre caseId e ignora barrierId/psychosocialId (WP-1 T5).
  *   - barrierId (String, optional): filtra eventos por barrier_id
+ * Debe venir caseId o reportId; si no, el componente muestra un error.
  */
 
 /* ─── Inyección de estilos ──────────────────────────────────────────────── */
@@ -220,6 +223,7 @@ function ctDefaultColor(category) {
         'Oficios':        '#0f766e',
         'Entidades':      '#5106A7',
         'Mecanismos':     '#5106A7',
+        'Reportes':       '#1d4ed8',
         'General':        '#4b5563',
     };
     return map[category] || '#4b5563';
@@ -252,7 +256,8 @@ function ctFormatDate(raw) {
 app.component('case-timeline', {
     delimiters: ['${', '}'],
     props: {
-        caseId:           { type: String, required: true },
+        caseId:           { type: String, required: false, default: '' },
+        reportId:         { type: String, required: false, default: '' },
         barrierId:        { type: String, required: false, default: '' },
         psychosocialId:   { type: String, required: false, default: '' },
         showFilters:      { type: Boolean, required: false, default: true },
@@ -292,11 +297,19 @@ app.component('case-timeline', {
             this.loading = true;
             this.error   = null;
             try {
-                var url = '/api/v1/casos/' + this.caseId + '/timeline-events';
-                var params = [];
-                if (this.barrierId) params.push('barrierId=' + encodeURIComponent(this.barrierId));
-                if (this.psychosocialId) params.push('psychosocialId=' + encodeURIComponent(this.psychosocialId));
-                if (params.length) url += '?' + params.join('&');
+                var url;
+                if (this.reportId) {
+                    // Timeline de un reporte (T5): ignora barrierId y psychosocialId.
+                    url = '/api/v1/reportes/' + encodeURIComponent(this.reportId) + '/timeline-events';
+                } else if (this.caseId) {
+                    url = '/api/v1/casos/' + this.caseId + '/timeline-events';
+                    var params = [];
+                    if (this.barrierId) params.push('barrierId=' + encodeURIComponent(this.barrierId));
+                    if (this.psychosocialId) params.push('psychosocialId=' + encodeURIComponent(this.psychosocialId));
+                    if (params.length) url += '?' + params.join('&');
+                } else {
+                    throw new Error('Falta el identificador del caso o del reporte');
+                }
                 var res = await fetch(url);
                 if (!res.ok) throw new Error('Error ' + res.status + ' al cargar el timeline');
                 var data = await res.json();

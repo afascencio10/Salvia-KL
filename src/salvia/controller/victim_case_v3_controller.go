@@ -10,11 +10,13 @@ import (
 	salvia_config "bitsflow/salvia/config"
 	"bitsflow/salvia/service"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type VictimCaseV3Controller struct {
@@ -166,6 +168,15 @@ func (c *VictimCaseV3Controller) SaveSection(ctx *gin.Context) {
 
 	triadaCompleta, err := c.svc.SaveSection(ctx.Request.Context(), icode, modulo, body.Answers)
 	if err != nil {
+		// REG-11: un dato con formato, tamaño u opción inválidos NO es una falla del servidor: se responde
+		// 400 con el campo y el motivo para que la pantalla le pida a la persona que lo corrija.
+		var inv *repository.ErrInvalidAnswerV3
+		if errors.As(err, &inv) {
+			log.Printf("[RegistroV3] SaveSection rechazado icode=%s módulo=%s campo=%s: %s", icode, modulo, inv.Key, inv.Reason)
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "valor no válido", "campo": inv.Key, "detalle": inv.Reason})
+			return
+		}
+		log.Printf("[RegistroV3] SaveSection falló icode=%s módulo=%s: %v", icode, modulo, err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error al guardar la sección"})
 		return
 	}
@@ -215,6 +226,7 @@ func (c *VictimCaseV3Controller) Finalize(ctx *gin.Context) {
 			ctx.JSON(http.StatusBadRequest, gin.H{
 				"error":              "No se puede finalizar — hay módulos incompletos",
 				"modulosIncompletos": incompletos.Modulos,
+				"camposFaltantes":    incompletos.Campos, // REG-37: llaves sin responder (ordenadas)
 			})
 			return
 		}
@@ -244,6 +256,9 @@ func (c *VictimCaseV3Controller) AddEntity(ctx *gin.Context) {
 
 	entityICode, err := c.svc.AddEntity(ctx.Request.Context(), body)
 	if err != nil {
+		if respondSnapshotReadOnlyV3(ctx, err) {
+			return
+		}
 		if errors.Is(err, service.ErrEntityCaseDuplicate) {
 			ctx.JSON(http.StatusConflict, gin.H{"error": "Esta entidad ya está asociada a este caso"})
 			return
@@ -254,6 +269,20 @@ func (c *VictimCaseV3Controller) AddEntity(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"icode": entityICode})
 }
 
+// respondSnapshotReadOnlyV3 -- WP-4 (REG-38*): una vez el Caso deja de ser
+// borrador, las entidades, barreras y remisiones son un snapshot de solo
+// lectura. Responde 409 y devuelve true si err es ese caso.
+func respondSnapshotReadOnlyV3(ctx *gin.Context, err error) bool {
+	if !errors.Is(err, service.ErrSnapshotReadOnly) {
+		return false
+	}
+	ctx.JSON(http.StatusConflict, gin.H{
+		"error":    "La sección de entidades y remisiones ya no es editable: el Caso dejó de ser borrador",
+		"readOnly": true,
+	})
+	return true
+}
+
 // RemoveEntity — "✕ Eliminar" sobre una entidad (E17).
 func (c *VictimCaseV3Controller) RemoveEntity(ctx *gin.Context) {
 	if requireRegistroV3Access(ctx) == nil {
@@ -261,6 +290,13 @@ func (c *VictimCaseV3Controller) RemoveEntity(ctx *gin.Context) {
 	}
 	entityICode := ctx.Param("entityIcode")
 	if err := c.svc.RemoveEntity(ctx.Request.Context(), entityICode); err != nil {
+		if respondSnapshotReadOnlyV3(ctx, err) {
+			return
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "La entidad no existe o ya fue eliminada"})
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error al eliminar la entidad"})
 		return
 	}
@@ -285,6 +321,9 @@ func (c *VictimCaseV3Controller) AddBarrier(ctx *gin.Context) {
 
 	barrierICode, err := c.svc.AddBarrier(ctx.Request.Context(), body)
 	if err != nil {
+		if respondSnapshotReadOnlyV3(ctx, err) {
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error al registrar la barrera"})
 		return
 	}
@@ -298,6 +337,13 @@ func (c *VictimCaseV3Controller) RemoveBarrier(ctx *gin.Context) {
 	}
 	barrierICode := ctx.Param("barrierIcode")
 	if err := c.svc.RemoveBarrier(ctx.Request.Context(), barrierICode); err != nil {
+		if respondSnapshotReadOnlyV3(ctx, err) {
+			return
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "La barrera no existe o ya fue eliminada"})
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "error al eliminar la barrera"})
 		return
 	}

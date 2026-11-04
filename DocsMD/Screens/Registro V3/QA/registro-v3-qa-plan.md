@@ -82,6 +82,7 @@ Nota aparte (no bloqueante, se corrigió de pasada): el `<body>` del layout comp
 | [entidades-barreras-qa-cases.md](entidades-barreras-qa-cases.md) | Repeaters de Entidades y Barreras |
 | [finalizar-y-alerta-qa-cases.md](finalizar-y-alerta-qa-cases.md) | Alerta inminente (ya no es botón, C7), Finalizar (G2) |
 | [registro-v3-e2e-qa-cases.md](registro-v3-e2e-qa-cases.md) | 2 recorridos completos de punta a punta |
+| [wp4-plan-de-accion-y-ruta-qa-cases.md](wp4-plan-de-accion-y-ruta-qa-cases.md) | WP-4 (2026-11-04): Plan de acción Salvia, Ruta de atención integral, formulario de barrera, canales, buscar entidad, `GS_20`, borrador JSON, materialización y solo lectura — 318 comprobaciones |
 
 ## Orden de ejecución (ver `qa-process.md`)
 

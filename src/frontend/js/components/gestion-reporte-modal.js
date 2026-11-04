@@ -10,9 +10,16 @@
  * M-03 ("Reporte de prueba") — removido (2026-10-12): los reportes de
  * prueba se generan y limpian en el ambiente de pruebas, no necesitan
  * manejo en producción.
- * M-10 ("Apertura de caso") — diferido, no implementado en esta fase
- * (coincide con la nota de FigJam). El paso 'postContacto' solo ofrece
- * "no competencia" y "decisión de la persona".
+ * M-10 ("Registro de caso", antes "Apertura de caso") — WP-1 T7: tras un contacto exitoso de un
+ * reporte Víctima o Tercero crea un borrador de Registro V3 prellenado y lleva al agente
+ * ahí (el reporte queda en «Borrador iniciado»); M-12 retoma ese borrador desde el paso
+ * 'borradorIniciado'. El paso 'postContacto' además ofrece "no competencia" y "decisión
+ * de la persona".
+ *
+ * WP-1 T6: el encabezado muestra nombre, tipo, teléfono y radicado (sin el icode);
+ * «Hechos del reporte» se ve en todos los pasos; el «Historial del reporte»
+ * (<case-timeline :report-id>) también, y se recarga con historyVersion.
+ * La página anfitriona debe cargar case-timeline.js antes de este componente.
  *
  * Método público:
  *   open(report)  — abre el modal (M-01)
@@ -43,7 +50,7 @@
                 icode: '',
                 loading: false,
                 loadError: null,
-                step: null, // 'validacionPrevia' | 'esquema3x3' | 'postContacto' | 'cerrado'
+                step: null, // 'validacionPrevia' | 'esquema3x3' | 'postContacto' | 'borradorIniciado' | 'cerrado'
 
                 rowPreview: null, // fila de la tabla (ReportListItem): permite pintar el header antes de que llegue el detalle
                 report: null, // detalle crudo del backend (GET /api/v1/victim-contacts/:icode)
@@ -57,11 +64,19 @@
                 closeCategory: '',
                 closeObservationShown: '',
 
-                pendingClose: '', // '' | 'competencia' | 'decision'
+                pendingClose: '', // '' | 'competencia' | 'decision' | 'registro'
                 motivoTexto: '',
 
                 saving: false,
                 actionError: null,
+
+                // Recarga del historial (case-timeline): se incrementa tras cada intento o cierre (T6).
+                historyVersion: 0,
+
+                // T7 — «Registro de caso» (conversión del reporte en un borrador de Registro V3)
+                reportTypeCode: '', // 'v' | 'r' | 'fm' | 'ho' | '' (V1)
+                canConvert: false,
+                draftCaseIcode: '', // borrador de caso vinculado (estado bo o in)
             };
         },
 
@@ -130,6 +145,10 @@
                 this.motivoTexto = '';
                 this.actionError = null;
                 this.saving = false;
+                this.historyVersion = 0;
+                this.reportTypeCode = '';
+                this.canConvert = false;
+                this.draftCaseIcode = '';
 
                 this.fetchDetail();
             },
@@ -163,6 +182,9 @@
                 this.intentosHoy = data.intentosHoy || 0;
                 this.diasCompletos = data.diasCompletos || 0;
                 this.canManage = !!data.canManage;
+                this.reportTypeCode = data.reportTypeCode || '';
+                this.canConvert = !!data.canConvert;
+                this.draftCaseIcode = data.draftCaseIcode || '';
                 this.closeReasonCode = data.closeReasonCode || '';
                 this.closeObservationShown = data.closeObservation || '';
                 // Mismo texto que se arma al cerrar (closeReasonLabelFor): motivo + " — " + observación (co/dp).
@@ -175,6 +197,9 @@
 
                 if (this.closeReasonCode) {
                     this.step = 'cerrado';
+                } else if (this.draftCaseIcode) {
+                    // T7: el reporte ya tiene un borrador de caso: se retoma desde ahí.
+                    this.step = 'borradorIniciado';
                 } else if (huboExitoso) {
                     // Corrección 2026-10-12 (ver flow-M01): sin esto, reabrir un
                     // reporte con contacto exitoso sin cierre terminado volvía
@@ -243,6 +268,7 @@
                         self.intentosHoy = result.data.intentosHoy || 0;
                         self.diasCompletos = result.data.diasCompletos || 0;
                         self.saving = false;
+                        self.historyVersion++; // el intento escribió un hito: recarga el historial
 
                         if (resultado === 'exitoso') {
                             // Mismo retardo visual que el mockup (setTimeout 400ms) —
@@ -331,11 +357,66 @@
                         self.pendingClose = '';
                         self.motivoTexto = '';
                         self.step = 'cerrado';
+                        self.historyVersion++; // el cierre escribió un hito: recarga el historial
                     })
                     .catch(function() {
                         self.saving = false;
                         self.actionError = 'Error al cerrar el reporte';
                     });
+            },
+
+            // ------------------------------------------------------------
+            // M-10 — «Registro de caso»: crea el borrador de Registro V3 con los datos del
+            // reporte, lo vincula y va a V3. El reporte NO se cierra: queda en «Borrador iniciado».
+            // ------------------------------------------------------------
+
+            convertirEnRegistro: function() {
+                var self = this;
+                if (!self.canManage || !self.canConvert || self.saving) {
+                    return;
+                }
+                self.saving = true;
+                self.actionError = null;
+
+                fetch('/api/v1/victim-cases-v3/desde-reporte/' + encodeURIComponent(self.icode), { method: 'POST' })
+                    .then(function(res) {
+                        return res.json().then(function(data) {
+                            return { ok: res.ok, status: res.status, data: data };
+                        });
+                    })
+                    .then(function(result) {
+                        if (result.ok && result.data && result.data.redirect) {
+                            // Sigue «guardando» mientras se navega: evita un segundo clic.
+                            window.location.assign(result.data.redirect);
+                            return;
+                        }
+                        if (result.status === 409 && result.data && result.data.caseIcode) {
+                            // Ya había un borrador (p. ej. doble clic): se ofrece retomarlo.
+                            self.draftCaseIcode = result.data.caseIcode;
+                            self.pendingClose = '';
+                            self.step = 'borradorIniciado';
+                            self.historyVersion++;
+                            self.saving = false;
+                            return;
+                        }
+                        self.actionError = (result.data && result.data.error) || 'Error al crear el registro de caso';
+                        self.saving = false;
+                    })
+                    .catch(function() {
+                        self.actionError = 'Error al crear el registro de caso';
+                        self.saving = false;
+                    });
+            },
+
+            // ------------------------------------------------------------
+            // M-12 — «Ir al borrador del caso» (sin backend): abre el borrador en Registro V3
+            // ------------------------------------------------------------
+
+            irAlBorrador: function() {
+                if (!this.draftCaseIcode) {
+                    return;
+                }
+                window.location.assign('/salvia/registro-v3?caso=' + encodeURIComponent(this.draftCaseIcode));
             },
 
             closeReasonLabelFor: function(code, observation) {

@@ -58,6 +58,7 @@ var HTML_Templates map[string]string = map[string]string{
 	"get_victim_contact_sv_v1":     "get_victim_contact_sv_v1.html",
 	"set_victim_contact":           "set_victim_contact.html",
 	"set_victim_contact_v2":        "set_victim_contact_v2.html",
+	"get_report_status":            "consulta_reporte.html",
 	"get_alerts":                   "get_alerts.html",
 	"load_plain_files":             "load_plain_files.html",
 	"assign_operators":             "assign_operators.html",
@@ -97,6 +98,10 @@ var FormPaths map[string]map[string]string = map[string]map[string]string{
 		"VictimContactPOST_GET_Public_V2": "/" + Locale["sp"]["salvia"] + "/public-v2/" + Locale["sp"]["new"],
 		"VictimContactPOST_GET":           "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["VictimContact"] + "/" + Locale["sp"]["new"],
 		"VictimContactPUT":                "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["VictimContact"],
+
+		// T4/REP-02 — Consulta pública del estado de un reporte por radicado.
+		"ReportStatusGET_Public":  "/" + Locale["sp"]["salvia"] + "/public-consulta",
+		"ReportStatusPOST_Public": "/api/v1/public/consulta-reporte",
 		//Vitim case
 		"VictimCasePOST_GET":  "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["VictimCase"] + "/" + Locale["sp"]["new"],
 		"VictimCaseReportGET": "/" + Locale["sp"]["salvia"] + "/" + Locale["sp"]["VictimCase"] + "/" + Locale["sp"]["report"],

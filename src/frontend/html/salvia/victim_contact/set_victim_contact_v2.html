@@ -10,9 +10,38 @@
       <div id="global-errors-live" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
 
       <!-- ============================================== -->
+      <!-- PASO 0 (T8): ¿TIENE USUARIO?                   -->
+      <!-- Solo para quien no tiene sesión o la tiene     -->
+      <!-- como en, op o et; otros roles arrancan en auth -->
+      <!-- ============================================== -->
+      <div v-if="step === 'usuario'">
+        <div class="tituloform">
+          <i class="fas fa-user-circle fa-2x"></i>
+          <h2>¿Tiene usuario en Salvia?</h2>
+        </div>
+
+        <template v-if="reporterName">
+          <div id="reporter-banner" class="alert alert-info" role="status">
+            Está reportando como <strong>${ reporterName }</strong> (${ reporterRoleLabel }). El reporte quedará asociado a su usuario.
+          </div>
+          <div class="row justify-content-end botones">
+            <button type="button" id="btn-usuario-continuar" class="btn btn-success" @click="goTo('auth')">Continuar</button>
+          </div>
+        </template>
+
+        <template v-else>
+          <p>Si es enlace territorial, agente integral o entidad, inicie sesión para reportar con su usuario.</p>
+          <div class="row justify-content-between botones">
+            <button type="button" id="btn-usuario-no" class="btn btn-secondary" @click="elegirUsuario('no')">No, continuar sin usuario</button>
+            <button type="button" id="btn-usuario-si" class="btn btn-success" @click="elegirUsuario('si')">Sí, iniciar sesión</button>
+          </div>
+        </template>
+      </div>
+
+      <!-- ============================================== -->
       <!-- PASO 1: AUTORIZACIÓN DE DATOS                  -->
       <!-- ============================================== -->
-      <div v-if="step === 'auth'">
+      <div v-else-if="step === 'auth'">
         <div class="tituloform">
           <i class="fas fa-list-alt fa-2x"></i>
           <h2>Autorización de datos personales</h2>
@@ -222,7 +251,12 @@
         <div class="border rounded p-4 d-inline-block text-left mt-3">
           <p><strong>Fecha:</strong> ${ fechaActual }</p>
           <p><strong>Hora:</strong> ${ horaActual }</p>
-          <p class="mb-0"><strong>Número de Radicado:</strong> ${ radicado }</p>
+          <p class="mb-0"><strong>Número de Radicado:</strong> <span id="radicado-valor">${ radicado }</span>
+            <button type="button" id="btn-copiar-radicado" class="btn btn-sm btn-outline-secondary ms-2" @click="copiarRadicado">
+              <i :class="copiado ? 'fas fa-check' : 'far fa-copy'"></i> ${ copiado ? 'Copiado' : 'Copiar radicado' }
+            </button>
+          </p>
+          <p v-if="copiaError" id="copiar-radicado-error" class="small text-danger mb-0 mt-2">No fue posible copiarlo automáticamente: seleccione el número y cópielo manualmente.</p>
         </div>
 
         <p class="text-muted mt-4">Un agente integral intentará comunicarse al número de contacto proporcionado para la validación y posible apertura del caso.</p>
@@ -243,9 +277,15 @@
   var appV2 = Vue.createApp({
     delimiters: ['${', '}'],
     data() {
+      // T8: con sesión de otro rol (sv, ad, ro…) el wizard arranca en la autorización, sin el paso
+      // «usuario»; para todos los demás (anónimos y en, op, et) el paso inicial es «usuario».
+      const pasoInicial = {{.sinPasoUsuario}} ? 'auth' : 'usuario';
       return {
         windowTitle: {{.windowTitle}},
-        step: 'auth',
+        pasoInicial: pasoInicial,
+        step: pasoInicial,
+        reporterName: {{.reporterName}},
+        reporterRoleLabel: {{.reporterRoleLabel}},
         errors: {},
         enums: {
           yes_no: {{.yes_no}},
@@ -256,6 +296,9 @@
         },
         form: this.blankForm({{.CaptchaID}}),
         radicado: '',
+        copiado: false,
+        copiaError: false,
+        copiadoTimer: null,
         fechaActual: '',
         horaActual: '',
       }
@@ -325,9 +368,82 @@
         this.step = nextStep;
       },
       resetForm() {
+        // T2 (REP-14*): el captcha se consume al verificarlo en el servidor
+        // (captcha.VerifyString borra el id) y la respuesta 200 no trae uno
+        // nuevo; reutilizarlo hacía fallar el segundo reporte seguido. Se
+        // arma el formulario en blanco y se pide un id nuevo.
         this.form = this.blankForm(this.form.captchaID);
         this.radicado = '';
-        this.step = 'auth';
+        this.copiado = false;
+        this.copiaError = false;
+        this.step = this.pasoInicial;
+        this.refreshCaptcha();
+      },
+      // T8 · E12 «Cuando responde «¿Tiene usuario?»»: «no» sigue como anónimo (autorización);
+      // «sí» va al login y regresa a este mismo wizard (el login solo acepta esta ruta en ?next=).
+      elegirUsuario(opcion) {
+        if (opcion === 'si') {
+          window.location.assign('/seguridad/login?next=' + encodeURIComponent('/salvia/public-v2/nuevo'));
+          return;
+        }
+        this.goTo('auth');
+      },
+      // T3 · E13 «Cuando presiona «Copiar radicado»»: copia el radicado al
+      // portapapeles (API del navegador, con respaldo execCommand) y muestra
+      // «Copiado» unos segundos. No llama al backend.
+      copiarRadicado() {
+        const texto = this.radicado;
+        this.copiaError = false;
+        const exito = () => {
+          this.copiado = true;
+          clearTimeout(this.copiadoTimer);
+          this.copiadoTimer = setTimeout(() => { this.copiado = false; }, 3000);
+        };
+        const fallo = () => { this.copiado = false; this.copiaError = true; };
+        const respaldo = () => {
+          try {
+            const ta = document.createElement('textarea');
+            ta.value = texto;
+            ta.setAttribute('readonly', '');
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            const copiado = document.execCommand('copy');
+            document.body.removeChild(ta);
+            copiado ? exito() : fallo();
+          } catch (e) {
+            fallo();
+          }
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(texto).then(exito).catch(respaldo);
+        } else {
+          respaldo();
+        }
+      },
+      // Pide un captchaID nuevo a esta misma página (E-01 en modo JSON,
+      // Accept: application/json). Si falla se conserva el id actual (el primer
+      // envío falla y el 400 trae uno nuevo, como antes) y se deja un aviso.
+      refreshCaptcha() {
+        return fetch(window.location.pathname, {
+          headers: { 'Accept': 'application/json' },
+          cache: 'no-store',
+          credentials: 'same-origin',
+        })
+          .then((r) => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+          })
+          .then((d) => {
+            if (d && d.captchaID) {
+              this.form.captchaID = d.captchaID;
+              this.form.captchaSolution = '';
+            }
+          })
+          .catch((e) => {
+            console.warn('No se pudo renovar el captcha; se conserva el anterior.', e);
+          });
       },
       buildPayload() {
         const f = this.form;
@@ -366,7 +482,7 @@
         newEntity("{{.formPath}}", payload, (function (status, response) {
           this.form.captchaSolution = "";
           if (status === 200) {
-            this.radicado = response.icode;
+            this.radicado = response.radicado || response.icode;
             const now = new Date();
             this.fechaActual = now.toLocaleDateString('es-CO');
             this.horaActual = now.toLocaleTimeString('es-CO');

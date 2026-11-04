@@ -21,6 +21,7 @@
 | D7 — Búsqueda sin nombre | Implementada (`/buscar`); con documento ignora el teléfono; no consulta reportes |
 | D8 — Borrador con valores dummy | Implementado (`insertDummyForm2Row`) y ampliado: "respondido" ya no se infiere del valor sino de `victim_case.victim_case_v3_answered_keys` |
 | D9 — Modelo real de Seguimiento | Los 6 equipos y sus criterios, sí. Entidades en `entity_case`/`entity_case_obligation` y Barreras en `barrier_v2`, **no** como repeaters de `dinamic-form` (G-V3-21 resuelto); las barreras cuelgan de una entidad |
+| **WP-4 · REG-38\* — borrador JSON de entidades y barreras** | Mientras el Caso es Borrador (`bo`) las entidades, las barreras y los datos de Seguimiento v4 sin columna viven en `victim_case.victim_case_v3_draft_data` (jsonb, ver § «Borrador JSON»); al pasar a Iniciado (`in`) se materializan en `entity_case`, `entity_case_obligation` y `barrier_v2` y se crean tareas, oficios y remisiones. Después son de solo lectura (409). Sustituye la escritura directa en esas tablas del D9 |
 | D10 — Pivote (A1, A3, B4-B6, C7, C9, D11) | Todo implementado: sin `dinamic-form`; enums desde `victim_case_form2_enums` por `GET /victim-cases-v3/enums`; empate → Feminicidio; Alerta Inminente solo en GS (GS_18/GS_19); 5 opciones de tipo de contacto (4 con aviso); `general_user` + credenciales en texto plano en `victim_case_new_user_credentials` |
 
 ---
@@ -331,6 +332,13 @@ víctima. Se deja como GAP G-V3-16 en vez de replicarlo sin confirmar.
 expiración para Casos abandonados en estado Borrador indefinidamente — sigue
 sin resolver en el código real, y esta planeación tampoco lo resuelve.
 
+**Actualización WP-2 (2026-11-02, REG-11) — guardado atómico y validado:**
+
+- `SaveSection` y `SaveTamizajeBranch` corren en **una transacción** y marcan las claves como respondidas **al final**: antes `markKeysAnswered` corría primero, y si el UPDATE fallaba el módulo quedaba «respondido» con sus datos sin guardar (y el Caso podía pasar a Iniciado con los hechos en blanco). El fan-out del Perfil sigue después del commit, best-effort.
+- Los datos se **validan y normalizan antes de escribir** (`victim_case_v3_validation.go`): fecha `AAAA-MM-DD`, hora `HH:MM(:SS)`, número solo con dígitos, texto contra el ancho real de la columna (lo lee de `information_schema`, caché de 1 min) y opción existente. Un dato inválido devuelve `*ErrInvalidAnswerV3{Key, Reason}` y el controlador responde 400 con `campo` y `detalle`; un error `22xxx` de Postgres que se escape se convierte igual (sin campo). El servicio no cambia: pasa el error del repositorio tal cual.
+- Un valor **vacío** de fecha, hora o lista no se escribe (la columna conserva su valor marcador) salvo en las columnas que admiten NULL (`victimCaseV3NullableColumns`: `facts_department`, `residence_department`, `disability_type`), que no llevan marcador en el borrador y quedan en NULL.
+- `GetAnswers` devuelve fechas `AAAA-MM-DD` y horas `HH:MM` (antes el crudo de Go, «2026-10-30 00:00:00 +0000 UTC», que `<input type="date">` no lee) y no devuelve la fecha marcador `1900-01-01`.
+
 ### D9 — Remisión, Entidades y Barreras: se reutiliza el modelo real de Seguimiento, no el del Excel
 
 > El usuario pidió revisar en BD (no solo en el MD, que estaba
@@ -407,17 +415,20 @@ ver columnas nuevas abajo.
 
 ## Columnas reales en `victim_case_form2` y `victim_case` (BD, 2026-10-31)
 
-`victim_case_form2` tiene hoy 183 columnas. Las propias de V3 (los nombres de la planeación —`tz_v3_general_N`, `tamizaje_tipo_riesgo`…— **no** se usaron):
+`victim_case_form2` tiene hoy 186 columnas en Supabase (183 al 2026-10-31 + 3 de WP-2; la migración se aplicó el 2026-11-02). Las propias de V3 (los nombres de la planeación —`tz_v3_general_N`, `tamizaje_tipo_riesgo`…— **no** se usaron):
 
 | Columna(s) | Tipo | Pregunta |
 |---|---|---|
-| `victim_case_form2_tzv3_g1` … `_g7` | integer (FK `yes_no`) | TZ_1 … TZ_7 |
+| `victim_case_form2_tzv3_g1` … `_g7` | integer (FK `yes_no`) | TZ_1 … TZ_7 (desde WP-2/REG-12 sí se guardan al calcular el Tamizaje; antes quedaban en el marcador «No») |
 | `victim_case_form2_tzv3_vpp` | integer (FK `yes_no`) | TZ_8, pregunta de prejuicio |
 | `victim_case_form2_tzv3_p1` … `_p24` | integer (FK `yes_no`) | Rama pareja (TZP_1-24, la 24 es ideación suicida) |
 | `victim_case_form2_tzv3_np1` … `_np24` | integer (FK `yes_no`) | Rama no pareja (TZNP_1-24) |
 | `victim_case_form2_tzv3_risk_type` · `_risk_level` | integer (FK enum) | Resultado: tipo `fe`/`ha` y nivel `ba`/`mo`/`al`/`ex` (categorías `victim_case_form2_tzv3_risk_type` / `_risk_level`) |
 | `victim_case_form2_tzv3_risk_score` · `_risk_tie_flag` | integer | Puntaje y marca de empate de subtipos |
 | `victim_case_form2_victim_pronoun` · `_victim_identity_name` · `_victim_email` | integer FK / varchar | CI_1, CI_3, DP_50 |
+| `victim_case_form2_disability_type` | bigint nullable (FK enum) | DP_51 «Tipo de discapacidad» (REG-08, WP-2); NULL = sin respuesta |
+| `victim_case_form2_facts_department` · `_residence_department` | varchar(100) nullable | HV_4 y DP_27 (REG-11, WP-2; antes la pantalla los pedía pero no tenían columna) |
+| `victim_case_form2_facts_town_code` · `_residence_town` | varchar(100) NOT NULL | HV_5 y DP_28: texto libre de municipio (REG-11; medían 8 caracteres y el guardado fallaba con un 500) |
 | `victim_case_form2_allows_easy_report` · `_interinstitutional_actions_note` · `_saliva_management_explanation` | bigint / varchar / text | GS_1, GS_3, GS_4 (la última reutiliza la columna de V2) |
 | `victim_case_form2_requires_referral` · `_referral_justification` | integer / varchar | GS_5, GS_13 |
 | `victim_case_form2_reported_to_entity` · `_salvia_activates_routes` · `_agrees_route_activation` | integer (FK `yes_no`) | GS_14, GS_16, GS_15 |
@@ -427,11 +438,52 @@ ver columnas nuevas abajo.
 
 Las preguntas multi-valor (`multiple`, p. ej. CI_8, DP_3, HV_9, GS_6) no tienen columna: van a `rel_victim_case_form2_enums_victim_case_form2`, acotadas por la categoría de enum de cada campo (`victimCaseV3EnumNCategories`). Las columnas V2 de Tamizaje (38) quedan intactas.
 
-En `victim_case` (campos núcleo y control): `victim_case_victim_names` / `_last_names` (de CI_2, partido en el primer espacio), `_doc_type` (code corto de CI_5), `_doc_number` (CI_6), `_town_code` (DP_28, que hoy recibe el texto digitado), `agent_id` (agente que creó el Borrador), `victim_case_new_user_credentials` (jsonb con login/clave de la víctima) y `victim_case_v3_answered_keys` (text, CSV de las keys respondidas alguna vez; base de `triadaCompleta` y de la validación de Finalizar).
+En `victim_case` (campos núcleo y control): `victim_case_victim_names` / `_last_names` (de CI_2, partido en el primer espacio), `_doc_type` (code corto de CI_5), `_doc_number` (CI_6), `_town_code` (DP_28, que hoy recibe el texto digitado; `varchar(100)` desde WP-2), `agent_id` (agente que creó el Borrador), `victim_case_new_user_credentials` (jsonb con login/clave de la víctima) y `victim_case_v3_answered_keys` (text, CSV de las keys respondidas alguna vez; base de `triadaCompleta` y de la validación de Finalizar).
 
 Entidades y barreras no usan estas tablas: `salvia.entity_case` + `entity_case_obligation` y `salvia.barrier_v2` (ver [`registro-v3-pendientes.md`](registro-v3-pendientes.md) § B).
 
-**Conteos reales de enums (BD, 2026-10-31)** donde difieren de la tabla siguiente: `adjustments_gbv` 12 (plan: 11) · `victim_doc_type` 20 (19) · `scenario_violence` 31 (36) · `scope_of_violence` 13 (14) · `relationship_with_presumed_aggressor_01` 20 + `_02` 19 (18) · `aggressors_occupation` 16 (19). Coinciden: `specially_protected_population` 17, `type_violence_experienced` 7, `recurrence_aggression` 3, `referral_team` 6, `emergency_measure` 6, `psycho_criteria` 7, `men_criteria` 1, `disability_service` 2, `stabiliz_criteria` 3, `interinst_action` 5, `sector` 4, `activation_channel` 3, y las barreras (`health` 12, `justice` 18, `protect` 13, `institutional` 5, `economic` 2, `territorial` 1, `differential` 12, `management` 6).
+**Conteos reales de enums (BD, 2026-10-31)** donde difieren de la tabla siguiente: `adjustments_gbv` 12 (plan: 11) · `victim_doc_type` 20 (19) · `scenario_violence` 31 (36) · `scope_of_violence` 13 (14) · `relationship_with_presumed_aggressor_01` 20 + `_02` 19 (18) · `aggressors_occupation` 16 (19). Nuevas en WP-2: `residence_zone` 2 (Rural, Urbano — REG-07) y `disability_type` 7 (REG-08). Coinciden: `specially_protected_population` 17, `type_violence_experienced` 7, `recurrence_aggression` 3, `referral_team` 6, `emergency_measure` 6, `psycho_criteria` 7, `men_criteria` 1, `disability_service` 2, `stabiliz_criteria` 3, `interinst_action` 5, `sector` 4, `activation_channel` 3, y las barreras (`health` 12, `justice` 18, `protect` 13, `institutional` 5, `economic` 2, `territorial` 1, `differential` 12, `management` 6).
+
+---
+
+## Borrador JSON de entidades y barreras (WP-4 · REG-38\*)
+
+Columna nueva (migración `src/migrations/20261103_wp4_borrador_json.sql`): `salvia.victim_case.victim_case_v3_draft_data jsonb`, **nula** si nunca se usó y **sin modelo GORM** (se lee y escribe con SQL directo). Forma:
+
+```json
+{ "v": 1,
+  "entities": [ { "id": "d~<icode>~<uuid>", "kind": "acudida|activacion", "entityBranchId": 123,
+      "branch": { "icode": "", "name": "", "sector": "he|js|pt|os", "address": "", "department": "", "city": "", "town": "" },
+      "fileNumber": "", "reportDate": "YYYY-MM-DD", "objetivo": "", "solicitud": "",
+      "pending": ["<entity_obligation.id>"], "completed": [],
+      "agreement": true, "dueDiligence": true, "activationChannels": ["notificacion","articulacion","denuncia","misalvia","ninguna"],
+      "managementNotes": "", "createdAt": "", "by": "<user icode>" } ],
+  "barriers": [ { "id": "d~<icode>~<uuid>", "entityBranchId": 123, "sector": "salud|justicia|proteccion|transversales",
+      "specific": [], "institution": "", "otherDetail": "", "institutional": [], "economic": [], "territorial": [], "differential": [],
+      "date": "", "official": "", "department": "", "city": "", "town": "", "zone": "cabecera|rural|no", "description": "",
+      "management": ["activacion","alerta"], "professionalPerspective": "", "managementDescription": "", "createdAt": "", "by": "" } ],
+  "entityMeta":  { "<entityBranchId>": { "kind": "", "agreement": false, "dueDiligence": false, "activationChannels": [], "reportDate": "", "managementNotes": "", "pending": [], "completed": [] } },
+  "barrierMeta": { "<barrier_v2.id>":  { "zone": "", "professionalPerspective": "", "managementDescription": "" } },
+  "materializedAt": null }
+```
+
+**Modos (lo decide `victim_case_status`):** en `bo` las altas y bajas de entidades y barreras escriben en el JSON (409 si la sede ya está en el JSON o en `entity_case`; borrar una entidad borra también sus barreras **solo en el JSON**); en cualquier otro estado responden **409** `{error, readOnly: true}` (D20). `GetCase`/`ListEntities`/`ListBarriers` unen el JSON con las tablas (filas anteriores o ya materializadas) con los mismos campos de siempre; los ids del borrador llevan el prefijo `d~`.
+
+**Materialización** (`flushDraft`, enganchada como decorador de `UpdateStatusIfCurrent("bo","in")` para no editar `SaveSection`): ver [`Flujos/flow-subflujo-materializar-borrador.md`](Flujos/flow-subflujo-materializar-borrador.md). En una transacción con `SELECT … FOR UPDATE` crea `entity_case` (o reutiliza la sede ya existente), `entity_case_obligation` (`pendiente`/`completada`, sin «otra») y `barrier_v2` (estado `OPEN`, `management_actions` = CSV, `specific_institutions` = institución); vacía `entities` y `barriers`, conserva `entityMeta` y `barrierMeta` y marca `materializedAt`. Si algo falla, el Caso sigue en `bo` y el JSON queda intacto. Después del COMMIT (mejor esfuerzo, solo log si falla) crea las tareas y oficios de los canales y de la gestión de cada barrera y, **una sola vez por Caso**, las remisiones a otros equipos con las respuestas `GS_5`–`GS_12` guardadas.
+
+| Origen en el JSON | Tablas que se crean |
+|---|---|
+| Entidad con `agreement` y `dueDiligence` y canal `notificacion` | `entity_letter` (`por_proyectar`, agente = quien registró, sede) + `case_task` Entidades · `proyectar_oficio` |
+| Canal `articulacion` / `denuncia` | `case_task` Entidades · `gestion_llamada` («Articulación institucional telefónica o por mensajería» / «Denuncia fácil») |
+| Canal `misalvia` | `case_task` Entidades · `solicitud_entidad` («Hacer solicitudes a la entidad sobre obligaciones pendientes») |
+| Canal `ninguna` | nada |
+| Barrera con gestión `activacion` | `entity_letter` (con `barrier_id`) + `case_task` Barreras · `proyectar_oficio` |
+| Barrera con gestión `alerta` | `case_task` Barreras · `comite_caso` («Alerta por barreras», sin responsable: pool del comité) |
+| `GS_5` = Sí y `GS_6` | `psychosocial_support` + `case_task` Psicosocial · `validar_remision` (`ap`, criterio obligatorio + 3 puntos; se omite si también se pidió `me`) · `men_team_remision` (`ah`) · `discapacidad_remision` por servicio (`di`) · `economic_stabilization` (`es`, mínimo 1 criterio) · `emergency_measure_referral` + `emergency_measure` por tipo (`me`; `al`→alojamiento, `tr`→transporte, `am`→alimentacion, `ve`→vestuario, `ps`→apoyo_psico, `ot`→otras_me). `sd` no crea registro |
+
+Las tareas y oficios replican los de Seguimiento v4 (`form_service_v4.go`, `processEquiposYMedidas`) sin editar ese código: `victim_case_v3_tasks.go`. Cada tarea queda `ToDo` y asignada a quien registró la entidad o la barrera (la alerta, sin responsable).
+
+**GS_20:** categoría nueva `victim_case_form2_psychosocial_elements` en `victim_case_form2_enums` (15 filas: códigos 01–14 y 99; migración `src/migrations/20261102_wp4_elementos_psicosociales.sql`); `GS_20` es `KindEnumN` y se guarda en la relación `rel_victim_case_form2_enums_victim_case_form2`.
 
 ---
 
@@ -531,7 +583,7 @@ Entidades y barreras no usan estas tablas: `salvia.entity_case` + `entity_case_o
 | G-V3-07 pueblos indígenas | ✅ Resuelto | DP_13 usa `victim_case_form2_indigenous_people` |
 | G-V3-08 5 iniciales del Tamizaje | ✅ Resuelto (propuesta) | TZ_1, 2, 3, 4, 7; sujeto a validación del equipo |
 | G-V3-09 / G-V3-13 Alerta inminente | ✅ Resuelto | Solo GS_18/GS_19; sin botón en el header |
-| G-V3-10 DIVIPOLA | Abierto | Departamentos de DP_27/HV_4 son una lista fija de nombres; DP_28/HV_5 (municipio) es texto libre y DP_28 se guarda en `victim_case_victim_town_code` |
+| G-V3-10 DIVIPOLA | Abierto | Departamentos de DP_27/HV_4 son una lista fija de nombres (desde WP-2 se guardan en `*_department`); DP_28/HV_5 (municipio) es texto libre en columnas `varchar(100)` y DP_28 se guarda en `victim_case_victim_town_code`, por lo que los cruces con `security.town` no hacen match |
 | G-V3-11 tipos de contacto | 🟡 Parcial | 5 opciones, pero 4 sin destino (solo aviso) |
 | G-V3-12 Rutas/Barreras/Notificaciones | Abierto | No implementado (E-16) |
 | G-V3-14 tentativa habilita TZ | Abierto | No implementado |
@@ -542,9 +594,11 @@ Entidades y barreras no usan estas tablas: `salvia.entity_case` + `entity_case_o
 | G-V3-19 pregunta GS_17 | ✅ Resuelto | Radio "¿Se identificaron barreras?" que habilita "+ Agregar barrera" |
 | G-V3-20 catálogo de barreras | ✅ Resuelto | Leído de BD (categorías `victim_case_form2_barrier_*`) |
 | G-V3-21 dónde se guardan los repeaters | ✅ Resuelto | No hay repeaters: `entity_case` y `barrier_v2` |
-| **G-V3-22** eliminar una entidad no elimina sus barreras (el `confirm` dice que sí) | Abierto | Las barreras quedan en `barrier_v2` y siguen contando en el Cierre |
-| **G-V3-23** con las 5 iniciales del Tamizaje en "No" no hay forma de guardar el Tamizaje y Finalizar lo rechaza | Abierto | Por lectura de código; no verificado en navegador |
+| **G-V3-22** eliminar una entidad no elimina sus barreras (el `confirm` dice que sí) | ✅ Resuelto 2026-11-04 (WP-4 · REG-38\*) | Con el Caso en Borrador, eliminar la entidad quita también sus barreras del JSON (aún no existen filas ni tareas); después de materializar la sección es de solo lectura (409), así que ya no se elimina en las tablas |
+| **G-V3-23** con las 5 iniciales del Tamizaje en "No" no hay forma de guardar el Tamizaje y Finalizar lo rechaza | ✅ Resuelto 2026-11-02 (WP-2 · REG-34) | El botón aparece con las 5 iniciales respondidas, se guardan solo esas y Finalizar las acepta; verificado en el API y en el navegador |
 | **G-V3-24** al guardar GS/TZ el cliente deja `triadaCompleta = false` (el backend responde false al no evaluarla) y reaparecen los 🔒 | Abierto | Por lectura de código; se corrige al reabrir el Caso |
-| **G-V3-25** `enviarSeccion` no revisa `r.ok`: un 500 muestra "Sección guardada." | Abierto | Por lectura de código |
+| **G-V3-25** `enviarSeccion` no revisa `r.ok`: un 500 muestra "Sección guardada." | ✅ Resuelto 2026-11-02 (WP-2 · REG-11) | Toda falla se avisa en pantalla (flow-E21) |
 | **G-V3-26** el botón "Finalizar" no guarda GS antes de validar | Abierto | Hay que presionar "Guardar sección" primero |
+| **G-V3-27** una pregunta opcional de fecha u hora cuya columna es NOT NULL (HV_3 `facts_start_time`, DP_21, fechas) no se puede vaciar: guardar vacío conserva el valor anterior | Abierto | Habría que permitir NULL en esas columnas (decisión de BD/cliente); WP-2 lo documenta, no lo cambia |
+| **G-V3-28** el tipo de documento `victim_case_form2_victim_doc_type_np` sale en CI_5 con la clave sin traducir (falta su texto en `Locale.go`) | Abierto | Visto al probar WP-2; fuera de su alcance |
 

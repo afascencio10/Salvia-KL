@@ -86,3 +86,8 @@ PASO 6 — Mostrar confirmación
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Ninguno — GAP-2 quedó resuelto (op y sv, ver PASO 2).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🆕 CAMBIOS DE WP-1 T6 (2026-11-02) — cerrar sin información mínima
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PASO 5 (repositorio) ahora corre en UNA transacción (`db.Transaction`) con `SELECT … FOR UPDATE` del reporte: lee el reporte (404 / 409 si ya está cerrado o invalidado, o 🆕 409 «el reporte tiene un borrador de caso iniciado» si hay un caso en bo/in; un caso en te/cd cuenta como cerrado), resuelve el enum, hace el UPDATE y escribe el hito «Reporte cerrado como inválido» («Motivo: {motivo}. {observación}»; actor = el agente que cierra; `svc.Close(..., s.UserICode)`). Si el evento falla se revierte el cierre y se responde 500. 'ap' sigue bloqueado en /cerrar (400). Frontend: historyVersion++ al cerrar.

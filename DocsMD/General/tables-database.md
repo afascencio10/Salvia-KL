@@ -65,14 +65,14 @@ PGPASSWORD='Salvia2026@' psql \
 | Tabla                     | Descripción                                                                              |
 | ------------------------- | ---------------------------------------------------------------------------------------- |
 | `victim_contact`          | Contacto de la víctima: identidad, documento, dirección, teléfono y género; agente asignado y cierre del reporte. |
-| `victim_case`             | Caso de violencia basado en género asociado a una víctima contacto.                      |
+| `victim_case`             | Caso de violencia basado en género asociado a una víctima contacto. Mientras el Caso del Registro V3 está en Borrador, la columna `victim_case_v3_draft_data` (jsonb) guarda las entidades, barreras y remisiones que se van agregando; al pasar a Iniciado se materializan en `entity_case`, `barrier_v2` y las tablas de remisión y la columna queda como instantánea de solo lectura. |
 | `victim_case_form1`       | Formulario 1 del caso: datos completos de víctima, hechos y agresor (legacy).            |
 | `victim_case_form2`       | Formulario 2 del caso: datos ampliados con score y nivel de riesgo calculado.            |
 | `victim_contact_form1`    | Formulario 1 del contacto: datos iniciales de la víctima reportados por un tercero.      |
 | `victim_contact_form2`    | Formulario de reporte de tercero: datos del reportante, tipo de reporte y mejor horario. |
 | `victim_contact_form2_v2` | Extensión 1:1 de `victim_contact_form2` para el reporte V2: consentimiento, anonimato, parentesco y datos propios del reportante. |
 | `victim_contact_attempt`  | Intentos de contacto de un reporte (esquema 3x3): resultado, fecha en UTC, agente que lo registró y borrado lógico. |
-| `victim_case_form2_enums` | Catálogo de opciones compartidas por formularios del caso, contacto y feminicidio.       |
+| `victim_case_form2_enums` | Catálogo de opciones compartidas por formularios del caso, contacto y feminicidio (incluye la categoría `victim_case_form2_psychosocial_elements` de los elementos psicosociales del Registro V3). |
 
 ### Organización institucional
 

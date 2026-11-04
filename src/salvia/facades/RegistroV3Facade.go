@@ -32,7 +32,7 @@ func RegistroV3GET(c *gin.Context) {
 	extraTemplates := utils.GetFullHtmlTemplates()
 	common_routers.RenderTemplate(c, "VictimCaseV3", "salvia", "registro_v3/", salvia_config.HTML_Templates, "registro_v3", extraTemplates, utils.DEFAULT_VIEW, utils.DEFAULT_PANIC_TEMPLATE,
 		map[string]interface{}{
-			"windowTitle": "Registro V3",
+			"windowTitle": "Registro de víctima", // REG-06: el usuario final no ve «V3» (la ruta /registro-v3 no cambia)
 			"currentUser": s.Names + " " + s.LastNames,
 			"currentRole": s.CurrentRole,
 			"locale":      salvia_config.Locale,

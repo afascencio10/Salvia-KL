@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -9,6 +10,8 @@ import (
 // VictimContactReassignRow datos mínimos del reporte para reasignación masiva.
 type VictimContactReassignRow struct {
 	ICode string `gorm:"column:victim_contact_i_code"`
+	// Agente actual (vacío si el reporte aún no tenía): decide entre «asignado» y «reasignado» (WP-1 T6).
+	AgentICode string `gorm:"column:agent_i_code"`
 }
 
 // VictimContactsReassignRepository operaciones de persistencia para
@@ -20,6 +23,10 @@ type VictimContactsReassignRepository interface {
 	FindAgentForReassign(ctx context.Context, agentICode string) (*AgentReassignRow, error)
 	FindVictimContactForReassign(ctx context.Context, icode string) (*VictimContactReassignRow, error)
 	UpdateVictimContactAgent(ctx context.Context, icode, agentICode, agentTeam string) error
+	// AssignWithTimeline actualiza agente y equipo (igual que UpdateVictimContactAgent) y
+	// registra el hito «Reporte asignado» (reassigned=false) o «Reporte reasignado»
+	// (reassigned=true) en la MISMA transacción (WP-1 T6). actorICode es el supervisor.
+	AssignWithTimeline(ctx context.Context, icode, agentICode, agentTeam, description, actorICode string, reassigned bool) error
 }
 
 type victimContactsReassignRepository struct {
@@ -55,7 +62,7 @@ func (r *victimContactsReassignRepository) FindAgentForReassign(ctx context.Cont
 func (r *victimContactsReassignRepository) FindVictimContactForReassign(ctx context.Context, icode string) (*VictimContactReassignRow, error) {
 	var row VictimContactReassignRow
 	err := r.db.WithContext(ctx).Raw(`
-		SELECT victim_contact_i_code
+		SELECT victim_contact_i_code, COALESCE(victim_contact_agent_id, '') AS agent_i_code
 		FROM salvia.victim_contact
 		WHERE victim_contact_i_code = ?
 		LIMIT 1
@@ -78,4 +85,24 @@ func (r *victimContactsReassignRepository) UpdateVictimContactAgent(ctx context.
 		    victim_contact_team = ?
 		WHERE victim_contact_i_code = ?
 	`, agentICode, agentTeam, icode).Error
+}
+
+// AssignWithTimeline: el UPDATE de agente/equipo (GAP-3: siempre pisa el equipo) y
+// el hito del reporte en una sola transacción; si el evento falla se revierte la asignación.
+func (r *victimContactsReassignRepository) AssignWithTimeline(ctx context.Context, icode, agentICode, agentTeam, description, actorICode string, reassigned bool) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(`
+			UPDATE salvia.victim_contact
+			SET victim_contact_agent_id = ?,
+			    victim_contact_team = ?
+			WHERE victim_contact_i_code = ?
+		`, agentICode, agentTeam, icode).Error; err != nil {
+			return err
+		}
+		milestone := ReportMilestoneAssigned
+		if reassigned {
+			milestone = ReportMilestoneReassigned
+		}
+		return NewCaseTimelineEventRepository(tx).Create(ctx, NewReportMilestoneEvent(icode, milestone, description, actorICode, "", time.Now().UTC()))
+	})
 }

@@ -1,0 +1,3 @@
+## 2026-11-04 — Módulo nuevo «Ruta de atención integral» (WP-4 · REG-17)
+
+Nueva pestaña de Registro V3 entre Tamizaje y Plan de acción, sin candado, que replica la sección «Identificación de entidades» de Seguimiento v4 sin el componente dinámico: `GS_14`, entidades acudidas (con la cascada obligatoria, «Buscar entidad», acciones completadas y pendientes, radicado, fecha de reporte y otra información, y —con acciones pendientes— acuerdo, debida diligencia, canales y gestiones), barreras por entidad (formulario de Seguimiento v4) y `GS_17`. Se guarda en el borrador JSON mientras el Caso es Borrador y es de solo lectura después. Ver el [changelog de Registro V3](../Registro%20V3/changelogNov2026.md) para la lista de archivos.

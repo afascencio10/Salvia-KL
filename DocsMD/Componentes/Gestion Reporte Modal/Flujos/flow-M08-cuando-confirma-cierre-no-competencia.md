@@ -91,3 +91,8 @@ PASO 6 — Mostrar confirmación
 | Variable / decisión                                                              | Resolución |
 |------------------------------------------------------------------------------------|------------|
 | Longitud máxima de la observación | 500 caracteres: el textarea tiene `maxlength="500"` y el backend responde 400 si se supera (casos `M08-C3`, `M09-C3`) |
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🆕 CAMBIOS DE WP-1 T6 (2026-11-02) — cierre por no competencia
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Igual que M-02, con el motivo de no competencia y su observación (queda en la descripción del hito).

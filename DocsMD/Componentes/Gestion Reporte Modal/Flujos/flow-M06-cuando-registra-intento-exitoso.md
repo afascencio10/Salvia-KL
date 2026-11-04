@@ -86,3 +86,8 @@ PASO 5 — Pasar a vista post-contacto
 | Variable / decisión                                                              | Paso afectado |
 |------------------------------------------------------------------------------------|---------------|
 | ¿Un intento exitoso registrado por error se puede "deshacer" (volver a esquema3x3)? El mockup no lo contempla — es unidireccional. | PASO 5 — se asume que no, consistente con el mockup |
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🆕 CAMBIOS DE WP-1 T6 (2026-11-02) — intento exitoso
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PASO 4 (repositorio.InsertAttempt) corre en UNA transacción con el reporte bloqueado: INSERT del intento y el hito «Contacto logrado» («Contacto logrado el {fecha} {hora}.»). Todo intento exitoso genera este mismo evento (no hay un tipo aparte para un segundo exitoso). Si el evento falla se revierte el intento (500). Frontend: historyVersion++.

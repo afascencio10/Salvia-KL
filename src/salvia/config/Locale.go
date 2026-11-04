@@ -61,6 +61,7 @@ var Locale = map[string]map[string]string{
 		"set_victim_case_window_title":    "Crear caso",
 		"get_victim_contact_window_title": "Reportar caso",
 		"set_victim_contact_window_title": "Reportar caso",
+		"report_status_window_title":      "Consultar mi reporte",
 
 		//Sector
 		"sector_os": "Otros sectores",
@@ -709,6 +710,15 @@ var Locale = map[string]map[string]string{
 
 		"victim_case_form2_residence_zone":            "¿En qué zona se encuentra su lugar de residencia?",
 		"victim_case_form2_residence_zone_h":          "Por favor ingrese la zona de residencia",
+		"victim_case_form2_residence_zone_ru":         "Rural",
+		"victim_case_form2_residence_zone_ur":         "Urbano",
+		"victim_case_form2_disability_type_01":        "Discapacidad física",
+		"victim_case_form2_disability_type_02":        "Discapacidad auditiva",
+		"victim_case_form2_disability_type_03":        "Discapacidad visual",
+		"victim_case_form2_disability_type_04":        "Sordoceguera",
+		"victim_case_form2_disability_type_05":        "Discapacidad intelectual",
+		"victim_case_form2_disability_type_06":        "Discapacidad psicosocial (mental)",
+		"victim_case_form2_disability_type_07":        "Discapacidad múltiple",
 		"get_victim_case_residence_department":        "¿En qué departamento se encuentra su lugar de residencia?",
 		"get_victim_case_residence_department_h":      "Por favor ingrese el departamento de residencia",
 		"get_victim_case_residence_city":              "¿En qué ciudad se encuentra su lugar de residencia?",
@@ -772,6 +782,13 @@ var Locale = map[string]map[string]string{
 		"victim_case_form2_parentesco_fa": "Familia",
 		"victim_case_form2_parentesco_fs": "Familia social",
 		"victim_case_form2_parentesco_ot": "Otra",
+
+		"victim_contact_form2_v2_time_invalid": "Hora con formato inválido",
+
+		// T8 — «Está reportando como …» en el reporte V2 (solo en, op y et)
+		"victim_contact_v2_reporter_role_en": "Enlace territorial",
+		"victim_contact_v2_reporter_role_op": "Agente integral",
+		"victim_contact_v2_reporter_role_et": "Entidad",
 
 		"victim_case_form2_enums_not_found":          "Por favor escoja una opción",
 		"feminicide_form2_enums_not_found":           "Por favor escoja una opción",

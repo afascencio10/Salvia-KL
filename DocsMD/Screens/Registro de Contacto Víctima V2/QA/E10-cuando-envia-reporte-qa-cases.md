@@ -19,7 +19,7 @@ Ejecutado 2026-09-27, siguiendo `qa-process.md`. Cubre el único evento que pers
 | C3 | Reporte tipo Víctima, flujo completo válido | Paso 'formulario', todos los campos requeridos llenos | 200, radicado devuelto, registro visible en `victim_contact`/`_form2`/`_form2_v2` | Playwright E2E + verificación en BD |
 | C4 | Reporte tipo Tercero, anonimato = "Anónimo", sin nombre de reportante | Paso 'formulario' | 200 — el nombre del reportante NO es obligatorio cuando es anónimo | curl + verificación en BD |
 | C5 | Reporte tipo Tercero, anonimato = "A nombre propio", flujo completo | Paso 'formulario' | 200, radicado, `reporter_names`/`reporter_last_names`/`reporter_email` persistidos | Playwright E2E + verificación en BD |
-| C6 ⚠️ | Reporte tipo Familiar, disposición de recontacto = "Sí" | Paso 'formulario' | Aparece el campo "hora de contacto". **Resultado vigente:** al enviar con la hora digitada responde **400** `form2V2.reporterBestContactTime` (L1, ver abajo); con "Sí" y la hora vacía el botón queda deshabilitado. Lo que sí debe cumplirse una vez corregido L1: 200 y `victim_col_phone`/`best_contact_time` de la víctima en 0/vacío (no aplica) | Playwright E2E + verificación en BD |
+| C6 ✅ | Reporte tipo Familiar, disposición de recontacto = "Sí" | Paso 'formulario' | Aparece el campo "hora de contacto". Con la hora digitada responde **200** (corregido en WP-1 T1: el DTO acepta `HH:MM:SS`) y `victim_col_phone`/`best_contact_time` de la víctima quedan en 0/vacío (no aplica) | Playwright E2E + verificación en BD |
 | C7 | Reporte tipo Hombre, disposición de recontacto = "No" | Paso 'formulario' | Bloque "Datos de la persona afectada" NO se renderiza; al enviar, 200 y `victim_contact.names`/`last_names` quedan vacíos (decisión 7A) | Playwright E2E + verificación en BD |
 | C8 | Captcha incorrecto, resto del formulario válido | POST directo | 400, error específico en `victimContact.captchaSolution`, no crea ningún registro | curl + verificación en BD (tabla sin la fila nueva) |
 | C9 | `adjustmentsGBV` vacío (`[]`) | POST directo | 400, error "Por favor escoja una o más opciones" | curl |
@@ -48,3 +48,34 @@ Ejecutado 2026-09-27, siguiendo `qa-process.md`. Cubre el único evento que pers
 ## Bugs encontrados durante esta ronda de QA
 
 Ver el detalle completo (causa raíz + fix) en [`../related-tables.md`](../related-tables.md#bugs-encontrados-durante-implementación-y-qa-2026-09-27). Resumen: 7 bugs — 2 de frontend (pantalla invisible por `id` duplicado; popup de éxito bloqueando un botón), 4 de backend (decodificación JSON de `form2V2`; 2 variantes del mismo bug de Locale mal referenciado en captcha y en validaciones de campo requerido; una comparación de longitud siempre falsa), 1 de la migración (permisos faltantes para el rol con el que la app corre en runtime). Todos corregidos y re-verificados con los casos de esta tabla antes de cerrar la ronda.
+
+## Casos agregados en WP-1 (2026-11-02)
+
+Ejecutados contra la app real del sandbox (Postgres local) con `requests` (API), `psql` y Playwright (UI). El POST usa `User-Agent: flutter-client` (el captcha no se puede resolver automáticamente).
+
+### T1 — hora HH:MM:SS (REP-13*)
+
+| Caso | Descripción | Resultado esperado | Método |
+|---|---|---|---|
+| C18 | Familiar y Hombre con «Sí» y hora `14:30:00` | 200; `reporter_best_contact_time` = 14:30 | API + BD |
+| C19 | Hora `09:05` (HH:MM) | 200 | API |
+| C20 | Hora RFC 3339 (`2026-01-02T07:45:00Z`) | 200 | API |
+| C21 | Disposición «No» (sin hora) | 200, hora NULL | API |
+| C22 | Hora inválida (`25:99:00`, `mañana`) | 400 `form2V2.reporterBestContactTime` = «Hora con formato inválido» | API |
+| C23 | «Sí» sin hora (null) | 400 = «Este campo es obligatorio» | API |
+| C24 | Víctima y Tercero (no usan la hora V2) | 200 | API |
+| C25 | Pruebas Go del DTO (`go test -vet=off ./salvia/dao -run VictimContactForm2V2DTO`) | `null`, vacío, ausente, medianoche, ida y vuelta con `MarshalJSON` | GO |
+
+### T3 — radicado (REP-01)
+
+| Caso | Descripción | Resultado esperado | Método |
+|---|---|---|---|
+| C26 | Reporte nuevo | respuesta con `icode` y `radicado` que cumple `^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$`; igual al guardado en BD | API |
+| C27 | 50 reportes seguidos y 40 en paralelo | radicados todos distintos; ninguno repetido en la tabla | API |
+| C28 | Índice único | `uq_victim_contact_radicado` existe y un duplicado falla (23505) | API |
+| C29 | Colisión simulada | el generador reintenta y guarda otro; agotados 5 intentos → error | GO |
+| C30 | Reporte existente sin radicado | detalle y listado siguen funcionando | API |
+| C31 | Confirmación del wizard | muestra el radicado `XXXX-XXXX`, no el UUID | UI |
+| C32 | Reporte inválido (400) | no crea fila ni radicado | API |
+| C33 | Prefijo de fecha | igual todo el día (hora de Colombia), cambia con la fecha, 1024 días seguidos dan 1024 prefijos | GO |
+| C34 | Botón «Copiar radicado» | el portapapeles contiene el radicado y dice «Copiado»; si se deniega el acceso aparece el aviso de respaldo | UI |

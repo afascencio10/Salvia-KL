@@ -68,11 +68,16 @@ func (s *victimContactsReassignService) ReassignBulk(ctx context.Context, input 
 
 	var result VictimContactsReassignResult
 	for _, icode := range icodes {
-		if _, err := s.repo.FindVictimContactForReassign(ctx, icode); err != nil {
+		current, err := s.repo.FindVictimContactForReassign(ctx, icode)
+		if err != nil {
 			result.Skipped++
 			continue
 		}
-		if err := s.repo.UpdateVictimContactAgent(ctx, icode, agentICode, agentTeam); err != nil {
+		// Hito del timeline (WP-1 T6): «asignado» si el reporte no tenía agente, «reasignado» si ya tenía
+		// (aunque sea el mismo: lo más simple). Va en la misma transacción que el cambio de agente.
+		if err := s.repo.AssignWithTimeline(ctx, icode, agentICode, agentTeam,
+			reportAssignmentDescription(agentName, agentTeam, supervisorName, supervisorICode),
+			supervisorICode, strings.TrimSpace(current.AgentICode) != ""); err != nil {
 			return VictimContactsReassignResult{}, err
 		}
 		if s.logRepo != nil {
@@ -91,4 +96,22 @@ func (s *victimContactsReassignService) ReassignBulk(ctx context.Context, input 
 
 	result.OK = true
 	return result, nil
+}
+
+// reportAssignmentDescription arma el texto del hito de asignación:
+// «Asignado a {agente} (equipo {equipo}) por {supervisor}.» Si el agente no tiene
+// equipo se omite el paréntesis.
+func reportAssignmentDescription(agentName, team, supervisorName, supervisorICode string) string {
+	text := "Asignado a " + agentName
+	if team != "" {
+		text += " (equipo " + team + ")"
+	}
+	by := supervisorName
+	if by == "" {
+		by = supervisorICode
+	}
+	if by == "" {
+		by = "el supervisor"
+	}
+	return text + " por " + by + "."
 }

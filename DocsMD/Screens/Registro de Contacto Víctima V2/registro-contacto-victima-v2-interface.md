@@ -1,8 +1,8 @@
 # `/salvia/public-v2/nuevo` — Interfaz de la Pantalla
 
-> ✅ **Implementado y probado — 2026-09-27; MD sincronizado con el código el 2026-10-31.** Ruta pública `GET /salvia/public-v2/nuevo` (wizard) y `POST /salvia/public-v2` (radicación), sin sesión ni permisos. Casos de prueba en [`QA/E10-cuando-envia-reporte-qa-cases.md`](QA/E10-cuando-envia-reporte-qa-cases.md). Limitaciones conocidas al final de este archivo.
+> ✅ **Implementado y probado — 2026-09-27; MD sincronizado con el código el 2026-10-31.** Ruta pública `GET /salvia/public-v2/nuevo` (wizard) y `POST /salvia/public-v2` (radicación), sin sesión ni permisos. Casos de prueba en [`QA/`](QA/). Limitaciones conocidas al final de este archivo. **WP-1 (2026-11-02):** paso inicial «¿Tiene usuario?» (T8), radicado `XXXX-XXXX` con botón «Copiar radicado» (T3), captcha nuevo al volver al inicio (T2) y hora de recontacto `HH:MM:SS` aceptada (T1) — ver [`changelogNov2026.md`](changelogNov2026.md).
 
-Segunda versión pública del reporte ciudadano de hechos de VBG/VpP. Coexiste con la pantalla anterior (`set_victim_contact.html`) sin modificarla. Es un wizard de 4 pasos (Autorización → Perfil de ingreso → Formulario específico → Confirmación con radicado) con 4 tipos de reportante: Víctima (`v`), Tercero (`r`), Familiar (`fm`) y Hombre (`ho`). Lo que se radica entra a [Listado Reportes](../Listado%20Reportes/listado-reportes-index.md) como "Sin asignar" y desde ahí lo gestionan [Mis Reportes](../Mis%20Reportes/mis-reportes-index.md) y el modal [`gestion-reporte-modal`](../../Componentes/Gestion%20Reporte%20Modal/gestion-reporte-modal-index.md).
+Segunda versión pública del reporte ciudadano de hechos de VBG/VpP. Coexiste con la pantalla anterior (`set_victim_contact.html`) sin modificarla. Es un wizard de 5 pasos (¿Tiene usuario? → Autorización → Perfil de ingreso → Formulario específico → Confirmación con radicado) con 4 tipos de reportante: Víctima (`v`), Tercero (`r`), Familiar (`fm`) y Hombre (`ho`). Lo que se radica entra a [Listado Reportes](../Listado%20Reportes/listado-reportes-index.md) como "Sin asignar" y desde ahí lo gestionan [Mis Reportes](../Mis%20Reportes/mis-reportes-index.md) y el modal [`gestion-reporte-modal`](../../Componentes/Gestion%20Reporte%20Modal/gestion-reporte-modal-index.md).
 
 Archivo fuente: `src/frontend/html/salvia/victim_contact/set_victim_contact_v2.html` (app Vue 3 `appV2`, Options API, delimitadores `${ }`).
 
@@ -59,7 +59,18 @@ Layout compartido  (header.html)  <body id="app">
     │   AlertaGlobal  (#alert .alert-danger)  ${errors.default.global_msg}
     ├── RegionAria  (#global-errors-live .sr-only, aria-live="assertive")   ← resumen de errores por campo para lectores de pantalla
     │
-    ├── [v-if step === 'auth']
+    ├── 🆕 [v-if step === 'usuario']                                     (T8 · paso inicial)
+    │   SeccionUsuario
+    │   ├── Titulo  "¿Tiene usuario en Salvia?"  (.tituloform, ícono fa-user-circle)
+    │   ├── [v-if reporterName]                 // solo en, op y et con sesión iniciada
+    │   │   ├── Aviso  (#reporter-banner .alert-info)  "Está reportando como ${reporterName} (${reporterRoleLabel}). El reporte quedará asociado a su usuario."
+    │   │   └── BtnContinuar  "Continuar"  (#btn-usuario-continuar)  → goTo('auth')
+    │   └── [v-else]
+    │       ├── Texto  "Si es enlace territorial, agente integral o entidad, inicie sesión para reportar con su usuario."
+    │       ├── BtnNo  "No, continuar sin usuario"  (#btn-usuario-no)  → elegirUsuario('no')  → goTo('auth')
+    │       └── BtnSi  "Sí, iniciar sesión"  (#btn-usuario-si)  → elegirUsuario('si')  → /seguridad/login?next=/salvia/public-v2/nuevo
+    │
+    ├── [v-else-if step === 'auth']
     │   SeccionAutorizacion
     │   ├── Titulo  "Autorización de datos personales"  (.tituloform, ícono fa-list-alt)
     │   ├── Texto legal  (Ley 1581/2012 · derechos del titular · art. 56 Ley 1437/2011 mod. Ley 2080/2021 — notificaciones electrónicas · Resolución 772/2024)
@@ -123,10 +134,13 @@ Layout compartido  (header.html)  <body id="app">
         ├── DatosRadicado  (.border.rounded.p-4)
         │   ├── "Fecha:"  ${fechaActual}  (toLocaleDateString('es-CO'))
         │   ├── "Hora:"  ${horaActual}  (toLocaleTimeString('es-CO'))
-        │   └── "Número de Radicado:"  ${radicado}  (icode devuelto por el backend)
+        │   └── "Número de Radicado:"  ${radicado}  (radicado «XXXX-XXXX» devuelto por el backend; si faltara, el icode)   ✏️ T3
+        │       └── 🆕 BtnCopiar  "Copiar radicado"  (#btn-copiar-radicado)  → copiarRadicado()   // «Copiado» 3 s; si el navegador lo impide: aviso para copiarlo a mano
         ├── Texto  "Un agente integral intentará comunicarse al número de contacto proporcionado para la validación y posible apertura del caso."
-        └── BtnVolver  "← Volver al Inicio"  (.btn-link)  → resetForm()
+        └── BtnVolver  "← Volver al Inicio"  (.btn-link)  → resetForm()   // pide un captchaID nuevo (T2) y vuelve al paso inicial
 ```
+
+El paso inicial es `usuario`, salvo con una sesión de otro rol (sv, ad, ro…): ahí arranca en `auth`, sin el paso ni el mensaje, y el reporte igual queda asociado a su usuario (decisión de la revisión de WP-1).
 
 ### Etiquetas reales de los catálogos
 
@@ -193,8 +207,8 @@ Ninguno de estos estaba en la planeación original — surgieron al implementar 
 
 | # | Qué pasa | Dónde |
 |---|---|---|
-| L1 | **Familiar y Hombre no pueden enviar si eligen "Sí" en la disposición de llamada y digitan la hora.** El wizard manda `reporterBestContactTime: "HH:MM:00"`, pero `VictimContactForm2V2DTO` no tiene `UnmarshalJSON` y el campo es `time.Time` (espera RFC 3339): `utils.JSONToStruct` descarta el error, el campo queda en cero y el controller responde 400 `form2V2.reporterBestContactTime` ("Este campo es obligatorio"). Con "No" sí funciona. Observado por API el 2026-10-13; no verificado por el wizard | `VictimContactForm2V2DAO.go:50-63`, `VictimContactControllerV2.go:164-168` |
-| L2 | **El captcha no se regenera tras un envío exitoso.** `resetForm()` reutiliza `form.captchaID`, y `captcha.Verify` borra el id al verificarlo; un segundo reporte en la misma página recibe 400 de captcha y recién ahí obtiene un id nuevo (`errors.default.captchaID`). Por lectura de código; no verificado en el navegador | `set_victim_contact_v2.html:327-331`, `dchest/captcha` `Verify` |
+| L1 | ✅ **Resuelta (WP-1 T1, 2026-11-02).** `VictimContactForm2V2DTO.UnmarshalJSON` acepta `HH:MM:SS`, `HH:MM` y RFC 3339; una hora ilegible responde 400 «Hora con formato inválido» en `form2V2.reporterBestContactTime` en vez de descartarse | `VictimContactForm2V2DAO.go`, `VictimContactControllerV2.go` |
+| L2 | ✅ **Resuelta (WP-1 T2, 2026-11-02).** `resetForm()` llama a `refreshCaptcha()`, que pide un captchaID nuevo a la propia página con `Accept: application/json`; si la petición falla se conserva el comportamiento anterior y se deja un aviso en consola | `set_victim_contact_v2.html` |
 | L3 | El botón "Enviar Reporte" se deshabilita sin decir qué falta: no hay errores por campo del lado del cliente | `isFormValid` (`set_victim_contact_v2.html:280-304`) |
 | L4 | Cualquier 400 del backend (no solo el de captcha) devuelve un `captchaID` nuevo y el cliente lo asigna, porque el controller lo regenera siempre que hay errores | `VictimContactControllerV2.go:199-201` |
 

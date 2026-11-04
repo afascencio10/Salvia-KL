@@ -43,7 +43,7 @@ list_reportes.html  (.salvia-main)
 │       { key: 'contact_scheme',    label: 'Esquema 3x3' },      // NUEVO col.key
 │       { key: 'report_status',     label: 'Estado' },           // NUEVO col.key
 │       { key: 'assigned_agent',    label: 'Asignado a' },        // NUEVO col.key
-│       { key: 'registration_date', label: 'Fecha Reporte' },    // ya existe en casos-component · HOY SALE "—": la celda lee creationDateCO y ReportListItem no lo trae (H11)
+│       { key: 'registration_date', label: 'Fecha Reporte' },    // ya existe en casos-component · la celda lee creationDateCO ("AAAA-MM-DD" en hora de Bogotá, lo trae ReportListItem desde WP-2/REP-12) y lo muestra DD/MM/AAAA sin new Date()
 │   ]"
 │   :available-filters="[
 │       { key: 'estado_reporte', type: 'dropdown',    label: 'Estado del reporte', options: [...] },  // NUEVO
@@ -86,7 +86,7 @@ Cambios aditivos, sin tocar el comportamiento actual de ningún consumidor exist
 | `col.key === 'victim_info'` | Variante para reportes | Si la fila trae `reportStatus`: nombre (o "Sin nombre") + `ID: {i_code}`; sin documento ni teléfono. |
 | `col.key === 'report_type'` | Nueva rama en el `<template>` de celda | Muestra `report.reportType` — la etiqueta (Víctima/Tercero/Familiar/Hombre) la arma el servicio; `—` si el reporte no tiene tipo (los registrados por un agente, solo-`form1`, no lo tienen). |
 | `col.key === 'contact_scheme'` | Nueva rama | `"Sin intentos"` o `"{totalFallidos}/9 intentos · {diasCompletos}/3 días"` — es el texto real de la columna de la bandeja en el mockup (`totalFallidosDe`/`diasCompletosDe`), no el contador "hoy" que solo aplica dentro del modal. |
-| `col.key === 'report_status'` | Nueva rama | Badge: Asignado (azul) / Cerrado — válido (verde) / Cerrado — inválido (rojo) / Sin asignar (gris). |
+| `col.key === 'report_status'` | Nueva rama | Badge: Asignado (azul) / **Borrador iniciado (ámbar, WP-1 T7)** / Cerrado — válido (verde) / Cerrado — inválido (rojo) / Sin asignar (gris). |
 | `col.key === 'assigned_agent'` | Nueva rama | `report.assignedAgentName \|\| "Sin asignar"` |
 | Filtro `estado_reporte` (dropdown) | Entra por `activeDropdowns` | Misma lista `dropdownParamKeys` que `riesgo`/`equipo`/`estado_caso`: `filter_estado_reporte={asignado\|cerrado_valido\|cerrado_invalido\|sin_asignar}`. Combinable; no toca `activeFilter`. Ver [flow-E02](./Flujos/flow-E02-cuando-filtra-estado-reporte.md). |
 | Filtro `asignacion` (autocomplete) | `runAsignacionSearch` (rama propia) | Agentes de `GET /api/v1/agents/by-role?role=op` (una vez, en caché, filtrados en el cliente) + opción fija `{value:'__unassigned__', label:'Sin asignar'}`: `filter_key=asignacion&filter_value={icode\|__unassigned__}`. Ver [flow-E03](./Flujos/flow-E03-cuando-filtra-asignacion.md). |
