@@ -126,6 +126,7 @@ var victimCaseV3FormFields = []VictimCaseFormField{ //nolint:gochecknoglobals
 	{FieldKeyV3("GS", 17), "victim_case_form2_identifies_barriers", KindBoolEnum},
 	{FieldKeyV3("GS", 18), "victim_case_form2_wants_imminent_alert", KindBoolEnum},
 	{FieldKeyV3("GS", 19), "victim_case_form2_imminent_alert_note", KindText}, // justificación, solo si Q18=true
+	{FieldKeyV3("GS", 20), "", KindEnumN},                                     // REG-16: elementos psicosociales integrados en el acompañamiento (14 + «Ninguno»)
 }
 
 // victimCaseV3TamizajeBranchFields -- ramas pareja/no-pareja del Tamizaje
@@ -179,6 +180,7 @@ var victimCaseV3EnumNCategories = map[string][]string{ //nolint:gochecknoglobals
 	FieldKeyV3("GS", 10): {"victim_case_form2_men_criteria"},
 	FieldKeyV3("GS", 11): {"victim_case_form2_disability_service"},
 	FieldKeyV3("GS", 12): {"victim_case_form2_stabiliz_criteria"},
+	FieldKeyV3("GS", 20): {"victim_case_form2_psychosocial_elements"}, // REG-16
 }
 
 // victimCaseV3EnumCategories -- catálogo completo de categorías que expone
@@ -213,4 +215,5 @@ var victimCaseV3EnumCategories = []string{ //nolint:gochecknoglobals
 	"victim_case_form2_barrier_institutional", "victim_case_form2_barrier_economic", "victim_case_form2_barrier_territorial",
 	"victim_case_form2_barrier_differential", "victim_case_form2_barrier_management", "victim_case_form2_barrier_response",
 	"victim_case_form2_barrier_close_reason",
+	"victim_case_form2_psychosocial_elements", // REG-16 (GS_20)
 }
