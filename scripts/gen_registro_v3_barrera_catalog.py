@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Genera BARRERA_V4_V3: el formulario de barreras de Seguimiento v4 para Registro V3.
+"""Genera BARRERA_V4_V3 y ENTIDAD_V4_V3: textos de Seguimiento v4 para Registro V3.
 
 REG-18 (WP-4): el formulario de barrera de Registro V3 es el mismo de Seguimiento v4
 (15 preguntas para el agente, 27 filas con los textos informativos y los campos por
@@ -7,6 +7,10 @@ sector). Este script LEE el seed de Seguimiento v4 y escribe el catálogo en
 src/frontend/js/components/registro-v3-campos.js, entre los marcadores
 `// >>> BARRERA_V4_V3` y `// <<< BARRERA_V4_V3`. Los textos, las opciones y las
 condiciones salen del seed: nada se transcribe a mano.
+
+Además genera ENTIDAD_V4_V3 (los textos de «Identificación de entidades» de Seguimiento v4:
+radicado, fecha, acciones, acuerdo, debida diligencia, canales y gestiones) y CANAL_ACTIVACION_V3
+(las 4 opciones de canal), entre los marcadores `// >>> ENTIDAD_V4_V3` y `// <<< ENTIDAD_V4_V3`.
 
 Uso (desde la raíz del repositorio):
     python3 scripts/gen_registro_v3_barrera_catalog.py            # reescribe el bloque
@@ -27,6 +31,11 @@ TARGET = os.path.join(ROOT, "src", "frontend", "js", "components", "registro-v3-
 BARRIER_REPEATER = "52387e43-9d64-412d-83b5-b2b6cbbf02c8"
 BEGIN = "// >>> BARRERA_V4_V3"
 END = "// <<< BARRERA_V4_V3"
+BEGIN_E = "// >>> ENTIDAD_V4_V3"
+END_E = "// <<< ENTIDAD_V4_V3"
+# Grupo repetidor de la entidad de «Identificación de entidades» y sección (pregunta ident.conocimiento).
+ENTITY_REPEATER = "2bda4735-3927-4634-a666-c7f97949be0a"
+ENTITY_SECTION = "e742200a-4bc9-4241-b552-31e4666b72b1"
 
 # Claves estables por posición (columna "order" 1..27 del grupo repetidor). Son los
 # mismos sufijos que usa scripts/gen_seguimiento_v4_seed.js (barrierQuestions); el tipo
@@ -40,6 +49,13 @@ KEYS = [
     ("fecha", "date"), ("funcionario", "text"), ("depto", "dropdown"), ("municipio", "dropdown"),
     ("vereda", "dropdown"), ("descripcion", "text"), ("gestion", "multiple"), ("perspectiva", "text"),
     ("infoAlerta", "info"), ("gestionTexto", "text"),
+]
+# Preguntas del repetidor de entidad por posición ("order" 1..16); mismos sufijos que ident.* del generador del seed.
+ENTIDAD_KEYS = [
+    ("sector", "dropdown"), ("depto", "dropdown"), ("municipio", "dropdown"), ("ciudad", "dropdown"),
+    ("entidad", "dropdown"), ("otraEntidad", "text"), ("radicado", "text"), ("fecha", "date"),
+    ("completadas", "multiple"), ("pendientes", "multiple"), ("otraRuta", "text"), ("nuevaBarrera", "boolean"),
+    ("acuerdo", "boolean"), ("debida", "boolean"), ("canales", "multiple"), ("gestiones", "text"),
 ]
 # Preguntas cuyas opciones no están en el seed sino en la geografía del sistema.
 FUENTE = {"depto": "departamentos", "municipio": "municipios"}
@@ -158,6 +174,56 @@ def construir():
     return out
 
 
+def construir_entidad():
+    with open(SEED, encoding="utf-8") as f:
+        sql = f.read()
+    preguntas = bloque(sql, "question")
+    opciones = {}
+    for o in bloque(sql, "option"):
+        opciones.setdefault(o[1], []).append(o)
+    rep = sorted([q for q in preguntas if q[3] == ENTITY_REPEATER], key=lambda q: q[8])
+    if len(rep) != len(ENTIDAD_KEYS):
+        raise SystemExit("el repetidor de la entidad tiene %d preguntas y se esperaban %d: el seed cambió de forma" % (len(rep), len(ENTIDAD_KEYS)))
+    conocimiento = [q for q in preguntas if q[2] == ENTITY_SECTION and q[3] is None and q[4] == "boolean"]
+    if len(conocimiento) != 1:
+        raise SystemExit("no se encontró la pregunta ident.conocimiento")
+    out = {"conocimiento": {"label": conocimiento[0][5], "required": bool(conocimiento[0][6])}}
+    for i, q in enumerate(rep):
+        clave, tipo = ENTIDAD_KEYS[i]
+        if q[4] != tipo:
+            raise SystemExit("la pregunta %d de la entidad (%s) es de tipo %s y se esperaba %s" % (i + 1, clave, q[4], tipo))
+        item = {"label": q[5], "required": bool(q[6])}
+        ops = sorted(opciones.get(q[0], []), key=lambda o: o[4])
+        if ops:
+            item["opciones"] = [{"value": o[3], "label": o[2]} for o in ops]
+        out[clave] = item
+    esperadas = {"acuerdo": "¿La persona está de acuerdo", "debida": "¿Salvia debe activar rutas", "canales": "Seleccione los canales", "gestiones": "¿Qué gestiones se realizaron"}
+    for clave, inicio in esperadas.items():
+        if not out[clave]["label"].startswith(inicio):
+            raise SystemExit("la etiqueta de %s cambió en el seed: %r" % (clave, out[clave]["label"]))
+    canales = [o["value"] for o in out["canales"].get("opciones", [])]
+    # Seguimiento v4 ofrece los 4 canales y «Ninguna» (que no crea tarea: v4ProcesarCanales la ignora).
+    if canales != ["notificacion", "articulacion", "denuncia", "misalvia", "ninguna"]:
+        raise SystemExit("los canales del seed cambiaron: %r" % canales)
+    return out
+
+
+def a_js_entidad(entidad):
+    lineas = [
+        BEGIN_E + " (generado por scripts/gen_registro_v3_barrera_catalog.py a partir de",
+        "// src/internal/seed/seguimiento_v4_form.sql; NO editar a mano: vuelve a ejecutar el script)",
+        "// Textos de «Identificación de entidades» de Seguimiento v4 (REG-17/19/20).",
+        "var ENTIDAD_V4_V3 = {",
+    ]
+    for k, v in entidad.items():
+        lineas.append("  " + json.dumps(k) + ": " + json.dumps(v, ensure_ascii=False) + ",")
+    lineas.append("};")
+    lineas.append("// Canales de activación (REG-20): las opciones de la pregunta de canales de Seguimiento v4 (4 canales y «Ninguna»).")
+    lineas.append("var CANAL_ACTIVACION_V3 = ENTIDAD_V4_V3.canales.opciones;")
+    lineas.append(END_E)
+    return "\n".join(lineas)
+
+
 def a_js(preguntas):
     lineas = [
         BEGIN + " (generado por scripts/gen_registro_v3_barrera_catalog.py a partir de",
@@ -173,23 +239,29 @@ def a_js(preguntas):
     return "\n".join(lineas)
 
 
+def reemplazar(js, begin, end, nuevo, archivo):
+    patron = re.compile(re.escape(begin) + r".*?" + re.escape(end), re.S)
+    if not patron.search(js):
+        raise SystemExit("faltan los marcadores %s / %s en %s" % (begin, end, archivo))
+    return patron.sub(lambda _m: nuevo, js, count=1)
+
+
 def main():
-    nuevo = a_js(construir())
+    preguntas = construir()
+    entidad = construir_entidad()
     with open(TARGET, encoding="utf-8") as f:
         js = f.read()
-    patron = re.compile(re.escape(BEGIN) + r".*?" + re.escape(END), re.S)
-    if not patron.search(js):
-        raise SystemExit("faltan los marcadores %s / %s en %s" % (BEGIN, END, TARGET))
-    resultado = patron.sub(lambda _m: nuevo, js, count=1)
+    resultado = reemplazar(js, BEGIN, END, a_js(preguntas), TARGET)
+    resultado = reemplazar(resultado, BEGIN_E, END_E, a_js_entidad(entidad), TARGET)
     if "--check" in sys.argv:
         if resultado != js:
-            raise SystemExit("BARRERA_V4_V3 está desactualizado: ejecuta scripts/gen_registro_v3_barrera_catalog.py")
-        print("BARRERA_V4_V3 está al día")
+            raise SystemExit("BARRERA_V4_V3 / ENTIDAD_V4_V3 están desactualizados: ejecuta scripts/gen_registro_v3_barrera_catalog.py")
+        print("BARRERA_V4_V3 y ENTIDAD_V4_V3 están al día")
         return
     if resultado != js:
         with open(TARGET, "w", encoding="utf-8") as f:
             f.write(resultado)
-    print("BARRERA_V4_V3: %d preguntas escritas en %s" % (len(construir()), os.path.relpath(TARGET, ROOT)))
+    print("BARRERA_V4_V3: %d preguntas · ENTIDAD_V4_V3: %d textos · escritos en %s" % (len(preguntas), len(entidad), os.path.relpath(TARGET, ROOT)))
 
 
 if __name__ == "__main__":

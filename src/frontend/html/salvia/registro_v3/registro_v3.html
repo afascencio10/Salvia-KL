@@ -301,6 +301,7 @@
               <span class="badge bg-secondary">${sectorLabelEntidadBarrera(e.sector)}</span>
               <strong>${e.entityBranchName}</strong>
               <div class="small text-muted">${ubicacionEntidad(e)}</div>
+              <div class="small" v-if="canalDeEntidad(e).length"><b>Canales de activación:</b> ${canalDeEntidad(e).join(', ')}</div>
             </div>
             <button class="btn btn-sm btn-outline-danger" @click="eliminarEntidad(e.relId)">Eliminar entidad</button>
           </div>
@@ -377,13 +378,6 @@
             <label class="form-label">N° radicado</label>
             <input class="form-control" v-model="nuevaEntidad.FileNumber">
           </div>
-          <div class="col-md-3" v-if="nuevaEntidad.EntityBranchID && nuevaEntidad.Kind==='activacion'">
-            <label class="form-label">Canal de activación</label>
-            <select class="form-control" v-model="nuevaEntidad.ActivationChannel">
-              <option value="">Seleccione...</option>
-              <option v-for="c in CANAL_ACTIVACION_V3" :key="c.value" :value="c.value">${c.label}</option>
-            </select>
-          </div>
           <div class="col-md-6" v-if="nuevaEntidad.EntityBranchID">
             <label class="form-label">${nuevaEntidad.Kind==='acudida' ? 'Objetivo con la entidad' : 'Información adicional'}</label>
             <input class="form-control" v-model="nuevaEntidad.OtherInfo">
@@ -410,8 +404,23 @@
           </template>
         </div>
 
+        <!-- REG-20: canal de activación como Seguimiento v4 (selección múltiple + gestiones). Se pide
+             cuando GS_15 y GS_16 son «Sí»; sin ambas no se crea ninguna tarea. -->
+        <div class="mt-2" v-if="nuevaEntidad.EntityBranchID && nuevaEntidad.Kind==='activacion'">
+          <div v-if="activacionAplica()">
+            <label class="form-label">${ENTIDAD_V4_V3.canales.label} <span class="text-danger">*</span></label>
+            <div class="form-check" v-for="c in CANAL_ACTIVACION_V3" :key="c.value">
+              <input class="form-check-input" type="checkbox" :checked="nuevaEntidad.ActivationChannels.indexOf(c.value)>=0" @change="toggleCanal(c.value)">
+              <label class="form-check-label small">${c.label}</label>
+            </div>
+            <label class="form-label mt-2">${ENTIDAD_V4_V3.gestiones.label} <span class="text-danger">*</span></label>
+            <textarea class="form-control" rows="2" v-model="nuevaEntidad.ManagementNotes"></textarea>
+          </div>
+          <div v-else class="small text-muted">Los canales de activación se piden cuando la persona está de acuerdo con la activación de la Ruta y Salvia debe activar rutas en el marco de la debida diligencia (las dos respuestas en «Sí»).</div>
+        </div>
+
         <div v-if="errorEntidad" class="text-danger small mt-2">${errorEntidad}</div>
-        <button class="btn btn-secondary mt-2" @click="agregarEntidad" :disabled="!nuevaEntidad.EntityBranchID">+ Siguiente entidad</button>
+        <button class="btn btn-secondary mt-2" @click="agregarEntidad" :disabled="!nuevaEntidad.EntityBranchID || entidadFaltantes().length>0">+ Siguiente entidad</button>
       </div>
 
       <hr>
@@ -475,7 +484,7 @@
     <table class="table table-sm" v-if="entidades.length || barreras.length">
       <thead><tr><th>Tipo</th><th>Detalle</th></tr></thead>
       <tbody>
-        <tr v-for="e in entidades" :key="'e-'+e.relId"><td>Entidad</td><td>${e.entityBranchName} (${sectorLabelEntidadBarrera(e.sector)})</td></tr>
+        <tr v-for="e in entidades" :key="'e-'+e.relId"><td>Entidad</td><td>${e.entityBranchName} (${sectorLabelEntidadBarrera(e.sector)})<span v-if="canalDeEntidad(e).length"> — Canales: ${canalDeEntidad(e).join(', ')}</span></td></tr>
         <tr v-for="b in barreras" :key="'b-'+b.id"><td>Barrera</td><td>${b.description}</td></tr>
       </tbody>
     </table>

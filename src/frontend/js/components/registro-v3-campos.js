@@ -380,10 +380,35 @@ var SECTORES_ENTIDAD_BARRERA_V3 = [
   { value: "salud", label: "Salud" }, { value: "justicia", label: "Justicia" },
   { value: "proteccion", label: "Protección" }, { value: "otras_instituciones", label: "Otras instituciones" },
 ];
-var CANAL_ACTIVACION_V3 = [
-  { value: "no", label: "Notificación (tarea)" }, { value: "ll", label: "Llamada (tarea)" },
-  { value: "ms", label: "Mi Salvia (Gestión institucional externa) (tarea)" },
-];
+// >>> ENTIDAD_V4_V3 (generado por scripts/gen_registro_v3_barrera_catalog.py a partir de
+// src/internal/seed/seguimiento_v4_form.sql; NO editar a mano: vuelve a ejecutar el script)
+// Textos de «Identificación de entidades» de Seguimiento v4 (REG-17/19/20).
+var ENTIDAD_V4_V3 = {
+  "conocimiento": {"label": "¿Ha puesto en conocimiento de alguna entidad o institución los hechos de violencia reportados?", "required": true},
+  "sector": {"label": "Sector de la entidad", "required": true, "opciones": [{"value": "salud", "label": "Salud"}, {"value": "justicia", "label": "Justicia"}, {"value": "proteccion", "label": "Protección"}, {"value": "educacion", "label": "Educación"}, {"value": "ministerio", "label": "Ministerio Público"}, {"value": "territorial", "label": "Entidad territorial"}, {"value": "osc", "label": "Organización de la sociedad civil, comunitaria o internacional de Naciones Unidas"}, {"value": "clave", "label": "Entidades clave con acciones complementarias y/o especializadas frente a VBG/VPP"}, {"value": "otra", "label": "Otra"}]},
+  "depto": {"label": "Departamento", "required": true},
+  "municipio": {"label": "Municipio", "required": true},
+  "ciudad": {"label": "Ciudad", "required": true},
+  "entidad": {"label": "Entidad", "required": true},
+  "otraEntidad": {"label": "Otra ¿cuál?", "required": true},
+  "radicado": {"label": "Número de radicado (NUNC, medida de protección). Escriba tipo y número", "required": true},
+  "fecha": {"label": "Fecha en la que reportó a la entidad", "required": true},
+  "completadas": {"label": "Acciones institucionales completadas", "required": true},
+  "pendientes": {"label": "Acciones institucionales pendientes", "required": true},
+  "otraRuta": {"label": "Otra información asociada a la Ruta", "required": true},
+  "nuevaBarrera": {"label": "¿Se identifica alguna nueva barrera con relación a esta entidad?", "required": true},
+  "acuerdo": {"label": "¿La persona está de acuerdo con que SALVIA active la Ruta de Atención y las gestiones institucionales correspondientes?", "required": true},
+  "debida": {"label": "¿Salvia debe activar rutas en el marco de la debida diligencia?", "required": true},
+  "canales": {"label": "Seleccione los canales utilizados para la activación o gestión de la Ruta de Atención", "required": true, "opciones": [{"value": "notificacion", "label": "Notificación SALVIA"}, {"value": "articulacion", "label": "Articulación institucional telefónica o por mensajería"}, {"value": "denuncia", "label": "Denuncia fácil"}, {"value": "misalvia", "label": "Mi Salvia"}, {"value": "ninguna", "label": "Ninguna"}]},
+  "gestiones": {"label": "¿Qué gestiones se realizaron desde Salvia para la activación de ruta?", "required": true},
+};
+// Canales de activación (REG-20): las opciones de la pregunta de canales de Seguimiento v4 (4 canales y «Ninguna»).
+var CANAL_ACTIVACION_V3 = ENTIDAD_V4_V3.canales.opciones;
+// <<< ENTIDAD_V4_V3
+// Códigos del desplegable anterior de «Canal de activación» (datos históricos: solo se usan para mostrarlos).
+var CANAL_ACTIVACION_LEGADO_V3 = {
+  no: "Notificación (tarea)", ll: "Llamada (tarea)", ms: "Mi Salvia (Gestión institucional externa) (tarea)",
+};
 
 // >>> BARRERA_V4_V3 (generado por scripts/gen_registro_v3_barrera_catalog.py a partir de
 // src/internal/seed/seguimiento_v4_form.sql; NO editar a mano: vuelve a ejecutar el script)

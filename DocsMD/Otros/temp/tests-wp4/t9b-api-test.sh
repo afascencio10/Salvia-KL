@@ -117,6 +117,15 @@ complete_triada "$IC" >/dev/null
 check "gestión legada no crea tareas de barrera" "$(SQL "select count(*) from salvia.case_task where case_id='$IC' and category='Barreras'")" "0"
 check "los 3 canales viejos sí crean sus 3 tareas de entidad" "$(SQL "select count(*) from salvia.case_task where case_id='$IC' and category='Entidades'")" "3"
 
+echo "== I. Canal «Ninguna»: se conserva en el meta y no crea tareas"
+DOC=$((RANDOM + 910000000)); IC=$(new_case "$DOC"); echo "   caso $IC"
+api POST "$IC/entidades" '{"kind":"activacion","entityBranchId":102,"agreement":true,"dueDiligence":true,"activationChannels":["ninguna"],"managementNotes":"sin canal"}' >/dev/null
+G=$(body_of "$(api GET "$IC")")
+check "entityMeta conserva «ninguna»" "$(jq -r '.entityMeta["102"].activationChannels|join(",")' <<<"$G")" "ninguna"
+complete_triada "$IC" >/dev/null
+check "«Ninguna» no crea tareas ni oficios" "$(cnt case_task "$IC")/$(cnt entity_letter "$IC")" "0/0"
+check "el Caso pasó a Iniciado" "$(SQL "select victim_case_status from salvia.victim_case where victim_case_i_code='$IC'")" "in"
+
 echo
 echo "RESULTADO: $PASS ok / $FAIL fallos"
 exit $FAIL

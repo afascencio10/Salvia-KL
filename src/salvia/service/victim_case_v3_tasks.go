@@ -104,6 +104,7 @@ func (s *victimCaseV3Service) procesarCanalesV3(ctx context.Context, caseID, act
 			s.gestionLlamadaV3(ctx, caseID, actorID, entityCaseID, "Articulación institucional telefónica o por mensajería")
 		case "denuncia":
 			s.gestionLlamadaV3(ctx, caseID, actorID, entityCaseID, "Denuncia fácil")
+		case "ninguna": // igual que Seguimiento: no crea tarea
 		default:
 			warnV3("canal de activación sin efecto: %q", canal)
 		}

@@ -302,9 +302,10 @@ WHERE eb.entity_branch_id = ?`, branchID).Scan(&row)
 
 // ── Helpers de normalización ────────────────────────────────────────────────
 
-// canalesActivacionV3 -- los 4 canales de Seguimiento v4 (D11).
+// canalesActivacionV3 -- las opciones de canal de Seguimiento v4 (D11): los 4 canales y
+// «Ninguna», que se conserva para mostrarla pero no crea tareas (v4ProcesarCanales la ignora).
 var canalesActivacionV3 = map[string]bool{ //nolint:gochecknoglobals
-	"notificacion": true, "articulacion": true, "denuncia": true, "misalvia": true,
+	"notificacion": true, "articulacion": true, "denuncia": true, "misalvia": true, "ninguna": true,
 }
 
 // canalActivacionLegadoV3 -- códigos del desplegable anterior de Registro V3
