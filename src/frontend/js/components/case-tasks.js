@@ -37,6 +37,7 @@
         .ct-badge { display:inline-block;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:600 }
         .ct-badge-todo { background:#fff7ed;color:#f97316;border:1px solid #fed7aa }
         .ct-badge-done { background:#f0fdf4;color:#22c55e;border:1px solid #bbf7d0 }
+        .ct-badge-devuelto { background:#fffbeb;color:#b45309;border:1px solid #fde68a }
         .ct-btn-complete { background:#5106A7;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer }
         .ct-btn-complete:hover { background:#3d0480 }
         .ct-btn-complete:disabled { opacity:.5;cursor:not-allowed }
@@ -92,6 +93,10 @@ app.component('case-tasks', {
             reasignarAgente: '',
             agentesEquipo: [],
             reasignando: false,
+            // Set de ids de tareas con una gestión directa en vuelo. Evita el
+            // doble-click: el botón "Gestionar" se deshabilita mientras su id
+            // esté aquí. Es un objeto plano usado como set (clave = task.id).
+            gestionandoDirecto: {},
         };
     },
     computed: {
@@ -167,6 +172,130 @@ app.component('case-tasks', {
         abrirModal: function(task) {
             if (this.$refs.taskModal) {
                 this.$refs.taskModal.open(task.id);
+            }
+        },
+        // esGestionDirecta: los 7 tipos nuevos de la cadena de medidas que, por
+        // ahora, se completan con un click directo al endpoint existente SIN abrir
+        // case-task-modal (no hay formularios reales todavía). Al completarse, el
+        // backend mueve el estado del referral y crea la tarea siguiente.
+        esGestionDirecta: function(task) {
+            if (!task) return false;
+            // revisar_caracterizacion NO está aquí: tiene su propio modal real
+            // (case-task-modal), por eso su botón dice "Revisar" y abre el modal.
+            // revisar_caracterizacion y revisar_trazabilidad NO están aquí: tienen
+            // su propio modal real (case-task-modal), con botón "Revisar".
+            // cargar_cotizaciones tampoco: tiene su modal real "Cargar cotizaciones".
+            // aprobar_cotizaciones tampoco: tiene su modal real "Revisar y aprobar
+            // cotizaciones" (botón "Revisar").
+            // gestionar_territorio y marcar_otorgadas tampoco: tienen su modal real
+            // (case-task-modal), con botón "Registrar".
+            // entrevista_caracterizacion tampoco: ahora tiene su modal real de 3
+            // pasos (botón "Gestionar"); ya NO es gestión directa. Hoy no queda
+            // ningún tipo en gestión directa.
+            var tiposDirectos = {};
+            return !!tiposDirectos[task.type];
+        },
+        // labelBotonGestion: texto del botón de acción de una tarea pendiente.
+        // La revisión de caracterización/trazabilidad dice "Revisar"; la carga de
+        // cotizaciones dice "Cargar cotizaciones"; la gestión en territorio y el
+        // marcado de otorgadas dicen "Registrar"; el resto conserva "Gestionar".
+        // Todos abren el case-task-modal (menos los de gestión directa).
+        labelBotonGestion: function(task) {
+            if (task && (task.type === 'revisar_caracterizacion' || task.type === 'revisar_trazabilidad' || task.type === 'aprobar_cotizaciones')) return 'Revisar';
+            if (task && task.type === 'cargar_cotizaciones') return 'Cargar cotizaciones';
+            if (task && (task.type === 'gestionar_territorio' || task.type === 'marcar_otorgadas')) return 'Registrar';
+            return 'Gestionar';
+        },
+        // parseFormData devuelve el form_data de una tarea como objeto plano
+        // (el backend puede enviarlo como objeto o como string JSON).
+        parseFormData: function(task) {
+            var fd = task && task.formData;
+            if (!fd) return {};
+            if (typeof fd === 'string') {
+                try { return JSON.parse(fd) || {}; } catch (e) { return {}; }
+            }
+            return fd;
+        },
+        // esRevisarDevuelta: la revisión de caracterización, la de trazabilidad o la
+        // aprobación de cotizaciones se cerró como "devuelto" (el supervisor la
+        // devolvió). Se usa para pintar el chip ámbar "Devuelto" y las observaciones.
+        esRevisarDevuelta: function(task) {
+            if (!task || (task.type !== 'revisar_caracterizacion' && task.type !== 'revisar_trazabilidad' && task.type !== 'aprobar_cotizaciones')) return false;
+            return this.parseFormData(task).resultado === 'devuelto';
+        },
+        // observacionesDevolucion: texto de las observaciones guardadas al
+        // devolver la revisión.
+        observacionesDevolucion: function(task) {
+            return String(this.parseFormData(task).observaciones || '').trim();
+        },
+        // ── Cierres de la entrevista de caracterización (rol am) ──
+        // La entrevista puede cerrarse sin avanzar la cadena en dos ramas, ambas
+        // dejan la remisión descartada: "Concluir gestión" (resultado
+        // concluido_sin_me) y "No otorga consentimiento" (sin_consentimiento). Se
+        // pintan con su propio chip + la observación debajo (mismo patrón visual que
+        // el chip "Devuelto", pero con texto propio).
+        esCierreCaracterizacion: function(task) {
+            if (!task || task.type !== 'entrevista_caracterizacion') return false;
+            var r = this.parseFormData(task).resultado;
+            return r === 'concluido_sin_me' || r === 'sin_consentimiento';
+        },
+        // chipCierreTexto: etiqueta del chip según la rama de cierre.
+        chipCierreTexto: function(task) {
+            var r = this.parseFormData(task).resultado;
+            if (r === 'concluido_sin_me') return 'Concluida sin ME';
+            if (r === 'sin_consentimiento') return 'Sin consentimiento';
+            return '';
+        },
+        // chipCierreDetalle: línea descriptiva bajo el título (motivo cuando aplica
+        // + observación). concluido_sin_me trae motivo; sin_consentimiento solo obs.
+        chipCierreDetalle: function(task) {
+            var fd = this.parseFormData(task);
+            var obs = String(fd.observacion || '').trim();
+            if (fd.resultado === 'concluido_sin_me') {
+                var motivos = {
+                    desistimiento: 'Desistimiento de la ciudadana',
+                    sin_riesgo: 'No hay riesgo de feminicidio y tiene rutas de atención activas',
+                };
+                var motivo = motivos[fd.motivo] || fd.motivo || '';
+                return [motivo, obs].filter(Boolean).join(' — ');
+            }
+            return obs;
+        },
+        // gestionarDirecto completa la tarea de la cadena de medidas directamente,
+        // sin modal. Reutiliza el mismo patrón de fetch/manejo de errores del
+        // componente (401→landing, 422→error de transición, resto→mensaje del
+        // backend). Tras el éxito, refresca la lista para que aparezca la tarea
+        // siguiente. "resultado: aprobado" es el camino feliz hacia adelante
+        // (solo importa para aprobar_cotizaciones; en los demás es irrelevante).
+        async gestionarDirecto(task) {
+            if (!task || this.gestionandoDirecto[task.id]) return;
+            this.gestionandoDirecto[task.id] = true;
+            try {
+                var res = await fetch('/api/v1/case-tasks/' + task.id + '/complete', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: this.userId,
+                        formData: { resultado: 'aprobado' },
+                    }),
+                });
+                if (res.status === 401) { window.location.href = '/static/landing.html'; return; }
+                var data = null;
+                try { data = await res.json(); } catch (e) { data = null; }
+                if (!res.ok) {
+                    var msg = (data && data.error) ? data.error : ('Error ' + res.status);
+                    alert(msg);
+                    return;
+                }
+                // Éxito: refrescar el panel (aparece la tarea siguiente) y avisar
+                // al padre para que recargue el detalle de la remisión.
+                this.cargar();
+                this.$emit('task-completed');
+            } catch (e) {
+                console.error('Error gestionando tarea de medidas:', e);
+                alert('No se pudo completar la tarea. Intenta de nuevo.');
+            } finally {
+                delete this.gestionandoDirecto[task.id];
             }
         },
         onTaskCompleted: function() {
@@ -283,6 +412,12 @@ app.component('case-tasks', {
                 'decidir_via_riesgo_inminente': 'Decidir vía de atención',
                 'intentar_contacto_3x3': 'Intentar contacto (3×3)',
                 'entrevista_caracterizacion': 'Contactar víctima y realizar entrevista de caracterización',
+                'revisar_caracterizacion': 'Revisar caracterización',
+                'revisar_trazabilidad': 'Revisar trazabilidad',
+                'cargar_cotizaciones': 'Cargar cotizaciones',
+                'aprobar_cotizaciones': 'Aprobar cotizaciones',
+                'gestionar_territorio': 'Gestionar territorio',
+                'marcar_otorgadas': 'Marcar medidas como otorgadas',
                 'escalar_cruz_roja': 'Escalar a Cruz Roja',
                 'entregar_medida_inmediata': 'Entregar medida inmediata (sin caracterización previa)',
                 'confirmar_lugar_seguro': 'Confirmar que la persona está en lugar seguro',
@@ -301,6 +436,7 @@ app.component('case-tasks', {
                     sc: 'Supervisión del Convenio',
                     cr: 'Cruz Roja',
                     am: 'Agente de Medidas',
+                    en: 'Enlace Territorial',
                 };
                 return nombres[task.assignedRole] || task.assignedRole;
             }
@@ -418,8 +554,12 @@ app.component('case-tasks', {
                         <div style="font-size:.73rem;color:#9ca3af;margin-top:2px">Asignado a: \${ nombreAsignado(task) }</div>
                     </div>
                     <div style="display:flex;gap:6px;flex-shrink:0">
-                        <button v-if="puedeCompletar(task) && esAsignadoOSv(task)" class="ct-btn-complete" @click="abrirModal(task)">Gestionar</button>
-                        <button v-else-if="puedeCompletar(task) && !esAsignadoOSv(task)" class="ct-btn-complete" disabled style="opacity:.5;cursor:not-allowed" title="Solo el profesional asignado puede gestionar esta tarea">Gestionar</button>
+                        <!-- Tipos de la cadena de medidas: click directo (sin modal) al endpoint complete. -->
+                        <button v-if="esGestionDirecta(task) && puedeCompletar(task) && esAsignadoOSv(task)" class="ct-btn-complete" :disabled="!!gestionandoDirecto[task.id]" @click="gestionarDirecto(task)">\${ gestionandoDirecto[task.id] ? 'Gestionando...' : 'Gestionar' }</button>
+                        <!-- Resto de tipos: abren el case-task-modal como siempre. La
+                             revisión de caracterización muestra "Revisar" en el botón. -->
+                        <button v-else-if="puedeCompletar(task) && esAsignadoOSv(task)" class="ct-btn-complete" @click="abrirModal(task)">\${ labelBotonGestion(task) }</button>
+                        <button v-else-if="puedeCompletar(task) && !esAsignadoOSv(task)" class="ct-btn-complete" disabled style="opacity:.5;cursor:not-allowed" title="Solo el profesional asignado puede gestionar esta tarea">\${ labelBotonGestion(task) }</button>
                         <button v-if="false && userRole === 'sv'" class="ct-btn-complete" style="background:#3b82f6" @click="abrirReasignar(task)">Reasignar</button>
                     </div>
                 </div>
@@ -433,15 +573,24 @@ app.component('case-tasks', {
             </div>
             <div v-else class="ct-list">
                 <div v-for="task in completedTasks" :key="task.id" class="ct-task" style="flex-direction:row;align-items:center;gap:12px;padding:14px 20px;background:#f9fafb">
-                    <div style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#dcfce7">
+                    <div v-if="esRevisarDevuelta(task) || esCierreCaracterizacion(task)" style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#fef3c7">
+                        <i class="fa fa-undo" style="color:#b45309;font-size:.82rem"></i>
+                    </div>
+                    <div v-else style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#dcfce7">
                         <i class="fa fa-check" style="color:#16a34a;font-size:.82rem"></i>
                     </div>
                     <div style="flex:1;min-width:0">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
                             <span style="font-size:.7rem;font-weight:800;color:#1f2937;text-transform:uppercase;letter-spacing:.04em">\${ task.category }</span>
-                            <span class="ct-badge ct-badge-done">Completada</span>
+                            <span v-if="esRevisarDevuelta(task)" class="ct-badge ct-badge-devuelto">Devuelto</span>
+                            <span v-else-if="esCierreCaracterizacion(task)" class="ct-badge ct-badge-devuelto">\${ chipCierreTexto(task) }</span>
+                            <span v-else class="ct-badge ct-badge-done">Completada</span>
                         </div>
                         <div style="font-size:.84rem;font-weight:700;color:#1f2937">\${ tituloTarea(task) }</div>
+                        <!-- Observaciones de la devolución (revisar caracterización devuelta) -->
+                        <div v-if="esRevisarDevuelta(task) && observacionesDevolucion(task)" style="margin-top:4px;font-size:.74rem;color:#92400e"><i class="fa fa-comment-dots" style="margin-right:5px"></i>\${ observacionesDevolucion(task) }</div>
+                        <!-- Motivo + observación del cierre de la entrevista (concluida sin ME / sin consentimiento) -->
+                        <div v-if="esCierreCaracterizacion(task) && chipCierreDetalle(task)" style="margin-top:4px;font-size:.74rem;color:#92400e"><i class="fa fa-comment-dots" style="margin-right:5px"></i>\${ chipCierreDetalle(task) }</div>
                         <!-- Entidad y solicitud: guían al enlace territorial sobre cómo gestionar -->
                         <div v-if="esTareaEnlace(task)" style="margin-top:4px;display:flex;flex-direction:column;gap:2px">
                             <div v-if="entidadTarea(task)" style="font-size:.74rem;color:#374151"><i class="fa fa-building" style="color:#2563eb;margin-right:5px"></i><strong>Entidad:</strong> \${ entidadTarea(task) }</div>

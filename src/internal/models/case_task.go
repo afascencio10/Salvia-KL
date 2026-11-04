@@ -89,11 +89,25 @@ const (
 	CaseTaskTypeAsignarAgenteMedidas      = "asignar_agente_medidas"
 	CaseTaskTypeAjustarRemisionDevuelta   = "ajustar_remision_devuelta"
 	CaseTaskTypeEntrevistaCaracterizacion = "entrevista_caracterizacion"
-	CaseTaskCategoryMedidas               = "Medidas de Emergencia"
-	CaseTaskRoleEquipoTecnicoMedidas      = "em"
-	CaseTaskRoleSupervisorMedidas         = "sm"
-	CaseTaskRoleSupervisionConvenio       = "sc"
-	CaseTaskRoleCruzRoja                  = "cr"
+	// Cadena normal de medidas (post-caracterización).
+	CaseTaskTypeRevisarCaracterizacion = "revisar_caracterizacion"
+	CaseTaskTypeRevisarTrazabilidad    = "revisar_trazabilidad"
+	CaseTaskTypeCargarCotizaciones     = "cargar_cotizaciones"
+	CaseTaskTypeAprobarCotizaciones    = "aprobar_cotizaciones"
+	CaseTaskTypeGestionarTerritorio    = "gestionar_territorio"
+	CaseTaskTypeMarcarOtorgadas        = "marcar_otorgadas"
+
+	CaseTaskCategoryMedidas          = "Medidas de Emergencia"
+	CaseTaskRoleEquipoTecnicoMedidas = "em"
+	CaseTaskRoleSupervisorMedidas    = "sm"
+	CaseTaskRoleSupervisionConvenio  = "sc"
+	CaseTaskRoleCruzRoja             = "cr"
+	// CaseTaskRoleEnlaceTerritorial es el role_code del Enlace Territorial.
+	CaseTaskRoleEnlaceTerritorial = "en"
+	// CaseTaskRoleAgenteMedidas es el role_code del Agente de Medidas. Normalmente
+	// sus tareas se asignan por AssignedUserID, no por rol.
+	CaseTaskRoleAgenteMedidas = "am"
+
 	CaseTaskDescDecidirViaRiesgoInminente = "Decidir vía de atención — Riesgo inminente"
 	CaseTaskDescIntentarContacto3x3       = "Intentar contacto (3×3)"
 	CaseTaskDescEscalarCruzRoja           = "Escalar a Cruz Roja — Riesgo inminente"
@@ -103,6 +117,12 @@ const (
 	CaseTaskDescAsignarAgenteMedidas      = "Asignar agente de medidas"
 	CaseTaskDescAjustarRemisionDevuelta   = "Ajustar remisión devuelta por el Equipo Técnico"
 	CaseTaskDescEntrevistaCaracterizacion = "Contactar víctima y realizar entrevista de caracterización"
+	CaseTaskDescRevisarCaracterizacion    = "Revisar caracterización"
+	CaseTaskDescRevisarTrazabilidad       = "Revisar trazabilidad"
+	CaseTaskDescCargarCotizaciones        = "Cargar cotizaciones"
+	CaseTaskDescAprobarCotizaciones       = "Aprobar cotizaciones"
+	CaseTaskDescGestionarTerritorio       = "Gestionar territorio"
+	CaseTaskDescMarcarOtorgadas           = "Marcar medidas como otorgadas"
 )
 
 // CaseTaskCommentItem es un comentario del Equipo Técnico — una case_task Done

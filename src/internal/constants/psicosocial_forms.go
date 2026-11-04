@@ -13,6 +13,13 @@ const (
 	FormIDCierre              = "c31026f8-7ce2-49b9-8990-04b44ed4513c" // Cierre Psicosocial
 )
 
+// FormIDCaracterizacion es el UUID fijo del formulario dinámico "Entrevista de
+// Caracterización" de Medidas de Emergencia, sembrado por
+// internal/seed/caracterizacion_form.sql. Debe coincidir con el UUID del seed y
+// con la constante JS CTM_CARACTERIZACION_FORM_ID del frontend
+// (case-task-modal.js), que monta el componente <dinamic-form> con este id.
+const FormIDCaracterizacion = "f1a2c3d4-5e6f-4a1b-8c2d-3e4f5a6b7c8d"
+
 // PsicosocialFormKey identifica de forma legible cuál de los 4 formularios está activo.
 type PsicosocialFormKey string
 

@@ -411,6 +411,18 @@
             line-height: 1.5;
             margin-bottom: 16px;
         }
+        /* Panel de resumen (revisar caracterización) */
+        .ctm-resumen-row { display: flex; gap: 10px; padding: 6px 0; font-size: 13px; }
+        .ctm-resumen-row + .ctm-resumen-row { border-top: 1px solid #e5e7eb; }
+        .ctm-resumen-row .ctm-resumen-label { flex: 0 0 150px; color: #6b7280; font-weight: 600; }
+        .ctm-resumen-row .ctm-resumen-valor { flex: 1; color: #111827; }
+        /* Toggle de resultado aprobado/devuelto (verde/rojo) */
+        .ctm-resultado.is-aprobado { border-color: #16a34a; background: #16a34a; color: #fff; font-weight: 600; box-shadow: 0 0 0 3px rgba(22,163,74,.25); }
+        .ctm-resultado.is-devuelto { border-color: #dc2626; background: #dc2626; color: #fff; font-weight: 600; box-shadow: 0 0 0 3px rgba(220,38,38,.25); }
+        .ctm-btn-confirm.is-aprobar { background: #16a34a; }
+        .ctm-btn-confirm.is-aprobar:hover:not(:disabled) { background: #15803d; }
+        .ctm-btn-confirm.is-devolver { background: #dc2626; }
+        .ctm-btn-confirm.is-devolver:hover:not(:disabled) { background: #b91c1c; }
         .ctm-toggle-row {
             display: flex;
             gap: 8px;
@@ -437,6 +449,57 @@
             margin: 6px 0 0;
             line-height: 1.4;
         }
+
+        /* Entrevista de caracterización (rol am) ───────────────────────────── */
+        /* El modal se agranda en el paso 3 (entrevista completa). */
+        .ctm-modal.ctm-caracterizacion-grande { max-width: 680px; }
+        /* Línea verde de contacto efectivo confirmado. */
+        .ctm-car-contacto {
+            display: flex; align-items: center; gap: 8px;
+            color: #15803d; font-size: 13px; font-weight: 600;
+            margin: 8px 0 0;
+        }
+        .ctm-car-caso {
+            font-size: 13px; color: #374151; margin: 0;
+        }
+        /* Botones toggle verde/rojo (continuar / concluir, otorga / no otorga). */
+        .ctm-car-toggle {
+            display: block; width: 100%; text-align: left;
+            background: #fff; border: 1.5px solid #e5e7eb; border-radius: 10px;
+            padding: 12px 16px; margin-bottom: 10px; color: #111827;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: border-color .15s, background .15s, color .15s, box-shadow .15s;
+        }
+        .ctm-car-toggle:hover:not(.is-on) { border-color: #c7d2fe; }
+        .ctm-car-toggle.is-on-green {
+            border-color: #16a34a; background: #16a34a; color: #fff;
+            box-shadow: 0 0 0 3px rgba(22,163,74,.25);
+        }
+        .ctm-car-toggle.is-on-red {
+            border-color: #dc2626; background: #dc2626; color: #fff;
+            box-shadow: 0 0 0 3px rgba(220,38,38,.25);
+        }
+        /* Bloque azul PLACEHOLDER del formulario dinámico (FASE 2). */
+        .ctm-car-placeholder {
+            background: #eff6ff; border: 1.5px dashed #93c5fd; border-radius: 10px;
+            padding: 16px 18px; margin: 4px 0 16px; color: #1e40af;
+        }
+        .ctm-car-placeholder .ph-title { font-weight: 800; margin: 0 0 6px; font-size: 14px; }
+        .ctm-car-placeholder .ph-body { margin: 0; font-size: 12.5px; line-height: 1.5; color: #1d4ed8; }
+        .ctm-car-chip {
+            display: inline-flex; align-items: center;
+            border: 1.5px solid #e5e7eb; border-radius: 999px;
+            padding: 7px 14px; font-size: .84rem; color: #374151;
+            background: #fff; cursor: pointer; user-select: none;
+            transition: border-color .15s, background .15s, color .15s;
+        }
+        .ctm-car-chip.is-on {
+            background: #16a34a; border-color: #16a34a; color: #fff; font-weight: 600;
+        }
+        .ctm-car-footer {
+            display: flex; gap: 10px; margin-top: 18px;
+            padding-top: 16px; border-top: 1px solid #e5e7eb;
+        }
     `;
     document.head.appendChild(style);
 })();
@@ -450,6 +513,14 @@ const CTM_SECTORES_MODAL = [
     { value: 'proteccion', label: 'Protección' },
     { value: 'otras_instituciones', label: 'Otras instituciones' },
 ];
+
+// UUID fijo del formulario dinámico "Entrevista de Caracterización" (FASE 2b-1).
+// Debe coincidir con el seed (internal/seed/caracterizacion_form.sql) y con la
+// constante Go constants.FormIDCaracterizacion / seed.CaracterizacionFormID. Se
+// embebe aquí igual que hacer_seguimiento.html embebe el UUID del form de
+// seguimiento: el formId del nuevo formulario llega al componente <dinamic-form>
+// desde esta constante, sin endpoint nuevo.
+const CTM_CARACTERIZACION_FORM_ID = 'f1a2c3d4-5e6f-4a1b-8c2d-3e4f5a6b7c8d';
 
 /* ─── Componente Vue ──────────────────────────────────────────────────────── */
 app.component('case-task-modal', {
@@ -481,6 +552,21 @@ app.component('case-task-modal', {
 
             // Formulario (shape varía según tarea.type)
             form: {},
+
+            // Entrevista de Caracterización (FASE 2b-1): formId fijo + formState con
+            // los catálogos que el motor resuelve vía state_options_path. El
+            // componente <dinamic-form> guarda sus propias secciones vía
+            // POST /forms/saveSection de forma independiente (su propio submission);
+            // en esta fase NO se enlaza ese submission a la tarea/caso (eso es 2b-2).
+            caracterizacionFormId: CTM_CARACTERIZACION_FORM_ID,
+            caracterizacionFormState: {
+                // Resuelto por GET /victim-case-forms/enums (categorías
+                // victim_case_form2_*) y GET /locations/*.
+                enums: {},
+                departments: [],
+                geo: { residencia: { cities: [], towns: [] } },
+            },
+            caracterizacionFormStateCargado: false,
 
             // Datos del entity_letter vinculado (para Corregir oficio)
             oficioVinculado: null,
@@ -552,7 +638,13 @@ app.component('case-task-modal', {
                 respuesta_entidad: 'Respuesta institucional',
                 decidir_via_riesgo_inminente: 'Decidir vía de atención — Riesgo inminente',
                 intentar_contacto_3x3: 'Registrar intento de contacto',
-                entrevista_caracterizacion: 'Contactar víctima y realizar entrevista de caracterización',
+                entrevista_caracterizacion: 'Gestionar caso — Medidas de Emergencia',
+                revisar_caracterizacion: 'Revisar caracterización',
+                revisar_trazabilidad: 'Revisar trazabilidad del caso',
+                cargar_cotizaciones: 'Cargar cotizaciones',
+                aprobar_cotizaciones: 'Revisar y aprobar cotizaciones',
+                gestionar_territorio: 'Gestionar medida en territorio',
+                marcar_otorgadas: 'Marcar medidas como otorgadas',
                 escalar_cruz_roja: 'Escalar a Cruz Roja',
                 entregar_medida_inmediata: 'Entregar medida inmediata',
                 confirmar_lugar_seguro: 'Confirmar que la persona está en lugar seguro',
@@ -583,6 +675,12 @@ app.component('case-task-modal', {
                 decidir_via_riesgo_inminente: 'fa-fire',
                 intentar_contacto_3x3: 'fa-phone',
                 entrevista_caracterizacion: 'fa-user-check',
+                revisar_caracterizacion: 'fa-clipboard-check',
+                revisar_trazabilidad: 'fa-folder-open',
+                cargar_cotizaciones: 'fa-file-invoice-dollar',
+                aprobar_cotizaciones: 'fa-file-invoice-dollar',
+                gestionar_territorio: 'fa-map-marked-alt',
+                marcar_otorgadas: 'fa-clipboard-check',
                 escalar_cruz_roja: 'fa-ambulance',
                 entregar_medida_inmediata: 'fa-box',
                 confirmar_lugar_seguro: 'fa-shield-alt',
@@ -626,6 +724,127 @@ app.component('case-task-modal', {
                 try { return JSON.parse(fd) || {}; } catch (e) { return {}; }
             }
             return fd;
+        },
+
+        // medidasRequeridasTexto: medidas reales de la remisión (labels que expone
+        // el backend en tarea.referralMeasures), unidas por coma. Vacío si no hay.
+        medidasRequeridasTexto() {
+            var m = (this.tarea && this.tarea.referralMeasures) || [];
+            if (!Array.isArray(m) || m.length === 0) return '';
+            return m.join(', ');
+        },
+
+        // resumenRevisarCaracterizacion: filas del panel de resumen (solo lectura)
+        // del modal de revisar caracterización. "Medidas requeridas" es dato real;
+        // el resto son placeholders por ahora (la caracterización del agente se hará
+        // después). "Hallazgos" se toma del form_data de la tarea si viene.
+        resumenRevisarCaracterizacion() {
+            var fd = this.tareaFormData || {};
+            var hallazgos = String(fd.hallazgos || '').trim();
+            var medidas = this.medidasRequeridasTexto;
+            return [
+                { label: 'Hallazgos', valor: hallazgos || 'Pendiente (se cargará desde la caracterización del agente).' },
+                { label: 'Medidas requeridas', valor: medidas || 'Sin medidas registradas en la remisión.' },
+                { label: 'Plan de acción', valor: 'Pendiente de la caracterización del agente.' },
+                { label: 'Remisión Cruz Roja', valor: 'Pendiente de la caracterización del agente.' },
+                { label: 'Declaración jurada', valor: 'Pendiente de la caracterización del agente.' },
+            ];
+        },
+
+        // resumenRevisarTrazabilidad: filas del panel de resumen (solo lectura) del
+        // modal de revisar trazabilidad (rol sc). "Medidas requeridas" es dato real
+        // (tarea.referralMeasures); "Plan de acción" es placeholder por ahora.
+        resumenRevisarTrazabilidad() {
+            var medidas = this.medidasRequeridasTexto;
+            return [
+                { label: 'Medidas requeridas', valor: medidas || 'Sin medidas registradas en la remisión.' },
+                { label: 'Plan de acción', valor: 'Pendiente de la caracterización del agente.' },
+            ];
+        },
+
+        // cotizacionMedidas: lista de labels de medidas para el modal de cargar
+        // cotizaciones. Son las medidas reales de la remisión (tarea.referralMeasures);
+        // si la remisión no tiene ninguna, se usan dos por defecto para poder probar
+        // (fallback solo en el front; NO se crean en BD).
+        cotizacionMedidas() {
+            var m = (this.tarea && this.tarea.referralMeasures) || [];
+            if (Array.isArray(m) && m.length > 0) return m.slice();
+            return ['Alojamiento temporal', 'Kit de alimentación'];
+        },
+
+        // cotizacionesAprobarResumen: filas { label, valor } del panel de resumen
+        // (solo lectura) del modal "Revisar y aprobar cotizaciones" (rol sc). Los
+        // montos los cargó Cruz Roja en la tarea cargar_cotizaciones y el backend los
+        // expone en tarea.cotizacionesCargadas ({ "<medida>": valor }). Fallback: si
+        // no hay cotizaciones previas, lista las medidas de la remisión
+        // (tarea.referralMeasures) con valor 0, para no dejar el panel vacío.
+        cotizacionesAprobarResumen() {
+            var cot = (this.tarea && this.tarea.cotizacionesCargadas) || null;
+            var filas = [];
+            if (cot && typeof cot === 'object' && Object.keys(cot).length > 0) {
+                Object.keys(cot).forEach(function(label) {
+                    var num = Number(cot[label]);
+                    filas.push({ label: label, valor: isFinite(num) ? num : 0 });
+                });
+                return filas;
+            }
+            // Fallback: medidas de la remisión con valor 0.
+            (this.cotizacionMedidas || []).forEach(function(label) {
+                filas.push({ label: label, valor: 0 });
+            });
+            return filas;
+        },
+
+        // medidasAprobadasChips: labels de las medidas aprobadas de la remisión, para
+        // los chips de solo lectura del modal "Marcar medidas como otorgadas" (rol cr).
+        // Reutiliza tarea.referralMeasures (misma fuente que "Medidas requeridas").
+        medidasAprobadasChips() {
+            var m = (this.tarea && this.tarea.referralMeasures) || [];
+            if (!Array.isArray(m)) return [];
+            return m.slice();
+        },
+
+        // ── Entrevista de caracterización (rol am) ──
+        // caracterizacionNombre / Codigo / FechaContacto: datos de cabecera del
+        // PASO 1, expuestos por GET /case-tasks/:id (ver lookupCaracterizacionHeader
+        // en el controller). Degradan a placeholder razonable si el backend no los
+        // trae, para no romper el modal.
+        caracterizacionNombre() {
+            return (this.tarea && this.tarea.victimName) || 'Víctima sin nombre registrado';
+        },
+        caracterizacionCodigo() {
+            return (this.tarea && this.tarea.caseCode) || (this.tarea && this.tarea.caseId) || '';
+        },
+        caracterizacionFechaContacto() {
+            return (this.tarea && this.tarea.contactoEfectivoFecha) || '';
+        },
+        // caracterizacionMedidasCatalogo: catálogo de labels de tipos de medida para
+        // los chips seleccionables de "Medidas requeridas". Fuente: los labels del
+        // enum de tipos de medida (EmergencyMeasureTypeLabel del backend; aquí se
+        // replican como lista fija de los tipos conocidos). Se UNE con las medidas ya
+        // precargadas de la remisión (tarea.referralMeasures) por si alguna no está
+        // en el catálogo base, así todas quedan visibles y marcables.
+        caracterizacionMedidasCatalogo() {
+            var base = [
+                'Alojamiento',
+                'Transporte',
+                'Alimentación',
+                'Vestuario',
+                'Apoyo psicosocial',
+                'Otras ME',
+                'Otras medidas de emergencia',
+            ];
+            var pre = (this.tarea && Array.isArray(this.tarea.referralMeasures)) ? this.tarea.referralMeasures : [];
+            pre.forEach(function(m) { if (base.indexOf(m) === -1) base.push(m); });
+            return base;
+        },
+
+        // totalCotizacionesAprobar: suma de los valores del resumen de cotizaciones.
+        totalCotizacionesAprobar() {
+            return (this.cotizacionesAprobarResumen || []).reduce(function(acc, f) {
+                var num = Number(f.valor);
+                return acc + (isFinite(num) ? num : 0);
+            }, 0);
         },
 
         formularioValido() {
@@ -703,7 +922,62 @@ app.component('case-task-modal', {
                     return (f.via === 'A' || f.via === 'B') && !!f.agentId;
                 case 'intentar_contacto_3x3':
                     return f.contesto === 'si' || f.contesto === 'no';
+                case 'revisar_caracterizacion':
+                    // Válido si se aprueba, o si se devuelve con observaciones no vacías.
+                    if (f.resultado === 'aprobado') return true;
+                    if (f.resultado === 'devuelto') return !!(f.observaciones && String(f.observaciones).trim());
+                    return false;
+                case 'revisar_trazabilidad':
+                    // Válido si se preaprueba, o si se devuelve con observaciones no vacías.
+                    if (f.resultado === 'preaprobado') return true;
+                    if (f.resultado === 'devuelto') return !!(f.observaciones && String(f.observaciones).trim());
+                    return false;
+                case 'cargar_cotizaciones': {
+                    // Válido solo cuando TODAS las medidas mostradas tienen un valor
+                    // numérico >= 0. Se acepta 0; NO se acepta vacío/null ni texto.
+                    var medidas = this.cotizacionMedidas;
+                    if (!Array.isArray(medidas) || medidas.length === 0) return false;
+                    var valores = (f && f.cotizaciones) || {};
+                    for (var i = 0; i < medidas.length; i++) {
+                        var raw = valores[medidas[i]];
+                        if (raw === undefined || raw === null || String(raw).trim() === '') return false;
+                        var num = Number(raw);
+                        if (!isFinite(num) || num < 0) return false;
+                    }
+                    return true;
+                }
+                case 'aprobar_cotizaciones':
+                    // Válido si se aprueba, o si no cumple con observaciones no vacías.
+                    if (f.resultado === 'aprobado') return true;
+                    if (f.resultado === 'no_cumple') return !!(f.observaciones && String(f.observaciones).trim());
+                    return false;
+                case 'gestionar_territorio':
+                    // Ambos obligatorios: fecha de gestión y acciones (trim) no vacías.
+                    return !!(f.fechaGestion && String(f.fechaGestion).trim()) &&
+                           !!(f.acciones && String(f.acciones).trim());
+                case 'marcar_otorgadas':
+                    // Ambos obligatorios: fecha de otorgamiento y comentarios (trim) no vacíos.
+                    return !!(f.fechaOtorgamiento && String(f.fechaOtorgamiento).trim()) &&
+                           !!(f.comentarios && String(f.comentarios).trim());
                 case 'entrevista_caracterizacion':
+                    // Validez según la rama activa. El botón de submit solo existe en
+                    // los estados terminales de cada rama (ver plantilla/footer).
+                    if (f.continua === 'concluir') {
+                        // Rama A — concluir gestión: motivo + observación obligatorios.
+                        return !!f.motivoConclusion && !!(f.observacionConcluir && String(f.observacionConcluir).trim());
+                    }
+                    if (f.continua === 'consentimiento' && f.consentimiento === 'no_otorga') {
+                        // Rama B — no otorga: observación obligatoria.
+                        return !!(f.observacionSinConsentimiento && String(f.observacionSinConsentimiento).trim());
+                    }
+                    if (f.continua === 'consentimiento' && f.consentimiento === 'otorga') {
+                        // Rama caracterizado: obligatorios = hallazgos + plan de acción
+                        // (medidas y enlaces son opcionales en fase 1).
+                        return !!(f.hallazgos && String(f.hallazgos).trim()) &&
+                               !!(f.planAccion && String(f.planAccion).trim());
+                    }
+                    // En pasos intermedios no hay submit habilitado.
+                    return false;
                 case 'escalar_cruz_roja':
                 case 'confirmar_lugar_seguro':
                     return true;
@@ -928,6 +1202,45 @@ app.component('case-task-modal', {
             }
         },
 
+        /* ── Entrevista de caracterización: formState + eventos del form ──── */
+
+        // Arma el formState del <dinamic-form> con los catálogos que el motor
+        // resuelve por state_options_path, replicando lo que hace
+        // hacer_seguimiento.html (enums vía /victim-case-forms/enums, ubicación
+        // vía /locations/*). Se cargan todas las ciudades en geo.residencia.cities
+        // (sin cascada por departamento en esta fase de solo render); towns queda
+        // vacío hasta 2b-2. Idempotente: no re-consulta si ya cargó.
+        async cargarCaracterizacionFormState() {
+            if (this.caracterizacionFormStateCargado) return;
+            this.caracterizacionFormStateCargado = true;
+            try {
+                const [enumsRes, deptRes, citiesRes] = await Promise.all([
+                    fetch('/api/v1/victim-case-forms/enums'),
+                    fetch('/api/v1/locations/departments'),
+                    fetch('/api/v1/locations/cities'),
+                ]);
+                if (enumsRes.ok)  this.caracterizacionFormState.enums = await enumsRes.json();
+                if (deptRes.ok)   this.caracterizacionFormState.departments = await deptRes.json();
+                if (citiesRes.ok) this.caracterizacionFormState.geo.residencia.cities = await citiesRes.json();
+            } catch (e) {
+                console.warn('[case-task-modal] Error cargando catálogos de caracterización:', e);
+                // Se permite re-intento en una próxima apertura del modal.
+                this.caracterizacionFormStateCargado = false;
+            }
+        },
+
+        // El <dinamic-form> emite estos eventos al navegar/guardar sus secciones.
+        // En FASE 2b-1 solo se registran en consola: el formulario guarda sus
+        // propias secciones vía POST /forms/saveSection (submission independiente)
+        // y NO se enlaza a la tarea/caso (eso es FASE 2b-2). El botón "Guardar
+        // entrevista" sigue haciendo su PUT /case-tasks/:id/complete aparte.
+        onCaracterizacionFormCompleted() {
+            console.log('[CTM] entrevista_caracterizacion — dinamic-form completado (submission propio, no enlazado a la tarea en 2b-1)');
+        },
+        onCaracterizacionAnswersUpdated() {
+            // No-op en 2b-1. La precarga y el enlace del submission son 2b-2.
+        },
+
         /* ── Init formulario por tipo ────────────────────────────────────── */
 
         _initForm() {
@@ -939,8 +1252,83 @@ app.component('case-task-modal', {
                 case 'intentar_contacto_3x3':
                     this.form = { contesto: '', nota: '' };
                     break;
-                case 'entrevista_caracterizacion':
-                    this.form = {};
+                case 'entrevista_caracterizacion': {
+                    // Flujo de 3 pasos con estado interno en this.form:
+                    //   paso:          1 (¿cómo continúa?) | 2 (consentimiento) | 3 (entrevista)
+                    //   continua:      '' | 'consentimiento' | 'concluir'
+                    //   consentimiento:'' | 'otorga' | 'no_otorga'
+                    // Campos de las ramas:
+                    //   Rama caracterizado (paso 3 → otorga): hallazgos, medidasRequeridas[],
+                    //     planAccion, enlaceCruzRoja, enlaceDeclaracion.
+                    //   Rama concluir (paso 1 → concluir): motivoConclusion, observacionConcluir.
+                    //   Rama sin consentimiento (paso 2 → no_otorga): observacionSinConsentimiento.
+                    // medidasRequeridas se precarga con las medidas de la remisión
+                    // (tarea.referralMeasures) y queda editable (toggle sobre el catálogo).
+                    var pre = (this.tarea && Array.isArray(this.tarea.referralMeasures))
+                        ? this.tarea.referralMeasures.slice() : [];
+                    this.form = {
+                        paso: 1,
+                        continua: '',
+                        consentimiento: '',
+                        // Rama caracterizado
+                        hallazgos: '',
+                        medidasRequeridas: pre,
+                        planAccion: '',
+                        enlaceCruzRoja: '',
+                        enlaceDeclaracion: '',
+                        // Rama concluir gestión
+                        motivoConclusion: '',
+                        observacionConcluir: '',
+                        // Rama sin consentimiento
+                        observacionSinConsentimiento: '',
+                    };
+                    // Carga los catálogos del formulario dinámico (enums + ubicación)
+                    // una sola vez; el <dinamic-form> del paso 3 los consume vía
+                    // state_options_path. No bloquea el render del modal.
+                    this.cargarCaracterizacionFormState();
+                    break;
+                }
+                case 'revisar_caracterizacion':
+                    // resultado: '' | 'aprobado' | 'devuelto'; observaciones solo
+                    // aplica cuando se devuelve. El resumen (medidas reales +
+                    // placeholders) se arma en computeds a partir de this.tarea.
+                    this.form = { resultado: '', observaciones: '' };
+                    break;
+                case 'revisar_trazabilidad':
+                    // resultado: '' | 'preaprobado' | 'devuelto'; observaciones solo
+                    // aplica cuando se devuelve. El resumen (medidas reales +
+                    // placeholder del plan) se arma en computeds a partir de this.tarea.
+                    this.form = { resultado: '', observaciones: '' };
+                    break;
+                case 'cargar_cotizaciones': {
+                    // form.cotizaciones: objeto { '<label de medida>': '<valor>' } con
+                    // un campo por cada medida de la remisión (o las 2 por defecto si
+                    // no hay). Cada valor inicia vacío para forzar el diligenciamiento.
+                    var cotizaciones = {};
+                    (this.cotizacionMedidas || []).forEach(function(label) {
+                        cotizaciones[label] = '';
+                    });
+                    this.form = { cotizaciones: cotizaciones };
+                    break;
+                }
+                case 'aprobar_cotizaciones':
+                    // resultado: '' | 'aprobado' | 'no_cumple'; observaciones solo
+                    // aplica cuando no cumple (devolución). El panel de resumen con los
+                    // montos cargados por Cruz Roja y el Total se arman en computeds a
+                    // partir de this.tarea.cotizacionesCargadas.
+                    this.form = { resultado: '', observaciones: '' };
+                    break;
+                case 'gestionar_territorio':
+                    // fechaGestion: string ISO yyyy-mm-dd (input type=date);
+                    // acciones: texto libre. Ambos obligatorios (se valida en el front).
+                    this.form = { fechaGestion: '', acciones: '' };
+                    break;
+                case 'marcar_otorgadas':
+                    // fechaOtorgamiento: string ISO yyyy-mm-dd (input type=date);
+                    // comentarios: texto libre. Ambos obligatorios (se valida en el
+                    // front). Los chips de medidas aprobadas se arman en el computed
+                    // medidasAprobadasChips a partir de this.tarea.referralMeasures.
+                    this.form = { fechaOtorgamiento: '', comentarios: '' };
                     break;
                 case 'escalar_cruz_roja':
                     this.form = {};
@@ -1378,6 +1766,49 @@ app.component('case-task-modal', {
             this.form.medidas.push(code);
         },
 
+        // ── Chips de "Medidas requeridas" de la entrevista de caracterización ──
+        // Trabajan sobre this.form.medidasRequeridas (labels). Multi-selección
+        // toggle: las precargadas de la remisión vienen marcadas y son editables.
+        medidaCaracterizacionSeleccionada(label) {
+            return Array.isArray(this.form.medidasRequeridas) && this.form.medidasRequeridas.indexOf(label) !== -1;
+        },
+        toggleMedidaCaracterizacion(label) {
+            if (!Array.isArray(this.form.medidasRequeridas)) this.form.medidasRequeridas = [];
+            if (this.medidaCaracterizacionSeleccionada(label)) {
+                this.form.medidasRequeridas = this.form.medidasRequeridas.filter(function(item) { return item !== label; });
+                return;
+            }
+            this.form.medidasRequeridas.push(label);
+        },
+        // Navegación de pasos del modal de entrevista (PASO 1 → 2 → 3).
+        caracterizacionElegirContinua(valor) {
+            this.form.continua = valor;
+            // Resetea sub-estado al cambiar de rama en el paso 1.
+            if (valor === 'concluir') {
+                this.form.consentimiento = '';
+            }
+        },
+        caracterizacionElegirConsentimiento(valor) {
+            this.form.consentimiento = valor;
+        },
+
+        // formatCOP: formatea un número como moneda COP con separador de miles y
+        // símbolo $ (ej. 3232 → "$3.232"). Punto como separador de miles (es-CO).
+        // Si el valor no es numérico devuelve "$0".
+        formatCOP(valor) {
+            var num = Number(valor);
+            if (!isFinite(num)) num = 0;
+            var entero = Math.round(num);
+            var signo = entero < 0 ? '-' : '';
+            var str = String(Math.abs(entero));
+            var partes = '';
+            while (str.length > 3) {
+                partes = '.' + str.slice(-3) + partes;
+                str = str.slice(0, -3);
+            }
+            return signo + '$' + str + partes;
+        },
+
         _buildFormData() {
             const f = this.form;
             const entidadNombreLabel = (f.entidadId && f.entidadId !== 'otra')
@@ -1390,6 +1821,80 @@ app.component('case-task-modal', {
             switch (this.tarea.type) {
                 case 'decidir_via_riesgo_inminente':
                     return { via: f.via, agentId: f.agentId };
+                case 'entrevista_caracterizacion':
+                    // Payload según la rama activa (ver FLUJO del modal). El backend
+                    // bifurca por 'resultado'.
+                    if (f.continua === 'concluir') {
+                        return {
+                            resultado: 'concluido_sin_me',
+                            motivo: f.motivoConclusion,
+                            observacion: String(f.observacionConcluir || '').trim(),
+                        };
+                    }
+                    if (f.continua === 'consentimiento' && f.consentimiento === 'no_otorga') {
+                        return {
+                            resultado: 'sin_consentimiento',
+                            observacion: String(f.observacionSinConsentimiento || '').trim(),
+                        };
+                    }
+                    // Rama caracterizado (otorga consentimiento). Llaves de form_data
+                    // consistentes para que FASE 2 y el modal de revisar las consuman.
+                    return {
+                        resultado: 'caracterizado',
+                        consentimiento: 'otorgado',
+                        hallazgos: String(f.hallazgos || '').trim(),
+                        medidasRequeridas: (f.medidasRequeridas || []).slice(),
+                        planAccion: String(f.planAccion || '').trim(),
+                        enlaceCruzRoja: String(f.enlaceCruzRoja || '').trim(),
+                        enlaceDeclaracion: String(f.enlaceDeclaracion || '').trim(),
+                    };
+                case 'revisar_caracterizacion':
+                    if (f.resultado === 'devuelto') {
+                        return { resultado: 'devuelto', observaciones: String(f.observaciones || '').trim() };
+                    }
+                    return { resultado: 'aprobado' };
+                case 'revisar_trazabilidad':
+                    if (f.resultado === 'devuelto') {
+                        return { resultado: 'devuelto', observaciones: String(f.observaciones || '').trim() };
+                    }
+                    // Camino feliz: 'preaprobado' (el backend lo acepta como
+                    // sinónimo de 'aprobado' para disparar la transición a cotizar).
+                    return { resultado: 'preaprobado' };
+                case 'cargar_cotizaciones': {
+                    // Arma { cotizaciones: { '<medida>': <valor numérico>, ... } }
+                    // con un número por cada medida mostrada. El backend guarda este
+                    // JSON en el form_data de la tarea para que el futuro modal de
+                    // aprobar (rol sc) pueda leerlo.
+                    var valores = (f && f.cotizaciones) || {};
+                    var cotizaciones = {};
+                    (this.cotizacionMedidas || []).forEach(function(label) {
+                        var num = Number(valores[label]);
+                        cotizaciones[label] = isFinite(num) ? num : 0;
+                    });
+                    return { cotizaciones: cotizaciones };
+                }
+                case 'aprobar_cotizaciones':
+                    // No cumple → devolución automática: el backend exige observaciones
+                    // y trata cualquier resultado distinto de 'aprobado' como devolución.
+                    // Se envía resultado:'devuelto' para que la tarea cerrada luzca el
+                    // chip ámbar "Devuelto" (el front lo detecta por resultado==='devuelto').
+                    if (f.resultado === 'no_cumple') {
+                        return { resultado: 'devuelto', observaciones: String(f.observaciones || '').trim() };
+                    }
+                    // Camino feliz: avanza a aprobadas y crea gestionar_territorio (rol en).
+                    return { resultado: 'aprobado' };
+                case 'gestionar_territorio':
+                    // Payload persistido en el form_data de la tarea al cerrarla Done.
+                    return {
+                        fechaGestion: String(f.fechaGestion || '').trim(),
+                        acciones: String(f.acciones || '').trim(),
+                    };
+                case 'marcar_otorgadas':
+                    // Payload persistido en el form_data de la tarea al cerrarla Done.
+                    return {
+                        fechaOtorgamiento: String(f.fechaOtorgamiento || '').trim(),
+                        comentarios: String(f.comentarios || '').trim(),
+                    };
                 case 'escalar_cruz_roja':
                 case 'confirmar_lugar_seguro':
                     return { confirmado: true };
@@ -1564,10 +2069,6 @@ app.component('case-task-modal', {
 
         async confirmar() {
             if (!this.formularioValido || this.guardando) return;
-            if (this.tarea && this.tarea.type === 'entrevista_caracterizacion') {
-                this.cancelar();
-                return;
-            }
             this.guardando = true;
             this.saveError = null;
 
@@ -1641,7 +2142,7 @@ app.component('case-task-modal', {
     template: `
 <div>
 <div v-if="visible" class="ctm-overlay" @click.self="cancelar">
-<div class="ctm-modal" :class="{ 'ctm-articulacion': tarea && tarea.type === 'articulacion_territorial' }">
+<div class="ctm-modal" :class="{ 'ctm-articulacion': tarea && tarea.type === 'articulacion_territorial', 'ctm-caracterizacion-grande': tarea && tarea.type === 'entrevista_caracterizacion' && form.continua === 'consentimiento' && form.consentimiento === 'otorga' }">
 
     <!-- Header -->
     <div class="ctm-header">
@@ -1653,11 +2154,18 @@ app.component('case-task-modal', {
                 <p class="ctm-header-title">\${ titulo }</p>
                 <p v-if="tarea && tarea.type === 'decidir_via_riesgo_inminente'" class="ctm-header-sub">Elige una vía y asigna un agente de medidas.</p>
                 <p v-else-if="tarea && tarea.type === 'intentar_contacto_3x3'" class="ctm-header-sub">Protocolo 3×3 — registra el resultado del intento.</p>
+                <p v-else-if="tarea && tarea.type === 'entrevista_caracterizacion'" class="ctm-header-sub">Entrevista de caracterización del Agente de Medidas.</p>
                 <p v-else-if="tarea && tarea.type === 'articulacion_territorial'" class="ctm-header-sub">\${ articulacionSubtitulo }</p>
                 <p v-else-if="tarea && tarea.type === 'entregar_medida_inmediata'" class="ctm-header-sub">Riesgo inminente: entrega sin esperar caracterización completa ni declaración jurada.</p>
                 <p v-else-if="tarea && tarea.type === 'revision_equipo_tecnico'" class="ctm-header-sub">\${ cargandoCasoRevision ? 'Cargando caso…' : ('Caso ' + (casoRevisionNombre || 'sin nombre') + (casoRevisionCodigo ? ' · ' + casoRevisionCodigo : '')) }</p>
+                <p v-else-if="tarea && tarea.type === 'revisar_caracterizacion'" class="ctm-header-sub">Verifica que la información y los documentos cargados estén completos, consistentes y con la calidad requerida.</p>
+                <p v-else-if="tarea && tarea.type === 'revisar_trazabilidad'" class="ctm-header-sub">Verifica que la información de beneficiarios y la gestión del caso sea suficiente para continuar con el otorgamiento.</p>
+                <p v-else-if="tarea && tarea.type === 'cargar_cotizaciones'" class="ctm-header-sub">Registra el valor cotizado para cada medida, de acuerdo con la Resolución 860 de 2024.</p>
+                <p v-else-if="tarea && tarea.type === 'aprobar_cotizaciones'" class="ctm-header-sub">Verifica que los valores cotizados por Cruz Roja se ajusten a la Resolución 860 de 2024.</p>
+                <p v-else-if="tarea && tarea.type === 'gestionar_territorio'" class="ctm-header-sub">Registra las acciones realizadas en campo para ejecutar la medida.</p>
+                <p v-else-if="tarea && tarea.type === 'marcar_otorgadas'" class="ctm-header-sub">Confirma que las medidas fueron entregadas a la víctima.</p>
                 <p v-else-if="tarea && tarea.type === 'asignar_agente_medidas'" class="ctm-header-sub">1 remisión seleccionada. Elige el agente destino.</p>
-                <p v-else-if="tarea && tarea.id && tarea.type !== 'solicitud_entidad' && tarea.type !== 'respuesta_entidad' && tarea.type !== 'decidir_via_riesgo_inminente' && tarea.type !== 'intentar_contacto_3x3' && tarea.type !== 'escalar_cruz_roja' && tarea.type !== 'entregar_medida_inmediata' && tarea.type !== 'confirmar_lugar_seguro' && tarea.type !== 'revision_equipo_tecnico' && tarea.type !== 'asignar_agente_medidas' && tarea.type !== 'ajustar_remision_devuelta' && tarea.type !== 'entrevista_caracterizacion'" class="ctm-header-sub">ID \${ tarea.id.substring(0,8) }…</p>
+                <p v-else-if="tarea && tarea.id && tarea.type !== 'solicitud_entidad' && tarea.type !== 'respuesta_entidad' && tarea.type !== 'decidir_via_riesgo_inminente' && tarea.type !== 'intentar_contacto_3x3' && tarea.type !== 'escalar_cruz_roja' && tarea.type !== 'entregar_medida_inmediata' && tarea.type !== 'confirmar_lugar_seguro' && tarea.type !== 'revision_equipo_tecnico' && tarea.type !== 'asignar_agente_medidas' && tarea.type !== 'ajustar_remision_devuelta' && tarea.type !== 'entrevista_caracterizacion' && tarea.type !== 'revisar_caracterizacion' && tarea.type !== 'revisar_trazabilidad' && tarea.type !== 'cargar_cotizaciones' && tarea.type !== 'aprobar_cotizaciones' && tarea.type !== 'gestionar_territorio' && tarea.type !== 'marcar_otorgadas'" class="ctm-header-sub">ID \${ tarea.id.substring(0,8) }…</p>
                 <p v-else-if="tarea && tarea.type === 'solicitud_entidad'" class="ctm-header-sub">Selecciona los ítems pendientes del checklist entidad sobre los que deseas hacer una solicitud y describe cada uno.</p>
             </div>
         </div>
@@ -2375,7 +2883,120 @@ app.component('case-task-modal', {
         </template>
 
         <template v-else-if="tarea && tarea.type === 'entrevista_caracterizacion'">
-            <p style="margin:0;color:#111827;font-size:.95rem">Contactar víctima y realizar entrevista de caracterización</p>
+
+            <!-- Cabecera: caso + código + contacto efectivo (degrada si falta dato) -->
+            <p class="ctm-car-caso">Caso \${ caracterizacionNombre }<span v-if="caracterizacionCodigo"> · \${ caracterizacionCodigo }</span></p>
+            <p class="ctm-car-contacto">
+                <i class="fas fa-check-circle"></i>
+                <span v-if="caracterizacionFechaContacto">Contacto efectivo confirmado el \${ caracterizacionFechaContacto }</span>
+                <span v-else>Contacto efectivo confirmado</span>
+            </p>
+
+            <!-- ── PASO 1 — ¿Cómo continúa el caso? ── -->
+            <div style="margin-top:18px">
+                <p class="ctm-label" style="margin-bottom:10px">¿Cómo continúa el caso?</p>
+                <button type="button" class="ctm-car-toggle" :class="{ 'is-on-green': form.continua === 'consentimiento' }" @click="caracterizacionElegirContinua('consentimiento')">Continuar con consentimiento informado</button>
+                <button type="button" class="ctm-car-toggle" :class="{ 'is-on-red': form.continua === 'concluir' }" @click="caracterizacionElegirContinua('concluir')">✕ Concluir gestión</button>
+            </div>
+
+            <!-- ── RAMA A — Concluir gestión ── -->
+            <template v-if="form.continua === 'concluir'">
+                <div style="margin-top:16px">
+                    <p class="ctm-label" style="margin-bottom:10px">Motivo de conclusión <span class="req">*</span></p>
+                    <button type="button" class="ctm-resultado" :class="{ 'is-on': form.motivoConclusion === 'desistimiento' }" @click="form.motivoConclusion = 'desistimiento'">Desistimiento de la ciudadana</button>
+                    <button type="button" class="ctm-resultado" :class="{ 'is-on': form.motivoConclusion === 'sin_riesgo' }" @click="form.motivoConclusion = 'sin_riesgo'">No hay riesgo de feminicidio y tiene rutas de atención activas</button>
+                    <div class="ctm-field" style="margin-top:12px">
+                        <label class="ctm-label">Observación <span class="req">*</span></label>
+                        <textarea class="ctm-textarea" rows="4" maxlength="2000" v-model="form.observacionConcluir" placeholder="Describe lo ocurrido en el intento de contacto o por qué el caso no cumple criterios de ME..."></textarea>
+                    </div>
+                </div>
+            </template>
+
+            <!-- ── PASO 2 — Consentimiento (si eligió continuar) ── -->
+            <template v-else-if="form.continua === 'consentimiento'">
+                <div style="margin-top:16px">
+                    <p class="ctm-label" style="margin-bottom:10px">¿La víctima otorga el consentimiento informado para la entrevista de caracterización?</p>
+                    <button type="button" class="ctm-car-toggle" :class="{ 'is-on-green': form.consentimiento === 'otorga' }" @click="caracterizacionElegirConsentimiento('otorga')">✓ Otorga consentimiento</button>
+                    <button type="button" class="ctm-car-toggle" :class="{ 'is-on-red': form.consentimiento === 'no_otorga' }" @click="caracterizacionElegirConsentimiento('no_otorga')">✕ No otorga consentimiento</button>
+                </div>
+
+                <!-- ── RAMA B — No otorga consentimiento ── -->
+                <template v-if="form.consentimiento === 'no_otorga'">
+                    <div class="ctm-field" style="margin-top:12px">
+                        <label class="ctm-label">Observación <span class="req">*</span></label>
+                        <textarea class="ctm-textarea" rows="4" maxlength="2000" v-model="form.observacionSinConsentimiento" placeholder="Describe el contexto por el que la víctima no otorga el consentimiento informado..."></textarea>
+                    </div>
+                </template>
+
+                <!-- ── PASO 3 — Otorga consentimiento: entrevista completa ── -->
+                <template v-else-if="form.consentimiento === 'otorga'">
+                    <p class="ctm-section-title" style="margin-top:18px">Entrevista de caracterización (consentimiento informado otorgado)</p>
+
+                    <!-- Formulario dinámico de caracterización (FASE 2b-1). Guarda
+                         sus secciones vía POST /forms/saveSection en su propio
+                         submission; en esta fase NO se enlaza a la tarea/caso ni se
+                         precargan answers (eso es FASE 2b-2). Convive con los campos
+                         de resultado de abajo (Hallazgos/Medidas/Plan/enlaces), que
+                         siguen guardándose con el PUT /complete del botón. Sin
+                         submission-id: cada apertura inicia un llenado nuevo. -->
+                    <div class="ctm-car-placeholder" style="background:#eff6ff;border-style:solid">
+                        <p class="ph-title"><i class="fas fa-clipboard-list"></i> Entrevista de caracterización</p>
+                        <p class="ph-body">Diligencia las 8 secciones de la entrevista. Este formulario guarda sus secciones de forma independiente. Los campos de resultado de abajo (hallazgos, medidas, plan y enlaces) se guardan al presionar "Guardar entrevista".</p>
+                    </div>
+                    <dinamic-form
+                        :form-id="caracterizacionFormId"
+                        :form-state="caracterizacionFormState"
+                        @form-completed="onCaracterizacionFormCompleted"
+                        @answers-updated="onCaracterizacionAnswersUpdated"></dinamic-form>
+
+                    <!-- Campos de RESULTADO (sí se implementan en fase 1) -->
+                    <div class="ctm-field">
+                        <label class="ctm-label">Hallazgos de la entrevista <span class="req">*</span></label>
+                        <textarea class="ctm-textarea" rows="3" maxlength="4000" v-model="form.hallazgos" placeholder="Información adicional identificada durante la entrevista sobre la situación de riesgo de feminicidio..."></textarea>
+                    </div>
+
+                    <div class="ctm-field">
+                        <label class="ctm-label">Medidas requeridas</label>
+                        <div style="display:flex;flex-wrap:wrap;gap:8px">
+                            <span class="ctm-car-chip" v-for="medida in caracterizacionMedidasCatalogo" :key="medida" :class="{ 'is-on': medidaCaracterizacionSeleccionada(medida) }" @click="toggleMedidaCaracterizacion(medida)">\${ medida }</span>
+                        </div>
+                        <p class="ctm-hint">Las medidas de la remisión vienen preseleccionadas y son editables. Marca o desmarca según la caracterización.</p>
+                    </div>
+
+                    <div class="ctm-field">
+                        <label class="ctm-label">Plan de acción <span class="req">*</span></label>
+                        <textarea class="ctm-textarea" rows="3" maxlength="4000" v-model="form.planAccion" placeholder="Medidas, atenciones, remisiones y acciones requeridas por los equipos de SALVIA de acuerdo con las necesidades identificadas..."></textarea>
+                    </div>
+
+                    <div class="ctm-field">
+                        <label class="ctm-label">Enlace — remisión a Cruz Roja</label>
+                        <input type="text" class="ctm-input" maxlength="1000" v-model="form.enlaceCruzRoja" placeholder="https://..." />
+                    </div>
+
+                    <div class="ctm-field">
+                        <label class="ctm-label">Enlace — declaración jurada</label>
+                        <input type="text" class="ctm-input" maxlength="1000" v-model="form.enlaceDeclaracion" placeholder="https://..." />
+                    </div>
+                </template>
+            </template>
+
+            <!-- Footer propio de la entrevista (el footer genérico se oculta). Los
+                 botones de submit solo aparecen en los estados terminales de cada rama. -->
+            <div class="ctm-car-footer">
+                <button class="ctm-btn ctm-btn-cancel" @click="cancelar" :disabled="guardando">Cancelar</button>
+                <button v-if="form.continua === 'concluir'" class="ctm-btn ctm-btn-confirm is-devolver" @click="confirmar" :disabled="!formularioValido || guardando">
+                    <template v-if="guardando"><i class="fas fa-circle-notch fa-spin"></i> Guardando…</template>
+                    <template v-else>Registrar conclusión</template>
+                </button>
+                <button v-else-if="form.continua === 'consentimiento' && form.consentimiento === 'no_otorga'" class="ctm-btn ctm-btn-confirm" @click="confirmar" :disabled="!formularioValido || guardando">
+                    <template v-if="guardando"><i class="fas fa-circle-notch fa-spin"></i> Guardando…</template>
+                    <template v-else>Registrar</template>
+                </button>
+                <button v-else-if="form.continua === 'consentimiento' && form.consentimiento === 'otorga'" class="ctm-btn ctm-btn-confirm is-aprobar" @click="confirmar" :disabled="!formularioValido || guardando">
+                    <template v-if="guardando"><i class="fas fa-circle-notch fa-spin"></i> Guardando…</template>
+                    <template v-else>Guardar entrevista</template>
+                </button>
+            </div>
         </template>
 
         <template v-else-if="tarea && tarea.type === 'intentar_contacto_3x3'">
@@ -2439,6 +3060,110 @@ app.component('case-task-modal', {
             <button type="button" class="ctm-resultado" :class="{ 'is-on': form.resultado === 'devuelto_para_acompanamiento' }" @click="form.resultado = 'devuelto_para_acompanamiento'">Devuelto para acompañamiento</button>
         </template>
 
+        <template v-else-if="tarea && tarea.type === 'revisar_caracterizacion'">
+            <!-- Resumen de la caracterización (solo lectura). "Medidas requeridas"
+                 es dato real de la remisión; el resto son placeholders por ahora. -->
+            <div class="ctm-context-box">
+                <div v-for="fila in resumenRevisarCaracterizacion" :key="fila.label" class="ctm-resumen-row">
+                    <span class="ctm-resumen-label">\${ fila.label }:</span>
+                    <span class="ctm-resumen-valor">\${ fila.valor }</span>
+                </div>
+            </div>
+            <p class="ctm-label" style="margin-bottom:10px">Resultado de la revisión</p>
+            <button type="button" class="ctm-resultado" :class="{ 'is-aprobado': form.resultado === 'aprobado' }" @click="form.resultado = 'aprobado'">✓ Aprobado por ME</button>
+            <button type="button" class="ctm-resultado" :class="{ 'is-devuelto': form.resultado === 'devuelto' }" @click="form.resultado = 'devuelto'">✕ Devuelto para ajuste</button>
+            <div v-if="form.resultado === 'devuelto'" class="ctm-field" style="margin-top:12px">
+                <label class="ctm-label">Observaciones para el Agente de Medidas</label>
+                <textarea class="ctm-textarea" rows="4" maxlength="2000" v-model="form.observaciones" placeholder="Describe qué información o documento falta ajustar..."></textarea>
+            </div>
+        </template>
+
+        <template v-else-if="tarea && tarea.type === 'revisar_trazabilidad'">
+            <!-- Resumen del caso (solo lectura). "Medidas requeridas" es dato real
+                 de la remisión; "Plan de acción" es placeholder por ahora. -->
+            <div class="ctm-context-box">
+                <div v-for="fila in resumenRevisarTrazabilidad" :key="fila.label" class="ctm-resumen-row">
+                    <span class="ctm-resumen-label">\${ fila.label }:</span>
+                    <span class="ctm-resumen-valor">\${ fila.valor }</span>
+                </div>
+            </div>
+            <p class="ctm-label" style="margin-bottom:10px">Resultado de la revisión</p>
+            <button type="button" class="ctm-resultado" :class="{ 'is-aprobado': form.resultado === 'preaprobado' }" @click="form.resultado = 'preaprobado'">✓ Preaprobado - enviar a Cruz Roja</button>
+            <button type="button" class="ctm-resultado" :class="{ 'is-devuelto': form.resultado === 'devuelto' }" @click="form.resultado = 'devuelto'">✕ Devolver a Medidas de Emergencia</button>
+            <div v-if="form.resultado === 'devuelto'" class="ctm-field" style="margin-top:12px">
+                <label class="ctm-label">Observaciones para Medidas de Emergencia</label>
+                <textarea class="ctm-textarea" rows="4" maxlength="2000" v-model="form.observaciones" placeholder="Ej: Información de beneficiarios insuficiente, falta nombre/edad/documento..."></textarea>
+            </div>
+        </template>
+
+        <template v-else-if="tarea && tarea.type === 'cargar_cotizaciones'">
+            <!-- Una fila por cada medida de la remisión (tarea.referralMeasures) o,
+                 si no hay, las dos por defecto. Cada input pide el valor cotizado;
+                 el botón solo se habilita cuando todas tienen un número >= 0. -->
+            <p class="ctm-label" style="margin-bottom:10px">Valor cotizado por medida</p>
+            <div class="ctm-field" v-for="medida in cotizacionMedidas" :key="medida" style="margin-bottom:12px">
+                <label class="ctm-label">\${ medida }</label>
+                <input type="number" min="0" step="any" class="ctm-input" v-model="form.cotizaciones[medida]" placeholder="Valor cotizado (COP)" />
+            </div>
+            <p class="ctm-hint">Cada medida debe tener un valor (se acepta 0). No se admiten campos vacíos.</p>
+        </template>
+
+        <template v-else-if="tarea && tarea.type === 'aprobar_cotizaciones'">
+            <!-- Panel de resumen (solo lectura): cada medida con el valor cotizado por
+                 Cruz Roja (tarea.cotizacionesCargadas), formateado en COP, y una fila
+                 final con el Total. Fallback: medidas de la remisión con valor 0. -->
+            <p class="ctm-label" style="margin-bottom:10px">Valores cotizados por Cruz Roja</p>
+            <div class="ctm-context-box">
+                <div v-for="fila in cotizacionesAprobarResumen" :key="fila.label" class="ctm-resumen-row">
+                    <span class="ctm-resumen-label">\${ fila.label }:</span>
+                    <span class="ctm-resumen-valor">\${ formatCOP(fila.valor) }</span>
+                </div>
+                <div class="ctm-resumen-row" style="border-top:1px solid #e5e7eb;margin-top:6px;padding-top:6px;font-weight:800">
+                    <span class="ctm-resumen-label">Total:</span>
+                    <span class="ctm-resumen-valor">\${ formatCOP(totalCotizacionesAprobar) }</span>
+                </div>
+            </div>
+            <p class="ctm-label" style="margin-bottom:10px">Resultado de la revisión</p>
+            <button type="button" class="ctm-resultado" :class="{ 'is-aprobado': form.resultado === 'aprobado' }" @click="form.resultado = 'aprobado'">✓ Aprobar cotizaciones</button>
+            <button type="button" class="ctm-resultado" :class="{ 'is-devuelto': form.resultado === 'no_cumple' }" @click="form.resultado = 'no_cumple'">✕ No cumple</button>
+            <div v-if="form.resultado === 'no_cumple'" class="ctm-field" style="margin-top:12px">
+                <label class="ctm-label">Observaciones para Cruz Roja</label>
+                <textarea class="ctm-textarea" rows="4" maxlength="2000" v-model="form.observaciones" placeholder="Explica qué valores no se ajustan a la Resolución 860 de 2024..."></textarea>
+            </div>
+        </template>
+
+        <template v-else-if="tarea && tarea.type === 'gestionar_territorio'">
+            <!-- Gestión en territorio (rol en). Ambos campos obligatorios: fecha de
+                 gestión (input date nativo, valor ISO yyyy-mm-dd) y acciones realizadas. -->
+            <div class="ctm-field">
+                <label class="ctm-label">Fecha de gestión <span class="req">*</span></label>
+                <input type="date" class="ctm-input" v-model="form.fechaGestion" />
+            </div>
+            <div class="ctm-field">
+                <label class="ctm-label">Acciones realizadas <span class="req">*</span></label>
+                <textarea class="ctm-textarea" rows="4" maxlength="2000" v-model="form.acciones" placeholder="Describe las acciones: coordinación con albergue, traslado, entrega de kits, etc."></textarea>
+            </div>
+        </template>
+
+        <template v-else-if="tarea && tarea.type === 'marcar_otorgadas'">
+            <!-- Marcar medidas como otorgadas (rol cr). Chips de solo lectura con las
+                 medidas aprobadas de la remisión (tarea.referralMeasures) + fecha de
+                 otorgamiento y comentarios, ambos obligatorios. -->
+            <p class="ctm-label" style="margin-bottom:10px">Medidas aprobadas</p>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+                <span class="ctm-chip" v-for="medida in medidasAprobadasChips" :key="medida">\${ medida }</span>
+                <span v-if="medidasAprobadasChips.length === 0" class="ctm-hint">Sin medidas registradas en la remisión.</span>
+            </div>
+            <div class="ctm-field">
+                <label class="ctm-label">Fecha de otorgamiento <span class="req">*</span></label>
+                <input type="date" class="ctm-input" v-model="form.fechaOtorgamiento" />
+            </div>
+            <div class="ctm-field">
+                <label class="ctm-label">Comentarios <span class="req">*</span></label>
+                <textarea class="ctm-textarea" rows="4" maxlength="2000" v-model="form.comentarios" placeholder="Ej: Medidas entregadas en punto de atención norte. Beneficiaria recibió kit completo..."></textarea>
+            </div>
+        </template>
+
         <template v-else-if="tarea && tarea.type === 'asignar_agente_medidas'">
             <div class="ctm-field">
                 <label class="ctm-label">Agente de Medidas</label>
@@ -2471,12 +3196,14 @@ app.component('case-task-modal', {
 
     </div>
 
-    <!-- Footer -->
-    <div class="ctm-footer">
+    <!-- Footer (genérico). La entrevista de caracterización usa su propio footer
+         dentro del cuerpo porque sus botones de submit dependen del paso/rama. -->
+    <div class="ctm-footer" v-if="!(tarea && tarea.type === 'entrevista_caracterizacion')">
         <button class="ctm-btn ctm-btn-cancel" @click="cancelar" :disabled="guardando">
             Cancelar
         </button>
         <button class="ctm-btn ctm-btn-confirm" @click="confirmar"
+            :class="{ 'is-aprobar': tarea && ((tarea.type === 'revisar_caracterizacion' && form.resultado === 'aprobado') || (tarea.type === 'revisar_trazabilidad' && form.resultado === 'preaprobado') || (tarea.type === 'aprobar_cotizaciones' && form.resultado === 'aprobado') || tarea.type === 'cargar_cotizaciones' || tarea.type === 'gestionar_territorio' || tarea.type === 'marcar_otorgadas'), 'is-devolver': tarea && ((tarea.type === 'revisar_caracterizacion' || tarea.type === 'revisar_trazabilidad') && form.resultado === 'devuelto') || (tarea.type === 'aprobar_cotizaciones' && form.resultado === 'no_cumple') }"
             :disabled="!formularioValido || guardando || cargandoTarea">
             <template v-if="guardando">
                 <i class="fas fa-circle-notch fa-spin"></i> Guardando…
@@ -2517,6 +3244,24 @@ app.component('case-task-modal', {
                 </template>
                 <template v-else-if="tarea && tarea.type === 'revision_equipo_tecnico'">
                     Guardar revisión
+                </template>
+                <template v-else-if="tarea && tarea.type === 'revisar_caracterizacion'">
+                    \${ form.resultado === 'devuelto' ? 'Devolver para ajuste' : 'Aprobar y enviar a Supervisión del Convenio' }
+                </template>
+                <template v-else-if="tarea && tarea.type === 'revisar_trazabilidad'">
+                    \${ form.resultado === 'devuelto' ? 'Devolver a ME' : 'Preaprobar y enviar a Cruz Roja' }
+                </template>
+                <template v-else-if="tarea && tarea.type === 'cargar_cotizaciones'">
+                    Enviar cotizaciones
+                </template>
+                <template v-else-if="tarea && tarea.type === 'aprobar_cotizaciones'">
+                    \${ form.resultado === 'no_cumple' ? 'Devolver a Cruz Roja' : 'Aprobar cotizaciones' }
+                </template>
+                <template v-else-if="tarea && tarea.type === 'gestionar_territorio'">
+                    Guardar gestión
+                </template>
+                <template v-else-if="tarea && tarea.type === 'marcar_otorgadas'">
+                    Marcar como otorgada
                 </template>
                 <template v-else-if="tarea && tarea.type === 'ajustar_remision_devuelta'">
                     \${ form.descartar ? 'Descartar remisión' : 'Reenviar al Equipo Técnico' }

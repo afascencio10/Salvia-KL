@@ -22,6 +22,9 @@ var closureFormSQL string
 //go:embed seguimiento_v4_form.sql
 var seguimientoV4FormSQL string
 
+//go:embed caracterizacion_form.sql
+var caracterizacionFormSQL string
+
 //go:embed seguimiento_v4_medidas.sql
 var seguimientoV4MedidasSQL string
 
@@ -127,6 +130,51 @@ func EnsureSeguimientoV4Form(db *gorm.DB) (bool, error) {
 	}
 	if actual != SeguimientoV4FormDescription {
 		return false, fmt.Errorf("el seed se aplicó pero el formulario %s no quedó en la versión esperada", SeguimientoV4FormID)
+	}
+
+	return true, nil
+}
+
+// CaracterizacionFormID es el formulario dinámico "Entrevista de Caracterización"
+// de Medidas de Emergencia. Coincide con constants.FormIDCaracterizacion y con la
+// constante JS del frontend. No está registrado en OnEndFormSubmission, así que
+// completarlo solo guarda respuestas (FASE 2b-1: sin precarga, sin enlace a la
+// tarea y sin creación de medidas; eso es FASE 2b-2).
+const CaracterizacionFormID = "f1a2c3d4-5e6f-4a1b-8c2d-3e4f5a6b7c8d"
+
+// CaracterizacionFormDescription identifica esta versión del formulario. Si la
+// fila ya existe con otro texto, el arranque vuelve a sembrar la definición.
+const CaracterizacionFormDescription = "Entrevista de Caracterización de Medidas de Emergencia. FASE 2b-1 v2 del 2026: siembra la definición del formulario (8 secciones + resultado). No precarga answers, no enlaza el submission a la tarea ni crea medidas al completar."
+
+// EnsureCaracterizacionForm crea el formulario "Entrevista de Caracterización" si
+// no está en la base, o reemplaza su definición cuando la descripción no es la de
+// esta versión. Devuelve true cuando tuvo que aplicarlo. Si el formulario ya tiene
+// envíos, el SQL aborta y no borra nada. Copia de EnsureSeguimientoV4Form.
+func EnsureCaracterizacionForm(db *gorm.DB) (bool, error) {
+	var actual string
+	err := db.Raw(
+		`SELECT COALESCE(MAX(description), '') FROM salvia.form WHERE id = ? AND deleted_at IS NULL`,
+		CaracterizacionFormID,
+	).Scan(&actual).Error
+	if err != nil {
+		return false, fmt.Errorf("verificando el formulario de entrevista de caracterización: %w", err)
+	}
+	if actual == CaracterizacionFormDescription {
+		return false, nil
+	}
+
+	if err := db.Exec(caracterizacionFormSQL).Error; err != nil {
+		return false, fmt.Errorf("aplicando el seed del formulario de entrevista de caracterización: %w", err)
+	}
+
+	if err := db.Raw(
+		`SELECT COALESCE(MAX(description), '') FROM salvia.form WHERE id = ? AND deleted_at IS NULL`,
+		CaracterizacionFormID,
+	).Scan(&actual).Error; err != nil {
+		return false, fmt.Errorf("verificando el formulario de entrevista de caracterización tras aplicarlo: %w", err)
+	}
+	if actual != CaracterizacionFormDescription {
+		return false, fmt.Errorf("el seed se aplicó pero el formulario %s no quedó en la versión esperada", CaracterizacionFormID)
 	}
 
 	return true, nil

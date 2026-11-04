@@ -4,6 +4,7 @@ import (
 	"bitsflow/common/utils"
 	"bitsflow/internal/models"
 	"bitsflow/salvia/service"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -110,7 +111,10 @@ var equipoTecnicoRoles = map[string]bool{"te": true}
 
 // medidasTaskRoles puede pedir las tareas de una remisión. No abre la bandeja
 // completa del caso: el listado va filtrado por referralId.
-var medidasTaskRoles = map[string]bool{"sm": true, "em": true, "sc": true, "cr": true, "am": true, "sv": true, "ro": true}
+// 'en' (Enlace Territorial) se incluye para que pueda ver y gestionar su tarea
+// de la cadena de medidas (gestionar_territorio); el recorte real por rol lo
+// aplica filterTasksByAssignedRole, que ya es genérico por role_code.
+var medidasTaskRoles = map[string]bool{"sm": true, "em": true, "sc": true, "cr": true, "am": true, "en": true, "sv": true, "ro": true}
 
 // misTareasRolesExcludingEntidadMecanismo — mismos roles que misTareasRoles salvo
 // entidad y mecanismo. Gatea las tareas de un caso completo (caseId sin barrierId ni
@@ -489,7 +493,9 @@ func (c *CaseTaskController) CompleteWithFormData(ctx *gin.Context) {
 		switch {
 		case errors.Is(err, service.ErrCaseTaskNotFound):
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "tarea no encontrada"})
-		case errors.Is(err, service.ErrEntityLetterInvalidState):
+		case errors.Is(err, service.ErrEntityLetterInvalidState),
+			errors.Is(err, service.ErrDevolucionSinObservaciones),
+			errors.Is(err, service.ErrCierreSinDatos):
 			ctx.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		case errors.Is(err, service.ErrEntityUserNotFound), errors.Is(err, service.ErrEntityUserNotUnique):
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -738,6 +744,114 @@ func (c *CaseTaskController) AbrirMesaTecnica(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, c.enrichTaskWithName(*task))
 }
 
+// lookupReferralMeasureLabels devuelve los nombres legibles de las medidas
+// solicitadas de una remisión (salvia.emergency_measure.referral_id), para que
+// el modal de revisar caracterización muestre las medidas reales. Devuelve una
+// lista vacía si no hay medidas o si el id está vacío.
+func (c *CaseTaskController) lookupReferralMeasureLabels(referralID string) []string {
+	out := []string{}
+	if strings.TrimSpace(referralID) == "" {
+		return out
+	}
+	var types []string
+	c.svc.GetDB().Raw(`
+		SELECT type
+		FROM salvia.emergency_measure
+		WHERE referral_id::text = ?
+		  AND deleted_at IS NULL
+		ORDER BY created_at
+	`, referralID).Scan(&types)
+	for _, t := range types {
+		out = append(out, models.EmergencyMeasureTypeLabel(t))
+	}
+	return out
+}
+
+// lookupCotizacionesCargadas devuelve el objeto { "<label medida>": <valor> } que
+// Cruz Roja guardó en el form_data de la ÚLTIMA tarea cargar_cotizaciones (Done) de
+// la remisión. Es la vía mínima para que el modal de aprobar_cotizaciones (rol sc)
+// muestre los montos cotizados: no existe columna de valor cotizado en
+// salvia.emergency_measure, por eso viven en form_data (ver
+// medidas-modal-cargar-cotizaciones.md). Devuelve nil si no hay ninguna previa o si
+// el form_data no trae el objeto "cotizaciones" (el modal cae a su fallback).
+func (c *CaseTaskController) lookupCotizacionesCargadas(referralID string) map[string]interface{} {
+	if strings.TrimSpace(referralID) == "" {
+		return nil
+	}
+	var raw string
+	c.svc.GetDB().Raw(`
+		SELECT COALESCE(form_data::text, '')
+		FROM salvia.case_task
+		WHERE emergency_measure_referral_id::text = ?
+		  AND type = ?
+		  AND status = ?
+		  AND deleted_at IS NULL
+		ORDER BY completed_at DESC NULLS LAST, created_at DESC
+		LIMIT 1
+	`, referralID, models.CaseTaskTypeCargarCotizaciones, models.CaseTaskStatusDone).Scan(&raw)
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	var fd map[string]interface{}
+	if err := json.Unmarshal([]byte(raw), &fd); err != nil {
+		return nil
+	}
+	cot, ok := fd["cotizaciones"].(map[string]interface{})
+	if !ok || len(cot) == 0 {
+		return nil
+	}
+	return cot
+}
+
+// lookupCaracterizacionHeader resuelve los datos de cabecera que el modal de la
+// entrevista de caracterización (rol am) muestra en el PASO 1: nombre de la
+// víctima, código del caso (victim_case_i_code, el "SAL-xxx") y la fecha del
+// contacto efectivo. El nombre/código salen de salvia.victim_case (unido por
+// case_id = victim_case_i_code). La fecha de contacto efectivo se toma de la
+// última tarea intentar_contacto_3x3 en Done cuyo form_data->>'contesto' = 'si'
+// de esa remisión (se usa completed_at). Es best-effort: cualquier campo que no
+// se encuentre vuelve "" y el modal degrada con un placeholder razonable.
+func (c *CaseTaskController) lookupCaracterizacionHeader(caseID, referralID string) gin.H {
+	out := gin.H{}
+	if strings.TrimSpace(caseID) != "" {
+		var row struct {
+			Name string `gorm:"column:victim_name"`
+			Code string `gorm:"column:case_code"`
+		}
+		c.svc.GetDB().Raw(`
+			SELECT TRIM(CONCAT(COALESCE(victim_case_victim_names, ''), ' ', COALESCE(victim_case_victim_last_names, ''))) AS victim_name,
+			       COALESCE(victim_case_i_code, '') AS case_code
+			FROM salvia.victim_case
+			WHERE victim_case_i_code = ?
+			LIMIT 1
+		`, caseID).Scan(&row)
+		if strings.TrimSpace(row.Name) != "" {
+			out["victimName"] = row.Name
+		}
+		if strings.TrimSpace(row.Code) != "" {
+			out["caseCode"] = row.Code
+		}
+	}
+	if strings.TrimSpace(referralID) != "" {
+		var contactDate string
+		c.svc.GetDB().Raw(`
+			SELECT COALESCE(TO_CHAR(completed_at, 'YYYY-MM-DD'), '')
+			FROM salvia.case_task
+			WHERE emergency_measure_referral_id::text = ?
+			  AND type = ?
+			  AND status = ?
+			  AND form_data->>'contesto' = 'si'
+			  AND deleted_at IS NULL
+			ORDER BY completed_at DESC NULLS LAST, created_at DESC
+			LIMIT 1
+		`, referralID, models.CaseTaskTypeIntentarContacto3x3, models.CaseTaskStatusDone).Scan(&contactDate)
+		if strings.TrimSpace(contactDate) != "" {
+			out["contactoEfectivoFecha"] = contactDate
+		}
+	}
+	return out
+}
+
 // lookupUserName resuelve el nombre completo de un usuario a partir de su icode.
 // Devuelve "" si el icode está vacío o no se encuentra.
 func (c *CaseTaskController) lookupUserName(userID string) string {
@@ -781,6 +895,28 @@ func (c *CaseTaskController) taskToJSON(t models.CaseTask, assignedUserName, ent
 	}
 	if entityName != "" {
 		result["entityName"] = entityName
+	}
+	// Medidas solicitadas de la remisión asociada (para el modal de revisar
+	// caracterización): se exponen los labels legibles de salvia.emergency_measure.
+	if t.EmergencyMeasureReferralID != nil && *t.EmergencyMeasureReferralID != "" {
+		result["referralMeasures"] = c.lookupReferralMeasureLabels(*t.EmergencyMeasureReferralID)
+		// Para la tarea aprobar_cotizaciones (rol sc): exponer los montos que Cruz
+		// Roja cargó en la última cargar_cotizaciones (Done), { "<medida>": valor },
+		// para que el modal arme el panel de resumen con su Total. Análogo a
+		// referralMeasures; vía mínima sin endpoints nuevos.
+		if t.Type == models.CaseTaskTypeAprobarCotizaciones {
+			if cot := c.lookupCotizacionesCargadas(*t.EmergencyMeasureReferralID); cot != nil {
+				result["cotizacionesCargadas"] = cot
+			}
+		}
+		// Para la tarea entrevista_caracterizacion (rol am): exponer los datos de
+		// cabecera del PASO 1 del modal (nombre de la víctima, código del caso y
+		// fecha del contacto efectivo). Vía mínima, análoga a referralMeasures.
+		if t.Type == models.CaseTaskTypeEntrevistaCaracterizacion {
+			for k, v := range c.lookupCaracterizacionHeader(t.CaseID, *t.EmergencyMeasureReferralID) {
+				result[k] = v
+			}
+		}
 	}
 	// Resolver sector y entidad de la barrera si tiene barrierId
 	if t.BarrierID != nil && *t.BarrierID != "" {

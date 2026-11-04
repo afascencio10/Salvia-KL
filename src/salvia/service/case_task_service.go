@@ -19,6 +19,17 @@ var ErrCaseTaskNotFound = errors.New("case_task: registro no encontrado")
 var ErrEntityUserNotFound = errors.New("no hay usuario de entidad asociado a esta sede")
 var ErrEntityUserNotUnique = errors.New("hay más de un usuario de entidad para esta sede")
 
+// ErrDevolucionSinObservaciones indica que se intentó devolver la revisión de
+// caracterización sin escribir las observaciones para el Agente de Medidas.
+// El controller lo mapea a 422 para que el modal muestre el mensaje.
+var ErrDevolucionSinObservaciones = errors.New("indica las observaciones de la devolución")
+
+// ErrCierreSinDatos indica que se intentó cerrar la gestión de la entrevista de
+// caracterización sin los datos obligatorios de la rama elegida: la conclusión
+// sin ME exige motivo + observación; la falta de consentimiento exige observación.
+// El controller lo mapea a 422 para que el modal muestre el mensaje.
+var ErrCierreSinDatos = errors.New("faltan datos obligatorios para registrar el cierre")
+
 // CaseTaskService define las operaciones de negocio sobre CaseTask.
 type CaseTaskService interface {
 	GetByID(ctx context.Context, id string) (*models.CaseTask, error)
@@ -102,6 +113,7 @@ type CaseTaskService interface {
 	// marcar la gestión "Alerta por barreras" al guardar un seguimiento. Solo
 	// los roles 'sv' y 'te' pueden invocarla (verificado en el controller).
 	AbrirMesaTecnica(ctx context.Context, userID, caseID, justificacion string) (*models.CaseTask, error)
+
 }
 
 // ErrBarrierDepartmentMismatch indica que la barrera no pertenece al
@@ -1389,6 +1401,891 @@ func (s *caseTaskService) completeAjustarRemision(ctx context.Context, task *mod
 	return nil
 }
 
+// completeEntrevistaCaracterizacion cierra la entrevista del Agente de Medidas,
+// deja la remisión caracterizada y crea la revisión de caracterización (rol sm).
+//
+// Bifurca según fd["resultado"]:
+//   - "caracterizado" (o vacío/ausente, por compatibilidad con el click directo
+//     histórico): CAMINO FELIZ. Avanza la remisión asignada → caracterizado y crea
+//     la revisión de caracterización (rol sm). El form_data entrante (hallazgos,
+//     medidasRequeridas, planAccion, enlaceCruzRoja, enlaceDeclaracion, etc.) se
+//     persiste tal cual en la tarea al cerrarla, para que el modal de revisar
+//     caracterización del sm empiece a consumir esos campos.
+//   - "concluido_sin_me": la gestión se concluye sin medidas. Exige motivo +
+//     observacion (422 si faltan). Cierra la remisión en estado descartada,
+//     cierra la tarea Done con el form_data entrante y NO crea tarea siguiente.
+//   - "sin_consentimiento": la víctima no otorga el consentimiento. Exige
+//     observacion (422 si falta). Cierra la remisión en el MISMO estado descartada
+//     (decisión del usuario: mismo estado, distinto resultado), cierra la tarea y
+//     NO crea tarea siguiente.
+//
+// Todas las ramas usan guardas optimistas de estado (UPDATE ... WHERE
+// status='asignada', RowsAffected==1) y timeline best-effort.
+func (s *caseTaskService) completeEntrevistaCaracterizacion(ctx context.Context, task *models.CaseTask, userID string, formData datatypes.JSON, fd map[string]interface{}, now time.Time) error {
+	if task.Status != models.CaseTaskStatusToDo {
+		return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+	}
+	if task.EmergencyMeasureReferralID == nil || strings.TrimSpace(*task.EmergencyMeasureReferralID) == "" {
+		return fmt.Errorf("CompleteWithFormData: la tarea no tiene remisión")
+	}
+	if s.db == nil {
+		return fmt.Errorf("CompleteWithFormData: sin base de datos")
+	}
+	refID := strings.TrimSpace(*task.EmergencyMeasureReferralID)
+
+	resultado, _ := fd["resultado"].(string)
+	resultado = strings.TrimSpace(resultado)
+
+	// ── Rama CONCLUIR SIN ME / SIN CONSENTIMIENTO: cierra la remisión en estado
+	// descartada, cierra la tarea Done con el form_data entrante y NO crea tarea
+	// siguiente. Ambos resultados comparten el MISMO estado de cierre (descartada),
+	// solo cambia el resultado persistido. ──
+	if resultado == "concluido_sin_me" || resultado == "sin_consentimiento" {
+		// Validaciones de datos obligatorios por rama.
+		observacion, _ := fd["observacion"].(string)
+		observacion = strings.TrimSpace(observacion)
+		if resultado == "concluido_sin_me" {
+			motivo, _ := fd["motivo"].(string)
+			motivo = strings.TrimSpace(motivo)
+			if motivo == "" || observacion == "" {
+				return ErrCierreSinDatos
+			}
+		} else { // sin_consentimiento
+			if observacion == "" {
+				return ErrCierreSinDatos
+			}
+		}
+		if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			// Cierre optimista de la remisión: asignada → descartada.
+			res := tx.Exec(`
+				UPDATE salvia.emergency_measure_referral
+				   SET status = ?,
+				       updated_at = NOW()
+				 WHERE id::text = ?
+				   AND status = ?
+				   AND deleted_at IS NULL
+			`, models.EmergencyReferralStatusDescartada, refID, models.EmergencyReferralStatusAsignada)
+			if res.Error != nil {
+				return fmt.Errorf("CompleteWithFormData: descartar remisión: %w", res.Error)
+			}
+			if res.RowsAffected != 1 {
+				return fmt.Errorf("CompleteWithFormData: la remisión ya no está asignada")
+			}
+			// Cierra la tarea con el form_data entrante (resultado + motivo/observacion).
+			res = tx.Model(&models.CaseTask{}).
+				Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+				Updates(map[string]interface{}{
+					"form_data":    formData,
+					"status":       models.CaseTaskStatusDone,
+					"completed_at": now,
+				})
+			if res.Error != nil {
+				return fmt.Errorf("CompleteWithFormData: cerrar la entrevista (cierre sin ME): %w", res.Error)
+			}
+			if res.RowsAffected != 1 {
+				return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+		// Timeline best-effort: texto según la rama.
+		var detalle string
+		if resultado == "concluido_sin_me" {
+			motivo, _ := fd["motivo"].(string)
+			detalle = "La gestión de la entrevista de caracterización se concluyó sin medidas de emergencia (motivo: " + strings.TrimSpace(motivo) + "). La remisión queda descartada. Observación: " + observacion
+		} else {
+			detalle = "La víctima no otorgó el consentimiento informado para la entrevista de caracterización. La remisión queda descartada. Observación: " + observacion
+		}
+		s.registrarTimelineMedidas(ctx, task, userID, now, "registrarTimelineCaracterizacionCierre", models.TimelineEventRemisionDescartada, models.TimelineTypeRemisionDescartada, detalle)
+		return nil
+	}
+
+	// ── Rama CARACTERIZADO (camino feliz; también el valor por defecto por
+	// compatibilidad con el click directo histórico): avanza asignada →
+	// caracterizado, crea la revisión (rol sm) y persiste el form_data entrante. ──
+	role := models.CaseTaskRoleSupervisorMedidas
+	next := &models.CaseTask{
+		Category:                   models.CaseTaskCategoryMedidas,
+		Type:                       models.CaseTaskTypeRevisarCaracterizacion,
+		Description:                models.CaseTaskDescRevisarCaracterizacion,
+		AssignedRole:               &role,
+		Status:                     models.CaseTaskStatusToDo,
+		CaseID:                     task.CaseID,
+		FollowUpID:                 task.FollowUpID,
+		EmergencyMeasureReferralID: &refID,
+	}
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Exec(`
+			UPDATE salvia.emergency_measure_referral
+			   SET status = ?,
+			       updated_at = NOW()
+			 WHERE id::text = ?
+			   AND status = ?
+			   AND deleted_at IS NULL
+		`, models.EmergencyReferralStatusCaracterizado, refID, models.EmergencyReferralStatusAsignada)
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: actualizar remisión: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la remisión ya no está asignada")
+		}
+		if err := tx.Create(next).Error; err != nil {
+			return fmt.Errorf("CompleteWithFormData: crear la revisión de caracterización: %w", err)
+		}
+		res = tx.Model(&models.CaseTask{}).
+			Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+			Updates(map[string]interface{}{
+				"form_data":    formData,
+				"status":       models.CaseTaskStatusDone,
+				"completed_at": now,
+			})
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: cerrar la caracterización: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	s.registrarTimelineMedidas(ctx, task, userID, now, "registrarTimelineCaracterizacion", models.TimelineEventContactoVictima, models.TimelineTypeContactoVictima, "Se completó la entrevista de caracterización. La remisión pasa a revisión de caracterización.")
+	return nil
+}
+
+// completeRevisarCaracterizacion cierra la revisión del Supervisor de Medidas.
+// Bifurca según fd["resultado"]:
+//   - "aprobado" (o vacío/ausente, por compatibilidad con el click directo):
+//     deja la remisión por revisar trazabilidad y crea la revisión (rol sc).
+//   - "devuelto": DEVOLUCIÓN AUTOMÁTICA. RETROCEDE el estado del referral
+//     (caracterizado → asignada) para volver al paso anterior, cierra esta tarea
+//     como Done con resultado + observaciones en su form_data (el front la muestra
+//     como "Devuelto") Y, en la misma transacción, CREA y asigna automáticamente la
+//     tarea anterior entrevista_caracterizacion al Agente de Medidas de la remisión
+//     (assigned_agent_id del referral — la fuente más fiable; fallback al
+//     AssignedUserID de la última entrevista_caracterizacion), precargando su
+//     form_data con el de la última entrevista_caracterizacion en Done de esa
+//     remisión. Hoy ese form_data puede venir vacío (el modal de caracterización aún
+//     no existe), pero el mecanismo de precarga queda listo. Requiere observaciones
+//     no vacías. Ya no hay botones extra: todo ocurre al devolver.
+func (s *caseTaskService) completeRevisarCaracterizacion(ctx context.Context, task *models.CaseTask, userID string, formData datatypes.JSON, fd map[string]interface{}, now time.Time) error {
+	if task.Status != models.CaseTaskStatusToDo {
+		return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+	}
+	if task.EmergencyMeasureReferralID == nil || strings.TrimSpace(*task.EmergencyMeasureReferralID) == "" {
+		return fmt.Errorf("CompleteWithFormData: la tarea no tiene remisión")
+	}
+	if s.db == nil {
+		return fmt.Errorf("CompleteWithFormData: sin base de datos")
+	}
+	refID := strings.TrimSpace(*task.EmergencyMeasureReferralID)
+
+	resultado, _ := fd["resultado"].(string)
+	resultado = strings.TrimSpace(resultado)
+
+	// ── Rama DEVUELTO (devolución automática): retrocede el referral
+	// (caracterizado → asignada), cierra esta tarea como Done con resultado +
+	// observaciones en form_data y crea automáticamente la tarea anterior
+	// entrevista_caracterizacion asignada al Agente de Medidas, precargada con el
+	// form_data de la última entrevista_caracterizacion previa en Done. ──
+	if resultado == "devuelto" {
+		observaciones, _ := fd["observaciones"].(string)
+		observaciones = strings.TrimSpace(observaciones)
+		if observaciones == "" {
+			return ErrDevolucionSinObservaciones
+		}
+		// Agente al que se reasigna la entrevista: fuente fiable = assigned_agent_id
+		// del referral; fallback = AssignedUserID de la última entrevista previa.
+		agentID := s.agenteDeRemision(ctx, refID)
+		if agentID == "" {
+			return fmt.Errorf("CompleteWithFormData: la remisión no tiene agente de medidas para la devolución")
+		}
+		// Precarga: form_data de la última entrevista_caracterizacion en Done de esta
+		// remisión (lo que el agente había puesto). Vacío si no existe ninguna.
+		prevFormData := s.ultimoFormDataPorTipo(ctx, refID, models.CaseTaskTypeEntrevistaCaracterizacion)
+		next := &models.CaseTask{
+			Category:                   models.CaseTaskCategoryMedidas,
+			Type:                       models.CaseTaskTypeEntrevistaCaracterizacion,
+			Description:                models.CaseTaskDescEntrevistaCaracterizacion,
+			AssignedUserID:             agentID,
+			Status:                     models.CaseTaskStatusToDo,
+			CaseID:                     task.CaseID,
+			FollowUpID:                 task.FollowUpID,
+			EmergencyMeasureReferralID: &refID,
+			FormData:                   prevFormData,
+		}
+		if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			// Retroceso optimista: caracterizado → asignada.
+			res := tx.Exec(`
+				UPDATE salvia.emergency_measure_referral
+				   SET status = ?,
+				       updated_at = NOW()
+				 WHERE id::text = ?
+				   AND status = ?
+				   AND deleted_at IS NULL
+			`, models.EmergencyReferralStatusAsignada, refID, models.EmergencyReferralStatusCaracterizado)
+			if res.Error != nil {
+				return fmt.Errorf("CompleteWithFormData: retroceder remisión: %w", res.Error)
+			}
+			if res.RowsAffected != 1 {
+				return fmt.Errorf("CompleteWithFormData: la remisión ya no está caracterizada")
+			}
+			res = tx.Model(&models.CaseTask{}).
+				Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+				Updates(map[string]interface{}{
+					"form_data":    formData,
+					"status":       models.CaseTaskStatusDone,
+					"completed_at": now,
+				})
+			if res.Error != nil {
+				return fmt.Errorf("CompleteWithFormData: cerrar la revisión de caracterización (devuelta): %w", res.Error)
+			}
+			if res.RowsAffected != 1 {
+				return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+			}
+			// Devolución automática: crea la tarea anterior (entrevista_caracterizacion).
+			if err := tx.Create(next).Error; err != nil {
+				return fmt.Errorf("CompleteWithFormData: crear la entrevista de caracterización (devolución): %w", err)
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+		s.registrarTimelineMedidas(ctx, task, userID, now, "registrarTimelineRevisarCaracterizacionDevuelta", models.TimelineEventDevolucionEquipoTecnico, models.TimelineTypeDevolucionEquipoTecnico, "El Supervisor de Medidas devolvió la caracterización para ajuste. La remisión vuelve a asignada y se reabrió la entrevista de caracterización para el Agente de Medidas. Observaciones: "+observaciones)
+		return nil
+	}
+
+	// ── Rama APROBADO (camino feliz; también el valor por defecto): avanza. ──
+	role := models.CaseTaskRoleSupervisionConvenio
+	next := &models.CaseTask{
+		Category:                   models.CaseTaskCategoryMedidas,
+		Type:                       models.CaseTaskTypeRevisarTrazabilidad,
+		Description:                models.CaseTaskDescRevisarTrazabilidad,
+		AssignedRole:               &role,
+		Status:                     models.CaseTaskStatusToDo,
+		CaseID:                     task.CaseID,
+		FollowUpID:                 task.FollowUpID,
+		EmergencyMeasureReferralID: &refID,
+	}
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Exec(`
+			UPDATE salvia.emergency_measure_referral
+			   SET status = ?,
+			       updated_at = NOW()
+			 WHERE id::text = ?
+			   AND status = ?
+			   AND deleted_at IS NULL
+		`, models.EmergencyReferralStatusPorRevisarTrazabilidad, refID, models.EmergencyReferralStatusCaracterizado)
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: actualizar remisión: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la remisión ya no está caracterizada")
+		}
+		if err := tx.Create(next).Error; err != nil {
+			return fmt.Errorf("CompleteWithFormData: crear la revisión de trazabilidad: %w", err)
+		}
+		res = tx.Model(&models.CaseTask{}).
+			Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+			Updates(map[string]interface{}{
+				"form_data":    formData,
+				"status":       models.CaseTaskStatusDone,
+				"completed_at": now,
+			})
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: cerrar la revisión de caracterización: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	s.registrarTimelineMedidas(ctx, task, userID, now, "registrarTimelineRevisarCaracterizacion", models.TimelineEventContactoVictima, models.TimelineTypeContactoVictima, "Se revisó la caracterización. La remisión pasa a revisión de trazabilidad.")
+	return nil
+}
+
+// completeRevisarTrazabilidad cierra la revisión de Supervisión del Convenio.
+// Bifurca según fd["resultado"]:
+//   - "aprobado" / "preaprobado" (sinónimos del camino feliz; también el valor por
+//     defecto / vacío, por compatibilidad con el click directo que manda "aprobado"):
+//     deja la remisión por cotizar y crea la carga de cotizaciones (rol cr).
+//   - "devuelto": DEVOLUCIÓN AUTOMÁTICA. RETROCEDE el estado del referral
+//     (por_revisar_trazabilidad → caracterizado) para volver al flujo anterior,
+//     cierra esta tarea guardando resultado + observaciones en su form_data (el
+//     front la muestra como "Devuelto") Y, en la misma transacción, CREA y asigna
+//     automáticamente la tarea anterior revisar_caracterizacion (rol sm) para la
+//     misma remisión, precargando su form_data con el de la última tarea
+//     revisar_caracterizacion en Done de esa remisión (la revisión previa del sm),
+//     para que el sm vea lo que había puesto y corrija. Si no existe ninguna
+//     previa, la crea con form_data vacío. Requiere observaciones no vacías. Ya no
+//     hay botón manual de "reenviar": todo ocurre al devolver.
+func (s *caseTaskService) completeRevisarTrazabilidad(ctx context.Context, task *models.CaseTask, userID string, formData datatypes.JSON, fd map[string]interface{}, now time.Time) error {
+	if task.Status != models.CaseTaskStatusToDo {
+		return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+	}
+	if task.EmergencyMeasureReferralID == nil || strings.TrimSpace(*task.EmergencyMeasureReferralID) == "" {
+		return fmt.Errorf("CompleteWithFormData: la tarea no tiene remisión")
+	}
+	if s.db == nil {
+		return fmt.Errorf("CompleteWithFormData: sin base de datos")
+	}
+	refID := strings.TrimSpace(*task.EmergencyMeasureReferralID)
+
+	resultado, _ := fd["resultado"].(string)
+	resultado = strings.TrimSpace(resultado)
+
+	// ── Rama DEVUELTO (devolución automática): retrocede el referral a
+	// 'caracterizado', cierra la tarea como Done con resultado + observaciones en
+	// form_data y crea automáticamente la tarea anterior revisar_caracterizacion
+	// (rol sm) precargada con el form_data de la última revisar_caracterizacion
+	// previa en Done. ──
+	if resultado == "devuelto" {
+		observaciones, _ := fd["observaciones"].(string)
+		observaciones = strings.TrimSpace(observaciones)
+		if observaciones == "" {
+			return ErrDevolucionSinObservaciones
+		}
+		// Precarga: form_data de la última revisar_caracterizacion en Done de esta
+		// remisión (la revisión previa del sm). Vacío si no existe ninguna.
+		prevFormData := s.ultimoFormDataPorTipo(ctx, refID, models.CaseTaskTypeRevisarCaracterizacion)
+		role := models.CaseTaskRoleSupervisorMedidas
+		next := &models.CaseTask{
+			Category:                   models.CaseTaskCategoryMedidas,
+			Type:                       models.CaseTaskTypeRevisarCaracterizacion,
+			Description:                models.CaseTaskDescRevisarCaracterizacion,
+			AssignedRole:               &role,
+			Status:                     models.CaseTaskStatusToDo,
+			CaseID:                     task.CaseID,
+			FollowUpID:                 task.FollowUpID,
+			EmergencyMeasureReferralID: &refID,
+			FormData:                   prevFormData,
+		}
+		if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			// Retroceso optimista: por_revisar_trazabilidad → caracterizado.
+			res := tx.Exec(`
+				UPDATE salvia.emergency_measure_referral
+				   SET status = ?,
+				       updated_at = NOW()
+				 WHERE id::text = ?
+				   AND status = ?
+				   AND deleted_at IS NULL
+			`, models.EmergencyReferralStatusCaracterizado, refID, models.EmergencyReferralStatusPorRevisarTrazabilidad)
+			if res.Error != nil {
+				return fmt.Errorf("CompleteWithFormData: retroceder remisión: %w", res.Error)
+			}
+			if res.RowsAffected != 1 {
+				return fmt.Errorf("CompleteWithFormData: la remisión ya no está por revisar trazabilidad")
+			}
+			res = tx.Model(&models.CaseTask{}).
+				Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+				Updates(map[string]interface{}{
+					"form_data":    formData,
+					"status":       models.CaseTaskStatusDone,
+					"completed_at": now,
+				})
+			if res.Error != nil {
+				return fmt.Errorf("CompleteWithFormData: cerrar la revisión de trazabilidad (devuelta): %w", res.Error)
+			}
+			if res.RowsAffected != 1 {
+				return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+			}
+			// Devolución automática: crea la tarea anterior (revisar_caracterizacion, sm).
+			if err := tx.Create(next).Error; err != nil {
+				return fmt.Errorf("CompleteWithFormData: crear la revisión de caracterización (devolución): %w", err)
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+		s.registrarTimelineMedidas(ctx, task, userID, now, "registrarTimelineRevisarTrazabilidadDevuelta", models.TimelineEventDevolucionEquipoTecnico, models.TimelineTypeDevolucionEquipoTecnico, "Supervisión del Convenio devolvió la trazabilidad a Medidas de Emergencia. La remisión vuelve a caracterizado y se reabrió la revisión de caracterización para el Supervisor de Medidas. Observaciones: "+observaciones)
+		return nil
+	}
+
+	// ── Rama APROBADO/PREAPROBADO (camino feliz; también el valor por defecto). ──
+	role := models.CaseTaskRoleCruzRoja
+	next := &models.CaseTask{
+		Category:                   models.CaseTaskCategoryMedidas,
+		Type:                       models.CaseTaskTypeCargarCotizaciones,
+		Description:                models.CaseTaskDescCargarCotizaciones,
+		AssignedRole:               &role,
+		Status:                     models.CaseTaskStatusToDo,
+		CaseID:                     task.CaseID,
+		FollowUpID:                 task.FollowUpID,
+		EmergencyMeasureReferralID: &refID,
+	}
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Exec(`
+			UPDATE salvia.emergency_measure_referral
+			   SET status = ?,
+			       updated_at = NOW()
+			 WHERE id::text = ?
+			   AND status = ?
+			   AND deleted_at IS NULL
+		`, models.EmergencyReferralStatusPorCotizar, refID, models.EmergencyReferralStatusPorRevisarTrazabilidad)
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: actualizar remisión: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la remisión ya no está por revisar trazabilidad")
+		}
+		if err := tx.Create(next).Error; err != nil {
+			return fmt.Errorf("CompleteWithFormData: crear la carga de cotizaciones: %w", err)
+		}
+		res = tx.Model(&models.CaseTask{}).
+			Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+			Updates(map[string]interface{}{
+				"form_data":    formData,
+				"status":       models.CaseTaskStatusDone,
+				"completed_at": now,
+			})
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: cerrar la revisión de trazabilidad: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	s.registrarTimelineMedidas(ctx, task, userID, now, "registrarTimelineRevisarTrazabilidad", models.TimelineEventContactoVictima, models.TimelineTypeContactoVictima, "Se revisó la trazabilidad. La remisión pasa a carga de cotizaciones.")
+	return nil
+}
+
+// ultimoFormDataPorTipo devuelve el form_data de la última tarea (más reciente
+// por completed_at/created_at) del tipo indicado, en estado Done, para la
+// remisión dada. Se usa para PRECARGAR la tarea anterior que se recrea en una
+// devolución automática, de modo que la persona vea lo que había puesto y
+// corrija. Best-effort: si no hay remisión, no hay base de datos, falla la
+// consulta o no existe ninguna tarea previa, devuelve nil (form_data vacío).
+func (s *caseTaskService) ultimoFormDataPorTipo(ctx context.Context, referralID, taskType string) datatypes.JSON {
+	referralID = strings.TrimSpace(referralID)
+	if referralID == "" || s.db == nil {
+		return nil
+	}
+	var raw []byte
+	if err := s.db.WithContext(ctx).Raw(`
+		SELECT form_data
+		FROM salvia.case_task
+		WHERE emergency_measure_referral_id::text = ?
+		  AND type = ?
+		  AND status = ?
+		  AND deleted_at IS NULL
+		  AND form_data IS NOT NULL
+		ORDER BY completed_at DESC NULLS LAST, created_at DESC
+		LIMIT 1
+	`, referralID, taskType, models.CaseTaskStatusDone).Scan(&raw).Error; err != nil {
+		log.Printf("[ultimoFormDataPorTipo] WARN: no se pudo leer form_data previo (%s): %v", taskType, err)
+		return nil
+	}
+	if len(raw) == 0 {
+		return nil
+	}
+	return datatypes.JSON(raw)
+}
+
+// agenteDeRemision devuelve el icode del Agente de Medidas asignado a la
+// remisión. Fuente principal: assigned_agent_id del emergency_measure_referral
+// (la columna autoritativa que fija quién atiende la remisión). Fallback:
+// AssignedUserID de la última entrevista_caracterizacion de esa remisión. Best-
+// effort: devuelve "" si no se encuentra, y el caller decide qué hacer.
+func (s *caseTaskService) agenteDeRemision(ctx context.Context, referralID string) string {
+	referralID = strings.TrimSpace(referralID)
+	if referralID == "" || s.db == nil {
+		return ""
+	}
+	var agentID string
+	if err := s.db.WithContext(ctx).Raw(`
+		SELECT COALESCE(BTRIM(assigned_agent_id), '')
+		FROM salvia.emergency_measure_referral
+		WHERE id::text = ?
+		  AND deleted_at IS NULL
+	`, referralID).Scan(&agentID).Error; err != nil {
+		log.Printf("[agenteDeRemision] WARN: no se pudo leer assigned_agent_id: %v", err)
+	}
+	agentID = strings.TrimSpace(agentID)
+	if agentID != "" {
+		return agentID
+	}
+	// Fallback: última entrevista_caracterizacion de la remisión.
+	var fallback string
+	if err := s.db.WithContext(ctx).Raw(`
+		SELECT COALESCE(BTRIM(assigned_user_id), '')
+		FROM salvia.case_task
+		WHERE emergency_measure_referral_id::text = ?
+		  AND type = ?
+		  AND deleted_at IS NULL
+		  AND BTRIM(assigned_user_id) <> ''
+		ORDER BY completed_at DESC NULLS LAST, created_at DESC
+		LIMIT 1
+	`, referralID, models.CaseTaskTypeEntrevistaCaracterizacion).Scan(&fallback).Error; err != nil {
+		log.Printf("[agenteDeRemision] WARN: no se pudo leer agente de la entrevista previa: %v", err)
+	}
+	return strings.TrimSpace(fallback)
+}
+
+// completeCargarCotizaciones cierra la carga de Cruz Roja, deja la remisión
+// por aprobar cotizaciones y crea la aprobación (rol sc).
+//
+// Persistencia de los valores cotizados: NO existe una columna/tabla para el
+// valor cotizado en salvia.emergency_measure ni una tabla de cotizaciones
+// relacionada (ver modelo EmergencyMeasure). Por eso los montos se guardan en el
+// form_data de ESTA tarea (cargar_cotizaciones): el modal manda
+// { cotizaciones: { "<medida>": <valor>, ... } } y el UPDATE de cierre de abajo
+// escribe ese formData completo en form_data al pasar la tarea a Done. El futuro
+// modal de "aprobar cotizaciones" (rol sc) podrá leerlo desde esta tarea Done de
+// la misma remisión. No se validan montos aquí: si fd llega sin cotizaciones
+// (p.ej. el click directo histórico que manda resultado:"aprobado"), la tarea se
+// cierra igual sin persistir montos, sin romper ese camino.
+func (s *caseTaskService) completeCargarCotizaciones(ctx context.Context, task *models.CaseTask, userID string, formData datatypes.JSON, now time.Time) error {
+	if task.Status != models.CaseTaskStatusToDo {
+		return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+	}
+	if task.EmergencyMeasureReferralID == nil || strings.TrimSpace(*task.EmergencyMeasureReferralID) == "" {
+		return fmt.Errorf("CompleteWithFormData: la tarea no tiene remisión")
+	}
+	if s.db == nil {
+		return fmt.Errorf("CompleteWithFormData: sin base de datos")
+	}
+	refID := strings.TrimSpace(*task.EmergencyMeasureReferralID)
+	role := models.CaseTaskRoleSupervisionConvenio
+	next := &models.CaseTask{
+		Category:                   models.CaseTaskCategoryMedidas,
+		Type:                       models.CaseTaskTypeAprobarCotizaciones,
+		Description:                models.CaseTaskDescAprobarCotizaciones,
+		AssignedRole:               &role,
+		Status:                     models.CaseTaskStatusToDo,
+		CaseID:                     task.CaseID,
+		FollowUpID:                 task.FollowUpID,
+		EmergencyMeasureReferralID: &refID,
+	}
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Exec(`
+			UPDATE salvia.emergency_measure_referral
+			   SET status = ?,
+			       updated_at = NOW()
+			 WHERE id::text = ?
+			   AND status = ?
+			   AND deleted_at IS NULL
+		`, models.EmergencyReferralStatusPorAprobarCotizaciones, refID, models.EmergencyReferralStatusPorCotizar)
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: actualizar remisión: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la remisión ya no está por cotizar")
+		}
+		if err := tx.Create(next).Error; err != nil {
+			return fmt.Errorf("CompleteWithFormData: crear la aprobación de cotizaciones: %w", err)
+		}
+		res = tx.Model(&models.CaseTask{}).
+			Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+			Updates(map[string]interface{}{
+				"form_data":    formData,
+				"status":       models.CaseTaskStatusDone,
+				"completed_at": now,
+			})
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: cerrar la carga de cotizaciones: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	s.registrarTimelineMedidas(ctx, task, userID, now, "registrarTimelineCargarCotizaciones", models.TimelineEventContactoVictima, models.TimelineTypeContactoVictima, "Cruz Roja cargó las cotizaciones de las medidas. La remisión pasa a aprobación de cotizaciones (Supervisión del Convenio).")
+	return nil
+}
+
+// completeAprobarCotizaciones cierra la aprobación de Supervisión del Convenio.
+// Bifurca según el resultado del formulario: si se aprueba ("aprobado"), deja la
+// remisión aprobada y crea la gestión de territorio (rol en). Si NO cumple
+// (cualquier otro valor; el modal envía "devuelto"), aplica la devolución
+// automática: exige observaciones, retrocede la remisión a por_cotizar, cierra la
+// tarea como "devuelto" + observaciones y recrea cargar_cotizaciones (rol cr)
+// PRECARGADA con el form_data de la última carga previa.
+func (s *caseTaskService) completeAprobarCotizaciones(ctx context.Context, task *models.CaseTask, userID string, formData datatypes.JSON, fd map[string]interface{}, now time.Time) error {
+	if task.Status != models.CaseTaskStatusToDo {
+		return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+	}
+	if task.EmergencyMeasureReferralID == nil || strings.TrimSpace(*task.EmergencyMeasureReferralID) == "" {
+		return fmt.Errorf("CompleteWithFormData: la tarea no tiene remisión")
+	}
+	if s.db == nil {
+		return fmt.Errorf("CompleteWithFormData: sin base de datos")
+	}
+	refID := strings.TrimSpace(*task.EmergencyMeasureReferralID)
+
+	resultado, _ := fd["resultado"].(string)
+	resultado = strings.TrimSpace(resultado)
+
+	// ── Rama NO CUMPLE / RECOTIZAR (devolución automática): exige observaciones,
+	// retrocede el referral (por_aprobar_cotizaciones → por_cotizar), cierra esta
+	// tarea como Done con resultado "devuelto" + observaciones en form_data (para
+	// que el front pinte el chip "Devuelto"), y crea automáticamente la tarea
+	// anterior cargar_cotizaciones (rol cr) PRECARGADA con el form_data de la última
+	// cargar_cotizaciones previa, para que Cruz Roja vea/corrija los valores que
+	// había puesto. Cualquier valor distinto de "aprobado" entra aquí (p.ej.
+	// "devuelto" o "recotizar"), manteniendo un fallback seguro. ──
+	if resultado != "aprobado" {
+		observaciones, _ := fd["observaciones"].(string)
+		observaciones = strings.TrimSpace(observaciones)
+		if observaciones == "" {
+			return ErrDevolucionSinObservaciones
+		}
+		// Precarga: form_data de la última cargar_cotizaciones en Done de esta
+		// remisión (lo que Cruz Roja había cotizado). Vacío si no existe ninguna.
+		prevFormData := s.ultimoFormDataPorTipo(ctx, refID, models.CaseTaskTypeCargarCotizaciones)
+		role := models.CaseTaskRoleCruzRoja
+		next := &models.CaseTask{
+			Category:                   models.CaseTaskCategoryMedidas,
+			Type:                       models.CaseTaskTypeCargarCotizaciones,
+			Description:                models.CaseTaskDescCargarCotizaciones,
+			AssignedRole:               &role,
+			Status:                     models.CaseTaskStatusToDo,
+			CaseID:                     task.CaseID,
+			FollowUpID:                 task.FollowUpID,
+			EmergencyMeasureReferralID: &refID,
+			FormData:                   prevFormData,
+		}
+		if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			// Retroceso optimista: por_aprobar_cotizaciones → por_cotizar.
+			res := tx.Exec(`
+				UPDATE salvia.emergency_measure_referral
+				   SET status = ?,
+				       updated_at = NOW()
+				 WHERE id::text = ?
+				   AND status = ?
+				   AND deleted_at IS NULL
+			`, models.EmergencyReferralStatusPorCotizar, refID, models.EmergencyReferralStatusPorAprobarCotizaciones)
+			if res.Error != nil {
+				return fmt.Errorf("CompleteWithFormData: retroceder remisión: %w", res.Error)
+			}
+			if res.RowsAffected != 1 {
+				return fmt.Errorf("CompleteWithFormData: la remisión ya no está por aprobar cotizaciones")
+			}
+			res = tx.Model(&models.CaseTask{}).
+				Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+				Updates(map[string]interface{}{
+					"form_data":    formData,
+					"status":       models.CaseTaskStatusDone,
+					"completed_at": now,
+				})
+			if res.Error != nil {
+				return fmt.Errorf("CompleteWithFormData: cerrar la aprobación de cotizaciones (devuelta): %w", res.Error)
+			}
+			if res.RowsAffected != 1 {
+				return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+			}
+			// Devolución automática: crea la tarea anterior (cargar_cotizaciones).
+			if err := tx.Create(next).Error; err != nil {
+				return fmt.Errorf("CompleteWithFormData: crear la carga de cotizaciones (devolución): %w", err)
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+		s.registrarTimelineMedidas(ctx, task, userID, now, "registrarTimelineAprobarCotizacionesDevuelta", models.TimelineEventDevolucionEquipoTecnico, models.TimelineTypeDevolucionEquipoTecnico, "Supervisión del Convenio devolvió las cotizaciones a Cruz Roja. La remisión vuelve a por cotizar y se reabrió la carga de cotizaciones precargada con los valores anteriores. Observaciones: "+observaciones)
+		return nil
+	}
+
+	// ── Rama APROBAR (camino feliz): avanza a aprobadas y crea gestionar_territorio. ──
+	destino := models.EmergencyReferralStatusAprobadas
+	role := models.CaseTaskRoleEnlaceTerritorial
+	next := &models.CaseTask{
+		Category:                   models.CaseTaskCategoryMedidas,
+		Type:                       models.CaseTaskTypeGestionarTerritorio,
+		Description:                models.CaseTaskDescGestionarTerritorio,
+		AssignedRole:               &role,
+		Status:                     models.CaseTaskStatusToDo,
+		CaseID:                     task.CaseID,
+		FollowUpID:                 task.FollowUpID,
+		EmergencyMeasureReferralID: &refID,
+	}
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Exec(`
+			UPDATE salvia.emergency_measure_referral
+			   SET status = ?,
+			       updated_at = NOW()
+			 WHERE id::text = ?
+			   AND status = ?
+			   AND deleted_at IS NULL
+		`, destino, refID, models.EmergencyReferralStatusPorAprobarCotizaciones)
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: actualizar remisión: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la remisión ya no está por aprobar cotizaciones")
+		}
+		if err := tx.Create(next).Error; err != nil {
+			return fmt.Errorf("CompleteWithFormData: crear la tarea siguiente: %w", err)
+		}
+		res = tx.Model(&models.CaseTask{}).
+			Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+			Updates(map[string]interface{}{
+				"form_data":    formData,
+				"status":       models.CaseTaskStatusDone,
+				"completed_at": now,
+			})
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: cerrar la aprobación de cotizaciones: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	s.registrarTimelineMedidas(ctx, task, userID, now, "registrarTimelineAprobarCotizaciones", models.TimelineEventContactoVictima, models.TimelineTypeContactoVictima, "Se aprobaron las cotizaciones. La remisión pasa a gestión de territorio.")
+	return nil
+}
+
+// completeGestionarTerritorio cierra la gestión del Enlace Territorial, deja la
+// remisión en seguimiento y crea el marcado de medidas otorgadas (rol cr).
+//
+// Persistencia de la gestión en campo: el modal "Gestionar medida en territorio"
+// (rol en) envía { fechaGestion: "<yyyy-mm-dd>", acciones: "<texto>" } y el UPDATE
+// de cierre de abajo escribe ese formData completo en form_data al pasar la tarea
+// a Done (misma vía que cargar_cotizaciones). No se validan estos campos en el
+// backend: la obligatoriedad se exige en el front. Si fd llega sin ellos (p.ej. el
+// click directo histórico), la tarea se cierra igual sin romper ese camino.
+func (s *caseTaskService) completeGestionarTerritorio(ctx context.Context, task *models.CaseTask, userID string, formData datatypes.JSON, now time.Time) error {
+	if task.Status != models.CaseTaskStatusToDo {
+		return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+	}
+	if task.EmergencyMeasureReferralID == nil || strings.TrimSpace(*task.EmergencyMeasureReferralID) == "" {
+		return fmt.Errorf("CompleteWithFormData: la tarea no tiene remisión")
+	}
+	if s.db == nil {
+		return fmt.Errorf("CompleteWithFormData: sin base de datos")
+	}
+	refID := strings.TrimSpace(*task.EmergencyMeasureReferralID)
+	role := models.CaseTaskRoleCruzRoja
+	next := &models.CaseTask{
+		Category:                   models.CaseTaskCategoryMedidas,
+		Type:                       models.CaseTaskTypeMarcarOtorgadas,
+		Description:                models.CaseTaskDescMarcarOtorgadas,
+		AssignedRole:               &role,
+		Status:                     models.CaseTaskStatusToDo,
+		CaseID:                     task.CaseID,
+		FollowUpID:                 task.FollowUpID,
+		EmergencyMeasureReferralID: &refID,
+	}
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Exec(`
+			UPDATE salvia.emergency_measure_referral
+			   SET status = ?,
+			       updated_at = NOW()
+			 WHERE id::text = ?
+			   AND status = ?
+			   AND deleted_at IS NULL
+		`, models.EmergencyReferralStatusEnSeguimiento, refID, models.EmergencyReferralStatusAprobadas)
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: actualizar remisión: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la remisión ya no está aprobada")
+		}
+		if err := tx.Create(next).Error; err != nil {
+			return fmt.Errorf("CompleteWithFormData: crear el marcado de otorgadas: %w", err)
+		}
+		res = tx.Model(&models.CaseTask{}).
+			Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+			Updates(map[string]interface{}{
+				"form_data":    formData,
+				"status":       models.CaseTaskStatusDone,
+				"completed_at": now,
+			})
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: cerrar la gestión de territorio: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	s.registrarTimelineMedidas(ctx, task, userID, now, "registrarTimelineGestionarTerritorio", models.TimelineEventContactoVictima, models.TimelineTypeContactoVictima, "El Enlace Territorial registró la gestión de la medida en territorio. La remisión pasa a seguimiento y se creó el marcado de medidas otorgadas (Cruz Roja).")
+	return nil
+}
+
+// completeMarcarOtorgadas cierra el último paso de la cadena normal: Cruz Roja
+// marca las medidas como entregadas. La remisión queda en en_seguimiento (estado
+// final de la cadena, no hay un estado "otorgadas"/"cerrada" en el catálogo). No
+// crea tarea siguiente. La lógica de cierre se deja COMO ESTÁ (el estado final lo
+// definirá el usuario después); SOLO se persiste el formulario.
+//
+// Persistencia del otorgamiento: el modal "Marcar medidas como otorgadas" (rol cr)
+// envía { fechaOtorgamiento: "<yyyy-mm-dd>", comentarios: "<texto>" } y el UPDATE
+// de cierre de abajo escribe ese formData completo en form_data al pasar la tarea
+// a Done (misma vía que cargar_cotizaciones). No se validan estos campos en el
+// backend: la obligatoriedad se exige en el front. Si fd llega sin ellos (p.ej. el
+// click directo histórico), la tarea se cierra igual sin romper ese camino.
+func (s *caseTaskService) completeMarcarOtorgadas(ctx context.Context, task *models.CaseTask, userID string, formData datatypes.JSON, now time.Time) error {
+	if task.Status != models.CaseTaskStatusToDo {
+		return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+	}
+	if task.EmergencyMeasureReferralID == nil || strings.TrimSpace(*task.EmergencyMeasureReferralID) == "" {
+		return fmt.Errorf("CompleteWithFormData: la tarea no tiene remisión")
+	}
+	if s.db == nil {
+		return fmt.Errorf("CompleteWithFormData: sin base de datos")
+	}
+	refID := strings.TrimSpace(*task.EmergencyMeasureReferralID)
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Guarda optimista: la remisión debe seguir en seguimiento (estado final
+		// de la cadena). No se cambia su estado porque no hay uno posterior.
+		res := tx.Exec(`
+			UPDATE salvia.emergency_measure_referral
+			   SET updated_at = NOW()
+			 WHERE id::text = ?
+			   AND status = ?
+			   AND deleted_at IS NULL
+		`, refID, models.EmergencyReferralStatusEnSeguimiento)
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: actualizar remisión: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la remisión ya no está en seguimiento")
+		}
+		// Marca como entregadas las medidas activas de la remisión.
+		if err := tx.Exec(`
+			UPDATE salvia.emergency_measure
+			   SET status = ?,
+			       updated_at = NOW()
+			 WHERE referral_id::text = ?
+			   AND status = ?
+			   AND deleted_at IS NULL
+		`, models.EmergencyMeasureStatusEntregada, refID, models.EmergencyMeasureStatusActive).Error; err != nil {
+			return fmt.Errorf("CompleteWithFormData: marcar medidas entregadas: %w", err)
+		}
+		res = tx.Model(&models.CaseTask{}).
+			Where("id = ? AND status = ?", task.ID, models.CaseTaskStatusToDo).
+			Updates(map[string]interface{}{
+				"form_data":    formData,
+				"status":       models.CaseTaskStatusDone,
+				"completed_at": now,
+			})
+		if res.Error != nil {
+			return fmt.Errorf("CompleteWithFormData: cerrar el marcado de otorgadas: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("CompleteWithFormData: la tarea ya no está pendiente")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	s.registrarTimelineMedidas(ctx, task, userID, now, "registrarTimelineMarcarOtorgadas", models.TimelineEventEntregaMedidaConfirmada, models.TimelineTypeEntregaMedidaConfirmada, "Cruz Roja registró el otorgamiento de las medidas a la víctima. Fin de la cadena normal de medidas.")
+	return nil
+}
+
 func (s *caseTaskService) registrarTimelineMedidas(ctx context.Context, task *models.CaseTask, userID string, now time.Time, logName, eventType, timelineType, description string) {
 	if s.timelineRepo == nil {
 		log.Printf("[%s] WARN: sin repositorio de timeline", logName)
@@ -1647,6 +2544,41 @@ func (s *caseTaskService) CompleteWithFormData(ctx context.Context, id string, u
 
 	case models.CaseTaskTypeAjustarRemisionDevuelta:
 		if err := s.completeAjustarRemision(ctx, task, userId, formData, fd, now); err != nil {
+			return nil, err
+		}
+
+	case models.CaseTaskTypeEntrevistaCaracterizacion:
+		if err := s.completeEntrevistaCaracterizacion(ctx, task, userId, formData, fd, now); err != nil {
+			return nil, err
+		}
+
+	case models.CaseTaskTypeRevisarCaracterizacion:
+		if err := s.completeRevisarCaracterizacion(ctx, task, userId, formData, fd, now); err != nil {
+			return nil, err
+		}
+
+	case models.CaseTaskTypeRevisarTrazabilidad:
+		if err := s.completeRevisarTrazabilidad(ctx, task, userId, formData, fd, now); err != nil {
+			return nil, err
+		}
+
+	case models.CaseTaskTypeCargarCotizaciones:
+		if err := s.completeCargarCotizaciones(ctx, task, userId, formData, now); err != nil {
+			return nil, err
+		}
+
+	case models.CaseTaskTypeAprobarCotizaciones:
+		if err := s.completeAprobarCotizaciones(ctx, task, userId, formData, fd, now); err != nil {
+			return nil, err
+		}
+
+	case models.CaseTaskTypeGestionarTerritorio:
+		if err := s.completeGestionarTerritorio(ctx, task, userId, formData, now); err != nil {
+			return nil, err
+		}
+
+	case models.CaseTaskTypeMarcarOtorgadas:
+		if err := s.completeMarcarOtorgadas(ctx, task, userId, formData, now); err != nil {
 			return nil, err
 		}
 

@@ -163,6 +163,12 @@ func main() {
 		log.Printf("[INFO] sección de medidas de emergencia agregada al seguimiento V.4")
 	}
 
+	if aplicado, err := seed.EnsureCaracterizacionForm(gormDB); err != nil {
+		log.Printf("[WARN] seed del formulario de entrevista de caracterización: %v", err)
+	} else if aplicado {
+		log.Printf("[INFO] formulario de entrevista de caracterización creado (%s)", seed.CaracterizacionFormID)
+	}
+
 	if aplicado, err := seed.EnsureSeguimientoRiesgoInminente(gormDB); err != nil {
 		log.Printf("[WARN] pregunta de riesgo inminente del seguimiento: %v", err)
 	} else if aplicado {
