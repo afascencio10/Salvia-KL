@@ -317,7 +317,7 @@
 
       <div class="mt-3">
         <button class="btn btn-primary" :disabled="guardando" @click="guardarRutaAtencion">Guardar sección</button>
-        <span class="ms-2">${mensajeGuardado}</span>
+        <span class="ms-2" :class="{'v3-msg-error': mensajeGuardadoEsError}">${mensajeGuardado}</span>
       </div>
     </div>
 
@@ -468,7 +468,7 @@
 
       <div class="mt-3">
         <button class="btn btn-primary" :disabled="guardando" @click="guardarModulo('GS')">Guardar sección</button>
-        <span class="ms-2">${mensajeGuardado}</span>
+        <span class="ms-2" :class="{'v3-msg-error': mensajeGuardadoEsError}">${mensajeGuardado}</span>
       </div>
 
       <hr>

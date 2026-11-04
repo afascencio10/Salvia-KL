@@ -16,6 +16,9 @@ const TODAS = ['CI:20', 'DP:60', 'CA:20', 'HV:30', 'AG:20', 'TZ:10', 'GS:20'].fl
   });
   const { page } = t;
   await page.getByRole('link', { name: /Plan de acción Salvia/ }).click();
+  // Finalizar guarda primero el módulo actual y exige sus obligatorias visibles (WP-3): GS_1 y GS_4.
+  await page.locator('input[name="GS_1"]').first().check();
+  await page.locator('div.mb-3', { has: page.locator('label.form-label', { hasText: 'acompañamiento realizado' }) }).locator('textarea').fill('Acompañamiento de prueba');
   await page.getByRole('button', { name: /Finalizar registro y enrutar a Seguimiento/ }).click();
   await page.waitForSelector('text=Registro finalizado.');
   const tabla = await page.locator('table.table-sm tbody tr').allInnerTexts();

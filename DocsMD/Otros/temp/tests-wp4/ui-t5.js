@@ -64,7 +64,7 @@ const ETIQUETAS = [
   await page.getByPlaceholder('Número de documento').fill(t.doc);
   await page.getByRole('button', { name: 'Buscar' }).click();
   await page.locator('table button', { hasText: 'Abrir' }).first().click();
-  await page.waitForSelector('ul.nav-tabs');
+  await page.waitForSelector('ul.v3-menu');
   await page.getByRole('link', { name: /Plan de acción Salvia/ }).click();
   const bloque2 = page.locator('div.mb-3', { has: page.locator('label.form-label', { hasText: 'elementos psicosociales integrados' }) });
   const marcadas = await bloque2.locator('.form-check', { has: page.locator('input:checked') }).locator('label').allInnerTexts();

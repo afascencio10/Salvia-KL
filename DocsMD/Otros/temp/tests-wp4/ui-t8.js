@@ -17,11 +17,11 @@ const check = (d, a, e) => { if (JSON.stringify(a) === JSON.stringify(e)) { ok++
   const { page, icode, sql } = t;
 
   console.log('== 1. Pestaña nueva entre Tamizaje y Plan de acción, sin candado');
-  const tabs = (await page.locator('ul.nav-tabs a').allInnerTexts()).map((x) => x.trim());
+  const tabs = (await page.locator('ul.v3-menu a > span').allInnerTexts()).map((x) => x.trim());
   const nombres = tabs.map((x) => x.replace(/\s*🔒/, ''));
   const iTZ = nombres.indexOf('Tamizaje de riesgo'), iRA = nombres.indexOf('Ruta de atención integral'), iGS = nombres.indexOf('Plan de acción Salvia');
   check('orden de pestañas: … Tamizaje, Ruta de atención integral, Plan de acción', [iTZ >= 0, iRA === iTZ + 1, iGS === iRA + 1], [true, true, true]);
-  check('«Ruta de atención integral» sin candado y «Plan de acción Salvia» bloqueado (tríada incompleta)', [!tabs[iRA].includes('🔒'), tabs[iGS].includes('🔒')], [true, true]);
+  check('con la tríada incompleta solo el Tamizaje tiene candado (WP-3, REG-13); la Ruta y el Plan de acción se abren en borrador', [!tabs[iRA].includes('🔒'), !tabs[iGS].includes('🔒'), tabs[iTZ].includes('🔒')], [true, true, true]);
   await page.getByRole('link', { name: /Ruta de atención integral/ }).click();
   check('el módulo abre con la tríada incompleta', await page.locator('input[name="GS_14"]').count(), 2);
 

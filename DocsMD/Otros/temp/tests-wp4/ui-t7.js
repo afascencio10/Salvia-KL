@@ -16,7 +16,7 @@ const check = (d, a, e) => { if (JSON.stringify(a) === JSON.stringify(e)) { ok++
   const { page, icode, sql } = t;
 
   console.log('== 1. Nombre de la pestaña');
-  const tabs = (await page.locator('ul.nav-tabs a').allInnerTexts()).map((x) => x.replace(/🔒/, '').trim());
+  const tabs = (await page.locator('ul.v3-menu a > span').allInnerTexts()).map((x) => x.replace(/🔒/, '').trim());
   check('la pestaña se llama «Plan de acción Salvia» y ya no «Gestión Salvia»', [tabs.includes('Plan de acción Salvia'), tabs.includes('Gestión Salvia')], [true, false]);
   await page.getByRole('link', { name: /Plan de acción Salvia/ }).click();
 

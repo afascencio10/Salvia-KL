@@ -56,7 +56,7 @@ async function abrir({ role = 'op', triada = true, hook } = {}) {
   await page.getByRole('button', { name: 'Buscar' }).click();
   await page.locator('table button', { hasText: 'Abrir' }).first().click();
   try {
-    await page.waitForSelector('ul.nav-tabs', { timeout: 15000 });
+    await page.waitForSelector('ul.v3-menu', { timeout: 15000 });
   } catch (e) {
     await page.screenshot({ path: '/tmp/wp4-abrir-fallo.png' });
     console.log('No abrió el formulario. Errores de la página:', errores, '\nTexto visible:', (await page.locator('main').innerText()).slice(0, 600));
