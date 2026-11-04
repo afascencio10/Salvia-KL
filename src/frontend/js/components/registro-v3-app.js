@@ -84,6 +84,8 @@ var RegistroV3App = Vue.createApp({
         { id: 'HV', label: 'Hechos de violencia', campos: CAMPOS_HV_V3 },
         { id: 'AG', label: 'Características del agresor', campos: CAMPOS_AG_V3 },
         { id: 'TZ', label: 'Tamizaje de riesgo', campos: [] },
+        // REG-17: módulo nuevo, nunca bloqueado (moduloBloqueado solo bloquea TZ mientras la tríada esté incompleta).
+        { id: 'RA', label: 'Ruta de atención integral', campos: CAMPOS_RA_V3 },
         { id: 'GS', label: 'Plan de acción Salvia', campos: CAMPOS_GS_A_V3 },
       ],
       guardando: false,
@@ -245,6 +247,8 @@ var RegistroV3App = Vue.createApp({
       return {
         Kind: kind || 'activacion', depto: '', ciudad: '', municipio: '', sector: '',
         EntityBranchID: '', FileNumber: '', Solicitud: '', ReportDate: '', ActivationChannels: [], ManagementNotes: '',
+        // Solo la entidad acudida con acciones pendientes: acuerdo y debida diligencia propios (D17).
+        Agreement: null, DueDiligence: null,
         CompletedActions: [], PendingActions: [], OtherInfo: '',
       };
     },
@@ -810,6 +814,30 @@ var RegistroV3App = Vue.createApp({
       // Conserva el texto «Sección guardada.» (lo buscan las pruebas de REG-11) y dice de dónde a dónde se pasó.
       this.mensajeAvance = '✓ Sección guardada. Pasaste de «' + de + '» a «' + a + '».';
     },
+    // REG-17: «Guardar sección» de la Ruta de atención integral. GS_14 y GS_17 se guardan con la sección GS
+    // (misma llave), así que se reutiliza enviarSeccion('GS'); las entidades y barreras ya se guardaron al agregarlas.
+    // No avanza al siguiente módulo (la barra «Siguiente» sí funciona).
+    guardarRutaAtencion: function () {
+      var self = this;
+      var faltantes = this.obligatoriasFaltantesModulo('RA');
+      if (faltantes.length) {
+        this.mensajeGuardado = 'Faltan obligatorias de 1er contacto: ' + faltantes.map(function (c) { return c.label; }).join('; ');
+        this.mensajeGuardadoEsError = true;
+        return Promise.resolve(false);
+      }
+      this.guardando = true;
+      this.mensajeGuardado = '';
+      this.mensajeGuardadoEsError = false;
+      this.errorGuardado = '';
+      return this.enviarSeccion('GS')
+        .then(function () {
+          self.mensajeGuardado = 'Sección guardada.';
+          self.mensajeGuardadoEsError = false;
+          return true;
+        })
+        .catch(function (e) { self.mostrarErrorGuardado(e); return false; })
+        .finally(function () { self.guardando = false; });
+    },
     // D11 (flow-E14, botón "Finalizar llamada (guardar y salir)"): guarda el
     // módulo actual SIN exigir las obligatorias -- es un cierre de llamada
     // a medias, no un guardado normal -- y vuelve al Cabezote. Antes no
@@ -1239,6 +1267,15 @@ var RegistroV3App = Vue.createApp({
           self.obligacionesEntidad = []; self.obligacionesCargando = false;
         });
     },
+    // Una acción no puede estar a la vez completada y pendiente: marcarla en una lista la quita de la otra.
+    toggleAccion: function (propia, otra, valor) {
+      var arr = this.nuevaEntidad[propia];
+      var idx = arr.indexOf(valor);
+      if (idx >= 0) { arr.splice(idx, 1); return; }
+      arr.push(valor);
+      var j = this.nuevaEntidad[otra].indexOf(valor);
+      if (j >= 0) this.nuevaEntidad[otra].splice(j, 1);
+    },
     // Acciones institucionales como chips (mismo estilo que el modal de Gestión institucional).
     estiloChip: function (seleccionado) {
       return seleccionado
@@ -1253,7 +1290,10 @@ var RegistroV3App = Vue.createApp({
       if (faltantes.length) { self.errorEntidad = 'Faltan campos obligatorios: ' + faltantes.join('; '); return; }
       // REG-20: Agreement y DueDiligence son copias de GS_15 y GS_16 en este momento (esas
       // respuestas pueden no estar guardadas todavía); los canales solo operan si ambas son «Sí».
-      var activa = this.nuevaEntidad.Kind === 'activacion' && this.activacionAplica();
+      var activa = this.activacionAplica();
+      var acudida = this.nuevaEntidad.Kind === 'acudida';
+      var agreement = acudida ? (this.nuevaEntidad.PendingActions.length > 0 && this.nuevaEntidad.Agreement === true) : this.answers['GS_15'] === 'true';
+      var dueDiligence = acudida ? (agreement && this.nuevaEntidad.DueDiligence === true) : this.answers['GS_16'] === 'true';
       var body = {
         Kind: this.nuevaEntidad.Kind,
         EntityBranchID: branchId,
@@ -1261,8 +1301,8 @@ var RegistroV3App = Vue.createApp({
         Solicitud: this.nuevaEntidad.Solicitud,
         ReportDate: this.nuevaEntidad.ReportDate,
         ActivationChannels: activa ? this.nuevaEntidad.ActivationChannels.slice() : [],
-        Agreement: this.answers['GS_15'] === 'true',
-        DueDiligence: this.answers['GS_16'] === 'true',
+        Agreement: agreement,
+        DueDiligence: dueDiligence,
         ManagementNotes: activa ? this.nuevaEntidad.ManagementNotes : '',
         CompletedActions: this.nuevaEntidad.Kind === 'acudida' ? this.nuevaEntidad.CompletedActions : [],
         PendingActions: this.nuevaEntidad.PendingActions,
@@ -1296,7 +1336,11 @@ var RegistroV3App = Vue.createApp({
     // Los canales se piden cuando la persona está de acuerdo con la activación de la Ruta
     // (GS_15) y Salvia debe activar rutas en el marco de la debida diligencia (GS_16): igual
     // que v4BothYes en Seguimiento. Sin ambas respuestas en «Sí» no se crea ninguna tarea.
+    // En el Plan de acción las dos respuestas son GS_15 y GS_16; en la Ruta de atención integral la entidad
+    // acudida con acciones pendientes las contesta ella misma (D17, como el repetidor de Seguimiento v4).
     activacionAplica: function () {
+      var f = this.nuevaEntidad;
+      if (f.Kind === 'acudida') return f.PendingActions.length > 0 && f.Agreement === true && f.DueDiligence === true;
       return this.answers['GS_15'] === 'true' && this.answers['GS_16'] === 'true';
     },
     // «Ninguna» es excluyente con los demás canales (no crea tarea en Seguimiento).
@@ -1310,11 +1354,26 @@ var RegistroV3App = Vue.createApp({
     },
     // Etiquetas de lo obligatorio que falta para agregar la entidad (vacío = se puede agregar).
     entidadFaltantes: function () {
+      var e = this.nuevaEntidad;
       var f = [];
-      if (this.nuevaEntidad.Kind === 'activacion' && !String(this.nuevaEntidad.OtherInfo || '').trim()) f.push('Objetivo con la entidad');
-      if (this.nuevaEntidad.Kind === 'activacion' && this.activacionAplica()) {
-        if (!this.nuevaEntidad.ActivationChannels.length) f.push(ENTIDAD_V4_V3.canales.label);
-        if (!String(this.nuevaEntidad.ManagementNotes || '').trim()) f.push(ENTIDAD_V4_V3.gestiones.label);
+      var vacio = function (v) { return !String(v || '').trim(); };
+      if (e.Kind === 'activacion') {
+        if (vacio(e.OtherInfo)) f.push('Objetivo con la entidad');
+      } else {
+        // REG-17: obligatorias del repetidor «Entidades a las que ya acudió» de Seguimiento v4. Las acciones
+        // se piden cuando la sede tiene acciones en el catálogo: basta con marcar una (completada o pendiente).
+        if (vacio(e.FileNumber)) f.push(ENTIDAD_V4_V3.radicado.label);
+        if (vacio(e.ReportDate)) f.push(ENTIDAD_V4_V3.fecha.label);
+        if (this.obligacionesEntidad.length && !(e.CompletedActions.length + e.PendingActions.length)) f.push('Acciones institucionales completadas o pendientes');
+        if (vacio(e.OtherInfo)) f.push(ENTIDAD_V4_V3.otraRuta.label);
+        if (e.PendingActions.length) {
+          if (e.Agreement === null) f.push(ENTIDAD_V4_V3.acuerdo.label);
+          else if (e.Agreement === true && e.DueDiligence === null) f.push(ENTIDAD_V4_V3.debida.label);
+        }
+      }
+      if (this.activacionAplica()) {
+        if (!e.ActivationChannels.length) f.push(ENTIDAD_V4_V3.canales.label);
+        if (vacio(e.ManagementNotes)) f.push(ENTIDAD_V4_V3.gestiones.label);
       }
       return f;
     },

@@ -440,6 +440,13 @@ var GESTION_BARRERA_LEGADO_V3 = {
   escalamiento_organismo_control: "Escalamiento a organismo de control",
   alerta_barreras: "Alerta por barreras",
 };
+// REG-17 · Ruta de atención integral: GS_14 y GS_17 se muestran en ese módulo pero se guardan con la sección GS
+// (misma llave `GS_`). Se declaran aquí para que otras partes (por ejemplo las etiquetas de «faltantes»
+// al finalizar) resuelvan sus textos. GS_14 es la pregunta de Seguimiento v4; GS_17 es la de V3.
+var CAMPOS_RA_V3 = [
+  { id: "GS_14", tipo: "boolean", label: ENTIDAD_V4_V3.conocimiento.label, req: "C1" },
+  { id: "GS_17", tipo: "boolean", label: "¿Se identificaron barreras?", req: "C1" },
+];
 // Códigos del desplegable anterior de «Canal de activación» (datos históricos: solo se usan para mostrarlos).
 var CANAL_ACTIVACION_LEGADO_V3 = {
   no: "Notificación (tarea)", ll: "Llamada (tarea)", ms: "Mi Salvia (Gestión institucional externa) (tarea)",

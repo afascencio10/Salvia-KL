@@ -213,6 +213,114 @@
       </div>
     </div>
 
+    <!-- Ruta de atención integral (REG-17): a qué rutas o entidades acudió la persona y si encontró barreras. Replica
+         la sección «Identificación de entidades» de Seguimiento v4 (textos de ENTIDAD_V4_V3, generado del seed) con
+         controles de Vue, sin el componente de formulario dinámico. Las activaciones de ruta están en el Plan de acción. -->
+    <div v-if="moduloActivo==='RA'">
+      <p class="text-muted">Registra a qué rutas o entidades acudió la persona y si encontró barreras en cada una. Es informativo: las activaciones de ruta se registran en el Plan de acción Salvia.</p>
+      {{ template "rv3_aviso_borrador" }}
+
+      <div class="mb-3">
+        <label class="form-label">${campoPorId('GS_14').label} <span class="text-danger">*</span></label>
+        <div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="GS_14" :checked="answers['GS_14']==='true'" @change="setBool('GS_14',true)"><label class="form-check-label">Sí</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="GS_14" :checked="answers['GS_14']==='false'" @change="setBool('GS_14',false)"><label class="form-check-label">No</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- «Sí» despliega las entidades; si se marcó que hay barreras y aún no hay entidades también se muestra el formulario. -->
+      <div v-if="answers['GS_14']==='true' || (answers['GS_17']==='true' && !entidadesAcudidas.length)">
+        <div v-if="entidadesAcudidas.length" class="mb-3">
+          <div class="card card-body mb-2" v-for="e in entidadesAcudidas" :key="e.relId">
+            {{ template "rv3_tarjeta_entidad" }}
+          </div>
+        </div>
+
+        <div class="card card-body mb-3" v-if="!entitiesReadOnly">
+          <h6 class="mb-2">Entidad a la que ya acudió</h6>
+          <!-- REG-19: cascada obligatoria + «Buscar entidad» + acciones completadas y pendientes (fragmento compartido). -->
+          {{ template "rv3_entidad_buscador" }}
+
+          <div v-if="nuevaEntidad.EntityBranchID">
+            <div class="row g-2 mt-1">
+              <div class="col-md-6">
+                <label class="form-label">${ENTIDAD_V4_V3.radicado.label} <span class="text-danger">*</span></label>
+                <input class="form-control" v-model="nuevaEntidad.FileNumber">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">${ENTIDAD_V4_V3.fecha.label} <span class="text-danger">*</span></label>
+                <input type="date" class="form-control" v-model="nuevaEntidad.ReportDate">
+              </div>
+              <div class="col-12">
+                <label class="form-label">${ENTIDAD_V4_V3.otraRuta.label} <span class="text-danger">*</span></label>
+                <textarea class="form-control" rows="2" v-model="nuevaEntidad.OtherInfo"></textarea>
+              </div>
+            </div>
+
+            <!-- D17: si a la entidad le faltan acciones por completar (pendientes) se piden también el acuerdo, la debida
+                 diligencia, los canales (con «Sí» y «Sí») y las gestiones, como en Seguimiento v4. -->
+            <div class="mt-2" v-if="nuevaEntidad.PendingActions.length">
+              <label class="form-label">${ENTIDAD_V4_V3.acuerdo.label} <span class="text-danger">*</span></label>
+              <div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="RA_acuerdo" :checked="nuevaEntidad.Agreement===true" @change="nuevaEntidad.Agreement=true"><label class="form-check-label">Sí</label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="RA_acuerdo" :checked="nuevaEntidad.Agreement===false" @change="nuevaEntidad.Agreement=false"><label class="form-check-label">No</label>
+                </div>
+              </div>
+              <div v-if="nuevaEntidad.Agreement===true" class="mt-2">
+                <label class="form-label">${ENTIDAD_V4_V3.debida.label} <span class="text-danger">*</span></label>
+                <div>
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="RA_debida" :checked="nuevaEntidad.DueDiligence===true" @change="nuevaEntidad.DueDiligence=true"><label class="form-check-label">Sí</label>
+                  </div>
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="RA_debida" :checked="nuevaEntidad.DueDiligence===false" @change="nuevaEntidad.DueDiligence=false"><label class="form-check-label">No</label>
+                  </div>
+                </div>
+              </div>
+              <div v-if="activacionAplica()" class="mt-2">
+                <label class="form-label">${ENTIDAD_V4_V3.canales.label} <span class="text-danger">*</span></label>
+                <div class="form-check" v-for="c in CANAL_ACTIVACION_V3" :key="c.value">
+                  <input class="form-check-input" type="checkbox" :checked="nuevaEntidad.ActivationChannels.indexOf(c.value)>=0" @change="toggleCanal(c.value)">
+                  <label class="form-check-label small">${c.label}</label>
+                </div>
+                <label class="form-label mt-2">${ENTIDAD_V4_V3.gestiones.label} <span class="text-danger">*</span></label>
+                <textarea class="form-control" rows="2" v-model="nuevaEntidad.ManagementNotes"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="small text-muted mt-2" v-if="nuevaEntidad.EntityBranchID && entidadFaltantes().length">Falta: ${entidadFaltantes().join('; ')}</div>
+          <div v-if="errorEntidad" class="text-danger small mt-2">${errorEntidad}</div>
+          <button class="btn btn-secondary mt-2" @click="agregarEntidad" :disabled="!nuevaEntidad.EntityBranchID || entidadFaltantes().length>0">+ Siguiente entidad</button>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">${campoPorId('GS_17').label} <span class="text-danger">*</span></label>
+        <div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="GS_17" :checked="answers['GS_17']==='true'" @change="setBool('GS_17',true)"><label class="form-check-label">Sí</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="GS_17" :checked="answers['GS_17']==='false'" @change="setBool('GS_17',false)"><label class="form-check-label">No</label>
+          </div>
+        </div>
+        <p class="small text-muted mt-1" v-if="answers['GS_17']==='true'">Registra cada barrera con el botón «+ Agregar barrera a esta entidad» de la tarjeta de la entidad donde ocurrió.<span v-if="!entidades.length"> Primero agrega la entidad.</span></p>
+      </div>
+
+      <div class="mt-3">
+        <button class="btn btn-primary" :disabled="guardando" @click="guardarRutaAtencion">Guardar sección</button>
+        <span class="ms-2">${mensajeGuardado}</span>
+      </div>
+    </div>
+
     <!-- Plan de acción Salvia (REG-15). Orden definido por el cliente: a) párrafo síntesis · b) GS_1 · c) GS_15 ·
          d) GS_16 y activaciones · e) GS_3 · f) remisión a otros equipos · g) GS_13 · h) GS_20 · i) GS_4, y luego
          la alerta inminente. GS_14, GS_17 y las entidades acudidas están en «Ruta de atención integral». -->
@@ -296,6 +404,7 @@
           <div v-else class="small text-muted">Los canales de activación se piden cuando la persona está de acuerdo con la activación de la Ruta y Salvia debe activar rutas en el marco de la debida diligencia (las dos respuestas en «Sí»).</div>
         </div>
 
+        <div class="small text-muted mt-2" v-if="nuevaEntidad.EntityBranchID && entidadFaltantes().length">Falta: ${entidadFaltantes().join('; ')}</div>
         <div v-if="errorEntidad" class="text-danger small mt-2">${errorEntidad}</div>
         <button class="btn btn-secondary mt-2" @click="agregarEntidad" :disabled="!nuevaEntidad.EntityBranchID || entidadFaltantes().length>0">+ Siguiente entidad</button>
       </div>
@@ -306,10 +415,10 @@
       <!-- f) y g) Remisión a otros equipos de Salvia (con los criterios) y justificación -->
       <hr>
       <div class="form-check form-check-inline mb-2">
-        <input class="form-check-input" type="radio" name="GS_5" :disabled="entitiesReadOnly" :checked="answers['GS_5']==='true'" @change="setBool('GS_5',true)"><label class="form-check-label">Requiere remisión: Sí</label>
+        <input class="form-check-input" type="radio" name="GS_5" :disabled="entitiesReadOnly && !!answers['GS_5']" :checked="answers['GS_5']==='true'" @change="setBool('GS_5',true)"><label class="form-check-label">Requiere remisión: Sí</label>
       </div>
       <div class="form-check form-check-inline mb-2">
-        <input class="form-check-input" type="radio" name="GS_5" :disabled="entitiesReadOnly" :checked="answers['GS_5']==='false'" @change="setBool('GS_5',false)"><label class="form-check-label">No</label>
+        <input class="form-check-input" type="radio" name="GS_5" :disabled="entitiesReadOnly && !!answers['GS_5']" :checked="answers['GS_5']==='false'" @change="setBool('GS_5',false)"><label class="form-check-label">No</label>
       </div>
 
       <div v-if="answers['GS_5']==='true'">
@@ -511,13 +620,13 @@
       <label class="form-label small mb-1">Completadas</label>
       <div class="d-flex flex-wrap gap-2">
         <button type="button" v-for="o in obligacionesEntidad" :key="'c-'+o.value" :style="estiloChip(nuevaEntidad.CompletedActions.indexOf(o.value)>=0)"
-          @click="toggleEnArray(nuevaEntidad.CompletedActions, o.value)"><span v-if="nuevaEntidad.CompletedActions.indexOf(o.value)>=0">✓ </span>${o.label}</button>
+          @click="toggleAccion('CompletedActions', 'PendingActions', o.value)"><span v-if="nuevaEntidad.CompletedActions.indexOf(o.value)>=0">✓ </span>${o.label}</button>
       </div>
     </div>
     <label class="form-label small mb-1" v-if="nuevaEntidad.Kind==='acudida'">Pendientes</label>
     <div class="d-flex flex-wrap gap-2">
       <button type="button" v-for="o in obligacionesEntidad" :key="'p-'+o.value" :style="estiloChip(nuevaEntidad.PendingActions.indexOf(o.value)>=0)"
-        @click="toggleEnArray(nuevaEntidad.PendingActions, o.value)"><span v-if="nuevaEntidad.PendingActions.indexOf(o.value)>=0">✓ </span>${o.label}</button>
+        @click="toggleAccion('PendingActions', 'CompletedActions', o.value)"><span v-if="nuevaEntidad.PendingActions.indexOf(o.value)>=0">✓ </span>${o.label}</button>
     </div>
   </template>
 </div>
