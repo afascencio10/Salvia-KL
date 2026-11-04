@@ -1,0 +1,161 @@
+# HANDOFF · WP-4 «V3: Plan de acción, entidades y barreras» (Salvia-KL)
+
+> **Para qué sirve este archivo.** La sesión que lo escribió puede quedarse sin tokens en cualquier momento y no se sabe en qué paso exacto. Una sesión nueva debe leerlo completo, **verificar el estado real del repositorio** (sección 4) y continuar desde el último punto comprobado. **No confíes ciegamente en las casillas de la sección 5: confírmalas con `git log`, `git diff` y los comandos de verificación.**
+>
+> **Prompt sugerido para la sesión nueva** (pégalo tal cual):
+> «Eres la sesión 4 de 4 (WP-4) de Salvia-KL. Haz checkout de la rama `claude/loving-wright-wyvvb3` de `afascencio10/Salvia-KL`, lee `DocsMD/Otros/temp/HANDOFF-WP4.md` completo, verifica el estado real con los comandos de la sección 4 y continúa la implementación desde el último punto comprobado. Responde en español. No abras PR sin que yo lo pida.»
+
+- Última actualización de este archivo: ver la **Bitácora** (sección 9). Se actualiza al cerrar cada hito.
+- Rama de trabajo: `claude/loving-wright-wyvvb3` · repositorio `afascencio10/Salvia-KL` · base `develop` @ `823964b` (equivale a `1204b57` en `src/` y `DocsMD/`).
+- Responsable humano: Felipe (`af.ascencio10@gmail.com`). Idioma de trabajo: **español**.
+
+---
+
+## 1. Contexto en breve
+
+- Soy la **sesión 4 de 4** que trabajan en paralelo sobre Salvia-KL (Registro V3). WP-1, WP-2 y WP-3 son otras sesiones; **no se editan sus zonas** (ver sección 7).
+- Alcance WP-4 (9 tareas): **T1 REG-14** quitar `GS_2` · **T2 REG-18** barrera como Seguimiento v4 (sin competencias) · **T3 REG-20** canal de activación como Seguimiento v4 · **T4 REG-04 (c)** gestión con etiqueta · **T5 REG-16** elementos psicosociales `GS_20` · **T6 REG-19** agregar entidad como Gestión institucional (buscador con debounce) · **T7 REG-15** «Plan de acción Salvia» (renombrar y reordenar a–i) · **T8 REG-17** módulo nuevo «Ruta de atención integral» · **T9 REG-38\*** eliminar entidad elimina sus barreras + **base del borrador en JSON**.
+- Flujo de trabajo exigido por el orquestador (Code Planning / dev-docs): leer MDs → definir → ejecutar con `qa-process` → **actualizar los MDs una sola vez en el último commit** (desde `DocsMD/Otros/temp/cambios-WP4.md`). **Un commit por tarea**, mensaje que empieza por el ID (`REG-14: …`). Pruebas: **API primero** (contra la BD local), Playwright solo para lo que la API no cubra, sin regresión general.
+- Orden de integración entre sesiones: WP-2, WP-4, WP-3 (WP-3 rebasea sobre mí).
+- Estado de las aprobaciones del usuario: la planeación en Notion fue revisada por Felipe en **3 rondas** (2/11, 3/11 y 4/11). **Ya autorizó implementar y probar** («implementa todo y luego pruébalo»).
+
+## 2. Fuentes persistentes (lo que sobrevive a un contenedor nuevo)
+
+**Notion** (workspace «Felipe General»; **cuenta Composio `notion_eats-aviary`**, la otra cuenta no ve las páginas). Todo cuelga de «Ajustes REgistro» (`40cc8a4ba7d980cc819af6a533ebe7d8`).
+
+| Página | URL |
+|---|---|
+| **Raíz de la planeación** (feedback incorporado, decisiones D1–D20, orden de trabajo) | https://app.notion.com/p/40cc8a4ba7d981729722dff3438337ab |
+| Tareas T1–T9 | https://app.notion.com/p/40cc8a4ba7d981af83d3e5fc1a8c63f4 |
+| T1 · T2 · T3 · T4 · T5 | …/40cc8a4ba7d98158a1bbe7494e44b51b · …/40cc8a4ba7d98101a0c3cf6f2a67a2e3 · …/40cc8a4ba7d98189a679e5e4c46c3536 · …/40cc8a4ba7d9817b9b9adf2e78d082de · …/40cc8a4ba7d981f98277d3ed9178cb96 |
+| T6 · T7 · T8 · T9 | …/40cc8a4ba7d9814ea7a7d7c0435dad99 · …/40cc8a4ba7d98183b8eecb39e5e0b0af · …/40cc8a4ba7d981ec8745d51d9124b76a · …/40cc8a4ba7d981e78a4efbe9c84f6f41 |
+| **Borrador en JSON (diseño transversal)** | https://app.notion.com/p/40dc8a4ba7d981568d6be7e84988d161 |
+| **Sub-flujo · Materializar el borrador** | https://app.notion.com/p/40ec8a4ba7d9812b9828e3e8ca5b6018 |
+| Flujos E11 · E12 · E15 · E17 · E18 | …/40cc8a4ba7d981e492fded3d993f7d90 · …/40cc8a4ba7d981e18aface9e2069e915 · …/40cc8a4ba7d981a9b4a9c2a099fcfe06 · …/40cc8a4ba7d9814dbf6cd072e9f47578 · …/40cc8a4ba7d981888321d08aac08a424 |
+| Módulo nuevo (REG-17) · Interfaz · Index · Flujos RA-E01…E08 | …/40cc8a4ba7d9810bafdbc2c556ea8991 · …/40cc8a4ba7d981ae8543fa7a78bdfbeb · …/40cc8a4ba7d9812a820ee8f99af1a2fe · …/40cc8a4ba7d981b5ae6edd2b1f54a355 |
+| Interfaz antes/después · BD · QA · Mapa del código | …/40cc8a4ba7d98118a23efdd106fd470d · …/40cc8a4ba7d981048a37df7c0062c3c7 · …/40cc8a4ba7d981268576d70a2157f761 · …/40cc8a4ba7d981b6b943ee31a312c40f |
+
+(Prefijo de todas las URLs: `https://app.notion.com/p/`.) **Léelas con Composio** (`COMPOSIO_REMOTE_WORKBENCH`, tool `NOTION_GET_PAGE_MARKDOWN`, `account='notion_eats-aviary'`). Notas operativas: (a) el MCP de Composio se desconecta/reconecta con frecuencia; tras cada reconexión hay que ejecutar `ToolSearch` con `select:mcp__Composio__COMPOSIO_REMOTE_WORKBENCH,mcp__Composio__COMPOSIO_REMOTE_BASH_TOOL`; (b) el sandbox de Composio pierde `/mnt/files` al reiniciarse; (c) para **editar** páginas con comentarios anclados usar `NOTION_UPDATE_PAGE_MARKDOWN` con `update_content` (old_str/new_str exactos), nunca `replace_content`; (d) **trampa:** en markdown de Notion un `### Título` pegado a un `</table>` en la misma línea se pierde — siempre un salto de línea antes de cada encabezado.
+
+**Otras fuentes:** Miro `https://miro.com/app/board/uXjVETSMUNM=/` (solo lectura; marcos `3458764689052649603` y `3458764689052649633`, detalle `3458764689052810012`); repo `afascencio10/skillsSystem` (carpeta *code planning*: `dev-docs-workflow`, `dev-docs-system`, `logical-flow-builder`, `component-interface-doc`, `identifyTriggers`, `qa-process`); MDs actuales de Registro V3 en `DocsMD/Screens/Registro V3/`.
+
+## 3. Decisiones aprobadas por Felipe (vinculantes) y supuestos
+
+**Aprobadas explícitamente**
+- **T1 aprobada** («Aprobado.»). **T5 aprobada** («ok») → **D3** (14 opciones psicosociales del cliente + «Ninguno», categoría nueva de enums, códigos 01–14 y 99) y **D4** (deseable, «Ninguno» excluyente).
+- **D15:** el borrador (JSON) se **materializa cuando el Caso pasa de `bo` a `in`** (`SaveSection` al completar la tríada). El vaciado va **antes** del cambio de estado y se engancha por el constructor del servicio (decorador de `UpdateStatusIfCurrent`), sin editar `SaveSection`.
+- **D16 (a):** las respuestas de remisión (`GS_5`, `GS_6`, `GS_7`, `GS_9`–`GS_13`) se quedan en `victim_case_form2`; **al materializar se crean los registros de los otros equipos** (como `v4ProcessPlan` de Seguimiento).
+- **D11:** **no** se agrega «Canal institucional». Canales **exactamente como Seguimiento v4**: Notificación SALVIA (`notificacion`), Articulación institucional telefónica o por mensajería (`articulacion`), Denuncia fácil (`denuncia`), Mi Salvia (`misalvia`), selección múltiple.
+- **D17:** cada entidad **acudida con acciones pendientes** lleva también el bloque de activación de Seguimiento: acuerdo, debida diligencia, canales (obligatorios si ambas = Sí) y «¿Qué gestiones se realizaron…?»; al materializar se crean las mismas tareas/oficios que en una activación.
+- **D13 (simplificada):** la cascada de borrado ocurre **solo en el JSON** (borrar una entidad borra sus barreras y todo lo que se iba a crear). **No** se agrega `DeleteByCaseAndEntityBranch`; `BarrierV2Repository` no cambia. **D19 sin objeto** (no hay tareas que cancelar).
+- **D20 (nueva):** una vez materializado, la sección de **entidades, barreras y remisiones es solo lectura** (snapshot de lo llenado al crear el Caso): backend responde **409** a AddEntity/RemoveEntity/AddBarrier/RemoveBarrier; la pantalla no muestra botones/campos editables (formularios, eliminar, remisiones deshabilitadas). Consecuencia: todo debe quedar guardado **antes** de completar la tríada (mostrar aviso en el borrador).
+
+**Supuestos tomados con la opción recomendada (reportar al final como «Supuestos»; Felipe no los contradijo)**
+D1 tipo de entidad en `entityMeta` del JSON (no en `solicitud`) · D2 buscador filtra en el navegador (lista cargada una vez; debounce 250 ms; sin cambios de backend ni `q`) · D5 `GS_15` siempre visible y se quitan los títulos A–D · D6 se conservan los textos actuales · D7 formularios por módulo (Plan de acción = activación; Ruta = acudida) · D8 barreras en ambas listas mientras REG-29 no se defina · D9 el módulo nuevo tiene su propio «Guardar sección» (reutiliza `enviarSeccion('GS')`) y no se tocan `guardarYSalir`/`beforeunload`/`Finalize` · D10 carpeta nueva `DocsMD/Screens/Ruta de atención integral/` · D12 catálogo del formulario de barrera copiado del seed v4 a `registro-v3-campos.js` · D14 `git add -f` de SQL y `cambios-WP4.md` · D18 campos de Seguimiento sin columna (vereda/zona, perspectiva, descripción de la gestión, fecha de reporte, acuerdo, canales, gestiones realizadas) van en `entityMeta`/`barrierMeta` del JSON.
+
+## 4. Cómo reanudar: verificar el estado real (haz esto primero)
+
+```bash
+cd /home/user/Salvia-KL            # usar rutas absolutas; el cwd cambió varias veces en la sesión anterior
+git fetch origin claude/loving-wright-wyvvb3 && git checkout claude/loving-wright-wyvvb3 && git pull --ff-only
+git status -sb                      # ¿hay cambios sin commit? (trabajo a medias)
+git log --oneline origin/develop..HEAD   # commits de WP-4 ya hechos (prefijo REG-xx)
+git diff --stat                     # alcance del trabajo sin commit
+grep -n "GS_2" src/frontend/js/components/registro-v3-campos.js src/salvia/service/victim_case_v3_service.go   # T1 hecho si no aparece GS_2 fuera de comentarios
+ls src/migrations src/salvia/service | grep -E "borrador|draft|tasks"   # ¿existe la base del borrador (T9)?
+grep -n "victim_case_v3_draft_data" -r src | head                       # ¿hay código/migración del JSON?
+grep -n "'RA'" src/frontend/js/components/registro-v3-app.js | head      # ¿existe el módulo RA (T8)?
+```
+
+**Levantar la app local** (frontend embebido: cualquier cambio de Go **o** de frontend exige reiniciar):
+
+```bash
+cd /home/user/Salvia-KL && cloudDevelopment/stop-app.sh; (nohup ./run_dev.sh > /tmp/run_dev.log 2>&1 &)
+# esperar a que responda (1–3 min la primera vez):  curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:9090/seguridad/login   → 200
+```
+- Usuario de pruebas: `cloud.test.op` (o `sv`), clave `CloudDev!Test2026` (ver `cloudDevelopment/README.md`); captcha omitido con cabecera `User-Agent: flutter-client` y captcha `0000`; cookie de sesión `default_session`. Pantalla: `/salvia/registro-v3`. Ejemplo de login por UI: `node cloudDevelopment/smoke-login.js op`; Playwright CLI: `cloudDevelopment/playwright-cli.sh login op` y luego `snapshot` / `click eNN` / `goto <url>` / `screenshot --filename=…`.
+- BD: `psql -h 127.0.0.1 -U postgres -d salvia_local` (clave `postgres`). Las migraciones nuevas **se aplican a mano** con `psql -f` (el sandbox no las ejecuta solo; `*.sql` está en `.gitignore` → `git add -f`).
+- **Los tests Go de `salvia/service` no compilan** (preexistente: `NewFollowUpV2Service` espera 14 args y el test pasa 13): no tocarlos; compilar con `cd src && go build ./...`.
+
+## 5. Plan de implementación y estado (casillas: confirmar con la sección 4)
+
+Orden de ejecución acordado: **T1 → T9 (base del borrador) → T2 → T3 → T4 → T6 → T5 → T7 → T8**, luego pruebas y cierre. Un commit por tarea (`REG-xx: …`); commits de checkpoint adicionales están permitidos (`wip(WP-4): …`) para no perder trabajo, y se pueden dejar tal cual.
+
+- [x] **Planeación en Notion** ajustada con los comentarios de las 3 rondas (raíz, T1–T9, borrador JSON, sub-flujo, flujos, QA, BD, UI, mapa). No hay que rehacerla; solo ajustar si el código obliga a un cambio de diseño.
+- [x] **Preparación:** entorno local verificado (Go 1.24.7, Postgres local por `run_dev.sh`, app en `:9090`).
+- [ ] **T1 · REG-14** — quitar `GS_2`: editar `registro-v3-campos.js` (línea de `GS_2` en `CAMPOS_GS_A_V3`) y `gsObligatoriasFinalizarV3` en `victim_case_v3_service.go` (sin `GS_2`, comentario actualizado). *(Editado en el árbol de trabajo al escribir este archivo; verificar con el grep de la sección 4 y hacer el commit `REG-14: …` si falta.)*
+- [ ] **T9 · REG-38\*** — **base del borrador JSON** (lo más grande del backend; T2, T3, T6, T7, T8 dependen de él). Sub-pasos:
+  - [ ] Migración `src/migrations/20261103_wp4_borrador_json.sql`: `ALTER TABLE salvia.victim_case ADD COLUMN IF NOT EXISTS victim_case_v3_draft_data jsonb;` (+ comentario). Aplicar a mano en la BD local.
+  - [ ] `src/salvia/service/victim_case_v3_draft.go` (nuevo): tipos del JSON, lectura/escritura con SQL directo y `SELECT … FOR UPDATE` (precedente: `markKeysAnswered`, `victim_case_v3_repository.go` L557–584), ids sintéticos `d~<icode>~<uuid>`, lookup de la sede (nombre, sector he/js/pt/os, depto/ciudad/municipio) con el mismo SQL de `entityCaseWithRelationsSQL` (`entity_case_repository.go` L78–110), `flushDraftV3` (transacción: crea `entity_case` + `entity_case_obligation` + `barrier_v2`, vacía `entities`/`barriers`, conserva `entityMeta`/`barrierMeta`, idempotente, omite sedes ya existentes), regla de modo (`bo` = JSON; otro estado = 409).
+  - [ ] `src/salvia/service/victim_case_v3_tasks.go` (nuevo): tareas/oficios por canal y por gestión + **remisiones** (sección 6.4–6.5).
+  - [ ] Servicio: `AddEntity`, `RemoveEntity`, `AddBarrier`, `RemoveBarrier`, `ListEntities`, `ListBarriers` por modo; constructor con **opciones variádicas** (no romper la firma) para inyectar `*gorm.DB`, `caseTaskRepo`, `entityLetterRepo` y los repos de equipos; **decorador** de `repo.UpdateStatusIfCurrent("bo","in")` que ejecuta el vaciado antes de cambiar el estado; `GetCase` entrega además `entityMeta`, `barrierMeta` y una bandera de solo lectura (campos opcionales nuevos de `CaseStateV3`; avisar a WP-3 en «Para integración»).
+  - [ ] Controlador: mapear `ErrSnapshotReadOnly` → **409** `{"error":"La sección de entidades y remisiones ya no es editable: el Caso dejó de ser borrador"}`; ampliar `VictimCaseEntityInput` y `VictimCaseBarrierInput` (campos nuevos, sección 6.1).
+  - [ ] `src/main.go` L321: pasar las dependencias nuevas (los repos ya existen: `caseTaskRepo` L222, `entityLetterRepo` L226, `menTeamRemisionRepo` L218, `discapacidadRemisionRepo` L219, `agentLightRepo` L220, `barrierV2Repo` L208, `entityCaseRepo` L232, `entityCaseObligationRepo` L238, `victimCaseV3Repo` L250; faltan por localizar `psychosocialSupportRepo`, `economicStabilizationRepo`, `emergencyMeasureReferralRepo`).
+  - [ ] Commit `REG-38*: …`.
+- [ ] **T2 · REG-18** — formulario de barrera de Seguimiento v4 (15 preguntas) sin competencias; catálogo `BARRERA_V4_V3` generado **parseando el seed** (script en 6.3); tareas por gestión al materializar; `Zone`, `ProfessionalPerspective`, `ManagementDescription` → `barrierMeta`. Commit `REG-18: …`.
+- [ ] **T3 · REG-20** — `CANAL_ACTIVACION_V3` con las 4 opciones; `ActivationChannels[]`, `Agreement`, `DueDiligence`, `ManagementNotes`; tareas/oficios al materializar (activación **y** acudida con pendientes); tarjeta y Cierre muestran canales. Commit `REG-20: …`.
+- [ ] **T4 · REG-04 (c)** — `etiquetaGestionBarrera` (2 opciones nuevas + 6 históricas; vacío «—»; desconocido tal cual). Commit `REG-04c: …`.
+- [ ] **T6 · REG-19** — cascada obligatoria (Departamento*, Ciudad*, Municipio*, Sector*), «Buscar entidad» con filtro local sin tildes/mayúsculas, debounce 250 ms, descarte de respuestas atrasadas, acciones institucionales como chips (sin «otra»). **Sin cambios de backend.** Commit `REG-19: …`.
+- [ ] **T5 · REG-16** — migración `src/migrations/20261102_wp4_elementos_psicosociales.sql` (categoría `victim_case_form2_psychosocial_elements`, 14 opciones + «Ninguno» código 99; textos exactos del cliente en las páginas Notion T5), `GS_20` (multi-valor, deseable) en `victim_case_v3_fields.go` (añadir al final de mapas/listas), `registro-v3-campos.js` y exclusividad de «Ninguno» en `toggleMarcado`. Commit `REG-16: …`.
+- [ ] **T7 · REG-15** — renombrar a «Plan de acción Salvia» (`modulos[]`), reordenar bloque GS a–i (síntesis, `GS_1`, `GS_15`, `GS_16`+activación, `GS_3`, remisión `GS_5…GS_13`, `GS_20`, `GS_4`, luego § E y la cola intacta), `GS_15` siempre visible, quitar títulos A–D, formulario de activación con acciones institucionales, aviso de borrador. Commit `REG-15: …`.
+- [ ] **T8 · REG-17** — módulo `RA` entre TZ y GS (`modulos[]`), nunca bloqueado, replica la sección «Identificación de entidades» de Seguimiento v4 (preguntas y obligatoriedad en la página Notion T8), solo lectura tras materializar, «Guardar sección» propio (`guardarRutaAtencion` → `enviarSeccion('GS')`). Commit `REG-17: …`.
+- [ ] **Pruebas** (sección 8): API+BD por tarea, Playwright para pantallas, comparación con Seguimiento v4.
+- [ ] **Cierre:** crear `DocsMD/Otros/temp/cambios-WP4.md` (cambios, archivos, supuestos, **«Para integración»**), actualizar los MDs oficiales en **un último commit** (lista en la página raíz de Notion, sección 12), `git rm` de este HANDOFF, rebase sobre `develop`, push. **No abrir PR sin que Felipe lo pida** (el prompt original del orquestador pide PR contra `develop`; el sistema exige petición explícita: preguntarle).
+
+## 6. Diseño técnico resumido (el detalle completo está en Notion)
+
+### 6.1 JSON del borrador (`victim_case.victim_case_v3_draft_data`, jsonb nula)
+```json
+{ "v": 1,
+  "entities": [ { "id": "d~<icode>~<uuid>", "kind": "acudida|activacion", "entityBranchId": 123,
+      "branch": { "name": "", "sector": "he|js|pt|os", "department": "", "city": "", "town": "" },
+      "fileNumber": "", "reportDate": "YYYY-MM-DD", "objetivo": "", "solicitud": "",
+      "pending": ["<obligationId>"], "completed": ["<obligationId>"],
+      "agreement": true, "dueDiligence": true, "activationChannels": ["notificacion","misalvia","articulacion","denuncia"],
+      "managementNotes": "", "createdAt": "", "by": "<agente>" } ],
+  "barriers": [ { "id": "d~…", "entityBranchId": 123, "sector": "salud|justicia|proteccion|transversales",
+      "specific": [], "institution": "", "otherDetail": "", "institutional": [], "economic": [], "territorial": [], "differential": [],
+      "date": "", "official": "", "department": "", "city": "", "zone": "", "description": "",
+      "management": ["activacion","alerta"], "professionalPerspective": "", "managementDescription": "", "createdAt": "", "by": "" } ],
+  "entityMeta":  { "<entityBranchId>": { "kind": "", "agreement": true, "dueDiligence": true, "activationChannels": [], "reportDate": "", "managementNotes": "" } },
+  "barrierMeta": { "<barrier_v2.id>": { "zone": "", "professionalPerspective": "", "managementDescription": "" } },
+  "materializedAt": null }
+```
+- Campos nuevos de entrada (Go, PascalCase como ya viene del frontend): `VictimCaseEntityInput` + `ActivationChannels []string`, `Agreement`, `DueDiligence bool`, `ReportDate`, `ManagementNotes`, `Solicitud string`; `ActivationChannel string` (texto) se sigue aceptando de clientes viejos. `VictimCaseBarrierInput` + `Institution`, `Zone`, `ProfessionalPerspective`, `ManagementDescription`; `Competences` se sigue aceptando.
+- **Modos** (estado leído de `victim_case_status`): `bo` → todo al JSON (409 si la sede ya está en el JSON o en las tablas); cualquier otro estado → Add/Remove devuelven `ErrSnapshotReadOnly` (409). Un id de tabla (UUID sin `d~`) en Remove → también 409. `ListEntities`/`ListBarriers` **unen** JSON y tablas con los mismos campos de hoy (`models.EntityCaseWithRelations`, `models.BarrierV2`); `relId`/`id` del borrador llevan el prefijo `d~`. El tipo (`kind`), canales y demás metadatos salen de `entityMeta`; filas anteriores sin meta: es activación si `solicitud` empieza por «Canal de activación:», si no, acudida.
+- Si el estado ya no es `bo` y quedó JSON pendiente (vaciado fallido o carrera), `GetCase`/`List*` reintentan el vaciado (idempotente).
+
+### 6.2 Vaciado («flush») al pasar `bo → in` — orden
+1. Transacción con `SELECT … FOR UPDATE` sobre el Caso; releer JSON; si vacío, salir.
+2. Entidades en orden: si la sede ya existe (`ExistsActive`) usar la existente; si no, `entity_case` (`objetivo`, `solicitud`, `radicado`=`fileNumber`, `created_by`=`by`) + `entity_case_obligation` (`pendiente`/`completada`; sin «otra»; sin duplicar). Guardar `entityMeta[sede]`.
+3. Barreras: `barrier_v2` (status abierta; `management_actions`=CSV de `management`; `specific_barriers`, `specific_institutions`=`institution`, `other_barrier_desc`, 4 estructurales, `barrier_date`, `official_dependency`, `department_id`, `city_id`, `description`, `entity_branch_id`). Guardar `barrierMeta[id]`.
+4. Vaciar `entities`/`barriers`, poner `materializedAt`, COMMIT. Si algo falla: ROLLBACK, el Caso sigue en `bo`.
+5. **Después del COMMIT** (mejor esfuerzo, solo log si falla): tareas/oficios y remisiones (6.4 y 6.5). Cada tarea: `Status ToDo`, `AssignedUserID`=autor (`by`) salvo «Alerta por barreras» (vacío), `CaseID`=icode, sin `FollowUpID`.
+
+### 6.3 Barrera = formulario Seguimiento v4 (15 preguntas) — generar el catálogo del seed
+Fuente: `src/internal/seed/seguimiento_v4_form.sql` (formulario «Seguimiento V.4» `c4a8e2b1-6d3f-4a70-8e15-9f0b2c3d4e5f`; sección «Identificación de entidades»; repetidor de barrera `52387e43-9d64-412d-83b5-b2b6cbbf02c8`; preguntas L141–166, opciones L236–237/L329–367/L431–441/L500–503, condiciones L505–560). **No transcribir a mano:** escribir un script (Python) que parsee las tuplas de `salvia.question` y `salvia.question_option` del seed y emita `BARRERA_V4_V3` (textos y `value` tal cual). Preguntas: Sector* (salud|justicia|proteccion|transversales) · según sector «Barreras en salud/justicia/protección» (multiple), «¿A qué institución acudió?» (dropdown), «Otra barrera en sector …» (texto) · transversales: 4 multiples (institucionales y de talento humano; económicas y socioeconómicas; territoriales y geográficas; por ausencia de enfoque diferencial) · «Fecha en la que se presentó la barrera (aproximada)»* · «Funcionario/a o dependencia donde se presentó la barrera»* · Departamento* · Municipio* · «Vereda o zona»* (cabecera|rural|no) · «Descripción de la barrera (tiempo, modo y lugar)»* · «Gestión de la barrera»* (multiple: `activacion` «Activación de ruta interinstitucional (Generar oficio)», `alerta` «Alerta por barreras») · «¿Cuál es su perspectiva profesional frente a la barrera?»* (solo con alerta) · aviso «Alerta por barreras notificaría al equipo técnico. Esta versión todavía no envía la notificación.» · «Descripción de la gestión realizada con relación a las barreras»*.
+
+### 6.4 Tareas y oficios (replicar `form_service_v4.go`; no editar Seguimiento)
+- **Canales** (`v4ProcesarCanales` L486–531; solo si `agreement && dueDiligence`; aplica a `kind=activacion` y a `kind=acudida` con pendientes): `notificacion` → `entity_letter{State por_proyectar, AgentID=by, EntityBranchID}` + `case_task{Category "Entidades", Type "proyectar_oficio", Description "Proyectar oficio de activación de ruta", EntityCaseID, EntityLetterID}` · `misalvia` → tarea `solicitud_entidad` «Hacer solicitudes a la entidad sobre obligaciones pendientes» · `articulacion` → tarea `gestion_llamada` «Articulación institucional telefónica o por mensajería» · `denuncia` → tarea `gestion_llamada` «Denuncia fácil» (todas con `EntityCaseID`).
+- **Gestión de barrera** (`v4GestionBarreraNueva` L594–623, `v4AlertaComite` L625): `activacion` → `entity_letter{BarrierID, CaseID, por_proyectar, AgentID, EntityBranchID}` + tarea `{Category "Barreras", Type "proyectar_oficio", Description "Activación de ruta interinstitucional (Generar oficio)", BarrierID, EntityLetterID}` · `alerta` → tarea `{Category "Barreras", Type "comite_caso", Description "Alerta por barreras", AssignedUserID "", BarrierID}`.
+- Modelos: `internal/models/case_task.go` (`CaseTask` L18–54; `AssignedUserID` NOT NULL), `internal/models/entity_letter.go` (`BarrierID` NOT NULL varchar: cadena vacía en oficios de entidad).
+
+### 6.5 Remisiones al materializar (D16 a) — replicar `v4ProcessPlan` (form_service_v4.go L729–803) y `v4CrearPsico` (L805–843)
+Datos: `s.repo.GetAnswers(ctx, icode)` (claves `GS_5`=«true», `GS_6` equipos, `GS_7` medidas, `GS_9`–`GS_12` criterios; los valores multi-valor son CSV de **icode** de `victim_case_form2_enums` → resolver `code` con `repo.ListEnumCategories`). Códigos: equipos `me` Medidas de Emergencia · `ap` Atención Psicosocial · `es` Estabilización · `ah` Atención Hombres · `sd` Salvia Dignidad · `di` Discapacidad; medidas `al tr am ve ps ot`; psico `ob cs in sr ct sa nv` (mínimo 3 puntos: cs=3, in=2, resto 1; `ob` obligatorio); hombres `ob`; discapacidad `ls ed`; estabilización `si vt pc` (mínimo 1). Reglas de elegibilidad = `cumpleCriterioEquipo` del frontend (`registro-v3-app.js` ~L693). Registros: `ap` → `PsychosocialSupport{Type "derivacion", Status abierto, SubmittedBy/Team (agentLightRepo), ReferralCriteria}` + `case_task{Category "Psicosocial", Type "validar_remision", Description "Validar que remision a psicosocial es valida", AssignedUserID "", PsychosocialSupportID}` · `ah` → `MenTeamRemision{Type "derivacion", Status "ACTIVE"}` · `di` → un `DiscapacidadRemision{Service, Status "ACTIVE"}` por servicio · `es` → `EconomicStabilization{Type "derivacion", Status "ACTIVE"}` · `me` → `EmergencyMeasureReferral` vía `emergencyMeasureReferralRepo.CreateWithMeasures(ctx, referral, measureTypes, false)` (ver `createEmergencyMeasureReferral`, form_service.go L4176; sin follow-up no se crea tarea de revisión) · `sd` (Salvia Dignidad) no tiene registro en Seguimiento → no se crea nada (documentar). Cada creación es independiente y solo registra log si falla.
+
+### 6.6 Frontend (estado actual conocido, líneas verificadas en la base)
+`registro_v3.html`: bloque GS L204–493 (síntesis L209; § A genérico L212–230 con `camposVisibles('GS')`; § B remisión L233–266; § C `GS_14`/`GS_16`/`GS_15` L269–289, tarjetas L297–370, buscador L375–460; § D `GS_17` L463–470; § E L473–483; cola L485–492), Cierre L505–534, menú `v-for` de `modulos` ~L90. `registro-v3-app.js`: `modulos[]` L28–36, `entidadVacia` L141, `barreraVacia` L154, `toggleMarcado` L410, `obligatoriasFaltantesModulo` L509, `enviarSeccion` L533, `guardarModulo` L550, `guardarYSalir` L579, `moduloBloqueado` L602, `recargarEntidadesBarreras` L723, cascada L750–797, `agregarEntidad` L798, `eliminarEntidad` L828, `barrerasDeEntidad` L849, `abrirBarreraParaEntidad` L882, `buscarCompetencias` L906, `agregarBarrera` L916, `eliminarBarrera` L931. `registro-v3-campos.js`: `CAMPOS_GS_A_V3` ~L358, `CANAL_ACTIVACION_V3` ~L384. Convenciones: Vue 3 CDN con delimitadores `${ }`; cualquier catálogo global usado **directo** en el HTML debe exponerse en `data()`; el frontend va embebido (reiniciar la app).
+- **Idea de estructura para evitar duplicar HTML** entre Plan de acción y Ruta: un único bloque de «entidades/barreras» parametrizado por `tipoModulo` (`acudida` en RA, `activacion` en GS) y secciones del GS ordenadas con un `v-for` sobre una lista computada.
+
+## 7. Zonas ajenas (no editar; anotar en «Para integración»)
+- **WP-3:** `SaveSection`, `GetCase` (solo se le añaden campos opcionales), `Finalize`, `guardarYSalir`, `beforeunload`, `abrirCaso`(WP-2), el menú de pestañas (`v-for` de `modulos[]`: solo agrego la entrada `RA` entre TZ y GS y cambio el label de GS), la cola del bloque GS en JS (`mensajeGuardado`, etc.). `gsObligatoriasFinalizarV3`, el HTML del bloque GS y su cola, `RemoveEntity` y `eliminarEntidad` **sí son míos**.
+- **Compartidos:** `registro-v3-campos.js` (WP-2 usa DP/HV/TZ; yo solo GS y canal), `victim_case_v3_fields.go` (solo líneas al final para `GS_20`), repos de Seguimiento (solo lectura), `GET /entity-branches` (no se modifica).
+- **Para integración (anotar en `cambios-WP4.md`):** etiquetas de `activacion`/`alerta` faltan en `barrera_detalle.html`, `barrier-follow-up-timeline.js`, `psicosocial_barreras.go`, `followup_v2_service.go`, `form_service.go`; `Finalize` informa `GS` para `GS_14`/`GS_17` (viven en RA); `guardarYSalir`/`beforeunload` no guardan RA; `GetCase` con `entityMeta`/`barrierMeta`/solo lectura; extraer a un helper compartido las tareas replicadas de Seguimiento; las remisiones deben estar guardadas antes de completar la tríada (backend de remisiones read-only solo en front); el sandbox no compila los tests de `salvia/service`.
+
+## 8. Plan de pruebas (resumen; casos completos en la página Notion «Plan de pruebas (QA)»)
+- **API + BD (curl con cookie, o `fetch` desde Playwright):** borrador no toca tablas; lectura del borrador (`d~`); eliminar en borrador quita barreras; materializar al completar la tríada (filas, tareas, oficios, remisiones; JSON vaciado con meta conservada); idempotencia; fallo a mitad (Caso sigue `bo`); sede ya existente; **409 en solo lectura** tras `in`; cada canal y cada gestión crean exactamente las tareas esperadas (comparar con Seguimiento v4); acudida con pendientes crea tareas, sin pendientes no; compatibilidad de clientes viejos (`Competences`, códigos 01–06, `ActivationChannel` texto).
+- **Pantalla (Playwright CLI):** pestaña «Plan de acción Salvia» y orden a–i; módulo RA sin candado; cascada obligatoria, un solo GET de sedes, debounce; chips de acciones; formulario de barrera con sus condiciones; bloque de activación de la acudida; etiquetas de gestión; `GS_20` y «Ninguno»; modo solo lectura; Cierre con canales.
+- Registrar resultados (pasó/falló, evidencia) en `cambios-WP4.md` y, si hay tiempo, en la página Notion de QA.
+
+## 9. Bitácora (añadir al final; no borrar entradas)
+- 2026-11-04 · Planeación Notion cerrada en 3 rondas; entorno local levantado; T1 editado en el árbol de trabajo (pendiente de commit al escribir este archivo). Primer commit de este HANDOFF en la rama.
