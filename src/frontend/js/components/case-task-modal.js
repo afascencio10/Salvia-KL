@@ -606,6 +606,8 @@ app.component('case-task-modal', {
             agentesMedidas: [],
             cargandoAgentes: false,
             errorAgentes: '',
+            intentosPrevios: 0,
+            cargandoIntentos: false,
             medidasRemitidas: [],
             cargandoMedidas: false,
             errorMedidas: '',
@@ -661,6 +663,10 @@ app.component('case-task-modal', {
                 asignar_agente_medidas: 'Reasignar remisiones',
                 ajustar_remision_devuelta: 'Remisión devuelta por el Equipo Técnico',
             }[this.tarea.type] || 'Completar tarea';
+        },
+
+        intentoContacto() {
+            return (this.intentosPrevios || 0) + 1;
         },
 
         articulacionSubtitulo() {
@@ -934,7 +940,12 @@ app.component('case-task-modal', {
                 case 'decidir_via_riesgo_inminente':
                     return (f.via === 'A' || f.via === 'B') && !!f.agentId;
                 case 'intentar_contacto_3x3':
-                    return f.contesto === 'si' || f.contesto === 'no';
+                    if (f.contesto !== 'si' && f.contesto !== 'no') return false;
+                    if (this.cargandoIntentos) return false;
+                    if (f.contesto === 'no' && this.intentoContacto === 9) {
+                        return f.accion === 'seguir' || f.accion === 'cerrar';
+                    }
+                    return true;
                 case 'revisar_caracterizacion':
                     // Válido si se aprueba, o si se devuelve con observaciones no vacías.
                     if (f.resultado === 'aprobado') return true;
@@ -1044,6 +1055,8 @@ app.component('case-task-modal', {
             this.cargandoObligaciones = false;
             this.errorObligaciones = null;
             this.entityName = '';
+            this.intentosPrevios = 0;
+            this.cargandoIntentos = false;
 
             try {
                 const res = await fetch('/api/v1/case-tasks/' + taskId);
@@ -1125,6 +1138,8 @@ app.component('case-task-modal', {
             this.cargandoObligaciones = false;
             this.errorObligaciones = null;
             this.entityName = '';
+            this.intentosPrevios = 0;
+            this.cargandoIntentos = false;
             this.articulacionCtx = {
                 barrierId: '',
                 caseId: '',
@@ -1307,6 +1322,37 @@ app.component('case-task-modal', {
             // Sin efecto: el formulario guarda sus secciones por su cuenta.
         },
 
+        _contarIntentosFallidos(tasks) {
+            var n = 0;
+            (tasks || []).forEach(function(t) {
+                if (!t || t.type !== 'intentar_contacto_3x3' || t.status !== 'Done') return;
+                var fd = t.formData;
+                if (typeof fd === 'string') {
+                    try { fd = JSON.parse(fd); } catch (e) { fd = null; }
+                }
+                if (fd && fd.contesto === 'no') n += 1;
+            });
+            return n;
+        },
+
+        async _cargarIntentosContacto() {
+            this.intentosPrevios = 0;
+            var id = this.tarea && this.tarea.emergencyMeasureReferralId;
+            if (!id) return;
+            this.cargandoIntentos = true;
+            try {
+                const res = await fetch('/api/v1/case-tasks?referralId=' + encodeURIComponent(id));
+                if (res.status === 401) { window.location.href = '/static/landing.html'; return; }
+                if (!res.ok) return;
+                const data = await res.json();
+                this.intentosPrevios = this._contarIntentosFallidos(Array.isArray(data) ? data : []);
+            } catch (e) {
+                this.intentosPrevios = 0;
+            } finally {
+                this.cargandoIntentos = false;
+            }
+        },
+
         /* ── Init formulario por tipo ────────────────────────────────────── */
 
         _initForm() {
@@ -1316,7 +1362,8 @@ app.component('case-task-modal', {
                     this.cargarAgentesMedidas();
                     break;
                 case 'intentar_contacto_3x3':
-                    this.form = { contesto: '', nota: '' };
+                    this.form = { contesto: '', nota: '', accion: '' };
+                    this._cargarIntentosContacto();
                     break;
                 case 'entrevista_caracterizacion': {
                     // Flujo de 3 pasos con estado interno en this.form:
@@ -1990,11 +2037,19 @@ app.component('case-task-modal', {
                     };
                 case 'asignar_agente_medidas':
                     return { agentId: f.agentId };
-                case 'intentar_contacto_3x3':
-                    return {
+                case 'intentar_contacto_3x3': {
+                    var contacto = {
                         contesto: f.contesto,
                         nota: String(f.nota || '').trim(),
                     };
+                    if (f.contesto === 'no' && this.intentoContacto === 9 && f.accion === 'cerrar') {
+                        contacto.cerrar = true;
+                    }
+                    if (f.contesto === 'no' && this.intentoContacto >= 10) {
+                        contacto.cerrar = true;
+                    }
+                    return contacto;
+                }
                 case 'entregar_medida_inmediata':
                     return {
                         medidas: (f.medidas || []).slice(),
@@ -3091,9 +3146,18 @@ app.component('case-task-modal', {
         <template v-else-if="tarea && tarea.type === 'intentar_contacto_3x3'">
             <p class="ctm-label" style="margin-bottom:10px">¿Contestó?</p>
             <div style="display:flex;gap:10px;margin-bottom:16px">
-                <button type="button" class="ctm-btn ctm-btn-confirm" :style="form.contesto === 'si' ? '' : 'background:#fff;color:#166534;border:1px solid #86efac'" @click="form.contesto = 'si'">Sí</button>
+                <button type="button" class="ctm-btn ctm-btn-confirm" :style="form.contesto === 'si' ? '' : 'background:#fff;color:#166534;border:1px solid #86efac'" @click="form.contesto = 'si'; form.accion = ''">Sí</button>
                 <button type="button" class="ctm-btn ctm-btn-cancel" :style="form.contesto === 'no' ? 'background:#b91c1c;border-color:#b91c1c;color:#fff;font-weight:600;box-shadow:0 0 0 3px rgba(185,28,28,.28)' : 'background:#fff;color:#b91c1c;border:1px solid #fecaca'" @click="form.contesto = 'no'">No</button>
             </div>
+            <p v-if="cargandoIntentos" class="ctm-hint">Cargando intentos…</p>
+            <div v-else-if="form.contesto === 'no' && intentoContacto === 9" style="margin-bottom:16px">
+                <p class="ctm-label" style="margin-bottom:10px">El ciclo 3×3 está agotado</p>
+                <div style="display:flex;gap:10px;flex-wrap:wrap">
+                    <button type="button" class="ctm-btn ctm-btn-confirm" :style="form.accion === 'seguir' ? '' : 'background:#fff;color:#1d4ed8;border:1px solid #bfdbfe'" @click="form.accion = 'seguir'">Seguir intentando</button>
+                    <button type="button" class="ctm-btn ctm-btn-cancel" :style="form.accion === 'cerrar' ? 'background:#b91c1c;border-color:#b91c1c;color:#fff;font-weight:600;box-shadow:0 0 0 3px rgba(185,28,28,.28)' : 'background:#fff;color:#b91c1c;border:1px solid #fecaca'" @click="form.accion = 'cerrar'">Cerrar remisión por no contacto</button>
+                </div>
+            </div>
+            <p v-else-if="form.contesto === 'no' && intentoContacto >= 10" class="ctm-hint" style="color:#b91c1c">Este es el intento 10. Al guardar se cierra la remisión por no contacto.</p>
             <div class="ctm-field">
                 <label class="ctm-label">Nota</label>
                 <input class="ctm-input" type="text" maxlength="500" v-model="form.nota" placeholder="Ej: No contesta, fuera de área...">
@@ -3317,7 +3381,7 @@ app.component('case-task-modal', {
                     Confirmar decisión
                 </template>
                 <template v-else-if="tarea && tarea.type === 'intentar_contacto_3x3'">
-                    Guardar
+                    \${ form.contesto === 'no' && (intentoContacto >= 10 || (intentoContacto === 9 && form.accion === 'cerrar')) ? 'Cerrar remisión por no contacto' : 'Guardar' }
                 </template>
                 <template v-else-if="tarea && tarea.type === 'entrevista_caracterizacion'">
                     Guardar

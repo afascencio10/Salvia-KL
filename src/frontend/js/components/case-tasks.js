@@ -46,10 +46,8 @@
         .ct-intentos { border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:16px;background:#fff }
         .ct-intentos-head { display:flex;align-items:center;gap:10px;flex-wrap:wrap }
         .ct-intentos-head strong { font-size:.9rem;color:#111827 }
-        .ct-intentos-dots { display:flex;gap:6px }
-        .ct-intento-dot { width:10px;height:10px;border-radius:50%;background:#e5e7eb }
-        .ct-intento-dot.is-on { background:#6b7280 }
         .ct-intentos-count { margin-left:auto;font-size:.84rem;font-weight:700;color:#6b7280 }
+        .ct-intentos-count.is-limite { color:#dc2626 }
         .ct-intentos p { margin:8px 0 0;font-size:.82rem;color:#9ca3af }
         .ct-modal-backdrop { position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:10000 }
         .ct-modal { background:#fff;border-radius:12px;width:95%;max-width:550px;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,.2) }
@@ -143,7 +141,12 @@ app.component('case-tasks', {
                 }
                 if (fd && fd.contesto === 'no') n += 1;
             });
-            return n > 3 ? 3 : n;
+            return n;
+        },
+        intentosEtiqueta: function() {
+            var n = this.intentosFallidos;
+            if (n >= 10) return '10/10';
+            return n + '/9';
         },
     },
     mounted: function() {
@@ -499,12 +502,7 @@ app.component('case-tasks', {
         <div v-if="referralId" class="ct-intentos">
             <div class="ct-intentos-head">
                 <strong>Intentos de contacto fallidos (3×3)</strong>
-                <span class="ct-intentos-dots">
-                    <span class="ct-intento-dot" :class="{ 'is-on': intentosFallidos >= 1 }"></span>
-                    <span class="ct-intento-dot" :class="{ 'is-on': intentosFallidos >= 2 }"></span>
-                    <span class="ct-intento-dot" :class="{ 'is-on': intentosFallidos >= 3 }"></span>
-                </span>
-                <span class="ct-intentos-count">\${ intentosFallidos }/3</span>
+                <span class="ct-intentos-count" :class="{ 'is-limite': intentosFallidos >= 9 }">\${ intentosEtiqueta }</span>
             </div>
             <p v-if="intentosFallidos === 0">Sin intentos registrados.</p>
         </div>

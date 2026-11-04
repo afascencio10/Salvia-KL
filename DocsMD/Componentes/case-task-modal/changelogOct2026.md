@@ -91,5 +91,9 @@ Si no contestó, el intento queda cerrado. En el primero y en el segundo nace ot
 
 Arriba de las tareas de la remisión se ven los intentos fallidos, de 0 a 3.
 
+## 2026-11-04 — Ciclo 3×3 hasta 9
+
+El contacto de medidas ya no se cierra al tercer «No». Del 1 al 8 nace otro `intentar_contacto_3x3`. En el 9 el agente elige seguir, y nace el intento 10, o cerrar. En el 10 se cierra siempre. Cerrar deja la remisión en `cerrada_por_no_contacto` y las medidas `ACTIVE` en `CLOSED`. Un intento por encima de 10 se rechaza. El aviso de las tareas muestra `N/9`, o `10/10` si usaron el intento extra.
+
 
 

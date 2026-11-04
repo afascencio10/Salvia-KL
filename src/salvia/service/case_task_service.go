@@ -1159,9 +1159,12 @@ func (s *caseTaskService) completeIntentarContacto3x3(ctx context.Context, task 
 				return fmt.Errorf("CompleteWithFormData: contar intentos: %w", err)
 			}
 			numero = previos + 1
-			if numero >= 3 {
+			if numero > 10 {
+				return fmt.Errorf("CompleteWithFormData: se alcanzó el máximo de intentos")
+			}
+			cerrarPedido, _ := fd["cerrar"].(bool)
+			if numero >= 10 || (numero == 9 && cerrarPedido) {
 				cerrar = true
-				numero = 3
 				res := tx.Exec(`
 					UPDATE salvia.emergency_measure_referral
 					   SET status = ?,
@@ -1218,11 +1221,11 @@ func (s *caseTaskService) completeIntentarContacto3x3(ctx context.Context, task 
 	tipo := models.TimelineTypeContactoVictima
 	evento := models.TimelineEventContactoVictima
 	if contesto == "no" && cerrar {
-		descripcion = models.TimelineDescCierreNoContacto
+		descripcion = fmt.Sprintf(models.TimelineDescCierreNoContacto, numero)
 		tipo = models.TimelineTypeCierreNoContacto
 		evento = models.TimelineEventCierreNoContacto
 	} else if contesto == "no" {
-		descripcion = fmt.Sprintf("Intento de contacto fallido (%d de 3).", numero)
+		descripcion = fmt.Sprintf("Intento de contacto fallido (%d de 9).", numero)
 		tipo = models.TimelineTypeIntentoFallido
 		evento = models.TimelineEventIntentoFallido
 	}

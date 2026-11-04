@@ -83,7 +83,7 @@ const (
 	TimelineDescAgenteMedidasAsignado   = "Se asignó el agente de medidas."
 	TimelineDescRemisionDescartada      = "El agente de seguimiento descartó la remisión."
 	TimelineDescContactoVictima         = "La víctima contestó. Se abrió la entrevista de caracterización."
-	TimelineDescCierreNoContacto        = "Se cerró la remisión por no contacto tras 3 intentos fallidos."
+	TimelineDescCierreNoContacto        = "Se cerró la remisión por no contacto tras %d intentos fallidos."
 
 	TimelineTypeMesaTecnicaAbierta = "Mesa técnica abierta"
 )

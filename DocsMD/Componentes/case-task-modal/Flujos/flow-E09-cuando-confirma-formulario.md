@@ -108,16 +108,22 @@ INPUT: {
 
   CASO 'intentar_contacto_3x3':
     formularioValido exige Sí o No. La nota puede ir vacía.
+    En el 9, si no contestó, también exige seguir o cerrar.
     confirmar() llama a PUT /api/v1/case-tasks/:id/complete
-    con formData { contesto, nota }.
+    con formData { contesto, nota } y, si cierra en el 9 o en el 10, cerrar true.
     La remisión tiene que estar en asignada.
     Si contestó, se crea entrevista_caracterizacion para el mismo agente
     y el timeline queda "Contacto con la víctima".
-    Si no contestó y van menos de tres, se crea otro intentar_contacto_3x3
-    y el timeline queda "Intento de contacto fallido" con el número.
-    A la tercera, la remisión pasa a cerrada_por_no_contacto,
+    Si no contestó y van del 1 al 8, se crea otro intentar_contacto_3x3
+    y el timeline queda "Intento de contacto fallido (N de 9)".
+    Un cerrar enviado antes del 9 se ignora y también nace el siguiente intento.
+    En el 9, Guardar exige Seguir intentando o Cerrar remisión por no contacto.
+    Seguir crea el intento 10. Cerrar envía cerrar true:
+    la remisión pasa a cerrada_por_no_contacto,
     las medidas ACTIVE pasan a CLOSED y no nace otra tarea.
-    El timeline queda "Remisión cerrada por no contacto".
+    En el 10 no hay seguir: al guardar se cierra igual, aunque no llegue cerrar.
+    Un intento por encima de 10 se rechaza.
+    El timeline de cierre dice cuántos intentos fallidos hubo.
     Esta tarea queda Done.
     Un fallo del timeline no revierte el intento.
 
